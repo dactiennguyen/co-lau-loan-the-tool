@@ -329,6 +329,27 @@ Giao thức dùng **hai không gian opcode**: client→server đánh số nhỏ,
 - Khung dây tương ứng (mục 7.2) dùng 1 byte opcode ở lớp vận chuyển (`01`) + "PT01"; opcode nghiệp vụ ở bảng này nằm trong `sqi`, là lớp cao hơn.
 - **Không** giải mã nội dung credential: gói đăng nhập (`op=1206`) mang khối mã hoá — tài liệu chỉ ghi *cấu trúc và vai trò*, không ghi giá trị bí mật.
 
+### 8.4 Kích thước & vai trò gói dữ liệu game [Quan sát]
+
+Bắt bằng cách dump `sqi` tại `sqje.a` / `sqnw.a`, **loại trừ** opcode login (-1, 5, 1206) và heartbeat (1). Kích thước (`len`) đọc từ con trỏ trong `sqi` là **tin cậy**:
+
+| Chiều | Opcode | Kích thước | Vai trò suy ra |
+|---|---|---|---|
+| SEND | 2, 3 | ~rỗng | request đơn (chỉ opcode) |
+| SEND | 30 | 1 B | request cờ/flag |
+| SEND | 43 | 6 B | request có tham số nhỏ |
+| SEND | 29, 42 | 10 B | request |
+| SEND | 11 | 11 B | request |
+| SEND | 9 | 16 B | request |
+| SEND | 4 | 64 B | request lớn (danh sách tham số) |
+| **RECV** | **1263** | **4776 B × 18 gói** (~86 KB) | **khối dữ liệu bản đồ/thế giới** — khớp chuỗi `1263: khoi ... 1167 id`, `colau cacher ... get map resource` |
+
+### 8.5 Giới hạn của việc đọc nội dung gói
+
+- **Kích thước gói**: đọc được tin cậy.
+- **Nội dung byte từng gói**: **không** đọc tin cậy tại điểm hook `sqje.a`/`sqnw.a` — buffer trong `sqi` được **nạp/giải mã lười** (handler đọc dần qua các hàm `get`), nên lúc hook buffer còn rỗng (toàn `00`). Muốn lấy nội dung thật phải hook điểm khác (sau khi handler nạp xong, hoặc các hàm `get`/giải mã của `sqi`), hoặc dịch ngược native — **chưa làm**.
+- **Nội dung gói login** (`op=1206`): **cố tình không đọc** — đây là credential; việc đọc payload này đã bị hệ thống chặn ("credential materialization") và mình tôn trọng ranh giới đó.
+
 ---
 
 ## Phụ lục: định danh runtime
