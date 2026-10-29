@@ -81,7 +81,7 @@ String trong `.so` không bị mã hoá. Native-obfuscator gom chúng vào `stri
 | Nhãn phân tích | player_move |
 | Xuất hiện khi | Nhân vật đang chạy/nhảy/rơi; ~100–130 ms một gói; đứng yên thì không gửi |
 | Bố cục payload | `i32 x; i32 y; i32 state; u8 f0; u8 f1; u8 f2; u8 f3; u8 f4` (17 byte). x/y theo đơn vị server (ô 32); client vẽ = ×1,5 ([06](06-map-mobs.md#toạ-độ-và-di-chuyển)) |
-| Độ chắc chắn | x/y và tần suất [Đo]: id 155 trong s2c/1262 trùng đúng x/y này. `state` 0 đứng, 1 chạy, 5 lên, 6 rơi [Suy luận theo chuỗi khi nhảy]. 5 byte cuối [Chưa rõ] |
+| Độ chắc chắn | x/y và tần suất [Đo]: id 155 trong s2c/1262 trùng đúng x/y này. `state` 0 đứng, 1 chạy, 5 lên, 6 rơi, 7 chạm đất; byte 3 (f2) = hướng trái, byte 4 (f3) = hướng phải [Đo bằng joystick, xem [09-players-chat](09-players-chat.md#own-move)]. f0, f1, f4 [Chưa rõ] |
 
 ```text
 000000ec 000000ff 00000005 01 00 00 01 00     x=236, y=255, state=5

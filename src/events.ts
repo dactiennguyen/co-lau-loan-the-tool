@@ -1,6 +1,7 @@
 import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof,
   sessionKey, notification, characterPrefix, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
+import { moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, zoneList, worldMap } from './world.ts';
 
 export type Direction = 'c2s' | 's2c';
 export type Phase = 'boot' | 'login' | 'world' | 'push';
@@ -45,12 +46,16 @@ event('c2s', 42, 'character_extra_request', 'world', 'Đã nhận skills_data', 
 event('s2c', 42, 'character_extra', 'world', 'Trả character_extra_request', 'c2s/29', 'Prefix string; phần còn lại opaque', 'Vai trò chưa chốt; prefix chuỗi quan sát từ length/bytes');
 event('c2s', 29, 'location_request', 'world', 'Đã nhận character_extra', 's2c/29', 'string characterName');
 event('s2c', 29, 'character_location', 'world', 'Trả location_request', 'c2s/11', 'string characterName; string mapId; i32 field');
-event('c2s', 11, 'map_request', 'world', 'Đã có mapId', 's2c/11', 'string mapId; u8 area=-1 (ff); i32 field=-1');
-event('s2c', 11, 'map_data', 'world', 'Trả map_request', 'c2s/43', 'u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; opaque tail', 'Getter/offset đã đo; x/y và kích thước lưới là suy luận; không gán tên các field còn lại');
+event('c2s', 11, 'map_request', 'world', 'Đã có mapId; mapId "M99" khi mở Bản đồ thế giới', 's2c/11', 'string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1');
+event('s2c', 11, 'map_data', 'world', 'Trả map_request', 'c2s/43', 'flag 1: u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; opaque tail. flag 0 ("M99"): string "M99"; i32 n; n * {i32 index; string mapId; 17 byte 0; u8 locked; 8 byte 0}; i32 n; n * {i32 index; i32 levelRequired}', 'Getter/offset đã đo; x/y và kích thước lưới là suy luận; nhánh M99 đọc hết 1132 byte, cấp yêu cầu khớp nhãn Lv. trên bản đồ');
 event('c2s', 43, 'entities_request', 'world', 'Đã nhận map_data', 's2c/43 và snapshot 1263', 'string mapId');
 event('s2c', 43, 'entities_data', 'world', 'Trả entities_request', 'Đồng bộ push thế giới; không gửi ACK nguyên gói', 'Prefix string mapId; u8 field; string entityId,label; opaque tail', 'Prefix thấy trong bytes; ý nghĩa u8 field chưa chốt');
 
-const pushes: [number, string, string, string][] = [
+event('c2s', 1169, 'player_move', 'world', 'Nhân vật đang chạy/nhảy/rơi; ~110 ms một gói', 'Server phát lại trong s2c/1262', 'i32 x; i32 y; i32 state; u8 flags[5]', 'Đo bằng thao tác joystick: state 0 đứng, 1 chạy, 5 lên, 6 rơi, 7 chạm đất; flags[2] trái, flags[3] phải');
+event('c2s', 1172, 'zone_list_request', 'world', 'Mở bảng chọn khu', 's2c/1172', 'Rỗng');
+event('s2c', 1172, 'zone_list', 'world', 'Trả zone_list_request', 'Người chơi chọn khu: c2s/1173', 'u8 n; n * {u8 zone; u8 load; u8 players; u8 capacity}', 'Đo: khớp từng ô "Dân số" trên màn hình; load 0/1/2 theo số người');
+
+const pushes: [number, string, string, string, string?][] = [
   [1259, 'config_1259', 'Sau c2s/4, trước s2c/4', '5 byte cấu hình, opaque'],
   [1265, 'config_1265', 'Sau c2s/4', '30 byte cấu hình, opaque'],
   [1269, 'config_1269', 'Sau c2s/4', '30 byte cấu hình, opaque'],
@@ -61,19 +66,22 @@ const pushes: [number, string, string, string][] = [
   [1195, 'flag_1195', 'Trong đồng bộ nhân vật', 'u8 field'],
   [1220, 'flag_1220', 'Trong đồng bộ nhân vật', 'u8 field'],
   [1177, 'map_special_entity', 'Sau c2s/43', 'Prefix string mapId; có tên Thủ Lĩnh Sơn Tặc; opaque tail'],
-  [1263, 'players_snapshot', 'Sau c2s/43 trong mẫu', 'Prefix u16 field0, u8 field2, string firstName; opaque tail'],
-  [1262, 'entity_updates', 'Push thường xuyên khi ở bản đồ', 'Giả thuyết: u16 field0; u16 count; count * 16 byte (i32 n1,n2,n3; u8 b1,b2; u16 n4)'],
-  [1253, 'update_1253', 'Push thế giới', '17 byte trong mẫu, opaque'],
-  [1184, 'update_1184', 'Push thế giới', '108 byte trong mẫu, opaque'],
-  [1182, 'entity_1182', 'Push thế giới', 'Prefix string mapId; phần còn lại opaque'],
-  [1183, 'entity_1183', 'Push thế giới', 'string mapId; string entityKey; phần còn lại opaque'],
-  [1170, 'update_1170', 'Push thế giới', 'i32 field; ý nghĩa chưa rõ'],
-  [1167, 'entity_1167', 'Push thế giới', 'u8 field; string name; i32 numericId; opaque tail'],
-  [1166, 'update_1166', 'Push thế giới', '28 byte trong mẫu, opaque'],
+  [1263, 'players_snapshot', 'Sau c2s/43: mọi người chơi khác trong khu', 'u16 n; n * {player record; status như s2c/1212}', 'Đọc hết byte; số bản ghi + mình = "Dân số" của khu trong s2c/1172'],
+  [1262, 'player_positions', 'Mỗi 100 ms khi có người đổi vị trí', 'u16 tickMs=100; u16 n; n * {i32 id; i32 x; i32 y; u8 state; u8 flags; u16 field14}', 'Đo: bản ghi id của mình lặp đúng x/y/state của c2s/1169; flags = bitmask flags[0..3] của 1169; field14 chưa rõ'],
+  [1253, 'player_hp', 'Người chơi khác đổi HP/cấp/trang bị', 'i32 id; i32 level; i32 hp; i32 maxHp; u8 field', 'Đo: maxHp giảm theo từng món tháo ở s2c/1166, cấp tăng khi lên cấp'],
+  [1184, 'ground_items', 'Vào map: vật phẩm đang nằm trên đất', 'string mapId; i32 n; n * item record (như s2c/1182)', 'Đọc hết byte; vai trò vật phẩm rơi là suy luận'],
+  [1182, 'ground_item_add', 'Có vật phẩm rơi xuống đất', 'string mapId; item record: u8 0xfe; i32 itemId; string uuid; i32; i32 durability; i32 quantity; u8; u8 grade; i32; u8; u8; u8 n; n * {i32 stat; i32 value}; i32 x; i32 y; i64 expiresAt', 'Đọc hết byte; rơi theo nhóm cách 32 đơn vị, hạn 600 s; tên "vật phẩm rơi" là suy luận'],
+  [1183, 'ground_item_remove', 'Vật phẩm bị nhặt hoặc hết hạn', 'string mapId; string uuid', 'uuid khớp s2c/1182 trước đó'],
+  [1170, 'player_leave', 'Người chơi rời khu; cặp 1170→1167 cùng mili giây là xuất hiện lại', 'i32 id'],
+  [1167, 'player_enter', 'Người chơi vào khu hoặc xuất hiện lại', 'player record: u8 kind; string name; i32 id; string displayName; u8; u8; i32 level,hp,maxHp,s1,s1Max; u16; i32 x,y; i32 gear[6]; appearance; i32 tagId; string tag; u8; u8', 'Đọc hết byte 60 mẫu; khối appearance (bảng màu) chưa đặt tên'],
+  [1166, 'player_gear', 'Người chơi khác đổi trang bị', 'i32 id; i32 gear[6]', 'Đo: 6 số trùng gear trong player record; tháo đồ thì về 0'],
+  [1212, 'player_status', 'Người chơi vào khu hoặc đổi trạng thái', 'i32 id; u8 mode; mode 2: u8 n; n * {u8; i32 effect; u8}; u8 / khác: {u8; i32 effect; u8}', 'Đọc hết byte; effect 9300..9302 chưa rõ nghĩa'],
+  [1205, 'world_chat', 'Có người chat kênh Thế giới', 'i32 senderId; string name; string text', 'Đo 3 tin; server che từ cấm bằng *'],
+  [45, 'boss_broadcast', 'Vào map và định kỳ', 'string text ("BOSS … đang ở <map>: khu …")'],
 ];
-for (const [op, name, trigger, schema] of pushes) {
+for (const [op, name, trigger, schema, confidence] of pushes) {
   event('s2c', op, name, 'push', trigger, 'Không có ACK riêng trong capture; tiếp tục đọc stream', schema,
-    'Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque');
+    confidence ?? 'Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque');
 }
 export const EVENTS = specs;
 export const eventKey = (direction: Direction, opcode: number) => `${direction}/${opcode}`;
@@ -93,7 +101,7 @@ function required<T>(value: T | undefined, name: string): T {
 export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
   const w = new Writer();
   switch (opcode) {
-    case -1: case 1: case 2: case 3: return w.build();
+    case -1: case 1: case 2: case 3: case 1172: return w.build();
     case 1206: return w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build();
     case 5: return w.i32(ctx.serverId ?? BASELINE.observedServerId).i32(-1).u8(1).build();
     case 4: return loginPayload(required(ctx.username, 'username'), passwordProof(required(ctx.challenge, 'challenge'), required(ctx.password, 'password')), ctx.serverId ?? BASELINE.observedServerId);
@@ -111,7 +119,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
   let fields: Record<string, unknown> = {};
   if (direction === 'c2s') {
     switch (opcode) {
-      case -1: case 1: case 2: case 3: break;
+      case -1: case 1: case 2: case 3: case 1172: break;
+      case 1169: fields = moveRequest(payload); r.take(payload.length); break;
       case 1206: fields = { platform: r.string(), protocolVersion: r.string(), field0: r.i32() }; break;
       case 5: fields = { serverId: r.i32(), field: r.i32(), flag: r.u8() }; break;
       case 4:
@@ -134,25 +143,30 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 3: fields = { challenge: r.bytes().toString('hex') }; break;
       case 5: fields = notification(payload); r.take(payload.length); break;
       case 9: fields = characterPrefix(payload); r.take(Number(fields.prefixBytes)); break;
-      case 11: fields = mapPrefix(payload); r.take(Number(fields.prefixBytes)); break;
+      case 11:
+        if (payload[0] === 0) { fields = worldMap(payload); r.take(payload.length); }
+        else { fields = mapPrefix(payload); r.take(Number(fields.prefixBytes)); }
+        break;
       case 29: fields = { characterName: r.string(), mapId: r.string(), field: r.i32() }; break;
       case 30: fields = { field0: r.i32(), firstId: r.i32(), firstLabel: r.string() }; break;
       case 42: fields = { firstLabel: r.string() }; break;
       case 43: fields = { mapId: r.string(), field: r.u8(), firstEntityId: r.string(), firstLabel: r.string() }; break;
       case 39: fields = { field0: r.i32(), title: r.string(), description: r.string() }; break;
       case 46: fields = { label: r.string() }; break;
-      case 1177: case 1182: fields = { mapId: r.string() }; break;
-      case 1183: fields = { mapId: r.string(), entityKey: r.string() }; break;
-      case 1170: fields = { field: r.i32() }; break;
-      case 1167: fields = { field: r.u8(), name: r.string(), numericId: r.i32() }; break;
-      case 1263: fields = { field0: r.take(2).readUInt16BE(), field2: r.u8(), firstName: r.string() }; break;
-      case 1262: {
-        const field0 = r.take(2).readUInt16BE(), count = r.take(2).readUInt16BE();
-        if (r.data.length !== 4 + count * 16) throw new Error('Unobserved 1262 record layout: expected 4 + count * 16 bytes');
-        const records = [];
-        for (let i = 0; i < count; i++) records.push({ n1: r.i32(), n2: r.i32(), n3: r.i32(), b1: r.u8(), b2: r.u8(), n4: r.take(2).readUInt16BE() });
-        fields = { interpretation: 'inferred-layout', field0, count, records }; break;
-      }
+      case 1177: fields = { mapId: r.string() }; break;
+      case 1182: fields = { mapId: r.string(), ...groundItem(r) }; break;
+      case 1184: { const mapId = r.string(), items = []; for (let n = r.i32(); n > 0; n--) items.push(groundItem(r)); fields = { mapId, items }; break; }
+      case 1183: fields = { mapId: r.string(), uuid: r.string() }; break;
+      case 1170: fields = { id: r.i32() }; break;
+      case 1166: fields = { id: r.i32(), gear: Array.from({ length: 6 }, () => r.i32()) }; break;
+      case 1253: fields = { id: r.i32(), level: r.i32(), hp: r.i32(), maxHp: r.i32(), field: r.u8() }; break;
+      case 1167: fields = playerRecord(r); break;
+      case 1212: fields = playerStatus(r); break;
+      case 1263: fields = playersSnapshot(payload); r.take(payload.length); break;
+      case 1262: fields = positions(payload); r.take(payload.length); break;
+      case 1172: fields = zoneList(payload); r.take(payload.length); break;
+      case 1205: fields = { senderId: r.i32(), name: r.string(), text: r.string() }; break;
+      case 45: fields = { text: r.string() }; break;
     }
   }
   return { name: spec?.name ?? 'unknown_event', fields, parsedBytes: r.offset, opaqueBytes: payload.length - r.offset, known: Boolean(spec) };

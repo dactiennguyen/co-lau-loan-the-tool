@@ -388,11 +388,13 @@ Nguồn: A2: packet đọc từ native reader, record 196.
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | players_snapshot |
-| Xuất hiện khi | Sau c2s/43 trong mẫu |
+| Xuất hiện khi | Sau c2s/43: mọi người chơi khác trong khu |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | Prefix u16 field0, u8 field2, string firstName; opaque tail |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | u16 n; n * {player record; status như s2c/1212} |
+| Độ chắc chắn | Đọc hết byte; số bản ghi + mình = "Dân số" của khu trong s2c/1172 |
 | Độ dài payload mẫu | 5059 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#s2c-1263).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -411,12 +413,31 @@ Nguồn: A2: packet đọc từ native reader, record 197.
 ```json
 {
   "values": {
-    "field0": 19,
-    "field2": 2,
-    "firstName": "xoai25"
+    "count": 19,
+    "players": [
+      "xoai25 #800 cấp 16 hp 195/209 (2887,672)",
+      "Konichioa #484 cấp 7 hp 17/64 (590,544)",
+      "ZzLuffyzZ #1011 cấp 6 hp 8/112 (623,640)",
+      "tieuyeu #1002 cấp 14 hp 312/312 (679,160) hiệu ứng 9301",
+      "Mrboyyy #953 cấp 10 hp 188/188 (3161,608)",
+      "TyCan #623 cấp 25 hp 170/170 (684,608)",
+      "LinhCun98 #68 cấp 21 hp 281/281 (720,608) hiệu ứng 9300",
+      "o0oTuyeto0o #180 cấp 16 hp 100/316 (566,416) hiệu ứng 9301",
+      "Baron #841 cấp 6 hp 52/60 (963,256)",
+      "duongly #1130 cấp 6 hp 127/136 (2624,672)",
+      "Trumpk #1192 cấp 3 hp 32/72 (1391,640)",
+      "KsXSMax #551 cấp 10 hp 161/181 (1543,640)",
+      "Kienspm06 #424 cấp 14 hp 176/188 (1798,640)",
+      "Zala88 #894 cấp 5 hp 70/70 (1015,256)",
+      "S1514 #653 cấp 21 hp 103/136 (661,597) hiệu ứng 9301",
+      "killer #1204 cấp 2 hp 40/44 (90,640)",
+      "senyn #1181 cấp 4 hp 151/151 (1480,640)",
+      "ThanhNhu #125 cấp 16 hp 235/235 (1931,533)",
+      "THANGTOCXOAN #951 cấp 6 hp 245/245 (1767,288)"
+    ]
   },
-  "bytesInterpreted": 13,
-  "bytesUnknown": 5046
+  "bytesInterpreted": 5059,
+  "bytesUnknown": 0
 }
 ```
 
@@ -429,12 +450,14 @@ Nguồn: A2: packet đọc từ native reader, record 197.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | entity_updates |
-| Xuất hiện khi | Push thường xuyên khi ở bản đồ |
+| Nhãn phân tích | player_positions |
+| Xuất hiện khi | Mỗi 100 ms khi có người đổi vị trí |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | Giả thuyết: u16 field0; u16 count; count * 16 byte (i32 n1,n2,n3; u8 b1,b2; u16 n4) |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | u16 tickMs=100; u16 n; n * {i32 id; i32 x; i32 y; u8 state; u8 flags; u16 field14} |
+| Độ chắc chắn | Đo: bản ghi id của mình lặp đúng x/y/state của c2s/1169; flags = bitmask flags[0..3] của 1169; field14 chưa rõ |
 | Độ dài payload mẫu | 52 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#s2c-1262).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -451,33 +474,31 @@ Nguồn: A2: packet đọc từ native reader, record 174.
 ```json
 {
   "values": {
-    "interpretation": "inferred-layout",
-    "field0": 100,
-    "count": 3,
-    "records": [
+    "tickMs": 100,
+    "players": [
       {
-        "n1": 1130,
-        "n2": 2575,
-        "n3": 655,
-        "b1": 1,
-        "b2": 8,
-        "n4": 96
+        "id": 1130,
+        "x": 2575,
+        "y": 655,
+        "state": 1,
+        "flags": 8,
+        "field14": 96
       },
       {
-        "n1": 125,
-        "n2": 1749,
-        "n3": 604,
-        "b1": 5,
-        "b2": 9,
-        "n4": 50
+        "id": 125,
+        "x": 1749,
+        "y": 604,
+        "state": 5,
+        "flags": 9,
+        "field14": 50
       },
       {
-        "n1": 800,
-        "n2": 2792,
-        "n3": 672,
-        "b1": 1,
-        "b2": 10,
-        "n4": 15
+        "id": 800,
+        "x": 2792,
+        "y": 672,
+        "state": 1,
+        "flags": 10,
+        "field14": 15
       }
     ]
   },
@@ -495,12 +516,14 @@ Nguồn: A2: packet đọc từ native reader, record 174.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | update_1253 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | player_hp |
+| Xuất hiện khi | Người chơi khác đổi HP/cấp/trang bị |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | 17 byte trong mẫu, opaque |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | i32 id; i32 level; i32 hp; i32 maxHp; u8 field |
+| Độ chắc chắn | Đo: maxHp giảm theo từng món tháo ở s2c/1166, cấp tăng khi lên cấp |
 | Độ dài payload mẫu | 17 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#s2c-1166).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -516,9 +539,15 @@ Nguồn: A1: packet đọc từ native reader, record 158.
 
 ```json
 {
-  "values": {},
-  "bytesInterpreted": 0,
-  "bytesUnknown": 17
+  "values": {
+    "id": 1096,
+    "level": 9,
+    "hp": 50,
+    "maxHp": 72,
+    "field": 0
+  },
+  "bytesInterpreted": 17,
+  "bytesUnknown": 0
 }
 ```
 
@@ -531,12 +560,14 @@ Nguồn: A1: packet đọc từ native reader, record 158.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | update_1184 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | ground_items |
+| Xuất hiện khi | Vào map: vật phẩm đang nằm trên đất |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | 108 byte trong mẫu, opaque |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | string mapId; i32 n; n * item record (như s2c/1182) |
+| Độ chắc chắn | Đọc hết byte; vai trò vật phẩm rơi là suy luận |
 | Độ dài payload mẫu | 108 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#ground-items).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -552,9 +583,39 @@ Nguồn: A1: packet đọc từ native reader, record 175.
 
 ```json
 {
-  "values": {},
-  "bytesInterpreted": 0,
-  "bytesUnknown": 108
+  "values": {
+    "mapId": "M1",
+    "items": [
+      {
+        "flag": 254,
+        "itemId": 54,
+        "uuid": "d3c92c03-d3e9-4df8-b89c-cd75c4034e52",
+        "field0": 0,
+        "durability": 60,
+        "quantity": 1,
+        "field1": 0,
+        "grade": 2,
+        "field2": 0,
+        "field3": 0,
+        "field4": 1,
+        "stats": [
+          {
+            "stat": 6,
+            "value": 3
+          },
+          {
+            "stat": 9,
+            "value": 70
+          }
+        ],
+        "x": 2103,
+        "y": 608,
+        "expiresAt": 1793287003190
+      }
+    ]
+  },
+  "bytesInterpreted": 108,
+  "bytesUnknown": 0
 }
 ```
 
@@ -567,12 +628,14 @@ Nguồn: A1: packet đọc từ native reader, record 175.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | entity_1182 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | ground_item_add |
+| Xuất hiện khi | Có vật phẩm rơi xuống đất |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | Prefix string mapId; phần còn lại opaque |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | string mapId; item record: u8 0xfe; i32 itemId; string uuid; i32; i32 durability; i32 quantity; u8; u8 grade; i32; u8; u8; u8 n; n * {i32 stat; i32 value}; i32 x; i32 y; i64 expiresAt |
+| Độ chắc chắn | Đọc hết byte; rơi theo nhóm cách 32 đơn vị, hạn 600 s; tên "vật phẩm rơi" là suy luận |
 | Độ dài payload mẫu | 88 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#ground-items).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -589,10 +652,25 @@ Nguồn: A1: packet đọc từ native reader, record 189.
 ```json
 {
   "values": {
-    "mapId": "M1"
+    "mapId": "M1",
+    "flag": 254,
+    "itemId": 41,
+    "uuid": "39ecfda4-d7d5-428a-a745-b56c74dbbe4d",
+    "field0": 0,
+    "durability": -1,
+    "quantity": 133,
+    "field1": 0,
+    "grade": 255,
+    "field2": 0,
+    "field3": 0,
+    "field4": 0,
+    "stats": [],
+    "x": 1879,
+    "y": 608,
+    "expiresAt": 1793287014796
   },
-  "bytesInterpreted": 6,
-  "bytesUnknown": 82
+  "bytesInterpreted": 88,
+  "bytesUnknown": 0
 }
 ```
 
@@ -605,12 +683,14 @@ Nguồn: A1: packet đọc từ native reader, record 189.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | entity_1183 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | ground_item_remove |
+| Xuất hiện khi | Vật phẩm bị nhặt hoặc hết hạn |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | string mapId; string entityKey; phần còn lại opaque |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | string mapId; string uuid |
+| Độ chắc chắn | uuid khớp s2c/1182 trước đó |
 | Độ dài payload mẫu | 46 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#ground-items).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -628,7 +708,7 @@ Nguồn: A1: packet đọc từ native reader, record 219.
 {
   "values": {
     "mapId": "M1",
-    "entityKey": "d3c92c03-d3e9-4df8-b89c-cd75c4034e52"
+    "uuid": "d3c92c03-d3e9-4df8-b89c-cd75c4034e52"
   },
   "bytesInterpreted": 46,
   "bytesUnknown": 0
@@ -644,12 +724,14 @@ Nguồn: A1: packet đọc từ native reader, record 219.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | update_1170 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | player_leave |
+| Xuất hiện khi | Người chơi rời khu; cặp 1170→1167 cùng mili giây là xuất hiện lại |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | i32 field; ý nghĩa chưa rõ |
+| Bố cục payload | i32 id |
 | Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
 | Độ dài payload mẫu | 4 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#s2c-1167).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -666,7 +748,7 @@ Nguồn: A2: packet đọc từ native reader, record 217.
 ```json
 {
   "values": {
-    "field": 125
+    "id": 125
   },
   "bytesInterpreted": 4,
   "bytesUnknown": 0
@@ -682,12 +764,14 @@ Nguồn: A2: packet đọc từ native reader, record 217.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | entity_1167 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | player_enter |
+| Xuất hiện khi | Người chơi vào khu hoặc xuất hiện lại |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | u8 field; string name; i32 numericId; opaque tail |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | player record: u8 kind; string name; i32 id; string displayName; u8; u8; i32 level,hp,maxHp,s1,s1Max; u16; i32 x,y; i32 gear[6]; appearance; i32 tagId; string tag; u8; u8 |
+| Độ chắc chắn | Đọc hết byte 60 mẫu; khối appearance (bảng màu) chưa đặt tên |
 | Độ dài payload mẫu | 260 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#player-record).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -706,12 +790,38 @@ Nguồn: A2: packet đọc từ native reader, record 241.
 ```json
 {
   "values": {
-    "field": 2,
+    "kind": 2,
     "name": "Neoxw",
-    "numericId": 877
+    "id": 877,
+    "displayName": "Neoxw",
+    "flag1": 2,
+    "flag2": 0,
+    "level": 4,
+    "hp": 52,
+    "maxHp": 52,
+    "s1": 0,
+    "s1Max": 100,
+    "field": 0,
+    "x": 562,
+    "y": 416,
+    "gear": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "appearanceBytes": 171,
+    "tagId": 0,
+    "tag": "",
+    "tagFlags": [
+      0,
+      0
+    ]
   },
-  "bytesInterpreted": 14,
-  "bytesUnknown": 246
+  "bytesInterpreted": 260,
+  "bytesUnknown": 0
 }
 ```
 
@@ -724,12 +834,14 @@ Nguồn: A2: packet đọc từ native reader, record 241.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | update_1166 |
-| Xuất hiện khi | Push thế giới |
+| Nhãn phân tích | player_gear |
+| Xuất hiện khi | Người chơi khác đổi trang bị |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | 28 byte trong mẫu, opaque |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | i32 id; i32 gear[6] |
+| Độ chắc chắn | Đo: 6 số trùng gear trong player record; tháo đồ thì về 0 |
 | Độ dài payload mẫu | 28 byte |
+
+Bố cục đã kiểm trên mọi payload và giải thích: [09-players-chat](09-players-chat.md#s2c-1166).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -745,9 +857,19 @@ Nguồn: A1: packet đọc từ native reader, record 671.
 
 ```json
 {
-  "values": {},
-  "bytesInterpreted": 0,
-  "bytesUnknown": 28
+  "values": {
+    "id": 851,
+    "gear": [
+      90200,
+      70100,
+      80200,
+      -1,
+      0,
+      0
+    ]
+  },
+  "bytesInterpreted": 28,
+  "bytesUnknown": 0
 }
 ```
 
