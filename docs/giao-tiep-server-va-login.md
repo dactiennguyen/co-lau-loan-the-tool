@@ -296,6 +296,41 @@ Hook bằng Frida vào lớp AES `com.e.sqa` và `javax.crypto.spec.SecretKeySpe
 
 ---
 
+## 8. Bảng opcode (bắt sống bằng Frida)
+
+Hook 3 điểm trong chính bộ xử lý message của game (script `optable.js`, chỉ **đọc**, không sửa/chèn gì) [Quan sát runtime]:
+
+- `com.mh.n.sqi(opcode)` — mọi message được tạo kèm opcode (field opcode thật tên `a`).
+- `com.mh.sqje.a(sqi)` — gửi đi (client→server).
+- `com.mh.sqnw.a(int, sqi)` — điều phối gói nhận (int = opcode server→client).
+
+Giao thức dùng **hai không gian opcode**: client→server đánh số nhỏ, server→client đánh số lớn. Ý nghĩa dưới đây **suy từ tương quan thời gian** với hành động (login, rồi bấm menu) — [Suy luận], cần thêm mẫu để chắc.
+
+### 8.1 Client → Server [Quan sát opcode, Suy luận ý nghĩa]
+
+| Opcode | Thời điểm quan sát | Vai trò suy ra |
+|---|---|---|
+| `-1` | ngay sau bấm Đăng nhập | mở đầu bắt tay đăng nhập |
+| `1206` | ngay sau `-1` | gói xác thực đăng nhập (ứng với khối 64 byte mã hoá ở mục 7.2) |
+| `5` | tiếp theo khi login | bước login kế |
+| `1` | đều mỗi ~2s (rồi ~30s khi đã vào game) | **heartbeat/ping** (nguồn chỉ số Ping) |
+| `2,3,4,9,11,29,30,42,43` | burst ngay khi login xong | **xin dữ liệu khởi tạo** (nhân vật, túi đồ, bản đồ, nhiệm vụ, …) |
+| `13` | khi bấm menu / di chuyển | thao tác UI / tương tác |
+
+### 8.2 Server → Client [Quan sát opcode]
+
+| Opcode nhận | Thời điểm | Vai trò suy ra |
+|---|---|---|
+| `180, 243, 421, 427, 431, 564, 580, 876, 892, 927` | burst ngay sau khi gửi loạt xin dữ liệu | **trả dữ liệu khởi tạo** (trạng thái thế giới/nhân vật) |
+
+### 8.3 Ghi chú
+
+- Đây là **bảng một phần** — chỉ gồm opcode phát sinh trong: đăng nhập, đồng bộ khởi tạo, heartbeat, và vài thao tác menu. Muốn **đầy đủ** phải lần lượt dùng từng tính năng (combat, chợ, chat, cường hoá…) để kích hoạt thêm opcode; cách làm giữ nguyên.
+- Khung dây tương ứng (mục 7.2) dùng 1 byte opcode ở lớp vận chuyển (`01`) + "PT01"; opcode nghiệp vụ ở bảng này nằm trong `sqi`, là lớp cao hơn.
+- **Không** giải mã nội dung credential: gói đăng nhập (`op=1206`) mang khối mã hoá — tài liệu chỉ ghi *cấu trúc và vai trò*, không ghi giá trị bí mật.
+
+---
+
 ## Phụ lục: định danh runtime
 
 | Mục | Giá trị |
