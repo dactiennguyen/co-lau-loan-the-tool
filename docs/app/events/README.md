@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 47 gói theo cặp hướng/opcode. Trên dây không có tên event string gốc được xác minh; các tên như character_data chỉ là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 67 gói theo cặp hướng/opcode (47 từ boot/login/thế giới, 14 từ phiên đánh quái B1, 3 từ phiên bản đồ/khu B2, 3 từ bot đánh quái run4). Trên dây không có tên event string gốc được xác minh; các tên như character_data chỉ là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 ## Trình tự vào game
 
@@ -62,5 +62,31 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1170 | update_1170 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1170) |
 | s2c/1167 | entity_1167 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1167) |
 | s2c/1166 | update_1166 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1166) |
+| c2s/1169 | player_move | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-1169) |
+| c2s/15 | challenge_mob | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-15) |
+| s2c/22 | battle_setup | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#s2c-22) |
+| c2s/18 | battle_join | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-18) |
+| s2c/18 | battle_join_ack | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-18) |
+| s2c/24 | turn_state | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#s2c-24) |
+| c2s/14 | battle_step_request | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-14) |
+| c2s/19 | swap_pieces | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-19) |
+| s2c/19 | move_result | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#s2c-19) |
+| s2c/20 | skill_result | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#s2c-20) |
+| c2s/40 | battle_leave | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
+| s2c/10 | character_stats | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
+| s2c/36 | battle_end_36 | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
+| s2c/1214 | battle_end_1214 | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
+| c2s/1173 | change_zone | map | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
+| s2c/13 | zone_changed | map | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
+| s2c/45 | boss_broadcast | push | [Thông báo boss](06-map-mobs.md#thông-báo-boss-s2c45) |
+| s2c/34 | quest_progress | battle | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
+| s2c/1212 | battle_1212 | battle | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
+| s2c/1200 | battle_end_1200 | battle | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
+
+Liệt kê quái của map (`c2s/43` → `s2c/43`, hoặc đọc `sqhz.J.e` trong bộ nhớ), toạ độ, đổi khu và code va chạm (`sqhz.a18 → a17 → sqlq.a67`) xem ở [06-map-mobs.md](06-map-mobs.md).
+
+Đánh quái: nhân vật đi đè lên quái → C→S 15 → S→C 22 (bàn 8×8) → C→S 18 → lặp S→C 24 / C→S 19 hoặc 14 / S→C 19 hoặc 20. Chi tiết luật bàn, mã viên và đính chính 1262/1253 ở [05-battle.md](05-battle.md).
+
+Đánh quái là **online, server quyết định**. Bot có thể thách đấu từ xa và đánh cả trận chỉ bằng gói tin. Luật rơi/lấp đã kiểm, thuật toán chọn nước, và dữ liệu mẫu của một trận thắng ở [07-auto-battle.md](07-auto-battle.md).
 
 C→S và S→C là hướng truyền trên cùng socket. Thứ tự push/kích thước có thể đổi theo trạng thái thế giới; không dùng nguyên byte của phiên cũ làm giá trị cố định cho phiên mới.
