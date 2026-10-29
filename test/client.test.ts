@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { runClient } from '../src/client.ts';
+import { startSimulator } from './support/game-server.ts';
+import type { SimFault } from './support/game-server.ts';
+
+async function run(fault: SimFault = 'none') {
+  const events: Record<string, any>[] = [], serverEvents: Record<string, any>[] = [];
+  const server = await startSimulator({ fault, log: e => serverEvents.push(e) });
+  try {
+    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 120, log: e => events.push(e) });
+    return { result, events, serverEvents };
+  } finally { await server.close(); }
+}
+
+test('same app state machine completes real TCP replay of full captured responses', async () => {
+  const { result, events, serverEvents } = await run();
+  assert.equal(result.ok, true, JSON.stringify(events));
+  assert.deepEqual(events.filter(e => e.kind === 'send' && e.opcode !== 1).map(e => e.opcode), [-1, 1206, 5, 2, 3, 4, 9, 30, 42, 29, 11, 43]);
+  assert.ok(events.some(e => e.event === 's2c/1'));
+  const character = events.find(e => e.event === 's2c/9')!;
+  assert.equal(character.fields.hp, 120); assert.equal(character.fields.maxHp, 130);
+  assert.equal(character.labelSource, 'analyst'); assert.equal(character.protocolEventName, null);
+  assert.equal(events.find(e => e.event === 's2c/11')!.fields.tileBytes, 3588);
+  assert.equal(events.find(e => e.event === 's2c/30')!.payloadBytes, 23442);
+  assert.ok(events.some(e => e.event === 's2c/1182'));
+  assert.ok(events.some(e => e.event === 'world_initialization_received' && e.playersSnapshotReceived));
+  assert.ok(!events.some(e => e.event === 'schema_warning'));
+  const credential = events.find(e => e.event === 'c2s/4')!;
+  assert.equal(credential.redacted, true); assert.equal(credential.payloadHex, undefined);
+  assert.ok(!JSON.stringify(events).includes('707372'));
+  assert.ok(!serverEvents.some(e => e.event === 'sim_error'));
+  assert.equal(result.user.account, 'probe_user');
+  assert.equal(result.user.character?.name, 'manina');
+  assert.equal(result.user.location?.mapId, 'M1');
+  assert.equal(result.user.map?.name, 'Làng Thanh Khê');
+});
+
+for (const [fault, code, state] of [
+  ['bad-key', 'KEY_LAYOUT', 'key'], ['bad-frame', 'FRAME_LENGTH', 'version'],
+  ['bad-map', 'PAYLOAD_SCHEMA', 'map'], ['stall-map', 'RESPONSE_TIMEOUT', 'map'],
+  ['already-online', 'SERVER_MESSAGE', 'authenticating'],
+] as const) {
+  test(`diagnose ${fault} at the correct layer and stage`, async () => {
+    const { result, events } = await run(fault);
+    assert.equal(result.ok, false); assert.equal(result.diagnostic?.code, code); assert.equal(result.state, state);
+    if (fault === 'bad-map') assert.equal(result.diagnostic?.offset, 5);
+    if (fault === 'stall-map') assert.deepEqual(result.diagnostic?.expectedReceiveOpcodes, [11]);
+    if (fault === 'stall-map') assert.ok(events.filter(e => e.event === 's2c/1').length >= 2);
+    if (fault === 'already-online') assert.equal(result.diagnostic?.reason, 'Tài khoản hiện đang đăng nhập ở một nơi khác');
+  });
+}
+
+test('new opcode is reported and consumed without losing XOR stream position', async () => {
+  const { result, events } = await run('new-opcode');
+  assert.equal(result.ok, true); assert.ok(events.some(e => e.event === 'unknown_opcode' && e.encodedOpcode === 123456789));
+});

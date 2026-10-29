@@ -1,0 +1,16 @@
+{
+  "name": "colauloanthe-protocol-notes",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "start": "node --experimental-strip-types src/connect.ts",
+    "connect": "node --experimental-strip-types src/connect.ts",
+    "login": "node --experimental-strip-types src/connect.ts --login",
+    "world": "node --experimental-strip-types src/connect.ts --world",
+    "test:scenario": "node --experimental-strip-types test/scenario-runner.ts",
+    "check:apk": "node --experimental-strip-types src/check-apk.ts",
+    "check:capture": "node --experimental-strip-types src/check-capture.ts"
+  }
+}

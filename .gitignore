@@ -1,1 +1,12 @@
 *.apk
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+scratchpad/
+captures/
+reports/
+__pycache__/
+*.pyc
