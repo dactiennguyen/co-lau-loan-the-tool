@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Cờ Lau Loạn Thế",
+  "productName": "colautool",
   "mainBinaryName": "cllt-desktop",
   "version": "0.1.0",
   "identifier": "vn.colauloanthe.desktop",
@@ -37,7 +37,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": "all",
     "category": "Game",
     "shortDescription": "Quản lý nhiều nick Cờ Lau Loạn Thế",
     "icon": [

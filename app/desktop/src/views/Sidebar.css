@@ -9,6 +9,8 @@
   border-right: 1px solid var(--line);
 }
 .sidebar__drag { position: absolute; inset: 0 0 auto 0; height: 36px; }
+/* The 44 px top leaves room for the macOS window buttons. */
+:root:not([data-os="mac"]) .sidebar { padding-top: var(--space-4); }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
 .brand__logo {
   display: grid;

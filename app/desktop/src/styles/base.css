@@ -26,6 +26,9 @@ h1, h2, p { margin: 0; }
 
 .selectable { user-select: text; -webkit-user-select: text; }
 
+/* The strips that drag the window stand in for the macOS title bar; elsewhere the native one does that. */
+:root:not([data-os="mac"]) [data-tauri-drag-region] { display: none; }
+
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {

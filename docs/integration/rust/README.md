@@ -1,6 +1,6 @@
 # App Rust: nhiều nick, Tauri + TypeScript
 
-`app/` là app desktop thật (macOS: `Cờ Lau Loạn Thế.app`, mở bằng cách bấm đúp). Lõi giao thức và bot viết bằng Rust. Giao diện là project Tauri 2 chuẩn: React + TypeScript + Vite trong `app/desktop`, phần Rust trong `app/desktop/src-tauri`. Cách dùng:
+`app/` là app desktop thật: `colautool.app` trên macOS, mở bằng cách bấm đúp. Code cũng chạy được trên Windows và Linux, xem [Windows và Linux](#windows-và-linux). Bản cài cho cả ba hệ được build trên GitHub Actions, xem [CI/CD và phát hành](#cicd-và-phát-hành). Lõi giao thức và bot viết bằng Rust. Giao diện là project Tauri 2 chuẩn: React + TypeScript + Vite trong `app/desktop`, phần Rust trong `app/desktop/src-tauri`. Cách dùng:
 1. Thêm nhiều nick.
 2. Bấm đăng nhập: từng nick, hoặc tất cả cùng lúc.
 3. Khi vào được game, app hiện:
@@ -69,7 +69,8 @@ app/
                               PlayersCard, FightCard, LogCard, AddAccountDialog, EmptyState
       assets/fonts/           Chakra Petch (OFL), font tiêu đề và con số
     src-tauri/              crate cllt-desktop
-      tauri.conf.json         cửa sổ, CSP, bundle (.app, ký ad-hoc)
+      tauri.conf.json         cửa sổ, CSP, bundle (mọi định dạng của hệ đang build)
+      tauri.macos.conf.json   riêng macOS: chỉ đóng gói .app (ký ad-hoc)
       capabilities/           quyền của cửa sổ: sự kiện, kéo cửa sổ
       icons/                  sinh bằng `tauri icon`
       src/main.rs, lib.rs     điểm vào; lib.rs dựng app Tauri và đọc cờ dòng lệnh
@@ -87,7 +88,7 @@ Cần Rust 1.90 trở lên và Node 20 trở lên. App dùng Tauri 2.12, bản �
 
 ```bash
 npm install                                  # lần đầu
-npm run app                                  # đóng gói app/target/release/bundle/macos/Cờ Lau Loạn Thế.app; về sau bấm đúp file .app
+npm run app                                  # đóng gói vào app/target/release/bundle (macOS: macos/colautool.app); về sau bấm đúp
 npm run tauri dev                            # cửa sổ app với Vite dev server: sửa src/ là thấy ngay
 npm run tauri dev -- -- --login-all          # mở và đăng nhập mọi nick luôn (cờ sau `-- --` đi vào app)
 npm run tauri dev -- -- --sample             # dữ liệu mẫu, không kết nối
@@ -104,7 +105,15 @@ cargo run -p cllt-core --bin cllt -- status  # CLI không giao diện, để ki�
 cargo run -p cllt-core --bin cllt -- fight --target="Heo Mọi" --count=3 [--account=TÊN] [--max-losses=1]
 ```
 
-Có thể kéo file `.app` vào thư mục Applications. Khi chạy từ repo này, app đọc `app/accounts.json` và `data/maps.json` của repo. Nếu repo không còn ở chỗ cũ, app dùng `~/Library/Application Support/CoLauLoanThe/accounts.json` và bản `data/maps.json` đã đóng gói sẵn trong app.
+Có thể kéo file `.app` vào thư mục Applications. Khi chạy từ repo này, app đọc `app/accounts.json` và `data/maps.json` của repo. Nếu repo không còn ở chỗ cũ, app dùng bản `data/maps.json` đã đóng gói sẵn, và đọc `accounts.json` trong thư mục dữ liệu của app (Tauri `app_local_data_dir`, đặt tên theo identifier `vn.colauloanthe.desktop`):
+
+| Hệ | `accounts.json` |
+|---|---|
+| macOS | `~/Library/Application Support/vn.colauloanthe.desktop/accounts.json` |
+| Windows | `%LOCALAPPDATA%\vn.colauloanthe.desktop\accounts.json` |
+| Linux | `~/.local/share/vn.colauloanthe.desktop/accounts.json` (hoặc `$XDG_DATA_HOME/…`) |
+
+Biến `CLLT_ACCOUNTS` được ưu tiên hơn cả hai chỗ trên.
 
 `accounts.json` có dạng sau:
 
@@ -119,6 +128,54 @@ Có thể kéo file `.app` vào thư mục Applications. Khi chạy từ repo n�
 - Biến `CLLT_ACCOUNTS` đổi đường dẫn file.
 - Chưa có file thì app và CLI dùng tài khoản `CLLT_USERNAME`/`CLLT_PASSWORD` trong `.env` ở gốc repo. Tài khoản này không được chép sang `accounts.json`.
 - Mỗi nick **không được online ở máy khác**. Khi đó server trả `s2c/0`, và app hiện lỗi "Server từ chối: …" trên nick đó.
+
+### Windows và Linux
+
+Tauri không đóng gói chéo, nên phải build trên đúng hệ đó (máy thật, máy ảo hoặc CI). Các lệnh vẫn như trên, chạy trong `app/desktop`:
+
+| Hệ | Cần cài trước | `npm run app` cho ra |
+|---|---|---|
+| Windows 10/11 | Rust (MSVC), Visual Studio Build Tools có "Desktop development with C++", Node. WebView2 có sẵn trên Windows 10/11 | `bundle/nsis/*-setup.exe` và `bundle/msi/*.msi` |
+| Linux (Debian/Ubuntu) | Rust, Node, `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` | `bundle/deb/*.deb`, `bundle/rpm/*.rpm`, `bundle/appimage/*.AppImage` |
+
+Khác biệt giữa các hệ đều đã xử lý trong code:
+- **Đường dẫn:** `paths.rs` lấy thư mục dữ liệu từ Tauri, không tự ghép `~/Library/…`.
+- **Quyền file:** `accounts.json` chỉ chủ file đọc được (0600) trên macOS và Linux. Trên Windows, thư mục `%LOCALAPPDATA%` vốn đã chỉ của người dùng đó.
+- **Thanh tiêu đề:** macOS dùng thanh tiêu đề trong suốt (`titleBarStyle: Overlay`), nên phần trên của thanh bên chừa 44 px cho các nút cửa sổ và có dải kéo cửa sổ. Windows và Linux giữ thanh tiêu đề gốc; `main.tsx` đặt `data-os` để CSS bỏ khoảng chừa và dải kéo.
+- **Cửa sổ console:** bản release trên Windows không mở thêm console (`windows_subsystem` trong `main.rs`).
+
+## CI/CD và phát hành
+
+Có hai workflow trong `.github/workflows`, làm theo cách của [cockpit-tools](https://github.com/jlcodes99/cockpit-tools), nhưng chưa ký số và chưa có tự cập nhật:
+
+| Workflow | Chạy khi | Làm gì |
+|---|---|---|
+| [build-matrix.yml](../../../.github/workflows/build-matrix.yml) | push lên `main`, mở pull request, hoặc bấm tay (Run workflow) | `npm test`; `cargo fmt`, `cargo clippy -D warnings`, `cargo test` trên Ubuntu; qua hết mới build app trên 4 máy song song. File build nằm 14 ngày trong mục Artifacts của lần chạy |
+| [release.yml](../../../.github/workflows/release.yml) | đẩy tag `v*` | Kiểm tra tag khớp version, gọi build-matrix.yml, rồi tạo GitHub Release gồm mọi file, `SHA256SUMS.txt` và [ghi chú cài đặt](../../../.github/release-notes.md) |
+
+| Máy build | Target | File |
+|---|---|---|
+| `macos-latest` | `aarch64-apple-darwin` | `colautool_<version>_macos_aarch64.dmg` và `.app.zip` |
+| `macos-latest` (build chéo) | `x86_64-apple-darwin` | `colautool_<version>_macos_x64.dmg` và `.app.zip` |
+| `windows-latest` | `x86_64-pc-windows-msvc` | `colautool_<version>_windows_x64-setup.exe`, `.msi`, `_portable.exe` (chạy không cần cài) |
+| `ubuntu-22.04` | `x86_64-unknown-linux-gnu` | `colautool_<version>_linux_x64.deb`, `.rpm`, `.AppImage` |
+
+[stage-bundles.mjs](../../../.github/scripts/stage-bundles.mjs) đổi tên file Tauri sinh ra theo một mẫu chung, vì tên gốc lẫn lộn `x64`, `amd64`, `x86_64` và `en-US`.
+
+Phát hành một bản mới, ví dụ 0.1.1:
+1. Đặt `version` thành `0.1.1` ở cả ba chỗ: [app/Cargo.toml](../../../app/Cargo.toml), [app/desktop/package.json](../../../app/desktop/package.json), [tauri.conf.json](../../../app/desktop/src-tauri/tauri.conf.json). Nếu tag lệch với bất kỳ chỗ nào, release dừng ngay.
+2. Commit, rồi chạy `git tag v0.1.1 && git push origin main v0.1.1`.
+3. Release hiện ra sau khi 4 bản build và bước publish xong. Bản đã publish không bao giờ bị ghi đè. Bản nháp do một lần chạy lỗi để lại thì bị thay.
+
+Lưu ý:
+- **Tên app là `colautool`** (`productName`), không dấu. Tên có dấu làm hỏng hai loại bộ cài:
+  - WiX (`.msi`) chỉ nhận ký tự có trong code page 1252. "ờ", "ạ", "ế" không có trong 1252, và cũng không có trong 1258.
+  - `.deb`/`.rpm` lấy tên gói là `productName` viết kebab-case, mà dpkg chỉ nhận a–z, 0–9, `+`, `-`, `.`.
+
+  Tiêu đề cửa sổ vẫn là "Cờ Lau Loạn Thế". Identifier vẫn là `vn.colauloanthe.desktop`, nên thư mục chứa `accounts.json` không đổi.
+- **Chưa ký số:** macOS dùng chữ ký ad-hoc (`signingIdentity: "-"`), nên lần đầu người dùng phải chạy `xattr -cr /Applications/colautool.app`. Windows hiện cảnh báo SmartScreen. Muốn ký như cockpit-tools thì cần chứng chỉ Apple Developer ID và 6 secret `APPLE_*`.
+- **Rust 1.90 cố định** trong CI, để một lint clippy mới của bản stable sau không tự làm hỏng build.
+- **Đã thử trên máy (30/10/2026):** build macOS Apple Silicon bằng đúng lệnh của CI ra `colautool.app` 4,8 MB và `.dmg` 2,6 MB. Script gom file và bước kiểm tra tag chạy đúng. Bản Intel, Windows và Ubuntu chỉ build trên GitHub Actions và chưa có lần chạy nào.
 
 ## Giao diện
 
@@ -189,4 +246,5 @@ Thiết kế theo skill `ui-ux-pro-max`:
 - **Nhãn chỉ số:** "Tấn công" và "Phòng thủ" khớp số đo. "Chính xác", "Né tránh", "Chí mạng" và thứ tự Thân pháp / Nội lực / Thể lực là suy luận từ chuỗi giao diện của game ([user-data](../../app/user-data.md#đuôi-s2c9)).
 - **Vị trí:** là x/y lúc vào map. App không cho nhân vật đi lại, nên vị trí chỉ đổi khi sang map khác.
 - **Trang bị:** app không sửa trang bị có độ bền 0, vì chưa tìm ra gói sửa.
+- **Windows và Linux:** mới kiểm tra `cargo check` chéo của `cllt-core` cho `x86_64-pc-windows-msvc` và `x86_64-unknown-linux-gnu`. Phần Tauri chưa chạy thử trên hai hệ này; [build-matrix.yml](#cicd-và-phát-hành) sẽ là lần build đầu tiên.
 - **Chưa port:** app không mua bán, không chat, không đổi map, không làm nhiệm vụ. Bot nhiệm vụ, quét map và ghi `data/maps.json` vẫn chỉ có bên TS và sẽ được port theo quy trình trên.

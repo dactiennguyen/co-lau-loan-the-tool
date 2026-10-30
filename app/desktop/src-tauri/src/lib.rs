@@ -3,7 +3,8 @@
 // and a fight job ("đánh X N lần").
 //
 //   npm run tauri dev                    window with the Vite dev server (hot reload of ../src)
-//   npm run tauri build                  "Cờ Lau Loạn Thế.app" in app/target/release/bundle/macos
+//   npm run app                          the app in app/target/release/bundle: macos/colautool.app (only that,
+//                                        tauri.macos.conf.json), nsis/ and msi/ on Windows, deb/, rpm/, appimage/ on Linux
 //   flags after `--`: --login-all logs every account in at start; --sample shows sample accounts, no network;
 //   --dump-sample=FILE writes the sample accounts as the UI receives them (the UI reads it in a plain browser).
 //
@@ -46,7 +47,7 @@ pub fn run() {
                     }
                 })?)
             };
-            let mut app = App::new(manager, paths::accounts());
+            let mut app = App::new(manager, paths::accounts(tauri_app.path())?);
             if sample {
                 sample::fill(&mut app);
             } else {
