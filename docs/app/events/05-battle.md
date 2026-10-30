@@ -132,6 +132,25 @@ Gói không có toạ độ quái. Vị trí do client tự đặt và tự di c
 00000009 6d6f62383732363034 00          "mob872604", 0
 ```
 
+<a id="c2s-1178"></a>
+
+## c2s/1178: thách đấu boss
+
+| Thuộc tính | Điều tra được |
+|---|---|
+| Hướng | Client → Server |
+| Nhãn phân tích | challenge_boss |
+| Xuất hiện khi | Nhân vật va vào boss của map (`s2c/1177`). Code: `sqhz.a18(boss, false)` → `sqhz.a17` → `sqlq.b121(mobId, false)` |
+| Sau đó | `s2c/22` sau ~2,8 s, rồi trận như quái thường: `c2s/18` → `s2c/18` → `c2s/14` … |
+| Bố cục payload | `string mobId; i32 flag` (flag = 0), 19 byte với `mob86100201` |
+| Độ chắc chắn | [Đo] B4, 1 lần, Thủ Lĩnh Sơn Tặc khu 2. Boss **bỏ qua** `c2s/15` (Q10, Q13, cả khi đứng sát boss) |
+
+```text
+0000000b 6d6f6238363130303230 31  00000000       "mob86100201", 0
+```
+
+Đây là lý do bot cũ kẹt ở bước boss: nó gửi `c2s/15` như với quái thường. Quái thường dùng `sqlq.a67(mobId, bool)` → `c2s/15`; boss dùng hàm dựng riêng `b121(mobId, bool)` → `c2s/1178`. ([10-quests](10-quests.md#boss))
+
 <a id="s2c-22"></a>
 
 ## s2c/22

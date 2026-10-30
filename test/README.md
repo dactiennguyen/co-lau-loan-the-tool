@@ -12,6 +12,7 @@
 | server-message | Packet 0 nhận thật từ Node: account đang online nơi khác |
 | battles | Bàn đầu và từng bước của 3 trận thật (B1, run3, run4) để replay luật bàn cờ |
 | battle-packets | Payload đủ byte của gói trận từ bot Q2: lượt, kết quả nước, bàn xếp lại, kỹ năng, chỉ số |
+| map-packets | Gói thật từ điện thoại B4, B5: `s2c/11` của M2 (NPC, cổng), qua cổng `c2s/13` → `s2c/13`, đánh boss `c2s/1178`, tiến độ `s2c/1201` |
 | world | Bản đồ thế giới, khu, người chơi, chat, vật phẩm rơi, di chuyển (L1/W1) |
 | quest | Nhiệm vụ `s2c/39`, `34`, `35` và bảng xếp hạng `s2c/1254` |
 

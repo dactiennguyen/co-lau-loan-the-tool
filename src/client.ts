@@ -178,7 +178,8 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
             case 43:
               if (state !== 'entities') break;
               entities = true; emit('initial_entities_received', { mapId: r.string(), payloadBytes: packet.payload.length }); worldReady(); break;
-            case 1263: if (decoded) { snapshot = true; worldReady(); } break;
+            // Receipt is what counts: a player record this decoder does not know yet is already a schema_warning.
+            case 1263: snapshot = true; worldReady(); break;
           }
         }
       } catch (error) {

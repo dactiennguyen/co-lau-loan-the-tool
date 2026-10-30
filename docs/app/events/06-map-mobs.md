@@ -12,7 +12,7 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 |---|---|
 | Map có những quái nào? | `c2s/43 (mapId)` → `s2c/43`: danh sách đủ `mobId`, tên, cấp của **khu hiện tại**. M1 có 5 loại, 33 con mỗi khu (bảng dưới). [Đo] |
 | Vị trí quái? | Server **không gửi**. Client tự đặt và cho quái đi lại. Muốn có toạ độ phải đọc trong bộ nhớ: `sqhz.J.e` chứa mọi entity. [Đo] |
-| Di chuyển? | Client tự di chuyển trên lưới va chạm của `s2c/11` và báo vị trí bằng `c2s/1169` (x, y, trạng thái). Sang bản đồ khác bằng cách đi vào cổng ở mép map. [Đo gói; cổng là Suy luận] |
+| Di chuyển? | Client tự di chuyển trên lưới va chạm của `s2c/11` và báo vị trí bằng `c2s/1169` (x, y, trạng thái). Server nhận cả vị trí do bot Node tự gửi và lưu lại. Sang bản đồ khác: đứng ở cổng, bấm "Vào" → `c2s/13 (mapId, id cổng)` ([10-quests](10-quests.md#cổng)). [Đo] |
 | Đổi khu cùng map? | `c2s/1173 (u8 khu)` → `s2c/13 (mapId, khu)` → `c2s/11 (mapId, khu)` → `s2c/11` → `c2s/43` → `s2c/43`. [Đo] |
 | Code nào chạy khi va chạm quái? | `com.mh.sqhz.a18(mob, bool)` → `sqhz.a17(mob, bool, int)` → `sqlq.a67(mobId, false)` → `c2s/15`. [Đo] |
 
@@ -123,7 +123,7 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
   | 2 | 15/27/47/89/… | Trang trí [Chưa rõ] |
   | 3 | `1` (3391 ô), `0` (164 ô), `2` (33 ô) | Va chạm: trống / đất / thang hoặc bục [Suy luận từ phân bố] |
 
-- **NPC và cổng.** Cuối s2c/11 có danh sách bản ghi `i32 id; string tên; u8 loại; i32 x; i32 y; i32 w; i32 h; i32 p; i32 q`, đơn vị server. [Đo giá trị; bố cục chưa giải đến byte cuối]
+- **NPC và cổng.** Cuối s2c/11 có danh sách `i32 n; n × {i32 id; string tên; u8 loại; i32 x; i32 y; i32 w; i32 h; u8; i32 p; i32 q}`, đơn vị server, rồi 12 byte chưa rõ. Đọc hết byte M1 và M2 (`mapData` trong [world.ts](../../../src/world.ts)). [Đo]
 
   | Loại | Tên (id) | x, y |
   |---|---|---|
@@ -133,7 +133,7 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
   | 0 | Bản đồ (0) | 0, 656, w=64 [Chưa rõ] |
   | 2 (NPC) | Hương Lão Trần Bá 102, Vệ Binh Lê Dũng 111, Thành Chủ Nguyễn Khang 129, Bà Tư Hạnh 103, Lái Buôn 106, Pháp sư 161, Ngọc Nga 104 | 336,576 · 1167,672 · 1472,416 · 700,608 · 576,416 · 712,512 · 915,544 |
 
-  Bốn tên Cổ Phong, Lạc Cốc, Vân Sơn trùng tên các map có boss ở s2c/45, nên loại 0 nhiều khả năng là cổng sang map đó. Chưa thử đi qua cổng. [Suy luận]
+  Loại 0 là cổng: đứng ở cổng thì app hiện nút "Vào", bấm thì gửi `c2s/13 (mapId, id cổng)` và server chuyển sang map đích (B5: cổng Vân Sơn 1015 → M2). Xem [10-quests](10-quests.md#cổng). [Đo]
 
 - **Đi tới một con quái** = di chuyển đến khi hitbox nhân vật (trong bộ nhớ là field `Y`, `com.mh.sqlu`, 25×81 đơn vị client) chồng lên `sqiz.g` của quái. Không cần bấm gì. [Đo]
 

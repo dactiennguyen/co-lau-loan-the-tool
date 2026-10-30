@@ -402,11 +402,11 @@ Nguồn: A2: packet đọc từ native reader, record 149.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | map_special_entity |
-| Xuất hiện khi | Sau c2s/43: boss của map |
+| Nhãn phân tích | map_boss |
+| Xuất hiện khi | Sau c2s/43: boss của map; và khi boss đổi chỗ |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | string mapId; u8 field; {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}; u8; i32; i32 |
-| Độ chắc chắn | Đọc hết byte (Q9, 71 byte): Thủ Lĩnh Sơn Tặc mob86100101 cấp 11 ở khu 1; ba trường cuối chưa rõ |
+| Bố cục payload | string mapId; u8 field. field 0: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}; u8 1; i32 cột; i32 hàng. field 1: string mobId (boss rời ô, ~13 s sau có field 0 với ô mới) |
+| Độ chắc chắn | Đọc hết byte: Q9, Q10, Q13, B4, B5, Q16. Cột/hàng là suy luận: luôn nằm trong lưới 156×23 của M1, đổi sau mỗi field 1 |
 | Độ dài payload mẫu | 71 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -424,12 +424,16 @@ Nguồn: A2: packet đọc từ native reader, record 196.
 ```json
 {
   "values": {
-    "mapId": "M1"
+    "mapId": "M1", "field": 0,
+    "mob": { "id": "mob86100501", "name": "Thủ Lĩnh Sơn Tặc", "level": 11, "a": 0, "b": 9, "c": 1, "d": 1 },
+    "state": 1, "tile": [24, 5]
   },
-  "bytesInterpreted": 6,
-  "bytesUnknown": 65
+  "bytesInterpreted": 71,
+  "bytesUnknown": 0
 }
 ```
+
+Boss này đánh bằng `c2s/1178`, không phải `c2s/15` ([05-battle](05-battle.md#c2s-1178)). Dạng field 1 (22 byte với M2): `000000024d32 01 0000000b 6d6f623839313030303032` = "M2", 1, "mob89100002".
 
 **Nếu bản app mới khác:** tìm lại writer/reader/handler native, đối chiếu kiểu getter, cursor và byte gốc; phân biệt thay đổi nội dung động với đổi cấu trúc. Xem [điều tra lại](../reinvestigation.md).
 

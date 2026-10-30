@@ -39,6 +39,8 @@ Nguồn: V1: response trực tiếp từ server trong phiên kiểm chứng đ�
 }
 ```
 
+Một text khác cũng đến qua `s2c/0` ở cùng bước: **"Vui lòng chờ 0 giây"**, khi client Node đăng nhập vài giây sau lúc app trên điện thoại vừa bị tắt (Q13). Thử lại sau 10 s thì vào được. Server giữ phiên cũ một lúc ngắn sau khi nó đóng. [Đo 1 lần]
+
 **Nếu bản app mới khác:** tìm lại writer/reader/handler native, đối chiếu kiểu getter, cursor và byte gốc; phân biệt thay đổi nội dung động với đổi cấu trúc. Xem [điều tra lại](../reinvestigation.md).
 
 <a id="c2s-2"></a>

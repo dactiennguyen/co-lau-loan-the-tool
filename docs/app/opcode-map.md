@@ -197,12 +197,12 @@ Nguồn: gọi com.tlgdx.twelvelord.sqq.a(int) rồi b(int) trong native; giữ 
 
 ## Opcode chưa thấy trên dây
 
-Bảng trên có 188 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (L1, W1, U1, A1, B2, run1–4, Q1–Q12), 122 opcode chưa từng xuất hiện ở cả hai chiều:
+Bảng trên có 188 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (L1, W1, U1, A1, B2, run1–4, Q1–Q12), 121 opcode chưa từng xuất hiện ở cả hai chiều:
 
 ```text
 6 7 8 16 17 23 25 27 31 32 33 37 41 44 47 48 49 51 52 55 56 57 58 59
 83 84 86 90 91 92 93 95 96 97 98 99 100 101 112 113 115 116 125 126 128 129 130 131 132 133
-1111 1112 1168 1171 1174 1175 1176 1178 1179 1180 1181 1185 1186 1188 1189 1190 1191 1192 1193 1194
+1111 1112 1168 1171 1174 1175 1176 1179 1180 1181 1185 1186 1188 1189 1190 1191 1192 1193 1194
 1197 1198 1199 1202 1203 1204 1208 1210 1211 1213 1216 1217 1218 1219 1221 1222 1223 1224 1225
 1226 1227 1228 1229 1230 1231 1232 1233 1234 1235 1236 1237 1238 1239 1242 1243 1244 1245 1246 1247
 1248 1249 1250 1251 1252 1255 1257 1258 1260 1266 1267 1268 1270
@@ -210,5 +210,5 @@ Bảng trên có 188 opcode. Gộp mọi capture ([các phiên](investigation.md
 
 - `s2c/0` cũng không có trong capture Frida. Nó chỉ thấy khi client Node đăng nhập trong lúc tài khoản đang online, xem [02-login](events/02-login.md#s2c-0).
 - Chỉ một opcode có gợi ý nghĩa trong `.so`: chuỗi debug "F6: xin mở cửa sổ nâng cấp (gói 96)", tức 96 là xin mở cửa sổ nâng cấp trang bị. [Suy luận]
-- Các tính năng có trong game nhưng chưa bắt được gói, nhiều khả năng nằm trong dải trên: gửi chat, chat riêng, giao dịch, kết bạn, thách đấu người chơi, Lôi đài, Chợ trời, nâng cấp và sửa trang bị, dùng vật phẩm trong trận, đánh boss, thú cưng. Kỹ năng trong trận là `c2s/20`, đã tìm được ([05-battle](events/05-battle.md#c2s-20)). [Suy luận từ giao diện và chuỗi .so]
+- Các tính năng có trong game nhưng chưa bắt được gói, nhiều khả năng nằm trong dải trên: gửi chat, chat riêng, giao dịch, kết bạn, thách đấu người chơi, Lôi đài, Chợ trời, nâng cấp và sửa trang bị, dùng vật phẩm trong trận, thú cưng. Đã tìm được: kỹ năng trong trận `c2s/20`, đánh boss `c2s/1178` ([05-battle](events/05-battle.md#c2s-1178)); qua cổng dùng lại `c2s/13` ([10-quests](events/10-quests.md#cổng)). [Suy luận từ giao diện và chuỗi .so]
 - Muốn gán nghĩa thì làm như U1 ([11-panels](events/11-panels.md)): bật capture rồi dùng tính năng đó trên máy. Agent ghi mọi opcode mới kèm payload.

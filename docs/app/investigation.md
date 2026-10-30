@@ -13,6 +13,9 @@
 | run1–run4: bot trong game (30/10) | Frida gọi hàm dựng gói native để đánh quái; run4 thắng Gà Điên. [07-auto-battle](events/07-auto-battle.md) | run1 chết ngầm, run2 sai tham số, run3 lệch bàn |
 | L1, W1: đăng nhập và ở lại thế giới (30/10) | L1 spawn app, ở 15 phút (người chơi tự trả nhiệm vụ, cộng điểm); W1 attach, khu 0. [08](events/08-server-map-zone.md), [09](events/09-players-chat.md) | Gói người chơi tự bấm chỉ thấy 1–10 lần |
 | U1: các bảng chức năng (30/10) | Mở lần lượt từng bảng trên điện thoại, không mua bán. [11-panels](events/11-panels.md) | Game tắt giữa chừng, còn bảng chưa mở |
+| B3: thử boss trên điện thoại (30/10) | Spawn app với hook writer/reader, ADB chạm màn hình để đi tìm Thủ Lĩnh Sơn Tặc; lạc vào trận Kẻ Gây Rối. [10-quests](events/10-quests.md#boss) | Chưa tìm thấy boss; trận bị client tự bỏ |
+| B4: tìm gói đánh boss (30/10) | Agent Frida thay `sqhz.a17` (đi xuyên quái thường), hook 169 hàm dựng `sqlq`; nhân vật đứng sát boss nên app tự gửi `c2s/1178`; ADB vuốt để đánh 2 trận boss. [10-quests](events/10-quests.md#boss) | Trận boss thứ 3 bị tắt app giữa chừng |
+| B5: tìm gói qua cổng (30/10) | Cùng agent; nhân vật đứng ở cổng Vân Sơn, bấm "Vào" → `c2s/13` với id cổng 1015, sang M2. [10-quests](events/10-quests.md#cổng) | Một cổng |
 | Q1, Q2, Q3…: bot Node làm nhiệm vụ (30/10) | `npm run quest`, không cần điện thoại; log client với prefix hex 128 byte. [10-quests](events/10-quests.md) | Gói dài hơn 128 byte chỉ có prefix |
 
 Giá trị HP, khu vực, danh sách thực thể và key có thể khác giữa các phiên. Nhãn field và nhãn event trong tài liệu là diễn giải, trừ khi đã chỉ rõ chữ ký/field thực của binary. Raw trace/script tạm đã xoá sau khi ghi lại các quan sát cần thiết.

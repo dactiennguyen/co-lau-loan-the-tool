@@ -14,7 +14,7 @@ Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bướ
 | Câu hỏi | Trả lời | Căn cứ |
 |---|---|---|
 | Vừa vào một khu có quét được hết quái không? | **Có.** Gửi `c2s/43` (mapId), server trả `s2c/43` với id, tên, cấp của cả 33 con trong khu. | run2/3/4, mỗi lần 33 con [Đo] |
-| Có phải di chuyển tới quái mới đánh được không? | **Không**, với quái thường. Gửi thẳng `c2s/15` (mobId) khi nhân vật đứng xa, server vẫn mở trận. Boss Thủ Lĩnh Sơn Tặc thì server không trả lời ([10-quests](10-quests.md#bước-boss-chưa-làm-được-q10)). | `mob10` ở xa, s2c/22 về sau 2,4 s, 3 lần; Q3–Q12 hơn 40 trận [Đo] |
+| Có phải di chuyển tới quái mới đánh được không? | **Không**, với quái thường. Gửi thẳng `c2s/15` (mobId) khi nhân vật đứng xa, server vẫn mở trận. Boss của map thì bỏ qua `c2s/15`; phải dùng `c2s/1178` ([10-quests](10-quests.md#boss)). | `mob10` ở xa, s2c/22 về sau 2,4 s, 3 lần; Q3–Q12 hơn 40 trận [Đo] |
 | Có cần giao diện game vào màn đánh không? | **Không.** Client đứng yên ở bản đồ, cả trận diễn ra chỉ bằng gói tin. Server vẫn cộng EXP, tiền và tiến độ nhiệm vụ. | run4: màn hình không đổi, HUD EXP 17,2% → 22,5%, nhiệm vụ "Tiêu diệt Gà Điên" hoàn thành [Đo] |
 | Theo dõi được bàn cờ không? | **Có, chính xác từng ô.** Server gửi bàn đầu và danh sách viên rơi xuống của mỗi nước. Client tự mô phỏng rơi theo luật bên dưới. | 52/52 bước replay khớp [Đo] |
 | Dùng thuật toán để đánh được không? | **Được.** Bot tìm nước tốt nhất trong ≤8 ms, gửi `c2s/19`, server chấp nhận. Thắng Gà Điên sau 5 nước. | run4 [Đo] |

@@ -71,3 +71,27 @@ test('ground items: 1182 adds (plain 88 B, gear 104 B), 1184 lists, 1183 removes
   assert.match(decode('s2c/1183').uuid, /^[0-9a-f-]{36}$/);
   assert.match(decode('s2c/45').text, /^BOSS .+ đang ở Làng Thanh Khê: khu 0, 1/);
 });
+
+const mp: Record<string, string> = fixtures['map-packets'];
+const decodeMap = (key: string) => {
+  const d = decodeEvent(key.startsWith('c2s') ? 'c2s' : 's2c', Number(key.split(/[/ ]/)[1]), Buffer.from(mp[key], 'hex'));
+  assert.equal(d.opaqueBytes, 0, `${key}: every byte read`);
+  return d.fields as any;
+};
+
+test('s2c/11 of M2 is read to its last byte: grids, then the NPCs and portals of the map (B5)', () => {
+  const m = decodeMap('s2c/11 M2');
+  assert.deepEqual([m.mapId, m.name, m.dimension1, m.dimension2, m.layers], ['M2', 'Trại Vân Sơn', 35, 90, [3150, 3150]]);
+  assert.deepEqual(m.places.map((p: any) => [p.id, p.name, p.type]), [[1, 'Bản đồ', 0], [1013, 'Lạc Cốc', 0], [1014, 'Làng Thanh Khê', 0],
+    [1017, 'Tân Trạch', 0], [1024, 'Rìa Hồng Giang', 0], [127, 'Trại Chủ Phạm Hùng', 2], [141, 'Võ Quan Đinh Mộc', 2], [142, 'Dân Phu Vân Sơn', 2]]);
+  assert.deepEqual(m.places[5], { id: 127, name: 'Trại Chủ Phạm Hùng', type: 2, x: 1600, y: 800, w: 32, h: 32, flag: 0, p: 110180, q: 110181 });
+});
+
+test('portal and boss requests: c2s/13 with a portal id, s2c/13 with the new map, c2s/1178 for a boss (B4, B5)', () => {
+  assert.deepEqual(decodeMap('c2s/13 portal 1015'), { mapId: 'M1', npcId: 1015 });
+  assert.equal(buildRequest(13, { mapId: 'M1', npcId: 1015 }).toString('hex'), mp['c2s/13 portal 1015']);
+  assert.deepEqual(decodeMap('s2c/13 portal'), { mapId: 'M2', zone: 1, extra: [0, 255] });
+  assert.deepEqual(decodeMap('c2s/1178'), { mobId: 'mob86100201', flag: 0 });
+  assert.equal(buildRequest(1178, { mobId: 'mob86100201' }).toString('hex'), mp['c2s/1178']);
+  assert.deepEqual(decodeMap('s2c/1201 boss damage'), { progress: 363 });
+});

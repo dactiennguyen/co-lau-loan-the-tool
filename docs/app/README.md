@@ -15,7 +15,7 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Di chuyển của mình, vị trí/vào/ra/trang bị/HP của người khác, chat Thế giới, vật phẩm rơi | [Người chơi và chat](events/09-players-chat.md) |
 | Nhiệm vụ, chuỗi nhiệm vụ đã thấy, kết quả bot TS tự làm nhiệm vụ | [Nhiệm vụ](events/10-quests.md) |
 | Các bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân | [Bảng chức năng](events/11-panels.md) |
-| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 122 opcode chưa thấy | [Opcode map](opcode-map.md) |
+| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 121 opcode chưa thấy | [Opcode map](opcode-map.md) |
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |
 

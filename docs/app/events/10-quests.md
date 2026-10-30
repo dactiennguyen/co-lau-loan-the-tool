@@ -2,7 +2,8 @@
 
 Mốc: APK 1.0.3, ngày 30/10/2026, nhân vật `manina`. Nguồn ([các phiên bắt gói](../investigation.md#nguồn-dữ-liệu)):
 - **L1**: người chơi tự trả nhiệm vụ 3 và nhận nhiệm vụ 4 trên điện thoại.
-- **Q1–Q12**: bot Node [src/quest.ts](../../../src/quest.ts) tự đăng nhập không cần điện thoại và làm nhiệm vụ. Q1 dừng sau 33 s vì gặp gói chưa biết; Q2 làm xong nhiệm vụ 4; Q3–Q9 nhiệm vụ 5, 6 và một phần nhiệm vụ 7; Q10 thử boss; Q11, Q12 đo tốc độ.
+- **Q1–Q17**: bot Node [src/quest.ts](../../../src/quest.ts) tự đăng nhập không cần điện thoại và làm nhiệm vụ. Q1 dừng sau 33 s vì gặp gói chưa biết; Q2 làm xong nhiệm vụ 4; Q3–Q9 nhiệm vụ 5, 6 và một phần nhiệm vụ 7; Q10, Q13 thử boss; Q11, Q12 đo tốc độ; Q14–Q17 nhiệm vụ 7 (báo cáo), 8 và 9.
+- **B3–B5**: app trên điện thoại với hook Frida, chỉ để bắt gói bot chưa biết: B3 đi tìm boss (không thấy), B4 gói đánh boss, B5 gói qua cổng.
 
 Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../../src/battle.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -12,10 +13,12 @@ Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../..
 |---|---|
 | Lấy danh sách nhiệm vụ thế nào? | Server chỉ gửi **nhiệm vụ chính đang làm** (`s2c/39`), lúc đăng nhập và mỗi khi nhận nhiệm vụ mới. Mở bảng Nhiệm vụ không gửi gói nào. Tab "Phụ", nhiệm vụ Bảo Điển và "Nhiệm vụ hằng ngày" hiện đều trống. [Đo] |
 | Làm một bước nhiệm vụ bằng gói gì? | Nói chuyện / báo cáo: `c2s/13 (mapId, npcId)`. Diệt quái: đánh trận như [07-auto-battle](07-auto-battle.md), mỗi trận thắng tính 1 con. Server trả `s2c/34` (lời thoại, tiến độ) và `s2c/35` (hoàn thành, phần thưởng). [Đo] |
-| Code TS mô phỏng làm nhiệm vụ chạy được chưa? | **Được.** Q2 làm xong nhiệm vụ 4; Q3–Q9 làm xong nhiệm vụ 5 và 6, tới bước boss của nhiệm vụ 7. Q3–Q12: 44 trận thắng, 3 trận thua (trước khi hiểu trận tính giờ). Nhân vật từ cấp 7 lên 16. [Đo] |
+| Code TS mô phỏng làm nhiệm vụ chạy được chưa? | **Được, không cần điện thoại.** Bot TS làm xong nhiệm vụ 4, 5, 6, 8 và bước báo cáo của 7, tự đi qua cổng sang M2 và đang làm nhiệm vụ 9. Điện thoại chỉ dùng để bắt gói khi điều tra (B4: gói đánh boss, B5: gói qua cổng). [Đo] |
 | Đánh quái nhanh nhất thế nào? | Trận tính giờ (Sơn Tặc), 0,5 s/nước, dùng Hỏa Cầu Thuật: ~15 s/trận, **~500 EXP/phút**, gấp ~3 lần đánh theo lượt. EXP = 2 × (2 × sao + giọt nước) + phần cộng theo quái; xu = 2 × vàng. Xem [Đánh nhanh hay ăn sao](#đánh-nhanh-hay-ăn-sao). [Đo] |
-| Bot còn kẹt ở đâu? | Bước boss "Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc": server không nhận `c2s/15` với boss. Trang bị hỏng cần "búa sửa chữa". [Đo] |
-| Còn event nào chưa ghi? | Đã ghi 90 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **122 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
+| Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`. HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
+| Sang map khác thế nào? | `c2s/13 (mapId hiện tại, id cổng)`, cùng opcode với nói chuyện NPC. Id cổng lấy ở cuối `s2c/11`. Xem [Đi qua cổng](#cổng). [Đo] |
+| Bot còn thiếu gì? | Trang bị hỏng cần "búa sửa chữa" (chưa có gói). HP không hồi giữa các trận liền nhau, nên bot nghỉ khi HP dưới 40%. Cổng sang map cấp cao (Lạc Cốc, cấp 40) không trả lời. [Đo] |
+| Còn event nào chưa ghi? | Đã ghi 91 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **121 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
 
 ## Gói nhiệm vụ
 
@@ -36,7 +39,7 @@ Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../..
 | "Đạt cấp độ N" | N | 1 | -1 | Không làm gì; server bỏ qua bước này nếu đã đủ cấp (nhận nhiệm vụ 4, 5 thì `bướcHiệnTại` đã là 1) |
 | "Nói chuyện với X", "Báo cáo với X" | id NPC | 1 | id NPC | `c2s/13 (mapId, npcId)` |
 | "Tiêu diệt X", "Đánh bại X" | loại quái (Gà Điên 0, Heo Mọi 1) | số con (1, 10, 10) | -1 | Đánh trận với quái tên X, đếm số trận thắng |
-| "Gây N sát thương lên X" (nhiệm vụ 7) | | N (500) | -1 | Thách đấu boss X của `s2c/1177`, cộng dồn sát thương. Server chưa nhận ([bước boss](#bước-boss-chưa-làm-được-q10)) |
+| "Gây N sát thương lên X" (nhiệm vụ 7) | | N (500) | -1 | Thách đấu boss X của `s2c/1177`, cộng dồn sát thương. Server chưa nhận ([bước boss](#boss)) |
 | "Nâng điểm tiềm năng", "Sử dụng điểm kỹ năng" | 0 | 1 | -1 | Bot gửi `c2s/10 (0, 1)` ([09](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy)), chưa gặp bước này khi chạy thật; gói dùng điểm kỹ năng [Chưa rõ] |
 
 ```text
@@ -70,9 +73,11 @@ Khi trả nhiệm vụ 4 (Q2), các gói đến trong 2 ms: `s2c/1187` (vật ph
 | 4 "Ruộng Dưa Bị Tàn Phá" | 103 Bà Tư Hạnh | Đạt cấp 4 → nói chuyện với Bà Tư Hạnh → diệt 10 Heo Mọi → báo cáo | 216 kinh nghiệm, 710 Xu khoá, 1 Nhẫn Trơn |
 | 5 "Bóng Đen Trong Làng" | 111 Vệ Binh Lê Dũng | Đạt cấp 6 → nói chuyện với Vệ Binh → đánh bại 10 Kẻ Gây Rối → báo cáo | 314 kinh nghiệm, 770 Xu khoá (Q6) |
 | 6 "Dấu Chân Hắc Nham" | 129 Thành Chủ Nguyễn Khang | Đạt cấp 8 → nói chuyện với Thành Chủ → đánh bại 10 Sơn Tặc (trận tính giờ) → báo cáo | 419 kinh nghiệm, 820 Xu khoá (Q9) |
-| 7 "Quét Sạch Sơn Trại" | 129 Thành Chủ Nguyễn Khang | Đạt cấp 9 → bàn bạc với Thành Chủ → đánh bại 4 Chỉ Huy Sơn Tặc → **gây 500 sát thương lên Thủ Lĩnh Sơn Tặc** (boss của map, `s2c/1177`) → báo cáo | Kẹt ở bước boss (Q10) |
+| 7 "Quét Sạch Sơn Trại" | 129 Thành Chủ Nguyễn Khang | Đạt cấp 9 → bàn bạc với Thành Chủ → đánh bại 4 Chỉ Huy Sơn Tặc → **gây 500 sát thương lên Thủ Lĩnh Sơn Tặc** (boss của map, `c2s/1178`) → báo cáo | 1190 kinh nghiệm, 2130 Xu khoá (B4 + Q14) |
+| 8 "Tìm Đến Vân Sơn" | 129 Thành Chủ (M1), 127 Trại Chủ Phạm Hùng (M2) | Đạt cấp 10 → nói chuyện với Thành Chủ → **gặp Trại Chủ ở M2** (qua cổng Vân Sơn) → diệt 1 Sói Xám → báo cáo | 808 kinh nghiệm, 880 Xu khoá (Q16) |
+| 9 "Thử Sức Tân Binh" | 141 Võ Quan Đinh Mộc (M2) | Đạt cấp 11 → nói chuyện với Võ Quan → diệt 15 Sói Xám (cấp 11) → diệt 15 Cóc Xanh (cấp 13) → báo cáo | Đang làm: Sói Xám 15/15, Cóc Xanh 1/15 (Q17) |
 
-Mọi NPC của nhiệm vụ 3–7 đều ở M1 và `c2s/13` với mapId `"M1"` luôn được nhận. Bước "Bàn bạc với X" làm như "Nói chuyện với X". Bước "Gây N sát thương lên X" nhắm vào boss của map; boss đến qua `s2c/1177` ngay sau `s2c/43`, mã đổi theo khu (`mob86100001` ở khu 0, `mob86100101` ở khu 1).
+Mọi NPC của nhiệm vụ 3–7 đều ở M1 và `c2s/13` với mapId `"M1"` luôn được nhận. Từ nhiệm vụ 8, NPC và quái ở M2 "Trại Vân Sơn": phải [đi qua cổng](#cổng). Bước "Bàn bạc với X" làm như "Nói chuyện với X". Bước "Gây N sát thương lên X" nhắm vào boss của map; boss đến qua `s2c/1177` ngay sau `s2c/43`, mã đổi theo khu (`mob86100001` ở khu 0, `mob86100101` ở khu 1).
 
 Nội dung nhiệm vụ nằm ở server: `.so` không có tên hay lời thoại nhiệm vụ nào, chỉ có chữ của giao diện. [Đo]
 
@@ -110,7 +115,7 @@ Cách chạy, tham số và luồng code: [Bot làm nhiệm vụ](../../integrat
 
 ### Kết quả Q3–Q6: HP, lên cấp, tiến độ, các lỗi đã gặp
 
-- **HP vào trận luôn đầy.** HP trên bản đồ là HP cuối trận trước và không tự hồi theo thời gian: sau Q3 còn 60/160, đăng nhập lại sau vài phút vẫn 60/160 (`s2c/9`). Nhưng `s2c/22` của trận sau báo 160/160, và trận Q2 số 2 (vào với 98 HP trên bản đồ, không bị đánh trúng) kết thúc với 136/136. Vì vậy bot không cần chờ hồi máu; ngưỡng `--min-hp` mặc định 0. [Đo]
+- **HP vào trận luôn đầy.** HP trên bản đồ là HP cuối trận trước và không tự hồi theo thời gian: sau Q3 còn 60/160, đăng nhập lại sau vài phút vẫn 60/160 (`s2c/9`). Nhưng `s2c/22` của trận sau báo 160/160, và trận Q2 số 2 (vào với 98 HP trên bản đồ, không bị đánh trúng) kết thúc với 136/136. Vì vậy bot không cần chờ hồi máu; ngưỡng `--min-hp` mặc định 0. [Đo] **Đính chính (Q16):** đánh liên tiếp, cách nhau 1 s, thì HP vào trận đúng bằng HP cuối trận trước (151 → 151, 54 → 54, 41 → 41), và trận thứ 10 thua ở cấp 18, mất 34 EXP. Các lần "đầy máu" trước đây đều sau khi đăng nhập lại hoặc nghỉ lâu. Bot giờ nghỉ khi HP dưới 40% (`--heal-below`).
 - **Lên cấp** (Q3, cấp 7 → 8 sau trận Kẻ Gây Rối đầu tiên): cùng một mili giây có `s2c/10` kiểu 2 (cấp 8, `stats = [32, 10, 10, 17, …]`), kiểu 4 (HP 60/160, EXP 1463 trong khoảng 1400–1800), kiểu 8 (`statPoints = 16`), một gói mới `s2c/1201` (`00000001`), rồi kiểu 4 lần nữa với tiền tăng thêm 24 (phần thưởng trận). [Đo]
 - **Quái không mất sau khi bị giết.** Q3 và Q4 đều thách đấu `mob31400` và thắng cả hai; Q6 đánh lại `mob31406` sau 6 trận. [Đo]
 - **Mất kết nối giữa trận** (dừng Q4 ở seq 20): đăng nhập lại không có `s2c/22` nào để tiếp tục trận, trận dở không được tính vào tiến độ (`tiếnĐộ` = 3 = số trận đã thắng), và HP trên bản đồ là HP lúc rời trận (70/160). [Đo]
@@ -153,19 +158,68 @@ Thời gian và tốc độ tính từ lần thách đấu đầu tới lúc tr�
 3. Dùng Hỏa Cầu Thuật (`c2s/20`, 62 sát thương) mỗi khi nội lực ≥ 25; ăn Trái đào (mã 3) để có đòn gấp đôi.
 4. Nghỉ ngắn giữa các trận (1 s đủ; server luôn trả `s2c/22` sau ~2,5 s).
 
-### Bước boss: chưa làm được (Q10)
+<a id="cổng"></a>
 
-Bot gửi `c2s/15 "mob86100001"` (boss khu 0, lấy từ `s2c/1177`) năm lần, cách nhau 8 s. Server **không trả lời gì**: không `s2c/22`, không `s2c/0`, không thông báo. Quái thường thì `c2s/15` được nhận từ bất kỳ đâu. [Đo]
+### Đi qua cổng sang map khác (B5, Q15, Q16)
 
-Hai khả năng, chưa kiểm:
-- Boss cần đứng gần. Ba trường cuối của `s2c/1177` (`1, 135, 19`) có thể là trạng thái và toạ độ ô của boss. Bot đang đứng ở chỗ đăng nhập, và muốn tới gần thì phải mô phỏng đi bộ bằng `c2s/1169`. [Suy luận]
-- Boss dùng gói thách đấu khác. Trong các hàm dựng gói `sqlq` có tham số chuỗi giống `a67` (`c2s/15`): `f71(String)` → 49, `p113(String)` → 58, `m109/o111/n110(String)` → 91/95/96 (96 là mở cửa sổ nâng cấp theo chuỗi debug). Không gửi thử vì opcode chưa rõ có thể làm việc khác (bán, vứt đồ). Chuỗi mẫu trong `.so` "ai đi boss … thiếu một người đỡ đòn" gợi ý boss đánh theo nhóm. [Suy luận]
+| Bước | Gói | Mẫu (M1 → M2) |
+|---|---|---|
+| Bấm "Vào" ở cổng | **`c2s/13`** `string mapId; i32 idCổng` | `"M1", 1015` (cổng "Vân Sơn") |
+| Server chuyển map | `s2c/13` `string mapId; i32 khu; u8 0; u8 0xff` | `"M2", 1` |
+| Xin map | `c2s/11` `string mapId; u8 -1; i32 -1` | `"M2"` |
+| Map | `s2c/11` | 9940 byte, cuối gói có 8 NPC/cổng của M2 |
+| Xin quái | `c2s/43` | `"M2"` → `s2c/43` (33 quái) và hai `s2c/1177` (Hào Trưởng phía Bắc, phía Nam) |
 
-Cách chắc chắn: bắt gói trên điện thoại khi người chơi tự đánh boss, giống U1.
+- Cổng là một bản ghi loại 0 trong danh sách cuối `s2c/11`, cùng chỗ với NPC (loại 2). Bố cục đã đọc hết byte: `i32 id; string tên; u8 loại; i32 x, y, w, h; u8; i32 p, q` ([03-world](03-world.md#s2c-11)). Tên cổng là tên map đích: "Vân Sơn" → "Trại Vân Sơn". [Đo]
+- Cách tìm ra (B5): bot Node đi bộ tới cổng (4960, 656), server không tự chuyển map. Mở app thì nhân vật đứng ở cổng, app hiện nút **"Vào"**; bấm thì client gửi `sqlq.b65` → `c2s/13`. [Đo]
+- Bot TS (Q15, Q16) gửi `c2s/13` với id NPC trong M2 thì được nhận. Cổng "Lạc Cốc" (1013, map cấp 40) gửi từ M2 ở cấp 18 thì không có trả lời. Có thể do khoá cấp, hoặc do đứng xa cổng. [Đo; lý do là Suy luận]
+- Vị trí và map được server lưu: lần đăng nhập sau vào thẳng M2. [Đo]
+
+
+### Kết quả Q14–Q17: nhiệm vụ 7, 8, 9 bằng bot TS
+
+- Q14: báo cáo nhiệm vụ 7, nhận nhiệm vụ 8, nói chuyện với Thành Chủ; dừng ở "Gặp Trại Chủ Phạm Hùng" vì NPC ở M2 (bot lúc đó chưa biết đi qua cổng). [Đo]
+- Q15: lỗi đọc bước "Tiêu diệt 1 Sói Xám" thành tên quái "1 Sói Xám", nên bot đi tìm cổng (đã sửa trong `stepAction`). [Đo]
+- Q16–Q17 (ở M2, cấp 18 → 19): làm xong nhiệm vụ 8, nhiệm vụ 9 tới Cóc Xanh 1/15. 17 trận Sói Xám thắng 17, 2 trận Cóc Xanh thắng 1. Thua 2 lần, mỗi lần vào trận với HP thấp: 61/168 trước Sói Xám (mất 34 EXP), 108/174 trước Cóc Xanh cấp 13 (mất 36 EXP). Mức trừ khi thua tăng theo cấp: 16 ở cấp ~9, 34 ở cấp 18, 36 ở cấp 19. Một trận Sói Xám mất 28–73 s, cho 80–276 EXP. [Đo]
+
+<a id="boss"></a>
+
+### Bước boss: `c2s/1178` (Q10, Q13, B4)
+
+**Kết luận: boss của map đánh bằng `c2s/1178 (string mobId; i32 0)`, không phải `c2s/15`.** Bot cũ kẹt vì gửi `c2s/15` như với quái thường. ([05-battle](05-battle.md#c2s-1178)) [Đo]
+
+Đã loại trước khi tìm ra:
+- `c2s/15` với boss, cờ 0 (Q10 năm lần, Q13 hai lần) và cờ 1 (thử từ Node): server im lặng. [Đo]
+- Đứng ngay ô của boss: bot Node đi bộ bằng `c2s/1169` tới ô (2, 10) của `mob86100201` (khu 2), `s2c/1262` dội lại đúng từng vị trí, rồi gửi `c2s/15`: vẫn im lặng. [Đo]
+- Phân tích tĩnh: chuỗi về boss trong `.so` ("Chưa có ai gây sát thương", "KILL_BOSS") không có chỗ tham chiếu đọc được. [Đo]
+
+Cách tìm ra (B4): agent Frida thay `sqhz.a17` để đi xuyên quái thường (không vào trận), hook cả 169 hàm dựng gói `sqlq`, rồi mở app. Vị trí lưu trên server là ô boss mà bot Node vừa đi tới, nên vừa vào map nhân vật đã chạm boss: `sqhz.a18(boss, false)` → `sqhz.a17` → **`sqlq.b121(mobId, false)`** → `c2s/1178`. Quái thường đi `sqlq.a67(mobId, false)` → `c2s/15`. Sau `c2s/1178`, `s2c/22` đến sau 2,8 s và trận chạy như thường (theo lượt, quái đi trước). [Đo]
+
+Trận boss (B4, Thủ Lĩnh Sơn Tặc cấp 11, manina cấp 17 với 2 món đồ đã hỏng):
+
+| | Trận 1 | Trận 2 |
+|---|---|---|
+| HP boss lúc vào → lúc thua | 5000 → 4637 | 4637 → 4453 |
+| Sát thương gây ra | 363 | 184 |
+| `s2c/1201` (tiến độ bước) | 363 | (bước xong, có `s2c/34`) |
+
+- **HP boss dùng chung giữa các trận**: trận 2 bắt đầu từ 4637. Boss là boss thế giới, có cùng tên ở mọi khu 0–9 (`s2c/45`). [Đo]
+- Mỗi 3 kiếm gây 29, đòn kỹ năng của boss gây 65. Thua cả hai trận, nhưng **thua boss không bị trừ EXP**: `s2c/10` sau trận giữ nguyên EXP và không có `s2c/1256`. HP được hồi đầy sau trận. [Đo]
+- Đủ 500 thì server gửi `s2c/34` với lời boss: "Các ngươi nghĩ giết ta là kết thúc sao? Ngoài kia còn nhiều thế lực lớn hơn rất nhiều". Báo cáo Thành Chủ (Q14, bot TS) nhận 1190 kinh nghiệm, 2130 Xu khoá. [Đo]
+- Khi nhân vật còn đứng đè lên boss, app tự gửi lại `c2s/1178` ngay sau mỗi trận, nên trận 3 bắt đầu dù đã xong bước. Tắt app giữa trận không bị trừ EXP (như Q4); để app tự rời trận thì bị trừ. [Đo]
+- Bot TS: bước "Gây N sát thương" gửi `c2s/1178`, đánh tiếp sau khi thua boss, và lấy tiến độ từ `s2c/1201`. Đã có test với gói thật, nhưng chưa chạy với boss thật vì nhiệm vụ 7 đã xong trên điện thoại. `c2s/1178` từ xa có được nhận không [Chưa rõ]: lần B4 nhân vật đứng sát boss.
+- Thao tác bàn cờ trên app qua ADB: vuốt chậm 400 ms, sau khi lượt bắt đầu 3 s. Chạm hai lần hay vuốt nhanh thường bị bỏ qua. [Đo]
+
+**Thử trước đó (B3, Q13).**
+- Chạm vào bước "Gây 500 sát thương…" trên bảng nhiệm vụ **không gửi gói nào**. Bản đồ thế giới chỉ là danh sách thành, không đánh dấu boss. [Đo]
+- Đi bộ vào một con quái thường gửi `c2s/15` với id của nó, đúng như bot ([B1](05-battle.md)). [Đo]
+
+**Trận bị client tự bỏ (B3, mất 29 EXP).** Script ADB chạm ngay khi lượt vừa bắt đầu nên app bỏ qua (cách thao tác đúng ở mục trên), 12 lượt liền hết 30 s mà không đi. Đến giây thứ 432 của trận, giữa một lượt, client tự gửi `c2s/11 "M1"` rồi `c2s/40`. Server trả `s2c/1256` "Rời trận, mất 29 kinh nghiệm", khác với thua trận (mất 16). Bot Node không bị chuyện này vì gửi nước trực tiếp. Lý do client tự bỏ (giới hạn thời gian trận hay số lượt bỏ) [Chưa rõ].
 
 ## Chưa rõ
 
-- Cách đánh boss (bước "Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc"); gói sửa trang bị (cần "búa sửa chữa" theo chuỗi `.so`).
-- Phần cộng cố định của công thức EXP phụ thuộc gì; quy tắc hồi máu lúc vào trận.
+- `c2s/1178` có cần đứng gần boss không (B4 đứng sát boss); cổng có khoá theo cấp map không (Lạc Cốc không trả lời ở cấp 18).
+- Gói sửa trang bị (cần "búa sửa chữa" theo chuỗi `.so`).
+- Phần cộng cố định của công thức EXP phụ thuộc gì; HP có hồi theo thời gian không (Q3 vào trận đầy máu sau vài phút, Q16 nghỉ 1 s thì không).
 - Món nào ứng với từng ô của `s2c/36`, gói sửa đồ, và có giới hạn số trận mỗi ngày không.
 - Gói dùng điểm kỹ năng, nhiệm vụ phụ, nhiệm vụ hằng ngày, nhiệm vụ Bảo Điển khi có mùa.

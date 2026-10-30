@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 90 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/events.ts](../../../src/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 122 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 91 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/events.ts](../../../src/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 121 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -92,6 +92,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/20 | skill_result | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#s2c-20) |
 | c2s/20 | use_skill | battle | [Kỹ năng của người chơi](05-battle.md#c2s-20) |
 | s2c/21 | timed_attack | battle | [Trận tính giờ](05-battle.md#trận-tính-giờ) |
+| c2s/1178 | challenge_boss | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-1178) |
 | c2s/40 | battle_leave | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
 | s2c/36 | durability | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
 | s2c/1214 | battle_end_1214 | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
@@ -104,7 +105,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/10 | character_stats | push | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
 | s2c/1187 | inventory_item | push | [Gói khác thấy trong L1](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) |
 | s2c/1256 | notice_1256 | push | [Thua trận mất EXP](10-quests.md#kết-quả-q3-q4) |
-| s2c/1201 | flag_1201 | push | [Lên cấp trong bot](10-quests.md#kết-quả-q3-q4) |
+| s2c/1201 | step_progress | push | [Lên cấp trong bot](10-quests.md#kết-quả-q3-q4) |
 | s2c/1200 | signal_1200 | push | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
 | s2c/39 | quest_data | push | [Nhiệm vụ đang làm](10-quests.md#s2c-39) |
 | s2c/34 | quest_progress | push | [Gói nhiệm vụ](10-quests.md#c2s-13) |
@@ -112,7 +113,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1261 | counter_1261 | push | [Gói định kỳ trong bot](10-quests.md#kết-quả-q2) |
 | s2c/1195 | flag_1195 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1195) |
 | s2c/1220 | flag_1220 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1220) |
-| s2c/1177 | map_special_entity | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1177) |
+| s2c/1177 | map_boss | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1177) |
 | s2c/1263 | players_snapshot | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1263) |
 | s2c/1262 | player_positions | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1262) |
 | s2c/1253 | player_hp | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1253) |

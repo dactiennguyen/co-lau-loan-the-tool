@@ -1,15 +1,16 @@
 // Quest bot over a live world session (docs/app/events/10-quests.md). It reads the current main quest from s2c/39,
-// fights the named mob with BattleRunner, and talks to quest NPCs with c2s/13.
+// fights the named mob with BattleRunner, talks to quest NPCs with c2s/13, and walks through portals (c2s/13 with the
+// portal id) when the NPC or mob of a step is in another map.
 import { Reader, Writer, characterPrefix, characterLocation } from './protocol.ts';
 import { battleSetup, type Weights } from './battle.ts';
 import { BattleRunner, type BattleEnd } from './battle-runner.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
-import { mapEntities, mapBoss, characterStats, questData, questProgress, questComplete, type Mob, type Quest, type QuestStep } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, characterStats, questData, questProgress, questComplete, type Mob, type Place, type Quest, type QuestStep } from './world.ts';
 
-/** What a quest step asks for, read from its text (the steps of quests 3–7 in 10-quests.md). */
+/** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
 export type StepAction =
-  | { kind: 'kill'; mob: string }                   // "Tiêu diệt Heo Mọi", "Đánh bại Kẻ Gây Rối": each won battle counts 1
+  | { kind: 'kill'; mob: string }                   // "Tiêu diệt Heo Mọi", "Tiêu diệt 1 Sói Xám", "Đánh bại Kẻ Gây Rối": each won battle counts 1
   | { kind: 'damage'; mob: string; amount: number } // "Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc": damage to a boss of s2c/1177, won or lost
   | { kind: 'level'; level: number }                // "Đạt cấp độ 8"
   | { kind: 'stat' }                                // "Nâng điểm tiềm năng"
@@ -18,7 +19,7 @@ export type StepAction =
 
 export function stepAction(step: Pick<QuestStep, 'text' | 'npcId'>): StepAction {
   let m: RegExpExecArray | null;
-  if ((m = /^(?:Tiêu diệt|Đánh bại) (.+)$/.exec(step.text))) return { kind: 'kill', mob: m[1] };
+  if ((m = /^(?:Tiêu diệt|Đánh bại) (?:\d+ )?(.+)$/.exec(step.text))) return { kind: 'kill', mob: m[1] };
   if ((m = /^Gây (\d+) sát thương lên (.+)$/.exec(step.text))) return { kind: 'damage', mob: m[2], amount: Number(m[1]) };
   if ((m = /^Đạt cấp độ (\d+)$/.exec(step.text))) return { kind: 'level', level: Number(m[1]) };
   if (/^Nâng điểm tiềm năng/.test(step.text)) return { kind: 'stat' };
@@ -36,11 +37,20 @@ export interface QuestBotOptions {
   timedMoveMs?: number; restMs?: number;
   /** Mob name to fight on every step instead of the quest, for speed experiments. */
   farm?: string;
+  /** Below this share of max HP, rest restMs × 20 (at most 3 times) before the next challenge: a battle starts with the HP
+   * the last one ended with (Q16). Default 0.4. */
+  healBelow?: number;
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, on a loss, or after maxFights. */
 export class QuestBot implements WorldSession {
-  api?: SessionApi; quest?: Quest; mapId = ''; mobs: Mob[] = []; battle?: BattleRunner; target?: Mob;
+  api?: SessionApi; quest?: Quest; mapId = ''; mapName = ''; mobs: Mob[] = []; places: Place[] = []; battle?: BattleRunner; target?: Mob;
+  /** NPCs, portals and mob names of every map seen in this session, by map name. */
+  known = new Map<string, { mapId: string; places: Place[]; mobs: string[] }>();
+  /** Set from c2s/13 through a portal until s2c/43 of the new map; hops counts portals taken for the current step. */
+  travelling?: string; hops = 0;
+  /** Rests taken for HP, and waits for a moving boss, before the current challenge. */
+  rests = 0; waits = 0;
   fights = 0; wins = 0; losses = 0; hp = 0; maxHp = 0; level = 0; statPoints?: number; challenged = 0; battleStart = 0;
   /** A talk or stat-point step is answered by s2c/34 alone. */
   awaitingReply = false;
@@ -65,8 +75,36 @@ export class QuestBot implements WorldSession {
     switch (opcode) {
       case 9: { const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level; break; }
       case 29: this.mapId = characterLocation(payload).mapId; break;
-      case 43: this.mobs = mapEntities(payload).mobs; break;
-      case 1177: { const boss = mapBoss(payload).mob; if (!this.mobs.some(m => m.id === boss.id)) this.mobs.push(boss); this.log('boss', { id: boss.id, name: boss.name, level: boss.level }); break; }
+      case 11: {
+        if (payload[0] !== 1) break; // flag 0 is the world map ("M99")
+        const d = mapData(payload);
+        this.mapId = d.mapId; this.mapName = d.name; this.places = d.places;
+        this.known.set(d.name, { mapId: d.mapId, places: d.places, mobs: this.known.get(d.name)?.mobs ?? [] });
+        this.log('map', { mapId: d.mapId, name: d.name, npcs: d.places.filter(p => p.type === 2).map(p => `${p.id} ${p.name}`), portals: d.places.filter(p => p.type === 0).map(p => `${p.id} ${p.name}`) });
+        if (this.travelling) this.send(43, buildRequest(43, { mapId: d.mapId }));
+        break;
+      }
+      // Through a portal: the new map and zone; the client then asks for the map (c2s/11) and its mobs (c2s/43), B5.
+      case 13: {
+        const { mapId, zone } = mapChange(payload);
+        this.log('map_changed', { mapId, zone, portal: this.travelling });
+        if (this.travelling) { clearTimeout(this.wait); this.send(11, buildRequest(11, { mapId })); }
+        break;
+      }
+      case 43: {
+        this.mobs = mapEntities(payload).mobs;
+        const k = this.known.get(this.mapName); if (k) k.mobs = [...new Set(this.mobs.map(m => m.name))];
+        if (this.travelling) { this.log('arrived', { mapId: this.mapId, name: this.mapName, via: this.travelling }); this.travelling = undefined; this.later(2000); }
+        break;
+      }
+      case 1177: {
+        const b = mapBoss(payload);
+        if ('gone' in b) { this.mobs = this.mobs.filter(m => m.id !== b.gone); this.log('boss_moving', { id: b.gone }); break; }
+        if (!this.mobs.some(m => m.id === b.mob.id)) this.mobs.push(b.mob);
+        const k = this.known.get(this.mapName); if (k && !k.mobs.includes(b.mob.name)) k.mobs.push(b.mob.name);
+        this.log('boss', { id: b.mob.id, name: b.mob.name, level: b.mob.level, tile: b.tile });
+        break;
+      }
       case 39: {
         const before = this.quest && `${this.quest.id}/${this.quest.current}`;
         this.quest = questData(payload); this.awaitingReply = false;
@@ -82,6 +120,8 @@ export class QuestBot implements WorldSession {
         if (this.api && !this.battle) this.later(1500);
         break;
       }
+      // The server's count for the current step, right after each battle that counts (kills, or total boss damage).
+      case 1201: { const progress = new Reader(payload).i32(); if (this.quest) this.quest.progress = progress; this.log('step_progress', { progress }); break; }
       case 35: { const c = questComplete(payload); this.log('quest_complete', { questId: c.questId, title: c.title, rewards: c.rewards }); break; }
       case 10: {
         const s = characterStats(new Reader(payload));
@@ -108,7 +148,7 @@ export class QuestBot implements WorldSession {
   }
   private send(opcode: number, payload: Uint8Array) { this.api?.send(opcode, payload); }
   private advance(reason: string) {
-    const q = this.quest!; q.current++; q.progress = 0;
+    const q = this.quest!; q.current++; q.progress = 0; this.hops = 0;
     this.log('step_advanced', { reason, current: q.current, step: q.steps[q.current]?.text ?? null });
   }
   private later(ms: number) { clearTimeout(this.wait); this.wait = setTimeout(() => this.next(), ms); }
@@ -131,8 +171,15 @@ export class QuestBot implements WorldSession {
     if (this.options.farm) return this.fight(this.mobs.filter(m => m.name === this.options.farm), `farm ${this.options.farm}`);
     if (!q || !step) return this.stop('no current quest step');
     const action = stepAction(step);
+    if ((action.kind === 'kill' && q.progress >= step.required) || (action.kind === 'damage' && q.progress >= action.amount)) {
+      this.advance(action.kind === 'kill' ? 'kill count reached' : 'damage reached');
+      return this.next();
+    }
+    if (this.elsewhere(action, step.text)) return;
     switch (action.kind) {
-      case 'kill': case 'damage': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text);
+      case 'kill': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text);
+      // The boss of s2c/1177 ignores c2s/15; the game challenges it with c2s/1178 (B4).
+      case 'damage': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text, 1178);
       case 'level':
         if (this.level < action.level) return this.fight(this.grindTargets(), `${step.text} (cấp ${this.level})`);
         this.wait = setTimeout(() => this.stop('level reached but the server did not advance the step', { level: this.level }), 8000);
@@ -147,15 +194,55 @@ export class QuestBot implements WorldSession {
     }
   }
 
-  private fight(targets: Mob[], reason: string) {
+  private fight(targets: Mob[], reason: string, opcode: 15 | 1178 = 15) {
     if (this.fights >= this.options.maxFights) return this.stop('fight limit reached');
     if (this.maxHp && this.hp < this.maxHp * (this.options.minHpRatio ?? 0)) return this.stop('hp too low to fight', { hp: this.hp });
+    if (this.maxHp && this.hp < this.maxHp * (this.options.healBelow ?? 0.4) && this.rests < 3) {
+      const ms = (this.options.restMs ?? 3000) * 20; this.rests++;
+      this.log('rest_for_hp', { hp: `${this.hp}/${this.maxHp}`, ms, rest: this.rests });
+      return this.later(ms);
+    }
+    this.rests = 0; this.waits = 0;
     if (!targets.length) return this.stop('target mob not in this zone', { reason });
     const mob = this.target = targets[this.fights % targets.length];
     this.fights++; this.challenged = Date.now();
-    this.log('challenge', { reason, mobId: mob.id, name: mob.name, level: mob.level, fight: this.fights });
-    this.send(15, buildRequest(15, { mobId: mob.id }));
+    this.log('challenge', { reason, opcode, mobId: mob.id, name: mob.name, level: mob.level, fight: this.fights });
+    this.send(opcode, buildRequest(opcode, { mobId: mob.id }));
     this.wait = setTimeout(() => { if (!this.battle) { this.log('challenge_no_answer', { mobId: mob.id }); this.next(); } }, 8000);
+  }
+
+  /** True when the mob or NPC of the step is not in this map and the bot waits for it or travels. */
+  private elsewhere(action: StepAction, reason: string) {
+    if ('mob' in action && !this.mobs.some(m => m.name === action.mob)) {
+      // A boss between its s2c/1177 field 1 and field 0 (~13 s) is still in this map: wait for it.
+      if (this.known.get(this.mapName)?.mobs.includes(action.mob) && this.waits < 6) {
+        this.waits++; this.log('waiting_for_mob', { mob: action.mob, wait: this.waits });
+        this.later(5000);
+        return true;
+      }
+      return this.travel(reason, k => k.mobs.includes(action.mob));
+    }
+    if (action.kind === 'talk' && this.places.length && !this.places.some(p => p.type === 2 && p.id === action.npcId))
+      return this.travel(reason, k => k.places.some(p => p.type === 2 && p.id === action.npcId));
+    return false;
+  }
+
+  /** The NPC or mob of a step is not in this map: walk through a portal of s2c/11 (c2s/13 with its id, B5). The portal
+   * is the one towards a seen map that has it (`inMap`), else one the quest names ("Tìm Đến Vân Sơn") towards a map not
+   * seen yet, else any towards a map not seen yet. Portal names are map names ("Vân Sơn" → "Trại Vân Sơn"). */
+  private travel(reason: string, inMap: (k: { places: Place[]; mobs: string[] }) => boolean) {
+    const q = this.quest!, text = `${q.title} ${q.description} ${q.steps[q.current]?.text ?? ''}`;
+    const leadsTo = (p: Place, name: string) => name.includes(p.name);
+    const seen = [...this.known.keys()], portals = this.places.filter(p => p.type === 0 && p.name !== 'Bản đồ');
+    const fresh = portals.filter(p => !seen.some(name => leadsTo(p, name)));
+    const where = seen.find(name => name !== this.mapName && inMap(this.known.get(name)!));
+    const portal = (where && portals.find(p => leadsTo(p, where))) ?? fresh.find(p => text.includes(p.name)) ?? fresh[0];
+    if (!portal || this.hops >= 6) return false;
+    this.hops++; this.travelling = portal.name;
+    this.log('travel', { reason, from: this.mapId, portal: portal.id, name: portal.name, hop: this.hops });
+    this.send(13, buildRequest(13, { mapId: this.mapId, npcId: portal.id }));
+    this.wait = setTimeout(() => this.stop('portal did not answer', { portal: portal.id }), 8000);
+    return true;
   }
 
   /** Mobs to fight while waiting for a level: the named kind, or the strongest kind not above own level. */
@@ -168,7 +255,7 @@ export class QuestBot implements WorldSession {
     clearTimeout(this.wait);
     // The mob block of s2c/22 starts with the length-prefixed mob id; a late setup may answer an earlier challenge.
     const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id ?? this.target?.id ?? '?';
-    this.battleStart = Date.now();
+    this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp;
     this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
     this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log: (event, fields) => this.log(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, weights: this.options.weights, timedMoveMs: this.options.timedMoveMs });
     this.battle.start();
@@ -181,16 +268,16 @@ export class QuestBot implements WorldSession {
     this.battle = undefined;
     const q = this.quest, step = q?.steps[q.current], action = step && stepAction(step);
     const counts = action && 'mob' in action && this.mobs.find(m => m.id === end.mobId)?.name === action.mob;
+    // Local count; s2c/1201 replaces it with the server's a few ms later, before next() decides (and advances).
     if (q && step && action && counts && action.kind === 'damage') {
       q.progress += end.damage;
       this.log('damage_counted', { step: step.text, progress: `${q.progress}/${action.amount}` });
-      if (q.progress >= action.amount) this.advance('damage reached');
     }
-    if (!end.won) return this.stop('lost a battle');
+    // A boss (5000 HP for Thủ Lĩnh Sơn Tặc) is not expected to fall: its damage step goes on after a loss.
+    if (!end.won && !(action && counts && action.kind === 'damage')) return this.stop('lost a battle');
     if (q && step && action && counts && action.kind === 'kill') {
       q.progress++;
       this.log('kill_counted', { step: step.text, progress: `${q.progress}/${step.required}` });
-      if (q.progress >= step.required) this.advance('kill count reached');
     }
     this.later(this.options.restMs ?? 3000);
   }

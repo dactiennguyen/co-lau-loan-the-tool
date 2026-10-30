@@ -1,7 +1,7 @@
 import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof,
   sessionKey, notification, characterPrefix, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
-import { mapEntities, mapBoss, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem,
+import { mapData, mapChange, mapEntities, mapBoss, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem,
   zoneList, worldMap, questData, questProgress, questComplete, ranking } from './world.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, type Move } from './battle.ts';
 
@@ -49,16 +49,16 @@ event('s2c', 42, 'character_extra', 'world', 'Trả character_extra_request', 'c
 event('c2s', 29, 'location_request', 'world', 'Đã nhận character_extra', 's2c/29', 'string characterName');
 event('s2c', 29, 'character_location', 'world', 'Trả location_request', 'c2s/11', 'string characterName; string mapId; i32 field');
 event('c2s', 11, 'map_request', 'world', 'Đã có mapId; mapId "M99" khi mở Bản đồ thế giới', 's2c/11', 'string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1');
-event('s2c', 11, 'map_data', 'world', 'Trả map_request', 'c2s/43', 'flag 1: u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; opaque tail. flag 0 ("M99"): string "M99"; i32 n; n * {i32 index; string mapId; 17 byte 0; u8 locked; 8 byte 0}; i32 n; n * {i32 index; i32 levelRequired}', 'Getter/offset đã đo; x/y và kích thước lưới là suy luận; nhánh M99 đọc hết 1132 byte, cấp yêu cầu khớp nhãn Lv. trên bản đồ');
+event('s2c', 11, 'map_data', 'world', 'Trả map_request', 'c2s/43', 'flag 1: u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; bytes lớp 2; bytes lớp 3; i32 ×3; i32 n; n * {i32 id; string tên; u8 loại (0 cổng, 2 NPC); i32 x,y,w,h; u8; i32 p,q}; i32 ×3. flag 0 ("M99"): string "M99"; i32 n; n * {i32 index; string mapId; 17 byte 0; u8 locked; 8 byte 0}; i32 n; n * {i32 index; i32 levelRequired}', 'Getter/offset đã đo; x/y và kích thước lưới là suy luận; nhánh M99 đọc hết 1132 byte, cấp yêu cầu khớp nhãn Lv. trên bản đồ; danh sách NPC/cổng đọc hết byte M1, M2 (B5)');
 event('c2s', 43, 'entities_request', 'world', 'Đã nhận map_data', 's2c/43 và snapshot 1263', 'string mapId');
 event('s2c', 43, 'entities_data', 'world', 'Trả entities_request', 'Đồng bộ push thế giới; không gửi ACK nguyên gói', 'string mapId; u8 field; tới hết payload: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}', 'Đọc hết byte: M1 khu 0 (1398 byte), khu 1 (bot Q2); ý nghĩa field, a..d chưa chốt; không có toạ độ quái');
 
 event('c2s', 1169, 'player_move', 'world', 'Nhân vật đang chạy/nhảy/rơi; ~110 ms một gói', 'Server phát lại trong s2c/1262', 'i32 x; i32 y; i32 state; u8 flags[5]', 'Đo bằng thao tác joystick: state 0 đứng, 1 chạy, 5 lên, 6 rơi, 7 chạm đất; flags[2] trái, flags[3] phải');
 event('c2s', 1173, 'change_zone', 'world', 'Chọn khu trong bảng Khu vực', 's2c/13 rồi c2s/11, c2s/43 của khu mới', 'u8 zone', 'Đo B2: khu 20');
-event('s2c', 13, 'zone_changed', 'world', 'Trả change_zone', 'c2s/11 với area = khu mới', 'string mapId; i32 zone', 'Đo B2');
+event('s2c', 13, 'zone_changed', 'world', 'Trả change_zone (c2s/1173), hoặc c2s/13 với id cổng', 'c2s/11 với mapId, khu mới', 'string mapId; i32 zone; khi qua cổng thêm u8 0; u8 0xff', 'Đo B2 (đổi khu), B5 (qua cổng sang M2)');
 event('c2s', 1172, 'zone_list_request', 'world', 'Mở bảng chọn khu', 's2c/1172', 'Rỗng');
 event('s2c', 1172, 'zone_list', 'world', 'Trả zone_list_request', 'Người chơi chọn khu: c2s/1173', 'u8 n; n * {u8 zone; u8 load; u8 players; u8 capacity}', 'Đo: khớp từng ô "Dân số" trên màn hình; load 0/1/2 theo số người');
-event('c2s', 13, 'npc_talk', 'world', 'Nói chuyện với NPC của bước nhiệm vụ', 's2c/34 (lời thoại); trả nhiệm vụ: s2c/35, 39', 'string mapId; i32 npcId', 'Đo: npcId lấy từ bước nhiệm vụ trong s2c/39; bot Node gửi và server chấp nhận');
+event('c2s', 13, 'npc_talk', 'world', 'Nói chuyện với NPC của bước nhiệm vụ, hoặc bấm Vào ở một cổng (id cổng trong s2c/11)', 'NPC: s2c/34 (lời thoại), trả nhiệm vụ: s2c/35, 39. Cổng: s2c/13 với map mới', 'string mapId; i32 npcId', 'Đo: npcId lấy từ bước nhiệm vụ trong s2c/39; bot Node gửi và server chấp nhận. Cổng 1015 (M1 → M2) đo B5');
 event('c2s', 10, 'add_stat_point', 'world', 'Bấm cộng điểm tiềm năng', 's2c/10 kiểu 2, 4, 8', 'i32 stat; i32 amount', 'Thấy 10 lần, đều 0 và 1; tên field là suy luận');
 event('c2s', 1215, 'mail_request', 'world', 'Mở Hòm thư', 's2c/1215', 'Rỗng');
 event('s2c', 1215, 'mail_list', 'world', 'Trả mail_request', 'Không', 'i32 n; bản ghi thư chưa thấy (n = 0)', 'Đo 1 lần, hòm thư trống');
@@ -83,6 +83,7 @@ event('s2c', 19, 'move_result', 'battle', 'Trả swap_pieces hoặc battle_step_
 event('c2s', 20, 'use_skill', 'battle', 'Người chơi dùng kỹ năng trong lượt của mình', 's2c/20 với actor là người chơi', 'string battleUuid; i32 seq; i32 skillId', 'Đo Q9: server trả s2c/20 với actor là người chơi (Hỏa Cầu Thuật 62 sát thương, 122 khi thanh sức mạnh đầy). Bố cục suy từ hàm dựng gói sqlq.f75(int skillId, int seq), ghi tham số cuối trước như a74');
 event('s2c', 20, 'skill_result', 'battle', 'Trả battle_step_request khi quái dùng kỹ năng', 's2c/24', 'i32 seq; i32 0; u32 seed; i32 skillId; i32; i32 k; k * {i32 row+2; i32 col+2} mục tiêu; i32 j; j * {i32 row+2; i32 col+2} ô bị phá; i32 1; rồi như s2c/19 từ i32 n', 'Đọc hết byte: B1 1 mẫu, Q2 1 mẫu (kỹ năng 2000: k = 0, j = 3 hoặc 1 ô ngẫu nhiên), Q4 (kỹ năng 1000: k = 2, j = 8 = hai khối 2×2)');
 event('s2c', 21, 'timed_attack', 'battle', 'Trận tính giờ: quái đánh theo đồng hồ ~25–31 s, không cần đổi viên', 'Người chơi đi tiếp; end 1: trận kết thúc', 'i32 seq; i32 0; i32 0; rồi như s2c/19 từ u8 m (units, flags, actor, end, phần thưởng)', 'Đọc hết byte (Q6–Q8): Sơn Tặc đánh 46 mỗi lần; lần thứ ba end 1 (thua)');
+event('c2s', 1178, 'challenge_boss', 'battle', 'Nhân vật va vào boss của s2c/1177 (sqhz.a18 → sqlq.b121(mobId, false))', 's2c/22 sau ~2,8 s, rồi trận như c2s/15', 'string mobId; i32 flag=0', 'Đo B4 1 lần (Thủ Lĩnh Sơn Tặc mob86100201); boss bỏ qua c2s/15');
 event('c2s', 40, 'battle_leave', 'battle', 'Đầu hàng (nút Đầu hàng → OK), cùng lúc với c2s/11', 's2c/11, s2c/10, s2c/1214 rồi c2s/43', 'string battleUuid', 'Đo B2 4 lần; kết thúc bình thường không có gói này');
 event('s2c', 36, 'durability', 'battle', 'Cùng lúc kết quả cuối trận, và sau đầu hàng', 'Không', 'i32 8; i32 0; 8 byte (B1) hoặc 12 byte (từ Q2). Byte 8 và i32 ở offset 11 giảm dần qua các trận, ff là ô trống', 'Đo giá trị qua 60 trận; vai trò độ bền trang bị là suy luận (về 0 thì HP tối đa và sát thương tụt)');
 event('s2c', 1214, 'battle_end_1214', 'battle', 'Cuối trận, sau đầu hàng hoặc huỷ trận', 'Không', 'Rỗng', 'Đo; vai trò chưa rõ');
@@ -97,7 +98,7 @@ const pushes: [number, string, string, string, string?][] = [
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]', 'Đọc hết byte 3 kiểu (L1, Q2); EXP và tiền khớp phần thưởng trận, stats[0] tăng 1 mỗi điểm, statPoints giảm 10 → 0; extra, fields, labels chưa rõ'],
   [1187, 'inventory_item', 'Vật phẩm vào túi (trả nhiệm vụ)', 'u8; i32 itemId; i32 quantity; …; opaque (giống bản ghi vật phẩm, chưa kiểm)', 'Suy luận từ 3 mẫu'],
   [1256, 'notice_1256', 'Cuối trận thua (Q6)', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm")', 'Đọc hết byte 1 mẫu'],
-  [1201, 'flag_1201', 'Ngay sau s2c/10 khi lên cấp (Q3)', 'i32 field (1)', 'Đo 1 lần; vai trò chưa rõ'],
+  [1201, 'step_progress', 'Sau mỗi trận được tính cho bước nhiệm vụ đang làm', 'i32 progress: số con đã diệt, hoặc tổng sát thương lên boss', 'Đo: Q2–Q9 tăng 1 sau mỗi trận thắng (1…9); B4 363 = sát thương lên boss sau trận thua'],
   [1200, 'signal_1200', 'Ngay sau s2c/19 end 1, và sau s2c/35 khi trả nhiệm vụ', 'Rỗng', 'Đo; vai trò chưa rõ'],
   [39, 'quest_data', 'Sau s2c/9 và khi nhận nhiệm vụ mới', 'i32 questId; string title; string description; string type; i32 current; i32 progress; i32 n; n * {i32 index; string text; i32 param; i32 required; i32 npcId}', 'Đọc hết byte 3 mẫu; current khớp bước tô xanh trên bảng Nhiệm vụ'],
   [34, 'quest_progress', 'Sau khi nói chuyện với NPC, diệt quái của nhiệm vụ, nhận nhiệm vụ', 'i32 0; string "subtask 1"; i32 questId; string dialogue', 'Đọc hết byte'],
@@ -105,7 +106,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1261, 'counter_1261', 'Định kỳ ~36 s (log bot)', '10 byte: u8 0x13; i32 bộ đếm tăng 1; u8 3; i32 0', 'Chưa rõ'],
   [1195, 'flag_1195', 'Trong đồng bộ nhân vật', 'u8 field'],
   [1220, 'flag_1220', 'Trong đồng bộ nhân vật', 'u8 field'],
-  [1177, 'map_special_entity', 'Sau c2s/43: boss của map', 'string mapId; u8 field; {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}; u8; i32; i32', 'Đọc hết byte (Q9, 71 byte): Thủ Lĩnh Sơn Tặc mob86100101 cấp 11 ở khu 1; ba trường cuối chưa rõ'],
+  [1177, 'map_boss', 'Sau c2s/43: boss của map; và khi boss đổi chỗ', 'string mapId; u8 field. field 0: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}; u8 1; i32 cột; i32 hàng. field 1: string mobId (boss rời ô, ~13 s sau có field 0 với ô mới)', 'Đọc hết byte: Q9, Q10, Q13, B4, B5, Q16. Cột/hàng là suy luận: luôn nằm trong lưới 156×23 của M1, đổi sau mỗi field 1'],
   [1263, 'players_snapshot', 'Sau c2s/43: mọi người chơi khác trong khu', 'u16 n; n * {player record; status như s2c/1212}', 'Đọc hết byte; số bản ghi + mình = "Dân số" của khu trong s2c/1172'],
   [1262, 'player_positions', 'Mỗi 100 ms khi có người đổi vị trí', 'u16 tickMs=100; u16 n; n * {i32 id; i32 x; i32 y; u8 state; u8 flags; u16 field14}', 'Đo: bản ghi id của mình lặp đúng x/y/state của c2s/1169; flags = bitmask flags[0..3] của 1169; field14 chưa rõ'],
   [1253, 'player_hp', 'Người chơi khác đổi HP/cấp/trang bị', 'i32 id; i32 level; i32 hp; i32 maxHp; u8 field', 'Đo: maxHp giảm theo từng món tháo ở s2c/1166, cấp tăng khi lên cấp'],
@@ -155,6 +156,7 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 10: return w.i32(required(ctx.stat, 'stat')).i32(required(ctx.amount, 'amount')).build();
     case 1173: return w.u8(required(ctx.zone, 'zone')).build();
     case 15: return w.string(required(ctx.mobId, 'mobId')).u8(0).build();
+    case 1178: return w.string(required(ctx.mobId, 'mobId')).i32(0).build();
     case 18: case 40: return w.string(required(ctx.battleUuid, 'battleUuid')).build();
     case 14: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(required(ctx.seq, 'seq')).build();
     case 20: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(required(ctx.seq, 'seq')).i32(required(ctx.skill, 'skill')).build();
@@ -175,6 +177,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 13: fields = { mapId: r.string(), npcId: r.i32() }; break;
       case 1173: fields = { zone: r.u8() }; break;
       case 15: fields = { mobId: r.string(), flag: r.u8() }; break;
+      case 1178: fields = { mobId: r.string(), flag: r.i32() }; break;
       case 18: case 40: fields = { battleUuid: r.string() }; break;
       case 14: fields = { battleUuid: r.string(), seq: r.i32() }; break;
       case 20: fields = { battleUuid: r.string(), seq: r.i32(), skill: r.i32() }; break;
@@ -207,20 +210,20 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 9: fields = characterPrefix(payload); r.take(Number(fields.prefixBytes)); break;
       case 11:
         if (payload[0] === 0) { fields = worldMap(payload); r.take(payload.length); }
-        else { fields = mapPrefix(payload); r.take(Number(fields.prefixBytes)); }
+        else { fields = mapData(payload); r.take(payload.length); }
         break;
       case 29: fields = characterLocation(payload); r.take(payload.length); break;
       case 30: fields = { field0: r.i32(), firstId: r.i32(), firstLabel: r.string() }; break;
       case 42: fields = { firstLabel: r.string() }; break;
       case 43: fields = mapEntities(payload); r.take(payload.length); break;
-      case 13: fields = { mapId: r.string(), zone: r.i32() }; break;
+      case 13: fields = mapChange(payload); r.take(payload.length); break;
       case 22: fields = battleSetup(payload); r.take(Number(fields.knownBytes)); break;
       case 18: fields = battleJoinAck(r); break;
       case 21: fields = timeoutResult(r); break;
       case 24: fields = turnState(r); break;
       case 19: case 20: fields = battleResult(r, opcode); break;
       case 10: fields = characterStats(r); break;
-      case 1201: fields = { field: r.i32() }; break;
+      case 1201: fields = { progress: r.i32() }; break;
       case 1256: fields = { field: r.u8(), text: r.string() }; break;
       case 36: case 1214: case 1187: case 1200: break;
       case 39: fields = questData(payload); r.take(payload.length); break;

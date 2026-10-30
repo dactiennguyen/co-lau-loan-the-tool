@@ -6,6 +6,19 @@ import { decodeEvent } from '../src/events.ts';
 import { QuestBot, stepAction } from '../src/quest.ts';
 
 const q: Record<string, string> = fixtures.quest;
+const mp: Record<string, string> = fixtures['map-packets'];
+/** s2c/11 flag 1 with empty grids and the given places (id, name, type). */
+const mapPacket = (mapId: string, name: string, places: [number, string, number][]) => {
+  const w = new Writer().u8(1).string(mapId).string(name).u8(0).i32(64).i32(320).i32(0).i32(1).i32(1).i32(0).i32(0).i32(0).i32(1).i32(0).i32(0).i32(places.length);
+  for (const [id, n, type] of places) w.i32(id).string(n).u8(type).i32(0).i32(0).i32(32).i32(32).u8(0).i32(0).i32(0);
+  return w.i32(0).i32(0).i32(0).build();
+};
+const bossPacket = (field: 0 | 1) => field === 1 ? new Writer().string('M1').u8(1).string('mob86100001').build()
+  : new Writer().string('M1').u8(0).string('mob86100001').string('Thủ Lĩnh Sơn Tặc').i32(11).u8(0).i32(9).i32(1).u8(1).u8(1).i32(85).i32(5).build();
+const quest7 = () => new Writer().i32(7).string('Quét Sạch Sơn Trại').string('').string('main').i32(1).i32(0).i32(2)
+  .i32(0).string('Đánh bại Chỉ Huy Sơn Tặc').i32(87).i32(1).i32(-1)
+  .i32(1).string('Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc').i32(0).i32(500).i32(-1).build();
+const recorder = (sent: { opcode: number; hex: string }[]) => ({ send: (opcode: number, payload: Uint8Array) => sent.push({ opcode, hex: Buffer.from(payload).toString('hex') }), close: () => {}, user: { account: 'test' } });
 const decode = (opcode: number, key: string) => {
   const d = decodeEvent('s2c', opcode, Buffer.from(q[key], 'hex'));
   assert.equal(d.opaqueBytes, 0, `${key}: every byte read`);
@@ -30,9 +43,10 @@ test('ranking s2c/1254: tab list, top 100 with the own rank, faction tab', () =>
   assert.deepEqual([factions.rows.map((r: any) => r.name), factions.own.rank], [['Thiên Tôn', 'WATER7', 'CỜ LAU', 'ALIBABA'], -1]);
 });
 
-test('stepAction: every step text of quests 3–7', () => {
+test('stepAction: every step text of quests 3–8', () => {
   const steps: [string, number, unknown][] = [
     ['Tiêu diệt Heo Mọi', -1, { kind: 'kill', mob: 'Heo Mọi' }],
+    ['Tiêu diệt 1 Sói Xám', -1, { kind: 'kill', mob: 'Sói Xám' }],
     ['Đánh bại Kẻ Gây Rối', -1, { kind: 'kill', mob: 'Kẻ Gây Rối' }],
     ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1, { kind: 'damage', mob: 'Thủ Lĩnh Sơn Tặc', amount: 500 }],
     ['Đạt cấp độ 8', -1, { kind: 'level', level: 8 }],
@@ -41,6 +55,56 @@ test('stepAction: every step text of quests 3–7', () => {
     ['Thu thập 5 Da Heo', -1, { kind: 'unknown' }],
   ];
   for (const [text, npcId, action] of steps) assert.deepEqual(stepAction({ text, npcId }), action, text);
+});
+
+test('quest bot: a damage step challenges the boss of s2c/1177 with c2s/1178, not c2s/15', () => {
+  const sent: { opcode: number; hex: string }[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: () => {} });
+  bot.onPacket(29, new Writer().string('manina').string('M1').i32(0).build());
+  bot.onPacket(43, new Writer().string('M1').u8(3).string('mob872600').string('Chỉ Huy Sơn Tặc').i32(10).u8(2).i32(6).i32(1).u8(2).build());
+  bot.onPacket(1177, bossPacket(0));
+  bot.onPacket(39, quest7());
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 1178, hex: new Writer().string('mob86100001').i32(0).build().toString('hex') });
+  (bot as any).stop('test done');
+});
+
+test('quest bot: a boss between s2c/1177 field 1 and field 0 is waited for, not searched in another map', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: string[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: e => events.push(String(e.event)) });
+  bot.onPacket(11, mapPacket('M1', 'Làng Thanh Khê', [[1015, 'Vân Sơn', 0]]));
+  bot.onPacket(43, new Writer().string('M1').u8(3).build());
+  bot.onPacket(1177, bossPacket(0));
+  bot.onPacket(1177, bossPacket(1));
+  bot.onPacket(39, quest7());
+  bot.onReady(recorder(sent));
+  assert.deepEqual([sent.length, events.at(-1)], [0, 'waiting_for_mob']);
+  bot.onPacket(1177, bossPacket(0));
+  bot.next();
+  assert.equal(sent.at(-1)?.opcode, 1178);
+  (bot as any).stop('test done');
+});
+
+test('quest bot: an NPC in another map is reached through the portal the quest names (c2s/13 portal → s2c/13 → c2s/11 → c2s/43)', () => {
+  const sent: { opcode: number; hex: string }[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: () => {} });
+  const quest = new Writer().i32(8).string('Tìm Đến Vân Sơn').string('').string('main').i32(1).i32(0).i32(2)
+    .i32(1).string('Nói chuyện với Thành Chủ Nguyễn Khang').i32(129).i32(1).i32(129)
+    .i32(2).string('Gặp Trại Chủ Phạm Hùng').i32(127).i32(1).i32(127);
+  bot.onPacket(29, new Writer().string('manina').string('M1').i32(0).build());
+  bot.onPacket(11, mapPacket('M1', 'Làng Thanh Khê', [[1015, 'Vân Sơn', 0], [129, 'Thành Chủ Nguyễn Khang', 2]]));
+  bot.onPacket(43, new Writer().string('M1').u8(3).build());
+  bot.onPacket(39, quest.build());
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: mp['c2s/13 portal 1015'] });
+  bot.onPacket(13, Buffer.from(mp['s2c/13 portal'], 'hex'));
+  assert.deepEqual(sent.at(-1), { opcode: 11, hex: new Writer().string('M2').u8(-1).i32(-1).build().toString('hex') });
+  bot.onPacket(11, Buffer.from(mp['s2c/11 M2'], 'hex'));
+  assert.deepEqual(sent.at(-1), { opcode: 43, hex: new Writer().string('M2').build().toString('hex') });
+  bot.onPacket(43, new Writer().string('M2').u8(3).build());
+  bot.next();
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M2').i32(127).build().toString('hex') });
+  (bot as any).stop('test done');
 });
 
 test('quest bot: talk step sends c2s/13, the NPC reply advances to the kill step, which challenges a matching mob', () => {

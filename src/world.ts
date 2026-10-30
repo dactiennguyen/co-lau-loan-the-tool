@@ -1,7 +1,7 @@
 // World-state packets: map mobs, zones, world map, other players, chat, ground items, own movement, character stats,
 // quests, ranking (docs/app/events/05-battle.md, 08-server-map-zone.md, 09-players-chat.md, 10-quests.md, 11-panels.md).
 // Each layout reads every captured payload to its last byte, except where a comment says otherwise.
-import { Reader, ProtocolError } from './protocol.ts';
+import { Reader, ProtocolError, mapPrefix } from './protocol.ts';
 
 const u16 = (r: Reader) => r.take(2).readUInt16BE();
 const finish = <T>(r: Reader, value: T, what: string): T => {
@@ -19,10 +19,32 @@ export function mapEntities(payload: Uint8Array) {
   return { mapId, field, mobs };
 }
 
-/** s2c/1177 after s2c/43: the map boss, a mob record as in s2c/43 followed by three unnamed fields (Q9). */
+/** s2c/11 flag 1, after the prefix of mapPrefix (protocol.ts): two more grids of the same size (decoration, collision), three
+ * ints, then the places of the map: NPCs (type 2) and portals (type 0; c2s/13 with the portal id walks through it,
+ * B5). x, y, w, h are server units. The three ints before and the 12 bytes after the places stay unnamed. */
+export function mapData(payload: Uint8Array) {
+  const pre = mapPrefix(payload), r = new Reader(payload); r.take(pre.prefixBytes);
+  const layers = [r.bytes().length, r.bytes().length], head = [r.i32(), r.i32(), r.i32()], places = [];
+  for (let n = r.i32(); n > 0; n--) places.push({ id: r.i32(), name: r.string(), type: r.u8(), x: r.i32(), y: r.i32(), w: r.i32(), h: r.i32(), flag: r.u8(), p: r.i32(), q: r.i32() });
+  return finish(r, { ...pre, layers, head, places, tail: [r.i32(), r.i32(), r.i32()] }, 's2c/11');
+}
+export type Place = ReturnType<typeof mapData>['places'][number];
+
+/** s2c/13: the map and zone the server moved the character to. A zone change (c2s/1173) sends just these; a portal
+ * (c2s/13 with the portal id, B5) adds two bytes, 0 and 0xff. */
+export function mapChange(payload: Uint8Array) {
+  const r = new Reader(payload), mapId = r.string(), zone = r.i32();
+  return finish(r, { mapId, zone, ...(r.offset < r.data.length ? { extra: [r.u8(), r.u8()] } : {}) }, 's2c/13');
+}
+
+/** s2c/1177: a boss of the map. field 0 (after s2c/43, and when it moves): a mob record as in s2c/43, then u8 1 and the
+ * tile column and row it stands on (M1 is 156 × 23 tiles of 32). field 1: only the mob id, the boss left its tile;
+ * ~13 s later a field 0 brings the new tile (Q16: Hào Trưởng phía Bắc (38, 6) → (59, 7)). */
 export function mapBoss(payload: Uint8Array) {
-  const r = new Reader(payload), mapId = r.string(), field = r.u8(), mob = mobRecord(r);
-  return finish(r, { mapId, field, mob, tail: [r.u8(), r.i32(), r.i32()] }, 's2c/1177');
+  const r = new Reader(payload), mapId = r.string(), field = r.u8();
+  if (field === 1) return finish(r, { mapId, field, gone: r.string() }, 's2c/1177');
+  const mob = mobRecord(r);
+  return finish(r, { mapId, field, mob, state: r.u8(), tile: [r.i32(), r.i32()] }, 's2c/1177');
 }
 
 /** s2c/10, sent together as kinds 2, 4, 8 on level up and on every stat point. Kind 2: level and ten stats (the first
