@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 74 gói theo cặp hướng/opcode (47 từ boot/login/thế giới, 14 từ phiên đánh quái B1, 3 từ phiên bản đồ/khu B2, 3 từ bot đánh quái run4, 7 từ phiên L1/W1). `s2c/11` còn có nhánh bản đồ thế giới khi mapId là `"M99"`. Trên dây không có tên event string gốc được xác minh; các tên như character_data chỉ là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 86 gói theo cặp hướng/opcode (47 từ boot/login/thế giới, 14 từ phiên đánh quái B1, 3 từ phiên bản đồ/khu B2, 3 từ bot đánh quái run4, 7 từ phiên L1/W1, 12 từ lượt mở các bảng chức năng U1). Bảng mã của app có 188 opcode; danh sách 126 opcode chưa thấy trên dây ở [10-quests](10-quests.md#unseen). `s2c/11` còn có nhánh bản đồ thế giới khi mapId là `"M99"`. Trên dây không có tên event string gốc được xác minh; các tên như character_data chỉ là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 ## Trình tự vào game
 
@@ -44,12 +44,12 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/43 | entities_request | world | [Byte, bố cục, nguồn quan sát](03-world.md#c2s-43) |
 | s2c/43 | entities_data | world | [Byte, bố cục, nguồn quan sát](03-world.md#s2c-43) |
 | s2c/1259 | config_1259 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1259) |
-| s2c/1265 | config_1265 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1265) |
+| s2c/1265 | faction | push | [Byte lúc đăng nhập](04-push.md#s2c-1265), [bảng Sứ quân](10-quests.md#các-bảng-chức-năng-u1) |
 | s2c/1269 | config_1269 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1269) |
 | s2c/1271 | social_links | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1271) |
 | s2c/1272 | config_1272 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1272) |
 | s2c/46 | currency_notice | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-46) |
-| s2c/39 | quest_data | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-39) |
+| s2c/39 | quest_data | push | [Nhiệm vụ đang làm](10-quests.md#s2c-39) |
 | s2c/1195 | flag_1195 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1195) |
 | s2c/1220 | flag_1220 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1220) |
 | s2c/1177 | map_special_entity | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1177) |
@@ -79,16 +79,30 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/1173 | change_zone | map | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
 | s2c/13 | zone_changed | map | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
 | s2c/45 | boss_broadcast | push | [Thông báo boss](06-map-mobs.md#thông-báo-boss-s2c45), [boss theo map](08-server-map-zone.md#25-map) |
-| s2c/34 | quest_progress | battle | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
+| s2c/34 | quest_progress | push | [Gói nhiệm vụ](10-quests.md#c2s-13) |
 | s2c/1212 | player_status | push | [Hiệu ứng người chơi](09-players-chat.md#s2c-1212) |
 | s2c/1200 | battle_end_1200 | battle | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
 | c2s/1172 | zone_list_request | map | [Khu vực và số người](08-server-map-zone.md#zone-list) |
 | s2c/1172 | zone_list | map | [Khu vực và số người](08-server-map-zone.md#zone-list) |
 | s2c/1205 | world_chat | push | [Chat](09-players-chat.md#chat) |
-| c2s/13 | npc_talk | world | [Gói khác thấy trong L1](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) |
+| c2s/13 | npc_talk | world | [Gói nhiệm vụ](10-quests.md#c2s-13) |
 | c2s/10 | add_stat_point | world | [Gói khác thấy trong L1](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) |
-| s2c/35 | quest_complete | push | [Gói khác thấy trong L1](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) |
+| s2c/35 | quest_complete | push | [Gói nhiệm vụ](10-quests.md#c2s-13) |
 | s2c/1187 | inventory_item | push | [Gói khác thấy trong L1](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) |
+| c2s/1215 | mail_request | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| s2c/1215 | mail_list | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| c2s/1196 | friends_request | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| s2c/1196 | friend_list | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| c2s/1254 | ranking_request | world | [Bảng xếp hạng](10-quests.md#s2c-1254) |
+| s2c/1254 | ranking | world | [Bảng xếp hạng](10-quests.md#s2c-1254) |
+| c2s/1240 | season_request | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| s2c/1240 | season_info | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| c2s/1241 | season_quests_request | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| s2c/1241 | season_quests | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| c2s/1265 | faction_request | world | [Các bảng chức năng](10-quests.md#các-bảng-chức-năng-u1) |
+| s2c/1261 | counter_1261 | push | 10 byte, bộ đếm tăng mỗi ~36 s; chưa rõ |
+
+Nhiệm vụ (`s2c/39`, `c2s/13`, `s2c/34`, `s2c/35`), các bảng chức năng (thư, bạn bè, xếp hạng, Bảo Điển, sứ quân) và bot TypeScript tự làm nhiệm vụ xem ở [10-quests.md](10-quests.md).
 
 Máy chủ, cách kết nối, 25 map (`c2s/11 "M99"`), 100 khu và số người mỗi khu (`c2s/1172`) xem ở [08-server-map-zone.md](08-server-map-zone.md). Di chuyển của mình, vị trí và thông tin người chơi khác, chat Thế giới và vật phẩm rơi xem ở [09-players-chat.md](09-players-chat.md).
 

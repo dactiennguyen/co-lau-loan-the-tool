@@ -31,7 +31,7 @@ Trận đánh quái **chạy trên server**. Client chỉ hiển thị và gửi
 | Mô phỏng rơi, chuỗi ăn | Cả hai. Server tính, client tính lại để vẽ | Kết quả của server khớp mô hình rơi 52/52 bước [Đo]. Client có `checkSumToSyncDataWithServer()` [Suy luận] |
 | Kiểm tra nước đi của người chơi | Server | Nước sai (run2, sai `seq` và sai ô) không được trả lời. Lượt hết sau đúng 34 s rồi chuyển cho quái [Đo] |
 | AI của quái | Server | Nước của quái chỉ tới khi client gửi c2s/14 [Đo] |
-| Sát thương, máu, nội lực, nộ | Server (danh sách `units` trong s2c/19/20) | Client không gửi số liệu nào [Đo] |
+| Sát thương, máu, nội lực, `s2` | Server (danh sách `units` trong s2c/19/20) | Client không gửi số liệu nào [Đo] |
 | Đồng hồ lượt | Server | Hết 30 s (+~4 s) thì server tự gửi s2c/24 `playerTurn=0` [Đo] |
 | Thắng/thua, phần thưởng, nhiệm vụ | Server (s2c/19 `end=1`, s2c/10, s2c/34) | run4 [Đo] |
 | Di chuyển trên bản đồ | Client, báo vị trí bằng c2s/1169 | [06-map-mobs](06-map-mobs.md) [Đo] |
@@ -79,12 +79,12 @@ Bàn 8×8 lưu theo hàng (`index = hàng × 8 + cột`), hàng 0 ở trên. To�
 3. **Rơi**: trong mỗi cột, viên còn lại rơi xuống đáy. [Đo]
 4. **Lấp**: các ô trống được lấp bằng danh sách `refill` của server, **từng cột từ trái sang phải; trong một cột, từ ô trống dưới cùng lên trên**. Thứ tự này là cách duy nhất trong 5 cách thử khớp mọi bước. [Đo]
 5. **Chuỗi**: sau khi lấp, nếu có đoạn ≥3 mới thì lặp lại bước 2–4. Một danh sách `refill` dùng cho cả chuỗi. Đã thấy tới 5 đợt. [Đo]
-6. **Thêm lượt**: có đoạn ≥4 ở **bất kỳ đợt nào** của nước đó. Server đánh dấu bằng `flags[1]=1`. Bước 7 của run3 là bằng chứng: đoạn 4 âm dương chỉ xuất hiện ở đợt 4 của chuỗi, và quái được đi tiếp. [Đo]
+6. **Thêm lượt**: có đoạn ≥4 ở **bất kỳ đợt nào** của nước đó. Server đánh dấu bằng `flags[1]=1`. Bước 7 của run3 là bằng chứng: đoạn 4 âm dương chỉ xuất hiện ở đợt 4 của chuỗi, và quái được đi tiếp. [Đo] Cẩm nang trong game nói thêm: hai hàng 3 viên cùng loại cắt nhau (L/T) cũng được thêm lượt. Chưa gặp trong capture; mô hình đã tính. [Cẩm nang]
 7. **Viên đặc biệt**: mã `10..69` là loại `mã % 10` (mã `10` là kiếm) và ăn chung với viên thường cùng loại. Khi bị ăn, nó **phá thêm ô vuông 3×3 quanh nó**. Viên đặc biệt đến qua `refill` (run3 bước 7, run4 bước 2). [Đo với mã `10`: run3 và run4 chỉ khớp khi có luật 3×3. Các luật "phá cả hàng", "phá cả cột", "phá chữ thập", "viên hoàn hảo" đều lệch]
    - Mã 11–15: [Suy luận] theo quy luật `mã % 10`, chưa thấy.
-   - Nổ dây chuyền giữa hai viên đặc biệt: [Chưa rõ]. Mô hình đang cho nổ lan.
-   - Cách sinh ra viên đặc biệt: [Chưa rõ].
-8. **Hết nước đi**: [Chưa rõ]. Bàn cuối của B1 chỉ còn 1 nước hợp lệ, chưa thấy trường hợp 0 nước.
+   - Nổ dây chuyền giữa hai Kiếm lửa: có, theo Cẩm nang ("Kiếm lửa khác nằm trong vùng nổ cũng nổ theo"). Mô hình cho nổ lan.
+   - Cách sinh ra: "đôi khi kiếm mới thêm vào bàn là Kiếm lửa; vài kỹ năng cũng tạo ra Kiếm lửa" (Cẩm nang).
+8. **Hết nước đi**: server **xếp lại cả bàn** và gửi bàn mới 64 ô ngay trong `s2c/19` của nước vừa đi (`u8 1; i32 64; u8[64]` sau danh sách refill). Thấy 3 lần ở bot Node, xem [10-quests](10-quests.md#hai-điều-q1-phát-hiện). [Đo]
 
 Ví dụ lấp (run4, seq 2). Nước của bot: đổi `r6c0 ↔ r6c1`, refill `[3, 70, 4, 0, 10, 4]`:
 
@@ -106,14 +106,14 @@ Số liệu đo trong `units` của s2c/19. `-1` nghĩa là không đổi.
 |---:|---|---|---|
 | `0` | Kiếm | Gây sát thương cho đối thủ (`damage` của bên ăn, `hp` của bên bị đánh) | manina (cấp 3) ăn 3 kiếm: 31. Ăn 4 kiếm (kèm nổ): 29. Gà Điên ăn 3 kiếm: 0, 4, 8. Chỉ Huy Sơn Tặc: 14. Không tỉ lệ với số viên, có thể có yếu tố ngẫu nhiên hoặc phòng thủ [Đo số; công thức Chưa rõ] |
 | `1` | Tim | Hồi máu cho bên ăn | Chỉ Huy Sơn Tặc → manina ăn 4 tim: 73 → 80 [Đo] |
-| `2` | Âm dương | Tăng `s1` (nhiều khả năng là nội lực để dùng kỹ năng) | manina, Gà Điên: +6 cho mỗi 3 viên. Chỉ Huy Sơn Tặc: +8. Kỹ năng 2000 trừ `s1` [Đo; tên Suy luận] |
-| `3` | Giọt tím | Tăng `s2` (thanh nộ) | manina: +15 cho mỗi 3 viên. Chỉ Huy Sơn Tặc: +13 cho 3 viên, +22 cho 4 viên [Đo; tên Suy luận] |
-| `4` | Đào | Không thấy thay đổi trong `units` | [Chưa rõ] |
-| `5` | Sao xanh | Không thấy thay đổi | [Chưa rõ] |
-| `0x46` | Nén vàng | Không thấy thay đổi trong trận | [Chưa rõ] |
-| `10` | Kiếm đặc biệt | Như kiếm, cộng nổ 3×3 | [Đo] |
+| `2` | Âm dương | Tăng `s1` = nội lực để dùng tuyệt chiêu (Cẩm nang) | manina, Gà Điên: +6 cho mỗi 3 viên. Chỉ Huy Sơn Tặc: +8. Kỹ năng 2000 trừ `s1` [Đo; tên Suy luận] |
+| `3` | Giọt nước | Tăng `s2`. Cẩm nang: tăng kinh nghiệm, bằng 1/2 ngôi sao | manina: +15 cho mỗi 3 viên. Chỉ Huy Sơn Tặc: +13 cho 3 viên, +22 cho 4 viên [Đo] |
+| `4` | Trái đào | Cẩm nang: hồi sức mạnh, nhân đôi lực tấn công cho một lượt. Không thấy thay đổi trong `units` | [Chưa rõ trên dây] |
+| `5` | Ngôi sao | Cẩm nang: tăng kinh nghiệm. Không thấy thay đổi trong `units` | [Chưa rõ trên dây] |
+| `0x46` | Thỏi vàng | Cẩm nang: đổi Xu khoá, đủ 10.000 vàng tự đổi 10.000 Xu khoá. Không thấy thay đổi trong trận | [Chưa rõ trên dây] |
+| `10` | Kiếm lửa | Mạnh hơn kiếm thường, cộng nổ 3×3 | [Đo nổ; Cẩm nang] |
 
-Ăn ≥4 viên bất kỳ loại nào cũng được thêm lượt.
+Ăn ≥4 viên bất kỳ loại nào, hoặc hai hàng 3 cùng loại cắt nhau, được thêm lượt.
 
 ## Thuật toán của bot
 
@@ -159,9 +159,9 @@ Bot gọi thẳng hàm dựng gói native của `com.mh.sqlq` trong `libgdx-flas
 - Đọc gói: hook writer `sqje.a2` và lúc trả về của reader `sqnw.e6` như [05-battle § Thu lại](05-battle.md#thu-lại).
 - Phần não (TypeScript, dùng `src/protocol.ts` `Reader` và `src/battle.ts`) nhận gói qua relay Python `frida` (bộ binding đi kèm Frida 17.10 trên máy Mac), rồi trả lệnh dạng `{fn: 'a74', args: [...]}`.
 
-### B. Client Node.js không giao diện, chưa chạy
+### B. Client Node.js không giao diện, đã chạy
 
-Dùng `Writer` của [src/protocol.ts](../../../src/protocol.ts) sau khi `runClient` vào thế giới (cần `CLLT_USERNAME`/`CLLT_PASSWORD`; đăng nhập sẽ đá phiên trên điện thoại):
+[src/quest.ts](../../../src/quest.ts) gửi các gói dưới bằng `Writer` của [src/protocol.ts](../../../src/protocol.ts) sau khi `runClient` vào thế giới. Cần `CLLT_USERNAME`/`CLLT_PASSWORD`, và tài khoản không được online ở máy khác (server từ chối bằng `s2c/0`). Bot đã thắng 10/10 trận Heo Mọi, xem [10-quests](10-quests.md#bot-làm-nhiệm-vụ-bằng-typescript).
 
 | Gói | Payload |
 |---|---|
@@ -315,8 +315,7 @@ Khi thua (B1), 16 byte sau `end` đều là 0. Đối chiếu s2c/10 trước v�
 ## Chưa biết
 
 - Gói người chơi dùng kỹ năng (bot chỉ thấy quái dùng kỹ năng, qua s2c/20).
-- Server làm gì khi bàn hết nước.
-- Mã viên đặc biệt khác `10`, và cách chúng được sinh ra.
+- Mã viên đặc biệt khác `10`.
 - Công thức sát thương.
 - Quái có biến mất hoặc hồi sinh phía server sau khi bị giết không.
 - Có giới hạn tần suất thách đấu không.

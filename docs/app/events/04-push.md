@@ -47,12 +47,14 @@ Nguồn: A2: packet đọc từ native reader, record 89.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | config_1265 |
-| Xuất hiện khi | Sau c2s/4 |
+| Nhãn phân tích | faction |
+| Xuất hiện khi | Sau c2s/4 (lệnh 100, 30 byte) và khi mở Sứ quân |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | 30 byte cấu hình, opaque |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | u8 lệnh; 100: cấu hình; 0: sứ quân của mình (16 byte 0 khi chưa vào); 1: danh sách (tên, cấp, số người/20, kiểu duyệt) |
+| Độ chắc chắn | Lệnh đọc được; từng trường danh sách chưa giải |
 | Độ dài payload mẫu | 30 byte |
+
+Bố cục và giải thích: [10-quests](10-quests.md#các-bảng-chức-năng-u1).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -68,9 +70,11 @@ Nguồn: A2: packet đọc từ native reader, record 90.
 
 ```json
 {
-  "values": {},
-  "bytesInterpreted": 0,
-  "bytesUnknown": 30
+  "values": {
+    "command": 100
+  },
+  "bytesInterpreted": 1,
+  "bytesUnknown": 29
 }
 ```
 
@@ -232,11 +236,13 @@ Nguồn: A2: packet đọc từ native reader, record 145.
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | quest_data |
-| Xuất hiện khi | Sau s2c/9 |
+| Xuất hiện khi | Sau s2c/9 và khi nhận nhiệm vụ mới |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | Prefix i32, string title, string description; opaque tail |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | i32 questId; string title; string description; string type; i32 current; i32 progress; i32 n; n * {i32 index; string text; i32 param; i32 required; i32 npcId} |
+| Độ chắc chắn | Đọc hết byte 3 mẫu; current khớp bước tô xanh trên bảng Nhiệm vụ |
 | Độ dài payload mẫu | 575 byte |
+
+Bố cục và giải thích: [10-quests](10-quests.md#s2c-39).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -255,12 +261,59 @@ Nguồn: A2: packet đọc từ native reader, record 147.
 ```json
 {
   "values": {
-    "field0": 3,
+    "id": 3,
     "title": "Những Việc Đầu Tiên",
-    "description": "Một chiến binh không thể trưởng thành nếu chưa trải qua thử thách đầu tiên. Hãy giúp dân làng xử lý những rắc rối nhỏ và học cách sử dụng sức mạnh của bản thân."
+    "description": "Một chiến binh không thể trưởng thành nếu chưa trải qua thử thách đầu tiên. Hãy giúp dân làng xử lý những rắc rối nhỏ và học cách sử dụng sức mạnh của bản thân.",
+    "type": "main",
+    "current": 4,
+    "progress": 0,
+    "steps": [
+      {
+        "index": 0,
+        "text": "Đạt cấp độ 2",
+        "param": 2,
+        "required": 1,
+        "npcId": -1
+      },
+      {
+        "index": 1,
+        "text": "Nói chuyện với Hương Lão Trần Bá",
+        "param": 102,
+        "required": 1,
+        "npcId": 102
+      },
+      {
+        "index": 2,
+        "text": "Nâng điểm tiềm năng",
+        "param": 0,
+        "required": 1,
+        "npcId": -1
+      },
+      {
+        "index": 3,
+        "text": "Sử dụng điểm kỹ năng",
+        "param": 0,
+        "required": 1,
+        "npcId": -1
+      },
+      {
+        "index": 4,
+        "text": "Tiêu diệt Gà Điên",
+        "param": 0,
+        "required": 1,
+        "npcId": -1
+      },
+      {
+        "index": 5,
+        "text": "Báo cáo với Hương Lão Trần Bá",
+        "param": 102,
+        "required": 1,
+        "npcId": 102
+      }
+    ]
   },
-  "bytesInterpreted": 254,
-  "bytesUnknown": 321
+  "bytesInterpreted": 575,
+  "bytesUnknown": 0
 }
 ```
 
@@ -767,7 +820,7 @@ Nguồn: A2: packet đọc từ native reader, record 217.
 | Nhãn phân tích | player_enter |
 | Xuất hiện khi | Người chơi vào khu hoặc xuất hiện lại |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | player record: u8 kind; string name; i32 id; string displayName; u8; u8; i32 level,hp,maxHp,s1,s1Max; u16; i32 x,y; i32 gear[6]; appearance; i32 tagId; string tag; u8; u8 |
+| Bố cục payload | player record: u8 kind; string name; i32 id; string displayName; u8; u8; i32 level,hp,maxHp,s1,s1Max; u16; i32 x,y; i32 gear[6]; appearance; i32; string faction; u8; u8 |
 | Độ chắc chắn | Đọc hết byte 60 mẫu; khối appearance (bảng màu) chưa đặt tên |
 | Độ dài payload mẫu | 260 byte |
 
@@ -813,9 +866,9 @@ Nguồn: A2: packet đọc từ native reader, record 241.
       0
     ],
     "appearanceBytes": 171,
-    "tagId": 0,
-    "tag": "",
-    "tagFlags": [
+    "factionField": 0,
+    "faction": "",
+    "factionFlags": [
       0,
       0
     ]

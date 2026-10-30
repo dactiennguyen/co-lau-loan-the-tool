@@ -1,5 +1,5 @@
-// World-state packets: zones, world map, other players, chat, ground items, own movement
-// (docs/app/events/08-server-map-zone.md, 09-players-chat.md). Each layout reads every captured payload to its last byte.
+// World-state packets: zones, world map, other players, chat, ground items, own movement, quests, ranking
+// (docs/app/events/08-server-map-zone.md, 09-players-chat.md, 10-quests.md). Each layout reads every captured payload to its last byte.
 import { Reader, ProtocolError } from './protocol.ts';
 
 const u16 = (r: Reader) => r.take(2).readUInt16BE();
@@ -37,8 +37,8 @@ export function playerRecord(r: Reader) {
   if (marker !== 99000) throw new ProtocolError('PAYLOAD_SCHEMA', `Unobserved appearance marker ${marker}`, { offset: r.offset - 4 });
   for (let n = r.u8(); n > 0; n--) { r.i32(); r.bytes(); }
   const appearanceBytes = r.offset - start;
-  const tagId = r.i32(), tag = r.string(), tagFlags = [r.u8(), r.u8()];
-  return { kind, name, id, displayName, flag1, flag2, level, hp, maxHp, s1, s1Max, field, x, y, gear, appearanceBytes, tagId, tag, tagFlags };
+  const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()]; // faction ("sứ quân") name, empty when none
+  return { kind, name, id, displayName, flag1, flag2, level, hp, maxHp, s1, s1Max, field, x, y, gear, appearanceBytes, factionField, faction, factionFlags };
 }
 
 /** s2c/1212, also appended to every s2c/1263 entry. Mode 2 carries a list; the 11-byte form a single entry. */
@@ -88,4 +88,40 @@ export function worldMap(payload: Uint8Array) {
     if (map) map.levelRequired = level;
   }
   return finish(r, { flag, mapId, maps }, 's2c/11 M99');
+}
+
+export interface QuestStep { index: number; text: string; param: number; required: number; npcId: number }
+export interface Quest { id: number; title: string; description: string; type: string; current: number; progress: number; steps: QuestStep[] }
+
+/** s2c/39: the current quest. `param` is the level for "Đạt cấp độ", the NPC for talk steps, the mob kind for kill steps. */
+export function questData(payload: Uint8Array): Quest {
+  const r = new Reader(payload);
+  const id = r.i32(), title = r.string(), description = r.string(), type = r.string(), current = r.i32(), progress = r.i32(), steps = [];
+  for (let n = r.i32(); n > 0; n--) steps.push({ index: r.i32(), text: r.string(), param: r.i32(), required: r.i32(), npcId: r.i32() });
+  return { id, title, description, type, current, progress, steps };
+}
+/** s2c/34: progress or NPC dialogue of a quest. */
+export function questProgress(payload: Uint8Array) {
+  const r = new Reader(payload);
+  return { field: r.i32(), label: r.string(), questId: r.i32(), text: r.string() };
+}
+/** s2c/35: quest finished, with the reward lines shown to the player. */
+export function questComplete(payload: Uint8Array) {
+  const r = new Reader(payload), questId = r.i32(), title = r.string(), rewards = [];
+  for (let n = r.i32(); n > 0; n--) rewards.push(r.string());
+  return { questId, title, rewards, text: r.string() };
+}
+
+/** s2c/1254: ranking. Kind 0 lists the tabs; kind 1 is one tab: top entries, then the own rank (-1 when unranked). */
+export function ranking(payload: Uint8Array) {
+  const r = new Reader(payload), kind = r.u8();
+  if (kind === 0) {
+    const tabs = [];
+    for (let n = r.u8(); n > 0; n--) tabs.push({ tab: r.u8(), title: r.string(), column: r.string() });
+    r.u8();
+    return finish(r, { kind, tabs }, 's2c/1254');
+  }
+  const tab = r.u8(), rows = [];
+  for (let n = r.i32(); n > 0; n--) rows.push({ rank: r.i32(), id: r.i32(), name: r.string(), field: r.i32(), level: r.i32() });
+  return finish(r, { kind, tab, rows, own: { rank: r.i32(), field: r.i32(), level: r.i32() } }, 's2c/1254');
 }

@@ -40,18 +40,22 @@ Huỷ trận C→S 40 (uuid) + C→S 11/43; S→C 10
   - Chi tiết và ví dụ ở [07-auto-battle](07-auto-battle.md#luật-bàn-cờ). Mô hình chạy được: [src/battle.ts](../../../src/battle.ts).
 - Thời gian lượt là 30 s, khớp byte `0x1e` cuối s2c/22 và đồng hồ dưới bàn. [Đo]
 
-| Mã | Viên | Tác dụng (B1, run3, run4) |
-|---:|---|---|
-| `00` | Kiếm | Sát thương cho đối thủ. Chỉ Huy Sơn Tặc ăn 3 kiếm: 14. manina ăn 3 kiếm: 31. Gà Điên: 0/4/8 [Đo] |
-| `01` | Tim | Hồi máu: ăn 4 tim → HP 73 → 80 [Đo] |
-| `02` | Âm dương | Tăng `s1`: +6 mỗi 3 viên (manina, Gà Điên), +8 (Chỉ Huy). Kỹ năng trừ `s1` [Đo]; có thể là nội lực [Suy luận] |
-| `03` | Giọt tím | Tăng `s2`: +15 mỗi 3 viên (manina), +13/+22 cho 3/4 viên (Chỉ Huy) [Đo]; có thể là nộ [Suy luận] |
-| `04` | Đào | Không đổi `units` [Chưa rõ] |
-| `05` | Sao xanh | Không đổi `units` [Chưa rõ] |
-| `0x46` (70) | Nén vàng | Ăn được như viên thường; không đổi `units`. Trên ảnh là nén vàng [Đo] |
-| `0x0a` (10) | Kiếm đặc biệt | Như kiếm, khi bị ăn thì phá thêm 3×3 quanh nó [Đo, 2 lần] |
+| Mã | Viên (tên trong Cẩm nang) | Đo được (B1, run3, run4, Q2) | Cẩm nang trong game |
+|---:|---|---|---|
+| `00` | Thanh kiếm | Sát thương cho đối thủ. Chỉ Huy Sơn Tặc ăn 3 kiếm: 14. manina ăn 3 kiếm: 31 (cấp 3), 35 (cấp 4). Gà Điên: 0/4/8. Heo Mọi: 9 [Đo] | Tấn công đối phương |
+| `01` | Trái tim | Hồi máu: ăn 4 tim → HP 73 → 80 [Đo] | Hồi sinh lực |
+| `02` | Xoáy âm dương | Tăng `s1`: +6 mỗi 3 viên (manina, Gà Điên), +8 (Chỉ Huy). Kỹ năng trừ `s1` [Đo] | Hồi nội lực để dùng tuyệt chiêu, tức `s1` là nội lực |
+| `03` | Giọt nước | Tăng `s2`: +15 mỗi 3 viên (manina), +13/+22 cho 3/4 viên (Chỉ Huy) [Đo] | Tăng kinh nghiệm, bằng 1/2 ngôi sao. Vậy `s2` có thể là điểm kinh nghiệm trong trận [Suy luận] |
+| `04` | Trái đào | Không đổi `units` [Chưa rõ] | Hồi sức mạnh, nhân đôi lực tấn công cho một lượt |
+| `05` | Ngôi sao | Không đổi `units` [Chưa rõ] | Tăng kinh nghiệm |
+| `0x46` (70) | Thỏi vàng | Ăn được như viên thường; không đổi `units` [Đo] | Đổi Xu khoá; đủ 10.000 vàng thì tự đổi thành 10.000 Xu khoá |
+| `0x0a` (10) | Kiếm lửa | Như kiếm, khi bị ăn thì phá thêm 3×3 quanh nó [Đo, 2 lần] | Mạnh hơn kiếm thường; nổ 8 ô quanh nó; nổ dây chuyền qua Kiếm lửa khác; viên bị nổ vẫn tính cho người ăn; đôi khi kiếm mới rơi xuống là Kiếm lửa, vài kỹ năng cũng tạo ra |
 
-Ăn ≥4 viên bất kỳ (ở bất kỳ đợt nào của chuỗi) đều được thêm lượt. [Đo]
+Thêm lượt [Đo + Cẩm nang]:
+- Ăn ≥4 viên thẳng hàng, ở bất kỳ đợt nào của chuỗi. [Đo]
+- Hai hàng 3 viên cùng loại cắt nhau (hình L/T). Theo Cẩm nang; chưa gặp trong capture. [src/battle.ts](../../../src/battle.ts) đã tính luật này.
+
+Bàn bị **xếp lại** khi hết nước đi: bàn mới 64 ô đi kèm `s2c/19` (xem bố cục dưới). Thấy 3 lần trong Q1/Q2 của [10-quests](10-quests.md#hai-điều-q1-phát-hiện). [Đo]
 
 Asset liên quan (đều mã hoá, chưa giải): `chess0b.dat`…`chess8b.dat`, `chesscrystal.dat`, `play/bkboardh|v|hv.dat`, `focusmovechess1|2.dat`, `x1/play/hub-game-hp|mana|power|time.dat`, `strwin.dat`, `strlose.dat`, âm thanh `vs.wav`, `battle.mp3`, `attack.wav`.
 
@@ -242,7 +246,8 @@ i32 seq; i32 zero; u32 seed
 i32 row1+2; i32 col1+2; i32 row2+2; i32 col2+2
 i32 unk (luôn 1)
 i32 n; u8[n] viên mới rơi xuống (mã như bảng trên)
-i32 zero2
+u8 xếpLại; nếu 1: i32 64; u8[64] bàn mới    (trước đây ghi là i32 zero2: 3 byte sau luôn 0)
+u8 ?; u8 ?; u8 ?
 u8 m; m × { string tên; i32 damage; u8 b; i32 hp; i32 stat1; i32 stat2 }   (-1 = không đổi)
 u8 flags[4]; string actor; u8 end
 nếu end = 1: u8 won; i32 exp; i32 tiền; 7 byte; u8 n; n × {i32; i32}   (xem Kết thúc trận)

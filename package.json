@@ -9,6 +9,7 @@
     "connect": "node --experimental-strip-types src/connect.ts",
     "login": "node --experimental-strip-types src/connect.ts --login",
     "world": "node --experimental-strip-types src/connect.ts --world",
+    "quest": "node --experimental-strip-types src/quest-run.ts",
     "test:scenario": "node --experimental-strip-types test/scenario-runner.ts",
     "check:apk": "node --experimental-strip-types src/check-apk.ts",
     "check:capture": "node --experimental-strip-types src/check-capture.ts"

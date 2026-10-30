@@ -145,9 +145,9 @@ Thông báo `s2c/45` đến thành đợt 15 câu, mỗi boss một câu, trong 
 |---:|---|---|
 | 0 | 0–7 | chữ thường |
 | 1 | 10–13 | [Chưa rõ màu] |
-| 2 | 17–19 | chữ đỏ |
+| 2 | 15–20 | chữ đỏ |
 
-Ngưỡng chính xác (8, 9, 14–16 người) chưa thấy. [Chưa rõ]
+Thêm lần đo trong U1 ([10-quests](10-quests.md)): khu 0 `20/20` và khu 1 `15/20` đều chữ đỏ. Ngưỡng ở 8, 9, 14 người chưa thấy. [Chưa rõ]
 
 Hai lần đo `M1` (giờ Việt Nam):
 
@@ -167,4 +167,4 @@ Người chơi dồn vào khu 0 và 1, còn khoảng 80–90 khu trống.
 - Ký tự phân cách khi `1207` có nhiều máy chủ, ý nghĩa cờ cuối, và nguồn của `serverId = 24`.
 - Số khu của các map khác `M1`; có xin được `1172` của map khác không.
 - Tên chắc chắn của `M10`, `M15`, `M16`, `M17`, và `M18`…`M25` là map gì.
-- Ngưỡng của độ đông 1 và 2.
+- Ngưỡng của độ đông 1 và 2 (8, 9, 14 người).

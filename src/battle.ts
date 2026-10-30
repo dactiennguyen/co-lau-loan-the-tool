@@ -1,7 +1,8 @@
 // 8×8 board of the mob battle (docs/app/events/07-auto-battle.md). Rules come from replaying captured battles:
 // runs of ≥3 (gold 0x46 included) clear, columns fall, new pieces fill column by column left→right and
-// bottom→top within a column, cascades repeat; a run ≥4 in any wave grants an extra turn.
-// Codes 10..69 are special pieces of type code%10 that also clear their 3×3 neighbourhood.
+// bottom→top within a column, cascades repeat; a run ≥4 in any wave grants an extra turn, and so do two runs of the
+// same piece crossing (the in-game guide "Cẩm nang"; never seen in the captured battles).
+// Codes 10..69 are special pieces of type code%10 ("Kiếm lửa") that also clear their 3×3 neighbourhood.
 export const N = 8, EMPTY = -1, UNKNOWN = -2;
 export const PIECE = { sword: 0, heart: 1, yinyang: 2, drop: 3, peach: 4, star: 5, gold: 0x46 } as const;
 export type Board = number[];
@@ -12,14 +13,15 @@ export const kind = (v: number) => (v >= 10 && v < 0x46 ? v % 10 : v);
 const special = (v: number) => v >= 10 && v < 0x46;
 
 export function findRuns(b: Board) {
-  const cells = new Set<number>(), runs: { piece: number; len: number }[] = [];
+  const cells = new Set<number>(), runs: { piece: number; len: number; cells: number[] }[] = [];
   const at = (r: number, c: number) => (b[r * N + c] < 0 ? b[r * N + c] : kind(b[r * N + c]));
+  const add = (piece: number, run: number[]) => { runs.push({ piece, len: run.length, cells: run }); for (const i of run) cells.add(i); };
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     const v = at(r, c); if (v < 0) continue;
     let k = 1; while (c + k < N && at(r, c + k) === v) k++;
-    if (k >= 3 && (c === 0 || at(r, c - 1) !== v)) { runs.push({ piece: v, len: k }); for (let i = 0; i < k; i++) cells.add(r * N + c + i); }
+    if (k >= 3 && (c === 0 || at(r, c - 1) !== v)) add(v, Array.from({ length: k }, (_, i) => r * N + c + i));
     k = 1; while (r + k < N && at(r + k, c) === v) k++;
-    if (k >= 3 && (r === 0 || at(r - 1, c) !== v)) { runs.push({ piece: v, len: k }); for (let i = 0; i < k; i++) cells.add((r + i) * N + c); }
+    if (k >= 3 && (r === 0 || at(r - 1, c) !== v)) add(v, Array.from({ length: k }, (_, i) => (r + i) * N + c));
   }
   // A cleared special piece blasts its 3×3 neighbourhood; blasts chain through other specials (chaining not yet observed).
   const pending = [...cells].filter(i => special(b[i]));
@@ -53,7 +55,7 @@ export function settle(b: Board, refill: readonly number[] | null, removed: numb
   if (removed.length) { for (const i of removed) { cleared[kind(b[i])] = (cleared[kind(b[i])] ?? 0) + 1; b[i] = EMPTY; } used = collapse(b, refill, used); }
   for (;;) {
     const { cells, runs } = findRuns(b); if (!cells.size) break;
-    if (runs.some(x => x.len >= 4)) extraTurn = true;
+    if (runs.some(x => x.len >= 4) || runs.some((x, i) => runs.some((y, j) => j > i && x.piece === y.piece && x.cells.some(c => y.cells.includes(c))))) extraTurn = true;
     waves++;
     for (const i of cells) { cleared[kind(b[i])] = (cleared[kind(b[i])] ?? 0) + 1; b[i] = EMPTY; }
     used = collapse(b, refill, used);

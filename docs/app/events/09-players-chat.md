@@ -141,7 +141,7 @@ Ví dụ `s2c/1167` của boy2Nghin, 300 byte:
 | 55 | `00000236 000001a0` | `i32 x; i32 y` | 566, 416 |
 | 63 | `000163dc 00011684 00013880 ffffffff 00000000 00000000` | `i32 trangBị[6]` | 91100, 71300, 80000, -1, 0, 0. Cùng 6 số với `s2c/1166` |
 | 87 | … 203 byte | khối ngoại hình | 3 `i32`; hai lớp bảng màu ARGB `{slot; i32 độDài; byte}`; `i32` mã (60300); `u8`; 2 nhóm 5 `i32`; `i32 99000`; `u8 m; m × {i32 slot; i32 độDài; byte}`. Đọc được ranh giới, chưa đặt tên [Đo cấu trúc] |
-| 290 | `00000000 00000000 00 00` | `i32; string; u8; u8` | 0, "", 0, 0. Hai người có `4, "WATER7"`, có thể là bang [Suy luận] |
+| 290 | `00000000 00000000 00 00` | `i32; string sứQuân; u8; u8` | 0, "", 0, 0 khi chưa vào sứ quân. Hai người có `4, "WATER7"`: WATER7 là một sứ quân trong bảng Sứ quân ([10](10-quests.md#các-bảng-chức-năng-u1)) [Đo] |
 
 <a id="s2c-1167"></a>
 
@@ -266,7 +266,7 @@ Trong L1, ai đó dùng chính điện thoại để trả nhiệm vụ, nhận 
 
 | Gói | Payload mẫu | Đọc được |
 |---|---|---|
-| `c2s/13` | `00000002 4d31 00000066` | `string mapId; i32 npcId`. Nói chuyện với NPC 102 rồi 103 trên `M1` (trả và nhận nhiệm vụ) [Suy luận] |
+| `c2s/13` | `00000002 4d31 00000066` | `string mapId; i32 npcId`. Nói chuyện với NPC 102 rồi 103 trên `M1` (trả và nhận nhiệm vụ). Bot Node đã dùng gói này, xem [10-quests](10-quests.md#c2s-13) [Đo] |
 | `s2c/35` | `00000003 "Những Việc Đầu Tiên" 00000004 "127 kinh nghiệm" "660 Xu khóa" "1 Áo Hào Kiệt" "1 Nón Lá" …` | Hoàn thành nhiệm vụ: tên và danh sách phần thưởng [Đo chuỗi] |
 | `s2c/1187` | `01 0000002a 00000003 … uuid … 00000003 00 ff …` | Vật phẩm vào túi (mã 42, số lượng 3); cùng khuôn bản ghi vật phẩm [Suy luận] |
 | `s2c/39`, `s2c/34`, `s2c/1200`, `s2c/46` | | Nhiệm vụ mới "Ruộng Dưa Bị Tàn Phá", tiến độ, cập nhật Xu (như [04-push](04-push.md#s2c-39), [07](07-auto-battle.md#các-gói-mới-thấy-trong-bot)) |
@@ -280,6 +280,6 @@ Trong L1, ai đó dùng chính điện thoại để trả nhiệm vụ, nhận 
 
 - Server có kiểm tốc độ hoặc toạ độ của `c2s/1169` không.
 - `field14` của `1262`; trạng thái 2, 3, 4, 8; `cờ[0]`, `cờ[1]`, `cờ[4]`.
-- Ý nghĩa của khối ngoại hình, `loại`, hiệu ứng 9300–9302, chuỗi `"WATER7"`.
+- Ý nghĩa của khối ngoại hình, `loại`, hiệu ứng 9300–9302, `i32` trước tên sứ quân.
 - Gói gửi chat Thế giới và chat riêng.
 - Tên của các mã vật phẩm; ai được nhặt và trong bao lâu.

@@ -29,6 +29,14 @@ test('a special piece (code 10) clears its 3×3 neighbourhood when matched', () 
   assert.ok(cells.has(4 * N + 3));
 });
 
+test('two crossing runs of three grant an extra turn, a lone run of three does not (in-game guide)', () => {
+  const base = () => Array.from({ length: N * N }, (_, i) => [1, 2, 3, 4, 5][(i + Math.floor(i / N)) % 5]);
+  const cross = base(); for (const [r, c] of [[2, 3], [2, 4], [2, 5], [3, 3], [4, 3]]) cross[r * N + c] = 0;
+  assert.equal(settle(cross, null).extraTurn, true);
+  const line = base(); for (const [r, c] of [[2, 3], [2, 4], [2, 5]]) line[r * N + c] = 0;
+  assert.equal(settle(line, null).extraTurn, false);
+});
+
 test('bestMove picks a legal move on every captured position', () => {
   for (const battle of battles) {
     const b = battle.board.slice();

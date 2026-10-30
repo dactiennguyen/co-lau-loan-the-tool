@@ -11,7 +11,11 @@ export interface ClientOptions {
   host?: string; port?: number; serverId?: number; username?: string; password?: string;
   mode?: 'bootstrap' | 'login' | 'world'; responseTimeoutMs?: number; overallTimeoutMs?: number;
   settleMs?: number; heartbeatMs?: number; log?: (event: Record<string, unknown>) => void;
+  /** World mode: keep the connection after the players snapshot and hand every packet to this handler. */
+  session?: WorldSession;
 }
+export interface SessionApi { send(opcode: number, payload: Uint8Array): void; close(): void; user: UserInfo }
+export interface WorldSession { onPacket(opcode: number, payload: Buffer): void; onReady(api: SessionApi): void }
 export interface UserInfo {
   account: string;
   character?: ReturnType<typeof characterPrefix>;
@@ -33,7 +37,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     const user: UserInfo = { account: username.toLowerCase() };
     let seedBytes: Buffer = Buffer.alloc(0), haveSeed = false, haveList = false, haveFlag = false;
     let state = 'seed', done = false, characterName = '', mapId = '', packets = 0;
-    let entities = false, snapshot = false, lastReceiveOpcode: number | null = null;
+    let entities = false, snapshot = false, ready = false, lastReceiveOpcode: number | null = null;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     let stepTimer: ReturnType<typeof setTimeout> | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -64,13 +68,23 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
         ...(opcode === 4 ? { redacted: true } : { payloadHex: payload.subarray(0, 128).toString('hex') }) });
       socket.write(protocol.encode(opcode, payload));
     }
+    function sendRaw(opcode: number, payload: Uint8Array) {
+      if (done) return;
+      emit(`c2s/${opcode}`, { kind: 'send', direction: 'c2s', opcode, payloadBytes: payload.length, payloadHex: Buffer.from(payload).subarray(0, 128).toString('hex') });
+      socket.write(protocol.encode(opcode, Buffer.from(payload)));
+    }
     function requestNotice() {
       if (state === 'version' && haveList && haveFlag) { move('notice'); send(5); }
     }
     function worldReady() {
       if (!entities || !snapshot || settleTimer) return;
       clearTimeout(stepTimer);
-      settleTimer = setTimeout(() => { emit('world_initialization_received', { mapId, entitiesReceived: true, playersSnapshotReceived: true }); finish(); }, options.settleMs ?? 0);
+      settleTimer = setTimeout(() => {
+        emit('world_initialization_received', { mapId, entitiesReceived: true, playersSnapshotReceived: true });
+        if (!options.session) { finish(); return; }
+        clearTimeout(overall); ready = true;
+        options.session.onReady({ send: sendRaw, close: () => finish(), user });
+      }, options.settleMs ?? 0);
     }
     move('seed');
     socket.on('connect', () => emit('tcp_connected', { host, address: socket.remoteAddress, port: socket.remotePort }));
@@ -105,6 +119,8 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
             payloadHex: packet.payload.subarray(0, 128).toString('hex'), hexTruncated: packet.payload.length > 128,
             fields: decoded?.fields, parsedBytes: decoded?.parsedBytes ?? 0, opaqueBytes: decoded?.opaqueBytes ?? packet.payload.length });
           if (packet.opcode === undefined || !spec) emit('unknown_opcode', { code: 'OPCODE_MAPPING_OR_CATALOG', encodedOpcode: packet.encodedOpcode, opcode: packet.opcode ?? null });
+          if (packet.opcode !== undefined) options.session?.onPacket(packet.opcode, packet.payload);
+          if (ready && packet.opcode !== 0) continue;
           const r = new Reader(packet.payload);
           switch (packet.opcode) {
             case 0:
