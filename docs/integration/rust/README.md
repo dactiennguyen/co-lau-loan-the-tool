@@ -8,13 +8,14 @@
    - chỉ số chiến đấu và điểm tiềm năng, có ngay lúc đăng nhập;
    - map và khu đang đứng (dạng chữ);
    - số người khác trong khu, kèm tên và cấp từng người.
-4. Chọn quái hoặc boss của khu đó, chọn số trận, và app tự đánh.
+4. Xem nhiệm vụ chính đang làm: các bước, bước đang làm, tiến độ. Bấm **Tự làm nhiệm vụ** để bot tự nói chuyện với NPC, đánh quái và boss của từng bước, và tự qua cổng khi NPC ở map khác.
+5. Hoặc chọn quái hoặc boss của khu đó, chọn số trận, và app tự đánh.
 
 Code TypeScript trong `src/` vẫn được giữ song song: đó là nơi thử trước, còn Rust chỉ nhận những phần đã chạy được bên TS.
 
 ![Cửa sổ app với dữ liệu mẫu](app.png)
 
-*Ảnh chụp giao diện với dữ liệu mẫu (`--dump-sample`, xem [Chạy](#chạy)). Chỉ số của nick đầu là số `s2c/9` trả về ở lần đăng nhập ngày 30/10/2026. Tên người chơi xung quanh và trận đấu là dữ liệu bịa.*
+*Ảnh chụp app đã đóng gói chạy với `--sample` (dữ liệu mẫu, không kết nối, xem [Chạy](#chạy)), cửa sổ 1280 × 860. Chỉ số của nick đầu là số `s2c/9` trả về ở lần đăng nhập ngày 30/10/2026. Nhiệm vụ 9 và tiến độ Cóc Xanh 14/15 là chỗ nick thật đang dừng ([10-quests](../../app/events/10-quests.md)). Kết quả bot, tên người chơi xung quanh và trận đấu là dữ liệu bịa.*
 
 ## Quy trình: Android → docs → TypeScript → Rust
 
@@ -42,14 +43,17 @@ app/
     src/opcodes.rs          sinh từ src/config.ts
     src/protocol.rs         ← src/protocol.ts: frame, XOR, handshake, proof mật khẩu, s2c/9 (cả phần đuôi), 29, 11
     src/requests.rs         ← buildRequest của src/events.ts
-    src/world.rs            ← src/world.ts: s2c/43, 11, 13, 1177, 1256, 10; người chơi trong khu (1263, 1167, 1170, 1253)
+    src/world.rs            ← src/world.ts: s2c/43, 11, 13, 1177, 1256, 10; người chơi trong khu (1263, 1167, 1170, 1253);
+                            nhiệm vụ (39, 34, 35)
     src/battle.rs           ← src/battle.ts: bàn 8×8, cascade, bestMove, gói trận
     src/runner.rs           ← src/battle-runner.ts: một trận, học thông số hai bên
-    src/bot.rs              ← QuestBot --farm của src/quest.ts: trạng thái nhân vật, việc "đánh X N lần"
+    src/quest.rs            ← stepAction của src/quest.ts: bước nhiệm vụ đòi làm gì
+    src/bot.rs              ← QuestBot của src/quest.ts: trạng thái nhân vật, việc "đánh X N lần" (--farm),
+                            "Tự làm nhiệm vụ"
     src/net.rs              ← FLOW của src/client.ts: đăng nhập, heartbeat, Manager nhiều nick (tokio)
-    src/atlas.rs            đọc data/maps.json (bot TS ghi, app chỉ đọc)
+    src/atlas.rs            ← src/atlas.ts: data/maps.json, những gì phiên thấy thêm, đường qua cổng (không ghi file)
     src/accounts.rs         accounts.json, .env
-    src/bin/cllt.rs         CLI không giao diện: status, fight
+    src/bin/cllt.rs         CLI không giao diện: status, fight, quest
     tests/parity.rs         so với vectors.json
     tests/vectors.json      sinh từ TS
   desktop/                project Tauri 2 (cấu trúc của create-tauri-app, template react-ts)
@@ -62,13 +66,16 @@ app/
       types.ts                kiểu dữ liệu Rust gửi sang (bản sao của src-tauri/src/view.rs)
       api.ts                  gọi lệnh Tauri và nghe sự kiện "accounts", "log"; ngoài Tauri thì đọc public/sample.json
       hooks.ts                useAppState, useLog
+      updates.ts              nghe sự kiện trước rồi mới lấy state, bỏ cập nhật cũ theo revision, nối nhật ký theo số dòng
       format.ts               số kiểu Việt (14.238), màu trạng thái, tiến độ cấp
       styles/                 tokens.css (màu, font, bo góc), base.css
       components/             thành phần dùng chung, không biết gì về game, mỗi cái một .tsx + .css:
-                              Button, Icon, Badge, Pill, Bar, Avatar, Card, Chip, Stepper, StatTile, TextField
+                              Button, Icon, Badge, Pill, Bar, Avatar, Card, Chip, Stepper, StatTile, Tabs, TextField,
+                              Dialog (khung hộp thoại), Menu (menu chuột phải)
       views/                  các phần của app: Sidebar, AccountCard, AccountPage, HeroCard, MetricRow, StatsCard,
-                              PlayersCard, FightCard, LogCard, AddAccountDialog, EmptyState
-      assets/fonts/           Chakra Petch (OFL), font tiêu đề và con số
+                              PlayersCard, QuestCard, FightCard, LogCard, AccountDialog (thêm và sửa nick),
+                              ConfirmDialog (hỏi trước khi xoá), EmptyState
+      assets/fonts/           Silkscreen (chữ pixel cho số) và Be Vietnam Pro (chữ tiếng Việt), cả hai OFL
     src-tauri/              crate cllt-desktop
       tauri.conf.json         cửa sổ, CSP, bundle (mọi định dạng của hệ đang build)
       tauri.macos.conf.json   riêng macOS: chỉ đóng gói .app (ký ad-hoc)
@@ -76,10 +83,11 @@ app/
       icons/                  sinh bằng `tauri icon`
       src/main.rs, lib.rs     điểm vào; lib.rs dựng app Tauri và đọc cờ dòng lệnh
       src/commands.rs         lệnh giao diện gọi được: state, logs, login, logout, login_all, logout_all, fight, stop,
-                              add_account, remove_account
-      src/app.rs              danh sách nick và session; mỗi thay đổi gửi sự kiện "accounts" (và "log")
+                              add_account, update_account, remove_account
+      src/app.rs              danh sách nick và session; luồng flusher gửi giao diện những nick vừa đổi ("accounts")
+                              và dòng nhật ký mới ("log"); ghi accounts.json ngoài khoá chung
       src/view.rs             Snapshot → AccountView mà giao diện nhận
-      src/paths.rs            accounts.json, .env, data/maps.json
+      src/paths.rs            accounts.json, data/maps.json
       src/sample.rs           dữ liệu mẫu cho --sample, --dump-sample
 ```
 
@@ -104,6 +112,7 @@ cargo test                                   # so với vector TS
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings   # chuẩn code Rust
 cargo run -p cllt-core --bin cllt -- status  # CLI không giao diện, để kiểm tra: đăng nhập, in trạng thái, thoát
 cargo run -p cllt-core --bin cllt -- fight --target="Heo Mọi" --count=3 [--account=TÊN] [--max-losses=1]
+cargo run -p cllt-core --bin cllt -- quest [--account=TÊN] [--max-losses=1]   # tự làm nhiệm vụ tới khi dừng, rồi thoát
 ```
 
 Có thể kéo file `.app` vào thư mục Applications. Khi chạy từ repo này, app đọc `app/accounts.json` và `data/maps.json` của repo. Nếu repo không còn ở chỗ cũ, app dùng bản `data/maps.json` đã đóng gói sẵn, và đọc `accounts.json` trong thư mục dữ liệu của app (Tauri `app_local_data_dir`, đặt tên theo identifier `vn.colauloanthe.desktop`):
@@ -125,9 +134,11 @@ Biến `CLLT_ACCOUNTS` được ưu tiên hơn cả hai chỗ trên.
 | `serverId` | không | Mặc định 24 (Thanh Khê) |
 | `skill` | không | `{ "id": 1000, "cost": 25 }`: dùng kỹ năng khi nội lực đủ, như `--skill` của bot TS |
 
-- Thêm nick bằng nút "Thêm nick" thì nick được ghi vào file này.
+- Thêm, sửa, xoá nick trong app đều ghi vào file này; mở app lên là danh sách nạp lại đúng như đã lưu, đúng thứ tự.
+- Sửa nick mà để trống mật khẩu thì giữ mật khẩu cũ (giao diện không bao giờ nhận mật khẩu). Nick đang đăng nhập chỉ dùng thông tin mới từ lần đăng nhập sau.
+- Không thêm được một nick hai lần trên cùng máy chủ (tên đăng nhập không phân biệt hoa thường), vì hai phiên của một nick sẽ đá nhau.
 - Biến `CLLT_ACCOUNTS` đổi đường dẫn file.
-- Chưa có file thì app và CLI dùng tài khoản `CLLT_USERNAME`/`CLLT_PASSWORD` trong `.env` ở gốc repo. Tài khoản này không được chép sang `accounts.json`.
+- Chưa có file thì app bắt đầu với danh sách trống. App không đọc `.env` nữa; chỉ CLI `cllt` còn dùng `CLLT_USERNAME`/`CLLT_PASSWORD` trong `.env` khi chưa có file.
 - Mỗi nick **không được online ở máy khác**. Khi đó server trả `s2c/0`, và app hiện lỗi "Server từ chối: …" trên nick đó.
 
 ### Windows và Linux
@@ -180,26 +191,35 @@ Lưu ý:
 
 ## Giao diện
 
-Thiết kế theo skill `ui-ux-pro-max`:
-- **Màu:** bảng màu "Gaming": tím neon `#7C3AED` và hồng `#F43F5E` trên nền chàm `#0F0F23`. Mỗi con số có một màu riêng: HP hồng, EXP tím, xu vàng, điểm tiềm năng xanh lơ.
-- **Bố cục:** kiểu "data-dense dashboard": hàng thẻ chỉ số, padding gọn, chữ 12–14 px.
-- **Font:** Chakra Petch (có đủ dấu tiếng Việt) cho tiêu đề và con số; chữ thường dùng font hệ thống.
+Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn từ 4 mockup (Sơn mài, Giấy dó, Tối giản, Pixel RPG):
+- **Màu:** bảng màu dịu, độ bão hoà 30–55 %, nền `#16181D`. Mỗi con số có một màu riêng: HP đỏ, EXP xanh dương, xu vàng, điểm tiềm năng xanh lá. Nút chính màu vàng chữ tối. Mọi cặp chữ/nền đạt tương phản từ 4,5:1 trở lên.
+- **Khối:** viền 2–3 px cắt góc theo pixel (`clip-path`), bóng đổ bậc ở góc dưới phải, không bo tròn, không gradient. Thanh HP/EXP chia đốt 6 px. Hiệu ứng nhảy theo bước (`steps()`), tắt khi hệ thống bật giảm chuyển động.
+- **Cỡ:** chữ thường 13 px, chú thích 11 px, nhãn viết hoa 10 px; nút cao 32 px (nút nhỏ 26 px); thanh bên rộng 252 px.
+- **Font:** Silkscreen (chữ pixel) chỉ cho số và nhãn ASCII (`LV 21`, `14/15`, giờ trong nhật ký), vì nó không có dấu tiếng Việt. Mọi chữ còn lại dùng Be Vietnam Pro. Cả hai đóng gói trong app, CSP không cho tải font ngoài.
 - **Icon:** SVG nét 2 px, không dùng emoji.
-- **Cách viết:** màu, bo góc và font chỉ khai báo trong `src/styles/tokens.css`; component dùng biến CSS, không ghi mã màu rời.
+- **Cách viết:** màu, khung và font chỉ khai báo trong `src/styles/tokens.css` (`--notch`, `--bevel`, `--font-pixel`…); component dùng biến CSS, không ghi mã màu rời. Thành phần bị cắt góc vẽ viền focus vào trong (`outline-offset` âm), vì `clip-path` che mất viền vẽ ra ngoài.
+- **Bàn phím, trình đọc màn hình:** không lồng control trong control. Trên thẻ nick, tên nick là nút chọn (kèm mô tả vị trí và trạng thái), nút đăng nhập/thoát nằm cạnh; bấm chuột vào chỗ khác trên thẻ cũng chọn. Tab Nhiệm vụ / Đánh quái theo mẫu tabs của WAI-ARIA: `tabpanel` có `aria-labelledby`, mũi tên trái phải, Home, End để đổi tab.
 
 | Vùng | Nội dung |
 |---|---|
-| Thanh bên | Logo, số nick và số nick đang trong game, "Thêm nick". Mỗi nick là một thẻ: avatar màu theo tên và chấm trạng thái, tên, cấp, map và khu (hoặc lời báo lỗi), chip trạng thái, thanh HP, số người trong khu, nút đăng nhập/thoát riêng. Dưới cùng: "Đăng nhập tất cả", thoát tất cả |
-| Thẻ nhân vật | Tên, cấp, trạng thái (Ngoại tuyến / Đang kết nối / Trực tuyến / Đang đánh / Lỗi), giờ vào game. **Vị trí** dạng chữ: tên map, mã map, khu, x/y. **Xung quanh**: số người khác trong khu. Nút Đăng nhập/Đăng xuất, Xoá nick |
+| Thanh bên | Logo, số nick và số nick đang trong game, "Thêm nick". Mỗi nick là một thẻ: avatar màu theo tên và chấm trạng thái, tên, cấp, map và khu (hoặc lời báo lỗi), chip trạng thái, thanh HP, số người trong khu, nút đăng nhập/thoát riêng. **Chuột phải** (hoặc phím Menu, Shift+F10) mở menu của nick: Đăng nhập, Đăng xuất hoặc Huỷ đăng nhập tuỳ trạng thái; Sửa nick; Xoá nick (chỉ khi đã thoát, có hỏi lại). Dưới cùng: "Đăng nhập tất cả", thoát tất cả |
+| Thẻ nhân vật | Tên, cấp, trạng thái (Ngoại tuyến / Đang kết nối / Trực tuyến / Đang đánh / Làm nhiệm vụ / Lỗi), giờ vào game. **Vị trí** dạng chữ: tên map, mã map, khu, x/y. **Xung quanh**: số người khác trong khu. Nút Đăng nhập/Đăng xuất, Xoá nick (có hỏi lại) |
 | 4 ô | HP; kinh nghiệm (EXP / mốc cấp, %, còn bao nhiêu lên cấp); xu; điểm tiềm năng và điểm kỹ năng chưa dùng |
 | Chỉ số | Tấn công, Phòng thủ, Chính xác, Né tránh, Chí mạng; 4 tiềm năng Cường lực, Thân pháp, Nội lực, Thể lực ([nhãn nào là suy luận](../../app/user-data.md#đuôi-s2c9)) |
-| Xung quanh | Người chơi khác trong khu, cấp cao xếp trước. Cấp cao hơn mình tô hồng, bằng tô vàng, thấp hơn tô xanh |
-| Tự đánh | Quái và boss của khu, boss xếp trước, có huy hiệu BOSS; số trận (ô − + và nút nhanh 5/10/20/50); số trận thua cho phép; Bắt đầu, Dừng; tiến độ, thắng/thua, EXP/xu đã nhận; HP hai bên trong trận |
-| Nhật ký | Từng trận và thông báo server theo giờ: thắng xanh, thua/lỗi đỏ, bắt đầu/kết thúc tím; giữ 500 dòng mỗi nick |
+| Xung quanh | Người chơi khác trong khu, cấp cao xếp trước. Cấp cao hơn mình tô đỏ, bằng tô vàng, thấp hơn tô xanh. Khi `s2c/1263` có bản ghi người chơi chưa đọc được, số người hiện `?` thay vì một con số sai |
+| Tab Nhiệm vụ | Tên và số nhiệm vụ chính, bước đang làm trên tổng số bước. Từng bước: xong (ô xanh có dấu tích), đang làm (ô vàng, viền vàng, thanh tiến độ khi bước cần nhiều con hoặc nhiều sát thương), chưa làm. Dòng việc bot đang làm, thắng/thua, EXP/xu, số nhiệm vụ đã xong; lý do dừng khi đã dừng. Tự làm nhiệm vụ, Dừng, số trận thua cho phép. Cảnh báo cộng điểm tiềm năng chỉ hiện khi nhiệm vụ còn bước đó. Danh sách bước tự cuộn tới bước đang làm khi cửa sổ thấp |
+| Tab Đánh quái | Quái và boss của khu, boss xếp trước, có huy hiệu BOSS; số trận (ô − + và nút nhanh 5/10/20/50); số trận thua cho phép; Bắt đầu, Dừng; tiến độ, thắng/thua, EXP/xu đã nhận; HP hai bên trong trận |
+| Nhật ký | Từng trận, từng bước nhiệm vụ và thông báo server theo giờ: thắng và trả nhiệm vụ xanh, thua/lỗi đỏ, bắt đầu/kết thúc/nhận nhiệm vụ vàng; giữ 500 dòng mỗi nick |
 
-- **Luồng dữ liệu:**
+- **Đăng nhập:**
   - Mỗi nick có một kết nối TCP riêng trên tokio (`Manager` của core).
-  - Mỗi sự kiện của session cập nhật danh sách trong `app.rs`, rồi gửi sự kiện `accounts` (toàn bộ danh sách) và `log` (dòng mới) sang webview.
+  - `s2c/9`, `29`, `11`, `43` phải đọc được thì phiên mới sang Trực tuyến; gói nào hỏng thì phiên báo Lỗi, ghi rõ opcode. Riêng `s2c/1263` chỉ là danh sách người chơi khác: đọc hỏng thì vẫn vào game, nhưng số người xung quanh hiện `?`. Cả hai cách làm giống client TS (`src/client.ts`).
+  - Đăng xuất dừng phiên ở mọi bước: lúc đang kết nối, chờ seed, hay giữa các bước đăng nhập. Lệnh đánh hay làm nhiệm vụ gửi trước khi vào game bị bỏ qua, có ghi nhật ký.
+- **Luồng dữ liệu:**
+  - Mỗi sự kiện của session cập nhật nick đó trong `app.rs`, đánh dấu nick đã đổi và tăng số revision.
+  - Một luồng riêng (flusher) gom các thay đổi trong 50 ms, rồi gửi sự kiện `accounts` chỉ gồm những nick đã đổi (kèm revision, và thứ tự nick khi có thêm hay xoá), cùng sự kiện `log` gồm các dòng mới. Mỗi dòng nhật ký có số thứ tự riêng của nick.
+  - Giao diện đăng ký nghe sự kiện trước rồi mới gọi `state`. Cập nhật có revision không mới hơn cái đang hiện bị bỏ, nên phản hồi `state` đến muộn không kéo giao diện về trạng thái cũ. Nick không đổi giữ nguyên object, nên thẻ của nó không vẽ lại (`memo`).
+  - Thêm và xoá nick là lệnh async: Tauri chạy chúng ngoài luồng chính. File `accounts.json` được ghi trên luồng blocking, không giữ khoá chung, và các lần ghi lần lượt từng lần một. Ghi xong mới thêm hoặc xoá nick khỏi danh sách.
   - Giao diện chỉ gọi lệnh, không giữ trạng thái game.
 - **An toàn:**
   - Tên người chơi, tên quái và lời server đều là chữ do server gửi. React luôn escape chúng, app không dùng `dangerouslySetInnerHTML`.
@@ -222,21 +242,49 @@ Thiết kế theo skill `ui-ux-pro-max`:
   - Thua quái thường mất EXP nhưng được hồi đầy HP. Thua đủ số trận cho phép thì bot dừng.
   - Thua boss không mất EXP, và HP boss được giữ giữa các trận. Vì vậy thua boss không làm bot dừng.
 - **Bấm Dừng:** trận đang đánh vẫn tiếp tục tới hết, vì không có cách rời trận. Sau trận đó bot không thách đấu nữa.
+- **Trận mở muộn:** mỗi `s2c/22` được gắn với thách đấu nó trả lời, theo mob ID có trong gói (thách đấu chưa có trả lời được giữ 60 s).
+  - Trận của thách đấu gửi trước khi bấm Dừng, trước khi đổi việc, hay đã quá 8 s vẫn được đánh tới hết. Server đã mở trận đó và không rời được; bỏ mặc thì mỗi lượt tự hết sau 34 s trong khi quái vẫn đánh, tới khi thua ([05-battle](../../app/events/05-battle.md)). Trận đó tính cho việc đã gửi thách đấu, không tính cho việc hiện tại.
+  - `s2c/22` không ứng với thách đấu nào của phiên thì bỏ qua. `s2c/22` thứ hai đến khi đang đánh cũng bỏ qua, không thay trận đang đánh.
 - **Mỗi lượt:** bot chọn nước bằng `bestMove` (chiến lược `kill`), và trong trận học sát thương mỗi viên của cả hai bên, như bot TS ([07-auto-battle](../../app/events/07-auto-battle.md#thuật-toán-của-bot)).
+
+## Tự làm nhiệm vụ
+
+`bot.rs` chơi các bước của `s2c/39` theo đúng `QuestBot` bên TS ([Bot làm nhiệm vụ](../nodejs/quest-bot.md#bot-làm-gì-với-từng-bước)). Server chỉ gửi **nhiệm vụ chính đang làm**; tab Phụ, Hằng ngày, Bảo Điển hiện đều trống ([10-quests](../../app/events/10-quests.md#trả-lời-nhanh)), nên app chỉ hiện được nhiệm vụ đó.
+
+| Bước | Bot làm gì |
+|---|---|
+| "Nói chuyện với X", "Báo cáo với X", "Gặp X", "Bàn bạc với X" | `c2s/13 (mapId, npcId)`; `s2c/34` trả lời thì sang bước sau. Không trả lời trong 8 s thì dừng |
+| "Tiêu diệt X", "Đánh bại X" | `c2s/15` lần lượt từng con tên X. Mỗi trận thắng tính 1, rồi số của server (`s2c/1201`) thay số tự đếm |
+| "Gây N sát thương lên X" | Boss X (`s2c/1177`) bằng `c2s/1178`; thắng hay thua đều cộng sát thương; thua boss không làm bot dừng |
+| "Đạt cấp độ N" | Chưa đủ cấp: đánh loại quái mạnh nhất không quá cấp mình, không chọn boss |
+| "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào Cường lực |
+| NPC hoặc quái ở map khác | Qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Cổng đầu tiên trên đường ngắn nhất theo `data/maps.json` cộng những gì phiên đã thấy, nếu không thì cổng tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 cổng một bước. Cổng bị từ chối (`s2c/1256`) bị bỏ qua |
+| Quái của bước có ở map này nhưng chưa thấy (boss đang đổi chỗ) | Đợi 5 s, tối đa 6 lần |
+| Bước khác (vd. "Sử dụng điểm kỹ năng") | Dừng, ghi rõ bước nào |
+
+- **Trả nhiệm vụ:** server gửi `s2c/35` (phần thưởng, ghi vào nhật ký), rồi `s2c/39` của nhiệm vụ mới; bot làm tiếp nhiệm vụ mới.
+- **Dừng khi:** bấm Dừng (trận đang đánh vẫn đánh hết), thua đủ số trận cho phép (không tính trận thua boss), gặp bước chưa biết, không còn quái của bước ở khu, NPC hay cổng không trả lời trong 8 s, đã đủ cấp mà server không sang bước sau, hoặc không đọc được NPC và cổng của map vừa tới (`s2c/11`; khi đó bản đồ trong atlas giữ nguyên, không bị ghi thành map rỗng).
+- **Chuyển việc:** bắt đầu đánh quái thì việc làm nhiệm vụ dừng, và ngược lại.
+- **Bản đồ:** mỗi phiên chép `data/maps.json` lúc mở app, rồi ghi thêm map, quái, boss, cổng đã qua hay bị từ chối vào bản chép đó. App không ghi lại file; `npm run scan` và bot TS mới ghi.
 
 ## Đã kiểm chứng
 
 | Phần | Cách kiểm |
 |---|---|
 | Giao thức | Seed, handshake, frame gửi/nhận khi gói bị cắt nhỏ tuỳ ý, 16 vector mật khẩu, 5 payload đăng nhập: khớp từng byte |
-| Request | 16 request so byte với `buildRequest` |
-| Giải mã | 27 gói thật hoặc dựng theo bố cục TS, trong đó có hai `s2c/9` đủ phần đuôi (A2 cấp 3, 30/10 cấp 21), `s2c/1263` (18 người) và `s2c/1167`: kết quả JSON giống hệt bản TS |
+| Request | 17 request so byte với `buildRequest`, có `c2s/10` (cộng điểm tiềm năng) |
+| Giải mã | 32 gói thật hoặc dựng theo bố cục TS, có 4 gói nhiệm vụ thật (`s2c/39` nhiệm vụ 3 và 4, `s2c/34`, `s2c/35`), trong đó có ba `s2c/9` đủ phần đuôi (A2 cấp 3, 30/10 cấp 21, nick thứ hai 31/10 với `field01` = 4), `s2c/1263` (18 người) và `s2c/1167`: kết quả JSON giống hệt bản TS |
 | Người trong khu | `ZonePlayers` nhận lần lượt `1263`, `1170`, `1170`, `1167`, `1253` thật: danh sách sau mỗi gói (id, tên, cấp, thứ tự) giống bản TS |
 | Bàn cờ | 3 trận bắt được, 52 bước: bàn, số viên ăn, số đợt, lượt thêm sau mỗi bước giống bản TS |
 | `bestMove` | 55 thế cờ, đổi HP, nội lực, sức mạnh và chiến lược: cùng nước, cùng điểm tới bit cuối |
-| Trận, bot | Vào trận → lượt quái → nước của mình → kết thúc; học thông số; boss `c2s/1178`, đợi boss đổi chỗ; dừng khi thua đủ |
+| Trận, bot | Vào trận → lượt quái → nước của mình → kết thúc; học thông số; boss `c2s/1178`, đợi boss đổi chỗ; dừng khi thua đủ. Trận mở muộn: tính cho việc đã gửi thách đấu chứ không cho việc mới; sau Dừng vẫn đánh hết; `s2c/22` không do app mở hay đến khi đang đánh thì bỏ qua. Map đọc hỏng thì dừng tự làm nhiệm vụ và không ghi map rỗng vào atlas |
+| Bước nhiệm vụ, đường qua cổng | `stepAction` của 11 câu bước; `route`, `destination`, `portalsOf` trên bản đồ 3 map (M1, M2, M25) với cả ba kiểu trả lời của cổng: cùng kết quả bản TS |
+| Bot nhiệm vụ | 12 kịch bản TS chạy `QuestBot` với gói thật hoặc dựng theo bố cục: nói chuyện → `s2c/34` → đánh; boss; đợi boss đổi chỗ; qua cổng tên nhiệm vụ nhắc tới; cổng bị từ chối; đường đã biết qua 2 map; đủ số con thì sang bước báo cáo; cày cấp không chọn boss; cộng điểm tiềm năng; bước lạ thì dừng; trả nhiệm vụ rồi làm nhiệm vụ mới. Bản Rust gửi đúng từng gói sau mỗi bước, và bảng cổng cuối cùng giống hệt. Thêm 2 test Rust: thắng một trận Cóc Xanh thì tiến độ 14 → 15 rồi sang báo cáo; thua thì không tính và dừng |
 | Lưới bản đồ | `mapGrid` của M2 (35 × 90 ô, lớp hình và lớp va chạm) giống bản TS từng byte |
 | Server thật (30/10/2026) | Bot TS đăng nhập chỉ đọc: đuôi `s2c/9` cho EXP 14238 trong mốc 13841–15882, xu 2664, x/y trùng `s2c/11`; `s2c/1263` có 8 người, không có mình. `cllt status`: manina cấp 21, HP 180/180, M2 khu 0, 8 mục tiêu (2 boss). `cllt fight --target="Heo Mọi" --count=1`: thắng sau 21 lượt, gây 234 sát thương, +92 EXP, +12 xu, HP tối đa của Heo Mọi học được là 146 |
+| Đăng nhập, server giả | 5 test trong `net.rs` chạy phiên thật với một server TCP cục bộ trả lời từng bước đăng nhập: đủ gói thì Trực tuyến; `s2c/11` hay `s2c/43` hỏng thì Lỗi có ghi opcode; `s2c/1263` hỏng thì vẫn Trực tuyến với `players_unread`; Đăng xuất khi đang chờ seed hoặc khi server im ở bước bản đồ thì phiên dừng ngay, không đợi hết giờ 8 s. Đã thử bỏ việc đọc `s2c/11` và đường Đăng xuất lúc chờ seed: 2 test tương ứng báo lỗi |
+| Nick | Test Rust: `accounts.json` ghi xong mới thêm, sửa hay xoá nick; sửa mà để trống mật khẩu thì giữ mật khẩu cũ; thêm trùng nick thì báo lỗi; file đọc lỗi thì không ghi đè, và xoá thất bại thì báo lỗi ngay trong hộp hỏi lại (hộp không đóng, nick còn nguyên). Ảnh chụp bản xem thử: menu chuột phải của nick đang chơi (Đăng xuất, Sửa, Xoá bị khoá) và của nick lỗi (Đăng nhập, Sửa, Xoá), hộp Sửa nick, hộp hỏi lại khi xoá |
+| Cập nhật giao diện | Test Rust: một lần gửi chỉ gồm nick đã đổi, mang đúng revision, có thứ tự nick khi xoá; `accounts.json` ghi xong mới thêm hoặc xoá nick, file đọc lỗi thì không ghi. [desktop-updates.test.ts](../../../test/desktop-updates.test.ts): sự kiện Trực tuyến đến trước phản hồi `state` cũ hơn thì giao diện vẫn hiện Trực tuyến |
 | Giao diện Tauri, server thật | Mở `Cờ Lau Loạn Thế.app` đã đóng gói với `--login-all`, chụp cửa sổ sau 9 s: "Trực tuyến", cấp 21, HP 180/180, EXP 14.238 / 15.882 (19,5%), xu 2.664, 68 điểm tiềm năng, 19 điểm kỹ năng, 5 chỉ số chiến đấu, Trại Vân Sơn · M2 · Khu 1 · x 2784 · y 864, 13 người xung quanh có tên và cấp, 2 boss và các loại quái trong danh sách đánh. Không đánh trận nào |
 | Giao diện, cỡ cửa sổ | Ảnh chụp với dữ liệu mẫu ở 1280 × 860 (vừa khít, thẻ cuối tự cuộn bên trong) và 1080 × 720 (cỡ nhỏ nhất; bố cục hẹp, trang cuộn). `--sample` trên app thật: dữ liệu đi qua lệnh Tauri, CSP không chặn gì |
 
@@ -248,4 +296,9 @@ Thiết kế theo skill `ui-ux-pro-max`:
 - **Vị trí:** là x/y lúc vào map. App không cho nhân vật đi lại, nên vị trí chỉ đổi khi sang map khác.
 - **Trang bị:** app không sửa trang bị có độ bền 0, vì chưa tìm ra gói sửa.
 - **Windows và Linux:** mới kiểm tra `cargo check` chéo của `cllt-core` cho `x86_64-pc-windows-msvc` và `x86_64-unknown-linux-gnu`. Phần Tauri chưa chạy thử trên hai hệ này; [build-matrix.yml](#cicd-và-phát-hành) sẽ là lần build đầu tiên.
-- **Chưa port:** app không mua bán, không chat, không đổi map, không làm nhiệm vụ. Bot nhiệm vụ, quét map và ghi `data/maps.json` vẫn chỉ có bên TS và sẽ được port theo quy trình trên.
+- **Nhiệm vụ:**
+  - Chưa biết gói "Sử dụng điểm kỹ năng", nên bot dừng ở bước đó.
+  - Điểm tiềm năng luôn cộng vào Cường lực.
+  - Server chưa gửi nhiệm vụ phụ hay hằng ngày.
+  - HP chỉ hồi đầy sau một trận thua; trang bị hỏng chưa sửa được.
+- **Chưa port:** app không mua bán, không chat, không tự đổi map ngoài lúc làm nhiệm vụ. Quét map và ghi `data/maps.json` vẫn chỉ có bên TS.

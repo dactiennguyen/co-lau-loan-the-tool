@@ -79,6 +79,9 @@ const paths = {
       <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
     </>
   ),
+  scroll: <path d="M8 3h11a2 2 0 0 1 2 2v2h-4M8 3a2 2 0 0 0-2 2v12a2 2 0 0 1-2 2h11a2 2 0 0 0 2-2V5a2 2 0 0 1 2-2M9.5 8h4.5M9.5 12h4.5" />,
+  check: <path d="m5 12 5 5 9-10" />,
+  pencil: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof paths;

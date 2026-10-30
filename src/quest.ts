@@ -282,9 +282,10 @@ export class QuestBot implements WorldSession {
     return true;
   }
 
-  /** Mobs to fight while waiting for a level: the named kind, or the strongest kind not above own level. */
+  /** Mobs to fight while waiting for a level: the named kind, or the strongest kind not above own level that is not a
+   * boss (a boss ignores c2s/15). */
   private grindTargets() {
-    const name = this.options.grind ?? this.mobs.filter(m => m.level <= this.level).sort((a, b) => b.level - a.level)[0]?.name;
+    const name = this.options.grind ?? this.mobs.filter(m => m.level <= this.level && !this.bosses.has(m.id)).sort((a, b) => b.level - a.level)[0]?.name;
     return this.mobs.filter(m => m.name === name);
   }
 

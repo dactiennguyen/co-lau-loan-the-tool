@@ -18,6 +18,8 @@ pub struct Ctx<'a> {
     pub seq: Option<i32>,
     pub skill: Option<i32>,
     pub mv: Option<Move>,
+    pub stat: Option<i32>,
+    pub amount: Option<i32>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -63,6 +65,10 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         13 => w
             .string(required(c.map_id, "mapId")?)
             .i32(required(c.npc_id, "npcId")?)
+            .build(),
+        10 => w
+            .i32(required(c.stat, "stat")?)
+            .i32(required(c.amount, "amount")?)
             .build(),
         15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),

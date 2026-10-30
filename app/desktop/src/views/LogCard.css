@@ -1,19 +1,17 @@
-.log__count { font-size: 12px; color: var(--fg-3); }
+.log__count { font-size: 11px; color: var(--fg-3); }
 .log {
   list-style: none;
   margin: 0;
-  padding: 6px 4px;
+  padding: 4px 3px;
   flex: 1;
   min-height: 0;
-  border-radius: var(--r-md);
-  background: rgb(0 0 0 / 0.18);
-  border: 1px solid var(--line);
+  background: var(--ink);
 }
-.log li { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 3px 8px; font-size: 12.5px; line-height: 1.45; border-radius: 6px; }
-.log li:hover { background: rgb(255 255 255 / 0.03); }
-.log time { font: 11.5px/1.6 var(--font-mono); color: var(--fg-3); }
+.log li { display: grid; grid-template-columns: 62px 1fr; gap: 6px; padding: 1px 6px; font-size: 11.5px; line-height: 1.5; }
+.log li:hover { background: var(--bg-2); }
+.log time { font-size: 10px; line-height: 1.75; color: var(--fg-3); }
 .log .tone-0 span { color: var(--fg-2); }
 .log .tone-1 span { color: var(--s-online); }
 .log .tone-2 span { color: var(--danger); }
-.log .tone-3 span { color: #d8b4fe; }
+.log .tone-3 span { color: var(--primary); }
 .log li.log__empty { display: block; color: var(--fg-3); }

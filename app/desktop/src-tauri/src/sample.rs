@@ -3,9 +3,9 @@
 use crate::app::{App, Entry};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleView, BossTile, Job, Snapshot, Target};
+use cllt_core::bot::{BattleView, BossTile, QuestRun, Snapshot, Target};
 use cllt_core::net::ConnState;
-use cllt_core::world::Nearby;
+use cllt_core::world::{Nearby, Quest, QuestStep};
 use serde_json::json;
 use std::path::Path;
 
@@ -16,6 +16,35 @@ fn account(label: &str, username: &str) -> Account {
         password: String::new(),
         server_id: 24,
         skill: None,
+    }
+}
+
+/// Steps as s2c/39 sends them: (text, param, required, npc id).
+fn quest(
+    id: i32,
+    title: &str,
+    current: i32,
+    progress: i32,
+    steps: &[(&str, i32, i32, i32)],
+) -> Quest {
+    Quest {
+        id,
+        title: title.into(),
+        description: String::new(),
+        kind: "main".into(),
+        current,
+        progress,
+        steps: steps
+            .iter()
+            .enumerate()
+            .map(|(i, &(text, param, required, npc_id))| QuestStep {
+                index: i as i32,
+                text: text.into(),
+                param,
+                required,
+                npc_id,
+            })
+            .collect(),
     }
 }
 
@@ -77,25 +106,38 @@ fn main_character() -> Snapshot {
             target("Cua Càng", 15, false, true),
             target("Cóc Xanh", 13, false, true),
         ],
-        job: Some(Job {
-            target: "Hào Trưởng phía Bắc".into(),
-            count: 5,
+        // Quest 9 where Q20 left it (docs/app/events/10-quests.md).
+        quest: Some(quest(
+            9,
+            "Thử Sức Tân Binh",
+            3,
+            14,
+            &[
+                ("Đạt cấp độ 11", 11, 1, -1),
+                ("Nói chuyện với Võ Quan Đinh Mộc", 141, 1, 141),
+                ("Tiêu diệt Sói Xám", 4, 15, -1),
+                ("Tiêu diệt Cóc Xanh", 5, 15, -1),
+                ("Báo cáo với Võ Quan Đinh Mộc", 141, 1, 141),
+            ],
+        )),
+        quest_run: Some(QuestRun {
             max_losses: 1,
-            fights: 2,
-            wins: 1,
-            losses: 1,
-            damage: 520,
-            exp: 36,
-            coin: 12,
+            fights: 3,
+            wins: 2,
+            losses: 0,
+            exp: 284,
+            coin: 36,
+            completed: 0,
+            doing: "Đánh Cóc Xanh (14/15)".into(),
             done: None,
         }),
         battle: Some(BattleView {
-            mob_id: "mob89100102".into(),
-            mob_name: "Hào Trưởng phía Bắc".into(),
+            mob_id: "mob61000".into(),
+            mob_name: "Cóc Xanh".into(),
             hp: 132.0,
             max_hp: 180.0,
-            mob_hp: Some(2210.0),
-            mob_max_hp: Some(3000.0),
+            mob_hp: Some(96.0),
+            mob_max_hp: Some(249.0),
             turns: 7,
             timed: false,
         }),
@@ -104,23 +146,25 @@ fn main_character() -> Snapshot {
 }
 
 pub fn entries() -> Vec<Entry> {
-    let mut main = Entry::new(0, account("Nick chính", "manina"), false);
+    let mut main = Entry::new(0, account("Nick chính", "manina"));
     (main.state, main.snap, main.since) = (ConnState::Online, main_character(), "17:40".into());
     let lines = [
         "Đã vào game",
-        "Bắt đầu: đánh Hào Trưởng phía Bắc 5 lần",
-        "Trận 1/5: thách đấu Hào Trưởng phía Bắc cấp 21 (mob89100102)",
-        "Trận 1: thắng, 14 lượt, gây 310 sát thương, +36 EXP, +12 xu",
-        "Trận 2/5: thách đấu Hào Trưởng phía Bắc cấp 21 (mob89100102)",
-        "Trận 2: thua, 18 lượt, gây 210 sát thương, +0 EXP, +0 xu",
-        "Trận 3/5: thách đấu Hào Trưởng phía Bắc cấp 21 (mob89100102)",
+        "Nhiệm vụ 9: Thử Sức Tân Binh; bước 4/5: Tiêu diệt Cóc Xanh",
+        "Bắt đầu: tự làm nhiệm vụ",
+        "Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)",
+        "Trận 1: thắng, 22 lượt, gây 249 sát thương, +142 EXP, +18 xu",
+        "Đã diệt 13/15",
+        "Trận 2: thách đấu Cóc Xanh cấp 13 (mob61006)",
+        "Trận 2: thắng, 19 lượt, gây 249 sát thương, +142 EXP, +18 xu",
+        "Đã diệt 14/15",
+        "Trận 3: thách đấu Cóc Xanh cấp 13 (mob61000)",
     ];
     for (i, text) in lines.iter().enumerate() {
-        main.log
-            .push_back(LogLine::new(format!("17:4{i}:0{i}"), text));
+        main.push(LogLine::new(format!("17:4{i}:0{i}"), text));
     }
 
-    let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"), false);
+    let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"));
     second.state = ConnState::Online;
     second.since = "17:42".into();
     second.snap = Snapshot {
@@ -145,12 +189,24 @@ pub fn entries() -> Vec<Entry> {
             name: "CoLau".into(),
             level: 11,
         }],
+        quest: Some(quest(
+            4,
+            "Ruộng Dưa Bị Tàn Phá",
+            2,
+            6,
+            &[
+                ("Đạt cấp độ 4", 4, 1, -1),
+                ("Nói chuyện với Bà Tư Hạnh", 103, 1, 103),
+                ("Tiêu diệt Heo Mọi", 1, 10, -1),
+                ("Báo cáo với Bà Tư Hạnh", 103, 1, 103),
+            ],
+        )),
         ..Snapshot::default()
     };
 
-    let mut third = Entry::new(2, account("", "thanhvan"), false);
+    let mut third = Entry::new(2, account("", "thanhvan"));
     third.state = ConnState::Error("Server từ chối: tài khoản đang đăng nhập ở nơi khác".into());
-    let mut fourth = Entry::new(3, account("Nick farm", "loclau"), false);
+    let mut fourth = Entry::new(3, account("Nick farm", "loclau"));
     fourth.state = ConnState::Connecting;
     vec![main, second, third, fourth]
 }
@@ -168,8 +224,8 @@ pub fn dump(out: &Path) -> Result<(), String> {
         .collect();
     let views: Vec<_> = entries.iter().map(view::account).collect();
     let body = json!({
+        "rev": 0,
         "accounts": views,
-        "accountsPath": "app/accounts.json",
         "accountsError": null,
         "logs": logs,
     });

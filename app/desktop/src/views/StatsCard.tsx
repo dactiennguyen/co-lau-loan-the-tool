@@ -1,3 +1,4 @@
+import { Bar } from "../components/Bar";
 import { Card } from "../components/Card";
 import { Icon, type IconName } from "../components/Icon";
 import { num } from "../format";
@@ -18,23 +19,28 @@ const INFERRED = "Nhãn suy từ chuỗi giao diện của game; xem docs/app/us
 
 /** Combat stats and potential stats of the character. */
 export function StatsCard({ character: c }: { character: Character | null }) {
+  // Bars against the strongest of the five, so they show the build rather than a scale the game does not give.
+  const top = Math.max(1, ...(c?.combat ?? []));
   return (
     <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? "Chiến đấu và tiềm năng" : "Đăng nhập để xem chỉ số"}>
       <ul className="combat">
         {COMBAT.map((s, i) => (
           <li key={s.label} title={i >= 2 ? INFERRED : undefined}>
             <span className="combat__icon" style={{ color: s.tone }}>
-              <Icon name={s.icon} size={16} />
+              <Icon name={s.icon} size={14} />
             </span>
             <span className="combat__label">{s.label}</span>
-            <span className="combat__value">{num(c?.combat?.[i])}</span>
+            <span className="combat__bar">
+              <Bar value={(c?.combat?.[i] ?? 0) / top} fill={s.tone} thin />
+            </span>
+            <span className="combat__value px">{num(c?.combat?.[i])}</span>
           </li>
         ))}
       </ul>
       <div className="potentials">
         {POTENTIALS.map((label, i) => (
           <div key={label} className="potential" title={i >= 1 ? INFERRED : undefined}>
-            <span className="potential__value">{num(c?.stats[i])}</span>
+            <span className="potential__value px">{num(c?.stats[i])}</span>
             <span className="potential__label">{label}</span>
           </div>
         ))}

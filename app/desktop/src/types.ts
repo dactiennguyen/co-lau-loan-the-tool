@@ -8,6 +8,8 @@ export type Status = 0 | 1 | 2 | 3 | 4;
 export type Tone = 0 | 1 | 2 | 3;
 
 export interface LogLine {
+  /** Number of the line in the log of its account, from 1. */
+  seq: number;
   time: string;
   text: string;
   tone: Tone;
@@ -63,6 +65,46 @@ export interface Battle {
   timed: boolean;
 }
 
+/** A step of the current quest, as s2c/39 sends it. */
+export interface QuestStep {
+  index: number;
+  text: string;
+  /** Level of "Đạt cấp độ", NPC of a talk step, mob kind of a kill step. */
+  param: number;
+  /** Kills, or boss damage, the step asks for. */
+  required: number;
+  npcId: number;
+}
+
+/** The current main quest (s2c/39), the only one the server sends. */
+export interface Quest {
+  id: number;
+  title: string;
+  description: string;
+  type: string;
+  /** Position in `steps` of the step being played. */
+  current: number;
+  /** Kills, or boss damage, of the current step. */
+  progress: number;
+  steps: QuestStep[];
+}
+
+/** "Tự làm nhiệm vụ" and what it has done so far. */
+export interface QuestRun {
+  maxLosses: number;
+  fights: number;
+  wins: number;
+  losses: number;
+  exp: number;
+  coin: number;
+  /** Quests handed in during the run. */
+  completed: number;
+  /** What the bot does for the current step. */
+  doing: string;
+  /** Why the run ended; null while it runs. */
+  done: string | null;
+}
+
 /** Attack, defence, accuracy, dodge, critical (the last three labels are inferred: docs/app/user-data.md). */
 export type Combat = [number, number, number, number, number];
 
@@ -86,16 +128,24 @@ export interface Character {
   y: number;
   /** The other players of the zone, highest level first. */
   players: Nearby[];
+  /** False when the last s2c/1263 did not read: `players` is not the whole zone. */
+  playersKnown: boolean;
   bosses: BossTile[];
   targets: Target[];
   job: Job | null;
+  quest: Quest | null;
+  questRun: QuestRun | null;
   battle: Battle | null;
 }
 
 export interface Account {
   id: number;
+  /** The label, else the username. */
   label: string;
   username: string;
+  /** The label as typed in, empty when none. */
+  ownLabel: string;
+  serverId: number;
   status: Status;
   statusText: string;
   error: string;
@@ -106,13 +156,23 @@ export interface Account {
 }
 
 export interface AppState {
+  /** Count of changes the reply was read at; an update with a count not above it is older. */
+  rev: number;
   accounts: Account[];
-  accountsPath: string;
   /** Why accounts.json could not be read; the app then never writes it. */
   accountsError: string | null;
 }
 
-export interface NewAccount {
+/** The "accounts" event: the accounts that changed, as they were at `rev`. */
+export interface AccountsUpdate {
+  rev: number;
+  accounts: Account[];
+  /** Every account id in order, when one was added or removed. */
+  ids: number[] | null;
+}
+
+/** The add and edit form; an empty password when editing keeps the saved one. */
+export interface AccountForm {
   username: string;
   password: string;
   serverId: number;

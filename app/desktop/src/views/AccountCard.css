@@ -1,32 +1,42 @@
 .acard {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--r-lg);
-  border: 1px solid var(--line);
+  padding: 8px;
   background: var(--card);
+  border: 2px solid var(--line);
+  clip-path: var(--notch-sm);
+  box-shadow: var(--bevel-sm);
   cursor: pointer;
-  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
 }
 .acard:hover { background: var(--card-2); }
-.acard--active {
-  background: linear-gradient(135deg, rgb(124 58 237 / 0.22), rgb(244 63 94 / 0.08)), var(--card);
-  border-color: transparent;
-  box-shadow: var(--shadow-glow);
-}
-.acard__body { flex: 1; min-width: 0; display: grid; gap: 4px; }
-.acard__top { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.acard__name {
+.acard--active { background: var(--card-2); border-color: var(--primary); }
+.acard__body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+/* Login/logout sits in the corner beside the name, so the place and the status row below get the whole width. */
+.acard > .btn { position: absolute; top: 3px; right: 3px; z-index: 1; width: 24px; height: 24px; }
+.acard__top { display: flex; align-items: center; gap: 6px; min-width: 0; padding-right: 26px; }
+/* The name is the card's select button; its focus ring goes around the whole card where :has() works. */
+.acard__select {
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 600 15px/1.3 var(--font-display);
+  text-align: left;
+  font: 800 13px/1.3 var(--font-display);
   color: var(--fg);
+  cursor: pointer;
 }
-.acard__line { font-size: 12px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acard__select:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+@supports selector(:has(*)) {
+  .acard__select:focus-visible { outline: none; }
+  .acard:has(.acard__select:focus-visible) { outline: 2px solid var(--ring); outline-offset: -6px; }
+}
+.acard__line { font-size: 11px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acard__line--error { color: var(--danger); }
 .acard__bottom { display: flex; align-items: center; gap: var(--space-2); margin-top: 2px; }
 .acard__hp { flex: 1; min-width: 24px; }
-.acard__people { display: inline-flex; align-items: center; gap: 3px; font: 600 12px/1 var(--font-display); color: var(--fg-3); }
+.acard__people { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--fg-3); }

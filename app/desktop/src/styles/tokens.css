@@ -1,74 +1,91 @@
-/* Design tokens. Palette "Gaming" of the ui-ux-pro-max skill (neon violet + rose on deep indigo), with one hue per
-   figure so each reads at a glance: HP rose, EXP violet, coins amber, points cyan. Components use only these. */
-@font-face { font-family: "Chakra Petch"; src: url("../assets/fonts/ChakraPetch-Medium.ttf") format("truetype"); font-weight: 500; font-display: block; }
-@font-face { font-family: "Chakra Petch"; src: url("../assets/fonts/ChakraPetch-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: block; }
-@font-face { font-family: "Chakra Petch"; src: url("../assets/fonts/ChakraPetch-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+/* Design tokens: "Pixel RPG", style D of the ui-ux-pro-max board (Pixel Art: limited palette, blocky frames, segmented
+   bars). A muted palette (saturation 30-55 %, text at least 4.5:1 on its background), one hue per figure: HP red, EXP
+   blue, coins gold, points green. Silkscreen is a pixel face without Vietnamese marks, so it only sets numbers and ASCII
+   labels (LV 21, HP, 14/15); every other text is Be Vietnam Pro. Components use only these. */
+@font-face { font-family: "Silkscreen"; src: url("../assets/fonts/Silkscreen-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Silkscreen"; src: url("../assets/fonts/Silkscreen-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("../assets/fonts/BeVietnamPro-Medium.ttf") format("truetype"); font-weight: 500; font-display: block; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("../assets/fonts/BeVietnamPro-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: block; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("../assets/fonts/BeVietnamPro-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("../assets/fonts/BeVietnamPro-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
 
 :root {
   color-scheme: dark;
 
-  --bg: #0f0f23;
-  --bg-2: #141331;
-  --card: #1e1c35;
-  --card-2: #252242;
-  --muted: #27273b;
-  --line: rgb(167 139 250 / 0.14);
-  --line-strong: rgb(167 139 250 / 0.28);
-  --fg: #e2e8f0;
-  --fg-2: #b4bccb;
-  --fg-3: #8f98ab;
+  --bg: #16181d;
+  --bg-2: #1c1f26;
+  --card: #23272f;
+  --card-2: #2a2f39;
+  --muted: #1c1f26;
+  /* outlines, pixel shadows, wells */
+  --ink: #0f1115;
+  --line: #3a404c;
+  --line-strong: #586070;
+  --fg: #e9e6df;
+  --fg-2: #bcc0c8;
+  --fg-3: #959ba8;
 
-  --primary: #7c3aed;
-  --primary-2: #a78bfa;
-  --accent: #f43f5e;
-  --ring: #a78bfa;
-  --danger: #f87171;
+  --primary: #d5b06b;
+  --primary-shade: #a17f45;
+  --on-primary: #16181d;
+  --accent: #d07c76;
+  --accent-deep: #8f4a48;
+  --good: #7fae74;
+  --good-shade: #557a4f;
+  --ring: #8ab6c6;
+  --danger: #e3918b;
 
-  --grad-primary: linear-gradient(135deg, #7c3aed 0%, #c026d3 55%, #f43f5e 100%);
-  --grad-hp: linear-gradient(90deg, #f43f5e, #fb923c);
-  --grad-exp: linear-gradient(90deg, #8b5cf6, #6366f1);
-  --grad-coin: linear-gradient(90deg, #fbbf24, #f59e0b);
-  --grad-points: linear-gradient(90deg, #22d3ee, #3b82f6);
-
-  --hp: #fb7185;
-  --exp: #a78bfa;
-  --coin: #fbbf24;
-  --points: #22d3ee;
+  --hp: #cd7a72;
+  --exp: #6e9fcf;
+  --coin: #d5b06b;
+  --points: #92b97c;
 
   /* status: offline, connecting, online, fighting, error */
-  --s-offline: #7c86a0;
-  --s-connecting: #fbbf24;
-  --s-online: #34d399;
-  --s-fighting: #60a5fa;
-  --s-error: #f87171;
+  --s-offline: #959ba8;
+  --s-connecting: #d5b06b;
+  --s-online: #92b97c;
+  --s-fighting: #7fb4c2;
+  --s-error: #e3918b;
 
   /* combat stats */
-  --c-attack: #fb7185;
-  --c-defence: #60a5fa;
-  --c-accuracy: #34d399;
-  --c-dodge: #22d3ee;
-  --c-critical: #fbbf24;
+  --c-attack: #cd7a72;
+  --c-defence: #6e9fcf;
+  --c-accuracy: #92b97c;
+  --c-dodge: #7fb4c2;
+  --c-critical: #d5b06b;
 
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
+  /* avatar tiles */
+  --tile-0: #6e9fcf;
+  --tile-1: #92b97c;
+  --tile-2: #d5b06b;
+  --tile-3: #c98d6a;
+  --tile-4: #7fb4c2;
+  --tile-5: #cd7a72;
+
+  /* Pixel frame: a border whose corner pixels are cut by this clip, and a bevel shading the lower right inside. */
+  --px: 3px;
+  --notch: polygon(0 var(--px), var(--px) var(--px), var(--px) 0, calc(100% - var(--px)) 0, calc(100% - var(--px)) var(--px),
+    100% var(--px), 100% calc(100% - var(--px)), calc(100% - var(--px)) calc(100% - var(--px)), calc(100% - var(--px)) 100%,
+    var(--px) 100%, var(--px) calc(100% - var(--px)), 0 calc(100% - var(--px)));
+  --notch-sm: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
+  --bevel: inset -3px -3px 0 rgb(0 0 0 / 0.25), inset 3px 3px 0 rgb(255 255 255 / 0.04);
+  --bevel-sm: inset -2px -2px 0 rgb(0 0 0 / 0.28);
 
   --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
 
-  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Chakra Petch", var(--font-ui);
+  --font-ui: "Be Vietnam Pro", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Be Vietnam Pro", var(--font-ui);
+  --font-pixel: "Silkscreen", ui-monospace, Menlo, monospace;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -18px rgb(0 0 0 / 0.7);
-  --shadow-glow: 0 0 0 1px rgb(167 139 250 / 0.45), 0 10px 30px -12px rgb(124 58 237 / 0.6);
-
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --fast: 150ms;
+  /* Motion in steps, as sprites move. */
+  --step: steps(3, end);
+  --fast: 120ms;
   --slow: 300ms;
 }

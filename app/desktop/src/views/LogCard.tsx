@@ -12,7 +12,7 @@ export function LogCard({ lines }: { lines: LogLine[] }) {
     if (el && pinned.current) el.scrollTop = el.scrollHeight;
   }, [lines]);
   return (
-    <Card title="Nhật ký" icon="list" tone="var(--exp)" aside={<span className="log__count">{lines.length} dòng</span>} className="log-card">
+    <Card title="Nhật ký" icon="list" tone="var(--exp)" aside={<span className="log__count"><span className="px">{lines.length}</span> dòng</span>} className="log-card">
       <ol
         ref={list}
         className="log scroll selectable"
@@ -24,7 +24,7 @@ export function LogCard({ lines }: { lines: LogLine[] }) {
         {lines.length === 0 && <li className="log__empty">Chưa có gì.</li>}
         {lines.map((l, i) => (
           <li key={i} className={`tone-${l.tone}`}>
-            <time>{l.time}</time>
+            <time className="px">{l.time}</time>
             <span>{l.text}</span>
           </li>
         ))}

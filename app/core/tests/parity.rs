@@ -1,15 +1,17 @@
 // The Rust core against the TypeScript side: vectors.json is written by `npm run export:rust` from test/fixtures.ts and
 // what the TS decoders, request builders, battle replay and bestMove compute (src/export-rust.ts).
-use cllt_core::atlas::Atlas;
+use cllt_core::atlas::{Atlas, MapRecord};
 use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
 use cllt_core::bot::{Bot, BotOptions, Out};
 use cllt_core::protocol::*;
+use cllt_core::quest::step_action;
 use cllt_core::requests::{build, Ctx};
 use cllt_core::runner::{Act, BattleEnd, BattleRunner, RunnerOptions};
 use cllt_core::world;
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -147,6 +149,9 @@ fn decoders_read_what_the_ts_decoders_read() {
             "battleResult19" => serde_json::to_value(battle_result(&p, 19).unwrap()),
             "battleResult20" => serde_json::to_value(battle_result(&p, 20).unwrap()),
             "timeoutResult" => serde_json::to_value(battle::timeout_result(&p).unwrap()),
+            "questData" => serde_json::to_value(world::quest_data(&p).unwrap()),
+            "questProgress" => serde_json::to_value(world::quest_progress(&p).unwrap()),
+            "questComplete" => serde_json::to_value(world::quest_complete(&p).unwrap()),
             other => panic!("no Rust decoder for {other}"),
         }
         .unwrap();
@@ -193,6 +198,8 @@ fn requests_match_build_request() {
             seq: i("seq"),
             skill: i("skill"),
             mv,
+            stat: i("stat"),
+            amount: i("amount"),
             ..Ctx::default()
         };
         let op = r["opcode"].as_i64().unwrap() as i32;
@@ -658,4 +665,328 @@ fn a_job_started_mid_battle_does_not_count_that_battle_or_challenge_twice() {
     bot.on_timer(later, &mut out);
     assert_eq!(challenges(&out), 2);
     assert_eq!(bot.snap.job.unwrap().fights, 1);
+}
+
+/// coc_xanh_bot() with a second kind of mob in the zone: Cua Càng (mob62000).
+fn two_mob_bot() -> (Bot, Vec<Out>, Instant, Vec<u8>) {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    let mob = |w: Writer, id: &str, name: &str, level| {
+        w.string(id)
+            .string(name)
+            .i32(level)
+            .u8(0)
+            .i32(6)
+            .i32(1)
+            .u8(0)
+    };
+    let mobs = mob(
+        mob(Writer::new().string("M2").u8(3), "mob61000", "Cóc Xanh", 13),
+        "mob62000",
+        "Cua Càng",
+        15,
+    );
+    bot.on_packet(43, &mobs.build(), now, &mut out).unwrap();
+    (bot, out, now, setup)
+}
+fn sends(out: &[Out], op: i32) -> usize {
+    out.iter()
+        .filter(|o| matches!(o, Out::Send(o, _) if *o == op))
+        .count()
+}
+
+#[test]
+fn a_late_setup_counts_for_the_job_whose_challenge_it_answers() {
+    let (mut bot, mut out, now, setup) = two_mob_bot();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    // Replaced while its challenge waits: the new job challenges once that one times out.
+    bot.fight("Cua Càng", 5, 1, now, &mut out);
+    bot.on_timer(now + Duration::from_secs(9), &mut out);
+    assert!(out.contains(&Out::Send(
+        15,
+        Writer::new().string("mob62000").u8(0).build()
+    )));
+    // Then the battle of the first challenge (mob61000) opens after all: played out, counted for the first job only.
+    bot.on_packet(22, &setup, now + Duration::from_secs(10), &mut out)
+        .unwrap();
+    assert!(matches!(out.last(), Some(Out::Send(18, _))));
+    assert!(out.iter().any(
+        |o| matches!(o, Out::Log(t) if t.starts_with("Trận với Cóc Xanh từ thách đấu trước"))
+    ));
+    bot.on_packet(19, &lost_battle(), now + Duration::from_secs(20), &mut out)
+        .unwrap();
+    let job = bot.snap.job.clone().unwrap();
+    assert_eq!(
+        (job.target.as_str(), job.fights, job.losses, job.done),
+        ("Cua Càng", 1, 0, None)
+    );
+    assert!(out.contains(&Out::Log("Trận của việc trước: thua, +0 EXP".into())));
+}
+
+#[test]
+fn a_setup_after_stop_is_played_out_and_one_nobody_asked_for_is_not() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    // No challenge sent: nothing is played.
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert_eq!(sends(&out, 18), 0);
+    assert!(out.contains(&Out::Log("Có trận không do app mở; bỏ qua".into())));
+    // Stop while the challenge waits: the server opens that battle anyway, and an idle one would be lost.
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    bot.stop(&mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert_eq!(sends(&out, 18), 1);
+    bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
+    let job = bot.snap.job.clone().unwrap();
+    assert_eq!(
+        (job.fights, job.losses, job.done.as_deref()),
+        (1, 1, Some("Đã dừng"))
+    );
+    assert_eq!(bot.deadline(), None);
+    // The challenge is answered: a second setup has none left.
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert_eq!(sends(&out, 18), 1);
+}
+
+#[test]
+fn a_second_setup_does_not_replace_the_battle_in_progress() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    let turns = bot.snapshot().battle.unwrap().turns;
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert!(out.contains(&Out::Log(
+        "Server mở thêm một trận khi trận trước chưa xong; bỏ qua".into()
+    )));
+    assert_eq!(
+        (sends(&out, 18), bot.snapshot().battle.unwrap().turns),
+        (1, turns)
+    );
+}
+
+#[test]
+fn a_map_that_does_not_read_stops_the_quest_run_and_leaves_the_atlas_alone() {
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
+    bot.quest(1, now, &mut out);
+    // The head of s2c/11 reads, its NPCs and portals do not.
+    let broken = Writer::new()
+        .u8(1)
+        .string("M3")
+        .string("Rừng Trúc")
+        .u8(0)
+        .i32(64)
+        .i32(320)
+        .build();
+    bot.on_packet(11, &broken, now, &mut out).unwrap();
+    assert!(out.iter().any(
+        |o| matches!(o, Out::Log(t) if t.starts_with("Không đọc được NPC và cổng của Rừng Trúc"))
+    ));
+    assert_eq!(
+        bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
+        Some("Không đọc được NPC và cổng của map này")
+    );
+    assert!(bot.snap.places.is_empty() && !bot.atlas().maps.contains_key("M3"));
+    assert_eq!(bot.snap.map_name, "Rừng Trúc");
+}
+
+#[test]
+fn step_actions_read_what_step_action_reads() {
+    for c in v()["stepActions"].as_array().unwrap() {
+        let text = c["text"].as_str().unwrap();
+        let got = step_action(text, c["npcId"].as_i64().unwrap() as i32);
+        assert_eq!(serde_json::to_value(got).unwrap(), c["action"], "{text}");
+    }
+}
+
+/// The map test of a route case: a map with that NPC, that mob or boss, or that id.
+fn wanted(w: &Value) -> impl Fn(&MapRecord) -> bool {
+    let w = w.clone();
+    move |m: &MapRecord| match (w["npc"].as_i64(), w["mob"].as_str(), w["map"].as_str()) {
+        (Some(npc), _, _) => m.places.iter().any(|p| p.kind == 2 && p.id as i64 == npc),
+        (_, Some(mob), _) => {
+            m.mobs.iter().any(|k| k.name == mob) || m.bosses.iter().any(|b| b.name == mob)
+        }
+        (_, _, map) => Some(m.map_id.as_str()) == map,
+    }
+}
+fn ids(v: &Value) -> HashSet<i32> {
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_i64().unwrap() as i32)
+        .collect()
+}
+
+#[test]
+fn atlas_finds_the_way_atlas_ts_finds() {
+    let all = v();
+    let a = &all["atlas"];
+    let atlas: Atlas = serde_json::from_value(a["atlas"].clone()).unwrap();
+    for r in a["routes"].as_array().unwrap() {
+        let got = atlas
+            .route(
+                r["from"].as_str().unwrap(),
+                &wanted(&r["wanted"]),
+                r["level"].as_i64().unwrap() as i32,
+                &ids(&r["skip"]),
+            )
+            .map(|p| p.id as i64);
+        assert_eq!(got, r["portal"].as_i64(), "route {r}");
+    }
+    for d in a["destinations"].as_array().unwrap() {
+        let got = atlas.destination(
+            d["id"].as_i64().unwrap() as i32,
+            d["name"].as_str().unwrap(),
+            d["from"].as_str().unwrap(),
+        );
+        assert_eq!(got.as_deref(), d["mapId"].as_str(), "destination {d}");
+    }
+    for c in a["portalsOf"].as_array().unwrap() {
+        let got: Vec<i64> = atlas
+            .portals_of(
+                c["mapId"].as_str().unwrap(),
+                c["level"].as_i64().unwrap() as i32,
+                &HashSet::new(),
+            )
+            .iter()
+            .map(|p| p.id as i64)
+            .collect();
+        assert_eq!(Value::from(got), c["portals"], "portalsOf {c}");
+    }
+}
+
+#[test]
+fn quest_run_sends_what_quest_bot_sends() {
+    for s in v()["questReplays"].as_array().unwrap() {
+        let name = s["name"].as_str().unwrap();
+        let atlas = match &s["atlas"] {
+            Value::Null => Atlas::default(),
+            a => serde_json::from_value(a.clone()).unwrap(),
+        };
+        let mut bot = Bot::new(BotOptions::default(), Arc::new(atlas));
+        let mut now = Instant::now();
+        for (i, step) in s["steps"].as_array().unwrap().iter().enumerate() {
+            let mut out = vec![];
+            if let Some(p) = step["packet"].as_array() {
+                let op = p[0].as_i64().unwrap() as i32;
+                bot.on_packet(op, &hex(p[1].as_str().unwrap()), now, &mut out)
+                    .unwrap();
+            } else if step["start"] == true {
+                bot.quest(1, now, &mut out);
+            } else {
+                // `next` in TS: the decision of the timer the bot left pending.
+                now = bot
+                    .deadline()
+                    .unwrap_or_else(|| panic!("{name}, step {i}: no timer pending"));
+                bot.on_timer(now, &mut out);
+            }
+            let sent: Vec<Value> = out
+                .iter()
+                .filter_map(|o| match o {
+                    Out::Send(op, p) => Some(json!([op, tohex(p)])),
+                    Out::Log(_) => None,
+                })
+                .collect();
+            assert_eq!(Value::from(sent), step["sent"], "{name}, step {i}: sent");
+            let stopped = bot
+                .snap
+                .quest_run
+                .as_ref()
+                .is_some_and(|r| r.done.is_some());
+            assert_eq!(stopped, step["stopped"], "{name}, step {i}: stopped");
+            assert_eq!(
+                bot.snap.quest.as_ref().map(|q| q.current as i64),
+                step["current"].as_i64(),
+                "{name}, step {i}: current step"
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(&bot.atlas().portals).unwrap(),
+            s["portals"],
+            "{name}: portals"
+        );
+    }
+}
+
+/// s2c/39 of quest 9 at the given step and progress (10-quests.md: Sói Xám 15/15, Cóc Xanh 14/15 after Q20).
+fn quest9(current: i32, progress: i32) -> Vec<u8> {
+    let steps = [
+        ("Đạt cấp độ 11", 11, 1, -1),
+        ("Nói chuyện với Võ Quan Đinh Mộc", 141, 1, 141),
+        ("Tiêu diệt Sói Xám", 4, 15, -1),
+        ("Tiêu diệt Cóc Xanh", 5, 15, -1),
+        ("Báo cáo với Võ Quan Đinh Mộc", 141, 1, 141),
+    ];
+    let mut w = Writer::new()
+        .i32(9)
+        .string("Thử Sức Tân Binh")
+        .string("")
+        .string("main")
+        .i32(current)
+        .i32(progress)
+        .i32(steps.len() as i32);
+    for (i, (text, param, required, npc)) in steps.into_iter().enumerate() {
+        w = w
+            .i32(i as i32)
+            .string(text)
+            .i32(param)
+            .i32(required)
+            .i32(npc);
+    }
+    w.build()
+}
+/// lost_battle() won: +142 EXP, +18 xu.
+fn won_battle() -> Vec<u8> {
+    let lost = lost_battle();
+    let mut won = lost[..lost.len() - 10].to_vec();
+    won.extend(Writer::new().u8(1).u8(1).i32(142).i32(18).build());
+    won
+}
+
+#[test]
+fn quest_run_counts_a_won_kill_then_goes_on_to_the_report() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
+    bot.quest(1, now, &mut out);
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            15,
+            Writer::new().string("mob61000").u8(0).build()
+        ))
+    );
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    let run = bot.snap.quest_run.clone().unwrap();
+    assert_eq!(
+        (run.fights, run.wins, run.exp, run.coin, run.done),
+        (1, 1, 142, 18, None)
+    );
+    assert_eq!(bot.snap.quest.as_ref().unwrap().progress, 15);
+    let later = bot.deadline().expect("rest timer");
+    bot.on_timer(later, &mut out);
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(13, Writer::new().string("M2").i32(141).build()))
+    );
+    assert_eq!(bot.snap.quest.unwrap().current, 4);
+}
+
+#[test]
+fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
+    bot.quest(1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
+    assert_eq!(bot.snap.quest.as_ref().unwrap().progress, 14);
+    let run = bot.snap.quest_run.clone().unwrap();
+    assert_eq!((run.losses, run.done.as_deref()), (1, Some("Thua 1 trận")));
+    assert_eq!(bot.deadline(), None);
+    // A fight job replaces a quest run, and Stop ends a new run before it sends anything else.
+    bot.quest(2, now, &mut out);
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    assert_eq!(
+        bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
+        Some("Đã chuyển sang việc đánh quái")
+    );
 }

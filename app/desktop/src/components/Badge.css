@@ -1,21 +1,12 @@
+/* A pixel tag: tone background, dark text; its text is ASCII (LV 21, BOSS) in the pixel face. */
 .badge {
-  position: relative;
   display: inline-flex;
   align-items: center;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 6px;
-  font: 700 11px/1 var(--font-display);
-  letter-spacing: 0.3px;
+  height: 16px;
+  padding: 0 5px;
+  background: var(--tone, var(--primary));
+  color: var(--ink);
+  font: 400 11px/1 var(--font-pixel);
   white-space: nowrap;
-  isolation: isolate;
-}
-.badge::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: currentColor;
-  opacity: 0.16;
-  z-index: -1;
+  box-shadow: inset -2px -2px 0 rgb(0 0 0 / 0.25);
 }

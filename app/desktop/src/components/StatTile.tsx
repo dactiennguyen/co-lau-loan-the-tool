@@ -8,7 +8,7 @@ interface Props {
   value: ReactNode;
   caption?: ReactNode;
   icon: IconName;
-  /** Gradient of the icon tile and the bar (tokens.css --grad-*). */
+  /** Colour of the icon tile and the bar blocks (tokens.css). */
   fill: string;
   /** 0..1; no bar when undefined. */
   progress?: number;
@@ -20,7 +20,7 @@ export function StatTile({ label, value, caption, icon, fill, progress }: Props)
     <div className="tile">
       <div className="tile__top">
         <span className="tile__icon" style={{ background: fill }}>
-          <Icon name={icon} size={18} />
+          <Icon name={icon} size={15} />
         </span>
         <span className="tile__label">{label}</span>
       </div>

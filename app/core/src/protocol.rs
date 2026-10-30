@@ -36,6 +36,15 @@ fn tables() -> &'static (HashMap<i32, i32>, HashMap<i32, i32>) {
     })
 }
 
+/// The int32 on the wire of `opcode`; one table serves both directions.
+pub fn wire_opcode(opcode: i32) -> Option<i32> {
+    tables().0.get(&opcode).copied()
+}
+/// The opcode of an int32 on the wire.
+pub fn opcode_of(wire: i32) -> Option<i32> {
+    tables().1.get(&wire).copied()
+}
+
 #[derive(Default)]
 pub struct Writer(Vec<u8>);
 impl Writer {
@@ -324,11 +333,14 @@ pub fn character_prefix(p: &[u8]) -> Result<Character> {
     prefix(&mut Reader::new(p))
 }
 fn prefix(r: &mut Reader) -> Result<Character> {
-    let (status, count) = (r.u8()?, r.u8()?);
-    if status != 1 || count != 1 {
+    let status = r.u8()?;
+    // field01 is no count of characters: 1 for manina, 4 for a second account, equal to flag1 both times, the same
+    // layout after it (characterPrefix of src/protocol.ts).
+    r.u8()?;
+    if status != 1 {
         return err(
             "UNSUPPORTED_BRANCH",
-            format!("Unobserved character response: status={status}, field01={count}"),
+            format!("Unobserved character response: status={status}"),
         );
     }
     let (name, numeric_id, display_name) = (r.string()?, r.i32()?, r.string()?);

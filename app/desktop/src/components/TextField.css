@@ -1,18 +1,16 @@
-.field { display: grid; gap: 6px; }
-.field label { font-size: 12px; font-weight: 600; color: var(--fg-2); }
+.field { display: grid; gap: 5px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--fg-2); }
 .field input {
-  height: 40px;
-  padding: 0 12px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--line-strong);
-  background: var(--muted);
+  height: 34px;
+  padding: 0 10px;
+  border: 2px solid var(--line);
+  background: var(--ink);
   color: var(--fg);
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
-  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
   user-select: text;
   -webkit-user-select: text;
 }
 .field input::placeholder { color: var(--fg-3); }
-.field input:focus { border-color: var(--primary-2); box-shadow: 0 0 0 3px rgb(124 58 237 / 0.3); }
-.field small { font-size: 11px; color: var(--fg-3); }
+.field input:focus { border-color: var(--ring); }
+.field small { font-size: 10px; color: var(--fg-3); }

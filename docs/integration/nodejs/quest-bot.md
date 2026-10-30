@@ -32,11 +32,13 @@ npm run quest -- --fights=40
 |---|---|
 | "Nói chuyện với X", "Báo cáo với X" | `c2s/13 (mapId, npcId)`; `s2c/34` trả lời thì tự sang bước sau |
 | "Tiêu diệt X", "Tiêu diệt 1 X", "Đánh bại X" | `c2s/15` lần lượt từng con tên X trong `s2c/43`, đánh hết trận, mỗi trận thắng tính 1 |
-| "Đạt cấp độ N" (chưa đủ cấp) | Đánh quái mạnh nhất không quá cấp mình, hoặc `--grind` |
+| "Đạt cấp độ N" (chưa đủ cấp) | Đánh quái mạnh nhất không quá cấp mình, không chọn boss (boss bỏ qua `c2s/15`), hoặc `--grind` |
 | "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào chỉ số 0 |
 | "Gây N sát thương lên X" | `c2s/1178` với boss X từ `s2c/1177`; thua vẫn đánh tiếp, tiến độ là tổng sát thương ([10-quests](../../app/events/10-quests.md#boss)) |
 | NPC hoặc quái của bước không có ở map này | Đi qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Chọn cổng đầu tiên trên đường ngắn nhất (theo `data/maps.json`) tới map có NPC/quái đó, nếu không thì cổng mà tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 lần cho mỗi bước. Cổng bị từ chối (`s2c/1256`: thiếu cấp, chưa xong nhiệm vụ) được ghi lại và bỏ qua ([10-quests](../../app/events/10-quests.md#cổng)) |
 | Khác | Dừng với `step needs an action this bot does not know` |
+
+App Rust port đúng bảng này thành nút "Tự làm nhiệm vụ" ([App Rust](../rust/README.md#tự-làm-nhiệm-vụ)); `npm run export:rust` xuất các kịch bản để hai bên gửi đúng cùng gói.
 
 Bot dừng khi thua đủ `--max-losses` trận (trừ trận boss của bước sát thương), khi HP dưới `--min-hp`, khi đủ `--fights`, khi NPC hoặc cổng không trả lời trong 8 s, hoặc khi không còn cổng nào để tìm map có quái cần đánh. Tiến độ bước lấy từ `s2c/1201` của server; bot chỉ tự đếm trong vài mili giây trước khi gói này tới.
 

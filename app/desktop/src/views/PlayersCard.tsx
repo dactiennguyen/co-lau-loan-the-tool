@@ -4,7 +4,7 @@ import { Card } from "../components/Card";
 import type { Character } from "../types";
 import "./PlayersCard.css";
 
-/** Level badge colour against the own level: stronger players warm, weaker cool. */
+/** Level tag colour against the own level: stronger players red, the same gold, weaker green. */
 const levelTone = (level: number, own: number) =>
   level > own ? "var(--accent)" : level === own ? "var(--coin)" : "var(--s-online)";
 
@@ -17,16 +17,19 @@ export function PlayersCard({ character: c }: { character: Character | null }) {
       icon="users"
       tone="var(--points)"
       subtitle={c ? `${c.mapName} · Khu ${c.zone}` : "Đăng nhập để xem ai cùng khu"}
-      aside={c && <span className="count">{players.length}</span>}
+      aside={c && <span className="count px">{c.playersKnown ? players.length : "?"}</span>}
       className="players-card"
     >
-      {c && players.length === 0 && <p className="players__empty">Chỉ có bạn ở khu này.</p>}
+      {c && !c.playersKnown && (
+        <p className="players__empty">Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.</p>
+      )}
+      {c?.playersKnown && players.length === 0 && <p className="players__empty">Chỉ có bạn ở khu này.</p>}
       <ul className="players scroll">
         {players.map((p) => (
           <li key={p.id}>
-            <Avatar name={p.name} size={26} />
+            <Avatar name={p.name} size={22} />
             <span className="players__name selectable">{p.name}</span>
-            <Badge tone={levelTone(p.level, c!.level)}>Cấp {p.level}</Badge>
+            <Badge tone={levelTone(p.level, c!.level)}>LV {p.level}</Badge>
           </li>
         ))}
       </ul>

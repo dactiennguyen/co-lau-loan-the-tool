@@ -17,7 +17,7 @@ export function Button({ kind = "tonal", icon, small, block, className, children
   const classes = ["btn", `btn--${kind}`, small && "btn--small", block && "btn--block", !children && "btn--icon", className];
   return (
     <button type={type} className={classes.filter(Boolean).join(" ")} title={rest["aria-label"]} {...rest}>
-      {icon && <Icon name={icon} size={small ? 15 : 17} />}
+      {icon && <Icon name={icon} size={small ? 13 : 15} />}
       {children && <span>{children}</span>}
     </button>
   );

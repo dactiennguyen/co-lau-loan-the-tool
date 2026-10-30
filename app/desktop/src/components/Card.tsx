@@ -15,13 +15,13 @@ interface Props {
 }
 
 /** Surface with a header (icon tile, title, subtitle, aside) and a body that fills the rest. */
-export function Card({ title, icon, tone = "var(--primary-2)", subtitle, aside, className, children }: Props) {
+export function Card({ title, icon, tone = "var(--primary)", subtitle, aside, className, children }: Props) {
   return (
     <section className={`card${className ? ` ${className}` : ""}`}>
       <header className="card__head">
         {icon && (
           <span className="card__icon" style={{ color: tone }}>
-            <Icon name={icon} size={16} />
+            <Icon name={icon} size={14} />
           </span>
         )}
         <div className="card__titles">

@@ -136,13 +136,15 @@ export function notification(payload: Uint8Array) {
   return { kind, fields, text: r.string() };
 }
 
-/** Prefix verified with native sqi getters; later character fields remain opaque. */
+/** Prefix verified with native sqi getters; later character fields remain opaque. field01 is not a count of characters:
+ * it was 1 for manina and 4 for a second account, equal to flag1 both times, with the same layout after it (perhaps the
+ * character's class; docs/app/user-data.md). */
 export function characterPrefix(payload: Uint8Array) {
-  const r = new Reader(payload), status = r.u8(), count = r.u8();
-  if (status !== 1 || count !== 1) throw new ProtocolError('UNSUPPORTED_BRANCH', `Unobserved character response: status=${status}, field01=${count}`, { status, field01: count });
+  const r = new Reader(payload), status = r.u8(), field01 = r.u8();
+  if (status !== 1) throw new ProtocolError('UNSUPPORTED_BRANCH', `Unobserved character response: status=${status}`, { status, field01 });
   const name = r.string(), numericId = r.i32(), displayName = r.string();
   const flag1 = r.u8(), flag2 = r.u8(), level = r.i32(), hp = r.i32(), maxHp = r.i32();
-  return { status, count, name, numericId, displayName, flag1, flag2, level, hp, maxHp, prefixBytes: r.offset };
+  return { status, field01, name, numericId, displayName, flag1, flag2, level, hp, maxHp, prefixBytes: r.offset };
 }
 
 /** s2c/9 after the prefix: the numbers s2c/10 kinds 2, 4 and 8 send later, then where the character stands (the x, y of

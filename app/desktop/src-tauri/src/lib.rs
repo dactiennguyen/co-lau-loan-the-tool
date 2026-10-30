@@ -8,7 +8,7 @@
 //   flags after `--`: --login-all logs every account in at start; --sample shows sample accounts, no network;
 //   --dump-sample=FILE writes the sample accounts as the UI receives them (the UI reads it in a plain browser).
 //
-// app.rs keeps the accounts and sessions and broadcasts changes; commands.rs is what the UI can call; view.rs is what the
+// app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
 // UI is sent (../src/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample.
 mod app;
 mod commands;
@@ -16,7 +16,7 @@ mod paths;
 mod sample;
 mod view;
 
-use app::{broadcast, App, Shared};
+use app::{App, Shared};
 use cllt_core::net::Manager;
 use tauri::Manager as _;
 
@@ -35,7 +35,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(move |tauri_app| {
-            // Session events come from tokio threads: update the accounts, then tell the UI.
+            // Session events come from tokio threads and update the accounts; the flusher thread tells the UI.
             let events = tauri_app.handle().clone();
             let manager = if sample {
                 None
@@ -43,17 +43,18 @@ pub fn run() {
                 Some(Manager::new(paths::atlas(), move |id, event| {
                     if let Some(shared) = events.try_state::<Shared>() {
                         shared.with(|app| app.on_event(id, event));
-                        broadcast(&events);
                     }
                 })?)
             };
-            let mut app = App::new(manager, paths::accounts(tauri_app.path())?);
+            let (wake, woken) = std::sync::mpsc::channel();
+            let mut app = App::new(manager, paths::accounts(tauri_app.path())?, wake);
             if sample {
                 sample::fill(&mut app);
             } else {
                 app.load();
             }
             tauri_app.manage(Shared::new(app));
+            app::spawn_flusher(tauri_app.handle().clone(), woken);
             if login_all {
                 tauri_app.state::<Shared>().with(|app| app.login_all());
             }
@@ -67,8 +68,10 @@ pub fn run() {
             commands::login_all,
             commands::logout_all,
             commands::fight,
+            commands::quest,
             commands::stop,
             commands::add_account,
+            commands::update_account,
             commands::remove_account,
         ])
         .run(tauri::generate_context!())

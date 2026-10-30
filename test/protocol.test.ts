@@ -58,7 +58,7 @@ test('login serialization matches the isolated native builder, without sending c
 test('profile and map parser follow the native getter offsets', () => {
   const fields = fixture('fields');
   const profile = characterPrefix(Buffer.from(fields.examples.find((x: { op: number }) => x.op === 9).hex, 'hex'));
-  assert.deepEqual(profile, { status: 1, count: 1, name: 'manina', numericId: 155, displayName: 'manina', flag1: 1, flag2: 0, level: 3, hp: 120, maxHp: 130, prefixBytes: 40 });
+  assert.deepEqual(profile, { status: 1, field01: 1, name: 'manina', numericId: 155, displayName: 'manina', flag1: 1, flag2: 0, level: 3, hp: 120, maxHp: 130, prefixBytes: 40 });
   const map = mapPrefix(Buffer.from(fields.examples.find((x: { op: number }) => x.op === 11).hex, 'hex'));
   assert.deepEqual(map, { flag: 1, mapId: 'M1', name: 'Làng Thanh Khê', area: 5, x: 932, y: 544, field36: 0, dimension1: 23, dimension2: 156, tileBytes: 3588, prefixBytes: 3640 });
 });
@@ -76,6 +76,15 @@ test('s2c/9 tail: the numbers of s2c/10 kinds 2, 4, 8 and the x, y of the next s
   }
   // A2 x, y = its s2c/11 (mapPrefix test above); stat points: 6 at level 3, +4 per level, 10 spent on stats[0] in L1.
   assert.equal(now.statPoints, a2.statPoints + 4 * (now.level - a2.level) - (now.stats[0] - a2.stats[0]));
+});
+
+test('s2c/9 with field01 4 (a second account, 31/10): field01 is no count, it equals flag1 and the layout is the same', () => {
+  const p = characterProfile(Buffer.from(fixture('profile')['s2c/9 field01 4'], 'hex'));
+  assert.deepEqual([p.status, p.field01, p.flag1, p.flag2, p.name, p.displayName], [1, 4, 4, 1, 'nickthu2', 'nickthu2']);
+  assert.deepEqual([p.level, p.hp, p.maxHp, p.stats, p.combat, p.exp, p.coin, p.statPoints, p.skillPoints, p.levelExp, p.gap],
+    [2, 50, 55, [10, 20, 10, 11, 0, 0, 0, 0, 0, 0], [13, 10, 40, 60, 7], 88, 0, 4, 1, [50, 150], [0, 0, 0, 0, 0, 0]]);
+  assert.ok(p.exp >= p.levelExp[0] && p.exp < p.levelExp[1]);
+  assert.throws(() => characterPrefix(Buffer.from([2, 1])), /status=2/);
 });
 
 test('decodeEvent keeps the s2c/9 prefix when the tail does not fit the two captured layouts', () => {

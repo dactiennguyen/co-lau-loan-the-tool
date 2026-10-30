@@ -21,11 +21,11 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
   return (
     <section className="hero">
       <div className="hero__who">
-        <Avatar name={a.username} status={a.status} size={58} />
+        <Avatar name={a.username} status={a.status} size={46} />
         <div className="hero__id">
           <div className="hero__name">
             <h1>{c?.name ?? a.label}</h1>
-            {c && <Badge tone="#fde68a">Cấp {c.level}</Badge>}
+            {c && <Badge>LV {c.level}</Badge>}
           </div>
           <div className="hero__meta">
             <Pill status={a.status} text={a.statusText} />
@@ -35,7 +35,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
               </span>
             ) : a.since ? (
               <span title={`Vào game lúc ${a.since}`}>
-                <Icon name="clock" size={13} /> {a.since}
+                <Icon name="clock" size={12} /> {a.since}
               </span>
             ) : (
               <span>{a.username}</span>
@@ -48,7 +48,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
         <>
           <div className="hero__block hero__where">
             <span className="hero__label">
-              <Icon name="pin" size={14} /> Vị trí
+              <Icon name="pin" size={12} /> Vị trí
             </span>
             <span className="hero__big" title={c.mapName}>
               {c.mapName}
@@ -59,20 +59,26 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
           </div>
           <div className="hero__block hero__people">
             <span className="hero__label">
-              <Icon name="users" size={14} /> Xung quanh
+              <Icon name="users" size={12} /> Xung quanh
             </span>
             <span className="hero__big">
-              {c.players.length} <small>người</small>
+              <span className="px">{c.playersKnown ? c.players.length : "?"}</span> <small>người</small>
             </span>
-            <span className="hero__sub" title="Tính cả bạn">
-              {c.players.length + 1} người trong khu
-            </span>
+            {c.playersKnown ? (
+              <span className="hero__sub" title="Tính cả bạn">
+                {c.players.length + 1} người trong khu
+              </span>
+            ) : (
+              <span className="hero__sub" title="s2c/1263 có bản ghi người chơi chưa đọc được">
+                Chưa đọc được danh sách
+              </span>
+            )}
           </div>
         </>
       ) : (
         <div className="hero__block hero__where hero__placeholder">
           <span className="hero__label">
-            <Icon name="pin" size={14} /> Vị trí
+            <Icon name="pin" size={12} /> Vị trí
           </span>
           <span className="hero__sub">{a.status === 1 ? "Đang vào game…" : "Đăng nhập để xem nhân vật đang ở đâu"}</span>
         </div>

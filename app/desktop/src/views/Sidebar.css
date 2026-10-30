@@ -4,35 +4,35 @@
   flex-direction: column;
   gap: var(--space-4);
   min-height: 0;
-  padding: 44px var(--space-4) var(--space-4);
-  background: linear-gradient(180deg, rgb(124 58 237 / 0.1), transparent 30%), var(--bg-2);
-  border-right: 1px solid var(--line);
+  padding: 40px var(--space-4) var(--space-4);
+  background: var(--bg-2);
+  border-right: var(--px) solid var(--ink);
 }
 .sidebar__drag { position: absolute; inset: 0 0 auto 0; height: 36px; }
-/* The 44 px top leaves room for the macOS window buttons. */
+/* The 40 px top leaves room for the macOS window buttons. */
 :root:not([data-os="mac"]) .sidebar { padding-top: var(--space-4); }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
 .brand__logo {
   display: block;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   object-fit: contain;
 }
-.brand__name { font: 700 18px/1.2 var(--font-display); letter-spacing: 0.3px; }
-.brand__summary { font-size: 12px; color: var(--fg-3); }
-.brand__summary b { color: var(--s-online); font-weight: 600; }
-.sidebar__label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--fg-3); }
-.sidebar__list { flex: 1; min-height: 0; display: grid; align-content: start; gap: var(--space-2); margin: 0 -4px; padding: 0 4px 4px; }
-.sidebar__empty { margin: 0; color: var(--fg-3); font-size: 13px; }
+.brand__name { font: 700 15px/1.2 var(--font-pixel); text-transform: uppercase; }
+.brand__summary { font-size: 11px; color: var(--fg-3); }
+.brand__summary b { color: var(--s-online); font-weight: 700; }
+.sidebar__label { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); }
+/* One column as wide as the sidebar: an auto column would grow to a card's longest line and clip its button. */
+.sidebar__list { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2); margin: 0 -4px; padding: 0 4px 4px; }
+.sidebar__empty { margin: 0; color: var(--fg-3); font-size: 12px; }
 .sidebar__footer { display: flex; gap: var(--space-2); }
 .sidebar__error {
   margin: 0;
-  padding: 10px 12px;
-  border-radius: var(--r-md);
-  border: 1px solid rgb(248 113 113 / 0.4);
-  background: rgb(248 113 113 / 0.1);
-  color: #fecaca;
-  font-size: 12px;
+  padding: 8px 10px;
+  border: 2px solid var(--accent-deep);
+  background: var(--ink);
+  color: var(--danger);
+  font-size: 11px;
   overflow-wrap: anywhere;
 }

@@ -2,7 +2,7 @@
 //! bosses (s2c/1177), notices (s2c/1256), character stats (s2c/10), the other players of the zone (s2c/1263, 1167, 1170,
 //! 1253).
 use crate::protocol::{err, Reader, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Mob {
@@ -48,7 +48,7 @@ pub fn map_entities(p: &[u8]) -> Result<MapEntities> {
     })
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Place {
     pub id: i32,
     pub name: String,
@@ -259,6 +259,94 @@ pub fn map_boss(p: &[u8]) -> Result<BossPush> {
         },
         "s2c/1177",
     )
+}
+
+/// A step of s2c/39. `param` is the level for "Đạt cấp độ", the NPC for talk steps, the mob kind for kill steps.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestStep {
+    pub index: i32,
+    pub text: String,
+    pub param: i32,
+    pub required: i32,
+    pub npc_id: i32,
+}
+/// s2c/39: the current main quest, the only one the server sends (docs/app/events/10-quests.md#s2c-39).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Quest {
+    pub id: i32,
+    pub title: String,
+    pub description: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    /// Position in `steps` of the step being played.
+    pub current: i32,
+    /// Kills, or boss damage, of the current step.
+    pub progress: i32,
+    pub steps: Vec<QuestStep>,
+}
+pub fn quest_data(p: &[u8]) -> Result<Quest> {
+    let mut r = Reader::new(p);
+    let (id, title, description, kind) = (r.i32()?, r.string()?, r.string()?, r.string()?);
+    let (current, progress, n) = (r.i32()?, r.i32()?, r.i32()?);
+    let mut steps = vec![];
+    for _ in 0..n.max(0) {
+        steps.push(QuestStep {
+            index: r.i32()?,
+            text: r.string()?,
+            param: r.i32()?,
+            required: r.i32()?,
+            npc_id: r.i32()?,
+        });
+    }
+    Ok(Quest {
+        id,
+        title,
+        description,
+        kind,
+        current,
+        progress,
+        steps,
+    })
+}
+/// s2c/34: NPC dialogue or progress of a quest; also sent, with no text, when a new quest is taken.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestProgress {
+    pub field: i32,
+    pub label: String,
+    pub quest_id: i32,
+    pub text: String,
+}
+pub fn quest_progress(p: &[u8]) -> Result<QuestProgress> {
+    let mut r = Reader::new(p);
+    Ok(QuestProgress {
+        field: r.i32()?,
+        label: r.string()?,
+        quest_id: r.i32()?,
+        text: r.string()?,
+    })
+}
+/// s2c/35: quest handed in, with the reward lines shown to the player.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestComplete {
+    pub quest_id: i32,
+    pub title: String,
+    pub rewards: Vec<String>,
+    pub text: String,
+}
+pub fn quest_complete(p: &[u8]) -> Result<QuestComplete> {
+    let mut r = Reader::new(p);
+    let (quest_id, title, n) = (r.i32()?, r.string()?, r.i32()?);
+    let rewards = (0..n.max(0)).map(|_| r.string()).collect::<Result<_>>()?;
+    Ok(QuestComplete {
+        quest_id,
+        title,
+        rewards,
+        text: r.string()?,
+    })
 }
 
 /// s2c/1256: a notice line ("Thua trận, mất 16 kinh nghiệm", a portal refusal).

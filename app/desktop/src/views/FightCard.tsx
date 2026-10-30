@@ -47,12 +47,12 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             onKeyDown={(e) => e.key === "Enter" && set({ target: t.name })}
           >
             <span className={`targets__icon${t.boss ? " targets__icon--boss" : ""}`}>
-              <Icon name={t.boss ? "crown" : "sword"} size={15} />
+              <Icon name={t.boss ? "crown" : "sword"} size={13} />
             </span>
             <span className="targets__name">{t.name}</span>
             {!t.here && <span className="targets__moving">đang đổi chỗ</span>}
             {t.boss && <Badge tone="var(--accent)">BOSS</Badge>}
-            <span className="targets__level">Cấp {t.level}</span>
+            <span className="targets__level px">LV {t.level}</span>
           </li>
         ))}
       </ul>
@@ -88,7 +88,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
         <div className="job">
           <div className="job__head">
             <span className="job__title">
-              {job.target}: trận {job.fights}/{job.count}
+              {job.target}: trận <span className="px">{job.fights}/{job.count}</span>
             </span>
             <span className="job__score">
               <b className="win">{job.wins} thắng</b> · <b className="loss">{job.losses} thua</b> · +{num(job.exp)} EXP · +{num(job.coin)} xu
@@ -100,19 +100,19 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             <div className="battle">
               <div className="battle__side">
                 <span>Bạn</span>
-                <b>
+                <b className="px">
                   {num(Math.round(battle.hp))}/{num(Math.round(battle.maxHp))}
                 </b>
-                <Bar value={battle.hp / Math.max(1, battle.maxHp)} fill="var(--grad-hp)" thin />
+                <Bar value={battle.hp / Math.max(1, battle.maxHp)} fill="var(--hp)" thin />
               </div>
-              <span className="battle__vs">
+              <span className="battle__vs px">
                 VS
                 <small>lượt {battle.turns}</small>
               </span>
               <div className="battle__side">
                 <span title={battle.mobName}>{battle.mobName}</span>
-                <b>{battle.mobHp != null && battle.mobMaxHp ? `${num(Math.round(battle.mobHp))}/${num(Math.round(battle.mobMaxHp))}` : "?"}</b>
-                <Bar value={battle.mobHp != null && battle.mobMaxHp ? battle.mobHp / battle.mobMaxHp : 0} fill="var(--grad-primary)" thin />
+                <b className="px">{battle.mobHp != null && battle.mobMaxHp ? `${num(Math.round(battle.mobHp))}/${num(Math.round(battle.mobMaxHp))}` : "?"}</b>
+                <Bar value={battle.mobHp != null && battle.mobMaxHp ? battle.mobHp / battle.mobMaxHp : 0} fill="var(--accent)" thin />
               </div>
             </div>
           )}

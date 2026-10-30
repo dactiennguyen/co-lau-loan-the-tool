@@ -4,75 +4,60 @@
   grid-template-columns: minmax(180px, 1.25fr) minmax(0, 1fr) minmax(0, 0.8fr) auto;
   align-items: center;
   gap: var(--space-5);
-  padding: 14px var(--space-6);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  background:
-    radial-gradient(120% 160% at 0% 0%, rgb(124 58 237 / 0.85), transparent 55%),
-    radial-gradient(90% 140% at 100% 100%, rgb(244 63 94 / 0.55), transparent 60%),
-    linear-gradient(135deg, #2a1b5e, #1e1c35);
-  border: 1px solid rgb(255 255 255 / 0.1);
-  box-shadow: 0 24px 48px -28px rgb(124 58 237 / 0.9);
+  padding: 10px var(--space-5);
+  background: var(--card);
+  border: var(--px) solid var(--line-strong);
+  clip-path: var(--notch);
+  box-shadow: var(--bevel);
 }
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
-  background-size: 14px 14px;
-  mask-image: linear-gradient(90deg, transparent, #000 60%);
-  pointer-events: none;
-}
-.hero > * { position: relative; z-index: 1; }
-.hero .avatar__dot { border-color: #3a2470; }
+.hero .avatar__dot { border-color: var(--card); }
 .hero__who { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
-.hero__id { min-width: 0; display: grid; gap: 6px; }
-.hero__name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hero__id { min-width: 0; display: grid; gap: 4px; }
+.hero__name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hero__name h1 {
   margin: 0;
-  font: 700 28px/1.1 var(--font-display);
-  letter-spacing: 0.3px;
-  color: #fff;
+  font: 800 20px/1.1 var(--font-display);
+  color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hero__meta { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 12px; color: rgb(255 255 255 / 0.75); }
+.hero__name .badge { height: 20px; font-size: 12px; padding: 0 6px; }
+.hero__meta { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 11px; color: var(--fg-2); }
 .hero__meta > span:last-child { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hero .pill { background: rgb(15 15 35 / 0.45); }
-.hero__error { color: #fecaca; }
+.hero__error { color: var(--danger); }
 .hero__block {
   display: grid;
   gap: 2px;
   min-width: 0;
   padding-left: var(--space-5);
-  border-left: 1px solid rgb(255 255 255 / 0.14);
+  border-left: 2px solid var(--line);
 }
 .hero__label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgb(255 255 255 / 0.65);
+  color: var(--fg-3);
 }
 .hero__big {
-  font: 700 22px/1.25 var(--font-display);
-  color: #fff;
+  font: 800 16px/1.25 var(--font-display);
+  color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hero__big small { font-size: 14px; font-weight: 600; color: rgb(255 255 255 / 0.7); }
-.hero__sub { font-size: 12px; color: rgb(255 255 255 / 0.72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.hero__people .hero__big { color: #a5f3fc; }
+.hero__big small { font-size: 12px; font-weight: 600; color: var(--fg-2); }
+.hero__sub { font-size: 11px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.hero__people .hero__big .px { font-size: 16px; color: var(--s-fighting); }
 .hero__placeholder { grid-column: span 2; }
 .hero__actions { display: flex; gap: var(--space-2); }
 
 /* Narrow windows: who and the buttons on top, where and who else below. */
-@media (max-width: 1240px) {
+@media (max-width: 1120px) {
   .hero {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     grid-template-areas: "who who actions" "where people people";

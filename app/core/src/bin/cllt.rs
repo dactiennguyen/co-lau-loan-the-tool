@@ -1,6 +1,7 @@
 // Headless counterpart of the desktop app, for checks against the live server:
 //   cllt status                                       log in every account, print its status, log out
 //   cllt fight --account=NAME --target="X" --count=N [--max-losses=1]
+//   cllt quest --account=NAME [--max-losses=1]          "Tự làm nhiệm vụ" until it stops, then log out
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env.
 // Passwords are never printed.
 use cllt_core::accounts::{self, Account};
@@ -41,8 +42,21 @@ fn line(a: &Account, s: &Snapshot) -> String {
         (Some(e), Some([_, hi])) => format!(" EXP {e}/{hi}"),
         _ => String::new(),
     };
+    let quest = s.quest.as_ref().map_or(String::new(), |q| {
+        let step = q.steps.get(q.current.max(0) as usize);
+        format!(
+            " | nhiệm vụ {} {}: bước {}/{} {} ({}/{})",
+            q.id,
+            q.title,
+            q.current + 1,
+            q.steps.len(),
+            step.map_or("", |s| &s.text),
+            q.progress,
+            step.map_or(0, |s| s.required)
+        )
+    });
     format!(
-        "{}: {} cấp {} HP {}/{}{exp} | {} {} khu {}, {} người khác | {}",
+        "{}: {} cấp {} HP {}/{}{exp} | {} {} khu {}, {} người khác | {}{quest}",
         if a.label.is_empty() {
             &a.username
         } else {
@@ -80,7 +94,9 @@ fn main() {
     })
     .expect("tokio runtime");
 
-    let fight = args.first().map(String::as_str) == Some("fight");
+    let command = args.first().map(String::as_str);
+    let quest = command == Some("quest");
+    let fight = command == Some("fight") || quest;
     let chosen: Vec<(u64, Account)> = if fight {
         let name = arg("account").unwrap_or_else(|| all[0].username.clone());
         all.iter()
@@ -118,14 +134,16 @@ fn main() {
                         let max_losses =
                             arg("max-losses").and_then(|v| v.parse().ok()).unwrap_or(1);
                         println!("{}", line(&chosen[i].1, &snaps[i]));
-                        manager.send(
-                            i as u64,
+                        let command = if quest {
+                            Command::Quest { max_losses }
+                        } else {
                             Command::Fight {
                                 target,
                                 count,
                                 max_losses,
-                            },
-                        );
+                            }
+                        };
+                        manager.send(i as u64, command);
                     } else if !fight {
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         manager.send(i as u64, Command::Logout);
@@ -146,7 +164,12 @@ fn main() {
             Event::State(ConnState::Connecting) => {}
             Event::Log(text) => println!("{}: {text}", chosen[i].1.username),
             Event::Snapshot(s) => {
-                if fight && s.job.as_ref().is_some_and(|j| j.done.is_some()) {
+                let done = if quest {
+                    s.quest_run.as_ref().is_some_and(|r| r.done.is_some())
+                } else {
+                    s.job.as_ref().is_some_and(|j| j.done.is_some())
+                };
+                if fight && done {
                     println!("{}", line(&chosen[i].1, &s));
                     manager.send(id, Command::Logout);
                 }

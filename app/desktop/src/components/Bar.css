@@ -1,3 +1,8 @@
-.bar { height: 6px; border-radius: 6px; background: rgb(255 255 255 / 0.07); overflow: hidden; }
-.bar--thin { height: 4px; }
-.bar__fill { height: 100%; border-radius: inherit; transition: width var(--slow) var(--ease); }
+/* Segmented bar: 6 px blocks with 2 px gaps on a dark well. */
+.bar { height: 10px; padding: 2px; background: var(--ink); }
+.bar--thin { height: 8px; }
+.bar__fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--fill, var(--primary)) 0 6px, transparent 6px 8px);
+  transition: width var(--slow) var(--step);
+}

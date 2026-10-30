@@ -1,17 +1,16 @@
 .count {
-  min-width: 30px;
-  height: 26px;
-  padding: 0 8px;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
   display: grid;
   place-items: center;
-  border-radius: 13px;
-  background: var(--grad-points);
-  color: #fff;
-  font: 700 13px/1 var(--font-display);
+  background: var(--points);
+  color: var(--ink);
+  font-size: 12px;
+  box-shadow: var(--bevel-sm);
 }
 .players { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; display: grid; align-content: start; gap: 4px; }
-.players li { display: flex; align-items: center; gap: 10px; padding: 5px 8px 5px 5px; border-radius: var(--r-md); }
-.players li:hover { background: rgb(255 255 255 / 0.04); }
-.players .avatar { border-radius: 9px; }
-.players__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.players__empty { margin: 0; color: var(--fg-3); font-size: 13px; }
+.players li { display: flex; align-items: center; gap: 8px; padding: 3px 6px 3px 3px; background: var(--bg-2); }
+.players li:hover { background: var(--card-2); }
+.players__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
+.players__empty { margin: 0; color: var(--fg-3); font-size: 12px; }

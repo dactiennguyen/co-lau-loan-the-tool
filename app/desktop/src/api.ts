@@ -2,7 +2,7 @@
 // shows public/sample.json, written by `npm run sample`, and the commands do nothing: enough to work on the design.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Account, AppState, LogLine, NewAccount } from "./types";
+import type { AccountForm, AccountsUpdate, AppState, LogLine } from "./types";
 
 export interface LogEvent {
   id: number;
@@ -17,12 +17,18 @@ export interface Api {
   loginAll(): Promise<void>;
   logoutAll(): Promise<void>;
   fight(id: number, target: string, count: number, maxLosses: number): Promise<void>;
+  /** "Tự làm nhiệm vụ" on the current main quest. */
+  quest(id: number, maxLosses: number): Promise<void>;
   stop(id: number): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
-  addAccount(account: NewAccount): Promise<number>;
+  addAccount(account: AccountForm): Promise<number>;
+  /** An empty password keeps the saved one; rejects with a message to show. */
+  updateAccount(id: number, account: AccountForm): Promise<void>;
+  /** Rejects with a message to show (a session, or accounts.json that cannot be written); the account then stays. */
   removeAccount(id: number): Promise<void>;
-  onAccounts(handler: (accounts: Account[]) => void): Promise<UnlistenFn>;
-  onLog(handler: (event: LogEvent) => void): Promise<UnlistenFn>;
+  onAccounts(handler: (update: AccountsUpdate) => void): Promise<UnlistenFn>;
+  /** The lines logged since the last event, of every account. */
+  onLog(handler: (events: LogEvent[]) => void): Promise<UnlistenFn>;
 }
 
 const tauri: Api = {
@@ -33,11 +39,13 @@ const tauri: Api = {
   loginAll: () => invoke("login_all"),
   logoutAll: () => invoke("logout_all"),
   fight: (id, target, count, maxLosses) => invoke("fight", { id, target, count, maxLosses }),
+  quest: (id, maxLosses) => invoke("quest", { id, maxLosses }),
   stop: (id) => invoke("stop", { id }),
   addAccount: (a) => invoke("add_account", { ...a }),
+  updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
-  onAccounts: (handler) => listen<Account[]>("accounts", (e) => handler(e.payload)),
-  onLog: (handler) => listen<LogEvent>("log", (e) => handler(e.payload)),
+  onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
+  onLog: (handler) => listen<LogEvent[]>("log", (e) => handler(e.payload)),
 };
 
 interface Sample extends AppState {
@@ -48,7 +56,7 @@ let sample: Promise<Sample> | undefined;
 const loadSample = () =>
   (sample ??= fetch(`${import.meta.env.BASE_URL}sample.json`)
     .then((r) => (r.ok ? (r.json() as Promise<Sample>) : Promise.reject(new Error(r.statusText))))
-    .catch((): Sample => ({ accounts: [], accountsPath: "app/accounts.json", accountsError: null, logs: {} })));
+    .catch((): Sample => ({ rev: 0, accounts: [], accountsError: null, logs: {} })));
 const nothing = async () => {};
 
 const preview: Api = {
@@ -59,9 +67,11 @@ const preview: Api = {
   loginAll: nothing,
   logoutAll: nothing,
   fight: nothing,
+  quest: nothing,
   stop: nothing,
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
-  removeAccount: nothing,
+  updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
+  removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),
   onAccounts: async () => () => {},
   onLog: async () => () => {},
 };
