@@ -14,11 +14,14 @@ Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bướ
 | Câu hỏi | Trả lời | Căn cứ |
 |---|---|---|
 | Vừa vào một khu có quét được hết quái không? | **Có.** Gửi `c2s/43` (mapId), server trả `s2c/43` với id, tên, cấp của cả 33 con trong khu. | run2/3/4, mỗi lần 33 con [Đo] |
-| Có phải di chuyển tới quái mới đánh được không? | **Không.** Gửi thẳng `c2s/15` (mobId) khi nhân vật đứng xa, server vẫn mở trận. Server không kiểm khoảng cách. | `mob10` ở xa nhân vật, s2c/22 về sau 2,4 s, 3 lần [Đo] |
+| Có phải di chuyển tới quái mới đánh được không? | **Không**, với quái thường. Gửi thẳng `c2s/15` (mobId) khi nhân vật đứng xa, server vẫn mở trận. Boss Thủ Lĩnh Sơn Tặc thì server không trả lời ([10-quests](10-quests.md#bước-boss-chưa-làm-được-q10)). | `mob10` ở xa, s2c/22 về sau 2,4 s, 3 lần; Q3–Q12 hơn 40 trận [Đo] |
 | Có cần giao diện game vào màn đánh không? | **Không.** Client đứng yên ở bản đồ, cả trận diễn ra chỉ bằng gói tin. Server vẫn cộng EXP, tiền và tiến độ nhiệm vụ. | run4: màn hình không đổi, HUD EXP 17,2% → 22,5%, nhiệm vụ "Tiêu diệt Gà Điên" hoàn thành [Đo] |
 | Theo dõi được bàn cờ không? | **Có, chính xác từng ô.** Server gửi bàn đầu và danh sách viên rơi xuống của mỗi nước. Client tự mô phỏng rơi theo luật bên dưới. | 52/52 bước replay khớp [Đo] |
 | Dùng thuật toán để đánh được không? | **Được.** Bot tìm nước tốt nhất trong ≤8 ms, gửi `c2s/19`, server chấp nhận. Thắng Gà Điên sau 5 nước. | run4 [Đo] |
 | Đánh quái là online hay offline? | **Online, server quyết định.** Xem phần dưới. | |
+| Có những kiểu trận nào? | **Theo lượt** (`s2c/18` byte 4 = 0: quái đi trước, mỗi lượt có `s2c/24`) và **tính giờ** (= 1, Sơn Tặc: người chơi đi liên tục, quái đánh mỗi ~30 s qua `s2c/21`). | [05-battle](05-battle.md#trận-tính-giờ) [Đo Q6–Q12] |
+| Người chơi dùng kỹ năng được không? | **Được**: `c2s/20 (uuid, seq, skillId)`, Hỏa Cầu Thuật gây 62. | [05-battle](05-battle.md#c2s-20) [Đo Q9] |
+| Cách nhanh nhất? | Trận tính giờ, 0,5 s/nước, dùng kỹ năng: ~500 EXP/phút. | [10-quests](10-quests.md#đánh-nhanh-hay-ăn-sao) [Đo] |
 
 ## Online hay offline
 
@@ -83,6 +86,7 @@ Bàn 8×8 lưu theo hàng (`index = hàng × 8 + cột`), hàng 0 ở trên. To�
 7. **Viên đặc biệt**: mã `10..69` là loại `mã % 10` (mã `10` là kiếm) và ăn chung với viên thường cùng loại. Khi bị ăn, nó **phá thêm ô vuông 3×3 quanh nó**. Viên đặc biệt đến qua `refill` (run3 bước 7, run4 bước 2). [Đo với mã `10`: run3 và run4 chỉ khớp khi có luật 3×3. Các luật "phá cả hàng", "phá cả cột", "phá chữ thập", "viên hoàn hảo" đều lệch]
    - Mã 11–15: [Suy luận] theo quy luật `mã % 10`, chưa thấy.
    - Nổ dây chuyền giữa hai Kiếm lửa: có, theo Cẩm nang ("Kiếm lửa khác nằm trong vùng nổ cũng nổ theo"). Mô hình cho nổ lan.
+   - Kiếm lửa bị **kỹ năng của quái** phá cũng nổ 3×3 (Q5 seq 41, xem [s2c/20](05-battle.md#s2c-20)). Mô hình cũ chỉ cho nổ khi viên được ăn trong hàng nên lệch bàn ở nước đó. [Đo]
    - Cách sinh ra: "đôi khi kiếm mới thêm vào bàn là Kiếm lửa; vài kỹ năng cũng tạo ra Kiếm lửa" (Cẩm nang).
 8. **Hết nước đi**: server **xếp lại cả bàn** và gửi bàn mới 64 ô ngay trong `s2c/19` của nước vừa đi (`u8 1; i32 64; u8[64]` sau danh sách refill). Thấy 3 lần ở bot Node, xem [10-quests](10-quests.md#hai-điều-q1-phát-hiện). [Đo]
 
@@ -104,14 +108,35 @@ Số liệu đo trong `units` của s2c/19. `-1` nghĩa là không đổi.
 
 | Mã | Viên | Tác dụng | Số đo |
 |---:|---|---|---|
-| `0` | Kiếm | Gây sát thương cho đối thủ (`damage` của bên ăn, `hp` của bên bị đánh) | manina (cấp 3) ăn 3 kiếm: 31. Ăn 4 kiếm (kèm nổ): 29. Gà Điên ăn 3 kiếm: 0, 4, 8. Chỉ Huy Sơn Tặc: 14. Không tỉ lệ với số viên, có thể có yếu tố ngẫu nhiên hoặc phòng thủ [Đo số; công thức Chưa rõ] |
-| `1` | Tim | Hồi máu cho bên ăn | Chỉ Huy Sơn Tặc → manina ăn 4 tim: 73 → 80 [Đo] |
-| `2` | Âm dương | Tăng `s1` = nội lực để dùng tuyệt chiêu (Cẩm nang) | manina, Gà Điên: +6 cho mỗi 3 viên. Chỉ Huy Sơn Tặc: +8. Kỹ năng 2000 trừ `s1` [Đo; tên Suy luận] |
-| `3` | Giọt nước | Tăng `s2`. Cẩm nang: tăng kinh nghiệm, bằng 1/2 ngôi sao | manina: +15 cho mỗi 3 viên. Chỉ Huy Sơn Tặc: +13 cho 3 viên, +22 cho 4 viên [Đo] |
-| `4` | Trái đào | Cẩm nang: hồi sức mạnh, nhân đôi lực tấn công cho một lượt. Không thấy thay đổi trong `units` | [Chưa rõ trên dây] |
-| `5` | Ngôi sao | Cẩm nang: tăng kinh nghiệm. Không thấy thay đổi trong `units` | [Chưa rõ trên dây] |
-| `0x46` | Thỏi vàng | Cẩm nang: đổi Xu khoá, đủ 10.000 vàng tự đổi 10.000 Xu khoá. Không thấy thay đổi trong trận | [Chưa rõ trên dây] |
-| `10` | Kiếm lửa | Mạnh hơn kiếm thường, cộng nổ 3×3 | [Đo nổ; Cẩm nang] |
+| `0` | Kiếm | Gây sát thương cho đối thủ (`damage` của bên ăn, `hp` của bên bị đánh) | manina cấp 3: 31 cho 3 kiếm; cấp 8–11: **30 cho 3 kiếm, 41 cho 4 kiếm**, có lần 0 (né). Gà Điên 0/4/8, Heo Mọi 9, Kẻ Gây Rối 17 (3 kiếm) và 22 (4 kiếm), Chỉ Huy Sơn Tặc 14 [Đo] |
+| `1` | Tim | Hồi máu cho bên ăn | manina ăn 4 tim: 73 → 80; Kẻ Gây Rối ăn 3 tim: +11 [Đo] |
+| `2` | Âm dương | Tăng `s1` = nội lực để dùng kỹ năng | +6 cho mỗi 3 viên (manina, Gà Điên), +8 (Chỉ Huy), +6 (Kẻ Gây Rối). Kẻ Gây Rối dùng Hỏa Cầu Thuật khi `s1 = 34`, còn 22 [Đo] |
+| `3` | **Trái đào** | Tăng `s2` = sức mạnh (thanh "power" của HUD); `s2` chặn ở 100, và **đòn kiếm kế tiếp gây gấp đôi** rồi `s2` về 0 | manina +15–16 cho mỗi 3 viên. Q6: 3 kiếm gây 60 thay vì 30, 4 kiếm gây 82 thay vì 41, ba lần, lần nào `s2` cũng 100 → 0 [Đo] |
+| `4` | **Giọt nước** | Kinh nghiệm cuối trận, bằng 1/2 ngôi sao | +2 EXP mỗi viên mình ăn (công thức dưới) [Đo 7 trận] |
+| `5` | Ngôi sao | Kinh nghiệm cuối trận | +4 EXP mỗi viên mình ăn [Đo 7 trận] |
+| `0x46` | Thỏi vàng | Xu khoá cuối trận | +2 Xu khoá mỗi viên mình ăn [Đo 7 trận, lệch ≤ 2] |
+| `10` | Kiếm lửa | Mạnh hơn kiếm thường, cộng nổ 3×3, kể cả khi bị kỹ năng phá | [Đo nổ; Cẩm nang] |
+
+Trước Q6 tài liệu gọi mã 3 là "Giọt nước" và mã 4 là "Trái đào". Số đo Q5/Q6 cho thấy mã 3 làm đúng việc Cẩm nang mô tả cho Trái đào (hồi sức mạnh, nhân đôi đòn), còn mã 4 và 5 quyết định EXP như Cẩm nang mô tả cho Giọt nước và Ngôi sao, nên tên hai mã được đổi lại. Mã số trên dây không đổi. [Suy luận từ số đo]
+
+**Phần thưởng một trận thắng** (7 trận Kẻ Gây Rối, manina cấp 9–11, Q6), chỉ tính viên **mình** ăn, kể cả viên rơi theo chuỗi và viên bị nổ:
+
+```text
+EXP = 2 × (2 × sao + giọt nước) + 26…30
+Xu  = 2 × thỏi vàng   (±2)
+```
+
+| Sao | Giọt nước | Vàng | EXP tính | EXP thật | Xu tính | Xu thật |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8 | 20 | 12 | 72 + 28 | 100 | 24 | 24 |
+| 21 | 16 | 46 | 116 + 28 | 144 | 92 | 92 |
+| 9 | 15 | 25 | 66 + 26 | 92 | 50 | 52 |
+| 21 | 21 | 16 | 126 + 26 | 152 | 32 | 32 |
+| 23 | 35 | 31 | 162 + 30 | 192 | 62 | 64 |
+| 18 | 13 | 21 | 98 + 26 | 124 | 42 | 44 |
+| 23 | 19 | 16 | 130 + 26 | 156 | 32 | 34 |
+
+Phần cộng 26–30 có thể phụ thuộc cấp quái và cấp mình [Chưa rõ]. Thua thì EXP và tiền đều 0 (B1). Hệ quả: trận dài hơn, ăn nhiều sao hơn thì được nhiều EXP hơn, nên "thắng nhanh" và "nhiều EXP mỗi phút" là hai mục tiêu khác nhau (so sánh ở [10-quests](10-quests.md#đánh-nhanh-hay-ăn-sao)).
 
 Ăn ≥4 viên bất kỳ loại nào, hoặc hai hàng 3 cùng loại cắt nhau, được thêm lượt.
 
@@ -161,7 +186,7 @@ Bot gọi thẳng hàm dựng gói native của `com.mh.sqlq` trong `libgdx-flas
 
 ### B. Client Node.js không giao diện, đã chạy
 
-[src/quest.ts](../../../src/quest.ts) gửi các gói dưới bằng `Writer` của [src/protocol.ts](../../../src/protocol.ts) sau khi `runClient` vào thế giới. Cần `CLLT_USERNAME`/`CLLT_PASSWORD`, và tài khoản không được online ở máy khác (server từ chối bằng `s2c/0`). Bot đã thắng 10/10 trận Heo Mọi, xem [10-quests](10-quests.md#bot-làm-nhiệm-vụ-bằng-typescript).
+[src/battle-runner.ts](../../../src/battle-runner.ts) gửi các gói dưới (dựng bằng `buildRequest` của [src/events.ts](../../../src/events.ts)) sau khi `runClient` vào thế giới; [src/quest.ts](../../../src/quest.ts) chọn quái và thách đấu. Cần `CLLT_USERNAME`/`CLLT_PASSWORD`, và tài khoản không được online ở máy khác (server từ chối bằng `s2c/0`). Bot đã thắng 10/10 trận Heo Mọi, xem [10-quests](10-quests.md#kết-quả-q2); cách chạy ở [bot làm nhiệm vụ](../../integration/nodejs/quest-bot.md).
 
 | Gói | Payload |
 |---|---|
@@ -310,11 +335,11 @@ Khi thua (B1), 16 byte sau `end` đều là 0. Đối chiếu s2c/10 trước v�
 | s2c/34 | `i32 0; string "subtask 1"; i32 3; string thông báo` | Tiến độ nhiệm vụ. Client hiện hộp thoại "Tiếp theo hãy tới gặp Hương Lão Trần Bá" [Đo] |
 | s2c/1212 | 13 byte `000001cc 02 01 01 00002455 01 00` | Đến ngay sau nước đầu của trận [Chưa rõ] |
 | s2c/1200 | rỗng | Ngay sau s2c/19 `end=1` [Chưa rõ] |
-| s2c/36 | `00000008 00000000 2f ffffffffffffff` | Sau c2s/40 (đầu hàng). B1 là `31` thay cho `2f` [Chưa rõ] |
+| s2c/36 | `00000008 00000000 2f ffffffffffffff` | Sau c2s/40 (đầu hàng). Độ bền trang bị: B1 là `31`, trận huỷ cũng làm mòn 2 [Suy luận] |
 
 ## Chưa biết
 
-- Gói người chơi dùng kỹ năng (bot chỉ thấy quái dùng kỹ năng, qua s2c/20).
+- Giá nội lực chính xác của Hỏa Cầu Thuật và các kỹ năng khác của nhân vật.
 - Mã viên đặc biệt khác `10`.
 - Công thức sát thương.
 - Quái có biến mất hoặc hồi sinh phía server sau khi bị giết không.

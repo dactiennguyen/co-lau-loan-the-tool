@@ -141,7 +141,7 @@ Ví dụ `s2c/1167` của boy2Nghin, 300 byte:
 | 55 | `00000236 000001a0` | `i32 x; i32 y` | 566, 416 |
 | 63 | `000163dc 00011684 00013880 ffffffff 00000000 00000000` | `i32 trangBị[6]` | 91100, 71300, 80000, -1, 0, 0. Cùng 6 số với `s2c/1166` |
 | 87 | … 203 byte | khối ngoại hình | 3 `i32`; hai lớp bảng màu ARGB `{slot; i32 độDài; byte}`; `i32` mã (60300); `u8`; 2 nhóm 5 `i32`; `i32 99000`; `u8 m; m × {i32 slot; i32 độDài; byte}`. Đọc được ranh giới, chưa đặt tên [Đo cấu trúc] |
-| 290 | `00000000 00000000 00 00` | `i32; string sứQuân; u8; u8` | 0, "", 0, 0 khi chưa vào sứ quân. Hai người có `4, "WATER7"`: WATER7 là một sứ quân trong bảng Sứ quân ([10](10-quests.md#các-bảng-chức-năng-u1)) [Đo] |
+| 290 | `00000000 00000000 00 00` | `i32; string sứQuân; u8; u8` | 0, "", 0, 0 khi chưa vào sứ quân. Hai người có `4, "WATER7"`: WATER7 là một sứ quân trong bảng Sứ quân ([10](11-panels.md)) [Đo] |
 
 <a id="s2c-1167"></a>
 

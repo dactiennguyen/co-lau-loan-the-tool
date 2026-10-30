@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { decodeEvent, findEvent } from './events.ts';
-import { EXPECTED } from './client.ts';
+import { EXPECTED, FLOW } from './client.ts';
 import { PLATFORM, PROTOCOL_VERSION } from './protocol.ts';
 import { BASELINE } from './config.ts';
 
@@ -28,7 +28,7 @@ export function normalizeCapture(input: string): Record<string, any>[] {
 export function checkCapture(input: string, mode: 'bootstrap' | 'login' | 'world' = 'world') {
   const rows = normalizeCapture(input), findings: Finding[] = [];
   const add = (severity: Finding['severity'], code: string, message: string, fields: Partial<Finding> = {}) => findings.push({ severity, code, message, ...fields });
-  const requests = [-1, 1206, 5, 2, 3, 4, 9, 30, 42, 29, 11, 43];
+  const requests = FLOW.map(s => s.request);
   const required = mode === 'bootstrap' ? requests.slice(0, 3) : mode === 'login' ? requests.slice(0, 7) : requests;
   let requestIndex = 0, state = 'key', packets = 0, haveList = false, haveFlag = false;
   let haveEntities = false, haveSnapshot = false, completed = false, completionReported = false, identityObserved = false;
@@ -57,8 +57,7 @@ export function checkCapture(input: string, mode: 'bootstrap' | 'login' | 'world
       if (pendingRequired.size) add('error', 'PREVIOUS_RESPONSE_MISSING', 'Next request appears before the preceding required response was captured', { ...details, details: { state, missingReceiveOpcodes: [...pendingRequired] } });
       if (opcode !== required[requestIndex]) add('error', 'REQUEST_ORDER_CHANGED', `Expected c2s/${required[requestIndex]}, observed c2s/${opcode}`, details);
       else requestIndex++;
-      const requestState: Record<number, string> = { [-1]: 'key', 1206: 'version', 5: 'notice', 2: 'challenge2', 3: 'challenge3', 4: 'authenticating', 9: 'character', 30: 'skills', 42: 'profile42', 29: 'location', 11: 'map', 43: 'entities' };
-      state = requestState[opcode] ?? state;
+      state = FLOW.find(s => s.request === opcode)?.state ?? state;
       pendingRequired = new Set(EXPECTED[state]);
       if (haveSnapshot) pendingRequired.delete(1263);
     }

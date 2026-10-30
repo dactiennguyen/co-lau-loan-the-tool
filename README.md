@@ -6,6 +6,7 @@ Kho này lưu kết quả điều tra APK và phần tích hợp Node.js dựa t
 |---|---|
 | Binary/DEX/native, công cụ và phương pháp điều tra, byte giao thức, event, dữ liệu nhân vật | [Điều tra app](docs/app/README.md) |
 | Chạy client Node.js, dùng API, lấy user, đọc log, chẩn đoán và kiểm thử | [Tích hợp Node.js](docs/integration/nodejs/README.md) |
+| Bot Node.js tự làm nhiệm vụ, đánh quái không giao diện | [Bot làm nhiệm vụ](docs/integration/nodejs/quest-bot.md) |
 | Toàn bộ mục lục tài liệu | [docs](docs/README.md) |
 | Nguồn dữ liệu và phạm vi regression | [test](test/README.md) |
 

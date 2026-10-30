@@ -54,7 +54,7 @@ Nguồn: A2: packet đọc từ native reader, record 89.
 | Độ chắc chắn | Lệnh đọc được; từng trường danh sách chưa giải |
 | Độ dài payload mẫu | 30 byte |
 
-Bố cục và giải thích: [10-quests](10-quests.md#các-bảng-chức-năng-u1).
+Bố cục và giải thích: [11-panels](11-panels.md).
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -403,10 +403,10 @@ Nguồn: A2: packet đọc từ native reader, record 149.
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | map_special_entity |
-| Xuất hiện khi | Sau c2s/43 |
+| Xuất hiện khi | Sau c2s/43: boss của map |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | Prefix string mapId; có tên Thủ Lĩnh Sơn Tặc; opaque tail |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | string mapId; u8 field; {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}; u8; i32; i32 |
+| Độ chắc chắn | Đọc hết byte (Q9, 71 byte): Thủ Lĩnh Sơn Tặc mob86100101 cấp 11 ở khu 1; ba trường cuối chưa rõ |
 | Độ dài payload mẫu | 71 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:

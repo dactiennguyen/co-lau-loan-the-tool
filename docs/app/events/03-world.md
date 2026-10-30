@@ -380,9 +380,9 @@ Nguồn: A2: packet đọc từ native reader, record 154.
 |---|---|
 | Hướng | Client → Server |
 | Nhãn phân tích | map_request |
-| Xuất hiện khi | Đã có mapId |
+| Xuất hiện khi | Đã có mapId; mapId "M99" khi mở Bản đồ thế giới |
 | Sau đó | s2c/11 |
-| Bố cục payload | string mapId; u8 area=-1 (ff); i32 field=-1 |
+| Bố cục payload | string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1 |
 | Độ chắc chắn | Đã đo kiểu/byte; tên field chưa rõ được giữ trung tính |
 | Độ dài payload mẫu | 11 byte |
 
@@ -422,8 +422,8 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Nhãn phân tích | map_data |
 | Xuất hiện khi | Trả map_request |
 | Sau đó | c2s/43 |
-| Bố cục payload | u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; opaque tail |
-| Độ chắc chắn | Getter/offset đã đo; x/y và kích thước lưới là suy luận; không gán tên các field còn lại |
+| Bố cục payload | flag 1: u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; opaque tail. flag 0 ("M99"): string "M99"; i32 n; n * {i32 index; string mapId; 17 byte 0; u8 locked; 8 byte 0}; i32 n; n * {i32 index; i32 levelRequired} |
+| Độ chắc chắn | Getter/offset đã đo; x/y và kích thước lưới là suy luận; nhánh M99 đọc hết 1132 byte, cấp yêu cầu khớp nhãn Lv. trên bản đồ |
 | Độ dài payload mẫu | 11379 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -524,8 +524,8 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Nhãn phân tích | entities_data |
 | Xuất hiện khi | Trả entities_request |
 | Sau đó | Đồng bộ push thế giới; không gửi ACK nguyên gói |
-| Bố cục payload | Prefix string mapId; u8 field; string entityId,label; opaque tail |
-| Độ chắc chắn | Prefix thấy trong bytes; ý nghĩa u8 field chưa chốt |
+| Bố cục payload | string mapId; u8 field; tới hết payload: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d} |
+| Độ chắc chắn | Đọc hết byte: M1 khu 0 (1398 byte), khu 1 (bot Q2); ý nghĩa field, a..d chưa chốt; không có toạ độ quái |
 | Độ dài payload mẫu | 1406 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -534,7 +534,7 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 000000024d3103000000066d6f623134300000000a47c3a020c49069c3aa6e0000000104000000010000000100000000066d6f623134310000000a47c3a020c49069c3aa6e0000000104000000010000000100000000066d6f623134320000000a47c3a020c49069c3aa6e0000000104000000010000000100000000066d6f62
 ```
 
-Hiển thị 128/1406 byte đầu. Các giá trị đã đọc được ghi bên dưới; phần chưa rõ không được điền thêm byte hoặc coi là schema đã hiểu.
+Hiển thị 128/1406 byte đầu. Bảng quái theo tên và ý nghĩa từng cột ở [05-battle](05-battle.md#s2c43-danh-sách-quái-của-bản-đồ).
 
 Nguồn: A2: packet đọc từ native reader, record 195.
 
@@ -547,11 +547,17 @@ Nguồn: A2: packet đọc từ native reader, record 195.
   "values": {
     "mapId": "M1",
     "field": 3,
-    "firstEntityId": "mob140",
-    "firstLabel": "Gà Điên"
+    "mobCount": 33,
+    "mobs": {
+      "Gà Điên": "mob140 (cấp 1) … mob147",
+      "Heo Mọi": "mob2830 (cấp 7) … mob2835",
+      "Kẻ Gây Rối": "mob31430 (cấp 7) … mob31435",
+      "Sơn Tặc": "mob42030 (cấp 9) … mob42035",
+      "Chỉ Huy Sơn Tặc": "mob872635 (cấp 10) … mob872641"
+    }
   },
-  "bytesInterpreted": 31,
-  "bytesUnknown": 1375
+  "bytesInterpreted": 1406,
+  "bytesUnknown": 0
 }
 ```
 

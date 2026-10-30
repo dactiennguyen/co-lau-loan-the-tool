@@ -8,8 +8,14 @@
 | A1: phiên app thứ nhất | Boot → login → thế giới; hook syscall và native packet | Một số body lớn giới hạn 8192 byte; không dùng bản cắt để khẳng định full schema |
 | A2: phiên app thứ hai | Đọc packet bằng JNI, trace getter/writer và cursor; body tối đa 65536 byte | Chỉ một nhánh login thành công, một nhân vật và tập tính năng đã kích hoạt |
 | V1: kết nối kiểm chứng độc lập | Đối chiếu lại framing/proof/login/world với server; đọc thêm gói 0 account online nơi khác | Là bằng chứng server, không gán thành capture gốc từ APK |
+| B1: trận đấu đầu tiên (29/10) | Frida hook writer/reader; `manina` cấp 3 chạm Gà Điên và Chỉ Huy Sơn Tặc. [05-battle](events/05-battle.md) | Một trận đủ lượt, bot thắng |
+| B2: bản đồ và quái (29/10) | Attach cùng tiến trình, khu 20; hook hàm dựng gói `sqlq`, đọc object quái qua JNI. [06-map-mobs](events/06-map-mobs.md) | Một map (M1) |
+| run1–run4: bot trong game (30/10) | Frida gọi hàm dựng gói native để đánh quái; run4 thắng Gà Điên. [07-auto-battle](events/07-auto-battle.md) | run1 chết ngầm, run2 sai tham số, run3 lệch bàn |
+| L1, W1: đăng nhập và ở lại thế giới (30/10) | L1 spawn app, ở 15 phút (người chơi tự trả nhiệm vụ, cộng điểm); W1 attach, khu 0. [08](events/08-server-map-zone.md), [09](events/09-players-chat.md) | Gói người chơi tự bấm chỉ thấy 1–10 lần |
+| U1: các bảng chức năng (30/10) | Mở lần lượt từng bảng trên điện thoại, không mua bán. [11-panels](events/11-panels.md) | Game tắt giữa chừng, còn bảng chưa mở |
+| Q1, Q2, Q3…: bot Node làm nhiệm vụ (30/10) | `npm run quest`, không cần điện thoại; log client với prefix hex 128 byte. [10-quests](events/10-quests.md) | Gói dài hơn 128 byte chỉ có prefix |
 
-Giá trị HP, khu vực, danh sách thực thể và key có thể khác giữa A1/A2/V1. Nhãn field và nhãn event trong tài liệu là diễn giải, trừ khi đã chỉ rõ chữ ký/field thực của binary. Raw trace/script tạm đã xoá sau khi ghi lại các quan sát cần thiết.
+Giá trị HP, khu vực, danh sách thực thể và key có thể khác giữa các phiên. Nhãn field và nhãn event trong tài liệu là diễn giải, trừ khi đã chỉ rõ chữ ký/field thực của binary. Raw trace/script tạm đã xoá sau khi ghi lại các quan sát cần thiết.
 
 ## Công cụ thực sự đã dùng
 

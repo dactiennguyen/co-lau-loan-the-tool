@@ -145,6 +145,11 @@ export function characterPrefix(payload: Uint8Array) {
   return { status, count, name, numericId, displayName, flag1, flag2, level, hp, maxHp, prefixBytes: r.offset };
 }
 
+export function characterLocation(payload: Uint8Array) {
+  const r = new Reader(payload);
+  return { characterName: r.string(), mapId: r.string(), field: r.i32() };
+}
+
 export function mapPrefix(payload: Uint8Array) {
   const r = new Reader(payload), flag = r.u8();
   if (flag !== 1) throw new ProtocolError('UNSUPPORTED_BRANCH', `Unobserved map flag ${flag}`, { flag });

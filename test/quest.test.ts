@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol.ts';
 import { decodeEvent } from '../src/events.ts';
-import { QuestBot, battleResult } from '../src/quest.ts';
+import { QuestBot, stepAction } from '../src/quest.ts';
 
 const q: Record<string, string> = fixtures.quest;
 const decode = (opcode: number, key: string) => {
@@ -30,15 +30,17 @@ test('ranking s2c/1254: tab list, top 100 with the own rank, faction tab', () =>
   assert.deepEqual([factions.rows.map((r: any) => r.name), factions.own.rank], [['Thiên Tôn', 'WATER7', 'CỜ LAU', 'ALIBABA'], -1]);
 });
 
-test('battle result with a reshuffled board (u8 1; i32 64; 64 pieces) is read to the end', () => {
-  // Synthetic payload in the observed layout; the captured one (quest run 1) was cut at 128 bytes by the trace.
-  const board = Array.from({ length: 64 }, (_, i) => [1, 2, 3, 4, 5][(i + Math.floor(i / 8)) % 5]);
-  const w = new Writer().i32(30).i32(0).i32(0x4bbc7371).i32(2).i32(8).i32(3).i32(8).i32(1).bytes(Buffer.from([3, 1, 3]))
-    .u8(1).bytes(Buffer.from(board)).u8(0).u8(0).u8(0)
-    .u8(1).string('mob2800').i32(-1).u8(0).i32(42).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(0).string('mob2800').u8(0);
-  const x = battleResult(w.build(), 19);
-  assert.deepEqual(x.move, { from: [0, 6], to: [1, 6] });
-  assert.deepEqual([x.refill, x.newBoard, x.units[0].hp, x.actor, x.end], [[3, 1, 3], board, 42, 'mob2800', false]);
+test('stepAction: every step text of quests 3–7', () => {
+  const steps: [string, number, unknown][] = [
+    ['Tiêu diệt Heo Mọi', -1, { kind: 'kill', mob: 'Heo Mọi' }],
+    ['Đánh bại Kẻ Gây Rối', -1, { kind: 'kill', mob: 'Kẻ Gây Rối' }],
+    ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1, { kind: 'damage', mob: 'Thủ Lĩnh Sơn Tặc', amount: 500 }],
+    ['Đạt cấp độ 8', -1, { kind: 'level', level: 8 }],
+    ['Nâng điểm tiềm năng', -1, { kind: 'stat' }],
+    ['Báo cáo với Bà Tư Hạnh', 103, { kind: 'talk', npcId: 103 }],
+    ['Thu thập 5 Da Heo', -1, { kind: 'unknown' }],
+  ];
+  for (const [text, npcId, action] of steps) assert.deepEqual(stepAction({ text, npcId }), action, text);
 });
 
 test('quest bot: talk step sends c2s/13, the NPC reply advances to the kill step, which challenges a matching mob', () => {

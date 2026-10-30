@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, type Move } from '../src/battle.ts';
+import { Writer } from '../src/protocol.ts';
+import { buildRequest, decodeEvent } from '../src/events.ts';
+import { BattleRunner, type BattleEnd } from '../src/battle-runner.ts';
 
 const battles: { source: string; board: number[]; steps: { seq: number; move?: number[]; cells?: number[][]; refill: number[]; actor: string; extraTurn: boolean }[] }[] = fixtures.battles;
 const toMove = (m: number[]): Move => ({ from: [m[0], m[1]], to: [m[2], m[3]] });
@@ -48,4 +51,84 @@ test('bestMove picks a legal move on every captured position', () => {
       settle(b, step.refill, (step.cells ?? []).map(([r, c]) => r * N + c));
     }
   }
+});
+
+const packets: Record<string, string> = fixtures['battle-packets'];
+const decode = (key: string) => {
+  const d = decodeEvent('s2c', Number(key.split(/[/ ]/)[1]), Buffer.from(packets[key], 'hex'));
+  return { ...(d.fields as any), opaqueBytes: d.opaqueBytes };
+};
+
+test('battle packets from the Q2/Q4 runs: turn, join ack, swap result, reshuffled board, two skills, stats', () => {
+  assert.deepEqual(decode('s2c/24 own turn'), { seq: 1, field: 0, playerTurn: 1, field9: 0, opaqueBytes: 0 });
+  assert.equal(decode('s2c/24 mob turn').playerTurn, 0);
+  assert.equal(decode('s2c/18').opaqueBytes, 0);
+  const extra = decode('s2c/19 extra turn');
+  assert.deepEqual([extra.move, extra.refill, extra.extraTurn, extra.actor, extra.opaqueBytes], [{ from: [6, 3], to: [7, 3] }, [1, 3, 2, 0], true, 'manina', 0]);
+  const shuffled = decode('s2c/19 reshuffled');
+  assert.equal(shuffled.newBoard.length, N * N); assert.equal(shuffled.opaqueBytes, 0);
+  assert.equal(findRuns(shuffled.newBoard).cells.size, 0, 'a reshuffled board has no ready run');
+  const skill = decode('s2c/20');
+  assert.deepEqual([skill.skill, skill.targets, skill.cells, skill.units.map((u: any) => [u.name, u.hp]), skill.opaqueBytes], [2000, [], [60], [['mob2806', 29], ['manina', 96]], 0]);
+  const blast = decode('s2c/20 skill 1000'); // two targets, each destroying the 2×2 block below-right of it
+  const block = (i: number) => [i, i + 1, i + N, i + N + 1];
+  assert.deepEqual([blast.skill, blast.targets, blast.cells, blast.opaqueBytes], [1000, [21, 2], [...block(21), ...block(2)], 0]);
+  assert.deepEqual(decode('s2c/10 kind 4'), { kind: 4, name: 'manina', hp: 98, maxHp: 136, exp: 471, levelExp: [300, 500], coin: 28, extra: [10000, 40, 9, 30, 20, 6], opaqueBytes: 0 });
+});
+
+test('a special piece destroyed by a skill blasts its 3×3 neighbourhood too (Q5 seq 41: 4 cells hit, 9 refilled)', () => {
+  const b: number[] = fixtures['board before skill on a special'].slice();
+  const x = decode('s2c/20 skill on a special');
+  assert.equal(b[x.cells[3]], 10);
+  const o = settle(b, x.refill, x.cells);
+  assert.deepEqual([x.cells.length, x.refill.length, o.refillUsed], [4, 9, 9]);
+  assert.ok(!b.includes(EMPTY) && !b.includes(UNKNOWN) && !findRuns(b).cells.size);
+});
+
+test('timed battles (Q6–Q9 Sơn Tặc): s2c/18 flag, s2c/21 hit, s2c/1256 notice', () => {
+  assert.equal(decode('s2c/18 player first').timed, 1);
+  const hit = decode('s2c/21');
+  assert.deepEqual([hit.units.map((u: any) => [u.name, u.damage, u.hp]), hit.actor, hit.end, hit.opaqueBytes], [[['mob42007', 46, -1], ['manina', -1, 64]], 'mob42007', false, 0]);
+  assert.deepEqual(decode('s2c/1256'), { field: 0, text: 'Thua trận, mất 16 kinh nghiệm', opaqueBytes: 0 });
+  const sent: number[] = [];
+  const runner = new BattleRunner({ me: 'manina', level: 11, hp: 110, maxHp: 120, uuid: 'u', board: battles[0].board.slice(), turnSeconds: 30, knownBytes: 0 }, 'mob42007',
+    { send: op => sent.push(op), log: () => {}, onEnd: () => {} });
+  runner.onPacket(18, Buffer.from(packets['s2c/18 player first'], 'hex'));
+  assert.deepEqual(sent, [19], 'the player opens with a swap, not a step request');
+  clearTimeout((runner as any).turnWait);
+  runner.onPacket(21, Buffer.from(packets['s2c/21'], 'hex'));
+  assert.equal(runner.myHp, 64);
+});
+
+test('battle and quest requests: builders match the captured layouts and decode back', () => {
+  const uuid = 'c451ecac-ea99-42b8-a22a-c5c72e898659', move: Move = { from: [5, 6], to: [4, 6] };
+  assert.equal(buildRequest(15, { mobId: 'mob872604' }).toString('hex'), '000000096d6f6238373236303400');
+  assert.equal(buildRequest(1173, { zone: 20 }).toString('hex'), '14');
+  assert.deepEqual(buildRequest(19, { battleUuid: uuid, seq: 13, move }), new Writer().string(uuid).i32(13).i32(7).i32(8).i32(6).i32(8).build());
+  for (const [opcode, ctx] of [[13, { mapId: 'M1', npcId: 103 }], [15, { mobId: 'mob10' }], [18, { battleUuid: uuid }], [40, { battleUuid: uuid }],
+    [14, { battleUuid: uuid, seq: 4 }], [19, { battleUuid: uuid, seq: 13, move }], [1173, { zone: 20 }], [10, { stat: 0, amount: 1 }]] as const) {
+    const d = decodeEvent('c2s', opcode, buildRequest(opcode, ctx));
+    assert.equal(d.known, true); assert.equal(d.opaqueBytes, 0, `c2s/${opcode}`);
+  }
+  assert.deepEqual(decodeEvent('c2s', 19, buildRequest(19, { battleUuid: uuid, seq: 13, move })).fields, { battleUuid: uuid, seq: 13, ...move });
+});
+
+test('battle runner: joins, steps for the mob, plays a legal move on its own turn, ends on end=1', () => {
+  const sent: [number, Buffer][] = [], ends: BattleEnd[] = [];
+  const board = battles[0].board.slice();
+  const runner = new BattleRunner({ me: 'manina', level: 3, hp: 130, maxHp: 130, uuid: 'u', board, turnSeconds: 30, knownBytes: 0 }, 'mob872604',
+    { send: (op, p) => sent.push([op, Buffer.from(p)]), log: () => {}, onEnd: e => ends.push(e) });
+  runner.start(); assert.equal(sent.at(-1)![0], 18);
+  runner.onPacket(18, Buffer.from(packets['s2c/18'], 'hex'));
+  assert.deepEqual(decodeEvent('c2s', 14, sent.at(-1)![1]).fields, { battleUuid: 'u', seq: 0 });
+  runner.onPacket(24, Buffer.from(packets['s2c/24 mob turn'], 'hex'));
+  assert.deepEqual(decodeEvent('c2s', 14, sent.at(-1)![1]).fields, { battleUuid: 'u', seq: 4 });
+  runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex'));
+  const swapSent = decodeEvent('c2s', 19, sent.at(-1)![1]).fields as any;
+  assert.ok(legalMoves(board).some(m => String([m.from, m.to]) === String([swapSent.from, swapSent.to])));
+  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0)).u8(0).u8(0).u8(0).u8(0)
+    .u8(1).string('mob872604').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
+  assert.equal(runner.onPacket(19, end), true);
+  assert.deepEqual(ends, [{ won: true, actor: 'manina', exp: 8, coin: 4, myTurns: 1, hp: 130, mobId: 'mob872604', damage: 0 }]);
+  assert.equal(runner.onPacket(1262, Buffer.alloc(0)), false);
 });

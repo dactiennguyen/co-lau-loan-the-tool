@@ -40,15 +40,15 @@ Huỷ trận C→S 40 (uuid) + C→S 11/43; S→C 10
   - Chi tiết và ví dụ ở [07-auto-battle](07-auto-battle.md#luật-bàn-cờ). Mô hình chạy được: [src/battle.ts](../../../src/battle.ts).
 - Thời gian lượt là 30 s, khớp byte `0x1e` cuối s2c/22 và đồng hồ dưới bàn. [Đo]
 
-| Mã | Viên (tên trong Cẩm nang) | Đo được (B1, run3, run4, Q2) | Cẩm nang trong game |
+| Mã | Viên (tên trong Cẩm nang) | Đo được (B1, run3, run4, Q2, Q5, Q6) | Cẩm nang trong game |
 |---:|---|---|---|
 | `00` | Thanh kiếm | Sát thương cho đối thủ. Chỉ Huy Sơn Tặc ăn 3 kiếm: 14. manina ăn 3 kiếm: 31 (cấp 3), 35 (cấp 4). Gà Điên: 0/4/8. Heo Mọi: 9 [Đo] | Tấn công đối phương |
 | `01` | Trái tim | Hồi máu: ăn 4 tim → HP 73 → 80 [Đo] | Hồi sinh lực |
 | `02` | Xoáy âm dương | Tăng `s1`: +6 mỗi 3 viên (manina, Gà Điên), +8 (Chỉ Huy). Kỹ năng trừ `s1` [Đo] | Hồi nội lực để dùng tuyệt chiêu, tức `s1` là nội lực |
-| `03` | Giọt nước | Tăng `s2`: +15 mỗi 3 viên (manina), +13/+22 cho 3/4 viên (Chỉ Huy) [Đo] | Tăng kinh nghiệm, bằng 1/2 ngôi sao. Vậy `s2` có thể là điểm kinh nghiệm trong trận [Suy luận] |
-| `04` | Trái đào | Không đổi `units` [Chưa rõ] | Hồi sức mạnh, nhân đôi lực tấn công cho một lượt |
-| `05` | Ngôi sao | Không đổi `units` [Chưa rõ] | Tăng kinh nghiệm |
-| `0x46` (70) | Thỏi vàng | Ăn được như viên thường; không đổi `units` [Đo] | Đổi Xu khoá; đủ 10.000 vàng thì tự đổi thành 10.000 Xu khoá |
+| `03` | Trái đào | Tăng `s2` (sức mạnh): +15 mỗi 3 viên (manina), +13/+22 cho 3/4 viên (Chỉ Huy). Đầy 100 thì đòn kiếm kế tiếp gấp đôi [Đo Q6] | Hồi sức mạnh, nhân đôi lực tấn công cho một lượt |
+| `04` | Giọt nước | Không đổi `units`; +2 EXP cuối trận mỗi viên [Đo Q6] | Tăng kinh nghiệm, bằng 1/2 ngôi sao |
+| `05` | Ngôi sao | Không đổi `units`; +4 EXP cuối trận mỗi viên [Đo Q6] | Tăng kinh nghiệm |
+| `0x46` (70) | Thỏi vàng | Ăn được như viên thường; không đổi `units`; +2 Xu khoá cuối trận mỗi viên [Đo Q6] | Đổi Xu khoá; đủ 10.000 vàng thì tự đổi thành 10.000 Xu khoá |
 | `0x0a` (10) | Kiếm lửa | Như kiếm, khi bị ăn thì phá thêm 3×3 quanh nó [Đo, 2 lần] | Mạnh hơn kiếm thường; nổ 8 ô quanh nó; nổ dây chuyền qua Kiếm lửa khác; viên bị nổ vẫn tính cho người ăn; đôi khi kiếm mới rơi xuống là Kiếm lửa, vài kỹ năng cũng tạo ra |
 
 Thêm lượt [Đo + Cẩm nang]:
@@ -56,6 +56,8 @@ Thêm lượt [Đo + Cẩm nang]:
 - Hai hàng 3 viên cùng loại cắt nhau (hình L/T). Theo Cẩm nang; chưa gặp trong capture. [src/battle.ts](../../../src/battle.ts) đã tính luật này.
 
 Bàn bị **xếp lại** khi hết nước đi: bàn mới 64 ô đi kèm `s2c/19` (xem bố cục dưới). Thấy 3 lần trong Q1/Q2 của [10-quests](10-quests.md#hai-điều-q1-phát-hiện). [Đo]
+
+Tên mã 3 và 4 đã đổi lại sau Q6, công thức EXP/xu ở [07-auto-battle](07-auto-battle.md#tác-dụng-của-các-viên).
 
 Asset liên quan (đều mã hoá, chưa giải): `chess0b.dat`…`chess8b.dat`, `chesscrystal.dat`, `play/bkboardh|v|hv.dat`, `focusmovechess1|2.dat`, `x1/play/hub-game-hp|mana|power|time.dat`, `strwin.dat`, `strlose.dat`, âm thanh `vs.wav`, `battle.mp3`, `attack.wav`.
 
@@ -174,8 +176,8 @@ Phần đuôi:
 |---|---|
 | Nhãn phân tích | battle_join / battle_join_ack |
 | C→S | `string battleUuid` (40 byte), gửi ~1,1 s sau s2c/22 |
-| S→C | 6 byte `000000000000` (`i32 0; u8 0; u8 0`) [Đo]; nghĩa từng trường [Chưa rõ] |
-| Sau đó | ~1 s sau, c2s/14 với `seq=0` để lấy bước đầu |
+| S→C | 6 byte `i32 0; u8 timed; u8 0`. `timed = 0` ở mọi trận Gà Điên, Heo Mọi, Kẻ Gây Rối, Chỉ Huy Sơn Tặc: trận theo lượt, quái đi trước. `timed = 1` ở mọi trận Sơn Tặc (Q6–Q9): **trận tính giờ**, xem [dưới](#trận-tính-giờ) [Đo] |
+| Sau đó | ~1 s sau, c2s/14 với `seq=0` để lấy bước đầu của quái; trận tính giờ thì c2s/19 với `seq=0` |
 
 <a id="s2c-24"></a>
 
@@ -285,18 +287,62 @@ Ví dụ nước của bot ăn kiếm:
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | skill_result |
-| Xuất hiện khi | Trả c2s/14 khi bot dùng kỹ năng thay vì đổi viên (1 lần trong B1) |
-| Bố cục payload | `i32 seq; i32 zero; u32 seed; i32 skillId; i32 s1; i32 s2; i32 k; k × (i32 row+2, i32 col+2); i32 unk; i32 n; u8[n]; i32 zero2; u8 m; m × unit; u8 flags[4]; string actor; u8 end` |
-| Độ chắc chắn | [Đo] 1 mẫu 143 byte. `skillId=2000` có trong danh sách kỹ năng bot ở s2c/22. Gây 29 sát thương: HP 102 → 73, khớp HUD. `k` ô là ô bị kỹ năng phá [Suy luận] |
+| Xuất hiện khi | Trả c2s/14 khi quái dùng kỹ năng thay vì đổi viên (B1 1 lần, Q2 3 lần, Q4–Q6 nhiều lần) |
+| Bố cục payload | `i32 seq; i32 zero; u32 seed; i32 skillId; i32 s1; i32 k; k × (i32 row+2, i32 col+2) mục tiêu; i32 j; j × (i32 row+2, i32 col+2) ô bị phá; i32 unk; i32 n; u8[n]; u8 xếpLại; 3 byte; u8 m; m × unit; u8 flags[4]; string actor; u8 end` |
+| Độ chắc chắn | [Đo] đọc hết byte mọi mẫu đủ byte (B1, Q2, Q4). Trước đây ghi `i32 s1; i32 s2; i32 k`: với kỹ năng 2000 thì `s2` thực ra là `k = 0` và `k` là `j`, nên mẫu B1 vẫn khớp. Kỹ năng 1000 (Q4) có `k = 2` mới lộ ra danh sách thứ hai |
+
+| Kỹ năng | Tên (theo `s2c/30`) | Mục tiêu `k` | Ô bị phá `j` | Đã thấy |
+|---|---|---|---|---|
+| 2000 | [Chưa rõ] | 0 | 1–3 ô rải rác | Chỉ Huy Sơn Tặc (B1), Heo Mọi (Q2): 29 và 20 sát thương |
+| 1000 | Hỏa Cầu Thuật | 2 | 8: khối 2×2 tính từ mỗi mục tiêu sang phải và xuống dưới | Kẻ Gây Rối (Q4–Q6): 34–39 sát thương |
+
+Ô bị kỹ năng phá mà là viên đặc biệt (`10`) thì viên đó **cũng nổ 3×3**: Q5 seq 41, khối 2×2 chứa Kiếm lửa ở r3c3, server phá 9 ô và gửi 9 viên mới. [Đo] Quái dùng kỹ năng khi nội lực (`stat1` của nó trong danh sách unit) đủ; Kẻ Gây Rối tích tới 34 rồi dùng Hỏa Cầu Thuật, sau đó còn 22. [Đo 1 lần]
+
+Kỹ năng 2000 (B1):
 
 ```text
 0000000c 00000000 67f299f1 000007d0 00000000 00000000
-00000003 00000007 00000002 00000004 00000006 00000009 00000007     3 ô: r5c0, r2c4, r7c5
+00000003 00000007 00000002 00000004 00000006 00000009 00000007     k = 0; j = 3 ô: r5c0, r2c4, r7c5
 00000001 00000003 00 02 04 00000000 02
   "mob872604" 0000001d 00 ffffffff 0000000f ffffffff               damage 29
   "manina"    ffffffff 00 00000049 ffffffff ffffffff               HP 73
 00000000 "mob872604" 00
 ```
+
+Kỹ năng 1000 (Q4):
+
+```text
+0000000c 00000000 6f58239d 000003e8 00000000
+00000002 (00000004 00000007) (00000002 00000004)                    k = 2 mục tiêu: r2c5, r0c2
+00000008 (4,7)(4,8)(5,7)(5,8) (2,4)(2,5)(3,4)(3,5)                  j = 8 ô: hai khối 2×2
+00000001 00000008 05 04 05 01 02 02 05 04 00000000 02
+  "mob31402" 00000027 00 ffffffff 0000000a 0000000f                 damage 39
+  "manina"   ffffffff 00 00000057 ffffffff ffffffff                 HP 87
+```
+
+<a id="c2s-20"></a>
+
+## c2s/20: người chơi dùng kỹ năng
+
+| Thuộc tính | Điều tra được |
+|---|---|
+| Nhãn phân tích | use_skill |
+| Bố cục payload | `string battleUuid; i32 seq; i32 skillId` |
+| Cách tìm | Quét hằng số opcode trong các hàm dựng gói `com.mh.sqlq`: `a67` → 15, `y104` → 18, `h73` → 14, `a74` → 19, `s77` → 40, và **`f75(int, int)` → 20**. Disassembly cho thấy `a74` ghi tham số cuối (`seq`) trước rồi tới các tham số theo thứ tự, khớp bố cục `c2s/19` đã biết; `f75` cũng ghi tham số thứ hai trước tham số thứ nhất. [Suy luận tĩnh] |
+| Kết quả | Q9: server trả `s2c/20` với `actor = "manina"`, kỹ năng 1000 Hỏa Cầu Thuật: **62 sát thương** (2 mục tiêu, 7–8 ô), **122** khi thanh sức mạnh đầy, so với 31 cho 3 kiếm. Server tự chọn ô mục tiêu. Nhân vật có kỹ năng này ở cấp 1 (`s2c/9`: `000003e8 00000001 00000019 ff`) [Đo] |
+| Nội lực | Bot dùng khi `stat1 ≥ 25` và server nhận mọi lần thử trong Q9. Giá chính xác [Chưa rõ]; `0x19 = 25` trong `s2c/9` có thể là giá |
+
+<a id="trận-tính-giờ"></a>
+
+## Trận tính giờ
+
+Gặp ở mọi trận Sơn Tặc (cấp 9), đánh dấu bằng `s2c/18` byte 4 = 1. [Đo Q6–Q9]
+
+- Không có `s2c/24`. Server bỏ qua `c2s/14` và nhận `c2s/19`, `c2s/20` bất cứ lúc nào, mỗi gói trả `s2c/19`/`s2c/20` sau ~30 ms với `seq + 1`.
+- Quái không đổi viên. Nó đánh theo đồng hồ, khoảng 25–31 s một lần, qua `s2c/21` (Sơn Tặc: 46 sát thương). Ba đòn là hết 120 HP.
+- Q6–Q8 thua 3 trận vì bot chờ lượt của quái. Q9 đi một nước mỗi giây và dùng Hỏa Cầu Thuật khi đủ nội lực: thắng hai trận trong 22 s và 25 s, chưa trúng đòn nào.
+
+
 
 <a id="c2s-40"></a>
 
@@ -335,7 +381,7 @@ Cùng một mili giây, server gửi thêm:
 | Gói | Payload | Ghi chú |
 |---|---|---|
 | s2c/10 | 62 byte, cùng bố cục như trên | HP lại `130/130` |
-| s2c/36 | `00000008 00000000 31 ffffffffffffff` (16 byte) | [Chưa rõ] |
+| s2c/36 | `00000008 00000000 31 ffffffffffffff` (16 byte) | Độ bền trang bị: byte `31` = 49 giảm dần qua các trận sau ([10-quests](10-quests.md#kết-quả-q3-q4)) [Suy luận] |
 | s2c/1214 | rỗng | Cũng có sau lần huỷ trận Gà Điên [Đo]; vai trò [Chưa rõ] |
 
 Sau ~5 s, client gửi c2s/11 `"M1"` rồi c2s/43 và nhận lại map, danh sách quái và người chơi như lúc mới vào bản đồ. Nhân vật xuất hiện lại tại vị trí đã chạm quái (x=1735, y=672 trong s2c/11).

@@ -1,5 +1,6 @@
-// World-state packets: zones, world map, other players, chat, ground items, own movement, quests, ranking
-// (docs/app/events/08-server-map-zone.md, 09-players-chat.md, 10-quests.md). Each layout reads every captured payload to its last byte.
+// World-state packets: map mobs, zones, world map, other players, chat, ground items, own movement, character stats,
+// quests, ranking (docs/app/events/05-battle.md, 08-server-map-zone.md, 09-players-chat.md, 10-quests.md, 11-panels.md).
+// Each layout reads every captured payload to its last byte, except where a comment says otherwise.
 import { Reader, ProtocolError } from './protocol.ts';
 
 const u16 = (r: Reader) => r.take(2).readUInt16BE();
@@ -7,6 +8,33 @@ const finish = <T>(r: Reader, value: T, what: string): T => {
   if (r.offset !== r.data.length) throw new ProtocolError('PAYLOAD_SCHEMA', `${what}: ${r.data.length - r.offset} unread bytes`, { offset: r.offset, length: r.data.length });
   return value;
 };
+
+const mobRecord = (r: Reader) => ({ id: r.string(), name: r.string(), level: r.i32(), a: r.u8(), b: r.i32(), c: r.i32(), d: r.u8() });
+export type Mob = ReturnType<typeof mobRecord>;
+
+/** s2c/43: the mobs of the current map and zone. No coordinates: the client places and moves mobs itself. */
+export function mapEntities(payload: Uint8Array) {
+  const r = new Reader(payload), mapId = r.string(), field = r.u8(), mobs = [];
+  while (r.offset < r.data.length) mobs.push(mobRecord(r));
+  return { mapId, field, mobs };
+}
+
+/** s2c/1177 after s2c/43: the map boss, a mob record as in s2c/43 followed by three unnamed fields (Q9). */
+export function mapBoss(payload: Uint8Array) {
+  const r = new Reader(payload), mapId = r.string(), field = r.u8(), mob = mobRecord(r);
+  return finish(r, { mapId, field, mob, tail: [r.u8(), r.i32(), r.i32()] }, 's2c/1177');
+}
+
+/** s2c/10, sent together as kinds 2, 4, 8 on level up and on every stat point. Kind 2: level and ten stats (the first
+ * grows by one per point). Kind 4 (also after a battle): HP, EXP, the level's EXP range, coins and six unnamed ints.
+ * Kind 8: stat points left, three ints and two strings. Other kinds stay unread. */
+export function characterStats(r: Reader) {
+  const kind = r.i32(), name = r.string(), ints = (n: number) => Array.from({ length: n }, () => r.i32());
+  if (kind === 2) return { kind, name, level: r.i32(), stats: ints(10) };
+  if (kind === 4) return { kind, name, hp: r.i32(), maxHp: r.i32(), exp: r.i32(), levelExp: ints(2), coin: r.i32(), extra: ints(6) };
+  if (kind === 8) return { kind, name, statPoints: r.i32(), fields: ints(3), labels: [r.string(), r.string()] };
+  return { kind, name };
+}
 
 /** c2s/1169, sent every ~110 ms while the character moves. */
 export function moveRequest(payload: Uint8Array) {

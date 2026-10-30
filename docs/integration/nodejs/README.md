@@ -7,6 +7,7 @@
 | Nhận dữ liệu qua API và đọc `result.user` | [Lấy dữ liệu user](user-data.md) |
 | Checker APK/capture, log, diagnostic và cập nhật code | [Chẩn đoán tích hợp](diagnostics.md) |
 | Kết quả login/world đã kiểm chứng trực tiếp | [Live check](live-check.md) |
+| Giữ kết nối sau khi vào thế giới, bot tự làm nhiệm vụ và đánh quái | [Bot làm nhiệm vụ](quest-bot.md) |
 | Binary, phương pháp và schema byte của game | [Điều tra app](../../app/README.md) |
 
 ## Chạy với tài khoản của bạn
@@ -27,7 +28,7 @@ npm run world
 npm run connect -- --bootstrap
 ```
 
-`login` ngắt sau response nhân vật `9`; `world` ngắt sau entities `43` và players snapshot `1263`. Đây là client lấy dữ liệu khởi tạo; chưa giữ một phiên gameplay vô hạn. Client dùng credential bạn điền vào `.env` và không tự retry.
+`login` ngắt sau response nhân vật `9`; `world` ngắt sau entities `43` và players snapshot `1263`. Muốn giữ kết nối để chơi tiếp, truyền option `session` (xem [bot làm nhiệm vụ](quest-bot.md)); `npm run quest` dùng cách này. Client dùng credential bạn điền vào `.env` và không tự retry.
 
 ## Dùng bằng code
 
@@ -82,10 +83,14 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 
 | File | Vai trò |
 |---|---|
-| [connect.ts](../../../src/connect.ts) | Entry point trực tiếp; nạp env, chọn mode, in kết quả |
-| [client.ts](../../../src/client.ts) | Socket thật, state machine, log event, `result.user`, heartbeat và deadline |
-| [events.ts](../../../src/events.ts) | Dựng request/đọc response theo opcode; nhãn mô tả và schema |
-| [protocol.ts](../../../src/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR |
+| [connect.ts](../../../src/connect.ts) | Entry point trực tiếp; chọn mode, in kết quả |
+| [env.ts](../../../src/env.ts) | Nạp `.env` và dựng option kết nối cho các CLI |
+| [client.ts](../../../src/client.ts) | Socket thật, luồng đăng nhập `FLOW`, log event, `result.user`, heartbeat, deadline, `session` |
+| [events.ts](../../../src/events.ts) | Catalog 86 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
+| [protocol.ts](../../../src/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR; đọc gói nhân vật/vị trí/map |
+| [world.ts](../../../src/world.ts) | Đọc gói thế giới: quái của map, khu, người chơi, chat, vật phẩm, chỉ số, nhiệm vụ, xếp hạng |
+| [battle.ts](../../../src/battle.ts), [battle-runner.ts](../../../src/battle-runner.ts) | Mô hình bàn 8×8 và gói trận; chạy một trận không giao diện |
+| [quest.ts](../../../src/quest.ts), [quest-run.ts](../../../src/quest-run.ts) | Bot làm nhiệm vụ và lệnh `npm run quest` |
 | [config.ts](../../../src/config.ts) | Baseline build, host/client info và opcode map |
 | [check-apk.ts](../../../src/check-apk.ts) | So build APK/DEX/native bằng Node.js |
 | [check-capture.ts](../../../src/check-capture.ts) | So log/capture, opcode, schema và bước đang thiếu |
