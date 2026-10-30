@@ -6,9 +6,10 @@ import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
+import { Toaster } from "./views/Toaster";
 import "./App.css";
 
-/** Sidebar of accounts, the selected account, and the dialog the store says is open. */
+/** Sidebar of accounts, the selected account, the dialog the store says is open, and the toasts. */
 export default function App() {
   useSync();
   const ready = useStore((s) => s.ready);
@@ -22,6 +23,7 @@ export default function App() {
         {account ? <AccountPage key={account.id} account={account} /> : ready && <EmptyState onAdd={() => open({ kind: "add" })} />}
       </main>
       <Dialogs />
+      <Toaster />
     </div>
   );
 }

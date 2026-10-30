@@ -52,7 +52,7 @@ export function AccountPage({ account }: { account: Account }) {
           />
           <TabPanel id={tabs} value={task}>
             {task === "quest" ? (
-              <QuestCard account={account} onStart={(losses) => api.quest(id, losses)} onStop={onStop} />
+              <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
             ) : (
               <FightCard
                 account={account}

@@ -135,7 +135,10 @@ fn main() {
                             arg("max-losses").and_then(|v| v.parse().ok()).unwrap_or(1);
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         let command = if quest {
-                            Command::Quest { max_losses }
+                            Command::Quest {
+                                max_losses,
+                                step: None,
+                            }
                         } else {
                             Command::Fight {
                                 target,

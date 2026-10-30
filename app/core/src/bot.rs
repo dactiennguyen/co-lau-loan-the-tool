@@ -71,10 +71,16 @@ pub struct Job {
     pub done: Option<String>,
 }
 
-/// "Tự làm nhiệm vụ": the quest run and what it has done so far.
+/// "Tự làm nhiệm vụ", or ▶ on one step: the quest run and what it has done so far.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestRun {
+    /// Number of the job or run in this session, so the UI tells a new run from the one before.
+    pub id: u32,
+    /// The step played alone (▶ on it), as its index in the quest; None for the whole quest.
+    pub step: Option<i32>,
+    /// The step played alone was done: the run ended because the quest moved past it.
+    pub step_done: bool,
     pub max_losses: u32,
     pub fights: u32,
     pub wins: u32,
@@ -197,6 +203,10 @@ pub struct Bot {
     refused: HashSet<i32>,
     /// A talk or stat-point step is answered by s2c/34 alone.
     awaiting_reply: bool,
+    /// The step of a run that plays one: quest id, step index, its text (`playing` of QuestBot with `once`).
+    playing: Option<(i32, i32, String)>,
+    /// Quest runs started in this session (QuestRun::id).
+    runs: u32,
 }
 
 impl Bot {
@@ -220,6 +230,8 @@ impl Bot {
             hops: 0,
             refused: HashSet::new(),
             awaiting_reply: false,
+            playing: None,
+            runs: 0,
         }
     }
 
@@ -377,12 +389,60 @@ impl Bot {
             self.next(now, out);
         }
     }
-    /// Starts "Tự làm nhiệm vụ" on the current quest, replacing a fight job as `fight` replaces one.
-    pub fn quest(&mut self, max_losses: u32, now: Instant, out: &mut Vec<Out>) {
+    /// Starts "Tự làm nhiệm vụ" on the current quest, replacing a fight job or quest run as `fight` replaces one. With
+    /// `step` = (quest id, step index), ▶ on a step, it plays only that step and ends once the quest moves past it. A step
+    /// that is not the current one of that quest, as when the UI was a moment behind, is refused without sending anything:
+    /// with nothing running, by a run that has already ended, for the UI to show.
+    pub fn quest(
+        &mut self,
+        max_losses: u32,
+        step: Option<(i32, i32)>,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        let playing = step.and_then(|(id, i)| {
+            let q = self
+                .snap
+                .quest
+                .as_ref()
+                .filter(|q| q.id == id && q.current == i)?;
+            Some((id, i, q.steps.get(i as usize)?.text.clone()))
+        });
+        let index = step.map(|(_, i)| i);
+        if let (Some(i), None) = (index, &playing) {
+            let reason = "Bước đó không còn là bước đang làm";
+            out.push(Out::Log(format!("Không làm bước {}: {reason}", i + 1)));
+            if !self.quest_running() && !self.job_running() {
+                self.snap.quest_run = Some(self.new_run(max_losses, index, Some(reason.into())));
+            }
+            return;
+        }
         if self.job_running() {
             self.finish("Đã chuyển sang tự làm nhiệm vụ", out);
         }
-        self.snap.quest_run = Some(QuestRun {
+        if self.quest_running() {
+            self.finish_quest("Đã bắt đầu lần chạy mới", out);
+        }
+        self.snap.quest_run = Some(self.new_run(max_losses, index, None));
+        (self.waits, self.hops, self.travelling, self.awaiting_reply) = (0, 0, None, false);
+        self.refused.clear();
+        self.job_seq += 1;
+        out.push(Out::Log(match &playing {
+            Some((_, _, text)) => format!("Bắt đầu: làm bước \"{text}\""),
+            None => "Bắt đầu: tự làm nhiệm vụ".into(),
+        }));
+        self.playing = playing;
+        let challenging = matches!(self.timer, Some((_, Wake::ChallengeTimeout)));
+        if self.battle.is_none() && !challenging {
+            self.next(now, out);
+        }
+    }
+    fn new_run(&mut self, max_losses: u32, step: Option<i32>, done: Option<String>) -> QuestRun {
+        self.runs += 1;
+        QuestRun {
+            id: self.runs,
+            step,
+            step_done: false,
             max_losses,
             fights: 0,
             wins: 0,
@@ -391,15 +451,7 @@ impl Bot {
             coin: 0,
             completed: 0,
             doing: String::new(),
-            done: None,
-        });
-        (self.waits, self.hops, self.travelling, self.awaiting_reply) = (0, 0, None, false);
-        self.refused.clear();
-        self.job_seq += 1;
-        out.push(Out::Log("Bắt đầu: tự làm nhiệm vụ".into()));
-        let challenging = matches!(self.timer, Some((_, Wake::ChallengeTimeout)));
-        if self.battle.is_none() && !challenging {
-            self.next(now, out);
+            done,
         }
     }
     /// Ends the job or quest run after the battle in progress (a battle cannot be left).
@@ -423,10 +475,14 @@ impl Bot {
             self.timer = None;
         }
         (self.travelling, self.awaiting_reply) = (None, false);
+        let what = match self.playing.take() {
+            Some(_) => "làm bước",
+            None => "tự làm nhiệm vụ",
+        };
         if let Some(r) = &mut self.snap.quest_run {
             r.done = Some(reason.into());
             out.push(Out::Log(format!(
-                "Kết thúc tự làm nhiệm vụ: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, xong {} nhiệm vụ)",
+                "Kết thúc {what}: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, xong {} nhiệm vụ)",
                 r.wins, r.losses, r.exp, r.coin, r.completed
             )));
         }
@@ -939,6 +995,22 @@ impl Bot {
 
     /// Decides the next action from the current quest step.
     fn quest_next(&mut self, now: Instant, out: &mut Vec<Out>) {
+        // The step moves on after the NPC reply (s2c/34), a new s2c/39, or the kill count or damage reached just below. It
+        // is done once the quest is past it or a new quest came after the report; a quest moving back has not been seen.
+        if let Some((id, i, text)) = self.playing.clone() {
+            let at = self.snap.quest.as_ref().map(|q| (q.id, q.current));
+            if at != Some((id, i)) {
+                let done = at.is_some_and(|(q, current)| q != id || current > i);
+                if let Some(r) = &mut self.snap.quest_run {
+                    r.step_done = done;
+                }
+                let reason = match done {
+                    true => format!("Xong bước \"{text}\""),
+                    false => format!("Nhiệm vụ không còn ở bước \"{text}\""),
+                };
+                return self.finish_quest(&reason, out);
+            }
+        }
         let Some(q) = self.snap.quest.clone() else {
             return self.finish_quest("Chưa có nhiệm vụ nào", out);
         };

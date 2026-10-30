@@ -121,6 +121,9 @@ fn main_character() -> Snapshot {
             ],
         )),
         quest_run: Some(QuestRun {
+            id: 1,
+            step: Some(3),
+            step_done: false,
             max_losses: 1,
             fights: 3,
             wins: 2,

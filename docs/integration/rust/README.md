@@ -8,7 +8,7 @@
    - chỉ số chiến đấu và điểm tiềm năng, có ngay lúc đăng nhập;
    - map và khu đang đứng (dạng chữ);
    - số người khác trong khu, kèm tên và cấp từng người.
-4. Xem nhiệm vụ chính đang làm: các bước, bước đang làm, tiến độ. Bấm **Tự làm nhiệm vụ** để bot tự nói chuyện với NPC, đánh quái và boss của từng bước, và tự qua cổng khi NPC ở map khác.
+4. Xem nhiệm vụ chính đang làm: các bước, bước đang làm, tiến độ. Bấm **▶** ở cuối dòng bước đang làm để bot chỉ làm bước đó rồi dừng, hoặc **Tự làm nhiệm vụ** để làm hết các bước: bot tự nói chuyện với NPC, đánh quái và boss của từng bước, và tự qua cổng khi NPC ở map khác. Toast ở góc dưới phải báo lúc bắt đầu và lúc xong hay dừng.
 5. Hoặc chọn quái hoặc boss của khu đó, chọn số trận, và app tự đánh.
 
 Code TypeScript trong `src/` vẫn được giữ song song: đó là nơi thử trước, còn Rust chỉ nhận những phần đã chạy được bên TS.
@@ -210,9 +210,10 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | 4 ô | HP; kinh nghiệm (EXP / mốc cấp, %, còn bao nhiêu lên cấp); xu; điểm tiềm năng và điểm kỹ năng chưa dùng |
 | Chỉ số | Tấn công, Phòng thủ, Chính xác, Né tránh, Chí mạng; 4 tiềm năng Cường lực, Thân pháp, Nội lực, Thể lực ([nhãn nào là suy luận](../../app/user-data.md#đuôi-s2c9)) |
 | Xung quanh | Người chơi khác trong khu, cấp cao xếp trước. Cấp cao hơn mình tô đỏ, bằng tô vàng, thấp hơn tô xanh. Khi `s2c/1263` có bản ghi người chơi chưa đọc được, số người hiện `?` thay vì một con số sai |
-| Tab Nhiệm vụ | Tên và số nhiệm vụ chính, bước đang làm trên tổng số bước. Từng bước: xong (ô xanh có dấu tích), đang làm (ô vàng, viền vàng, thanh tiến độ khi bước cần nhiều con hoặc nhiều sát thương), chưa làm. Dòng việc bot đang làm, thắng/thua, EXP/xu, số nhiệm vụ đã xong; lý do dừng khi đã dừng. Tự làm nhiệm vụ, Dừng, số trận thua cho phép. Cảnh báo cộng điểm tiềm năng chỉ hiện khi nhiệm vụ còn bước đó. Danh sách bước tự cuộn tới bước đang làm khi cửa sổ thấp |
+| Tab Nhiệm vụ | Tên và số nhiệm vụ chính, bước đang làm trên tổng số bước. Từng bước: xong (ô xanh có dấu tích, số con đủ như 15/15), đang làm (ô vàng, viền vàng, thanh tiến độ khi bước cần nhiều con hoặc nhiều sát thương), chưa làm (ô trống). Cuối dòng của mỗi bước chưa xong có nút ▶: vàng ở bước đang làm, mờ ở các bước sau vì server chỉ tính bước đang làm. Khi bước đang chạy, ▶ của nó thành ■ để dừng. Dòng việc bot đang làm, thắng/thua, EXP/xu, số nhiệm vụ đã xong; lý do dừng khi đã dừng. Tự làm nhiệm vụ, Dừng, số trận thua cho phép (dùng cho cả ▶). Cảnh báo cộng điểm tiềm năng chỉ hiện khi nhiệm vụ còn bước đó. Danh sách bước tự cuộn tới bước đang làm khi cửa sổ thấp |
 | Tab Đánh quái | Quái và boss của khu, boss xếp trước, có huy hiệu BOSS; số trận (ô − + và nút nhanh 5/10/20/50); số trận thua cho phép; Bắt đầu, Dừng; tiến độ, thắng/thua, EXP/xu đã nhận; HP hai bên trong trận |
 | Nhật ký | Từng trận, từng bước nhiệm vụ và thông báo server theo giờ: thắng và trả nhiệm vụ xanh, thua/lỗi đỏ, bắt đầu/kết thúc/nhận nhiệm vụ vàng; giữ 500 dòng mỗi nick |
+| Toast | Góc dưới phải, của mọi nick (tên nick ở dòng đầu): bắt đầu làm bước hay tự làm nhiệm vụ (xanh lam), xong bước (xanh lá), dừng vì lý do khác (đỏ, kèm lý do). Tự ẩn sau 3,5 / 4,5 / 6 s, dừng đếm khi rê chuột lên, có nút đóng; tối đa 4 cái. Vùng chứa là `aria-live="polite"` nên trình đọc màn hình đọc từng toast mà không lấy focus |
 
 - **Đăng nhập:**
   - Mỗi nick có một kết nối TCP riêng trên tokio (`Manager` của core).
@@ -271,6 +272,12 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 - **Chuyển việc:** bắt đầu đánh quái thì việc làm nhiệm vụ dừng, và ngược lại.
 - **Bản đồ:** mỗi phiên chép `data/maps.json` lúc mở app, rồi ghi thêm map, quái, boss, cổng đã qua hay bị từ chối vào bản chép đó. App không ghi lại file; `npm run scan` và bot TS mới ghi.
 
+### Làm một bước
+
+Nút ▶ trên một bước gửi `Command::Quest { step: Some((id nhiệm vụ, i)) }`, port từ `QuestBot` với `--once` ([Bot làm nhiệm vụ](../nodejs/quest-bot.md#chạy)). Bot làm bước `i` như bảng trên. Khi nhiệm vụ đã qua bước đó, hoặc có nhiệm vụ mới sau khi báo cáo, bot dừng với "Xong bước \"…\"" (`QuestRun.stepDone`). Nhiệm vụ qua bước khi NPC trả lời, có `s2c/39` mới, hoặc đủ số con hay đủ sát thương. Bước đủ số con từ trước thì dừng luôn, không gửi gói nào. Bot không đi tiếp sang bước sau. Nếu nhiệm vụ lùi về bước trước (chưa từng thấy) thì bot dừng với "Nhiệm vụ không còn ở bước \"…\"", không tính là xong. Các lý do dừng khác vẫn như trên.
+
+Server chỉ tính tiến độ cho bước đang làm, nên chỉ ▶ của bước đó bấm được. Nếu UI chậm một nhịp và gửi một bước không còn là bước đang làm của nhiệm vụ đó, hoặc bước của một nhiệm vụ đã trả, bot từ chối ("Bước đó không còn là bước đang làm") và không gửi gói nào. Bắt đầu một lần chạy khi lần trước chưa xong thì lần trước kết thúc với "Đã bắt đầu lần chạy mới". Mỗi lần chạy có `QuestRun.id` riêng, nhờ đó UI biết một lần chạy mới bắt đầu hay vừa kết thúc để hiện toast. Nick rời game giữa chừng (thoát, mất kết nối, lỗi) cũng có toast "Bot dừng: …".
+
 ## Đã kiểm chứng
 
 | Phần | Cách kiểm |
@@ -283,7 +290,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | `bestMove` | 55 thế cờ, đổi HP, nội lực, sức mạnh và chiến lược: cùng nước, cùng điểm tới bit cuối |
 | Trận, bot | Vào trận → lượt quái → nước của mình → kết thúc; học thông số; boss `c2s/1178`, đợi boss đổi chỗ; dừng khi thua đủ. Trận mở muộn: tính cho việc đã gửi thách đấu chứ không cho việc mới; sau Dừng vẫn đánh hết; `s2c/22` không do app mở hay đến khi đang đánh thì bỏ qua. Map đọc hỏng thì dừng tự làm nhiệm vụ và không ghi map rỗng vào atlas |
 | Bước nhiệm vụ, đường qua cổng | `stepAction` của 11 câu bước; `route`, `destination`, `portalsOf` trên bản đồ 3 map (M1, M2, M25) với cả ba kiểu trả lời của cổng: cùng kết quả bản TS |
-| Bot nhiệm vụ | 12 kịch bản TS chạy `QuestBot` với gói thật hoặc dựng theo bố cục: nói chuyện → `s2c/34` → đánh; boss; đợi boss đổi chỗ; qua cổng tên nhiệm vụ nhắc tới; cổng bị từ chối; đường đã biết qua 2 map; đủ số con thì sang bước báo cáo; cày cấp không chọn boss; cộng điểm tiềm năng; bước lạ thì dừng; trả nhiệm vụ rồi làm nhiệm vụ mới. Bản Rust gửi đúng từng gói sau mỗi bước, và bảng cổng cuối cùng giống hệt. Thêm 2 test Rust: thắng một trận Cóc Xanh thì tiến độ 14 → 15 rồi sang báo cáo; thua thì không tính và dừng |
+| Bot nhiệm vụ | 14 kịch bản TS chạy `QuestBot` với gói thật hoặc dựng theo bố cục: nói chuyện → `s2c/34` → đánh; boss; đợi boss đổi chỗ; qua cổng tên nhiệm vụ nhắc tới; cổng bị từ chối; đường đã biết qua 2 map; đủ số con thì sang bước báo cáo; cày cấp không chọn boss; cộng điểm tiềm năng; bước lạ thì dừng; trả nhiệm vụ rồi làm nhiệm vụ mới; một bước (`--once`): NPC trả lời thì dừng trước bước đánh quái; một bước đã đủ số con thì dừng trước bước báo cáo. Bản Rust gửi đúng từng gói sau mỗi bước, và bảng cổng cuối cùng giống hệt. Thêm 3 test Rust: thắng một trận Cóc Xanh thì tiến độ 14 → 15 rồi sang báo cáo; thua thì không tính và dừng; ▶ trên Cóc Xanh 14/15 thắng một trận thì dừng ở "Xong bước", còn ▶ trên bước đã qua thì bị từ chối, không gửi gói nào |
 | Lưới bản đồ | `mapGrid` của M2 (35 × 90 ô, lớp hình và lớp va chạm) giống bản TS từng byte |
 | Server thật (30/10/2026) | Bot TS đăng nhập chỉ đọc: đuôi `s2c/9` cho EXP 14238 trong mốc 13841–15882, xu 2664, x/y trùng `s2c/11`; `s2c/1263` có 8 người, không có mình. `cllt status`: manina cấp 21, HP 180/180, M2 khu 0, 8 mục tiêu (2 boss). `cllt fight --target="Heo Mọi" --count=1`: thắng sau 21 lượt, gây 234 sát thương, +92 EXP, +12 xu, HP tối đa của Heo Mọi học được là 146 |
 | Đăng nhập, server giả | 5 test trong `net.rs` chạy phiên thật với một server TCP cục bộ trả lời từng bước đăng nhập: đủ gói thì Trực tuyến; `s2c/11` hay `s2c/43` hỏng thì Lỗi có ghi opcode; `s2c/1263` hỏng thì vẫn Trực tuyến với `players_unread`; Đăng xuất khi đang chờ seed hoặc khi server im ở bước bản đồ thì phiên dừng ngay, không đợi hết giờ 8 s. Đã thử bỏ việc đọc `s2c/11` và đường Đăng xuất lúc chờ seed: 2 test tương ứng báo lỗi |

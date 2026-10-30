@@ -120,6 +120,31 @@ test('quest bot: talk step sends c2s/13, the NPC reply advances to the kill step
   (bot as any).stop('test done');
 });
 
+test('quest bot: --once plays the talk step and stops at the NPC reply instead of challenging for the kill step', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, once: true, log: e => events.push(e) });
+  bot.onPacket(29, new Writer().string('manina').string('M1').i32(0).build());
+  bot.onPacket(43, new Writer().string('M1').u8(3).string('mob2806').string('Heo Mọi').i32(7).u8(0).i32(0).i32(0).u8(0).build());
+  bot.onPacket(39, Buffer.from(q['s2c/39 quest4'], 'hex')); // current step 1: "Nói chuyện với Bà Tư Hạnh"
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.map(s => s.opcode), [13]);
+  bot.onPacket(34, Buffer.from(q['s2c/34 dialogue'], 'hex'));
+  clearTimeout((bot as any).wait);
+  bot.next();
+  assert.deepEqual(sent.map(s => s.opcode), [13]);
+  assert.deepEqual([events.at(-1)?.event, events.at(-1)?.reason, events.at(-1)?.step], ['stop', 'step done', 'Nói chuyện với Bà Tư Hạnh']);
+});
+
+test('quest bot: --once on a kill step whose count is reached stops there rather than going on to the report', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, once: true, log: e => events.push(e) });
+  bot.onPacket(29, new Writer().string('manina').string('M2').i32(0).build());
+  bot.quest = { id: 9, title: 'Thử Sức Tân Binh', description: '', type: 'main', current: 0, progress: 15,
+    steps: [{ index: 0, text: 'Tiêu diệt Cóc Xanh', param: 5, required: 15, npcId: -1 }, { index: 1, text: 'Báo cáo với Võ Quan Đinh Mộc', param: 141, required: 1, npcId: 141 }] };
+  bot.onReady(recorder(sent));
+  assert.deepEqual([sent.length, bot.quest.current, events.at(-1)?.event, events.at(-1)?.step], [0, 1, 'stop', 'Tiêu diệt Cóc Xanh']);
+});
+
 test('quest bot: a portal the server refuses (s2c/1256) goes to the atlas with its level and the next portal is tried', () => {
   const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
   const bot = new QuestBot({ maxFights: 1, log: e => events.push(e) });

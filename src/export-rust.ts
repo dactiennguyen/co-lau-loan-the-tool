@@ -113,10 +113,10 @@ function atlasCases() {
 }
 
 /** Packets fed to QuestBot as the quest steps of 10-quests.md play out, with what it sent after each one. `start` is
- * onReady (the app's "Tự làm nhiệm vụ"); `next` is the decision a pending timer makes. Battles are left out (their
- * counting has its own tests); timers are cleared after every step. */
+ * onReady (the app's "Tự làm nhiệm vụ"; with `once`, its ▶ on the current step); `next` is the decision a pending timer
+ * makes. Battles are left out (their counting has its own tests); timers are cleared after every step. */
 function questReplays() {
-  type Ev = { packet: [number, string] } | { start: true } | { next: true };
+  type Ev = { packet: [number, string] } | { start: true; once?: true } | { next: true };
   const p = (opcode: number, b: Uint8Array): Ev => ({ packet: [opcode, hex(b)] });
   const at = (mapId: string) => p(29, new Writer().string('manina').string(mapId).i32(0).build());
   const quest = (id: number, title: string, current: number, progress: number, steps: [string, number, number, number][]) => {
@@ -153,6 +153,9 @@ function questReplays() {
     ['a new quest after the report goes on with its first step', [at('M1'), p(11, mapPacket('M1', 'Làng Thanh Khê', WORLD[0][2])), p(43, mobsPacket('M1', [['mob2806', 'Heo Mọi', 7]])),
       quest(3, 'Những Việc Đầu Tiên', 0, 0, [['Báo cáo với Thành Chủ Nguyễn Khang', 129, 1, 129]]), { start: true }, p(35, bytes(q['s2c/35'])),
       p(34, bytes(new Writer().i32(0).string('subtask 1').i32(4).string('').build())), p(39, bytes(q['s2c/39 quest4'])), { next: true }]],
+    ['one step: the NPC reply ends it before the kill step', [at('M1'), p(43, mobsPacket('M1', [['mob10', 'Gà Điên', 7], ['mob2806', 'Heo Mọi', 7]])), p(39, bytes(q['s2c/39 quest4'])),
+      { start: true, once: true }, p(34, bytes(q['s2c/34 dialogue'])), { next: true }]],
+    ['one step: a kill count reached ends it before the report', [p(11, mapPacket('M2', m2[1], m2[2])), p(43, mobsPacket('M2', m2[3])), quest9(3, 15), { start: true, once: true }]],
   ];
   return scenarios.map(([name, events, atlas]) => {
     const sent: [number, string][] = [];
@@ -163,7 +166,7 @@ function questReplays() {
     const steps = events.map(e => {
       const before = sent.length;
       if ('packet' in e) bot.onPacket(e.packet[0], bytes(e.packet[1]));
-      else if ('start' in e) bot.onReady(api as any);
+      else if ('start' in e) { bot.options.once = e.once; bot.onReady(api as any); }
       else bot.next();
       clearTimeout((bot as any).wait);
       return { ...e, sent: sent.slice(before), stopped, current: bot.quest?.current ?? null };

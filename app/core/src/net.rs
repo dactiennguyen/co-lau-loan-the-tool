@@ -23,9 +23,11 @@ pub enum Command {
         count: u32,
         max_losses: u32,
     },
-    /// "Tự làm nhiệm vụ" on the current main quest.
+    /// "Tự làm nhiệm vụ" on the current main quest; with `step` = (quest id, step index), ▶ on that step: only it, which
+    /// must be the current one of that quest.
     Quest {
         max_losses: u32,
+        step: Option<(i32, i32)>,
     },
     Stop,
     Logout,
@@ -264,7 +266,7 @@ async fn session(
                     None | Some(Command::Logout) => return Ok(()),
                     Some(_) if step != Step::Ready => out.push(Out::Log(NOT_READY.into())),
                     Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
-                    Some(Command::Quest { max_losses }) => bot.quest(max_losses, now, &mut out),
+                    Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
                     Some(Command::Stop) => bot.stop(&mut out),
                 }
             }
@@ -612,7 +614,11 @@ mod tests {
     async fn logout_ends_a_session_stuck_in_the_login() {
         let (events, tx, task) = login(Fault::StallMap).await;
         tokio::time::sleep(Duration::from_millis(300)).await;
-        tx.send(Command::Quest { max_losses: 1 }).unwrap();
+        tx.send(Command::Quest {
+            max_losses: 1,
+            step: None,
+        })
+        .unwrap();
         tx.send(Command::Logout).unwrap();
         ends(task).await;
         assert_eq!(states(&events), [ConnState::Connecting, ConnState::Offline]);

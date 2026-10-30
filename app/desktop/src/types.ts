@@ -89,8 +89,14 @@ export interface Quest {
   steps: QuestStep[];
 }
 
-/** "Tự làm nhiệm vụ" and what it has done so far. */
+/** "Tự làm nhiệm vụ", or ▶ on one step, and what it has done so far. */
 export interface QuestRun {
+  /** Number of the run in this session: a new id is a new run. */
+  id: number;
+  /** The step played alone, as its index in `Quest.steps`; null for the whole quest. */
+  step: number | null;
+  /** The step played alone was done: the run ended because the quest moved past it. */
+  stepDone: boolean;
   maxLosses: number;
   fights: number;
   wins: number;

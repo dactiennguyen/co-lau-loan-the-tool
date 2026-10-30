@@ -18,6 +18,7 @@ npm run quest -- --fights=40
 | `--goal=kill\|exp` | `kill` | Cách chấm nước ([07-auto-battle](../../app/events/07-auto-battle.md#thuật-toán-của-bot)): thắng nhanh, hoặc ăn thêm sao/giọt nước/vàng |
 | `--move-ms=N`, `--rest-ms=N` | 1000, 3000 | Nghỉ giữa các nước trong trận tính giờ; nghỉ trước trận sau |
 | `--farm=<tên quái>` | tắt | Bỏ qua nhiệm vụ, chỉ đánh loại quái hoặc boss này ở map đang đứng; với `--fights=N` là "đánh X N lần". Boss (`s2c/1177`, hoặc `data/maps.json` ghi có ở map này) được thách đấu bằng `c2s/1178`, được đợi 6 × 5 s khi đang đổi chỗ, và thua boss không làm bot dừng. App Rust port đúng luật này ([App Rust](../rust/README.md#việc-đánh-x-n-lần)) |
+| `--once` | tắt | Chỉ làm bước đang làm lúc vào game. Dừng với `step done` ngay khi nhiệm vụ qua bước đó: NPC trả lời (`s2c/34`), có `s2c/39` mới, hoặc đủ số con hay đủ sát thương. Nếu nhiệm vụ lùi về bước trước thì dừng với `quest left the step`. App Rust dùng cho nút ▶ trên từng bước ([App Rust](../rust/README.md#làm-một-bước)) |
 | `--atlas=<file>` | `data/maps.json` | Bản đồ đã biết ([Quét map](#quét-map)): bot đọc lúc bắt đầu và ghi lại khi gặp map, quái, boss, cổng mới |
 | `CLLT_USERNAME`, `CLLT_PASSWORD` | | Đọc từ `.env` như [CLI chính](README.md#chạy-với-tài-khoản-của-bạn) |
 | `CLLT_TRACE=<file>` | | Ghi mọi log client ra JSONL, kèm hex đầy đủ của từng gói (trừ `c2s/4`) |

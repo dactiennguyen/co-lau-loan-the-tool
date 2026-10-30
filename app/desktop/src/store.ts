@@ -1,8 +1,9 @@
 // The UI's state in one zustand store: the accounts src-tauri sends (kept by revision, updates.ts), the account the
-// user picked, the dialog that is open and the log of the selected account. hooks.ts fills it from the Tauri events;
+// user picked, the dialog that is open, the log of the selected account and the toasts the updates brought (toasts.ts). hooks.ts fills it from the Tauri events;
 // components read what they need with a selector, so an update re-renders only what shows the changed part.
 // Short-lived state of one view (the open tab, a menu's position, a form) stays in that view.
 import { create } from "zustand";
+import { addToasts, questToasts, type ToastItem } from "./toasts";
 import type { Account, AccountsUpdate, AppState, LogLine } from "./types";
 import { accountsOf, append, merge, type Accounts } from "./updates";
 
@@ -18,6 +19,8 @@ export interface Store extends Accounts {
   dialog: Dialog | null;
   /** The log of one account, tagged with it, so another account's lines never show while the new ones load. */
   log: { id: number | null; lines: LogLine[] };
+  /** Oldest first; none for what the `state` reply already shows. */
+  toasts: ToastItem[];
 
   /** The `state` reply, with the updates that came while it was on its way. */
   loaded: (s: AppState, early: AccountsUpdate[]) => void;
@@ -27,6 +30,7 @@ export interface Store extends Accounts {
   select: (id: number) => void;
   open: (dialog: Dialog) => void;
   close: () => void;
+  dismiss: (toast: number) => void;
 }
 
 export const useStore = create<Store>()((set) => ({
@@ -38,14 +42,21 @@ export const useStore = create<Store>()((set) => ({
   chosen: null,
   dialog: null,
   log: { id: null, lines: [] },
+  toasts: [],
 
   loaded: (s, early) => set({ ...early.reduce(merge, accountsOf(s)), accountsError: s.accountsError, ready: true }),
-  updated: (u) => set((s) => merge(s, u)),
+  updated: (u) =>
+    set((s) => {
+      const next = merge(s, u);
+      const more = next === s ? [] : questToasts(s.byId, u.accounts);
+      return more.length ? { ...next, toasts: addToasts(s.toasts, more) } : next;
+    }),
   logLoaded: (id, lines) => set({ log: { id, lines } }),
   logged: (id, lines) => set((s) => (s.log.id === id ? { log: { id, lines: append(s.log.lines, lines) } } : s)),
   select: (id) => set({ chosen: id }),
   open: (dialog) => set({ dialog }),
   close: () => set({ dialog: null }),
+  dismiss: (toast) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== toast) })),
 }));
 
 const NO_LINES: LogLine[] = [];

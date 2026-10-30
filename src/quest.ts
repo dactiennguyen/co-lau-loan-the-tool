@@ -43,6 +43,8 @@ export interface QuestBotOptions {
   maxLosses?: number;
   /** Atlas file read at start and written when the bot learns something (quest-run: data/maps.json); none keeps it in memory. */
   atlas?: string;
+  /** Plays only the step current at onReady (the app's ▶ on a step), and stops once the quest moves past it. */
+  once?: boolean;
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -62,6 +64,8 @@ export class QuestBot implements WorldSession {
   readonly nearby = new ZonePlayers();
   /** A talk or stat-point step is answered by s2c/34 alone. */
   awaitingReply = false;
+  /** With `once`: the quest id and step index played, and the step's text. */
+  playing?: { id: number; at: number; text: string };
   private wait?: ReturnType<typeof setTimeout>;
   options: QuestBotOptions;
   constructor(options: QuestBotOptions) { this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas); }
@@ -69,7 +73,9 @@ export class QuestBot implements WorldSession {
 
   onReady(api: SessionApi) {
     this.api = api;
-    this.log('ready', { mapId: this.mapId, hp: `${this.hp}/${this.maxHp}`, mobs: this.mobs.length, quest: this.quest && this.describe() });
+    const q = this.quest, step = q?.steps[q.current];
+    this.playing = this.options.once && q && step ? { id: q.id, at: q.current, text: step.text } : undefined;
+    this.log('ready', { mapId: this.mapId, hp: `${this.hp}/${this.maxHp}`, mobs: this.mobs.length, quest: this.quest && this.describe(), once: this.playing?.text });
     this.next();
   }
 
@@ -201,6 +207,10 @@ export class QuestBot implements WorldSession {
     if (!this.api || this.battle) return;
     const q = this.quest, step = q?.steps[q.current];
     if (this.options.farm) return this.farm(this.options.farm);
+    // The step moves on after the NPC reply (s2c/34), a new s2c/39, or the kill count or damage reached just below. It is
+    // done once the quest is past it or a new quest came after the report; a quest moving back has not been seen.
+    const p = this.playing;
+    if (p && (!q || q.id !== p.id || q.current !== p.at)) return this.stop(q && (q.id !== p.id || q.current > p.at) ? 'step done' : 'quest left the step', { step: p.text });
     if (!q || !step) return this.stop('no current quest step');
     const action = stepAction(step);
     if ((action.kind === 'kill' && q.progress >= step.required) || (action.kind === 'damage' && q.progress >= action.amount)) {

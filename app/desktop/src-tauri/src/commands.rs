@@ -60,12 +60,14 @@ pub fn fight(shared: State<Shared>, id: u64, target: String, count: u32, max_los
 }
 
 /// "Tự làm nhiệm vụ": plays the steps of the current main quest it knows until Stop, a step it does not know, or
-/// `max_losses` lost battles.
+/// `max_losses` lost battles. With `step` = [quest id, step index] (▶ on a step), only that step, which must be the
+/// current one of that quest.
 #[tauri::command]
-pub fn quest(shared: State<Shared>, id: u64, max_losses: u32) {
+pub fn quest(shared: State<Shared>, id: u64, max_losses: u32, step: Option<(i32, i32)>) {
     shared.with(|app| {
         let command = Command::Quest {
             max_losses: max_losses.clamp(1, 99),
+            step,
         };
         app.send(id, command);
     });

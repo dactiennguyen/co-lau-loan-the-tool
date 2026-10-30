@@ -9,6 +9,9 @@ export interface LogEvent {
   line: LogLine;
 }
 
+/** A step of a quest: the quest id and the step's position in `Quest.steps`. */
+export type QuestStepRef = [quest: number, at: number];
+
 export interface Api {
   state(): Promise<AppState>;
   logs(id: number): Promise<LogLine[]>;
@@ -17,8 +20,9 @@ export interface Api {
   loginAll(): Promise<void>;
   logoutAll(): Promise<void>;
   fight(id: number, target: string, count: number, maxLosses: number): Promise<void>;
-  /** "Tự làm nhiệm vụ" on the current main quest. */
-  quest(id: number, maxLosses: number): Promise<void>;
+  /** "Tự làm nhiệm vụ" on the current main quest; with `step`, ▶ on that step: only it, which must be the current one of
+   * that quest. */
+  quest(id: number, maxLosses: number, step?: QuestStepRef): Promise<void>;
   stop(id: number): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
@@ -39,7 +43,7 @@ const tauri: Api = {
   loginAll: () => invoke("login_all"),
   logoutAll: () => invoke("logout_all"),
   fight: (id, target, count, maxLosses) => invoke("fight", { id, target, count, maxLosses }),
-  quest: (id, maxLosses) => invoke("quest", { id, maxLosses }),
+  quest: (id, maxLosses, step) => invoke("quest", { id, maxLosses, step: step ?? null }),
   stop: (id) => invoke("stop", { id }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),

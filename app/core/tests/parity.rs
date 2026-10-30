@@ -766,7 +766,7 @@ fn a_second_setup_does_not_replace_the_battle_in_progress() {
 fn a_map_that_does_not_read_stops_the_quest_run_and_leaves_the_atlas_alone() {
     let (mut bot, mut out, now, _) = coc_xanh_bot();
     bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
-    bot.quest(1, now, &mut out);
+    bot.quest(1, None, now, &mut out);
     // The head of s2c/11 reads, its NPCs and portals do not.
     let broken = Writer::new()
         .u8(1)
@@ -871,7 +871,12 @@ fn quest_run_sends_what_quest_bot_sends() {
                 bot.on_packet(op, &hex(p[1].as_str().unwrap()), now, &mut out)
                     .unwrap();
             } else if step["start"] == true {
-                bot.quest(1, now, &mut out);
+                // `once` in TS: ▶ on the step current at the start.
+                let only = (step["once"] == true).then(|| {
+                    let q = bot.snap.quest.as_ref().unwrap();
+                    (q.id, q.current)
+                });
+                bot.quest(1, only, now, &mut out);
             } else {
                 // `next` in TS: the decision of the timer the bot left pending.
                 now = bot
@@ -946,7 +951,7 @@ fn won_battle() -> Vec<u8> {
 fn quest_run_counts_a_won_kill_then_goes_on_to_the_report() {
     let (mut bot, mut out, now, setup) = coc_xanh_bot();
     bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
-    bot.quest(1, now, &mut out);
+    bot.quest(1, None, now, &mut out);
     assert_eq!(
         out.last(),
         Some(&Out::Send(
@@ -972,10 +977,73 @@ fn quest_run_counts_a_won_kill_then_goes_on_to_the_report() {
 }
 
 #[test]
+fn one_step_ends_when_its_kill_count_is_reached_and_refuses_a_step_already_past() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
+    // ▶ on "Tiêu diệt Sói Xám", done before: refused, nothing sent, a run that has ended for the UI.
+    let sent = out.len();
+    bot.quest(1, Some((9, 2)), now, &mut out);
+    let refused = bot.snap.quest_run.clone().unwrap();
+    assert_eq!(
+        (
+            refused.id,
+            refused.step,
+            refused.step_done,
+            refused.done.as_deref()
+        ),
+        (
+            1,
+            Some(2),
+            false,
+            Some("Bước đó không còn là bước đang làm")
+        )
+    );
+    // Step 3 of another quest, as when the UI still shows quest 8 after s2c/39 of quest 9: refused too.
+    bot.quest(1, Some((8, 3)), now, &mut out);
+    let other = bot.snap.quest_run.clone().unwrap();
+    assert_eq!((other.id, other.done.is_some()), (2, true));
+    assert!(!out[sent..].iter().any(|o| matches!(o, Out::Send(..))));
+    // ▶ on "Tiêu diệt Cóc Xanh" (14/15): one won battle, then it ends instead of going to the report.
+    bot.quest(1, Some((9, 3)), now, &mut out);
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            15,
+            Writer::new().string("mob61000").u8(0).build()
+        ))
+    );
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    let sent = out.len();
+    let later = bot.deadline().expect("rest timer");
+    bot.on_timer(later, &mut out);
+    assert!(!out[sent..].iter().any(|o| matches!(o, Out::Send(..))));
+    let run = bot.snap.quest_run.clone().unwrap();
+    assert_eq!(
+        (
+            run.id,
+            run.step,
+            run.step_done,
+            run.wins,
+            run.done.as_deref()
+        ),
+        (
+            3,
+            Some(3),
+            true,
+            1,
+            Some("Xong bước \"Tiêu diệt Cóc Xanh\"")
+        )
+    );
+    assert_eq!(bot.snap.quest.as_ref().unwrap().current, 4);
+    assert_eq!(bot.deadline(), None);
+}
+
+#[test]
 fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
     let (mut bot, mut out, now, setup) = coc_xanh_bot();
     bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
-    bot.quest(1, now, &mut out);
+    bot.quest(1, None, now, &mut out);
     bot.on_packet(22, &setup, now, &mut out).unwrap();
     bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
     assert_eq!(bot.snap.quest.as_ref().unwrap().progress, 14);
@@ -983,7 +1051,7 @@ fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
     assert_eq!((run.losses, run.done.as_deref()), (1, Some("Thua 1 trận")));
     assert_eq!(bot.deadline(), None);
     // A fight job replaces a quest run, and Stop ends a new run before it sends anything else.
-    bot.quest(2, now, &mut out);
+    bot.quest(2, None, now, &mut out);
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     assert_eq!(
         bot.snap.quest_run.as_ref().unwrap().done.as_deref(),

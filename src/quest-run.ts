@@ -22,7 +22,7 @@ const goal = (arg('goal') ?? 'kill') as keyof typeof STRATEGIES;
 if (!STRATEGIES[goal]) throw new Error('--goal must be kill or exp');
 const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, strategy: STRATEGIES[goal],
   timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
-  maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', log: show });
+  maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', once: process.argv.includes('--once'), log: show });
 const result = await runClient({
   ...connection, mode: 'world', session: bot, hexBytes: trace ? 65536 : 128,
   log: e => {

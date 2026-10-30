@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { QuestStepRef } from "../api";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -10,27 +11,33 @@ import "./QuestCard.css";
 
 interface Props {
   account: Account;
-  onStart: (maxLosses: number) => void;
+  /** "Tự làm nhiệm vụ" without `step`; ▶ on that step with it. */
+  onStart: (maxLosses: number, step?: QuestStepRef) => void;
   onStop: () => void;
 }
 
 type State = "done" | "current" | "todo";
 
-/** Each step with its state and count: kills or boss damage for steps that ask for more than one. */
+/** Each step with its position, state and count: kills or boss damage for steps that ask for more than one. */
 function steps(q: Quest) {
   return q.steps.map((s, i) => {
     const state: State = i < q.current ? "done" : i === q.current ? "current" : "todo";
     const have = state === "done" ? s.required : state === "current" ? Math.min(q.progress, s.required) : 0;
-    return { ...s, state, count: s.required > 1 ? `${num(have)}/${num(s.required)}` : "", part: have / Math.max(1, s.required) };
+    return { ...s, at: i, state, count: s.required > 1 ? `${num(have)}/${num(s.required)}` : "", part: have / Math.max(1, s.required) };
   });
 }
 
-/** The current main quest (s2c/39) and "Tự làm nhiệm vụ": the steps, the one being played, and what the bot does. */
+/**
+ * The current main quest (s2c/39): its steps, each with ▶ to play that step alone, and "Tự làm nhiệm vụ" for all of them;
+ * then what the bot does. The server counts only the current step, so only its ▶ is live.
+ */
 export function QuestCard({ account, onStart, onStop }: Props) {
   const c = account.character;
   const q = c?.quest;
   const run = c?.questRun;
   const running = !!run && run.done == null;
+  // The step whose ▶ turned into a stop button.
+  const playing = running ? run.step : null;
   const [losses, setLosses] = useState(1);
   // Online and idle, as for a fight job; Stop first to switch.
   const idle = account.status === 2;
@@ -76,6 +83,23 @@ export function QuestCard({ account, onStart, onStop }: Props) {
                 </div>
                 {s.state === "current" && s.required > 1 && <Bar value={s.part} fill="var(--primary)" thin />}
               </div>
+              <span className="step__slot">
+                {s.state === "done" ? null : playing === s.at ? (
+                  <Button kind="danger" small icon="stop" className="step__play" aria-label={`Dừng bước "${s.text}"`} onClick={onStop} />
+                ) : (
+                  <Button
+                    kind={s.state === "current" ? "primary" : "tonal"}
+                    small
+                    icon="play"
+                    className="step__play"
+                    aria-label={`Làm bước "${s.text}"`}
+                    // Button's own title repeats the label; a later step says why it cannot be played instead.
+                    {...(s.state === "todo" && { title: "Làm xong các bước trước đã" })}
+                    disabled={s.state !== "current" || !idle || running}
+                    onClick={() => onStart(losses, [q.id, s.at])}
+                  />
+                )}
+              </span>
             </li>
           ))}
         </ol>
@@ -93,7 +117,7 @@ export function QuestCard({ account, onStart, onStop }: Props) {
 
       <div className="quest__controls">
         <Button
-          kind="primary"
+          kind="tonal"
           icon="play"
           disabled={!idle || !q || running}
           title="Bot nói chuyện với NPC, đánh quái và boss của bước, tự qua cổng khi NPC ở map khác, và dừng ở bước chưa biết làm"
