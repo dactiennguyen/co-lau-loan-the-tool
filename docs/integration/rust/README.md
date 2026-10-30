@@ -65,8 +65,11 @@ app/
       main.tsx, App.tsx       gốc: thanh bên, trang nick, hộp thêm nick
       types.ts                kiểu dữ liệu Rust gửi sang (bản sao của src-tauri/src/view.rs)
       api.ts                  gọi lệnh Tauri và nghe sự kiện "accounts", "log"; ngoài Tauri thì đọc public/sample.json
-      hooks.ts                useAppState, useLog
-      updates.ts              nghe sự kiện trước rồi mới lấy state, bỏ cập nhật cũ theo revision, nối nhật ký theo số dòng
+      store.ts                store zustand: nick theo id và thứ tự, nick đang chọn, hộp thoại đang mở, nhật ký;
+                              các selector selectedAccount, selectedLog, inGame
+      hooks.ts                useSync: đổ sự kiện Tauri vào store (mọi nick, rồi nhật ký của nick đang chọn)
+      updates.ts              hàm thuần cho store: nghe trước rồi mới lấy state, gộp cập nhật theo revision, nối nhật ký
+                              theo số dòng
       format.ts               số kiểu Việt (14.238), màu trạng thái, tiến độ cấp
       styles/                 tokens.css (màu, font, bo góc), base.css
       components/             thành phần dùng chung, không biết gì về game, mỗi cái một .tsx + .css:
@@ -218,7 +221,8 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 - **Luồng dữ liệu:**
   - Mỗi sự kiện của session cập nhật nick đó trong `app.rs`, đánh dấu nick đã đổi và tăng số revision.
   - Một luồng riêng (flusher) gom các thay đổi trong 50 ms, rồi gửi sự kiện `accounts` chỉ gồm những nick đã đổi (kèm revision, và thứ tự nick khi có thêm hay xoá), cùng sự kiện `log` gồm các dòng mới. Mỗi dòng nhật ký có số thứ tự riêng của nick.
-  - Giao diện đăng ký nghe sự kiện trước rồi mới gọi `state`. Cập nhật có revision không mới hơn cái đang hiện bị bỏ, nên phản hồi `state` đến muộn không kéo giao diện về trạng thái cũ. Nick không đổi giữ nguyên object, nên thẻ của nó không vẽ lại (`memo`).
+  - Giao diện đăng ký nghe sự kiện trước rồi mới gọi `state`. Cập nhật có revision không mới hơn cái đang hiện bị bỏ, nên phản hồi `state` đến muộn không kéo giao diện về trạng thái cũ.
+  - Trạng thái dùng chung nằm trong một store zustand (`src/store.ts`, zustand 5.0.15 ghim cố định): nick theo id và thứ tự, nick đang chọn, hộp thoại đang mở, nhật ký của nick đang chọn. Mỗi thành phần đọc đúng phần nó cần bằng selector: thẻ nick chỉ theo nick của nó, nên cập nhật một nick chỉ vẽ lại thẻ đó; thanh bên chỉ vẽ lại khi thứ tự nick hoặc số nick trong game đổi. Trạng thái tạm của một phần (tab đang mở, vị trí menu, ô nhập trong hộp thoại) vẫn để riêng ở phần đó.
   - Thêm và xoá nick là lệnh async: Tauri chạy chúng ngoài luồng chính. File `accounts.json` được ghi trên luồng blocking, không giữ khoá chung, và các lần ghi lần lượt từng lần một. Ghi xong mới thêm hoặc xoá nick khỏi danh sách.
   - Giao diện chỉ gọi lệnh, không giữ trạng thái game.
 - **An toàn:**
@@ -284,7 +288,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | Server thật (30/10/2026) | Bot TS đăng nhập chỉ đọc: đuôi `s2c/9` cho EXP 14238 trong mốc 13841–15882, xu 2664, x/y trùng `s2c/11`; `s2c/1263` có 8 người, không có mình. `cllt status`: manina cấp 21, HP 180/180, M2 khu 0, 8 mục tiêu (2 boss). `cllt fight --target="Heo Mọi" --count=1`: thắng sau 21 lượt, gây 234 sát thương, +92 EXP, +12 xu, HP tối đa của Heo Mọi học được là 146 |
 | Đăng nhập, server giả | 5 test trong `net.rs` chạy phiên thật với một server TCP cục bộ trả lời từng bước đăng nhập: đủ gói thì Trực tuyến; `s2c/11` hay `s2c/43` hỏng thì Lỗi có ghi opcode; `s2c/1263` hỏng thì vẫn Trực tuyến với `players_unread`; Đăng xuất khi đang chờ seed hoặc khi server im ở bước bản đồ thì phiên dừng ngay, không đợi hết giờ 8 s. Đã thử bỏ việc đọc `s2c/11` và đường Đăng xuất lúc chờ seed: 2 test tương ứng báo lỗi |
 | Nick | Test Rust: `accounts.json` ghi xong mới thêm, sửa hay xoá nick; sửa mà để trống mật khẩu thì giữ mật khẩu cũ; thêm trùng nick thì báo lỗi; file đọc lỗi thì không ghi đè, và xoá thất bại thì báo lỗi ngay trong hộp hỏi lại (hộp không đóng, nick còn nguyên). Ảnh chụp bản xem thử: menu chuột phải của nick đang chơi (Đăng xuất, Sửa, Xoá bị khoá) và của nick lỗi (Đăng nhập, Sửa, Xoá), hộp Sửa nick, hộp hỏi lại khi xoá |
-| Cập nhật giao diện | Test Rust: một lần gửi chỉ gồm nick đã đổi, mang đúng revision, có thứ tự nick khi xoá; `accounts.json` ghi xong mới thêm hoặc xoá nick, file đọc lỗi thì không ghi. [desktop-updates.test.ts](../../../test/desktop-updates.test.ts): sự kiện Trực tuyến đến trước phản hồi `state` cũ hơn thì giao diện vẫn hiện Trực tuyến |
+| Cập nhật giao diện | Test Rust: một lần gửi chỉ gồm nick đã đổi, mang đúng revision, có thứ tự nick khi xoá; `accounts.json` ghi xong mới thêm hoặc xoá nick, file đọc lỗi thì không ghi. [desktop-updates.test.ts](../../../test/desktop-updates.test.ts): sự kiện Trực tuyến đến trước phản hồi `state` cũ hơn thì giao diện vẫn hiện Trực tuyến; gộp cập nhật giữ nguyên object của nick không đổi và mảng thứ tự. Bản xem thử chạy store thật: chọn nick, cập nhật một nick (thẻ khác giữ nguyên), bỏ cập nhật cũ, xoá nick khỏi thứ tự, menu chuột phải không tự đóng khi trang tự cuộn |
 | Giao diện Tauri, server thật | Mở `Cờ Lau Loạn Thế.app` đã đóng gói với `--login-all`, chụp cửa sổ sau 9 s: "Trực tuyến", cấp 21, HP 180/180, EXP 14.238 / 15.882 (19,5%), xu 2.664, 68 điểm tiềm năng, 19 điểm kỹ năng, 5 chỉ số chiến đấu, Trại Vân Sơn · M2 · Khu 1 · x 2784 · y 864, 13 người xung quanh có tên và cấp, 2 boss và các loại quái trong danh sách đánh. Không đánh trận nào |
 | Giao diện, cỡ cửa sổ | Ảnh chụp với dữ liệu mẫu ở 1280 × 860 (vừa khít, thẻ cuối tự cuộn bên trong) và 1080 × 720 (cỡ nhỏ nhất; bố cục hẹp, trang cuộn). `--sample` trên app thật: dữ liệu đi qua lệnh Tauri, CSP không chặn gì |
 

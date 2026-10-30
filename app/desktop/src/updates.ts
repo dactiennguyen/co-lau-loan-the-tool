@@ -1,5 +1,5 @@
-// How the UI keeps up with src-tauri/src/app.rs without React: listen before loading, and drop what is older than what
-// is shown. hooks.ts wraps these in effects.
+// How the UI keeps up with src-tauri/src/app.rs, without React or the store: listen before loading, and drop what is
+// older than what is shown. store.ts keeps the result; hooks.ts runs the listeners.
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { Account, AccountsUpdate, AppState, LogLine } from "./types";
 
@@ -37,14 +37,28 @@ export function listenThenLoad<T, R>(
   };
 }
 
-/** `u` on top of `s` unless `s` is as new already. Accounts `u` does not carry stay the same objects, so their cards skip rendering. */
-export function merge(s: AppState, u: AccountsUpdate): AppState {
+/** The accounts as the UI keeps them: their ids in order, each account by id, and the revision they were read at. */
+export interface Accounts {
+  rev: number;
+  order: number[];
+  byId: Record<number, Account>;
+}
+
+/** The accounts of the `state` reply. */
+export function accountsOf(s: AppState): Accounts {
+  return { rev: s.rev ?? 0, order: s.accounts.map((a) => a.id), byId: Object.fromEntries(s.accounts.map((a) => [a.id, a])) };
+}
+
+/**
+ * `u` on top of `s`, or `s` itself when it is as new already. Accounts `u` does not carry stay the same objects, and the
+ * order stays the same array unless `u` changes it, so what shows them does not render again.
+ */
+export function merge<S extends Accounts>(s: S, u: AccountsUpdate): S | Accounts {
   if (u.rev <= s.rev) return s;
-  const changed = new Map(u.accounts.map((a) => [a.id, a]));
-  const shown = new Map(s.accounts.map((a) => [a.id, a]));
-  const ids = u.ids ?? s.accounts.map((a) => a.id);
-  const accounts = ids.map((id) => changed.get(id) ?? shown.get(id)).filter((a): a is Account => !!a);
-  return { ...s, rev: u.rev, accounts };
+  const byId = { ...s.byId };
+  for (const a of u.accounts) byId[a.id] = a;
+  if (u.ids) for (const id of s.order) if (!u.ids.includes(id)) delete byId[id];
+  return { rev: u.rev, order: u.ids ?? s.order, byId };
 }
 
 /** `more` after `lines` without the ones `lines` has (line numbers only grow), to the last LOG_LINES. */

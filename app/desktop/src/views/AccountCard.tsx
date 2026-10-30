@@ -1,4 +1,5 @@
 import { memo, useId } from "react";
+import { api } from "../api";
 import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Bar } from "../components/Bar";
@@ -6,15 +7,11 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { Pill } from "../components/Pill";
 import { isConnected } from "../format";
-import type { Account } from "../types";
+import { selectedId, useStore } from "../store";
 import "./AccountCard.css";
 
 interface Props {
-  account: Account;
-  active: boolean;
-  onSelect: (id: number) => void;
-  onLogin: (id: number) => void;
-  onLogout: (id: number) => void;
+  id: number;
   /** Right click, the menu key or Shift+F10: the account's menu at (x, y). */
   onMenu: (id: number, x: number, y: number) => void;
 }
@@ -23,17 +20,23 @@ interface Props {
  * One account in the sidebar: name, level, where it is (or the error), status, HP and players around, login/logout.
  * Two controls side by side, none inside another: the name is the button that selects (it carries the place and status
  * as its description), and login/logout. A click anywhere else on the card selects too, for the mouse.
- * Memoised: an update of one account leaves the others the same objects (hooks.ts), so only its card renders.
+ * It reads its own account from the store: an update of another account leaves this one the same object, so only the
+ * card of the account that changed renders (memo keeps the sidebar's renders from reaching it).
  */
-export const AccountCard = memo(function AccountCard({ account: a, active, onSelect, onLogin, onLogout, onMenu }: Props) {
+export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: Props) {
+  const a = useStore((s) => s.byId[accountId]);
+  const active = useStore((s) => selectedId(s) === accountId);
+  const select = useStore((s) => s.select);
+  const id = useId();
+  // Removed in the same update that drops it from the sidebar's order.
+  if (!a) return null;
   const c = a.character;
   const connected = isConnected(a.status);
   const line = a.status === 4 ? a.error : c ? `${c.mapName} · Khu ${c.zone}` : a.label !== a.username ? a.username : a.statusText;
-  const id = useId();
   return (
     <div
       className={`acard${active ? " acard--active" : ""}`}
-      onClick={() => onSelect(a.id)}
+      onClick={() => select(a.id)}
       onContextMenu={(e) => {
         e.preventDefault();
         onMenu(a.id, e.clientX, e.clientY);
@@ -85,8 +88,8 @@ export const AccountCard = memo(function AccountCard({ account: a, active, onSel
         disabled={a.status === 1}
         onClick={(e) => {
           e.stopPropagation();
-          if (connected) onLogout(a.id);
-          else onLogin(a.id);
+          if (connected) api.logout(a.id);
+          else api.login(a.id);
         }}
       />
     </div>

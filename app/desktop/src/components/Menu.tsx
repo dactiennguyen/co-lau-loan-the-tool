@@ -26,7 +26,8 @@ interface Props {
 
 /**
  * Context menu, drawn on the body so no clipped frame hides it. Arrow keys, Home and End move; Enter picks; Escape gives
- * focus back to what opened it. A click elsewhere, scrolling, resizing or leaving the window closes it.
+ * focus back to what opened it. A click or a wheel turn elsewhere, resizing or leaving the window closes it; a scroll
+ * the page does by itself (a log line coming in, the quest list following its step) does not.
  */
 export function Menu({ x, y, label, items, onClose }: Props) {
   const menu = useRef<HTMLDivElement>(null);
@@ -43,12 +44,12 @@ export function Menu({ x, y, label, items, onClose }: Props) {
     const away = (e: Event) => menu.current?.contains(e.target as Node) || onClose();
     const close = () => onClose();
     document.addEventListener("pointerdown", away, true);
-    document.addEventListener("scroll", close, true);
+    document.addEventListener("wheel", away, { capture: true, passive: true });
     window.addEventListener("resize", close);
     window.addEventListener("blur", close);
     return () => {
       document.removeEventListener("pointerdown", away, true);
-      document.removeEventListener("scroll", close, true);
+      document.removeEventListener("wheel", away, true);
       window.removeEventListener("resize", close);
       window.removeEventListener("blur", close);
     };

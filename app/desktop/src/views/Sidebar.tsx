@@ -1,57 +1,47 @@
 import { useCallback, useState } from "react";
+import { api } from "../api";
 import { Button } from "../components/Button";
 import { Menu, type MenuItem } from "../components/Menu";
 import appIcon from "../../app-icon.png";
+import { inGame, useStore, type Dialog } from "../store";
 import type { Account } from "../types";
 import { AccountCard } from "./AccountCard";
 import "./Sidebar.css";
 
-interface Props {
-  accounts: Account[];
-  /** accounts.json could not be read. */
-  error: string | null;
-  selected: number | null;
-  onSelect: (id: number) => void;
-  onAdd: () => void;
-  onLogin: (id: number) => void;
-  onLogout: (id: number) => void;
-  onEdit: (id: number) => void;
-  /** Asks first (App). */
-  onRemove: (id: number) => void;
-  onLoginAll: () => void;
-  onLogoutAll: () => void;
-}
-
-type Actions = Pick<Props, "onLogin" | "onLogout" | "onEdit" | "onRemove">;
-
 /** The menu of an account: log in, or log out (cancel while connecting); edit; remove once it has no session. */
-function accountMenu(a: Account, { onLogin, onLogout, onEdit, onRemove }: Actions): MenuItem[] {
+function accountMenu(a: Account, open: (d: Dialog) => void): MenuItem[] {
   const session = a.status >= 1 && a.status <= 3;
   return [
     a.status === 1
-      ? { label: "Huỷ đăng nhập", icon: "close", onSelect: () => onLogout(a.id) }
+      ? { label: "Huỷ đăng nhập", icon: "close", onSelect: () => api.logout(a.id) }
       : session
-        ? { label: "Đăng xuất", icon: "logout", onSelect: () => onLogout(a.id) }
-        : { label: "Đăng nhập", icon: "login", onSelect: () => onLogin(a.id) },
-    { label: "Sửa nick", icon: "pencil", onSelect: () => onEdit(a.id) },
-    { label: "Xoá nick", icon: "trash", danger: true, separated: true, disabled: session, hint: "Đăng xuất trước", onSelect: () => onRemove(a.id) },
+        ? { label: "Đăng xuất", icon: "logout", onSelect: () => api.logout(a.id) }
+        : { label: "Đăng nhập", icon: "login", onSelect: () => api.login(a.id) },
+    { label: "Sửa nick", icon: "pencil", onSelect: () => open({ kind: "edit", id: a.id }) },
+    { label: "Xoá nick", icon: "trash", danger: true, separated: true, disabled: session, hint: "Đăng xuất trước", onSelect: () => open({ kind: "remove", id: a.id }) },
   ];
 }
 
-/** Brand, "Thêm nick", the accounts with their menus, and login/logout of every account. Its top strip drags the window. */
-export function Sidebar({ accounts, error, selected, onSelect, onAdd, onLogin, onLogout, onEdit, onRemove, onLoginAll, onLogoutAll }: Props) {
-  const inGame = accounts.filter((a) => a.status === 2 || a.status === 3).length;
+/**
+ * Brand, "Thêm nick", the accounts with their menus, and login/logout of every account. Its top strip drags the window.
+ * It re-renders when the order of the accounts or the count in the game changes; each card follows its own account.
+ */
+export function Sidebar() {
+  const order = useStore((s) => s.order);
+  const error = useStore((s) => s.accountsError);
+  const playing = useStore(inGame);
+  const { select, open } = useStore.getState();
   const [menu, setMenu] = useState<{ id: number; x: number; y: number } | null>(null);
+  const menuAccount = useStore((s) => (menu ? s.byId[menu.id] : undefined));
   // Stable, so the memoised cards do not render again for it; the account of the menu is selected too.
   const openMenu = useCallback(
     (id: number, x: number, y: number) => {
-      onSelect(id);
+      select(id);
       setMenu({ id, x, y });
     },
-    [onSelect],
+    [select],
   );
   const closeMenu = useCallback(() => setMenu(null), []);
-  const menuAccount = menu && accounts.find((a) => a.id === menu.id);
   return (
     <aside className="sidebar">
       <div className="sidebar__drag" data-tauri-drag-region />
@@ -60,11 +50,11 @@ export function Sidebar({ accounts, error, selected, onSelect, onAdd, onLogin, o
         <div>
           <div className="brand__name">colautool</div>
           <div className="brand__summary">
-            {accounts.length} nick · <b>{inGame}</b> đang trong game
+            {order.length} nick · <b>{playing}</b> đang trong game
           </div>
         </div>
       </div>
-      <Button kind="primary" icon="plus" block onClick={onAdd}>
+      <Button kind="primary" icon="plus" block onClick={() => open({ kind: "add" })}>
         Thêm nick
       </Button>
       {error && (
@@ -74,27 +64,19 @@ export function Sidebar({ accounts, error, selected, onSelect, onAdd, onLogin, o
       )}
       <div className="sidebar__label">Tài khoản</div>
       <div className="sidebar__list scroll">
-        {accounts.length === 0 && <p className="sidebar__empty">Chưa có nick nào.</p>}
-        {accounts.map((a) => (
-          <AccountCard
-            key={a.id}
-            account={a}
-            active={a.id === selected}
-            onSelect={onSelect}
-            onLogin={onLogin}
-            onLogout={onLogout}
-            onMenu={openMenu}
-          />
+        {order.length === 0 && <p className="sidebar__empty">Chưa có nick nào.</p>}
+        {order.map((id) => (
+          <AccountCard key={id} id={id} onMenu={openMenu} />
         ))}
       </div>
       {menu && menuAccount && (
-        <Menu x={menu.x} y={menu.y} label={`Nick ${menuAccount.label}`} items={accountMenu(menuAccount, { onLogin, onLogout, onEdit, onRemove })} onClose={closeMenu} />
+        <Menu x={menu.x} y={menu.y} label={`Nick ${menuAccount.label}`} items={accountMenu(menuAccount, open)} onClose={closeMenu} />
       )}
       <div className="sidebar__footer">
-        <Button kind="outline" icon="bolt" block disabled={accounts.length === 0} onClick={onLoginAll}>
+        <Button kind="outline" icon="bolt" block disabled={order.length === 0} onClick={api.loginAll}>
           Đăng nhập tất cả
         </Button>
-        <Button kind="outline" icon="logout" aria-label="Đăng xuất tất cả" disabled={accounts.length === 0} onClick={onLogoutAll} />
+        <Button kind="outline" icon="logout" aria-label="Đăng xuất tất cả" disabled={order.length === 0} onClick={api.logoutAll} />
       </div>
     </aside>
   );

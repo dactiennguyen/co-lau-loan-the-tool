@@ -1,6 +1,8 @@
 import { useId, useState } from "react";
+import { api } from "../api";
 import { TabPanel, Tabs } from "../components/Tabs";
-import type { Account, LogLine } from "../types";
+import { selectedLog, useStore } from "../store";
+import type { Account } from "../types";
 import { FightCard, type FightChoice } from "./FightCard";
 import { HeroCard } from "./HeroCard";
 import { LogCard } from "./LogCard";
@@ -10,22 +12,18 @@ import { QuestCard } from "./QuestCard";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
-interface Props {
-  account: Account;
-  log: LogLine[];
-  onLogin: () => void;
-  onLogout: () => void;
-  onRemove: () => void;
-  onFight: (target: string, count: number, maxLosses: number) => void;
-  onQuest: (maxLosses: number) => void;
-  onStop: () => void;
-}
-
 type Task = "quest" | "fight";
 
-/** Everything about the selected account. Mounted per account (key), so the tab and fight choice start fresh for each. */
-export function AccountPage({ account, log, onLogin, onLogout, onRemove, onFight, onQuest, onStop }: Props) {
+/**
+ * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and fight
+ * choice start fresh for each.
+ */
+export function AccountPage({ account }: { account: Account }) {
   const c = account.character;
+  const id = account.id;
+  const log = useStore(selectedLog);
+  const open = useStore((s) => s.open);
+  const onStop = () => api.stop(id);
   const [choice, setChoice] = useState<FightChoice>({ target: "", count: 5, losses: 1 });
   const [task, setTask] = useState<Task>("quest");
   const tabs = useId();
@@ -34,7 +32,7 @@ export function AccountPage({ account, log, onLogin, onLogout, onRemove, onFight
   const target = targets.some((t) => t.name === choice.target) ? choice.target : (targets[0]?.name ?? "");
   return (
     <div className="page">
-      <HeroCard account={account} onLogin={onLogin} onLogout={onLogout} onRemove={onRemove} />
+      <HeroCard account={account} onLogin={() => api.login(id)} onLogout={() => api.logout(id)} onRemove={() => open({ kind: "remove", id })} />
       <MetricRow character={c} />
       <div className="page__columns">
         <div className="page__stack">
@@ -54,13 +52,13 @@ export function AccountPage({ account, log, onLogin, onLogout, onRemove, onFight
           />
           <TabPanel id={tabs} value={task}>
             {task === "quest" ? (
-              <QuestCard account={account} onStart={onQuest} onStop={onStop} />
+              <QuestCard account={account} onStart={(losses) => api.quest(id, losses)} onStop={onStop} />
             ) : (
               <FightCard
                 account={account}
                 choice={{ ...choice, target }}
                 onChoice={setChoice}
-                onStart={() => onFight(target, choice.count, choice.losses)}
+                onStart={() => api.fight(id, target, choice.count, choice.losses)}
                 onStop={onStop}
               />
             )}
