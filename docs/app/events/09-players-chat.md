@@ -160,6 +160,24 @@ Ví dụ `s2c/1167` của boy2Nghin, 300 byte:
 1167: 04 00000009 "boy2Nghin" 00000534 …      vào lại cùng mili giây
 ```
 
+<a id="đếm-người-xung-quanh"></a>
+
+### Đếm người xung quanh
+
+Không có gói nào trả thẳng "số người trong khu". Muốn đếm thì giữ một danh sách theo id:
+
+| Gói | Việc với danh sách |
+|---|---|
+| `s2c/1263` | Thay cả danh sách. Gói này đến sau `c2s/43` khi vào map hoặc đổi khu, và sau mỗi trận |
+| `s2c/1167` | Thêm hoặc làm mới một người |
+| `s2c/1170` | Xoá một người. Nếu cặp `1170` + `1167` cùng id đến sát nhau thì người đó vẫn còn trong danh sách |
+| `s2c/1253` | Cập nhật cấp, HP của một người có trong danh sách |
+
+- **Nhân vật của mình không có trong `1263`.** L1 có 18 người, cộng mình là 19, khớp "Dân số 19/20" của khu 0 trong `s2c/1172`. Lần đăng nhập ngày 30/10/2026 (M2, khu 0) có 8 người, id 155 của manina không có trong đó. [Đo]
+- `1262` (vị trí) chỉ gửi người vừa di chuyển, nên không dùng để đếm được. [Đo]
+
+TypeScript: `ZonePlayers` trong [src/world.ts](../../../src/world.ts). Bot nhiệm vụ ghi sự kiện `players` mỗi khi nhận `1263`. App Rust hiện số người và danh sách tên kèm cấp ([integration/rust](../../integration/rust/README.md)).
+
 <a id="s2c-1166"></a>
 
 ### s2c/1166: trang bị và s2c/1253: cấp/HP
@@ -272,7 +290,7 @@ Trong L1, ai đó dùng chính điện thoại để trả nhiệm vụ, nhận 
 | `s2c/39`, `s2c/34`, `s2c/1200`, `s2c/46` | | Nhiệm vụ mới "Ruộng Dưa Bị Tàn Phá", tiến độ, cập nhật Xu (như [04-push](04-push.md#s2c-39), [07](07-auto-battle.md#các-gói-mới-thấy-trong-bot)) |
 | `c2s/10` | `00000000 00000001` | Cộng 1 điểm tiềm năng vào chỉ số 0, bấm 10 lần [Suy luận] |
 | `s2c/10` kiểu 2 | `00000002 "manina" 00000004 00000016 0000000a 0000000a 0000000d 0…` | Cấp 4 và các chỉ số; chỉ số đầu tăng 22 → 32 sau 10 lần cộng [Đo] |
-| `s2c/10` kiểu 8 | `00000008 "manina" 0000000a 00000002 00000000 00000004 "1137" "125"` | Điểm tiềm năng còn lại: 10 → 0 [Đo] |
+| `s2c/10` kiểu 8 | `00000008 "manina" 0000000a 00000002 00000000 00000004 "1137" "125"` | Điểm tiềm năng còn lại: 10 → 0 [Đo]. `00000002` (cấp − 2) là điểm kỹ năng, cũng có trong đuôi `s2c/9` ([user-data](../user-data.md#đuôi-s2c9)) [Suy luận] |
 
 `s2c/10` mở đầu bằng `i32 kiểu`. Kiểu 4 là HP/EXP/tiền, đã ghi ở [05-battle](05-battle.md#c2s-40). Lên cấp 4 thì server gửi cả 3 kiểu. [Đo]
 

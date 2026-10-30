@@ -1,5 +1,5 @@
 import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof,
-  sessionKey, notification, characterPrefix, characterLocation, mapPrefix } from './protocol.ts';
+  sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem,
   zoneList, worldMap, questData, questProgress, questComplete, ranking } from './world.ts';
@@ -41,7 +41,7 @@ event('s2c', 3, 'password_challenge', 'login', 'Trả challenge_request', 'Tạo
 event('c2s', 4, 'credentials', 'login', 'Đã có password_challenge', 'Push cấu hình và s2c/4', 'string usernameLower; bytes proof; string platform; string version; i32 serverId; i32 usernameHash');
 event('s2c', 4, 'authentication_ack', 'login', 'Server chấp nhận credential trong phiên đã đo', 'Body rỗng: c2s/9; khác: nhánh chưa quan sát', 'Rỗng trong nhánh thành công đã đo');
 event('c2s', 9, 'character_request', 'world', 'Đã nhận authentication_ack rỗng', 's2c/9', 'string accountLower; u8 flag=2; i32 field=-1');
-event('s2c', 9, 'character_data', 'world', 'Trả character_request', 'c2s/30', 'u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; opaque tail', 'Getter/byte đã đo; field01 có thể là số nhân vật, chưa chốt; level/HP khớp UI');
+event('s2c', 9, 'character_data', 'world', 'Trả character_request', 'c2s/30', 'u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; i32 s1,s1Max; i32 stats[10]; i32 combat[5]; i32 exp,coin,field; i32 statPoints,skillPoints; i32 levelExp[2]; string labels[2]; u8[6]; i32 x,y; opaque tail (kỹ năng, trang bị)', 'Prefix: getter native, level/HP khớp UI; field01 chưa chốt. Đuôi: hai mẫu (A2 cấp 3, đăng nhập 30/10 cấp 21) khớp s2c/10 và x/y của s2c/11; statPoints, skillPoints là suy luận');
 event('c2s', 30, 'skills_request', 'world', 'Đã lấy nhân vật', 's2c/30', 'u8 flag=1');
 event('s2c', 30, 'skills_data', 'world', 'Trả skills_request; có push khác xen giữa', 'c2s/42', 'Payload 23442 byte trong mẫu; prefix i32, i32, string; phần còn lại opaque', 'Vai trò kỹ năng suy từ chuỗi Hỏa Cầu Thuật; chưa giải schema toàn bộ');
 event('c2s', 42, 'character_extra_request', 'world', 'Đã nhận skills_data', 's2c/42', 'string characterName');
@@ -95,7 +95,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1271, 'social_links', 'Sau c2s/4', '140 byte; có URL Facebook, chưa giải cấu trúc danh sách'],
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
   [46, 'currency_notice', 'Sau s2c/9', 'Prefix string update Xu; opaque tail'],
-  [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]', 'Đọc hết byte 3 kiểu (L1, Q2); EXP và tiền khớp phần thưởng trận, stats[0] tăng 1 mỗi điểm, statPoints giảm 10 → 0; extra, fields, labels chưa rõ'],
+  [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]', 'Đọc hết byte 3 kiểu (L1, Q2); EXP và tiền khớp phần thưởng trận, stats[0] tăng 1 mỗi điểm, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, …), fields[0] là điểm kỹ năng (suy luận), extra[0], labels chưa rõ'],
   [1187, 'inventory_item', 'Vật phẩm vào túi (trả nhiệm vụ)', 'u8; i32 itemId; i32 quantity; …; opaque (giống bản ghi vật phẩm, chưa kiểm)', 'Suy luận từ 3 mẫu'],
   [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực")', 'Đọc hết byte 4 mẫu (Q6, Q15, S1)'],
   [1201, 'step_progress', 'Sau mỗi trận được tính cho bước nhiệm vụ đang làm', 'i32 progress: số con đã diệt, hoặc tổng sát thương lên boss', 'Đo: Q2–Q9 tăng 1 sau mỗi trận thắng (1…9); B4 363 = sát thương lên boss sau trận thua'],
@@ -207,7 +207,12 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 2: fields = { gate: r.string() }; break;
       case 3: fields = { challenge: r.bytes().toString('hex') }; break;
       case 5: fields = notification(payload); r.take(payload.length); break;
-      case 9: fields = characterPrefix(payload); r.take(Number(fields.prefixBytes)); break;
+      case 9: {
+        // The tail layout comes from two captures; when it does not fit, keep the verified prefix and leave the rest opaque.
+        try { fields = characterProfile(payload); r.take(Number(fields.profileBytes)); }
+        catch { fields = characterPrefix(payload); r.take(Number(fields.prefixBytes)); }
+        break;
+      }
       case 11:
         if (payload[0] === 0) { fields = worldMap(payload); r.take(payload.length); }
         else { fields = mapData(payload); r.take(payload.length); }

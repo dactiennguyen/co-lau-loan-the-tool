@@ -2,12 +2,12 @@
 // fights the named mob with BattleRunner, talks to quest NPCs with c2s/13, and walks through portals (c2s/13 with the
 // portal id) when the NPC or mob of a step is in another map. What it sees of each map goes to the atlas (atlas.ts), which
 // also tells it the way to maps seen in earlier runs.
-import { Reader, Writer, characterPrefix, characterLocation } from './protocol.ts';
+import { Reader, Writer, characterPrefix, characterProfile, characterLocation } from './protocol.ts';
 import { battleSetup, type Strategy } from './battle.ts';
 import { BattleRunner, type BattleEnd } from './battle-runner.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, questData, questProgress, questComplete, type Mob, type Place, type Quest, type QuestStep } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, type Mob, type Place, type Quest, type QuestStep } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -48,6 +48,8 @@ export interface QuestBotOptions {
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
 export class QuestBot implements WorldSession {
   api?: SessionApi; quest?: Quest; mapId = ''; zone = 0; mobs: Mob[] = []; places: Place[] = []; battle?: BattleRunner; target?: Mob;
+  /** Ids of the bosses of s2c/1177 (challenged with c2s/1178). */
+  bosses = new Set<string>();
   /** Maps seen in this run and in earlier ones. */
   atlas: Atlas; private saved = '';
   /** Set from c2s/13 through a portal until s2c/43 of the new map; hops counts portals taken for the current step;
@@ -56,6 +58,8 @@ export class QuestBot implements WorldSession {
   /** Waits for a moving boss before the current challenge. */
   waits = 0;
   fights = 0; wins = 0; losses = 0; hp = 0; maxHp = 0; level = 0; statPoints?: number; challenged = 0; battleStart = 0;
+  /** Other players of the zone (s2c/1263, 1167, 1170, 1253). */
+  readonly nearby = new ZonePlayers();
   /** A talk or stat-point step is answered by s2c/34 alone. */
   awaitingReply = false;
   private wait?: ReturnType<typeof setTimeout>;
@@ -77,7 +81,15 @@ export class QuestBot implements WorldSession {
   private handle(opcode: number, payload: Buffer) {
     if (this.battle?.onPacket(opcode, payload)) return;
     switch (opcode) {
-      case 9: { const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level; break; }
+      case 9: {
+        const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level;
+        const p = characterProfile(payload); this.statPoints = p.statPoints;
+        this.log('character', { level: p.level, hp: `${p.hp}/${p.maxHp}`, exp: p.exp, levelExp: p.levelExp, coin: p.coin, combat: p.combat, statPoints: p.statPoints, skillPoints: p.skillPoints });
+        break;
+      }
+      case 1263: case 1167: case 1170: case 1253:
+        if (this.nearby.on(opcode, payload) && opcode === 1263) this.log('players', { count: this.nearby.players.size, players: this.nearby.list().map(p => `${p.name} ${p.level}`) });
+        break;
       case 29: this.mapId = characterLocation(payload).mapId; break;
       case 11: {
         if (payload[0] !== 1) break; // flag 0 is the world map ("M99")
@@ -115,6 +127,7 @@ export class QuestBot implements WorldSession {
         const b = mapBoss(payload);
         if ('gone' in b) { this.mobs = this.mobs.filter(m => m.id !== b.gone); this.log('boss_moving', { id: b.gone }); break; }
         if (!this.mobs.some(m => m.id === b.mob.id)) this.mobs.push(b.mob);
+        this.bosses.add(b.mob.id);
         recordBoss(this.atlas, b.mapId, this.zone, b.mob, b.tile); this.remember();
         this.log('boss', { id: b.mob.id, name: b.mob.name, level: b.mob.level, tile: b.tile });
         break;
@@ -187,7 +200,7 @@ export class QuestBot implements WorldSession {
   next() {
     if (!this.api || this.battle) return;
     const q = this.quest, step = q?.steps[q.current];
-    if (this.options.farm) return this.fight(this.mobs.filter(m => m.name === this.options.farm), `farm ${this.options.farm}`);
+    if (this.options.farm) return this.farm(this.options.farm);
     if (!q || !step) return this.stop('no current quest step');
     const action = stepAction(step);
     if ((action.kind === 'kill' && q.progress >= step.required) || (action.kind === 'damage' && q.progress >= action.amount)) {
@@ -223,6 +236,18 @@ export class QuestBot implements WorldSession {
     this.log('challenge', { reason, opcode, mobId: mob.id, name: mob.name, level: mob.level, fight: this.fights });
     this.send(opcode, buildRequest(opcode, { mobId: mob.id }));
     this.wait = setTimeout(() => { if (!this.battle) { this.log('challenge_no_answer', { mobId: mob.id }); this.next(); } }, 8000);
+  }
+
+  /** --farm: the named mob or boss on every fight, in this map only. A boss of s2c/1177 is challenged with c2s/1178 and
+   * waited for (6 × 5 s) while it changes tiles, as the atlas or an earlier s2c/1177 puts it in this map. */
+  private farm(name: string): void {
+    const targets = this.mobs.filter(m => m.name === name);
+    const boss = targets.some(m => this.bosses.has(m.id)) || !!this.atlas.maps[this.mapId]?.bosses.some(b => b.name === name);
+    if (!targets.length && boss && this.waits < 6) {
+      this.waits++; this.log('waiting_for_mob', { mob: name, wait: this.waits });
+      return this.later(5000);
+    }
+    return this.fight(targets, `farm ${name}`, boss ? 1178 : 15);
   }
 
   /** True when the mob or NPC of the step is not in this map and the bot waits for it or travels. */
@@ -282,11 +307,12 @@ export class QuestBot implements WorldSession {
     const counted = q && step && action && 'mob' in action && this.mobs.find(m => m.id === end.mobId)?.name === action.mob;
     // Local count; s2c/1201 replaces it with the server's a few ms later, before next() decides (and advances). A boss
     // (5000 HP for Thủ Lĩnh Sơn Tặc) is not expected to fall: its damage counts won or lost, and a loss does not stop the
-    // bot. A kill counts only when won.
+    // bot, in a quest step or with --farm. A kill counts only when won.
     const boss = counted && action.kind === 'damage';
+    if (!end.won && this.bosses.has(end.mobId)) this.log('boss_loss', { mobId: end.mobId, damage: end.damage });
     if (boss) { q.progress += end.damage; this.log('damage_counted', { step: step.text, progress: `${q.progress}/${action.amount}` }); }
     if (counted && action.kind === 'kill' && end.won) { q.progress++; this.log('kill_counted', { step: step.text, progress: `${q.progress}/${step.required}` }); }
-    if (!end.won && !boss && this.losses >= (this.options.maxLosses ?? 1)) return this.stop('lost a battle');
+    if (!end.won && !this.bosses.has(end.mobId) && this.losses >= (this.options.maxLosses ?? 1)) return this.stop('lost a battle');
     this.later(this.options.restMs ?? 3000);
   }
 }

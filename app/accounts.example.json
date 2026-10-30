@@ -1,0 +1,6 @@
+{
+  "accounts": [
+    { "label": "Nick chính", "username": "ten_dang_nhap", "password": "mat_khau", "serverId": 24 },
+    { "label": "Nick phụ", "username": "nick2", "password": "mat_khau_2", "serverId": 24, "skill": { "id": 1000, "cost": 25 } }
+  ]
+}

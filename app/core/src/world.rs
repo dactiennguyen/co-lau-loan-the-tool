@@ -1,0 +1,497 @@
+//! Port of the world packets of src/world.ts the app reads: mobs (s2c/43), map and places (s2c/11), map change (s2c/13),
+//! bosses (s2c/1177), notices (s2c/1256), character stats (s2c/10), the other players of the zone (s2c/1263, 1167, 1170,
+//! 1253).
+use crate::protocol::{err, Reader, Result};
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Mob {
+    pub id: String,
+    pub name: String,
+    pub level: i32,
+    pub a: u8,
+    pub b: i32,
+    pub c: i32,
+    pub d: u8,
+}
+fn mob_record(r: &mut Reader) -> Result<Mob> {
+    Ok(Mob {
+        id: r.string()?,
+        name: r.string()?,
+        level: r.i32()?,
+        a: r.u8()?,
+        b: r.i32()?,
+        c: r.i32()?,
+        d: r.u8()?,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MapEntities {
+    pub map_id: String,
+    pub field: u8,
+    pub mobs: Vec<Mob>,
+}
+/// s2c/43: the mobs of the current map and zone.
+pub fn map_entities(p: &[u8]) -> Result<MapEntities> {
+    let mut r = Reader::new(p);
+    let (map_id, field) = (r.string()?, r.u8()?);
+    let mut mobs = vec![];
+    while r.remaining() > 0 {
+        mobs.push(mob_record(&mut r)?);
+    }
+    Ok(MapEntities {
+        map_id,
+        field,
+        mobs,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Place {
+    pub id: i32,
+    pub name: String,
+    /// 2: NPC, 0: portal
+    #[serde(rename = "type")]
+    pub kind: u8,
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+}
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MapData {
+    pub map_id: String,
+    pub name: String,
+    pub area: u8,
+    pub x: i32,
+    pub y: i32,
+    pub places: Vec<Place>,
+}
+/// s2c/11 flag 1: map head, three grids, three ints, the places, three ints.
+pub fn map_data(p: &[u8]) -> Result<MapData> {
+    let mut r = Reader::new(p);
+    let flag = r.u8()?;
+    if flag != 1 {
+        return err("UNSUPPORTED_BRANCH", format!("Unobserved map flag {flag}"));
+    }
+    let (map_id, name, area, x, y) = (r.string()?, r.string()?, r.u8()?, r.i32()?, r.i32()?);
+    for _ in 0..3 {
+        r.i32()?;
+    }
+    for _ in 0..3 {
+        r.bytes()?;
+    }
+    for _ in 0..3 {
+        r.i32()?;
+    }
+    let mut places = vec![];
+    for _ in 0..r.i32()?.max(0) {
+        let (id, name, kind, x, y, w, h) = (
+            r.i32()?,
+            r.string()?,
+            r.u8()?,
+            r.i32()?,
+            r.i32()?,
+            r.i32()?,
+            r.i32()?,
+        );
+        r.u8()?;
+        r.i32()?;
+        r.i32()?;
+        places.push(Place {
+            id,
+            name,
+            kind,
+            x,
+            y,
+            w,
+            h,
+        });
+    }
+    for _ in 0..3 {
+        r.i32()?;
+    }
+    r.finish(
+        MapData {
+            map_id,
+            name,
+            area,
+            x,
+            y,
+            places,
+        },
+        "s2c/11",
+    )
+}
+
+/// The three grids of s2c/11 (mapGrid of src/world.ts): `rows` × `cols` bytes each, row by row from the top, one byte per
+/// tile of 32 server units, so x / 32 and y / 32 of the character and of the places index them.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MapGrid {
+    pub rows: usize,
+    pub cols: usize,
+    /// What is drawn; 0: nothing.
+    pub tiles: Vec<u8>,
+    #[serde(skip)]
+    pub decoration: Vec<u8>,
+    /// 0 and 2 mark platform runs; the meaning of each value is not known yet.
+    pub collision: Vec<u8>,
+}
+pub fn map_grid(p: &[u8]) -> Result<MapGrid> {
+    let mut r = Reader::new(p);
+    if r.u8()? != 1 {
+        return err("UNSUPPORTED_BRANCH", "map flag");
+    }
+    r.string()?;
+    r.string()?;
+    r.u8()?;
+    for _ in 0..3 {
+        r.i32()?;
+    }
+    let (rows, cols) = (r.i32()?.max(0) as usize, r.i32()?.max(0) as usize);
+    let (tiles, decoration, collision) = (
+        r.bytes()?.to_vec(),
+        r.bytes()?.to_vec(),
+        r.bytes()?.to_vec(),
+    );
+    if [tiles.len(), decoration.len(), collision.len()]
+        .iter()
+        .any(|&n| n != rows * cols)
+    {
+        return err(
+            "PAYLOAD_SCHEMA",
+            format!("s2c/11 grids are not {rows} × {cols}"),
+        );
+    }
+    Ok(MapGrid {
+        rows,
+        cols,
+        tiles,
+        decoration,
+        collision,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MapChange {
+    pub map_id: String,
+    /// After a zone change.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zone: Option<i32>,
+    /// After a portal: index in the world map; the zone comes with the next s2c/11.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub map_index: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra: Option<[u8; 2]>,
+}
+/// s2c/13
+pub fn map_change(p: &[u8]) -> Result<MapChange> {
+    let mut r = Reader::new(p);
+    let (map_id, value) = (r.string()?, r.i32()?);
+    if r.remaining() == 0 {
+        return Ok(MapChange {
+            map_id,
+            zone: Some(value),
+            map_index: None,
+            extra: None,
+        });
+    }
+    let extra = [r.u8()?, r.u8()?];
+    r.finish(
+        MapChange {
+            map_id,
+            zone: None,
+            map_index: Some(value),
+            extra: Some(extra),
+        },
+        "s2c/13",
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BossPush {
+    pub map_id: String,
+    pub field: u8,
+    /// field 1: the boss left its tile (~13 s until the next field 0).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mob: Option<Mob>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<u8>,
+    /// Tile column and row (tiles of 32).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<[i32; 2]>,
+}
+/// s2c/1177
+pub fn map_boss(p: &[u8]) -> Result<BossPush> {
+    let mut r = Reader::new(p);
+    let (map_id, field) = (r.string()?, r.u8()?);
+    if field == 1 {
+        let gone = r.string()?;
+        return r.finish(
+            BossPush {
+                map_id,
+                field,
+                gone: Some(gone),
+                mob: None,
+                state: None,
+                tile: None,
+            },
+            "s2c/1177",
+        );
+    }
+    let mob = mob_record(&mut r)?;
+    let (state, tile) = (r.u8()?, [r.i32()?, r.i32()?]);
+    r.finish(
+        BossPush {
+            map_id,
+            field,
+            gone: None,
+            mob: Some(mob),
+            state: Some(state),
+            tile: Some(tile),
+        },
+        "s2c/1177",
+    )
+}
+
+/// s2c/1256: a notice line ("Thua trận, mất 16 kinh nghiệm", a portal refusal).
+pub fn notice(p: &[u8]) -> Result<String> {
+    let mut r = Reader::new(p);
+    r.u8()?;
+    let text = r.string()?;
+    r.finish(text, "s2c/1256")
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Stats {
+    pub kind: i32,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stats: Option<Vec<i32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hp: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_hp: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exp: Option<i32>,
+    /// EXP range of the current level.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level_exp: Option<[i32; 2]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coin: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra: Option<Vec<i32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stat_points: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<Vec<i32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<[String; 2]>,
+}
+/// s2c/10: kind 2 level and stats, kind 4 HP/EXP/coins (also after every battle), kind 8 stat points.
+pub fn character_stats(p: &[u8]) -> Result<Stats> {
+    let mut r = Reader::new(p);
+    let (kind, name) = (r.i32()?, r.string()?);
+    fn ints(r: &mut Reader, n: usize) -> Result<Vec<i32>> {
+        (0..n).map(|_| r.i32()).collect()
+    }
+    let mut s = Stats {
+        kind,
+        name,
+        ..Default::default()
+    };
+    match kind {
+        2 => {
+            s.level = Some(r.i32()?);
+            s.stats = Some(ints(&mut r, 10)?);
+        }
+        4 => {
+            s.hp = Some(r.i32()?);
+            s.max_hp = Some(r.i32()?);
+            s.exp = Some(r.i32()?);
+            s.level_exp = Some([r.i32()?, r.i32()?]);
+            s.coin = Some(r.i32()?);
+            s.extra = Some(ints(&mut r, 6)?);
+        }
+        8 => {
+            s.stat_points = Some(r.i32()?);
+            s.fields = Some(ints(&mut r, 3)?);
+            s.labels = Some([r.string()?, r.string()?]);
+        }
+        _ => {}
+    }
+    Ok(s)
+}
+
+/// Another player of the zone, from its record in s2c/1167 or s2c/1263.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Player {
+    pub id: i32,
+    pub name: String,
+    pub level: i32,
+    pub x: i32,
+    pub y: i32,
+}
+/// Player record of s2c/1167 and of each s2c/1263 entry; the appearance block is read past, as in src/world.ts.
+pub fn player_record(r: &mut Reader) -> Result<Player> {
+    r.u8()?;
+    let (name, id) = (r.string()?, r.i32()?);
+    r.string()?;
+    r.take(2)?;
+    let level = r.i32()?;
+    r.take(16)?; // hp, max hp, s1, s1 max
+    r.u16()?;
+    let (x, y) = (r.i32()?, r.i32()?);
+    r.take(24 + 12)?; // gear[6]; three ints of the appearance block
+    r.u8()?;
+    r.bytes()?;
+    r.i32()?;
+    r.bytes()?; // palette layers (ARGB)
+    r.i32()?;
+    r.u8()?;
+    r.take(40)?; // two groups of five ints
+    let marker = r.i32()?;
+    if marker != 99000 {
+        return err(
+            "PAYLOAD_SCHEMA",
+            format!("Unobserved appearance marker {marker}"),
+        );
+    }
+    for _ in 0..r.u8()? {
+        r.i32()?;
+        r.bytes()?;
+    }
+    r.i32()?;
+    r.string()?; // faction ("sứ quân")
+    r.take(2)?;
+    Ok(Player {
+        id,
+        name,
+        level,
+        x,
+        y,
+    })
+}
+/// s2c/1212, also appended to every s2c/1263 entry: effects, read past.
+fn player_status(r: &mut Reader) -> Result<()> {
+    r.i32()?;
+    if r.u8()? == 2 {
+        let n = r.u8()? as usize;
+        r.take(n * 6 + 1)?;
+    } else {
+        r.take(6)?;
+    }
+    Ok(())
+}
+/// s2c/1263: every other player of the zone.
+pub fn players_snapshot(p: &[u8]) -> Result<Vec<Player>> {
+    let mut r = Reader::new(p);
+    let mut players = vec![];
+    for _ in 0..r.u16()? {
+        players.push(player_record(&mut r)?);
+        player_status(&mut r)?;
+    }
+    r.finish(players, "s2c/1263")
+}
+
+/// A player of the zone as the app lists it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Nearby {
+    pub id: i32,
+    pub name: String,
+    pub level: i32,
+}
+impl From<Player> for Nearby {
+    fn from(p: Player) -> Self {
+        Self {
+            id: p.id,
+            name: p.name,
+            level: p.level,
+        }
+    }
+}
+/// The other players of the zone; port of ZonePlayers of src/world.ts. s2c/1263 replaces the list (after c2s/43 and
+/// after a battle), s2c/1167 adds or refreshes one, s2c/1170 removes one, s2c/1253 updates a level. The own character
+/// is never in it.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ZonePlayers {
+    players: std::collections::HashMap<i32, Nearby>,
+}
+impl ZonePlayers {
+    /// True when the packet changed the list.
+    pub fn on(&mut self, opcode: i32, p: &[u8]) -> Result<bool> {
+        match opcode {
+            1263 => {
+                self.players = players_snapshot(p)?
+                    .into_iter()
+                    .map(|pl| (pl.id, pl.into()))
+                    .collect();
+                Ok(true)
+            }
+            1167 => {
+                let pl = player_record(&mut Reader::new(p))?;
+                self.players.insert(pl.id, pl.into());
+                Ok(true)
+            }
+            1170 => Ok(self.players.remove(&Reader::new(p).i32()?).is_some()),
+            1253 => {
+                let mut r = Reader::new(p);
+                let (id, level) = (r.i32()?, r.i32()?);
+                Ok(self.players.get_mut(&id).map(|n| n.level = level).is_some())
+            }
+            _ => Ok(false),
+        }
+    }
+    pub fn len(&self) -> usize {
+        self.players.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.players.is_empty()
+    }
+    pub fn clear(&mut self) {
+        self.players.clear();
+    }
+    /// Highest level first, then by lower-case name, then id.
+    pub fn list(&self) -> Vec<Nearby> {
+        let mut out: Vec<Nearby> = self.players.values().cloned().collect();
+        out.sort_by(|a, b| {
+            b.level
+                .cmp(&a.level)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                .then(a.id.cmp(&b.id))
+        });
+        out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Nearby, ZonePlayers};
+
+    #[test]
+    fn zone_list_orders_names_by_code_point_like_the_ts_list() {
+        let mut zone = ZonePlayers::default();
+        for (id, name, level) in [
+            (1, "\u{1F600}x", 5),
+            (2, "\u{FF21}y", 5),
+            (3, "b", 5),
+            (4, "A", 5),
+            (5, "z", 9),
+        ] {
+            let name = name.to_string();
+            zone.players.insert(id, Nearby { id, name, level });
+        }
+        let ids: Vec<i32> = zone.list().iter().map(|n| n.id).collect();
+        assert_eq!(ids, [5, 4, 3, 2, 1]);
+    }
+}

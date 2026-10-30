@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
+import { decodeEvent } from '../src/events.ts';
 import { Protocol, Reader, Writer, handshake, sessionKey, passwordProof, loginPayload,
-  characterPrefix, mapPrefix, usernameHash } from '../src/protocol.ts';
+  characterPrefix, characterProfile, mapPrefix, usernameHash } from '../src/protocol.ts';
 
 const fixture = (name: string) => fixtures[name];
 const boot = fixture('prelogin');
@@ -60,6 +61,28 @@ test('profile and map parser follow the native getter offsets', () => {
   assert.deepEqual(profile, { status: 1, count: 1, name: 'manina', numericId: 155, displayName: 'manina', flag1: 1, flag2: 0, level: 3, hp: 120, maxHp: 130, prefixBytes: 40 });
   const map = mapPrefix(Buffer.from(fields.examples.find((x: { op: number }) => x.op === 11).hex, 'hex'));
   assert.deepEqual(map, { flag: 1, mapId: 'M1', name: 'Làng Thanh Khê', area: 5, x: 932, y: 544, field36: 0, dimension1: 23, dimension2: 156, tileBytes: 3588, prefixBytes: 3640 });
+});
+
+test('s2c/9 tail: the numbers of s2c/10 kinds 2, 4, 8 and the x, y of the next s2c/11 (A2 level 3, 30/10 level 21)', () => {
+  const a2hex = fixture('scenario').stages.flatMap((s: any) => s.responses ?? []).find((r: any) => r.opcode === 9).hex;
+  const a2 = characterProfile(Buffer.from(a2hex, 'hex')), now = characterProfile(Buffer.from(fixture('profile')['s2c/9 level 21'], 'hex'));
+  const pick = (p: typeof a2) => [p.level, p.hp, p.maxHp, p.s1, p.s1Max, p.stats, p.combat, p.exp, p.coin, p.field, p.statPoints, p.skillPoints, p.levelExp, p.labels, p.x, p.y];
+  assert.deepEqual(pick(a2), [3, 120, 130, 0, 100, [22, 10, 10, 12, 0, 0, 0, 0, 0, 0], [22, 9, 30, 20, 6], 176, 0, 10000, 6, 1, [150, 300], ['780', '125'], 932, 544]);
+  assert.deepEqual(pick(now), [21, 180, 180, 0, 100, [32, 10, 10, 30, 0, 0, 0, 0, 0, 0], [32, 5, 30, 20, 6], 14238, 2664, 10000, 68, 19, [13841, 15882], ['355', '125'], 2784, 864]);
+  for (const p of [a2, now]) {
+    assert.ok(p.exp >= p.levelExp[0] && p.exp < p.levelExp[1]);
+    assert.equal(p.skillPoints, p.level - 2);
+    assert.deepEqual(p.gap, [0, 0, 0, 0, 0, 0]);
+  }
+  // A2 x, y = its s2c/11 (mapPrefix test above); stat points: 6 at level 3, +4 per level, 10 spent on stats[0] in L1.
+  assert.equal(now.statPoints, a2.statPoints + 4 * (now.level - a2.level) - (now.stats[0] - a2.stats[0]));
+});
+
+test('decodeEvent keeps the s2c/9 prefix when the tail does not fit the two captured layouts', () => {
+  const prefixOnly = Buffer.from(fixture('fields').examples.find((x: { op: number }) => x.op === 9).hex, 'hex');
+  assert.throws(() => characterProfile(prefixOnly));
+  const d = decodeEvent('s2c', 9, prefixOnly);
+  assert.deepEqual([d.fields.name, d.fields.level, d.fields.hp, d.parsedBytes], ['manina', 3, 120, 40]);
 });
 
 test('reject malformed lengths and unsupported key sizes before allocating message bodies', () => {

@@ -52,8 +52,8 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Nhãn phân tích | character_data |
 | Xuất hiện khi | Trả character_request |
 | Sau đó | c2s/30 |
-| Bố cục payload | u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; opaque tail |
-| Độ chắc chắn | Getter/byte đã đo; field01 có thể là số nhân vật, chưa chốt; level/HP khớp UI |
+| Bố cục payload | u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; i32 s1,s1Max; i32 stats[10]; i32 combat[5]; i32 exp,coin,field; i32 statPoints,skillPoints; i32 levelExp[2]; string labels[2]; u8[6]; i32 x,y; opaque tail (kỹ năng, trang bị) |
+| Độ chắc chắn | Prefix: getter native, level/HP khớp UI; field01 chưa chốt. Đuôi: hai mẫu (A2 cấp 3, đăng nhập 30/10 cấp 21) khớp s2c/10 và x/y của s2c/11; statPoints, skillPoints là suy luận |
 | Độ dài payload mẫu | 551 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -62,7 +62,7 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 0101000000066d616e696e610000009b000000066d616e696e6101000000000300000078000000820000000000000064000000160000000a0000000a0000000c00000000000000000000000000000000000000000000000000000016000000090000001e0000001400000006000000b000000000000027100000000600000001
 ```
 
-Hiển thị 128/551 byte đầu. Các giá trị đã đọc được ghi bên dưới; phần chưa rõ không được điền thêm byte hoặc coi là schema đã hiểu.
+Hiển thị 128/551 byte đầu. JSON và bảng getter dưới đây là bản ghi gốc của A2, khi mới đọc được 40 byte prefix. Phần đuôi (EXP, chỉ số, x/y) giải sau, xem [dữ liệu nhân vật](../user-data.md#đuôi-s2c9).
 
 Nguồn: A2: packet đọc từ native reader, record 100.
 

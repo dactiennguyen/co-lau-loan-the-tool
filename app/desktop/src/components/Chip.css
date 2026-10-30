@@ -1,0 +1,14 @@
+.chip {
+  height: 30px;
+  min-width: 40px;
+  padding: 0 12px;
+  border-radius: 15px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--fg-2);
+  font: 600 12px/1 var(--font-display);
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.chip:hover { background: rgb(167 139 250 / 0.08); color: var(--fg); }
+.chip--active { background: rgb(124 58 237 / 0.25); border-color: var(--primary-2); color: #fff; }

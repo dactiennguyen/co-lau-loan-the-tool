@@ -1,0 +1,21 @@
+.badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font: 700 11px/1 var(--font-display);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  isolation: isolate;
+}
+.badge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0.16;
+  z-index: -1;
+}

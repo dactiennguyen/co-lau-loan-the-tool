@@ -1,0 +1,661 @@
+// The Rust core against the TypeScript side: vectors.json is written by `npm run export:rust` from test/fixtures.ts and
+// what the TS decoders, request builders, battle replay and bestMove compute (src/export-rust.ts).
+use cllt_core::atlas::Atlas;
+use cllt_core::battle::{
+    self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
+};
+use cllt_core::bot::{Bot, BotOptions, Out};
+use cllt_core::protocol::*;
+use cllt_core::requests::{build, Ctx};
+use cllt_core::runner::{Act, BattleEnd, BattleRunner, RunnerOptions};
+use cllt_core::world;
+use serde_json::{json, Value};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+fn v() -> Value {
+    serde_json::from_str(include_str!("vectors.json")).unwrap()
+}
+fn hex(s: &str) -> Vec<u8> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect()
+}
+fn tohex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+fn board(v: &Value) -> Board {
+    let mut b = [0i16; N * N];
+    for (i, x) in v.as_array().unwrap().iter().enumerate() {
+        b[i] = x.as_i64().unwrap() as i16;
+    }
+    b
+}
+
+#[test]
+fn handshake_matches_capture() {
+    let p = &v()["prelogin"];
+    let seed = i32::from_be_bytes(hex(p["seed"].as_str().unwrap()).try_into().unwrap());
+    assert_eq!(tohex(&handshake(seed)), p["handshake"].as_str().unwrap());
+}
+
+#[test]
+fn server_frames_decode_under_any_fragmentation() {
+    let p = &v()["prelogin"];
+    let wire: Vec<u8> = p["received_chunks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| hex(c.as_str().unwrap()))
+        .collect();
+    let want: Vec<(i64, String)> = p["decoded_receive"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| (x["op"].as_i64().unwrap(), x["hex"].as_str().unwrap().into()))
+        .collect();
+    for step in [1, 2, 7, 13, 17, 97, wire.len()] {
+        let (mut proto, mut got) = (Protocol::default(), vec![]);
+        for chunk in wire.chunks(step) {
+            proto.push(chunk);
+            while let Some(pk) = proto.next_packet().unwrap() {
+                if pk.opcode == Some(-1) {
+                    let k = session_key(&pk.payload).unwrap();
+                    assert_eq!(tohex(&k), p["key"].as_str().unwrap());
+                    proto.enable_key(k);
+                }
+                got.push((pk.opcode.unwrap() as i64, tohex(&pk.payload)));
+            }
+        }
+        assert_eq!(got, want, "step {step}");
+    }
+}
+
+#[test]
+fn client_frames_match_capture() {
+    let p = &v()["prelogin"];
+    let key: [u8; 16] = hex(p["key"].as_str().unwrap()).try_into().unwrap();
+    let mut proto = Protocol::default();
+    for (i, pk) in p["decoded_send"].as_array().unwrap().iter().enumerate() {
+        let op = pk["op"].as_i64().unwrap() as i32;
+        if op == 1206 {
+            proto.enable_key(key);
+        }
+        assert_eq!(
+            tohex(&proto.encode(op, &hex(pk["hex"].as_str().unwrap())).unwrap()),
+            p["sent_frames"][i].as_str().unwrap(),
+            "frame {i}"
+        );
+    }
+}
+
+#[test]
+fn password_and_login_match_native_vectors() {
+    let all = v();
+    for x in all["password"].as_array().unwrap() {
+        let out = password_proof(
+            &hex(x["challenge"].as_str().unwrap()),
+            x["password"].as_str().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(tohex(&out), x["out"].as_str().unwrap(), "{x}");
+    }
+    for x in all["login"].as_array().unwrap() {
+        let proof: Vec<u8> = x["input"]["proof"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b.as_u64().unwrap() as u8)
+            .collect();
+        let got = login_payload(
+            x["input"]["username"].as_str().unwrap(),
+            &proof,
+            x["input"]["serverId"].as_i64().unwrap() as i32,
+        );
+        assert_eq!(tohex(&got), x["data"].as_str().unwrap());
+    }
+}
+
+#[test]
+fn decoders_read_what_the_ts_decoders_read() {
+    let all = v();
+    for case in all["decoders"].as_array().unwrap() {
+        let (f, p) = (
+            case["fn"].as_str().unwrap(),
+            hex(case["hex"].as_str().unwrap()),
+        );
+        let got = match f {
+            "characterPrefix" => serde_json::to_value(character_prefix(&p).unwrap()),
+            "characterProfile" => serde_json::to_value(character_profile(&p).unwrap()),
+            "playersSnapshot" => serde_json::to_value(world::players_snapshot(&p).unwrap()),
+            "playerRecord" => {
+                serde_json::to_value(world::player_record(&mut Reader::new(&p)).unwrap())
+            }
+            "characterLocation" => serde_json::to_value(character_location(&p).unwrap()),
+            "mapPrefix" => serde_json::to_value(map_prefix(&p).unwrap()),
+            "mapData" => serde_json::to_value(world::map_data(&p).unwrap()),
+            "mapGrid" => serde_json::to_value(world::map_grid(&p).unwrap()),
+            "mapChange" => serde_json::to_value(world::map_change(&p).unwrap()),
+            "mapEntities" => serde_json::to_value(world::map_entities(&p).unwrap()),
+            "mapBoss" => serde_json::to_value(world::map_boss(&p).unwrap()),
+            "notice" => serde_json::to_value(world::notice(&p).unwrap()),
+            "characterStats" => serde_json::to_value(world::character_stats(&p).unwrap()),
+            "battleSetup" => serde_json::to_value(battle::battle_setup(&p).unwrap()),
+            "battleJoinAck" => serde_json::to_value(battle::battle_join_ack(&p).unwrap()),
+            "turnState" => serde_json::to_value(battle::turn_state(&p).unwrap()),
+            "battleResult19" => serde_json::to_value(battle_result(&p, 19).unwrap()),
+            "battleResult20" => serde_json::to_value(battle_result(&p, 20).unwrap()),
+            "timeoutResult" => serde_json::to_value(battle::timeout_result(&p).unwrap()),
+            other => panic!("no Rust decoder for {other}"),
+        }
+        .unwrap();
+        assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
+    }
+}
+
+#[test]
+fn zone_players_follow_the_ts_list() {
+    let mut zone = world::ZonePlayers::default();
+    for step in v()["zone"].as_array().unwrap() {
+        let opcode = step["opcode"].as_i64().unwrap() as i32;
+        let changed = zone
+            .on(opcode, &hex(step["hex"].as_str().unwrap()))
+            .unwrap();
+        assert_eq!(changed, step["changed"].as_bool().unwrap(), "s2c/{opcode}");
+        let got: Vec<Value> = zone
+            .list()
+            .into_iter()
+            .map(|n| json!([n.id, n.name, n.level]))
+            .collect();
+        assert_eq!(Value::from(got), step["players"], "s2c/{opcode}");
+    }
+}
+
+#[test]
+fn requests_match_build_request() {
+    let all = v();
+    for r in all["requests"].as_array().unwrap() {
+        let c = &r["ctx"];
+        let s = |k: &str| c[k].as_str();
+        let i = |k: &str| c[k].as_i64().map(|x| x as i32);
+        let mv = c["move"]
+            .as_object()
+            .map(|_| serde_json::from_value::<Move>(c["move"].clone()).unwrap());
+        let ctx = Ctx {
+            username: s("username"),
+            server_id: i("serverId"),
+            character_name: s("characterName"),
+            map_id: s("mapId"),
+            npc_id: i("npcId"),
+            mob_id: s("mobId"),
+            battle_uuid: s("battleUuid"),
+            seq: i("seq"),
+            skill: i("skill"),
+            mv,
+            ..Ctx::default()
+        };
+        let op = r["opcode"].as_i64().unwrap() as i32;
+        assert_eq!(
+            tohex(&build(op, &ctx).unwrap()),
+            r["hex"].as_str().unwrap(),
+            "c2s/{op}"
+        );
+    }
+}
+
+#[test]
+fn captured_battles_replay_like_battle_ts() {
+    let all = v();
+    for b in all["battles"].as_array().unwrap() {
+        let mut bd = board(&b["board"]);
+        for (k, s) in b["steps"].as_array().unwrap().iter().enumerate() {
+            if let Some(m) = s["move"].as_array() {
+                let m: Vec<i32> = m.iter().map(|x| x.as_i64().unwrap() as i32).collect();
+                swap(
+                    &mut bd,
+                    Move {
+                        from: (m[0], m[1]),
+                        to: (m[2], m[3]),
+                    },
+                );
+            }
+            let refill: Vec<i16> = s["refill"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_i64().unwrap() as i16)
+                .collect();
+            let cells: Vec<usize> = s["cells"].as_array().map_or(vec![], |c| {
+                c.iter()
+                    .map(|rc| (rc[0].as_u64().unwrap() * 8 + rc[1].as_u64().unwrap()) as usize)
+                    .collect()
+            });
+            let o = settle(&mut bd, Some(&refill), &cells);
+            let where_ = format!("{} step {k}", b["source"]);
+            assert_eq!(bd, board(&s["board"]), "{where_}: board");
+            assert_eq!(
+                serde_json::to_value(&o.cleared).unwrap(),
+                s["cleared"],
+                "{where_}: cleared"
+            );
+            assert_eq!(
+                (o.waves as i64, o.extra_turn),
+                (
+                    s["waves"].as_i64().unwrap(),
+                    s["extraTurn"].as_bool().unwrap()
+                ),
+                "{where_}: waves, extra turn"
+            );
+            assert_eq!(o.refill_used, refill.len(), "{where_}: refill used");
+        }
+    }
+}
+
+fn side(v: &Value) -> Fighter {
+    let f = |k: &str| v[k].as_f64().unwrap_or(f64::INFINITY); // null: HP not known yet (Infinity on the TS side)
+    Fighter {
+        hp: f("hp"),
+        max_hp: f("maxHp"),
+        s1: f("s1"),
+        s2: f("s2"),
+        sword: f("sword"),
+        heart: f("heart"),
+        yinyang: f("yinyang"),
+        peach: f("peach"),
+        skill_cost: f("skillCost"),
+        skill_damage: f("skillDamage"),
+    }
+}
+
+#[test]
+fn best_move_picks_what_the_ts_search_picks() {
+    let all = v();
+    let cases = all["bestMoves"].as_array().unwrap();
+    for (i, c) in cases.iter().enumerate() {
+        let base = if c["strategy"] == "exp" {
+            Strategy::exp()
+        } else {
+            Strategy::kill()
+        };
+        let s = Strategy {
+            reply: c["reply"].as_f64().unwrap(),
+            ..base
+        };
+        let pick = best_move(&board(&c["board"]), &side(&c["me"]), &side(&c["mob"]), &s);
+        match pick {
+            None => assert!(c["move"].is_null(), "position {i}: no move"),
+            Some(p) => {
+                assert_eq!(
+                    serde_json::to_value(p.mv).unwrap(),
+                    c["move"],
+                    "position {i}: move"
+                );
+                assert_eq!(p.score, c["score"].as_f64().unwrap(), "position {i}: score");
+            }
+        }
+    }
+    assert!(cases.len() > 50);
+}
+
+#[test]
+fn runner_learns_what_a_piece_does_for_the_mob() {
+    let all = v();
+    let setup = battle::Setup {
+        me: "manina".into(),
+        level: 19,
+        hp: 174,
+        max_hp: 174,
+        uuid: "u".into(),
+        board: board(&all["battles"][0]["board"]).to_vec(),
+        turn_seconds: 30,
+    };
+    let mut runner = BattleRunner::new(&setup, "mob61000", RunnerOptions::default());
+    let unit = |damage| battle::Unit {
+        name: "mob61000".into(),
+        damage,
+        b: 0,
+        hp: -1,
+        s1: -1,
+        s2: -1,
+    };
+    runner.learn_mob(&unit(33), &[(0, 3)], false);
+    assert_eq!(runner.mob.sword, (8.0 * 6.0 + 33.0) / 9.0); // prior 8 as six pieces, then three swords for 33
+    runner.mob.s1 = 30.0;
+    runner.learn_mob(&unit(59), &[], true);
+    assert_eq!(
+        (runner.mob.skill_damage, runner.mob.skill_cost),
+        ((40.0 + 59.0) / 2.0, 30.0)
+    );
+}
+
+#[test]
+fn runner_joins_steps_for_the_mob_plays_a_legal_move_and_ends() {
+    let all = v();
+    let packet = |name: &str| {
+        hex(all["decoders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| {
+                d["fn"] == "turnState"
+                    && d["expected"]["playerTurn"] == json!(if name == "own" { 1 } else { 0 })
+            })
+            .unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let b = board(&all["battles"][0]["board"]);
+    let setup = battle::Setup {
+        me: "manina".into(),
+        level: 3,
+        hp: 130,
+        max_hp: 130,
+        uuid: "u".into(),
+        board: b.to_vec(),
+        turn_seconds: 30,
+    };
+    let (mut runner, mut acts, now) = (
+        BattleRunner::new(&setup, "mob872604", RunnerOptions::default()),
+        vec![],
+        Instant::now(),
+    );
+    runner.start(&mut acts);
+    assert_eq!(
+        acts.pop(),
+        Some(Act::Send(18, Writer::new().string("u").build()))
+    );
+    runner
+        .on_packet(18, &hex("000000000000"), now, &mut acts)
+        .unwrap();
+    assert_eq!(
+        acts.pop(),
+        Some(Act::Send(14, Writer::new().string("u").i32(0).build()))
+    );
+    runner
+        .on_packet(24, &packet("mob"), now, &mut acts)
+        .unwrap();
+    assert_eq!(
+        acts.pop(),
+        Some(Act::Send(14, Writer::new().string("u").i32(4).build()))
+    );
+    runner
+        .on_packet(24, &packet("own"), now, &mut acts)
+        .unwrap();
+    let Some(Act::Send(19, p)) = acts.pop() else {
+        panic!("no swap")
+    };
+    let mut r = Reader::new(&p);
+    r.string().unwrap();
+    r.i32().unwrap();
+    let m = Move {
+        from: (r.i32().unwrap() - 2, r.i32().unwrap() - 2),
+        to: (r.i32().unwrap() - 2, r.i32().unwrap() - 2),
+    };
+    assert!(legal_moves(&b).contains(&m));
+    let end = Writer::new()
+        .i32(2)
+        .i32(0)
+        .i32(0)
+        .i32(2)
+        .i32(2)
+        .i32(2)
+        .i32(3)
+        .i32(1)
+        .bytes(&[])
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(1)
+        .string("mob872604")
+        .i32(29)
+        .u8(0)
+        .i32(0)
+        .i32(-1)
+        .i32(-1)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(1)
+        .string("manina")
+        .u8(1)
+        .u8(1)
+        .i32(8)
+        .i32(4)
+        .build();
+    assert!(runner.on_packet(19, &end, now, &mut acts).unwrap());
+    let expected = BattleEnd {
+        won: true,
+        actor: "manina".into(),
+        exp: Some(8),
+        coin: Some(4),
+        my_turns: 1,
+        hp: 130.0,
+        mob_id: "mob872604".into(),
+        damage: 0,
+    };
+    assert_eq!(acts.pop(), Some(Act::End(expected)));
+    assert!(!runner.on_packet(1262, &[], now, &mut acts).unwrap());
+    assert_eq!(runner.deadline(), None);
+}
+
+/// s2c/1177 of a boss in the layout of world.ts (field 0 at a tile, field 1 gone).
+fn boss(field: u8) -> Vec<u8> {
+    if field == 1 {
+        return Writer::new()
+            .string("M1")
+            .u8(1)
+            .string("mob86100001")
+            .build();
+    }
+    Writer::new()
+        .string("M1")
+        .u8(0)
+        .string("mob86100001")
+        .string("Thủ Lĩnh Sơn Tặc")
+        .i32(11)
+        .u8(0)
+        .i32(9)
+        .i32(1)
+        .u8(1)
+        .u8(1)
+        .i32(85)
+        .i32(5)
+        .build()
+}
+
+#[test]
+fn fight_job_challenges_a_boss_with_1178_waits_while_it_moves_and_goes_on_after_losing() {
+    let (mut bot, mut out, now) = (
+        Bot::new(
+            BotOptions {
+                rest: Duration::from_secs(60),
+                ..BotOptions::default()
+            },
+            Arc::new(Atlas::default()),
+        ),
+        vec![],
+        Instant::now(),
+    );
+    bot.on_packet(
+        29,
+        &Writer::new().string("manina").string("M1").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        43,
+        &Writer::new()
+            .string("M1")
+            .u8(3)
+            .string("mob10")
+            .string("Gà Điên")
+            .i32(1)
+            .u8(0)
+            .i32(6)
+            .i32(1)
+            .u8(0)
+            .build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(1177, &boss(0), now, &mut out).unwrap();
+    let t = bot.targets();
+    assert_eq!(
+        (t[0].name.as_str(), t[0].boss, t[1].name.as_str(), t[1].boss),
+        ("Thủ Lĩnh Sơn Tặc", true, "Gà Điên", false)
+    );
+    bot.fight("Thủ Lĩnh Sơn Tặc", 3, 1, now, &mut out);
+    assert!(out.contains(&Out::Send(
+        1178,
+        Writer::new().string("mob86100001").i32(0).build()
+    )));
+    out.clear();
+    // The boss leaves its tile; no answer to the challenge in 8 s: the job waits for it instead of giving up.
+    bot.on_packet(1177, &boss(1), now, &mut out).unwrap();
+    bot.on_timer(now + Duration::from_secs(9), &mut out);
+    assert!(matches!(out.last(), Some(Out::Log(t)) if t.contains("đang đổi chỗ")));
+    assert!(!out.iter().any(|o| matches!(o, Out::Send(..))));
+    bot.on_packet(1177, &boss(0), now, &mut out).unwrap();
+    bot.on_timer(now + Duration::from_secs(15), &mut out);
+    assert!(matches!(out.last(), Some(Out::Send(1178, _))));
+    assert_eq!(bot.snap.job.as_ref().unwrap().fights, 2);
+}
+
+/// A bot on M2 with one Cóc Xanh (mob61000) in the zone, and the s2c/22 that opens a battle against it.
+fn coc_xanh_bot() -> (Bot, Vec<Out>, Instant, Vec<u8>) {
+    let all = v();
+    let setup = hex(all["decoders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["fn"] == "battleSetup")
+        .unwrap()["hex"]
+        .as_str()
+        .unwrap()); // mob61000
+    let (mut bot, mut out, now) = (
+        Bot::new(BotOptions::default(), Arc::new(Atlas::default())),
+        vec![],
+        Instant::now(),
+    );
+    bot.on_packet(
+        29,
+        &Writer::new().string("manina").string("M2").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        43,
+        &Writer::new()
+            .string("M2")
+            .u8(3)
+            .string("mob61000")
+            .string("Cóc Xanh")
+            .i32(13)
+            .u8(0)
+            .i32(6)
+            .i32(1)
+            .u8(0)
+            .build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    (bot, out, now, setup)
+}
+
+/// s2c/19 ending the battle against mob61000 with a loss.
+fn lost_battle() -> Vec<u8> {
+    Writer::new()
+        .i32(2)
+        .i32(0)
+        .i32(0)
+        .i32(2)
+        .i32(2)
+        .i32(2)
+        .i32(3)
+        .i32(1)
+        .bytes(&[])
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(1)
+        .string("manina")
+        .i32(40)
+        .u8(0)
+        .i32(0)
+        .i32(-1)
+        .i32(-1)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .string("mob61000")
+        .u8(1)
+        .u8(0)
+        .i32(0)
+        .i32(0)
+        .build()
+}
+
+#[test]
+fn fight_job_against_a_mob_stops_at_max_losses_and_a_missing_mob_ends_it() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert!(out.contains(&Out::Send(
+        15,
+        Writer::new().string("mob61000").u8(0).build()
+    )));
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert!(matches!(out.last(), Some(Out::Send(18, _))));
+    assert_eq!(
+        bot.snapshot().battle.map(|b| b.mob_name),
+        Some("Cóc Xanh".to_string())
+    );
+    let lost = lost_battle();
+    bot.on_packet(19, &lost, now, &mut out).unwrap();
+    let job = bot.snap.job.clone().unwrap();
+    assert_eq!(
+        (job.fights, job.losses, job.done.as_deref()),
+        (1, 1, Some("Thua 1 trận"))
+    );
+    assert_eq!(bot.deadline(), None);
+    bot.on_packet(43, &Writer::new().string("M2").u8(3).build(), now, &mut out)
+        .unwrap();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert_eq!(
+        bot.snap.job.as_ref().unwrap().done.as_deref(),
+        Some("Không thấy Cóc Xanh ở khu này")
+    );
+}
+
+#[test]
+fn a_job_started_mid_battle_does_not_count_that_battle_or_challenge_twice() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    let challenges = |out: &[Out]| out.iter().filter(|o| matches!(o, Out::Send(15, _))).count();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    // A second click while the challenge waits for s2c/22 sends no second challenge.
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert_eq!(challenges(&out), 1);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    // A new job while the battle runs: nothing is sent until the battle ends.
+    bot.fight("Cóc Xanh", 3, 1, now, &mut out);
+    assert_eq!(challenges(&out), 1);
+    bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
+    let job = bot.snap.job.clone().unwrap();
+    assert_eq!(
+        (job.count, job.fights, job.losses, job.done),
+        (3, 0, 0, None)
+    );
+    assert!(out.contains(&Out::Log("Trận của việc trước: thua, +0 EXP".into())));
+    // After the rest, the new job challenges.
+    let later = bot.deadline().expect("rest timer");
+    bot.on_timer(later, &mut out);
+    assert_eq!(challenges(&out), 2);
+    assert_eq!(bot.snap.job.unwrap().fights, 1);
+}

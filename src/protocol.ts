@@ -145,6 +145,19 @@ export function characterPrefix(payload: Uint8Array) {
   return { status, count, name, numericId, displayName, flag1, flag2, level, hp, maxHp, prefixBytes: r.offset };
 }
 
+/** s2c/9 after the prefix: the numbers s2c/10 kinds 2, 4 and 8 send later, then where the character stands (the x, y of
+ * the s2c/11 that follows). `combat` is extra[1..5] of s2c/10 kind 4: attack, defence, then three the character panel
+ * probably shows as accuracy, dodge, critical. The skill list and the rest stay opaque. See docs/app/user-data.md. */
+export function characterProfile(payload: Uint8Array) {
+  const prefix = characterPrefix(payload), r = new Reader(payload);
+  r.take(prefix.prefixBytes);
+  const ints = (n: number) => Array.from({ length: n }, () => r.i32());
+  const s1 = r.i32(), s1Max = r.i32(), stats = ints(10), combat = ints(5), exp = r.i32(), coin = r.i32(), field = r.i32();
+  const statPoints = r.i32(), skillPoints = r.i32(), levelExp = ints(2), labels = [r.string(), r.string()];
+  const gap = [...r.take(6)], x = r.i32(), y = r.i32();
+  return { ...prefix, s1, s1Max, stats, combat, exp, coin, field, statPoints, skillPoints, levelExp, labels, gap, x, y, profileBytes: r.offset };
+}
+
 export function characterLocation(payload: Uint8Array) {
   const r = new Reader(payload);
   return { characterName: r.string(), mapId: r.string(), field: r.i32() };

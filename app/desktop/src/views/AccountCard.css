@@ -1,0 +1,32 @@
+.acard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.acard:hover { background: var(--card-2); }
+.acard--active {
+  background: linear-gradient(135deg, rgb(124 58 237 / 0.22), rgb(244 63 94 / 0.08)), var(--card);
+  border-color: transparent;
+  box-shadow: var(--shadow-glow);
+}
+.acard__body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.acard__top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.acard__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 15px/1.3 var(--font-display);
+  color: var(--fg);
+}
+.acard__line { font-size: 12px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acard__line--error { color: var(--danger); }
+.acard__bottom { display: flex; align-items: center; gap: var(--space-2); margin-top: 2px; }
+.acard__hp { flex: 1; min-width: 24px; }
+.acard__people { display: inline-flex; align-items: center; gap: 3px; font: 600 12px/1 var(--font-display); color: var(--fg-3); }

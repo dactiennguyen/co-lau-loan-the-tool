@@ -1,0 +1,15 @@
+[package]
+name = "cllt-core"
+description = "Protocol, battle and bots of Cờ Lau Loạn Thế, ported from src/ once proven there"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[[bin]]
+name = "cllt"
+path = "src/bin/cllt.rs"

@@ -1,0 +1,33 @@
+/* Page-wide defaults; layout lives in App.css and each view's CSS. */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgb(124 58 237 / 0.16), transparent 60%),
+    radial-gradient(700px 500px at 10% 110%, rgb(244 63 94 / 0.08), transparent 60%),
+    var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+button, input { font: inherit; color: inherit; }
+h1, h2, p { margin: 0; }
+
+.scroll { overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.scroll::-webkit-scrollbar { width: 8px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+
+.selectable { user-select: text; -webkit-user-select: text; }
+
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}

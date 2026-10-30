@@ -358,7 +358,7 @@ Khi thua (B1), 16 byte sau `end` đều là 0. Đối chiếu s2c/10 trước v�
 | thứ 3 | 176 | **184** | EXP (+8, khớp phần thưởng). HUD `(EXP − 150) / 151` = 17,2% → 22,5% [Đo] |
 | thứ 4, 5 | 150, 300 | 150, 300 | Mốc EXP của cấp 3, trùng cặp đầu bảng mốc [Đo] |
 | thứ 6 | 0 | **4** | Tiền (+4, khớp phần thưởng) [Suy luận về loại tiền] |
-| còn lại | 10000, 22, 9, 30, 20, 6 | giống | [Chưa rõ] |
+| còn lại | 10000, 22, 9, 30, 20, 6 | giống | 10000 chưa rõ. 5 số sau là chỉ số chiến đấu (tấn công, phòng thủ, …), cũng có trong đuôi `s2c/9` ([user-data](../user-data.md#đuôi-s2c9)) |
 
 ## Các gói mới thấy trong bot
 

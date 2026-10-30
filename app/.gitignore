@@ -1,0 +1,3 @@
+target/
+# Usernames and passwords of the accounts; local only.
+accounts.json

@@ -30,6 +30,15 @@ export function mapData(payload: Uint8Array) {
 }
 export type Place = ReturnType<typeof mapData>['places'][number];
 
+/** The three grids of s2c/11, `rows` × `cols` bytes each, row by row from the top, one byte per tile of 32 server units:
+ * x / 32 and y / 32 of the character (mapPrefix) and of the places index them (M2: 35 × 90 tiles, 2880 × 1120 units, portals
+ * at x 32 and 2848). Layer 1 is what is drawn (0: nothing), layer 3 marks platform runs (0, 2); see 06-map-mobs.md. */
+export function mapGrid(payload: Uint8Array) {
+  const pre = mapPrefix(payload), r = new Reader(payload); r.take(pre.prefixBytes - pre.tileBytes);
+  const tiles = r.take(pre.tileBytes), decoration = r.bytes(), collision = r.bytes();
+  return { rows: pre.dimension1, cols: pre.dimension2, tiles: [...tiles], decoration: [...decoration], collision: [...collision] };
+}
+
 /** s2c/13: the map the server moved the character to. After a zone change (c2s/1173): the map and the new zone. After a
  * portal (c2s/13 with the portal id, B5): the map, its index in the world map of c2s/11 "M99" (M1 0, M2 1, M25 24 in every
  * portal sample: B5, Q16, S1), then the bytes 0 and 0xff. The zone is then the area byte of the s2c/11 that follows. */
@@ -116,6 +125,43 @@ export function playersSnapshot(payload: Uint8Array) {
   const r = new Reader(payload), count = u16(r), players = [];
   for (let i = 0; i < count; i++) players.push({ ...playerRecord(r), status: playerStatus(r) });
   return finish(r, { players }, 's2c/1263');
+}
+
+export interface Nearby { id: number; name: string; level: number }
+
+/** The other players of the zone: s2c/1263 replaces the list (after c2s/43 and after a battle), s2c/1167 adds or
+ * refreshes one, s2c/1170 removes one, s2c/1253 updates a level. The own character is never in the list; the zone
+ * population of s2c/1172 is its size + 1. Returns true when the packet changed it. */
+export class ZonePlayers {
+  readonly players = new Map<number, Nearby>();
+  on(opcode: number, payload: Uint8Array): boolean {
+    const keep = ({ id, name, level }: Nearby) => this.players.set(id, { id, name, level });
+    switch (opcode) {
+      case 1263: {
+        const all = playersSnapshot(payload).players; // parsed first: a bad packet leaves the list as it was
+        this.players.clear();
+        all.forEach(keep);
+        return true;
+      }
+      case 1167: keep(playerRecord(new Reader(payload))); return true;
+      case 1170: return this.players.delete(new Reader(payload).i32());
+      case 1253: {
+        const r = new Reader(payload), p = this.players.get(r.i32());
+        if (p) p.level = r.i32();
+        return !!p;
+      }
+      default: return false;
+    }
+  }
+  /** Highest level first, then by lower-case name compared code point by code point (as Rust compares strings), then id. */
+  list(): Nearby[] {
+    const key = (p: Nearby) => [...p.name.toLowerCase()].map(ch => ch.codePointAt(0)!);
+    const byName = (a: number[], b: number[]) => {
+      for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] - b[i];
+      return a.length - b.length;
+    };
+    return [...this.players.values()].sort((a, b) => b.level - a.level || byName(key(a), key(b)) || a.id - b.id);
+  }
 }
 
 /** Item record of s2c/1182 and s2c/1184: 88 bytes for plain items, 104 for gear with two stats. */

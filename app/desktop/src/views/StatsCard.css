@@ -1,0 +1,37 @@
+.combat { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.combat li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--r-md);
+  background: rgb(255 255 255 / 0.025);
+}
+.combat__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  isolation: isolate;
+}
+.combat__icon::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0.16; z-index: -1; }
+.combat__label { flex: 1; font-size: 13px; color: var(--fg-2); }
+.combat__value { font: 700 18px/1 var(--font-display); color: var(--fg); font-variant-numeric: tabular-nums; }
+.potentials { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.potential {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgb(34 211 238 / 0.08), transparent);
+}
+.potential__value { font: 700 17px/1.1 var(--font-display); color: #a5f3fc; }
+.potential__label { font-size: 11px; color: var(--fg-3); white-space: nowrap; }
+
+@media (max-width: 1240px) {
+  .potentials { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

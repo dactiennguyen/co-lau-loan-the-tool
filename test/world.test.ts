@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/events.ts';
+import { mapGrid, mapData, ZonePlayers } from '../src/world.ts';
+import { mapPrefix } from '../src/protocol.ts';
 
 const w: Record<string, { opcode: number; at: number; hex: string }> = fixtures.world;
 const decode = (key: string) => {
@@ -46,6 +48,32 @@ test('player enter/leave/gear/hp pushes share the player id', () => {
   assert.deepEqual(decode('s2c/1212 single'), { id: 458, mode: 0, effects: [{ a: 1, effect: 9301, b: 1 }] });
 });
 
+test('ZonePlayers: s2c/1263 sets the others of the zone, 1170 removes, 1167 adds back, 1253 updates the level', () => {
+  const zone = new ZonePlayers(), on = (key: string) => zone.on(w[key].opcode, Buffer.from(w[key].hex, 'hex'));
+  assert.equal(on('s2c/1263'), true);
+  assert.equal(zone.players.size, 18);
+  assert.equal(zone.list()[0].level, Math.max(...[...zone.players.values()].map(p => p.level)));
+  assert.equal(on('s2c/1170'), true);
+  assert.equal(zone.players.has(1332), false);
+  assert.equal(on('s2c/1170'), false); // already gone
+  on('s2c/1167');
+  assert.deepEqual(zone.players.get(1332), { id: 1332, name: 'boy2Nghin', level: 21 });
+  assert.equal(on('s2c/1253'), true);
+  assert.equal(zone.players.size, 18);
+  assert.equal(zone.on(1262, Buffer.alloc(0)), false);
+  // A packet that does not parse leaves the list as it was.
+  const cut = Buffer.from(w['s2c/1263'].hex, 'hex').subarray(0, 100);
+  assert.throws(() => zone.on(1263, cut));
+  assert.equal(zone.players.size, 18);
+});
+
+test('ZonePlayers.list orders names by code point, as Rust does (not by UTF-16 unit)', () => {
+  const zone = new ZonePlayers();
+  for (const [id, name] of [[1, '\u{1F600}x'], [2, '\uFF21y'], [3, 'b'], [4, 'A']] as const) zone.players.set(id, { id, name, level: 5 });
+  zone.players.set(5, { id: 5, name: 'z', level: 9 });
+  assert.deepEqual(zone.list().map(p => p.id), [5, 4, 3, 2, 1]);
+});
+
 test('own move c2s/1169 comes back in s2c/1262 with the same x/y/state and flags as a bitmask', () => {
   const move = decode('c2s/1169'), tick = decode('s2c/1262 own');
   assert.equal(tick.tickMs, 100);
@@ -85,6 +113,18 @@ test('s2c/11 of M2 is read to its last byte: grids, then the NPCs and portals of
   assert.deepEqual(m.places.map((p: any) => [p.id, p.name, p.type]), [[1, 'Bản đồ', 0], [1013, 'Lạc Cốc', 0], [1014, 'Làng Thanh Khê', 0],
     [1017, 'Tân Trạch', 0], [1024, 'Rìa Hồng Giang', 0], [127, 'Trại Chủ Phạm Hùng', 2], [141, 'Võ Quan Đinh Mộc', 2], [142, 'Dân Phu Vân Sơn', 2]]);
   assert.deepEqual(m.places[5], { id: 127, name: 'Trại Chủ Phạm Hùng', type: 2, x: 1600, y: 800, w: 32, h: 32, flag: 0, p: 110180, q: 110181 });
+});
+
+test('s2c/11 grids of M2: 35 rows × 90 columns of 32 units; places and the character inside them, ground drawn in the last rows', () => {
+  const p = Buffer.from(mp['s2c/11 M2'], 'hex'), g = mapGrid(p), m = mapData(p), at = mapPrefix(p);
+  assert.deepEqual([g.rows, g.cols, g.tiles.length, g.decoration.length, g.collision.length], [35, 90, 3150, 3150, 3150]);
+  assert.ok(m.places.every(pl => pl.x >= 0 && pl.x + pl.w <= g.cols * 32 && pl.y >= 0 && pl.y + pl.h <= g.rows * 32));
+  assert.deepEqual([Math.min(...m.places.filter(pl => pl.type === 0 && pl.id > 1000).map(pl => pl.x)), Math.max(...m.places.map(pl => pl.x + pl.w))], [32, 2880]);
+  assert.ok(at.x < g.cols * 32 && at.y < g.rows * 32);
+  assert.ok(g.tiles.slice(31 * 90).every(Boolean)); // rows 31–34: ground, drawn on every column
+  const count = (v: number) => g.collision.filter(x => x === v).length;
+  assert.deepEqual([count(0), count(1), count(2)], [182, 2937, 31]);
+  assert.ok(g.tiles.slice(30 * 90 + 4, 30 * 90 + 18).every(Boolean) && g.collision.slice(30 * 90 + 4, 30 * 90 + 18).every(v => v !== 1)); // a platform run of row 30
 });
 
 test('portal and boss requests: c2s/13 with a portal id, s2c/13 with the new map, c2s/1178 for a boss (B4, B5)', () => {

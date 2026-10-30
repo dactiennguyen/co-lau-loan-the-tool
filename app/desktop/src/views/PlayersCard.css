@@ -1,0 +1,17 @@
+.count {
+  min-width: 30px;
+  height: 26px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--grad-points);
+  color: #fff;
+  font: 700 13px/1 var(--font-display);
+}
+.players { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; display: grid; align-content: start; gap: 4px; }
+.players li { display: flex; align-items: center; gap: 10px; padding: 5px 8px 5px 5px; border-radius: var(--r-md); }
+.players li:hover { background: rgb(255 255 255 / 0.04); }
+.players .avatar { border-radius: 9px; }
+.players__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.players__empty { margin: 0; color: var(--fg-3); font-size: 13px; }

@@ -138,6 +138,22 @@ test('quest bot: a portal the server refuses (s2c/1256) goes to the atlas with i
   (bot as any).stop('test done');
 });
 
+test('quest bot: --farm challenges a boss with c2s/1178, waits while it changes tiles, and goes on after losing to it', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: string[] = [];
+  const bot = new QuestBot({ maxFights: 5, maxLosses: 1, restMs: 60000, farm: 'Thủ Lĩnh Sơn Tặc', log: e => events.push(String(e.event)) });
+  bot.onPacket(29, new Writer().string('manina').string('M1').i32(0).build());
+  bot.onPacket(43, new Writer().string('M1').u8(3).build());
+  bot.onPacket(1177, bossPacket(0));
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 1178, hex: new Writer().string('mob86100001').i32(0).build().toString('hex') });
+  (bot as any).onBattleEnd({ won: false, actor: 'mob86100001', exp: 0, coin: 0, myTurns: 12, hp: 0, mobId: 'mob86100001', damage: 140 });
+  assert.deepEqual([events.includes('stop'), events.at(-1)], [false, 'boss_loss']);
+  bot.onPacket(1177, bossPacket(1));
+  bot.next();
+  assert.deepEqual([sent.length, events.at(-1)], [1, 'waiting_for_mob']);
+  (bot as any).stop('test done');
+});
+
 test('quest bot: --max-losses lets a kill step go on after a lost battle, and stops at the limit', () => {
   const events: string[] = [];
   const bot = new QuestBot({ maxFights: 10, maxLosses: 2, restMs: 60000, log: e => events.push(String(e.event)) });

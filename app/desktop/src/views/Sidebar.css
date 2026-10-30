@@ -1,0 +1,39 @@
+.sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: 44px var(--space-4) var(--space-4);
+  background: linear-gradient(180deg, rgb(124 58 237 / 0.1), transparent 30%), var(--bg-2);
+  border-right: 1px solid var(--line);
+}
+.sidebar__drag { position: absolute; inset: 0 0 auto 0; height: 36px; }
+.brand { display: flex; align-items: center; gap: var(--space-3); }
+.brand__logo {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--grad-primary);
+  color: #fff;
+  box-shadow: 0 8px 22px -10px rgb(192 38 211 / 0.9), inset 0 1px 0 rgb(255 255 255 / 0.3);
+}
+.brand__name { font: 700 18px/1.2 var(--font-display); letter-spacing: 0.3px; }
+.brand__summary { font-size: 12px; color: var(--fg-3); }
+.brand__summary b { color: var(--s-online); font-weight: 600; }
+.sidebar__label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--fg-3); }
+.sidebar__list { flex: 1; min-height: 0; display: grid; align-content: start; gap: var(--space-2); margin: 0 -4px; padding: 0 4px 4px; }
+.sidebar__empty { margin: 0; color: var(--fg-3); font-size: 13px; }
+.sidebar__footer { display: flex; gap: var(--space-2); }
+.sidebar__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid rgb(248 113 113 / 0.4);
+  background: rgb(248 113 113 / 0.1);
+  color: #fecaca;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

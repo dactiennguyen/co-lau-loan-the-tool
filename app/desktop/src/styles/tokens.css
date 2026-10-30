@@ -1,0 +1,74 @@
+/* Design tokens. Palette "Gaming" of the ui-ux-pro-max skill (neon violet + rose on deep indigo), with one hue per
+   figure so each reads at a glance: HP rose, EXP violet, coins amber, points cyan. Components use only these. */
+@font-face { font-family: "Chakra Petch"; src: url("../assets/fonts/ChakraPetch-Medium.ttf") format("truetype"); font-weight: 500; font-display: block; }
+@font-face { font-family: "Chakra Petch"; src: url("../assets/fonts/ChakraPetch-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: block; }
+@font-face { font-family: "Chakra Petch"; src: url("../assets/fonts/ChakraPetch-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0f0f23;
+  --bg-2: #141331;
+  --card: #1e1c35;
+  --card-2: #252242;
+  --muted: #27273b;
+  --line: rgb(167 139 250 / 0.14);
+  --line-strong: rgb(167 139 250 / 0.28);
+  --fg: #e2e8f0;
+  --fg-2: #b4bccb;
+  --fg-3: #8f98ab;
+
+  --primary: #7c3aed;
+  --primary-2: #a78bfa;
+  --accent: #f43f5e;
+  --ring: #a78bfa;
+  --danger: #f87171;
+
+  --grad-primary: linear-gradient(135deg, #7c3aed 0%, #c026d3 55%, #f43f5e 100%);
+  --grad-hp: linear-gradient(90deg, #f43f5e, #fb923c);
+  --grad-exp: linear-gradient(90deg, #8b5cf6, #6366f1);
+  --grad-coin: linear-gradient(90deg, #fbbf24, #f59e0b);
+  --grad-points: linear-gradient(90deg, #22d3ee, #3b82f6);
+
+  --hp: #fb7185;
+  --exp: #a78bfa;
+  --coin: #fbbf24;
+  --points: #22d3ee;
+
+  /* status: offline, connecting, online, fighting, error */
+  --s-offline: #7c86a0;
+  --s-connecting: #fbbf24;
+  --s-online: #34d399;
+  --s-fighting: #60a5fa;
+  --s-error: #f87171;
+
+  /* combat stats */
+  --c-attack: #fb7185;
+  --c-defence: #60a5fa;
+  --c-accuracy: #34d399;
+  --c-dodge: #22d3ee;
+  --c-critical: #fbbf24;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Chakra Petch", var(--font-ui);
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -18px rgb(0 0 0 / 0.7);
+  --shadow-glow: 0 0 0 1px rgb(167 139 250 / 0.45), 0 10px 30px -12px rgb(124 58 237 / 0.6);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fast: 150ms;
+  --slow: 300ms;
+}

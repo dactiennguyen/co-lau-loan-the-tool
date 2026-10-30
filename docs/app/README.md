@@ -19,6 +19,8 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |
 
+Mỗi lần điều tra Android, kết quả được ghi vào thư mục này trước. Sau đó phần mô phỏng TypeScript ([Tích hợp Node.js](../integration/nodejs/README.md)) mới dùng tới, rồi mới đến app Rust ([App Rust](../integration/rust/README.md)).
+
 ## Độ chắc chắn
 
 - **Quan sát:** đọc trực tiếp từ artifact, syscall, packet hoặc getter native.

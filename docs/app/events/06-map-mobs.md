@@ -197,13 +197,17 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
 
 - **Hai hệ đơn vị.** Gói tin và map data dùng đơn vị server: ô 32, map 4992×736. Client vẽ bằng ô 48, nên toạ độ trong bộ nhớ = server × **1,5**. Ví dụ c2s/1169 cuối cùng là x=1315, y=640, còn trong bộ nhớ nhân vật có A=1973 (= 1315×1,5). [Đo]
 - **c2s/1169** chỉ được gửi khi đang chạy, nhảy hoặc rơi (~100–130 ms/gói): `i32 x; i32 y; i32 state; 5 byte cờ`. State thấy được: 0 đứng, 1 chạy, 5 lên, 6 rơi. [Đo] Server không trả lời gói nào. Vị trí của người chơi khác đến qua s2c/1262.
-- **Lưới s2c/11.** Sau prefix là 3 lớp, mỗi lớp `i32 3588` + 23×156 byte:
+- **Lưới s2c/11.** Sau prefix là 3 lớp, mỗi lớp gồm `i32 n` và `n` byte. Số byte là `dimension1 × dimension2` (M1: 23 × 156 = 3588; M2: 35 × 90 = 3150).
+  - `dimension1` là số hàng, `dimension2` là số cột. Lưới lưu theo từng hàng, từ hàng trên cùng xuống, mỗi byte là một ô 32 đơn vị server.
+  - Vì vậy `x / 32` và `y / 32` của nhân vật (`s2c/11`), NPC và cổng chỉ thẳng vào ô của lưới. Ở M2 (2880 × 1120 đơn vị), cổng nằm ở x = 32 và x = 2848, đúng mép trái và mép phải. [Đo, `mapGrid` trong [world.ts](../../../src/world.ts)]
 
   | Lớp | Giá trị | Ý nghĩa |
   |---|---|---|
-  | 1 | Nhiều mã | Hình ô |
-  | 2 | 15/27/47/89/… | Trang trí [Chưa rõ] |
-  | 3 | `1` (3391 ô), `0` (164 ô), `2` (33 ô) | Va chạm: trống / đất / thang hoặc bục [Suy luận từ phân bố] |
+  | 1 | Nhiều mã (M2: 126 mã), 0 là ô trống | Hình vẽ của ô. Ở M2, bốn hàng cuối (31–34) có hình ở mọi cột: đó là mặt đất. [Đo] |
+  | 2 | M1: 15/27/47/89/…; M2: 6 mã | Trang trí [Chưa rõ] |
+  | 3 | M1: `1` 3391 ô, `0` 164 ô, `2` 33 ô. M2: `1` 2937, `0` 182, `2` 31 | Ô `0`/`2` nằm thành từng đoạn ngang trùng với các bục vẽ ở lớp 1 (M2 hàng 30, cột 4–17), mỗi đoạn có một ô `2` (có thể là thang). Mặt đất ở hàng 31–34 lại có giá trị `1`, nên `1` không phải "ô trống" như từng suy luận. Nghĩa đúng của `1`/`0`/`2` [Chưa rõ] |
+
+  App Rust vẽ bản đồ thu nhỏ từ lớp 1 (ô có hình) và lớp 3 (bục), rồi đặt nhân vật, NPC, cổng và boss vào theo cách quy đổi trên ([App Rust](../../integration/rust/README.md#giao-diện)).
 
 - **NPC và cổng.** Cuối s2c/11 có danh sách `i32 n; n × {i32 id; string tên; u8 loại; i32 x; i32 y; i32 w; i32 h; u8; i32 p; i32 q}`, đơn vị server, rồi 12 byte chưa rõ. Đọc hết byte M1 và M2 (`mapData` trong [world.ts](../../../src/world.ts)). [Đo]
 
