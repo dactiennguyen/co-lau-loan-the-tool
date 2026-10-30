@@ -90,7 +90,7 @@ test('s2c/11 of M2 is read to its last byte: grids, then the NPCs and portals of
 test('portal and boss requests: c2s/13 with a portal id, s2c/13 with the new map, c2s/1178 for a boss (B4, B5)', () => {
   assert.deepEqual(decodeMap('c2s/13 portal 1015'), { mapId: 'M1', npcId: 1015 });
   assert.equal(buildRequest(13, { mapId: 'M1', npcId: 1015 }).toString('hex'), mp['c2s/13 portal 1015']);
-  assert.deepEqual(decodeMap('s2c/13 portal'), { mapId: 'M2', zone: 1, extra: [0, 255] });
+  assert.deepEqual(decodeMap('s2c/13 portal'), { mapId: 'M2', mapIndex: 1, extra: [0, 255] }); // M2 is entry 1 of the world map
   assert.deepEqual(decodeMap('c2s/1178'), { mobId: 'mob86100201', flag: 0 });
   assert.equal(buildRequest(1178, { mobId: 'mob86100201' }).toString('hex'), mp['c2s/1178']);
   assert.deepEqual(decodeMap('s2c/1201 boss damage'), { progress: 363 });

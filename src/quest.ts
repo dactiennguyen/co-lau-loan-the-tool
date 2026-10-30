@@ -1,12 +1,14 @@
 // Quest bot over a live world session (docs/app/events/10-quests.md). It reads the current main quest from s2c/39,
 // fights the named mob with BattleRunner, talks to quest NPCs with c2s/13, and walks through portals (c2s/13 with the
-// portal id) when the NPC or mob of a step is in another map.
+// portal id) when the NPC or mob of a step is in another map. What it sees of each map goes to the atlas (atlas.ts), which
+// also tells it the way to maps seen in earlier runs.
 import { Reader, Writer, characterPrefix, characterLocation } from './protocol.ts';
-import { battleSetup, type Weights } from './battle.ts';
+import { battleSetup, type Strategy } from './battle.ts';
 import { BattleRunner, type BattleEnd } from './battle-runner.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, characterStats, questData, questProgress, questComplete, type Mob, type Place, type Quest, type QuestStep } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, questData, questProgress, questComplete, type Mob, type Place, type Quest, type QuestStep } from './world.ts';
+import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
 export type StepAction =
@@ -31,32 +33,34 @@ export interface QuestBotOptions {
   grind?: string;
   /** Own skill to cast in battle, see BattleIo.skill. */
   skill?: { id: number; cost: number };
-  /** Move weights of every battle, see WEIGHTS in battle.ts. */
-  weights?: Weights;
+  /** Move search of every battle, see STRATEGIES in battle.ts. */
+  strategy?: Strategy;
   /** Pause between own swaps in a timed battle, and before the next challenge (defaults 1000 and 3000 ms). */
   timedMoveMs?: number; restMs?: number;
   /** Mob name to fight on every step instead of the quest, for speed experiments. */
   farm?: string;
-  /** Below this share of max HP, rest restMs × 20 (at most 3 times) before the next challenge: a battle starts with the HP
-   * the last one ended with (Q16). Default 0.4. */
-  healBelow?: number;
+  /** Lost battles allowed before the bot stops (default 1). A loss costs EXP (36 at level 19) but refills HP (Q17, Q18). */
+  maxLosses?: number;
+  /** Atlas file read at start and written when the bot learns something (quest-run: data/maps.json); none keeps it in memory. */
+  atlas?: string;
 }
 
-/** Plays the steps of the current main quest that stepAction knows; stops on any other step, on a loss, or after maxFights. */
+/** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
 export class QuestBot implements WorldSession {
-  api?: SessionApi; quest?: Quest; mapId = ''; mapName = ''; mobs: Mob[] = []; places: Place[] = []; battle?: BattleRunner; target?: Mob;
-  /** NPCs, portals and mob names of every map seen in this session, by map name. */
-  known = new Map<string, { mapId: string; places: Place[]; mobs: string[] }>();
-  /** Set from c2s/13 through a portal until s2c/43 of the new map; hops counts portals taken for the current step. */
-  travelling?: string; hops = 0;
-  /** Rests taken for HP, and waits for a moving boss, before the current challenge. */
-  rests = 0; waits = 0;
+  api?: SessionApi; quest?: Quest; mapId = ''; zone = 0; mobs: Mob[] = []; places: Place[] = []; battle?: BattleRunner; target?: Mob;
+  /** Maps seen in this run and in earlier ones. */
+  atlas: Atlas; private saved = '';
+  /** Set from c2s/13 through a portal until s2c/43 of the new map; hops counts portals taken for the current step;
+   * refused holds the portals the server refused in this run. */
+  travelling?: Pick<Place, 'id' | 'name'>; hops = 0; refused = new Set<number>();
+  /** Waits for a moving boss before the current challenge. */
+  waits = 0;
   fights = 0; wins = 0; losses = 0; hp = 0; maxHp = 0; level = 0; statPoints?: number; challenged = 0; battleStart = 0;
   /** A talk or stat-point step is answered by s2c/34 alone. */
   awaitingReply = false;
   private wait?: ReturnType<typeof setTimeout>;
   options: QuestBotOptions;
-  constructor(options: QuestBotOptions) { this.options = options; }
+  constructor(options: QuestBotOptions) { this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas); }
   private log(event: string, fields: Record<string, unknown> = {}) { this.options.log({ kind: 'quest', event, at: Date.now(), ...fields }); }
 
   onReady(api: SessionApi) {
@@ -78,30 +82,40 @@ export class QuestBot implements WorldSession {
       case 11: {
         if (payload[0] !== 1) break; // flag 0 is the world map ("M99")
         const d = mapData(payload);
-        this.mapId = d.mapId; this.mapName = d.name; this.places = d.places;
-        this.known.set(d.name, { mapId: d.mapId, places: d.places, mobs: this.known.get(d.name)?.mobs ?? [] });
+        this.mapId = d.mapId; this.zone = d.area; this.places = d.places;
+        recordMap(this.atlas, d); this.remember();
         this.log('map', { mapId: d.mapId, name: d.name, npcs: d.places.filter(p => p.type === 2).map(p => `${p.id} ${p.name}`), portals: d.places.filter(p => p.type === 0).map(p => `${p.id} ${p.name}`) });
         if (this.travelling) this.send(43, buildRequest(43, { mapId: d.mapId }));
         break;
       }
-      // Through a portal: the new map and zone; the client then asks for the map (c2s/11) and its mobs (c2s/43), B5.
+      // Through a portal: the new map; the client then asks for the map (c2s/11) and its mobs (c2s/43), B5.
       case 13: {
-        const { mapId, zone } = mapChange(payload);
-        this.log('map_changed', { mapId, zone, portal: this.travelling });
-        if (this.travelling) { clearTimeout(this.wait); this.send(11, buildRequest(11, { mapId })); }
+        const { mapId } = mapChange(payload);
+        this.log('map_changed', { mapId, portal: this.travelling?.name });
+        if (this.travelling) { clearTimeout(this.wait); recordPortal(this.atlas, this.travelling.id, { name: this.travelling.name, mapId }); this.send(11, buildRequest(11, { mapId })); }
         break;
       }
       case 43: {
-        this.mobs = mapEntities(payload).mobs;
-        const k = this.known.get(this.mapName); if (k) k.mobs = [...new Set(this.mobs.map(m => m.name))];
-        if (this.travelling) { this.log('arrived', { mapId: this.mapId, name: this.mapName, via: this.travelling }); this.travelling = undefined; this.later(2000); }
+        const d = mapEntities(payload); this.mobs = d.mobs;
+        recordMobs(this.atlas, d.mapId, this.zone, d.mobs); this.remember();
+        if (this.travelling) { this.log('arrived', { mapId: this.mapId, name: this.atlas.maps[this.mapId]?.name, via: this.travelling.name }); this.travelling = undefined; this.later(2000); }
+        break;
+      }
+      // A portal the character may not enter answers c2s/13 with "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" (Q15) or
+      // "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" (S1); travel() then leaves it out.
+      case 1256: {
+        if (!this.travelling) break;
+        const text = notice(payload).text;
+        recordRefusal(this.atlas, this.travelling, text); this.remember(); this.refused.add(this.travelling.id);
+        this.log('portal_refused', { portal: this.travelling.id, name: this.travelling.name, text });
+        this.travelling = undefined; this.later(1000);
         break;
       }
       case 1177: {
         const b = mapBoss(payload);
         if ('gone' in b) { this.mobs = this.mobs.filter(m => m.id !== b.gone); this.log('boss_moving', { id: b.gone }); break; }
         if (!this.mobs.some(m => m.id === b.mob.id)) this.mobs.push(b.mob);
-        const k = this.known.get(this.mapName); if (k && !k.mobs.includes(b.mob.name)) k.mobs.push(b.mob.name);
+        recordBoss(this.atlas, b.mapId, this.zone, b.mob, b.tile); this.remember();
         this.log('boss', { id: b.mob.id, name: b.mob.name, level: b.mob.level, tile: b.tile });
         break;
       }
@@ -147,6 +161,11 @@ export class QuestBot implements WorldSession {
     return { id: q.id, title: q.title, current: q.current, progress: q.progress, step: step && `${step.text} (${step.required})`, steps: q.steps.map(s => s.text) };
   }
   private send(opcode: number, payload: Uint8Array) { this.api?.send(opcode, payload); }
+  /** Writes the atlas file when something changed. */
+  private remember() {
+    const json = atlasJson(this.atlas);
+    if (this.options.atlas && json !== this.saved) { saveAtlas(this.options.atlas, this.atlas); this.saved = json; }
+  }
   private advance(reason: string) {
     const q = this.quest!; q.current++; q.progress = 0; this.hops = 0;
     this.log('step_advanced', { reason, current: q.current, step: q.steps[q.current]?.text ?? null });
@@ -197,12 +216,7 @@ export class QuestBot implements WorldSession {
   private fight(targets: Mob[], reason: string, opcode: 15 | 1178 = 15) {
     if (this.fights >= this.options.maxFights) return this.stop('fight limit reached');
     if (this.maxHp && this.hp < this.maxHp * (this.options.minHpRatio ?? 0)) return this.stop('hp too low to fight', { hp: this.hp });
-    if (this.maxHp && this.hp < this.maxHp * (this.options.healBelow ?? 0.4) && this.rests < 3) {
-      const ms = (this.options.restMs ?? 3000) * 20; this.rests++;
-      this.log('rest_for_hp', { hp: `${this.hp}/${this.maxHp}`, ms, rest: this.rests });
-      return this.later(ms);
-    }
-    this.rests = 0; this.waits = 0;
+    this.waits = 0;
     if (!targets.length) return this.stop('target mob not in this zone', { reason });
     const mob = this.target = targets[this.fights % targets.length];
     this.fights++; this.challenged = Date.now();
@@ -214,31 +228,29 @@ export class QuestBot implements WorldSession {
   /** True when the mob or NPC of the step is not in this map and the bot waits for it or travels. */
   private elsewhere(action: StepAction, reason: string) {
     if ('mob' in action && !this.mobs.some(m => m.name === action.mob)) {
-      // A boss between its s2c/1177 field 1 and field 0 (~13 s) is still in this map: wait for it.
-      if (this.known.get(this.mapName)?.mobs.includes(action.mob) && this.waits < 6) {
-        this.waits++; this.log('waiting_for_mob', { mob: action.mob, wait: this.waits });
-        this.later(5000);
-        return true;
-      }
-      return this.travel(reason, k => k.mobs.includes(action.mob));
+      const has = (m: MapRecord) => m.mobs.some(k => k.name === action.mob) || m.bosses.some(b => b.name === action.mob);
+      // A mob the atlas puts in this map, like a boss between its s2c/1177 field 1 and field 0 (~13 s), is waited for
+      // here (6 × 5 s), never searched elsewhere: then fight() stops with "target mob not in this zone".
+      if (!this.atlas.maps[this.mapId] || !has(this.atlas.maps[this.mapId])) return this.travel(reason, has);
+      if (this.waits >= 6) return false;
+      this.waits++; this.log('waiting_for_mob', { mob: action.mob, wait: this.waits });
+      this.later(5000);
+      return true;
     }
     if (action.kind === 'talk' && this.places.length && !this.places.some(p => p.type === 2 && p.id === action.npcId))
-      return this.travel(reason, k => k.places.some(p => p.type === 2 && p.id === action.npcId));
+      return this.travel(reason, m => m.places.some(p => p.type === 2 && p.id === action.npcId));
     return false;
   }
 
   /** The NPC or mob of a step is not in this map: walk through a portal of s2c/11 (c2s/13 with its id, B5). The portal
-   * is the one towards a seen map that has it (`inMap`), else one the quest names ("Tìm Đến Vân Sơn") towards a map not
-   * seen yet, else any towards a map not seen yet. Portal names are map names ("Vân Sơn" → "Trại Vân Sơn"). */
-  private travel(reason: string, inMap: (k: { places: Place[]; mobs: string[] }) => boolean) {
+   * is the first of the shortest known way to a map that has it (`wanted`), else one the quest names ("Tìm Đến Vân Sơn")
+   * towards a map not seen yet, else any towards a map not seen yet. Portals refused (level, quest) are left out. */
+  private travel(reason: string, wanted: (m: MapRecord) => boolean) {
     const q = this.quest!, text = `${q.title} ${q.description} ${q.steps[q.current]?.text ?? ''}`;
-    const leadsTo = (p: Place, name: string) => name.includes(p.name);
-    const seen = [...this.known.keys()], portals = this.places.filter(p => p.type === 0 && p.name !== 'Bản đồ');
-    const fresh = portals.filter(p => !seen.some(name => leadsTo(p, name)));
-    const where = seen.find(name => name !== this.mapName && inMap(this.known.get(name)!));
-    const portal = (where && portals.find(p => leadsTo(p, where))) ?? fresh.find(p => text.includes(p.name)) ?? fresh[0];
+    const fresh = portalsOf(this.atlas, this.mapId, this.level, this.refused).filter(p => !destination(this.atlas, p, this.mapId));
+    const portal = route(this.atlas, this.mapId, wanted, this.level, this.refused) ?? fresh.find(p => text.includes(p.name)) ?? fresh[0];
     if (!portal || this.hops >= 6) return false;
-    this.hops++; this.travelling = portal.name;
+    this.hops++; this.travelling = { id: portal.id, name: portal.name };
     this.log('travel', { reason, from: this.mapId, portal: portal.id, name: portal.name, hop: this.hops });
     this.send(13, buildRequest(13, { mapId: this.mapId, npcId: portal.id }));
     this.wait = setTimeout(() => this.stop('portal did not answer', { portal: portal.id }), 8000);
@@ -257,7 +269,7 @@ export class QuestBot implements WorldSession {
     const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id ?? this.target?.id ?? '?';
     this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp;
     this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
-    this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log: (event, fields) => this.log(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, weights: this.options.weights, timedMoveMs: this.options.timedMoveMs });
+    this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log: (event, fields) => this.log(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, strategy: this.options.strategy, timedMoveMs: this.options.timedMoveMs });
     this.battle.start();
   }
 
@@ -267,18 +279,14 @@ export class QuestBot implements WorldSession {
     this.log('battle_end', { ...end, ms: Date.now() - this.battleStart, skillsCast: this.battle?.skillsCast });
     this.battle = undefined;
     const q = this.quest, step = q?.steps[q.current], action = step && stepAction(step);
-    const counts = action && 'mob' in action && this.mobs.find(m => m.id === end.mobId)?.name === action.mob;
-    // Local count; s2c/1201 replaces it with the server's a few ms later, before next() decides (and advances).
-    if (q && step && action && counts && action.kind === 'damage') {
-      q.progress += end.damage;
-      this.log('damage_counted', { step: step.text, progress: `${q.progress}/${action.amount}` });
-    }
-    // A boss (5000 HP for Thủ Lĩnh Sơn Tặc) is not expected to fall: its damage step goes on after a loss.
-    if (!end.won && !(action && counts && action.kind === 'damage')) return this.stop('lost a battle');
-    if (q && step && action && counts && action.kind === 'kill') {
-      q.progress++;
-      this.log('kill_counted', { step: step.text, progress: `${q.progress}/${step.required}` });
-    }
+    const counted = q && step && action && 'mob' in action && this.mobs.find(m => m.id === end.mobId)?.name === action.mob;
+    // Local count; s2c/1201 replaces it with the server's a few ms later, before next() decides (and advances). A boss
+    // (5000 HP for Thủ Lĩnh Sơn Tặc) is not expected to fall: its damage counts won or lost, and a loss does not stop the
+    // bot. A kill counts only when won.
+    const boss = counted && action.kind === 'damage';
+    if (boss) { q.progress += end.damage; this.log('damage_counted', { step: step.text, progress: `${q.progress}/${action.amount}` }); }
+    if (counted && action.kind === 'kill' && end.won) { q.progress++; this.log('kill_counted', { step: step.text, progress: `${q.progress}/${step.required}` }); }
+    if (!end.won && !boss && this.losses >= (this.options.maxLosses ?? 1)) return this.stop('lost a battle');
     this.later(this.options.restMs ?? 3000);
   }
 }

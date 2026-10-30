@@ -89,7 +89,7 @@ Tên lấy bằng cách khớp nhãn "Lv." trên màn hình bản đồ với b�
 | M1 | 0 | Làng Thanh Khê | Thủ Lĩnh Sơn Tặc | Tên từ `s2c/11` [Đo] |
 | M2 | 10 | Vân Sơn ("Trại Vân Sơn") | Hào Trưởng phía Bắc, Hào Trưởng phía Nam | Lv. duy nhất [Đo] |
 | M3 | 130 | Cổ Phong | Vệ Xích | [Đo] |
-| M4 | 20 | Hồng Giang | Tướng Xích Vũ | Lv.20 có cả M25 [Suy luận] |
+| M4 | 20 | Hồng Giang | Tướng Xích Vũ | Lv.20 có cả M25. Cổng "Hồng Giang" (1016) ở M25 đòi xong nhiệm vụ (S1) [Suy luận] |
 | M5 | 40 | Lạc Cốc | Tướng Hùng Liệt | [Đo] |
 | M6 | 110 | Tân Trạch | Lôi Tướng | [Đo] |
 | M7 | 100 | Nguyệt Đàm | Thạch Khôi | [Đo] |
@@ -103,9 +103,9 @@ Tên lấy bằng cách khớp nhãn "Lv." trên màn hình bản đồ với b�
 | M15 | 30 | Luyện Ngục hoặc Cửu Phong | | [Chưa rõ] |
 | M16, M17 | 0 | Thiên Môn, Mẫu Sơn | | Hai địa danh không ghi Lv. trên bản đồ [Suy luận] |
 | M18…M24 | 30 | Không có trên bản đồ | | [Chưa rõ] |
-| M25 | 20 | Không có trên bản đồ | | [Chưa rõ] |
+| M25 | 20 | Rìa Hồng Giang | Không có boss, không có quái | Vào qua cổng 1024 từ M2: `s2c/13` báo `"M25"`, `s2c/11` tên "Rìa Hồng Giang" (S1, [06-map-mobs](06-map-mobs.md#atlas)). Cấp 19 vẫn vào được [Đo] |
 
-`.so` chứa đúng 17 tên này, không có tên nào khác. `M18`…`M25` có thể là map phụ hoặc phó bản, chưa vào được. [Suy luận]
+`.so` chứa đúng 17 tên này, không có tên nào khác. `M18`…`M24` có thể là map phụ hoặc phó bản, chưa vào được. [Suy luận] M25 có tên "Rìa Hồng Giang" do server gửi trong `s2c/11`, không nằm trong 17 tên của `.so`. [Đo]
 
 App lưu bản đồ đã tải vào `files/dyncache/rs_map<mapId>.bin`; trên máy hiện chỉ có `rs_mapM1.bin`. [Đo]
 
@@ -166,5 +166,5 @@ Người chơi dồn vào khu 0 và 1, còn khoảng 80–90 khu trống.
 
 - Ký tự phân cách khi `1207` có nhiều máy chủ, ý nghĩa cờ cuối, và nguồn của `serverId = 24`.
 - Số khu của các map khác `M1`; có xin được `1172` của map khác không.
-- Tên chắc chắn của `M10`, `M15`, `M16`, `M17`, và `M18`…`M25` là map gì.
+- Tên chắc chắn của `M10`, `M15`, `M16`, `M17`, và `M18`…`M24` là map gì.
 - Ngưỡng của độ đông 1 và 2 (8, 9, 14 người).

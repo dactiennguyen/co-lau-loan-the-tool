@@ -2,7 +2,7 @@ import { createWriteStream } from 'node:fs';
 import { runClient } from './client.ts';
 import { QuestBot } from './quest.ts';
 import { envConnection } from './env.ts';
-import { WEIGHTS } from './battle.ts';
+import { STRATEGIES } from './battle.ts';
 
 // Logs in directly (CLLT_USERNAME/CLLT_PASSWORD from .env) and plays the current main quest.
 // The account must not be online on another device: the server then answers s2c/0 and refuses the login.
@@ -18,10 +18,11 @@ const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 const [skillId, skillCost] = (arg('skill') ?? '').split(':').map(Number);
 const skill = skillId ? { id: skillId, cost: skillCost || 25 } : undefined;
 // --goal=kill (default: end battles fast) or --goal=exp (collect stars, drops and gold).
-const goal = (arg('goal') ?? 'kill') as keyof typeof WEIGHTS;
-if (!WEIGHTS[goal]) throw new Error('--goal must be kill or exp');
-const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, weights: WEIGHTS[goal],
-  timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'), healBelow: Number(arg('heal-below') ?? 0.4), log: show });
+const goal = (arg('goal') ?? 'kill') as keyof typeof STRATEGIES;
+if (!STRATEGIES[goal]) throw new Error('--goal must be kill or exp');
+const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, strategy: STRATEGIES[goal],
+  timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
+  maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', log: show });
 const result = await runClient({
   ...connection, mode: 'world', session: bot, hexBytes: trace ? 65536 : 128,
   log: e => {

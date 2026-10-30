@@ -91,31 +91,53 @@ export function legalMoves(b: Board): Move[] {
   return out;
 }
 
-export interface Weights { [piece: number]: number; extraTurn: number; reply: number }
-export const DEFAULT_WEIGHTS: Weights = { 0: 10, 1: 2, 2: 2, 3: 2, 4: 1, 5: 1, 0x46: 1, extraTurn: 30, reply: 0.7 };
-/** `kill` ends battles sooner (swords, power); `exp` collects EXP and coin pieces on the way. */
-export const WEIGHTS: Record<'kill' | 'exp', Weights> = {
-  kill: { 0: 10, 1: 2, 2: 1, 3: 3, 4: 1, 5: 1, 0x46: 0.5, extraTurn: 30, reply: 0.7 },
-  exp: { 0: 10, 1: 2, 2: 1, 3: 3, 4: 4, 5: 8, 0x46: 2, extraTurn: 30, reply: 0.7 },
+/** One side of a battle as the move search sees it: HP, stat1 (nội lực) and stat2 (power), and what one piece is worth
+ * to it: damage per sword, HP per heart, stat1 per yin-yang, stat2 per peach, plus the stat1 its skill costs and the
+ * damage the skill deals (skillCost 0: no skill). Defaults are the averages of Q16–Q19 (manina level 19 against Sói Xám
+ * and Cóc Xanh, docs/app/events/07-auto-battle.md#thuật-toán-của-bot); BattleRunner replaces them with what it sees. */
+export interface Fighter { hp: number; maxHp: number; s1: number; s2: number; sword: number; heart: number; yinyang: number; peach: number; skillCost: number; skillDamage: number }
+export const fighter = (hp: number, maxHp: number, f: Partial<Fighter> = {}): Fighter =>
+  ({ hp, maxHp, s1: 0, s2: 0, sword: 10, heart: 5.5, yinyang: 1.2, peach: 4.4, skillCost: 25, skillDamage: 60, ...f });
+/** A mob before anything is known of it: HP unknown, Sói Xám and Cóc Xanh averaged. */
+export const unknownMob = (): Fighter => fighter(Infinity, Infinity, { sword: 8, heart: 6, yinyang: 3, peach: 5, skillCost: 30, skillDamage: 40 });
+
+/** extraTurn: worth of keeping the turn; reply: share of the opponent's best answer subtracted (0 in a timed battle,
+ * where the mob does not move pieces); bonus: worth of own EXP and coin pieces (goal `exp`). */
+export interface Strategy { extraTurn: number; reply: number; bonus: Partial<Record<number, number>> }
+/** `kill` ends battles soonest; `exp` also collects drops, stars and gold on the way. Tuned in the simulator of
+ * 07-auto-battle.md: extraTurn 10 and reply 1 won most battles against weak, real-like and greedy mobs. */
+export const STRATEGIES: Record<'kill' | 'exp', Strategy> = {
+  kill: { extraTurn: 10, reply: 1, bonus: {} },
+  exp: { extraTurn: 10, reply: 1, bonus: { 4: 2, 5: 4, 0x46: 1 } },
 };
 
-function gain(o: Outcome, w: Weights) {
-  let s = o.extraTurn ? w.extraTurn : 0;
-  for (const [p, n] of Object.entries(o.cleared)) s += (w[Number(p)] ?? 1) * n;
-  return s;
+const swordDamage = (o: Outcome, f: Fighter) => (o.cleared[0] ?? 0) * f.sword * (f.s2 >= 100 ? 2 : 1);
+/** HP swing of an outcome for `actor` against `target`: damage (doubled at full power), healing up to the max, yin-yang
+ * as its share of a skill, peach as its share of the next doubled hit (three swords). A killing move is worth 1e4. */
+export function moveValue(o: Outcome, actor: Fighter, target: Fighter, s: Strategy, bonus: Strategy['bonus'] = {}) {
+  const damage = swordDamage(o, actor);
+  if (damage >= target.hp) return 1e4;
+  // A mob whose HP is not known yet (Infinity) is at full HP: the battle has just started.
+  let v = damage + Math.min((o.cleared[1] ?? 0) * actor.heart, actor.maxHp - actor.hp || 0) + (o.extraTurn ? s.extraTurn : 0);
+  if (actor.skillCost) v += (o.cleared[2] ?? 0) * actor.yinyang * actor.skillDamage / actor.skillCost;
+  if (actor.s2 < 100) v += Math.min(100 - actor.s2, (o.cleared[3] ?? 0) * actor.peach) / 100 * 3 * actor.sword;
+  for (const [piece, n] of Object.entries(o.cleared)) v += (bonus[Number(piece)] ?? 0) * n;
+  return v;
 }
 
-/** Greedy 2-ply: my gain on known pieces, minus the opponent's best reply when I do not keep the turn. */
-export function bestMove(b: Board, w: Weights = DEFAULT_WEIGHTS) {
+/** Two plies on the known pieces: own value of each move, minus `reply` × the mob's best answer on the board it leaves,
+ * valued with own HP after the heal and the mob's HP after the hit. A move that keeps the turn is not answered. */
+export function bestMove(b: Board, me: Fighter = fighter(100, 100), mob: Fighter = unknownMob(), s: Strategy = STRATEGIES.kill) {
   let best: { move: Move; score: number; outcome: Outcome } | null = null;
   for (const m of legalMoves(b)) {
     const t = b.slice(); swap(t, m);
     const o = settle(t, null);
-    let score = gain(o, w);
-    if (!o.extraTurn) {
+    let score = moveValue(o, me, mob, s, s.bonus);
+    if (score < 1e4 && !o.extraTurn && s.reply) {
+      const meAfter = { ...me, hp: Math.min(me.maxHp, me.hp + (o.cleared[1] ?? 0) * me.heart) }, mobAfter = { ...mob, hp: mob.hp - swordDamage(o, me) };
       let reply = 0;
-      for (const r of legalMoves(t)) { const u = t.slice(); swap(u, r); reply = Math.max(reply, gain(settle(u, null), w)); }
-      score -= w.reply * reply;
+      for (const r of legalMoves(t)) { const u = t.slice(); swap(u, r); reply = Math.max(reply, moveValue(settle(u, null), mobAfter, meAfter, s)); }
+      score -= s.reply * reply;
     }
     if (!best || score > best.score) best = { move: m, score, outcome: o };
   }

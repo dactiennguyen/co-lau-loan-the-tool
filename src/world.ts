@@ -30,11 +30,13 @@ export function mapData(payload: Uint8Array) {
 }
 export type Place = ReturnType<typeof mapData>['places'][number];
 
-/** s2c/13: the map and zone the server moved the character to. A zone change (c2s/1173) sends just these; a portal
- * (c2s/13 with the portal id, B5) adds two bytes, 0 and 0xff. */
+/** s2c/13: the map the server moved the character to. After a zone change (c2s/1173): the map and the new zone. After a
+ * portal (c2s/13 with the portal id, B5): the map, its index in the world map of c2s/11 "M99" (M1 0, M2 1, M25 24 in every
+ * portal sample: B5, Q16, S1), then the bytes 0 and 0xff. The zone is then the area byte of the s2c/11 that follows. */
 export function mapChange(payload: Uint8Array) {
-  const r = new Reader(payload), mapId = r.string(), zone = r.i32();
-  return finish(r, { mapId, zone, ...(r.offset < r.data.length ? { extra: [r.u8(), r.u8()] } : {}) }, 's2c/13');
+  const r = new Reader(payload), mapId = r.string(), value = r.i32();
+  if (r.offset === r.data.length) return finish(r, { mapId, zone: value }, 's2c/13');
+  return finish(r, { mapId, mapIndex: value, extra: [r.u8(), r.u8()] }, 's2c/13');
 }
 
 /** s2c/1177: a boss of the map. field 0 (after s2c/43, and when it moves): a mob record as in s2c/43, then u8 1 and the
@@ -44,7 +46,14 @@ export function mapBoss(payload: Uint8Array) {
   const r = new Reader(payload), mapId = r.string(), field = r.u8();
   if (field === 1) return finish(r, { mapId, field, gone: r.string() }, 's2c/1177');
   const mob = mobRecord(r);
-  return finish(r, { mapId, field, mob, state: r.u8(), tile: [r.i32(), r.i32()] }, 's2c/1177');
+  return finish(r, { mapId, field, mob, state: r.u8(), tile: [r.i32(), r.i32()] as [number, number] }, 's2c/1177');
+}
+
+/** s2c/1256: a notice line. After a lost battle "Thua trận, mất 16 kinh nghiệm" (Q6); after c2s/13 through a portal the
+ * character may not enter "Bạn phải đạt cấp 40 mới vào được Lạc Cốc"; after c2s/11 for another map "Không thể chuyển khu vực". */
+export function notice(payload: Uint8Array) {
+  const r = new Reader(payload);
+  return finish(r, { field: r.u8(), text: r.string() }, 's2c/1256');
 }
 
 /** s2c/10, sent together as kinds 2, 4, 8 on level up and on every stat point. Kind 2: level and ten stats (the first

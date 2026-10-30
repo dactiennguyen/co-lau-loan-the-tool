@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, type Move } from '../src/battle.ts';
+import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, type Move } from '../src/battle.ts';
 import { Writer } from '../src/protocol.ts';
 import { buildRequest, decodeEvent } from '../src/events.ts';
 import { BattleRunner, type BattleEnd } from '../src/battle-runner.ts';
@@ -53,6 +53,40 @@ test('bestMove picks a legal move on every captured position', () => {
   }
 });
 
+test('moveValue: hearts are worth nothing at full HP, swords double at full power, a killing move wins outright', () => {
+  const k = STRATEGIES.kill, o = (cleared: Record<number, number>) => ({ cleared, waves: 1, extraTurn: false, refillUsed: 0 });
+  const mob = fighter(249, 249, { sword: 10.9 });
+  assert.equal(moveValue(o({ 1: 3 }), fighter(174, 174), mob, k), 0);
+  assert.equal(moveValue(o({ 1: 3 }), fighter(170, 174), mob, k), 4); // only the 4 HP missing
+  assert.equal(moveValue(o({ 0: 3 }), fighter(174, 174, { s2: 100 }), mob, k), 60);
+  assert.equal(moveValue(o({ 0: 3 }), fighter(174, 174), fighter(30, 249), k), 1e4);
+  assert.equal(moveValue(o({ 2: 3 }), fighter(174, 174, { skillCost: 0 }), mob, k), 0); // no skill, no use for nội lực
+  assert.equal(moveValue(o({ 1: 3 }), unknownMob(), fighter(174, 174), k), 0); // a mob not hit yet is at full HP
+});
+
+test('bestMove: a killing move first; otherwise four hearts that keep the turn over three swords the mob would heal back', () => {
+  const b = Array<number>(N * N).fill(UNKNOWN), at = (r: number, c: number, v: number) => { b[r * N + c] = v; };
+  at(0, 0, 0); at(0, 1, 0); at(0, 2, 1); at(1, 2, 0);                // (0,2)↔(1,2): three swords in row 0
+  at(2, 0, 1); at(2, 1, 1); at(2, 2, 2); at(3, 2, 1); at(2, 3, 1);   // (2,2)↔(3,2): four hearts in row 2, extra turn
+  const swords = { from: [0, 2], to: [1, 2] }, hearts = { from: [2, 2], to: [3, 2] };
+  const pick = (me: number, mob: number) => { const p = bestMove(b, fighter(me, 174), fighter(mob, 249))!; return [p.move, p.score]; };
+  // Swords: 30 damage, then the mob answers with the four hearts: 22 HP back plus an extra turn (10), so 30 − 32.
+  assert.deepEqual(pick(174, 249), [hearts, 10]);           // full HP: only the extra turn, but no answer for the mob
+  assert.deepEqual(pick(60, 249), [hearts, 4 * 5.5 + 10]);   // low HP: 22 HP healed plus the extra turn
+  assert.deepEqual(pick(60, 25), [swords, 1e4]);
+});
+
+test('battle runner learns what a piece does for the mob: damage per sword, and its skill cost and damage', () => {
+  const runner = new BattleRunner({ me: 'manina', level: 19, hp: 174, maxHp: 174, uuid: 'u', board: battles[0].board.slice(), turnSeconds: 30, knownBytes: 0 }, 'mob61000',
+    { send: () => {}, log: () => {}, onEnd: () => {} });
+  const learn = (runner as any).learnFrom.bind(runner), unit = (damage: number) => ({ name: 'mob61000', damage, b: 0, hp: -1, s1: -1, s2: -1 });
+  learn(runner.mob, unit(33), { cleared: { 0: 3 }, waves: 1, extraTurn: false, refillUsed: 0 }, false);
+  assert.equal(runner.mob.sword, (8 * 6 + 33) / 9); // prior 8 as six pieces, then three swords for 33
+  runner.mob.s1 = 30;
+  learn(runner.mob, unit(59), { cleared: {}, waves: 0, extraTurn: false, refillUsed: 0 }, true);
+  assert.deepEqual([runner.mob.skillDamage, runner.mob.skillCost], [(40 + 59) / 2, 30]);
+});
+
 const packets: Record<string, string> = fixtures['battle-packets'];
 const decode = (key: string) => {
   const d = decodeEvent('s2c', Number(key.split(/[/ ]/)[1]), Buffer.from(packets[key], 'hex'));
@@ -97,7 +131,7 @@ test('timed battles (Q6–Q9 Sơn Tặc): s2c/18 flag, s2c/21 hit, s2c/1256 noti
   assert.deepEqual(sent, [19], 'the player opens with a swap, not a step request');
   clearTimeout((runner as any).turnWait);
   runner.onPacket(21, Buffer.from(packets['s2c/21'], 'hex'));
-  assert.equal(runner.myHp, 64);
+  assert.equal(runner.me.hp, 64);
 });
 
 test('battle and quest requests: builders match the captured layouts and decode back', () => {

@@ -11,13 +11,14 @@ npm run quest -- --fights=40
 | Tham số / biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `--fights=N` | 3 | Số trận tối đa trong một lần chạy |
-| `--min-hp=R` | 0 | Không thách đấu khi HP trên bản đồ dưới `R × HP tối đa`. Server hồi đầy HP lúc vào trận nên mặc định không chặn |
+| `--max-losses=N` | 1 | Thua N trận (không tính trận boss) thì dừng. Mỗi trận thua mất EXP (36 ở cấp 19) nhưng HP được hồi đầy |
+| `--min-hp=R` | 0 | Dừng thay vì thách đấu khi HP trên bản đồ dưới `R × HP tối đa`. Trận mới bắt đầu với HP trên bản đồ, HP không tự hồi khi đứng yên (Q19), chỉ được hồi đầy sau một trận thua |
 | `--grind=<tên quái>` | quái mạnh nhất không quá cấp mình | Quái để đánh khi bước "Đạt cấp độ N" chưa đủ cấp |
 | `--skill=ID:COST` | tắt | Dùng kỹ năng `ID` (`c2s/20`) khi nội lực ≥ `COST`; `1000:25` là Hỏa Cầu Thuật |
-| `--goal=kill\|exp` | `kill` | Bộ trọng số chọn nước: thắng nhanh, hoặc ăn sao/giọt nước/vàng |
+| `--goal=kill\|exp` | `kill` | Cách chấm nước ([07-auto-battle](../../app/events/07-auto-battle.md#thuật-toán-của-bot)): thắng nhanh, hoặc ăn thêm sao/giọt nước/vàng |
 | `--move-ms=N`, `--rest-ms=N` | 1000, 3000 | Nghỉ giữa các nước trong trận tính giờ; nghỉ trước trận sau |
 | `--farm=<tên quái>` | tắt | Bỏ qua nhiệm vụ, chỉ đánh loại quái này (để đo tốc độ) |
-| `--heal-below=R` | 0,4 | HP dưới `R × HP tối đa` thì nghỉ `20 × --rest-ms` trước trận sau (tối đa 3 lần): trận mới bắt đầu với HP của trận trước |
+| `--atlas=<file>` | `data/maps.json` | Bản đồ đã biết ([Quét map](#quét-map)): bot đọc lúc bắt đầu và ghi lại khi gặp map, quái, boss, cổng mới |
 | `CLLT_USERNAME`, `CLLT_PASSWORD` | | Đọc từ `.env` như [CLI chính](README.md#chạy-với-tài-khoản-của-bạn) |
 | `CLLT_TRACE=<file>` | | Ghi mọi log client ra JSONL, kèm hex đầy đủ của từng gói (trừ `c2s/4`) |
 
@@ -34,10 +35,10 @@ npm run quest -- --fights=40
 | "Đạt cấp độ N" (chưa đủ cấp) | Đánh quái mạnh nhất không quá cấp mình, hoặc `--grind` |
 | "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào chỉ số 0 |
 | "Gây N sát thương lên X" | `c2s/1178` với boss X từ `s2c/1177`; thua vẫn đánh tiếp, tiến độ là tổng sát thương ([10-quests](../../app/events/10-quests.md#boss)) |
-| NPC hoặc quái của bước không có ở map này | Đi qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Chọn cổng tới map đã gặp có NPC/quái đó, nếu không thì cổng mà tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 lần cho mỗi bước ([10-quests](../../app/events/10-quests.md#cổng)) |
+| NPC hoặc quái của bước không có ở map này | Đi qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Chọn cổng đầu tiên trên đường ngắn nhất (theo `data/maps.json`) tới map có NPC/quái đó, nếu không thì cổng mà tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 lần cho mỗi bước. Cổng bị từ chối (`s2c/1256`: thiếu cấp, chưa xong nhiệm vụ) được ghi lại và bỏ qua ([10-quests](../../app/events/10-quests.md#cổng)) |
 | Khác | Dừng với `step needs an action this bot does not know` |
 
-Bot dừng khi thua một trận (trừ trận boss của bước sát thương), khi HP dưới `--min-hp`, khi đủ `--fights`, khi NPC hoặc cổng không trả lời trong 8 s, hoặc khi không tìm được map có quái cần đánh. Tiến độ bước lấy từ `s2c/1201` của server; bot chỉ tự đếm trong vài mili giây trước khi gói này tới.
+Bot dừng khi thua đủ `--max-losses` trận (trừ trận boss của bước sát thương), khi HP dưới `--min-hp`, khi đủ `--fights`, khi NPC hoặc cổng không trả lời trong 8 s, hoặc khi không còn cổng nào để tìm map có quái cần đánh. Tiến độ bước lấy từ `s2c/1201` của server; bot chỉ tự đếm trong vài mili giây trước khi gói này tới.
 
 ## Luồng code
 
@@ -46,6 +47,7 @@ quest-run.ts ─ envConnection() ─ runClient({ mode: 'world', session: QuestBo
 client.ts    đăng nhập theo FLOW; sau s2c/43 + s2c/1263 gọi session.onReady(api) và chuyển mọi gói cho session.onPacket
 quest.ts     QuestBot: đọc s2c/39, chọn bước (stepAction), gửi c2s/13 (NPC hoặc cổng), c2s/15 hoặc c2s/1178 (boss);
              s2c/11 → danh sách NPC/cổng; s2c/1201 → tiến độ; s2c/22 → tạo BattleRunner
+atlas.ts     data/maps.json: NPC/cổng, quái theo khu, boss, cổng dẫn đâu hoặc bị từ chối; route() tìm đường
 battle-runner.ts  BattleRunner: c2s/18 → s2c/18
                   theo lượt:  s2c/24 → c2s/19 (hoặc c2s/20 kỹ năng) / c2s/14 → s2c/19|20 cập nhật bàn
                   tính giờ:   c2s/19|20 liên tục mỗi --move-ms; s2c/21 là đòn của quái
@@ -62,11 +64,41 @@ events.ts    buildRequest() cho mọi gói gửi đi, decodeEvent() cho log
 |---|---|
 | `ready`, `quest` | Vào thế giới; nhận `s2c/39` (kèm bước hiện tại) |
 | `talk`, `quest_progress`, `step_advanced` | Gửi `c2s/13`; nhận `s2c/34`; tự tăng bước |
-| `challenge`, `battle_setup`, `battle_end`, `kill_counted` | Một trận, từ thách đấu tới kết quả |
+| `challenge`, `battle_setup`, `battle_end`, `kill_counted`, `estimates` | Một trận, từ thách đấu tới kết quả; thông số hai bên học được trong trận (sát thương mỗi viên kiếm, kỹ năng, HP tối đa của quái) |
 | `board_reshuffled`, `board_desync`, `no_legal_move` | Server xếp lại bàn; mô hình lệch với server; không còn nước |
 | `move`, `skill_try`, `skill_cast`, `skill_no_answer`, `timed_attack`, `turn_inferred` | Từng nước (viên ăn được, sát thương); dùng kỹ năng; đòn của quái trong trận tính giờ; tự suy lượt khi thiếu `s2c/24` |
-| `map`, `travel`, `map_changed`, `arrived` | `s2c/11` (NPC, cổng của map); gửi `c2s/13` qua cổng; `s2c/13`; `s2c/43` của map mới |
-| `step_progress`, `boss_moving`, `waiting_for_mob`, `rest_for_hp` | `s2c/1201` (tiến độ server); `s2c/1177` field 1 (boss rời ô); đợi boss quay lại (5 s, tối đa 6 lần) thay vì đi map khác; nghỉ vì HP thấp |
+| `map`, `travel`, `map_changed`, `arrived`, `portal_refused` | `s2c/11` (NPC, cổng của map); gửi `c2s/13` qua cổng; `s2c/13`; `s2c/43` của map mới; `s2c/1256` từ chối cổng (kèm lời server) |
+| `step_progress`, `boss_moving`, `waiting_for_mob` | `s2c/1201` (tiến độ server); `s2c/1177` field 1 (boss rời ô); quái của bước thuộc map này theo `data/maps.json` (như boss đang đổi chỗ) mà chưa thấy: đợi 5 s, tối đa 6 lần, rồi dừng, không đi map khác |
 | `boss`, `damage_counted`, `level`, `durability`, `battle_cancelled`, `currency` | Boss từ `s2c/1177`; sát thương cộng dồn cho bước boss; lên cấp; độ bền trang bị (`s2c/36`); `s2c/36` đến giữa trận nghĩa là server đã kết thúc trận; tiền |
 | `quest_complete`, `stats` | `s2c/35` phần thưởng; `s2c/10` kiểu 4 (HP, EXP) |
 | `parse_error`, `server_text`, `stop` | Gói đọc lỗi (kèm hex); `s2c/0`, `s2c/5`; lý do dừng |
+
+## Quét map
+
+```bash
+npm run scan
+```
+
+Đăng nhập như `npm run quest`, xin bản đồ thế giới (`c2s/11 "M99"`), rồi đi lần lượt qua mọi cổng vào được, sâu trước. Ở mỗi map lệnh xin `c2s/11` và `c2s/43`, đợi `s2c/1177` 1,5 s, rồi quay lại map trước đó, và cuối cùng về map lúc đăng nhập. Lệnh chỉ gửi `c2s/11`, `c2s/13`, `c2s/43`. Kết quả ở [06-map-mobs](../../app/events/06-map-mobs.md#atlas).
+
+| Tham số | Mặc định | Ý nghĩa |
+|---|---|---|
+| `--atlas=<file>` | `data/maps.json` | File đọc vào rồi ghi lại sau mỗi map và mỗi cổng bị từ chối |
+
+`data/maps.json` ([src/atlas.ts](../../../src/atlas.ts)) gồm:
+
+| Khoá | Nội dung | Nguồn |
+|---|---|---|
+| `world` | 25 map: cấp yêu cầu, bị khoá hay không | `s2c/11 "M99"` |
+| `maps.<mapId>.places` | NPC (loại 2) và cổng (loại 0): id, tên, x, y, w, h (đơn vị server) | `s2c/11` |
+| `maps.<mapId>.mobs` | Loại quái, cấp, và các `mobId` của từng khu đã gặp | `s2c/43` + byte `area` của `s2c/11` |
+| `maps.<mapId>.bosses` | Boss: `mobId` theo khu, ô đứng lần cuối thấy | `s2c/1177` |
+| `portals.<id>` | Cổng dẫn tới map nào (`mapId`), hoặc cần cấp (`level`), hoặc lời từ chối khác (`refused`) | `s2c/13`, `s2c/1256` |
+
+Chỉ ghi những gì server đã gửi. Cổng bị từ chối vì cấp chỉ được thử lại khi nhân vật đủ cấp; cổng bị từ chối vì nhiệm vụ được thử lại ở mỗi lần quét. Bot nhiệm vụ ghi vào cùng file, nên mỗi lần chạy bot hay quét đều làm file đầy thêm.
+
+| `event` (`kind: "scan"`) | Khi nào |
+|---|---|
+| `map` | Một map mới: NPC, cổng, loại quái, boss |
+| `portal`, `portal_refused` | Qua được cổng (map đích, khu); bị từ chối (lời server) |
+| `done`, `stop` | Quét xong (các map đã đi, đã về map đầu chưa); dừng giữa chừng (lý do) |

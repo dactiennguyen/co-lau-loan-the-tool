@@ -4,15 +4,10 @@ import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol.ts';
 import { decodeEvent } from '../src/events.ts';
 import { QuestBot, stepAction } from '../src/quest.ts';
+import { mapPacket, noticePacket } from './support/packets.ts';
 
 const q: Record<string, string> = fixtures.quest;
 const mp: Record<string, string> = fixtures['map-packets'];
-/** s2c/11 flag 1 with empty grids and the given places (id, name, type). */
-const mapPacket = (mapId: string, name: string, places: [number, string, number][]) => {
-  const w = new Writer().u8(1).string(mapId).string(name).u8(0).i32(64).i32(320).i32(0).i32(1).i32(1).i32(0).i32(0).i32(0).i32(1).i32(0).i32(0).i32(places.length);
-  for (const [id, n, type] of places) w.i32(id).string(n).u8(type).i32(0).i32(0).i32(32).i32(32).u8(0).i32(0).i32(0);
-  return w.i32(0).i32(0).i32(0).build();
-};
 const bossPacket = (field: 0 | 1) => field === 1 ? new Writer().string('M1').u8(1).string('mob86100001').build()
   : new Writer().string('M1').u8(0).string('mob86100001').string('Thủ Lĩnh Sơn Tặc').i32(11).u8(0).i32(9).i32(1).u8(1).u8(1).i32(85).i32(5).build();
 const quest7 = () => new Writer().i32(7).string('Quét Sạch Sơn Trại').string('').string('main').i32(1).i32(0).i32(2)
@@ -123,4 +118,35 @@ test('quest bot: talk step sends c2s/13, the NPC reply advances to the kill step
   assert.deepEqual(sent.at(-1), { opcode: 15, hex: new Writer().string('mob2806').u8(0).build().toString('hex') });
   bot.options.maxFights = 0; // stop timers
   (bot as any).stop('test done');
+});
+
+test('quest bot: a portal the server refuses (s2c/1256) goes to the atlas with its level and the next portal is tried', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: e => events.push(e) });
+  const quest = new Writer().i32(10).string('Tìm Tướng Quân').string('').string('main').i32(0).i32(0).i32(1)
+    .i32(0).string('Gặp Tướng Quân Lê Viễn').i32(162).i32(1).i32(162);
+  bot.onPacket(11, mapPacket('M2', 'Trại Vân Sơn', [[1, 'Bản đồ', 0], [1013, 'Lạc Cốc', 0], [1024, 'Rìa Hồng Giang', 0], [141, 'Võ Quan Đinh Mộc', 2]]));
+  bot.onPacket(39, quest.build());
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M2').i32(1013).build().toString('hex') });
+  bot.onPacket(1256, noticePacket('Bạn phải đạt cấp 40 mới vào được Lạc Cốc'));
+  assert.deepEqual(bot.atlas.portals[1013], { name: 'Lạc Cốc', level: 40 });
+  assert.equal(events.at(-1)?.event, 'portal_refused');
+  clearTimeout((bot as any).wait);
+  bot.next();
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M2').i32(1024).build().toString('hex') });
+  (bot as any).stop('test done');
+});
+
+test('quest bot: --max-losses lets a kill step go on after a lost battle, and stops at the limit', () => {
+  const events: string[] = [];
+  const bot = new QuestBot({ maxFights: 10, maxLosses: 2, restMs: 60000, log: e => events.push(String(e.event)) });
+  bot.onPacket(29, new Writer().string('manina').string('M2').i32(0).build());
+  bot.onPacket(43, new Writer().string('M2').u8(3).string('mob61000').string('Cóc Xanh').i32(13).u8(0).i32(6).i32(1).u8(0).build());
+  bot.quest = { id: 9, title: 'Thử Sức Tân Binh', description: '', type: 'main', current: 0, progress: 2, steps: [{ index: 0, text: 'Tiêu diệt Cóc Xanh', param: 5, required: 15, npcId: -1 }] };
+  const loss = { won: false, actor: 'mob61000', exp: 0, coin: 0, myTurns: 27, hp: 0, mobId: 'mob61000', damage: 214 };
+  (bot as any).onBattleEnd(loss);
+  assert.deepEqual([events.includes('stop'), events.includes('kill_counted'), bot.quest.progress], [false, false, 2]); // a loss kills nothing
+  (bot as any).onBattleEnd(loss);
+  assert.equal(events.at(-1), 'stop');
 });

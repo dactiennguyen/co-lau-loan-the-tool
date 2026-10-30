@@ -142,23 +142,55 @@ Phần cộng 26–30 có thể phụ thuộc cấp quái và cấp mình [Chưa
 
 ## Thuật toán của bot
 
-Xem `bestMove` trong [src/battle.ts](../../../src/battle.ts).
+Xem `bestMove` và `moveValue` trong [src/battle.ts](../../../src/battle.ts); `BattleRunner` ([src/battle-runner.ts](../../../src/battle-runner.ts)) giữ trạng thái hai bên và tự học thông số trong trận.
 
-1. Liệt kê mọi nước đổi chỗ hợp lệ (tối đa 112 cặp kề nhau).
-2. Với mỗi nước, mô phỏng chuỗi ăn trên **các viên đã biết**. Viên sắp rơi xuống chưa biết nên coi là ô "không rõ", không ăn được. Như vậy điểm tính ra là cận dưới.
-3. Chấm điểm theo số viên ăn được: kiếm 10, tim 2 (6 khi máu dưới 50%), âm dương 2, giọt 2, đào/sao/vàng 1, thêm lượt +30.
-4. Nếu nước đó không cho thêm lượt, trừ đi `0,7 ×` điểm của nước tốt nhất mà đối thủ có thể đi ngay sau (nhìn trước 2 nước).
-5. Chọn nước điểm cao nhất.
+**Tốc độ do server quyết định, không phải do thuật toán.** Trong trận theo lượt, bot gửi nước và nhận kết quả mất ~35 ms, rồi server đợi ~965 ms mới gửi `s2c/24` cho lượt sau, sau **mọi** nước của cả hai bên (Q19: 106 lần đo). Một trận Cóc Xanh khoảng 27 nước của bot + 26 nước của quái ≈ 53 s. Muốn trận ngắn hơn chỉ có cách thắng bằng ít nước hơn. Chọn nước mất dưới 10 ms. [Đo]
 
-Đo được:
-- Chậm nhất 8 ms mỗi lần chọn.
-- Chạy lại trên các thế cờ của B1, thuật toán chọn trùng nước với AI phía server 13/27 lần.
-- run4 thắng sau 5 nước của bot, máu còn 130/130.
+### Cách chấm nước (từ Q20)
+
+Mỗi viên được đổi ra **lượng HP chênh lệch** theo trạng thái trận, thay cho bộ trọng số cố định trước đây:
+
+| Viên | Giá trị cho bên ăn |
+|---|---|
+| Kiếm | `số viên × sát thương/viên`, gấp đôi khi `s2` = 100. Nếu đủ giết đối thủ: 10 000 (chọn ngay) |
+| Tim | `số viên × HP/viên`, nhưng không quá số HP đang thiếu: HP đầy thì tim không đáng gì |
+| Âm dương | `số viên × nội lực/viên × sát thương kỹ năng / nội lực cần` (0 nếu không có kỹ năng) |
+| Đào | Phần đóng góp vào đòn gấp đôi kế tiếp: `s2 thêm / 100 × sát thương 3 kiếm` (0 khi `s2` đã 100) |
+| Thêm lượt | +10 |
+| Giọt, sao, vàng | 0 với `--goal=kill`; 2, 4, 1 với `--goal=exp` |
+
+Điểm của một nước = giá trị của mình − **giá trị nước đáp trả tốt nhất của quái** trên bàn còn lại, tính với HP của mình sau khi hồi và HP quái sau khi trúng đòn. Nước được thêm lượt thì không trừ. Trận tính giờ không trừ, vì quái không đi viên. Viên chưa rơi xuống coi như không biết, nên điểm là cận dưới.
+
+Thông số mặc định là trung bình đo ở Q16–Q19. Trong trận, `BattleRunner` cập nhật từng thông số cho mỗi bên bằng trung bình chạy (mặc định tính như 6 viên đã thấy), nên sau vài nước đã biết đúng con quái đang đánh:
+
+| Thông số | manina cấp 19 | Sói Xám cấp 11 | Cóc Xanh cấp 13 |
+|---|---:|---:|---:|
+| HP tối đa | 174 | 220 | 249 |
+| Sát thương mỗi viên kiếm (gồm né) | 10,4 (20,6 khi gấp đôi) | 3,9 | 10,9 |
+| HP mỗi viên tim | 5,45 | | 6,2 (mọi quái) |
+| Nội lực mỗi viên âm dương | 1,24 | 2,7 | 3,45 |
+| `s2` mỗi viên đào | 4,4 | | |
+| Kỹ năng: nội lực lúc dùng, sát thương | 25–39, 44–110 (Hỏa Cầu Thuật) | 25–37, 24–28 | 25–41, 47–72 |
+
+Viên rơi xuống chia đều 7 loại (5703 viên, mỗi loại 13,7–15,1%). [Đo]
+
+Hệ quả: với Cóc Xanh, mỗi viên âm dương quái ăn được đáng khoảng 6–7 HP của mình, gần bằng một viên kiếm. Kỹ năng của quái chiếm phần lớn sát thương trong các trận thua (Q19: 177/225, 118/226). Bộ trọng số cũ (kiếm 10, tim 2 hoặc 6, âm dương 1, đào 3, thêm lượt 30) không chặn âm dương của quái, coi đào quá cao và tim luôn có giá. [Đo, Suy luận]
+
+### Thử trên mô phỏng
+
+Mô phỏng dùng đúng `legalMoves`/`settle` của bot, viên rơi ngẫu nhiên đều 7 loại, và thông số trong bảng trên (manina 174 HP gặp Cóc Xanh 249 HP; quái dùng kỹ năng khi nội lực ≥ 30, bot khi ≥ 25; né 10%). Không biết AI của quái nên thử ba kiểu: quái chọn nước ăn nhiều nhất trong 40%, 60%, 100% số lượt, còn lại chọn ngẫu nhiên. Kiểu 60% cho tỉ lệ kiếm mỗi lượt gần nhất với trận thật (quái 0,5–0,6, bot ~0,9). 1000 trận mỗi ô:
+
+| Quái chọn nước tốt | Trọng số cũ: thắng, nước/trận thắng | Cách chấm mới |
+|---|---|---|
+| 40% | 70,6%, 34,8 | **80,2%**, 31,7 |
+| 60% | 50,1%, 34,7 | **64,7%**, 32,9 |
+| 100% | 37,0%, 36,6 | **42,6%**, 30,3 |
+
+Đã thử thêm: trừ 0,5 hoặc 0,7 nước đáp trả, thêm lượt +20 hoặc +35; trừ đủ 1 nước đáp trả với thêm lượt +10 tốt nhất ở cả ba kiểu quái. Trận thật trước khi đổi: Cóc Xanh 3 thắng / 8 trận (Q17–Q19). [Đo trên mô phỏng; trận thật ở [10-quests](10-quests.md#kết-quả-q18-q20)]
 
 Hướng cải thiện:
-- Đặt trọng số theo chỉ số nhân vật.
-- Tính giá trị của viên đặc biệt.
-- Dùng kỹ năng khi `s1` đủ. Chưa bắt được gói người chơi dùng kỹ năng. [Chưa rõ]
+- Tính giá trị của viên đặc biệt (Kiếm lửa nổ 3×3).
+- Đọc HP tối đa của quái ngay từ `s2c/22` thay vì đợi đòn đầu.
 
 ## Cách bot gửi gói
 

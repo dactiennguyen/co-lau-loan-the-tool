@@ -3,6 +3,7 @@
 Mốc: APK 1.0.3, bản đồ M1 "Làng Thanh Khê". Nguồn:
 - Phiên **B1** (spawn, khu 0).
 - Phiên **B2** (29/10/2026, attach vào cùng tiến trình, khu 20): hook packet như [05-battle](05-battle.md), cộng hook tại các hàm dựng gói trong `com.mh.sqlq`, và đọc object quái trong bộ nhớ bằng reflection qua JNI.
+- Phiên **S1** (30/10/2026, bot Node, không cần điện thoại): thử xin dữ liệu map khác, thử từng cổng, rồi quét mọi map vào được bằng `npm run scan` ([Bản đồ đã quét](#atlas)).
 
 Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -10,8 +11,9 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 | Câu hỏi | Trả lời |
 |---|---|
-| Map có những quái nào? | `c2s/43 (mapId)` → `s2c/43`: danh sách đủ `mobId`, tên, cấp của **khu hiện tại**. M1 có 5 loại, 33 con mỗi khu (bảng dưới). [Đo] |
-| Vị trí quái? | Server **không gửi**. Client tự đặt và cho quái đi lại. Muốn có toạ độ phải đọc trong bộ nhớ: `sqhz.J.e` chứa mọi entity. [Đo] |
+| Map có những quái nào? | `c2s/43 (mapId)` → `s2c/43`: danh sách đủ `mobId`, tên, cấp của **khu hiện tại**. M1 có 5 loại, 33 con mỗi khu; M2 có 6 loại, 31 con; M25 không có quái ([Bản đồ đã quét](#atlas)). [Đo] |
+| Xem được map chưa vào không? | **Không.** Server chỉ trả map đang đứng: `c2s/11` với map khác bị từ chối ("Không thể chuyển khu vực"), `c2s/43` với map khác vẫn trả quái của map đang đứng. Muốn biết NPC, cổng, quái của map nào thì phải vào map đó qua cổng. [Đo S1] |
+| Vị trí quái? | Server **không gửi** cho quái thường. Client tự đặt và cho quái đi lại. Muốn có toạ độ phải đọc trong bộ nhớ: `sqhz.J.e` chứa mọi entity. Boss thì có ô đứng trong `s2c/1177`; NPC và cổng có toạ độ trong `s2c/11`. [Đo] |
 | Di chuyển? | Client tự di chuyển trên lưới va chạm của `s2c/11` và báo vị trí bằng `c2s/1169` (x, y, trạng thái). Server nhận cả vị trí do bot Node tự gửi và lưu lại. Sang bản đồ khác: đứng ở cổng, bấm "Vào" → `c2s/13 (mapId, id cổng)` ([10-quests](10-quests.md#cổng)). [Đo] |
 | Đổi khu cùng map? | `c2s/1173 (u8 khu)` → `s2c/13 (mapId, khu)` → `c2s/11 (mapId, khu)` → `s2c/11` → `c2s/43` → `s2c/43`. [Đo] |
 | Code nào chạy khi va chạm quái? | `com.mh.sqhz.a18(mob, bool)` → `sqhz.a17(mob, bool, int)` → `sqlq.a67(mobId, false)` → `c2s/15`. [Đo] |
@@ -28,7 +30,7 @@ Mỗi khu có cùng 5 loại và cùng số lượng; chỉ `mobId` đổi theo 
 | Sơn Tặc | 9 | 6 | `mob42000`…`mob42005` | `mob42120`…`mob42125` | 29×20 |
 | Chỉ Huy Sơn Tặc | 10 | 7 | `mob872600`…`mob872606` | `mob872740`…`mob872746` | 25×20 |
 
-Hai khu đã thấy đều khớp quy luật `"mob" + mãLoại + (gốc + khu × sốCon + i)`: Gà Điên `1|0+20·8`, Heo Mọi `2|800+20·6`, Kẻ Gây Rối `3|1400+20·6`, Sơn Tặc `4|2000+20·6`, Chỉ Huy `87|2600+20·7`. Chưa kiểm khu khác. [Suy luận]
+Các khu đã thấy (0, 1, 20) đều khớp quy luật `"mob" + mãLoại + (gốc + khu × sốCon + i)`, ghép chuỗi: Gà Điên `1|0+20·8`, Heo Mọi `2|800+20·6`, Kẻ Gây Rối `3|1400+20·6`, Sơn Tặc `4|2000+20·6`, Chỉ Huy `87|2600+20·7`. Gà Điên khu 1 là `mob18`, `mob19`, `mob110`…`mob115` (mã loại `1`, số 8…15). `mãLoại` = loại quái trong bước nhiệm vụ + 1 ([mã quái](#mã-quái)). [Suy luận]
 
 Boss Thủ Lĩnh Sơn Tặc (`mob86100001`) không có trong 43; nó đến riêng qua s2c/1177.
 
@@ -71,6 +73,86 @@ Toạ độ đổi về đơn vị server (= bộ nhớ ÷ 1,5). Đây là một
 | `mob872744` | Chỉ Huy Sơn Tặc | 10 | 1072 | 251 | 1081,268,25,20 |
 | `mob872745` | Chỉ Huy Sơn Tặc | 10 | 1871 | 283 | 1879,300,25,20 |
 | `mob872746` | Chỉ Huy Sơn Tặc | 10 | 640 | 635 | 643,652,25,20 |
+
+<a id="atlas"></a>
+
+## Bản đồ đã quét (S1)
+
+**Kết luận: ở cấp 19 chỉ vào được 3 map: M1, M2, M25.** Mọi cổng khác bị server từ chối: hoặc vì cấp, hoặc vì chưa xong nhiệm vụ. Server cũng không trả dữ liệu của map mình chưa đứng trong đó, nên chưa lấy được NPC, cổng, quái của 22 map còn lại. [Đo S1]
+
+Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#quét-map)) đăng nhập, xin bản đồ thế giới `c2s/11 "M99"`, rồi đi lần lượt qua từng cổng vào được. Ở mỗi map nó xin `c2s/11` (map, NPC, cổng) và `c2s/43` (quái), nhận `s2c/1177` (boss), rồi quay về map ban đầu. Kết quả ghi vào [data/maps.json](../../../data/maps.json); bot nhiệm vụ đọc file này để biết đường đi qua các lần chạy ([src/atlas.ts](../../../src/atlas.ts)). Lệnh chỉ gửi `c2s/11`, `c2s/13`, `c2s/43`: không đánh, không chat, không mua bán.
+
+| Thử | Server trả | Kết luận |
+|---|---|---|
+| `c2s/11 "M1"` khi đang ở M2 | `s2c/1256` "Không thể chuyển khu vực", không có `s2c/11` | Chỉ xin được map đang đứng. Vị trí lưu vẫn là M2. [Đo] |
+| `c2s/43 "M1"` khi đang ở M2 | `s2c/43` của M2 | Server bỏ qua mapId. [Đo] |
+| `c2s/13` cổng chưa đủ cấp | `s2c/1256` "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" | Khoá theo cấp. Trước đây bot ghi nhầm là "cổng không trả lời" vì chưa đọc gói này (Q15). [Đo] |
+| `c2s/13` cổng Hồng Giang từ M25 | `s2c/1256` "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" | Khoá theo nhiệm vụ, nhiệm vụ nào thì [Chưa rõ]. [Đo] |
+| `c2s/13` cổng vào được | `s2c/13 (mapId, thứ tự map, 0, 0xff)` | Số sau mapId là thứ tự map trong bản đồ thế giới (M1 0, M2 1, M25 24), không phải khu. Khu là byte `area` của `s2c/11` sau đó, khớp với mã quái. [Đo] |
+| Gửi `c2s/13` từ xa cổng | Được nhận | Không cần đứng ở cổng: bot gửi từ chỗ đăng nhập. [Đo] |
+
+Id cổng là id của **map đích**, giống nhau ở mọi map: 1013 là Lạc Cốc ở cả M1 và M2, 1015 là Vân Sơn ở cả M1 và M25. [Đo]
+
+| Cổng | Tên | Kết quả ở cấp 19 |
+|---:|---|---|
+| 1010 | Cổ Phong | Cần cấp 130 |
+| 1013 | Lạc Cốc | Cần cấp 40 |
+| 1014 | Làng Thanh Khê | → M1 |
+| 1015 | Vân Sơn | → M2 |
+| 1016 | Hồng Giang | Cần xong nhiệm vụ |
+| 1017 | Tân Trạch | Cần cấp 110 |
+| 1024 | Rìa Hồng Giang | → M25 (bản đồ thế giới ghi cấp 20, nhưng cấp 19 vẫn vào được) |
+
+### NPC và cổng
+
+Toạ độ là góc trên-trái của ô, đơn vị server (ô 32). Cổng "Bản đồ" (id 0 ở M1, 1 ở M2) là nút mở bản đồ thế giới, không phải cổng thật. [Đo]
+
+| Map | NPC (id, x, y) | Cổng (id, x, y) |
+|---|---|---|
+| M1 Làng Thanh Khê | 102 Hương Lão Trần Bá (336, 576); 103 Bà Tư Hạnh (700, 608); 104 Ngọc Nga (915, 544); 106 Lái Buôn (576, 416); 111 Vệ Binh Lê Dũng (1167, 672); 129 Thành Chủ Nguyễn Khang (1472, 416); 161 Pháp sư (712, 512) | 1010 Cổ Phong (34, 336); 1013 Lạc Cốc (4960, 336); 1015 Vân Sơn (4960, 656) |
+| M2 Trại Vân Sơn | 127 Trại Chủ Phạm Hùng (1600, 800); 141 Võ Quan Đinh Mộc (1730, 800); 142 Dân Phu Vân Sơn (1830, 736) | 1013 Lạc Cốc (32, 624); 1014 Làng Thanh Khê (32, 464); 1017 Tân Trạch (2848, 304); 1024 Rìa Hồng Giang (2848, 880) |
+| M25 Rìa Hồng Giang | 162 Tướng Quân Lê Viễn (960, 352) | 1015 Vân Sơn (32, 400); 1016 Hồng Giang (1504, 624) |
+
+### Quái và boss của M2
+
+Quái của M1 ở [bảng trên](#quái-của-m1). M25 không có quái và không có boss. [Đo]
+
+| Loại | Cấp | Số con/khu | mobId khu 0 | mobId khu 1 |
+|---|---:|---:|---|---|
+| Kẻ Quấy Phá | 20 | 5 | `mob80`…`mob84` | `mob85`…`mob89` |
+| Cua Càng | 15 | 5 | `mob7500`…`mob7504` | `mob7505`…`mob7509` |
+| Cóc Xanh | 13 | 5 | `mob61000`…`mob61004` | `mob61005`…`mob61009` |
+| Sói Xám | 11 | 6 | `mob51500`…`mob51505` | `mob51506`…`mob51511` |
+| Sơn Tặc | 9 | 5 | `mob42100`…`mob42104` | `mob42105`…`mob42109` |
+| Heo Mọi | 7 | 5 | `mob22600`…`mob22604` | `mob22605`…`mob22609` |
+
+| Boss | Map | Cấp | mobId khu 0 | mobId khu 1 | Ô đứng lần cuối thấy (cột, hàng) |
+|---|---|---:|---|---|---|
+| Thủ Lĩnh Sơn Tặc | M1 | 11 | `mob86100001` | `mob86100101` | (115, 8) ở khu 1 |
+| Hào Trưởng phía Bắc | M2 | 21 | `mob89100002` | `mob89100102` | (51, 14) ở khu 0 |
+| Hào Trưởng phía Nam | M2 | 21 | `mob90100003` | `mob90100103` | (14, 30) ở khu 0 |
+
+Boss đổi ô sau mỗi lần rời đi (`s2c/1177` field 1 rồi field 0 với ô mới, [04-push](04-push.md#s2c-1177)), nên ô chỉ đúng tại lúc quét. [Đo]
+
+<a id="mã-quái"></a>
+
+### Mã quái
+
+`mobId` = `"mob"` + (loại quái + 1) + số thứ tự, ghép chuỗi. "Loại quái" là `thamSố` của bước diệt quái trong `s2c/39` ([10-quests](10-quests.md#s2c-39)). Số thứ tự của quái thường là `gốc + khu × sốCon + i`; của boss là `100000 + khu × 100 + n`. [Suy luận: 8/8 loại đã có trong nhiệm vụ khớp]
+
+| Quái | Loại trong nhiệm vụ | Đầu mã | Ví dụ |
+|---|---:|---|---|
+| Gà Điên | 0 | `mob1` | `mob10` = 1 + "0" |
+| Heo Mọi | 1 | `mob2` | `mob2800` (M1), `mob22600` (M2) |
+| Kẻ Gây Rối | 2 | `mob3` | `mob31400` |
+| Sơn Tặc | 3 | `mob4` | `mob42000` (M1), `mob42100` (M2) |
+| Sói Xám | 4 | `mob5` | `mob51500` |
+| Cóc Xanh | 5 | `mob6` | `mob61000` |
+| Thủ Lĩnh Sơn Tặc (boss) | 85 | `mob86` | `mob86100001` |
+| Chỉ Huy Sơn Tặc | 86 | `mob87` | `mob872600` |
+| Cua Càng, Kẻ Quấy Phá, Hào Trưởng phía Bắc, phía Nam | chưa gặp trong nhiệm vụ | `mob7`, `mob8`, `mob89`, `mob90` | loại 6, 7, 88, 89 theo quy luật [Suy luận] |
+
+Vì ghép chuỗi nên mã có thể nhập nhằng (`mob110` là Gà Điên số 10, không phải loại 10). Bot so tên quái, không tách mã.
 
 ## Cách liệt kê toàn bộ bot của map
 

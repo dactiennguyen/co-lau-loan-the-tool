@@ -17,6 +17,7 @@
 | B4: tìm gói đánh boss (30/10) | Agent Frida thay `sqhz.a17` (đi xuyên quái thường), hook 169 hàm dựng `sqlq`; nhân vật đứng sát boss nên app tự gửi `c2s/1178`; ADB vuốt để đánh 2 trận boss. [10-quests](events/10-quests.md#boss) | Trận boss thứ 3 bị tắt app giữa chừng |
 | B5: tìm gói qua cổng (30/10) | Cùng agent; nhân vật đứng ở cổng Vân Sơn, bấm "Vào" → `c2s/13` với id cổng 1015, sang M2. [10-quests](events/10-quests.md#cổng) | Một cổng |
 | Q1, Q2, Q3…: bot Node làm nhiệm vụ (30/10) | `npm run quest`, không cần điện thoại; log client với prefix hex 128 byte. [10-quests](events/10-quests.md) | Gói dài hơn 128 byte chỉ có prefix |
+| S1: quét map bằng bot Node (30/10) | Thử `c2s/11`, `c2s/43` với map khác và từng cổng; `npm run scan` đi qua mọi cổng vào được, ghi [data/maps.json](../../data/maps.json). [06-map-mobs](events/06-map-mobs.md#atlas) | Cấp 19: chỉ M1, M2, M25 |
 
 Giá trị HP, khu vực, danh sách thực thể và key có thể khác giữa các phiên. Nhãn field và nhãn event trong tài liệu là diễn giải, trừ khi đã chỉ rõ chữ ký/field thực của binary. Raw trace/script tạm đã xoá sau khi ghi lại các quan sát cần thiết.
 

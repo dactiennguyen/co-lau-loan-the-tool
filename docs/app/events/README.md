@@ -65,7 +65,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/43 | entities_data | world | [Byte, bố cục, nguồn quan sát](03-world.md#s2c-43) |
 | c2s/1169 | player_move | world | [Di chuyển của mình](09-players-chat.md#own-move) |
 | c2s/1173 | change_zone | world | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
-| s2c/13 | zone_changed | world | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
+| s2c/13 | zone_changed | world | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map), [qua cổng](10-quests.md#cổng) |
 | c2s/1172 | zone_list_request | world | [Khu vực và số người](08-server-map-zone.md#zone-list) |
 | s2c/1172 | zone_list | world | [Khu vực và số người](08-server-map-zone.md#zone-list) |
 | c2s/13 | npc_talk | world | [Gói nhiệm vụ](10-quests.md#c2s-13) |
@@ -104,7 +104,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/46 | currency_notice | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-46) |
 | s2c/10 | character_stats | push | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
 | s2c/1187 | inventory_item | push | [Gói khác thấy trong L1](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) |
-| s2c/1256 | notice_1256 | push | [Thua trận mất EXP](10-quests.md#kết-quả-q3-q4) |
+| s2c/1256 | notice_1256 | push | [Thua trận mất EXP](10-quests.md#kết-quả-q3-q4), [cổng chưa mở](06-map-mobs.md#atlas) |
 | s2c/1201 | step_progress | push | [Lên cấp trong bot](10-quests.md#kết-quả-q3-q4) |
 | s2c/1200 | signal_1200 | push | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |
 | s2c/39 | quest_data | push | [Nhiệm vụ đang làm](10-quests.md#s2c-39) |

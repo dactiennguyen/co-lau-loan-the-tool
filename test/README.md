@@ -16,6 +16,8 @@
 | world | Bản đồ thế giới, khu, người chơi, chat, vật phẩm rơi, di chuyển (L1/W1) |
 | quest | Nhiệm vụ `s2c/39`, `34`, `35` và bảng xếp hạng `s2c/1254` |
 
+[atlas.test.ts](atlas.test.ts) kiểm `data/maps.json` ([src/atlas.ts](../src/atlas.ts)) và lệnh quét map trên một server giả gồm M1, M2, M25 với đủ ba kiểu trả lời cổng (sang map, thiếu cấp, chưa xong nhiệm vụ). Các gói giả dùng chung (`mapPacket`, `mobsPacket`, `noticePacket`) ở [support/packets.ts](support/packets.ts).
+
 [docs.test.ts](docs.test.ts) không dùng fixture: nó kiểm mọi link/anchor trong tài liệu, bảng gói của [events/README](../docs/app/events/README.md) và các mục event 01–04 khớp catalog trong `src/events.ts`, và các con số "đã ghi N gói", "N opcode chưa thấy" khớp catalog và danh sách trong [opcode-map](../docs/app/opcode-map.md#unseen).
 
 Cấu hình bản APK và bảng opcode là code trong [src/config.ts](../src/config.ts). Kết quả kiểm tra Node với tài khoản thật nằm trong [báo cáo tích hợp](../docs/integration/nodejs/live-check.md); cách chạy regression/chẩn đoán ở [hướng dẫn Node.js](../docs/integration/nodejs/diagnostics.md).
