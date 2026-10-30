@@ -13,14 +13,11 @@
 :root:not([data-os="mac"]) .sidebar { padding-top: var(--space-4); }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
 .brand__logo {
-  display: grid;
-  place-items: center;
+  display: block;
+  flex-shrink: 0;
   width: 42px;
   height: 42px;
-  border-radius: 13px;
-  background: var(--grad-primary);
-  color: #fff;
-  box-shadow: 0 8px 22px -10px rgb(192 38 211 / 0.9), inset 0 1px 0 rgb(255 255 255 / 0.3);
+  object-fit: contain;
 }
 .brand__name { font: 700 18px/1.2 var(--font-display); letter-spacing: 0.3px; }
 .brand__summary { font-size: 12px; color: var(--fg-3); }

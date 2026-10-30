@@ -55,7 +55,8 @@ app/
   desktop/                project Tauri 2 (cấu trúc của create-tauri-app, template react-ts)
     package.json            dev, build (tsc && vite build), tauri, app, sample
     index.html, vite.config.ts, tsconfig.json
-    app-icon.png/.svg       nguồn icon; `npm run tauri icon app-icon.png` sinh src-tauri/icons
+    app-icon.png            nguồn icon mẫu số 4 (xanh rêu, bông lau giấy màu kem), dùng chung cho logo giao diện;
+                            `npm run tauri icon app-icon.png` sinh bộ icon nền tảng trong src-tauri/icons
     src/                    giao diện React + TypeScript
       main.tsx, App.tsx       gốc: thanh bên, trang nick, hộp thêm nick
       types.ts                kiểu dữ liệu Rust gửi sang (bản sao của src-tauri/src/view.rs)

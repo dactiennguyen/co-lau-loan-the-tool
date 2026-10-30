@@ -1,14 +1,10 @@
 .empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--space-3); text-align: center; }
 .empty__logo {
-  display: grid;
-  place-items: center;
+  display: block;
   width: 84px;
   height: 84px;
   margin-bottom: var(--space-2);
-  border-radius: 26px;
-  background: var(--grad-primary);
-  color: #fff;
-  box-shadow: 0 20px 40px -18px rgb(192 38 211 / 0.9);
+  object-fit: contain;
 }
 .empty h1 { margin: 0; font: 700 24px/1.2 var(--font-display); }
 .empty p { margin: 0 0 var(--space-2); color: var(--fg-2); }

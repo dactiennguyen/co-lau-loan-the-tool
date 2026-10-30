@@ -1,5 +1,5 @@
 import { Button } from "../components/Button";
-import { Icon } from "../components/Icon";
+import appIcon from "../../app-icon.png";
 import type { Account } from "../types";
 import { AccountCard } from "./AccountCard";
 import "./Sidebar.css";
@@ -24,9 +24,7 @@ export function Sidebar({ accounts, error, selected, onSelect, onAdd, onLogin, o
     <aside className="sidebar">
       <div className="sidebar__drag" data-tauri-drag-region />
       <div className="brand">
-        <span className="brand__logo">
-          <Icon name="flag" size={22} />
-        </span>
+        <img className="brand__logo" src={appIcon} alt="" draggable={false} />
         <div>
           <div className="brand__name">Cờ Lau Loạn Thế</div>
           <div className="brand__summary">
