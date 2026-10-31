@@ -9,6 +9,7 @@ pub mod net;
 pub mod opcodes;
 pub mod potentials;
 pub mod protocol;
+pub mod proxy;
 pub mod quest;
 pub mod requests;
 pub mod runner;

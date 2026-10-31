@@ -3,7 +3,7 @@
 // components read what they need with a selector, so an update re-renders only what shows the changed part.
 // Short-lived state of one view (the open tab, a menu's position, a form) stays in that view.
 import { create } from "zustand";
-import { addToasts, questToasts, type ToastItem } from "./toasts";
+import { addToasts, errorToasts, questToasts, type ToastItem } from "./toasts";
 import type { Account, AccountsUpdate, AppState, LogLine } from "./types";
 import { accountsOf, append, merge, type Accounts } from "./updates";
 
@@ -55,7 +55,7 @@ export const useStore = create<Store>()((set) => ({
   updated: (u) =>
     set((s) => {
       const next = merge(s, u);
-      const more = next === s ? [] : questToasts(s.byId, u.accounts);
+      const more = next === s ? [] : [...questToasts(s.byId, u.accounts), ...errorToasts(s.byId, u.accounts)];
       return more.length ? { ...next, toasts: addToasts(s.toasts, more) } : next;
     }),
   logLoaded: (id, lines) => set({ log: { id, lines } }),

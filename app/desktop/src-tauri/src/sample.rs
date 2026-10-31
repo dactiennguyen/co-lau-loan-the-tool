@@ -6,6 +6,7 @@ use cllt_core::accounts::Account;
 use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Snapshot, Target};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
+use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
 use cllt_core::world::{Nearby, Quest, QuestStep};
 use serde_json::json;
@@ -19,7 +20,20 @@ fn account(label: &str, username: &str) -> Account {
         server_id: 24,
         skill: None,
         stats: None,
+        proxy: None,
     }
+}
+
+/// A made-up proxy (documentation addresses of RFC 5737).
+fn proxy(enabled: bool, kind: ProxyKind, host: &str, port: u16, username: &str) -> Option<Proxy> {
+    Some(Proxy {
+        enabled,
+        kind,
+        host: host.into(),
+        port,
+        username: username.into(),
+        password: if username.is_empty() { "" } else { "x" }.into(),
+    })
 }
 
 /// Steps as s2c/39 sends them: (text, param, required, npc id).
@@ -236,6 +250,7 @@ pub fn entries() -> Vec<Entry> {
 
     let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"));
     second.account.stats = Some(StatPlan::Auto);
+    second.account.proxy = proxy(true, ProxyKind::Socks5, "203.0.113.7", 1080, "bot2");
     second.state = ConnState::Online;
     second.since = "17:42".into();
     second.snap = Snapshot {
@@ -292,7 +307,9 @@ pub fn entries() -> Vec<Entry> {
 
     let mut third = Entry::new(2, account("", "thanhvan"));
     third.state = ConnState::Error("Server từ chối: tài khoản đang đăng nhập ở nơi khác".into());
+    third.account.proxy = proxy(false, ProxyKind::Http, "198.51.100.20", 8080, "");
     let mut fourth = Entry::new(3, account("Nick farm", "loclau"));
+    fourth.account.proxy = proxy(true, ProxyKind::Http, "198.51.100.21", 3128, "farm");
     fourth.state = ConnState::Connecting;
     vec![main, second, third, fourth]
 }

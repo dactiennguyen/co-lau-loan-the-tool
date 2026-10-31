@@ -7,6 +7,6 @@ export function envConnection() {
   const env = process.env;
   return {
     host: env.CLLT_HOST, port: Number(env.CLLT_PORT ?? BASELINE.port), serverId: Number(env.CLLT_SERVER_ID ?? BASELINE.observedServerId),
-    username: env.CLLT_USERNAME, password: env.CLLT_PASSWORD,
+    username: env.CLLT_USERNAME, password: env.CLLT_PASSWORD, proxy: env.CLLT_PROXY || undefined,
   };
 }

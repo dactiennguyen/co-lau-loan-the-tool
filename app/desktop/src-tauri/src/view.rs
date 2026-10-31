@@ -4,6 +4,7 @@ use crate::app::Entry;
 use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Target};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
+use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
 use cllt_core::world::{Nearby, Quest};
 use serde::Serialize;
@@ -78,8 +79,37 @@ pub struct AccountView<'a> {
     pub since: &'a str,
     /// How potential points are spent on their own (accounts.json).
     pub stat_plan: Option<StatPlan>,
+    /// The proxy saved for the account, on or off.
+    pub proxy: Option<ProxyView<'a>>,
     /// What the session knows about the character; None until it is in the game.
     pub character: Option<CharacterView<'a>>,
+}
+
+/// The account's proxy without its password (the edit form asks for that with `account_secrets`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyView<'a> {
+    pub enabled: bool,
+    pub kind: ProxyKind,
+    pub host: &'a str,
+    pub port: u16,
+    pub username: &'a str,
+    pub has_password: bool,
+    /// "socks5 1.2.3.4:1080", for the card and the sidebar.
+    pub label: String,
+}
+impl<'a> ProxyView<'a> {
+    fn of(p: &'a Proxy) -> Self {
+        Self {
+            enabled: p.enabled,
+            kind: p.kind,
+            host: &p.host,
+            port: p.port,
+            username: &p.username,
+            has_password: !p.password.is_empty(),
+            label: p.label(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -151,6 +181,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
         },
         since: &e.since,
         stat_plan: e.account.stats,
+        proxy: e.account.proxy.as_ref().map(ProxyView::of),
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,
             level: s.level,

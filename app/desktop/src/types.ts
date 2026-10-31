@@ -198,8 +198,24 @@ export interface Account {
   since: string;
   /** How potential points are spent on their own (accounts.json); null for not at all. */
   statPlan: StatPlan | null;
+  /** The proxy saved for the account, on or off; null when none. */
+  proxy: ProxyInfo | null;
   /** Null until the session is in the game. */
   character: Character | null;
+}
+
+export type ProxyKind = "socks5" | "http";
+
+/** ProxyView of view.rs: the saved proxy without its password. */
+export interface ProxyInfo {
+  enabled: boolean;
+  kind: ProxyKind;
+  host: string;
+  port: number;
+  username: string;
+  hasPassword: boolean;
+  /** "socks5 1.2.3.4:1080" */
+  label: string;
 }
 
 /** StatPlan of cllt-core's potentials.rs: the main stat of the element, or weights by c2s/10 index (Cường lực, Nội lực,
@@ -228,4 +244,23 @@ export interface AccountForm {
   password: string;
   serverId: number;
   label: string;
+  proxy: ProxyForm;
+}
+
+/** The passwords of an account, for the edit form only (account_secrets of commands.rs). */
+export interface Secrets {
+  password: string;
+  /** Empty when the account has no proxy or a proxy without one. */
+  proxyPassword: string;
+}
+
+/** The proxy part of the form (ProxyForm of commands.rs): off with no host saves no proxy. An empty password with the
+ * saved username keeps the saved password. */
+export interface ProxyForm {
+  enabled: boolean;
+  kind: ProxyKind;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
 }

@@ -23,6 +23,20 @@
   text-overflow: ellipsis;
 }
 .hero__name .badge { height: 20px; font-size: 12px; padding: 0 6px; }
+.hero__proxy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--good-shade);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--good);
+  white-space: nowrap;
+}
 .hero__meta { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 11px; color: var(--fg-2); }
 .hero__meta > span:last-child { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hero__error { color: var(--danger); }

@@ -30,6 +30,21 @@ npm run connect -- --bootstrap
 
 `login` ngắt sau response nhân vật `9`; `world` ngắt sau entities `43` và players snapshot `1263`. Khu không có người chơi nào khác thì server không gửi `1263` (M25, 31/10): client đợi 1,5 s sau `43` (`snapshotWaitMs`) rồi coi như xong, với `playersSnapshotReceived: false`. Muốn giữ kết nối để chơi tiếp, truyền option `session` (xem [bot làm nhiệm vụ](quest-bot.md)); `npm run quest` dùng cách này. Client dùng credential bạn điền vào `.env` và không tự retry.
 
+## Proxy
+
+Đặt `CLLT_PROXY` trong `.env` (hay option `proxy` của `runClient()`) thì mọi lệnh (`npm start`, `npm run quest`, `npm run scan`…) đi qua proxy đó:
+
+```bash
+CLLT_PROXY=socks5://user:pass@1.2.3.4:1080    # socks5h:// và socks:// cũng được
+CLLT_PROXY=http://user:pass@1.2.3.4:8080      # proxy HTTP có CONNECT
+```
+
+- Chỉ kết nối TCP đi qua proxy; giao thức game bên trong không đổi. Client nối tới proxy, mở đường tới `CLLT_HOST:CLLT_PORT` (SOCKS5 gửi tên host để proxy tự phân giải), rồi mới nhận seed.
+- Thêm một bước `proxy` trước `seed`. Log có `tcp_connected` (kèm `proxy`) và `proxy_connected` (kèm `target`); chỉ ghi loại và địa chỉ proxy, không bao giờ ghi tài khoản/mật khẩu.
+- Ký tự đặc biệt trong tài khoản/mật khẩu phải mã hoá kiểu URL (`@` → `%40`, `:` → `%3A`). Chưa hỗ trợ SOCKS4 và proxy HTTPS (TLS tới proxy).
+- Proxy hỏng thì client dừng ở bước `proxy` với mã riêng: `PROXY_UNREACHABLE`, `PROXY_AUTH`, `PROXY_REFUSED`, `PROXY_PROTOCOL`, `PROXY_TIMEOUT`, `PROXY_CLOSED` ([chẩn đoán](diagnostics.md#đọc-diagnostic-theo-bước-dừng)).
+- Đã thử thật ngày 31/10/2026 qua một proxy HTTP có tài khoản: `npm run connect -- --bootstrap` mở được đường tới `play.colauloanthe.vn:1688` sau khoảng 1 s, nhận seed, danh sách server và thông báo, xong sau 3,3 s. Chưa thử đăng nhập nick qua proxy.
+
 ## Dùng bằng code
 
 ```typescript
@@ -85,6 +100,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 |---|---|
 | [connect.ts](../../../src/connect.ts) | Entry point trực tiếp; chọn mode, in kết quả |
 | [env.ts](../../../src/env.ts) | Nạp `.env` và dựng option kết nối cho các CLI |
+| [proxy.ts](../../../src/proxy.ts) | Đọc `CLLT_PROXY`; bắt tay SOCKS5/HTTP CONNECT không I/O (`ProxyTunnel`) mà `client.ts` chạy trước seed ([proxy](#proxy)) |
 | [client.ts](../../../src/client.ts) | Socket thật, luồng đăng nhập `FLOW`, log event, `result.user`, heartbeat, deadline, `session` |
 | [events.ts](../../../src/events.ts) | Catalog 91 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
 | [protocol.ts](../../../src/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR; đọc gói nhân vật/vị trí/map |
@@ -100,7 +116,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 
 Code live không import `test/` và không đọc JSON cấu hình/dữ liệu mẫu. Có hai file dữ liệu. [data/maps.json](../../../data/maps.json): bot và lệnh quét tự ghi vào đó những gì server đã gửi về từng map. [data/items.json](../../../data/items.json): bảng vật phẩm chép từ file của game trên máy, dựng lại bằng `npm run items`. Mapping opcode, host, version và build identity là hằng TypeScript trong [src/config.ts](../../../src/config.ts). Bản copy chỉ có `src/` đã đăng nhập server thật và nhận đủ user/map; xem [live-check](live-check.md). Dữ liệu regression chỉ còn một module `test/fixtures.ts`.
 
-Các option của `runClient()` gồm host/port/serverId, username/password, mode, callback log và timeout. Mặc định API chọn bootstrap, timeout mỗi bước 8000 ms, tổng 30000 ms, heartbeat 2000 ms, settle 0 ms. CLI tự chọn mode theo credential như trên; `responseTimeoutMs`, `overallTimeoutMs`, `heartbeatMs`, `settleMs` là option API.
+Các option của `runClient()` gồm host/port/serverId, username/password, `proxy`, mode, callback log và timeout. Mặc định API chọn bootstrap, timeout mỗi bước 8000 ms, tổng 30000 ms, heartbeat 2000 ms, settle 0 ms. CLI tự chọn mode theo credential như trên; `responseTimeoutMs`, `overallTimeoutMs`, `heartbeatMs`, `settleMs` là option API.
 
 ## Kiểm chứng và kiểm thử
 

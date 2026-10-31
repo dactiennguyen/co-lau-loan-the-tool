@@ -6,6 +6,8 @@ use crate::view::LogLine;
 use cllt_core::accounts::Account;
 use cllt_core::net::Command;
 use cllt_core::potentials::StatPlan;
+use cllt_core::proxy::{Proxy, ProxyKind};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::State;
 
@@ -97,12 +99,53 @@ pub fn add_stat(shared: State<Shared>, id: u64, stat: usize) {
     shared.with(|app| app.send(id, Command::AddStat(stat)));
 }
 
+/// The proxy part of the add and edit form. An empty password with a username keeps the saved one when editing.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyForm {
+    enabled: bool,
+    kind: ProxyKind,
+    host: String,
+    port: u32,
+    username: String,
+    password: String,
+}
+impl ProxyForm {
+    /// None when off with no address: nothing to keep.
+    fn proxy(self) -> Result<Option<Proxy>, String> {
+        let host = self
+            .host
+            .trim()
+            .trim_start_matches('[')
+            .trim_end_matches(']');
+        if !self.enabled && host.is_empty() {
+            return Ok(None);
+        }
+        let username = self.username.trim().to_string();
+        let proxy = Proxy {
+            enabled: self.enabled,
+            kind: self.kind,
+            host: host.to_string(),
+            port: u16::try_from(self.port).unwrap_or(0),
+            password: if username.is_empty() {
+                String::new()
+            } else {
+                self.password
+            },
+            username,
+        };
+        proxy.check_fields()?;
+        Ok(Some(proxy))
+    }
+}
+
 /// The account of the add and edit form; `password` may be empty only when editing (it then stays as it was).
 fn form(
     username: String,
     password: String,
     server_id: i32,
     label: String,
+    proxy: Option<ProxyForm>,
     editing: bool,
 ) -> Result<Account, String> {
     let username = username.trim().to_string();
@@ -119,10 +162,12 @@ fn form(
         server_id,
         skill: None,
         stats: None,
+        proxy: proxy.map(ProxyForm::proxy).transpose()?.flatten(),
     })
 }
 
-/// Saves the account to accounts.json and returns its id; the error is shown in the dialog.
+/// Saves the account to accounts.json and returns its id; a proxy turned on is tested first (Shared::add). The error
+/// is shown in the dialog.
 #[tauri::command]
 pub async fn add_account(
     shared: State<'_, Shared>,
@@ -130,13 +175,15 @@ pub async fn add_account(
     password: String,
     server_id: i32,
     label: String,
+    proxy: Option<ProxyForm>,
 ) -> Result<u64, String> {
     shared
-        .add(form(username, password, server_id, label, false)?)
+        .add(form(username, password, server_id, label, proxy, false)?)
         .await
 }
 
-/// Saves the changed account; an empty password keeps the saved one. The error is shown in the dialog.
+/// Saves the changed account; an empty password keeps the saved one, and a proxy turned on or changed is tested first
+/// (Shared::update). The error is shown in the dialog.
 #[tauri::command]
 pub async fn update_account(
     shared: State<'_, Shared>,
@@ -145,10 +192,35 @@ pub async fn update_account(
     password: String,
     server_id: i32,
     label: String,
+    proxy: Option<ProxyForm>,
 ) -> Result<(), String> {
     shared
-        .update(id, form(username, password, server_id, label, true)?)
+        .update(id, form(username, password, server_id, label, proxy, true)?)
         .await
+}
+
+/// The game password and the proxy password of the account, which the edit form shows (hidden until its eye button is
+/// pressed). Asked when Sửa nick opens; nothing else sends them to the UI.
+#[tauri::command]
+pub fn account_secrets(shared: State<Shared>, id: u64) -> Result<crate::app::Secrets, String> {
+    shared
+        .with(|app| app.secrets(id))
+        .ok_or_else(|| "Nick này không còn trong danh sách".into())
+}
+
+/// "Kiểm tra" next to the proxy of the form: reaches the game server through it, on or off, and returns the time it
+/// took in ms. With `id`, an empty password is the one saved for that account.
+#[tauri::command]
+pub async fn test_proxy(
+    shared: State<'_, Shared>,
+    id: Option<u64>,
+    proxy: ProxyForm,
+) -> Result<u64, String> {
+    let edit = proxy.proxy()?.ok_or("Nhập địa chỉ proxy trước")?;
+    let saved = id.and_then(|id| shared.with(|app| app.proxy_of(id)));
+    let proxy = crate::app::keep_password(saved.as_ref(), Some(edit)).unwrap();
+    let took = cllt_core::net::check_proxy(&proxy).await?;
+    Ok(took.as_millis() as u64)
 }
 
 /// The error is shown in the dialog that asked; the account then stays.

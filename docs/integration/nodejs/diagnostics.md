@@ -65,6 +65,10 @@ Index bắt đầu từ 0 trong danh sách record đã normalize. Lỗi parse c�
 | Diagnostic | Nơi kiểm tra |
 |---|---|
 | `DNS_ERROR`, `TCP_ERROR` | Host/port/env, mạng và trạng thái endpoint |
+| `PROXY_UNREACHABLE`, `PROXY_TIMEOUT`, `PROXY_CLOSED` | Bước `proxy`: không nối được tới proxy, proxy im quá `responseTimeoutMs`, hoặc proxy đóng kết nối trước khi mở đường. Kiểm tra địa chỉ/cổng trong `CLLT_PROXY` ([proxy](README.md#proxy)) |
+| `PROXY_AUTH` | Proxy cần tài khoản/mật khẩu hoặc từ chối chúng (SOCKS5 cách đăng nhập `0xff`, trạng thái khác 0; HTTP 407) |
+| `PROXY_REFUSED` | Proxy không chịu nối tới server game: mã trả lời SOCKS5 khác 0 (`socksReply`) hoặc HTTP không phải 2xx (`httpStatus`). Proxy có thể chỉ cho cổng 80/443 |
+| `PROXY_PROTOCOL` | Trả lời không phải của proxy SOCKS5/HTTP: sai loại trong `CLLT_PROXY` |
 | `SEED_TIMEOUT` | Chưa nhận đủ 4 byte seed; đối chiếu endpoint/handshake mới |
 | `FRAME_LENGTH` | [protocol.ts](../../../src/protocol.ts): length/offset/buffering frame |
 | `KEY_LAYOUT` | `sessionKey()` và handler -1 của app |

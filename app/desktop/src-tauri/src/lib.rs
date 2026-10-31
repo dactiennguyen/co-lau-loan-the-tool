@@ -74,6 +74,8 @@ pub fn run() {
             commands::add_stat,
             commands::add_account,
             commands::update_account,
+            commands::test_proxy,
+            commands::account_secrets,
             commands::remove_account,
         ])
         .run(tauri::generate_context!())

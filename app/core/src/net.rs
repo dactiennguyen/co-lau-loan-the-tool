@@ -1,5 +1,6 @@
 //! One TCP session per account over tokio: the login of FLOW in src/client.ts, heartbeat c2s/1 every 2 s from the key
 //! exchange on, then the Bot with its commands and timers. Manager runs one session per account on a shared runtime.
+//! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::bot::{Bot, BotOptions, Out, Snapshot};
@@ -8,6 +9,7 @@ use crate::potentials::StatPlan;
 use crate::protocol::{
     character_location, character_prefix, handshake, map_prefix, session_key, Protocol, Reader,
 };
+use crate::proxy::{open_tunnel, Proxy};
 use crate::requests::{build, Ctx};
 use crate::world::map_entities;
 use std::sync::Arc;
@@ -132,16 +134,17 @@ async fn session(
     emit: &Emit,
 ) -> Result<(), Error> {
     // Logout works at every step: the connect and the seed wait end on it too, as the login steps below do.
-    let mut stream = tokio::select! {
-        r = timeout(STEP, TcpStream::connect(server)) => r
-            .map_err(|_| "Hết giờ kết nối".to_string())?
-            .map_err(|e| e.to_string())?,
+    let proxy = account.proxy.as_ref().filter(|p| p.enabled);
+    let (mut stream, early) = tokio::select! {
+        r = connect(server, proxy, emit) => r?,
         () = logged_out(commands, emit) => return Ok(()),
     };
-    stream.set_nodelay(true).map_err(|e| e.to_string())?;
+    // A proxy may pass on the start of the seed with its last reply.
     let mut seed = [0u8; 4];
+    let have = early.len().min(4);
+    seed[..have].copy_from_slice(&early[..have]);
     tokio::select! {
-        r = timeout(STEP, stream.read_exact(&mut seed)) => r
+        r = timeout(STEP, stream.read_exact(&mut seed[have..])) => r
             .map_err(|_| "Server không gửi seed".to_string())?
             .map_err(|e| e.to_string())?,
         () = logged_out(commands, emit) => return Ok(()),
@@ -152,6 +155,7 @@ async fn session(
         .map_err(|e| e.to_string())?;
 
     let mut proto = Protocol::default();
+    proto.push(&early[have..]);
     let options = BotOptions {
         skill: account.skill,
         stats: account.stats,
@@ -318,6 +322,62 @@ async fn session(
             last = snap;
         }
     }
+}
+
+/// The TCP connection to the game server, through `proxy` when the account has one turned on; with the bytes the proxy
+/// passed on after its last reply.
+async fn connect(
+    server: (&str, u16),
+    proxy: Option<&Proxy>,
+    emit: &Emit,
+) -> Result<(TcpStream, Vec<u8>), Error> {
+    let Some(p) = proxy else {
+        let stream = timeout(STEP, TcpStream::connect(server))
+            .await
+            .map_err(|_| "Hết giờ kết nối".to_string())?
+            .map_err(|e| e.to_string())?;
+        stream.set_nodelay(true).map_err(|e| e.to_string())?;
+        return Ok((stream, vec![]));
+    };
+    emit(Event::Log(format!("Kết nối qua proxy {}", p.label())));
+    let through = tunnel(p, server).await?;
+    emit(Event::Log(format!(
+        "Proxy {} đã mở đường tới server game",
+        p.label()
+    )));
+    Ok(through)
+}
+
+/// Connects to the proxy and opens its tunnel to `server`, each within STEP. Errors name the proxy, not its password.
+async fn tunnel(p: &Proxy, server: (&str, u16)) -> Result<(TcpStream, Vec<u8>), Error> {
+    let mut stream = timeout(STEP, TcpStream::connect((p.host.as_str(), p.port)))
+        .await
+        .map_err(|_| format!("Hết giờ kết nối proxy {}", p.label()))?
+        .map_err(|e| format!("Không kết nối được proxy {}: {e}", p.label()))?;
+    stream.set_nodelay(true).map_err(|e| e.to_string())?;
+    let early = timeout(STEP, open_tunnel(&mut stream, p, server.0, server.1))
+        .await
+        .map_err(|_| format!("Proxy {} không trả lời", p.label()))??;
+    Ok((stream, early))
+}
+
+/// "Kiểm tra" of the proxy in the add and edit form, and the test before saving: reaches the game server through
+/// `proxy` and waits for its 4-byte seed, then closes without logging in. How long that took.
+pub async fn check_proxy(proxy: &Proxy) -> Result<Duration, Error> {
+    check_proxy_at((HOST, PORT), proxy).await
+}
+
+async fn check_proxy_at(server: (&str, u16), proxy: &Proxy) -> Result<Duration, Error> {
+    let start = Instant::now();
+    let (mut stream, early) = tunnel(proxy, server).await?;
+    if early.len() < 4 {
+        let mut rest = vec![0u8; 4 - early.len()];
+        timeout(STEP, stream.read_exact(&mut rest))
+            .await
+            .map_err(|_| "Proxy đã mở đường nhưng server game không gửi seed".to_string())?
+            .map_err(|e| format!("Proxy đã mở đường nhưng server game không trả lời: {e}"))?;
+    }
+    Ok(start.elapsed())
 }
 
 /// One session per account on a shared tokio runtime. Accounts are keyed by an id the caller keeps stable (a list
@@ -517,10 +577,76 @@ mod tests {
         port
     }
 
+    /// A local SOCKS5 proxy wanting `user` / `pass`, for one connection: it holds its last reply until the game
+    /// server's seed and sends both in one write, then pipes both ways. Returns its port.
+    async fn socks5(user: &'static str, pass: &'static str) -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut c, _) = listener.accept().await.unwrap();
+            let mut head = [0u8; 2];
+            c.read_exact(&mut head).await.unwrap();
+            let mut methods = vec![0u8; head[1] as usize];
+            c.read_exact(&mut methods).await.unwrap();
+            assert_eq!(methods, [0, 2]);
+            c.write_all(&[5, 2]).await.unwrap();
+            async fn field(c: &mut TcpStream) -> Vec<u8> {
+                let mut n = [0u8; 1];
+                c.read_exact(&mut n).await.unwrap();
+                let mut v = vec![0u8; n[0] as usize];
+                c.read_exact(&mut v).await.unwrap();
+                v
+            }
+            let mut version = [0u8; 1];
+            c.read_exact(&mut version).await.unwrap();
+            let (u, p) = (field(&mut c).await, field(&mut c).await);
+            let ok = u == user.as_bytes() && p == pass.as_bytes();
+            c.write_all(&[1, u8::from(!ok)]).await.unwrap();
+            if !ok {
+                return;
+            }
+            let mut request = [0u8; 10];
+            c.read_exact(&mut request).await.unwrap();
+            assert_eq!(request[..4], [5, 1, 0, 1]);
+            let target = (
+                std::net::Ipv4Addr::from(<[u8; 4]>::try_from(&request[4..8]).unwrap()),
+                u16::from_be_bytes([request[8], request[9]]),
+            );
+            let mut up = TcpStream::connect(target).await.unwrap();
+            let mut reply = vec![5, 0, 0, 1, 127, 0, 0, 1, 0, 0, 0, 0, 0, 0];
+            up.read_exact(&mut reply[10..]).await.unwrap();
+            c.write_all(&reply).await.unwrap();
+            let _ = tokio::io::copy_bidirectional(&mut c, &mut up).await;
+        });
+        port
+    }
+    fn socks(port: u16, username: &str, password: &str) -> Proxy {
+        Proxy {
+            enabled: true,
+            kind: crate::proxy::ProxyKind::Socks5,
+            host: "127.0.0.1".into(),
+            port,
+            username: username.into(),
+            password: password.into(),
+        }
+    }
+    /// A port nothing listens on.
+    async fn dead_port() -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        listener.local_addr().unwrap().port()
+    }
+
     type Events = Arc<Mutex<Vec<Event>>>;
 
     /// A session against `server(fault)`: what it reports, its commands, and its task.
     async fn login(fault: Fault) -> (Events, UnboundedSender<Command>, JoinHandle<()>) {
+        login_via(fault, None).await
+    }
+    /// `login` through `proxy`: a SOCKS5 proxy on that port with the username and password of `socks5`, unless set.
+    async fn login_via(
+        fault: Fault,
+        proxy: Option<Proxy>,
+    ) -> (Events, UnboundedSender<Command>, JoinHandle<()>) {
         let port = server(fault).await;
         let events: Events = Default::default();
         let sink = events.clone();
@@ -532,6 +658,7 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
+            proxy,
         };
         let emit: Emit = Arc::new(move |e| sink.lock().unwrap().push(e));
         let task = tokio::spawn(run_at(
@@ -653,6 +780,74 @@ mod tests {
         assert_eq!(
             states(&events),
             [ConnState::Connecting, ConnState::Online, ConnState::Offline]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_login_through_a_socks5_proxy_goes_online() {
+        let proxy = socks(socks5("bot", "s3cret").await, "bot", "s3cret");
+        let (events, tx, task) = login_via(Fault::None, Some(proxy.clone())).await;
+        online(&events).await;
+        tx.send(Command::Logout).unwrap();
+        ends(task).await;
+        assert_eq!(
+            states(&events),
+            [ConnState::Connecting, ConnState::Online, ConnState::Offline]
+        );
+        let logs = logs(&events);
+        assert_eq!(
+            logs[..2],
+            [
+                format!("Kết nối qua proxy {}", proxy.label()),
+                format!("Proxy {} đã mở đường tới server game", proxy.label())
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_proxy_that_fails_is_the_error_of_the_login_and_a_proxy_turned_off_is_not_used() {
+        let refused = socks(socks5("bot", "s3cret").await, "bot", "wrong");
+        let dead = socks(dead_port().await, "bot", "s3cret");
+        for (proxy, why) in [
+            (refused, "từ chối tài khoản hoặc mật khẩu"),
+            (dead.clone(), "Không kết nối được proxy socks5 127.0.0.1:"),
+        ] {
+            let (events, _tx, task) = login_via(Fault::None, Some(proxy.clone())).await;
+            ends(task).await;
+            let states = states(&events);
+            assert!(
+                matches!(&states[..], [ConnState::Connecting, ConnState::Error(m)]
+                    if m.contains(why) && m.contains(&proxy.label()) && !m.contains("s3cret") && !m.contains("wrong")),
+                "{states:?}"
+            );
+        }
+        let off = Proxy {
+            enabled: false,
+            ..dead
+        };
+        let (events, tx, task) = login_via(Fault::None, Some(off)).await;
+        online(&events).await;
+        assert!(!logs(&events).iter().any(|l| l.contains("proxy")));
+        tx.send(Command::Logout).unwrap();
+        ends(task).await;
+    }
+
+    #[tokio::test]
+    async fn the_proxy_check_waits_for_the_game_servers_seed() {
+        let game = server(Fault::None).await;
+        let proxy = socks(socks5("bot", "s3cret").await, "bot", "s3cret");
+        assert!(check_proxy_at(("127.0.0.1", game), &proxy).await.is_ok());
+        let game = server(Fault::None).await;
+        let refused = socks(socks5("bot", "s3cret").await, "bot", "x");
+        let err = check_proxy_at(("127.0.0.1", game), &refused)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            err,
+            format!(
+                "Proxy {}: proxy từ chối tài khoản hoặc mật khẩu",
+                refused.label()
+            )
         );
     }
 

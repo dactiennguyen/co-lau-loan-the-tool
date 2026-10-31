@@ -6,6 +6,7 @@ use cllt_core::accounts::{self, Account};
 use cllt_core::bot::Snapshot;
 use cllt_core::net::{Command, ConnState, Event, Manager};
 use cllt_core::potentials::StatPlan;
+use cllt_core::proxy::Proxy;
 use serde::Serialize;
 use std::collections::{BTreeSet, VecDeque};
 use std::path::PathBuf;
@@ -131,13 +132,15 @@ impl Shared {
         f(&mut self.app.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
-    /// Adds the account once accounts.json holds it; nothing is added when the file cannot be written.
+    /// Adds the account once accounts.json holds it; nothing is added when the file cannot be written, nor when its
+    /// proxy is on and does not reach the game server.
     pub async fn add(&self, account: Account) -> Result<u64, String> {
         let _turn = self.saving.lock().await;
-        let (path, mut list) = self.with(|app| {
-            app.unique(&account, None)?;
-            app.saved(None, None)
-        })?;
+        self.with(|app| app.unique(&account, None))?;
+        if needs_check(None, account.proxy.as_ref()) {
+            check(account.proxy.as_ref().unwrap()).await?;
+        }
+        let (path, mut list) = self.with(|app| app.saved(None, None))?;
         list.push(account.clone());
         write(path, list).await?;
         Ok(self.with(|app| {
@@ -147,11 +150,13 @@ impl Shared {
         }))
     }
 
-    /// Changes the account once accounts.json holds the change; an empty `password` keeps the one it has. A session
-    /// already running goes on as it logged in: the change counts from the next login.
+    /// Changes the account once accounts.json holds the change; an empty `password` keeps the one it has, and so does
+    /// an empty proxy password with a proxy username. A proxy turned on or changed is tested first: the change is not
+    /// saved when it does not reach the game server. A session already running goes on as it logged in: the change
+    /// counts from the next login.
     pub async fn update(&self, id: u64, edit: Account) -> Result<(), String> {
         let _turn = self.saving.lock().await;
-        let (path, list, account) = self.with(|app| {
+        let (account, old_proxy) = self.with(|app| {
             let old = &app
                 .entry(id)
                 .ok_or("Nick này không còn trong danh sách")?
@@ -164,12 +169,16 @@ impl Shared {
                 },
                 skill: old.skill,
                 stats: old.stats,
+                proxy: keep_password(old.proxy.as_ref(), edit.proxy),
                 ..edit
             };
             app.unique(&account, Some(id))?;
-            let (path, list) = app.saved(Some(id), Some(&account))?;
-            Ok::<_, String>((path, list, account))
+            Ok::<_, String>((account, old.proxy.clone()))
         })?;
+        if needs_check(old_proxy.as_ref(), account.proxy.as_ref()) {
+            check(account.proxy.as_ref().unwrap()).await?;
+        }
+        let (path, list) = self.with(|app| app.saved(Some(id), Some(&account)))?;
         write(path, list).await?;
         self.with(|app| {
             if let Some(e) = app.entry_mut(id) {
@@ -225,6 +234,37 @@ impl Shared {
         self.with(|app| app.drop_entry(id));
         Ok(())
     }
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Secrets {
+    pub password: String,
+    pub proxy_password: String,
+}
+
+/// A proxy edited with its username kept and no password typed in keeps the saved password.
+pub fn keep_password(old: Option<&Proxy>, edit: Option<Proxy>) -> Option<Proxy> {
+    let mut p = edit?;
+    if !p.username.is_empty() && p.password.is_empty() {
+        if let Some(old) = old.filter(|o| o.username == p.username) {
+            p.password = old.password.clone();
+        }
+    }
+    Some(p)
+}
+
+/// A proxy is tested before it is saved when it is on and is new, was off, or changed.
+fn needs_check(old: Option<&Proxy>, new: Option<&Proxy>) -> bool {
+    new.is_some_and(|n| n.enabled && old.is_none_or(|o| !o.enabled || o != n))
+}
+
+/// The test before saving: the proxy must reach the game server (net::check_proxy).
+async fn check(proxy: &Proxy) -> Result<(), String> {
+    cllt_core::net::check_proxy(proxy)
+        .await
+        .map(|_| ())
+        .map_err(|e| format!("Chưa lưu: kiểm tra proxy không qua. {e}"))
 }
 
 /// Writes accounts.json on a blocking thread.
@@ -306,6 +346,23 @@ impl App {
             .unwrap_or_default()
     }
 
+    /// The proxy saved for the account, with its password, for `test_proxy`.
+    pub fn proxy_of(&self, id: u64) -> Option<Proxy> {
+        self.entry(id)?.account.proxy.clone()
+    }
+    /// The game password and the proxy password of the account, for the edit form only (`account_secrets`): the
+    /// "accounts" event and the log never carry them.
+    pub fn secrets(&self, id: u64) -> Option<Secrets> {
+        let a = &self.entry(id)?.account;
+        Some(Secrets {
+            password: a.password.clone(),
+            proxy_password: a
+                .proxy
+                .as_ref()
+                .map(|p| p.password.clone())
+                .unwrap_or_default(),
+        })
+    }
     fn entry(&self, id: u64) -> Option<&Entry> {
         self.entries.iter().find(|e| e.id == id)
     }
@@ -488,6 +545,7 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
+            proxy: None,
         }
     }
 
@@ -630,5 +688,152 @@ mod tests {
             .contains("accounts.json đang lỗi"));
         assert_eq!(shared.with(|app| app.entries.len()), 1);
         std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn a_proxy_is_saved_on_or_off_and_tested_before_it_is_turned_on() {
+        let dir = std::env::temp_dir().join(format!("cllt-proxy-{}", std::process::id()));
+        let path = dir.join("accounts.json");
+        let shared = Shared::new(App::new(None, path.clone(), channel().0));
+        // Nothing listens there: the test before saving fails at once.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let off = Proxy {
+            enabled: false,
+            kind: cllt_core::proxy::ProxyKind::Socks5,
+            host: "127.0.0.1".into(),
+            port,
+            username: "bot".into(),
+            password: "s3cret".into(),
+        };
+        let with = |proxy: Proxy| Account {
+            proxy: Some(proxy),
+            ..account("a")
+        };
+        // Off, it is saved as it is, untested.
+        let id = block_on(shared.add(with(off.clone()))).unwrap();
+        assert_eq!(accounts::load(&path).unwrap()[0].proxy, Some(off.clone()));
+        // Turned on, it must reach the game server first: nothing changes when it does not.
+        let on = Proxy {
+            enabled: true,
+            password: String::new(),
+            ..off.clone()
+        };
+        let err = block_on(shared.update(id, with(on))).unwrap_err();
+        assert!(
+            err.starts_with(
+                "Chưa lưu: kiểm tra proxy không qua. Không kết nối được proxy socks5 127.0.0.1:"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("s3cret"));
+        assert_eq!(accounts::load(&path).unwrap()[0].proxy, Some(off.clone()));
+        assert!(block_on(shared.add(with(Proxy {
+            enabled: true,
+            ..off.clone()
+        })))
+        .is_err());
+        // Left off with another label: no test, and the empty password keeps the saved one.
+        let edit = Account {
+            label: "Nick có proxy".into(),
+            ..with(Proxy {
+                password: String::new(),
+                ..off.clone()
+            })
+        };
+        block_on(shared.update(id, edit)).unwrap();
+        let saved = &accounts::load(&path).unwrap()[0];
+        assert_eq!(
+            (saved.label.as_str(), &saved.proxy),
+            ("Nick có proxy", &Some(off))
+        );
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn a_proxy_password_is_kept_only_for_the_same_username() {
+        let old = Proxy {
+            enabled: true,
+            kind: cllt_core::proxy::ProxyKind::Http,
+            host: "h".into(),
+            port: 1,
+            username: "bot".into(),
+            password: "pw".into(),
+        };
+        let edit = |username: &str, password: &str| {
+            keep_password(
+                Some(&old),
+                Some(Proxy {
+                    username: username.into(),
+                    password: password.into(),
+                    ..old.clone()
+                }),
+            )
+            .unwrap()
+            .password
+        };
+        assert_eq!(edit("bot", ""), "pw");
+        assert_eq!(edit("bot", "new"), "new");
+        assert_eq!(edit("other", ""), "");
+        assert_eq!(edit("", ""), "");
+        assert!(!needs_check(Some(&old), Some(&old)));
+        assert!(needs_check(None, Some(&old)));
+        assert!(needs_check(
+            Some(&Proxy {
+                enabled: false,
+                ..old.clone()
+            }),
+            Some(&old)
+        ));
+        assert!(needs_check(
+            Some(&Proxy {
+                port: 2,
+                ..old.clone()
+            }),
+            Some(&old)
+        ));
+        assert!(!needs_check(
+            None,
+            Some(&Proxy {
+                enabled: false,
+                ..old.clone()
+            })
+        ));
+        assert!(!needs_check(Some(&old), None));
+    }
+
+    #[test]
+    fn the_edit_form_gets_both_passwords_and_the_account_view_neither() {
+        let (wake, _woken) = channel();
+        let mut app = App::new(None, PathBuf::from("accounts.json"), wake);
+        let plain = app.add(account("a"));
+        let proxied = app.add(Account {
+            proxy: Some(Proxy {
+                enabled: true,
+                kind: cllt_core::proxy::ProxyKind::Socks5,
+                host: "h".into(),
+                port: 1,
+                username: "bot".into(),
+                password: "s3cret".into(),
+            }),
+            ..account("b")
+        });
+        assert_eq!(
+            app.secrets(plain),
+            Some(Secrets {
+                password: "x".into(),
+                proxy_password: String::new()
+            })
+        );
+        assert_eq!(app.secrets(proxied).unwrap().proxy_password, "s3cret");
+        assert_eq!(app.secrets(99), None);
+        let views = serde_json::to_string(&app.views()).unwrap();
+        assert!(
+            !views.contains("s3cret") && !views.contains("\"x\""),
+            "{views}"
+        );
     }
 }

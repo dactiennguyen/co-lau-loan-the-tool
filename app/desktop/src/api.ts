@@ -2,7 +2,7 @@
 // shows public/sample.json, written by `npm run sample`, and the commands do nothing: enough to work on the design.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AccountForm, AccountsUpdate, AppState, LogLine, StatPlan } from "./types";
+import type { AccountForm, AccountsUpdate, AppState, LogLine, ProxyForm, Secrets, StatPlan } from "./types";
 
 export interface LogEvent {
   id: number;
@@ -36,6 +36,11 @@ export interface Api {
   updateAccount(id: number, account: AccountForm): Promise<void>;
   /** Rejects with a message to show (a session, or accounts.json that cannot be written); the account then stays. */
   removeAccount(id: number): Promise<void>;
+  /** Reaches the game server through the proxy (on or off) and resolves to the time it took in ms; rejects with why
+   * not. With `id`, an empty password is the one saved for that account. */
+  testProxy(proxy: ProxyForm, id?: number): Promise<number>;
+  /** The saved passwords of the account, which Sửa nick fills in; nothing else sends them. */
+  accountSecrets(id: number): Promise<Secrets>;
   onAccounts(handler: (update: AccountsUpdate) => void): Promise<UnlistenFn>;
   /** The lines logged since the last event, of every account. */
   onLog(handler: (events: LogEvent[]) => void): Promise<UnlistenFn>;
@@ -56,6 +61,8 @@ const tauri: Api = {
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
+  testProxy: (proxy, id) => invoke("test_proxy", { proxy, id: id ?? null }),
+  accountSecrets: (id) => invoke("account_secrets", { id }),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
   onLog: (handler) => listen<LogEvent[]>("log", (e) => handler(e.payload)),
 };
@@ -86,6 +93,8 @@ const preview: Api = {
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),
+  testProxy: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không kiểm tra được proxy")),
+  accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
   onAccounts: async () => () => {},
   onLog: async () => () => {},
 };

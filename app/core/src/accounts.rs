@@ -1,5 +1,7 @@
-//! accounts.json: the accounts the app logs in with. Local only (app/.gitignore); passwords are never logged or shown.
+//! accounts.json: the accounts the app logs in with. Local only (app/.gitignore); passwords are never logged, and the UI
+//! gets them only when the edit form asks (account_secrets of the desktop app).
 use crate::potentials::StatPlan;
+use crate::proxy::Proxy;
 use crate::runner::Skill;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -19,6 +21,9 @@ pub struct Account {
     /// How potential points are spent on their own (Bot::set_stats); set from the Chỉ số card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stats: Option<StatPlan>,
+    /// The proxy the session connects through while `enabled`; set in the add and edit form, which tests it first.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<Proxy>,
 }
 fn default_server() -> i32 {
     crate::opcodes::SERVER_ID
@@ -29,6 +34,7 @@ impl std::fmt::Debug for Account {
             .field("label", &self.label)
             .field("username", &self.username)
             .field("server_id", &self.server_id)
+            .field("proxy", &self.proxy)
             .finish_non_exhaustive()
     }
 }
@@ -83,6 +89,7 @@ pub fn from_env(path: &Path) -> Option<Account> {
             .unwrap_or_else(default_server),
         skill: None,
         stats: None,
+        proxy: None,
     })
 }
 
@@ -102,6 +109,14 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
+            proxy: Some(crate::proxy::Proxy {
+                enabled: false,
+                kind: crate::proxy::ProxyKind::Http,
+                host: "10.0.0.1".into(),
+                port: 8080,
+                username: "bot".into(),
+                password: "pw".into(),
+            }),
         };
         save(&path, std::slice::from_ref(&account)).unwrap();
         assert_eq!(load(&path).unwrap(), vec![account]);

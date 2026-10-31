@@ -26,6 +26,11 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
           <div className="hero__name">
             <h1>{c?.name ?? a.label}</h1>
             {c && <Badge>LV {c.level}</Badge>}
+            {a.proxy?.enabled && (
+              <span className="hero__proxy" title={`Kết nối qua proxy ${a.proxy.label}`}>
+                <Icon name="shield" size={11} /> Proxy
+              </span>
+            )}
           </div>
           <div className="hero__meta">
             <Pill status={a.status} text={a.statusText} />

@@ -1,5 +1,6 @@
 // The toasts an "accounts" update brings: a quest run that started and one that ended (▶ on a step, or "Tự làm nhiệm
-// vụ"), told apart from the run shown before by its id, or cut off when the account left the game. Without React, like
+// vụ"), told apart from the run shown before by its id, or cut off when the account left the game; and an account that
+// fell into an error. Without React, like
 // updates.ts; store.ts keeps the list and components/Toast.tsx shows each one.
 import type { Account } from "./types";
 
@@ -41,6 +42,18 @@ export function questToasts(before: Record<number, Account>, after: Account[]): 
     }
   }
   return out;
+}
+
+/** An account that fell into an error: a login refused, a proxy that does not reach the game server, a lost
+ * connection. One whose quest run it cut off has its toast from questToasts already. */
+export function errorToasts(before: Record<number, Account>, after: Account[]): ToastInput[] {
+  return after
+    .filter((a) => {
+      const prev = before[a.id];
+      const running = prev?.character?.questRun != null && prev.character.questRun.done == null;
+      return a.status === 4 && prev != null && prev.status !== 4 && !running;
+    })
+    .map((a) => ({ tone: "warn", title: a.label, text: `Lỗi: ${a.error}` }));
 }
 
 let lastId = 0;
