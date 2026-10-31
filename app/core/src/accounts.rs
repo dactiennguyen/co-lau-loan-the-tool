@@ -118,6 +118,7 @@ mod tests {
             fight: FightSettings {
                 repair: true,
                 pickup: false,
+                record: false,
                 fight_count: 30,
                 fight_losses: 4,
                 quest_losses: 2,

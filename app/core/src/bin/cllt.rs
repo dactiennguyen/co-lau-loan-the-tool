@@ -5,6 +5,9 @@
 //                                                       "Tự làm nhiệm vụ" until it stops, then log out; --auto-repair
 //                                                       turns on Tự sửa đồ for the run (uses the hammers of the bag),
 //                                                       --no-pickup turns off Tự nhặt đồ (the own drops of a won battle)
+//                                                       fight and quest keep each battle as captures/battles/<day>/
+//                                                       <time>-<character>-<mob>.jsonl.gz of the repository, as the TS
+//                                                       bot does (UTC day and time); --no-record keeps none
 //   cllt skill --account=NAME [--id=1001]               print the skill tree; with --id, Nâng cấp that skill once
 //                                                       (c2s/1191, spends skill points), print the tree again
 //   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT | --discard=SLOT | --sort]
@@ -21,12 +24,74 @@
 // Passwords are never printed.
 use cllt_core::accounts::{self, Account};
 use cllt_core::atlas::{find_upwards, Atlas};
+use cllt_core::battle_record::BattleData;
 use cllt_core::bot::{ItemAct, Snapshot};
 use cllt_core::items::book;
 use cllt_core::net::{Command, ConnState, Event, Manager};
 use cllt_core::skills::skill_tree;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+/// A battle of Lưu dữ liệu trận as a battle file of the TS bot (src/bot/battle-record.ts): captures/battles of the
+/// repository, the day and time of its header's `at` (UTC), the character and mob names without diacritics.
+fn save_battle(d: &BattleData) -> std::io::Result<std::path::PathBuf> {
+    let header: serde_json::Value = serde_json::from_str(&d.header).unwrap_or_default();
+    let at = header["at"].as_str().unwrap_or("0000-00-00T00:00:00");
+    let name = format!(
+        "{}-{}-{}.jsonl.gz",
+        at.get(11..19).unwrap_or("000000").replace(':', ""),
+        slug(header["character"].as_str().unwrap_or("x")),
+        slug(header["mob"]["name"].as_str().unwrap_or("x"))
+    );
+    let root = find_upwards("data/items.json")
+        .and_then(|p| Some(p.parent()?.parent()?.to_path_buf()))
+        .unwrap_or_else(|| ".".into());
+    let dir = root
+        .join("captures/battles")
+        .join(at.get(..10).unwrap_or("0000-00-00"));
+    std::fs::create_dir_all(&dir)?;
+    // Two battles opened in the same second (a late s2c/22): the second gets "-2".
+    let mut file = dir.join(&name);
+    for n in 2.. {
+        if !file.exists() {
+            break;
+        }
+        file = dir.join(name.replace(".jsonl.gz", &format!("-{n}.jsonl.gz")));
+    }
+    std::fs::write(&file, &d.packets)?;
+    Ok(file)
+}
+
+/// fileSlug of battle-record.ts: lower case, Vietnamese letters without their marks, words joined by "-".
+fn slug(text: &str) -> String {
+    const PLAIN: [(&str, char); 7] = [
+        ("àáạảãâầấậẩẫăằắặẳẵ", 'a'),
+        ("èéẹẻẽêềếệểễ", 'e'),
+        ("ìíịỉĩ", 'i'),
+        ("òóọỏõôồốộổỗơờớợởỡ", 'o'),
+        ("ùúụủũưừứựửữ", 'u'),
+        ("ỳýỵỷỹ", 'y'),
+        ("đ", 'd'),
+    ];
+    let mut out = String::new();
+    for c in text.to_lowercase().chars() {
+        let c = PLAIN
+            .iter()
+            .find(|(set, _)| set.contains(c))
+            .map_or(c, |p| p.1);
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+        } else if !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    let out = out.trim_matches('-').to_string();
+    if out.is_empty() {
+        "x".into()
+    } else {
+        out
+    }
+}
 
 fn load(path: Option<String>) -> Vec<Account> {
     let file = path
@@ -231,10 +296,12 @@ fn main() {
     // Tự sửa đồ on, or Tự nhặt đồ off, for this run, as when ticked in the Cài đặt tab; accounts.json is left as it is.
     let auto_repair = args.iter().any(|a| a == "--auto-repair");
     let no_pickup = args.iter().any(|a| a == "--no-pickup");
+    let no_record = args.iter().any(|a| a == "--no-record");
     for (id, a) in &chosen {
         let mut a = a.clone();
         a.fight.repair |= auto_repair && fight;
         a.fight.pickup &= !no_pickup;
+        a.fight.record &= !no_record;
         manager.login(*id, a);
     }
     let mut snaps: Vec<Snapshot> = vec![Snapshot::default(); chosen.len()];
@@ -360,6 +427,10 @@ fn main() {
             Event::State(ConnState::Connecting) => {}
             Event::Battle(_) => {}
             Event::Pickup(p) => println!("{}: nhặt {}", chosen[i].1.username, p.item.label()),
+            Event::BattleData(d) => match save_battle(&d) {
+                Ok(file) => println!("{}: lưu trận vào {}", chosen[i].1.username, file.display()),
+                Err(e) => println!("{}: không lưu được trận: {e}", chosen[i].1.username),
+            },
             Event::Log(_, text) => {
                 println!("{}: {text}", chosen[i].1.username);
                 // Bot::upgrade_skill refused it, or s2c/1191 answered it.

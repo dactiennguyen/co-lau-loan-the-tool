@@ -1,0 +1,154 @@
+//! Lưu dữ liệu trận (FightSettings::record): each battle the bot plays, its packets both ways between s2c/22 and the
+//! s2c/1214 after its end, with what both sides were as it opened, goes out as Out::BattleData (battle_record.rs,
+//! docs/app/events/07-auto-battle.md#ghi-trận). The session hands the packets it sends to record_sent.
+use super::*;
+use serde_json::{json, Value};
+
+impl Bot {
+    /// A packet the session sent, kept when it belongs to the battle being recorded.
+    pub fn record_sent(&mut self, opcode: i32, payload: &[u8], now: Instant) {
+        if let Some(r) = &mut self.recorder {
+            r.packet(true, opcode, payload, now);
+        }
+    }
+
+    /// A packet received; the s2c/1214 after the end sends the data out. Without it, the first packet past END_WAIT
+    /// after the end does (s2c/1 answers the heartbeat every few seconds), and is not part of the battle.
+    pub(super) fn record_received(
+        &mut self,
+        opcode: i32,
+        payload: &[u8],
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        self.record_overdue(now, out);
+        if self
+            .recorder
+            .as_mut()
+            .is_some_and(|r| r.packet(false, opcode, payload, now))
+        {
+            self.flush_record(out);
+        }
+    }
+
+    /// Sends the data of a battle ended more than END_WAIT ago (on_timer, record_received).
+    pub(super) fn record_overdue(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if self
+            .recorder
+            .as_ref()
+            .and_then(|r| r.ending)
+            .is_some_and(|e| e <= now)
+        {
+            self.flush_record(out);
+        }
+    }
+
+    /// Opens the data of the battle s2c/22 just opened: the header, then the s2c/22 itself. A battle still open (its
+    /// s2c/1214 not come yet) goes out first.
+    pub(super) fn record_start(
+        &mut self,
+        payload: &[u8],
+        uuid: &str,
+        mob_id: &str,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        if self.recorder.is_some() {
+            self.flush_record(out);
+        }
+        if !self.fight.record {
+            return;
+        }
+        let mut r = Recorder::start(
+            uuid,
+            self.record_header(payload, mob_id),
+            self.battle_at,
+            now,
+        );
+        r.packet(false, 22, payload, now);
+        self.recorder = Some(r);
+    }
+
+    /// The result line: `result` is an object (won, exp…, or cancelled, left).
+    pub(super) fn record_end(&mut self, result: Value, now: Instant) {
+        if let Some(r) = &mut self.recorder {
+            r.end(result, now);
+        }
+    }
+
+    pub(super) fn flush_record(&mut self, out: &mut Vec<Out>) {
+        if let Some(r) = self.recorder.take() {
+            out.push(Out::BattleData(Box::new(r.finish())));
+        }
+    }
+
+    /// The first line of the battle data, as recordHeader of src/bot/quest.ts: the character (element as code and name: 1
+    /// Hỏa, 2 Lôi, 4 Thủy), its stats, skills, gear and potions, the mob of the s2c/22 block, the map, and how the bot
+    /// plays. The runner keeps nothing from battle to battle, so there is no `memory`.
+    fn record_header(&self, payload: &[u8], mob_id: &str) -> Value {
+        let s = &self.snap;
+        let element = |e: Option<i32>| {
+            e.and_then(|e| book().element_name(e as u8))
+                .map(str::to_string)
+        };
+        let mob = mob_block(payload, mob_id);
+        let known = self.mobs.iter().find(|m| m.id == mob_id);
+        let setup = battle_setup(payload).ok();
+        let potions: Vec<Value> = s
+            .bag
+            .iter()
+            .flat_map(|b| &b.items)
+            .filter(|i| book().get(i.item_id).is_some_and(|d| d.kind == POTION) && i.quantity > 0)
+            .map(|i| json!({ "slot": i.slot, "itemId": i.item_id, "quantity": i.quantity }))
+            .collect();
+        let gear: Vec<Value> = s
+            .gear
+            .iter()
+            .flatten()
+            .map(|g| {
+                let stats: Vec<Value> = g.stats.iter().map(|x| json!({ "stat": x.stat, "value": x.value })).collect();
+                json!({ "slot": g.slot, "itemId": g.item_id, "element": g.element, "durability": g.durability, "stats": stats })
+            })
+            .collect();
+        let name = mob
+            .as_ref()
+            .map(|m| m.name.clone())
+            .or_else(|| known.map(|m| m.name.clone()));
+        json!({
+            "bot": "app",
+            "version": env!("CARGO_PKG_VERSION"),
+            "character": setup.as_ref().map_or(s.name.clone(), |x| x.me.clone()),
+            "level": s.level,
+            "element": s.element,
+            "elementName": element(s.element),
+            "hp": setup.as_ref().map(|x| x.hp),
+            "maxHp": setup.as_ref().map(|x| x.max_hp),
+            "combat": s.combat,
+            "potentials": s.stats,
+            "skills": s.skill_levels.iter().filter(|(_, &l)| l > 0).map(|(&id, &l)| json!([id, l])).collect::<Vec<_>>(),
+            "gear": gear,
+            "potions": potions,
+            "mob": {
+                "id": mob_id,
+                "name": name,
+                "level": mob.as_ref().map(|m| m.level).or(known.map(|m| m.level)),
+                "element": mob.as_ref().map(|m| m.element),
+                "elementName": element(mob.as_ref().map(|m| m.element as i32)),
+                "hp": mob.as_ref().map(|m| m.hp),
+                "maxHp": mob.as_ref().map(|m| m.max_hp),
+                "boss": self.bosses.contains(mob_id) || name.as_deref().is_some_and(|n| self.is_boss(n)),
+            },
+            "map": s.map_id,
+            "zone": s.zone,
+            "play": {
+                "strategy": {
+                    "extraTurn": self.options.strategy.extra_turn,
+                    "reply": self.options.strategy.reply,
+                    "bonus": self.options.strategy.bonus,
+                },
+                "skill": self.options.skill.map(|k| json!({ "id": k.id, "cost": k.cost })),
+                "source": self.battle_source.key(),
+            },
+        })
+    }
+}

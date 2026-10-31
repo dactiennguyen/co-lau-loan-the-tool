@@ -5,7 +5,8 @@
 //! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals
 //! when the NPC or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
-use crate::battle::{battle_setup, Strategy};
+use crate::battle::{battle_setup, mob_block, Strategy};
+use crate::battle_record::{BattleData, Recorder};
 use crate::items::{
     bag_slot, book, character_extra, character_gear, currencies, gear_durability, gear_update,
     ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
@@ -31,6 +32,7 @@ mod fight;
 mod items;
 mod packets;
 mod quest;
+mod record;
 mod shop;
 mod stats;
 mod travel;
@@ -196,6 +198,9 @@ pub struct Bot {
     battle_at: u64,
     battle_source: BattleSource,
     battle_hp: i32,
+    /// Lưu dữ liệu trận: the lines of the battle on, from its s2c/22 until s2c/1214 after its end, or the first packet or
+    /// timer past END_WAIT after it (record_received). Not a deadline of its own, so it never moves a job's timers.
+    recorder: Option<Recorder>,
     /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
     /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
     /// 8, `allot_failed` once one went unanswered, until the plan is set again.
@@ -265,6 +270,7 @@ impl Bot {
             battle_at: 0,
             battle_source: BattleSource::Other,
             battle_hp: 0,
+            recorder: None,
             stat_plan,
             given: [0; 4],
             spent: [0; 4],
@@ -455,6 +461,7 @@ impl Bot {
     }
 
     pub fn on_timer(&mut self, now: Instant, out: &mut Vec<Out>) {
+        self.record_overdue(now, out);
         if let Some(b) = &mut self.battle {
             if b.deadline().is_some_and(|d| d <= now) {
                 let mut acts = vec![];
@@ -586,6 +593,11 @@ impl Bot {
             match a {
                 Act::Send(op, p) => out.push(Out::Send(op, p)),
                 Act::Log(text) => out.push(Out::Log(LogKind::Battle, text)),
+                Act::Note(note, fields) => {
+                    if let Some(r) = &mut self.recorder {
+                        r.note(note, fields, now);
+                    }
+                }
                 Act::End(end) => self.on_battle_end(end, now, out),
             }
         }

@@ -93,6 +93,7 @@ impl Bot {
             record.hp_after = b.me.hp as i32;
             out.push(Out::Battle(record));
         }
+        self.record_end(serde_json::json!({ "left": format!("s2c/{by}") }), now);
         (self.battle, self.leave_until) = (None, None);
         out.push(Out::Log(LogKind::Battle, format!("Đã rời trận (s2c/{by})")));
         if self.job_running() || self.quest_running() {
@@ -202,6 +203,13 @@ impl Bot {
         // The result that ended it reaches no snapshot with the battle on: the snapshot keeps it until the next battle.
         self.snap.turn = self.battle.take().and_then(|b| self.turn_of(&b));
         self.snap.hp = end.hp as i32;
+        self.record_end(
+            serde_json::json!({
+                "won": end.won, "actor": end.actor, "exp": end.exp, "coin": end.coin, "myTurns": end.my_turns,
+                "hp": end.hp, "damage": end.damage,
+            }),
+            now,
+        );
         let boss = self.bosses.contains(&end.mob_id);
         let record = self.record(
             &end.mob_id,
@@ -350,6 +358,8 @@ impl Bot {
             BattleSource::Other
         };
         (self.battle_at, self.battle_hp) = (epoch_ms(), setup.hp);
+        // Before apply: its c2s/18 goes into the data through record_sent.
+        self.record_start(payload, &setup.uuid, &mob_id, now, out);
         self.apply(acts, now, out);
         Ok(())
     }

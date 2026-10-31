@@ -30,7 +30,8 @@ app/
     src/requests.rs         ← buildRequest của src/protocol/events.ts
     src/world.rs            ← src/protocol/world.ts: s2c/43, 11, 13, 1177, 1256, 10; người chơi trong khu (1263, 1167, 1170, 1253);
                             nhiệm vụ (39, 34, 35)
-    src/battle.rs           ← src/battle/battle.ts: bàn 8×8, cascade, bestMove, gói trận
+    src/battle.rs           ← src/battle/battle.ts: bàn 8×8, cascade, bestMove, gói trận, khối quái của s2c/22 (mob_block)
+    src/battle_record.rs    ← src/bot/battle-record.ts: Lưu dữ liệu trận, các dòng của một trận nén gzip (BattleData)
     src/runner.rs           ← src/battle/battle-runner.ts: một trận, học thông số hai bên
     src/quest.rs            ← stepAction của src/bot/quest.ts: bước nhiệm vụ đòi làm gì
     src/items.rs            vật phẩm: bản ghi món, túi, trang bị, độ bền (s2c/36), đồ rơi trên đất (1182, 1183, 51)
@@ -45,6 +46,7 @@ app/
       quest.rs                "Tự làm nhiệm vụ": các bước, đi qua cổng tới NPC hay quái của bước
       stats.rs                tự cộng điểm tiềm năng, "Cộng +1", nâng kỹ năng
       items.rs                nút của tab Túi đồ, Tự sửa đồ, Tự nhặt đồ, độ bền sau trận
+      record.rs               Lưu dữ liệu trận: dòng đầu, gói hai chiều (record_sent), kết quả, Out::BattleData
       shop.rs                 cửa hàng Lái Buôn
       travel.rs               đổi khu, đổi map
     src/net/                ← FLOW của src/net/client.ts, trên tokio

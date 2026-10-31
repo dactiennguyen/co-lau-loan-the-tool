@@ -102,7 +102,7 @@ test('battle runner: the mob\'s HP from s2c/22, and what one battle learnt is wh
 test('mobBlock: the mob part of s2c/22 found by its id (layout of 07-auto-battle.md#s2c22-641-byte)', () => {
   const p = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(1).i32(21).i32(0).u8(0).i32(150).i32(238)
     .i32(0).i32(100).i32(0).i32(100).string('mob61000x').string('mob61000').string('Cóc Xanh').u8(1).u8(0).u8(4).i32(13).i32(100000).u8(0).i32(249).i32(249).build();
-  assert.deepEqual(mobBlock(p, 'mob61000'), { name: 'Cóc Xanh', level: 13, hp: 249, maxHp: 249 });
+  assert.deepEqual(mobBlock(p, 'mob61000'), { name: 'Cóc Xanh', element: 4, level: 13, hp: 249, maxHp: 249 });
   assert.equal(mobBlock(p, 'mob42100'), undefined);
 });
 

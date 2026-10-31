@@ -38,9 +38,9 @@ Một tính năng mới đi đúng thứ tự trên ([Quy trình](integration/ru
 |---|---|---|
 | `src/protocol/` | Giải mã gói: frame, XOR, handshake, bảng opcode, danh mục event với bộ giải và bộ dựng gói, gói thế giới, dữ liệu vật phẩm và kỹ năng | `protocol.ts`, `config.ts`, `events.ts`, `world.ts`, `items.ts`, `skills.ts` |
 | `src/net/` | Kết nối: các bước đăng nhập (FLOW), proxy SOCKS5 và HTTP, tài khoản trong `.env` | `client.ts`, `proxy.ts`, `env.ts` |
-| `src/battle/` | Thuật toán đánh: bàn 8×8, chọn nước và hành động trong lượt, một trận trên phiên thật | `battle.ts`, `battle-actions.ts`, `battle-runner.ts` |
-| `src/bot/` | Bot: làm nhiệm vụ và đánh quái (`QuestBot`), bản đồ đã học, quét map | `quest.ts`, `atlas.ts`, `map-scan.ts` |
-| `src/cli/` | Lệnh `npm run …`: mỗi file một lệnh, đọc tham số rồi chạy việc của lệnh đó bằng các thư mục trên; `export-rust.ts`, `items-run.ts` có thêm logic riêng (sinh vector cho Rust, giải ảnh của APK) | `connect.ts`, `quest-run.ts`, `map-scan-run.ts`, `items-run.ts`, `bag-run.ts`, `skills-run.ts`, `zone-run.ts`, `buy-run.ts`, `check-apk.ts`, `check-capture.ts`, `export-rust.ts` |
+| `src/battle/` | Thuật toán đánh: bàn 8×8, chọn nước và hành động trong lượt, một trận trên phiên thật; đọc lại và phát lại các trận đã ghi | `battle.ts`, `battle-actions.ts`, `battle-runner.ts`, `battle-data.ts` |
+| `src/bot/` | Bot: làm nhiệm vụ và đánh quái (`QuestBot`), bản đồ đã học, quét map, ghi mỗi trận thành file | `quest.ts`, `atlas.ts`, `map-scan.ts`, `battle-record.ts` |
+| `src/cli/` | Lệnh `npm run …`: mỗi file một lệnh, đọc tham số rồi chạy việc của lệnh đó bằng các thư mục trên; `export-rust.ts`, `items-run.ts` có thêm logic riêng (sinh vector cho Rust, giải ảnh của APK) | `connect.ts`, `quest-run.ts`, `map-scan-run.ts`, `items-run.ts`, `bag-run.ts`, `skills-run.ts`, `zone-run.ts`, `buy-run.ts`, `battles.ts`, `check-apk.ts`, `check-capture.ts`, `export-rust.ts` |
 
 Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `protocol`; `battle` và `net` không dùng nhau. Ngoại lệ duy nhất: các bộ giải gói trận (`battleSetup`, `turnState`, `battleResult`…) nằm trong `battle/battle.ts` cạnh luật bàn cờ, và `protocol/events.ts` dùng chúng cho danh mục event.
 
@@ -49,7 +49,7 @@ Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `pro
 `app/core` (crate `cllt-core`) không có giao diện, test được không cần màn hình. Chi tiết từng file ở [Cấu trúc](integration/rust/architecture.md#cấu-trúc).
 
 - **Giải mã gói:** `protocol.rs`, `opcodes.rs` (sinh từ TS), `requests.rs`, `world.rs`, `items.rs`, `skills.rs`, `battle.rs`. Mỗi bộ giải có vector từ TS trong `tests/vectors.json`, và `tests/parity.rs` kiểm từng byte.
-- **Bot, không I/O:** `bot/` nhận gói (`on_packet`), lệnh và giờ (`on_timer`, `deadline`), rồi trả danh sách `Out`: gói cần gửi, dòng nhật ký, trận đã xong. Nhờ vậy test chạy cả việc đánh quái và làm nhiệm vụ mà không cần socket. Mỗi việc một file: `fight.rs`, `quest.rs`, `items.rs`, `shop.rs`, `stats.rs`, `travel.rs`; `packets.rs` chia gói theo opcode, `types.rs` giữ các kiểu gửi ra ngoài.
+- **Bot, không I/O:** `bot/` nhận gói (`on_packet`), lệnh và giờ (`on_timer`, `deadline`), rồi trả danh sách `Out`: gói cần gửi, dòng nhật ký, trận đã xong. Nhờ vậy test chạy cả việc đánh quái và làm nhiệm vụ mà không cần socket. Mỗi việc một file: `fight.rs`, `quest.rs`, `items.rs`, `shop.rs`, `stats.rs`, `travel.rs`, `record.rs` (Lưu dữ liệu trận, cùng `battle_record.rs`); `packets.rs` chia gói theo opcode, `types.rs` giữ các kiểu gửi ra ngoài.
 - **Một trận:** `runner.rs` chơi một trận trên bàn của `battle.rs`.
 - **Phiên mạng:** `net/` chạy mỗi nick một phiên trên runtime tokio chung: `session.rs` (đăng nhập, heartbeat, vòng gói và lệnh), `connect.rs` (TCP, proxy), `manager.rs`.
 - **Khác:** `accounts.rs` (`accounts.json`), `atlas.rs` (`data/maps.json`), `potentials.rs`, `proxy.rs`, `bin/cllt.rs` (CLI không giao diện để thử với server thật).
@@ -58,7 +58,7 @@ Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `pro
 
 - `app.rs` giữ danh sách nick và nhận `Event` của các phiên. Một luồng gửi sang giao diện những nick vừa đổi (sự kiện `accounts`) và dòng nhật ký mới (`log`).
 - `commands.rs` là các lệnh giao diện gọi được; `view.rs` đổi `Snapshot` của bot thành dữ liệu giao diện nhận.
-- `store.rs` giữ `cllt.db` (SQLite): nhật ký 30 ngày, trận và đồ nhặt được 90 ngày, phiên bản bảng bằng `user_version` ([Nhật ký và thống kê](integration/rust/features.md#nhật-ký-và-thống-kê)).
+- `store.rs` giữ `cllt.db` (SQLite): nhật ký 30 ngày, trận và đồ nhặt được 90 ngày, dữ liệu trận (`battle_data`) không xoá, phiên bản bảng bằng `user_version` ([Nhật ký và thống kê](integration/rust/features.md#nhật-ký-và-thống-kê)).
 - `update.rs` tự cập nhật từ GitHub Releases.
 
 ## Giao diện

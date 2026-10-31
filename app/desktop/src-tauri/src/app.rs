@@ -624,6 +624,15 @@ impl App {
                     eprintln!("cllt.db: không ghi được trận: {e}");
                 }
             }
+            // Lưu dữ liệu trận: for `npm run battles` and the training of the battle algorithm, never shown.
+            Event::BattleData(data) => {
+                let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
+                    return;
+                };
+                if let Err(e) = store.add_battle_data(&user, &data) {
+                    eprintln!("cllt.db: không ghi được dữ liệu trận: {e}");
+                }
+            }
             // Under the line of its battle, sent to the UI again; without that line (gone from the 500 kept), a line of
             // its own.
             Event::Pickup(record) => {

@@ -453,6 +453,8 @@ export interface FightSettings {
   repair: boolean;
   /** Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up. */
   pickup: boolean;
+  /** Lưu dữ liệu trận, on unless turned off: every battle's packets go into battle_data of cllt.db. */
+  record: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

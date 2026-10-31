@@ -1,4 +1,5 @@
 import { createWriteStream } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { runClient } from '../net/client.ts';
 import { QuestBot, statPlan } from '../bot/quest.ts';
 import { envConnection } from '../net/env.ts';
@@ -30,12 +31,16 @@ if (potionCost !== undefined && !(potionCost >= 0)) throw new Error('--potions m
 // --goal=farm are the same goals with the mob as it really plays and a look past an extra turn (07-auto-battle.md#thuật-toán-v2).
 const goal = (arg('goal') ?? 'kill') as keyof typeof STRATEGIES;
 if (!STRATEGIES[goal]) throw new Error('--goal must be kill, exp, win or farm');
+// Every battle goes to captures/battles/<day>/<time>-<character>-<mob>.jsonl.gz (battle-record.ts, 07-auto-battle.md#ghi-trận);
+// --record=<dir> puts the files elsewhere, --no-record keeps none. The header of each file names the commit and the goal.
+const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return undefined; } })();
+const record = process.argv.includes('--no-record') ? undefined : { dir: arg('record') ?? 'captures/battles', tags: { bot: 'ts', commit, goal } };
 // --stats=auto, --stats=than or --stats=cuong:3,than:1 spends the potential points (c2s/10) by those weights.
 const stats = arg('stats') === undefined ? undefined : statPlan(arg('stats')!);
 const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, skills, potionCost, strategy: STRATEGIES[goal],
   timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
   maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', once: process.argv.includes('--once'),
-  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, items: Items.load(), pickup: !process.argv.includes('--no-pickup'), log: show });
+  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, items: Items.load(), pickup: !process.argv.includes('--no-pickup'), record, log: show });
 const result = await runClient({
   ...connection, mode: 'world', session: bot, hexBytes: trace ? 65536 : 128,
   log: e => {

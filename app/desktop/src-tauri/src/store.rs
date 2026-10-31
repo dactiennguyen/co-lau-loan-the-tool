@@ -2,6 +2,7 @@
 // for the filters of the Nhật ký card and the Thống kê tab (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
 // mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk. PRAGMA user_version is the number of
 // MIGRATIONS applied; a change of the tables is a new entry at the end, never an edit of an old one.
+use cllt_core::battle_record::BattleData;
 use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind, Picked, PickupRecord};
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, Row};
@@ -80,6 +81,20 @@ CREATE INDEX IF NOT EXISTS pickups_by_time ON pickups (at);
     // The line of a won battle ("Trận 3: thắng …") keeps that battle's ended_at, so the items picked up after it come back
     // under it (Store::link_battle, Store::logs).
     "ALTER TABLE logs ADD COLUMN battle_at INTEGER;",
+    // Lưu dữ liệu trận (battle_record.rs): each battle's packets and header, the gzip of a battle file of the TS bot.
+    // Store::prune leaves it alone: it is kept for the training of the battle algorithm.
+    "
+CREATE TABLE IF NOT EXISTS battle_data (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    started_at INTEGER NOT NULL,
+    uuid TEXT NOT NULL,
+    format INTEGER NOT NULL,
+    header TEXT NOT NULL,
+    packets BLOB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS battle_data_by_account ON battle_data (username, started_at);
+",
 ];
 
 /// A log line as cllt.db keeps it; the line of a won battle with the items picked up after it.
@@ -390,6 +405,14 @@ impl Store {
                 b.exp,
                 b.coin
             ],
+        )?;
+        Ok(())
+    }
+
+    pub fn add_battle_data(&self, username: &str, d: &BattleData) -> rusqlite::Result<()> {
+        self.db().execute(
+            "INSERT INTO battle_data (username, started_at, uuid, format, header, packets) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![username, d.started_at as i64, d.uuid, d.format, d.header, d.packets],
         )?;
         Ok(())
     }
@@ -862,6 +885,41 @@ mod tests {
     fn version(db: &Connection) -> usize {
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap() as usize
+    }
+
+    #[test]
+    fn battle_data_is_kept_whole_and_prune_leaves_it() {
+        let s = Store::memory().unwrap();
+        let d = BattleData {
+            uuid: "3f1c2a9e".into(),
+            started_at: 1_000,
+            format: 1,
+            header: r#"{"kind":"header","format":1}"#.into(),
+            packets: vec![0x1f, 0x8b, 8, 0, 0xff],
+        };
+        s.add_battle_data("manina2", &d).unwrap();
+        s.prune(1_000 + (BATTLE_DAYS + 5) * DAY_MS).unwrap();
+        let row: (String, i64, String, i64, String, Vec<u8>) = s
+            .db()
+            .query_row(
+                "SELECT username, started_at, uuid, format, header, packets FROM battle_data",
+                [],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            row,
+            ("manina2".into(), 1_000, d.uuid, 1, d.header, d.packets)
+        );
     }
 
     #[test]

@@ -7,6 +7,10 @@ import { skillTable, inventory, characterExtra, questData, characterStats, POTEN
 import { QuestBot, stepAction, statPlan } from '../src/bot/quest.ts';
 import { Items } from '../src/protocol/items.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 
 const q: Record<string, string> = fixtures.quest;
 const mp: Record<string, string> = fixtures['map-packets'];
@@ -200,7 +204,7 @@ test('quest bot: --max-losses lets a kill step go on after a lost battle, and st
 const UUID = '3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e';
 const cocXanhSetup = () => {
   const setup = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(0).i32(21).i32(0).u8(0).i32(150).i32(180)
-    .string('mob61000').string('Cóc Xanh').i32(13).i32(249).i32(249).string(UUID).i32(64).bytes(Buffer.alloc(0)).build();
+    .string('mob61000').string('Cóc Xanh').u8(1).u8(0).u8(4).i32(13).i32(100000).u8(0).i32(249).i32(249).string(UUID).i32(64).bytes(Buffer.alloc(0)).build();
   return Buffer.concat([setup.subarray(0, setup.length - 4), Buffer.from(fixtures.battles[0].board as number[]), Buffer.from([30, 0])]);
 };
 const bp: Record<string, string> = fixtures['battle-packets'];
@@ -253,6 +257,38 @@ test('quest bot: --surrender-after stops after the battle even when it ends befo
     .u8(1).string('mob61000').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
   bot.onPacket(19, end);
   assert.deepEqual([bot.battle, events.at(-1)?.event, events.at(-1)?.reason], [undefined, 'stop', 'battle over without the surrender']);
+});
+
+test('quest bot: with record, a battle becomes one file: header with both elements, its packets, a turn note, the end', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const dir = mkdtempSync(join(tmpdir(), 'cllt-quest-record-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 1, record: { dir, tags: { bot: 'test' } }, log: e => events.push(e) });
+  bot.api = recorder(sent);
+  bot.onPacket(9, hex(fixtures.profile['s2c/9 level 21'])); // manina, Hỏa
+  bot.onPacket(29, new Writer().string('manina').string('M2').i32(0).build());
+  bot.onPacket(43, mobsPacket('M2', [['mob61000', 'Cóc Xanh', 13]]));
+  bot.onPacket(1263, Buffer.alloc(0)); // outside the battle: not kept
+  bot.onPacket(22, cocXanhSetup());
+  bot.onPacket(18, Buffer.from(bp['s2c/18'], 'hex'));
+  bot.onPacket(24, Buffer.from(bp['s2c/24 own turn'], 'hex'));
+  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0))
+    .u8(1).string('mob61000').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
+  bot.onPacket(19, end);
+  bot.onPacket(36, Buffer.from('00000008' + 'ff'.repeat(8), 'hex')); // durability: 8 empty slots
+  bot.onPacket(1214, Buffer.alloc(0));
+  const saved = events.filter(e => e.event === 'battle_recorded');
+  assert.equal(saved.length, 1, JSON.stringify(events.filter(e => String(e.event).startsWith('battle_record'))));
+  const lines: any[] = gunzipSync(readFileSync(String(saved[0].file))).toString('utf8').trimEnd().split('\n').map(l => JSON.parse(l));
+  const h = lines[0];
+  assert.deepEqual([h.kind, h.bot, h.character, h.element, h.elementName, h.level, h.mob.name, h.mob.element, h.mob.elementName, h.mob.level, h.mob.maxHp, h.map],
+    ['header', 'test', 'manina', 1, 'Hỏa', 21, 'Cóc Xanh', 4, 'Thủy', 13, 249, 'M2']);
+  assert.equal(h.combat.length, 5);
+  assert.deepEqual(lines.slice(1).map(l => Array.isArray(l) ? l[1] : l.note ?? l.kind),
+    ['s2c/22', 'c2s/18', 's2c/18', 'c2s/14', 's2c/24', 'turn', 'c2s/19', 's2c/19', 'estimates', 'end', 's2c/36', 's2c/1214']);
+  assert.equal(lines.find(l => Array.isArray(l) && l[1] === 'c2s/19')[2], sent.find(s => s.opcode === 19)!.hex, 'the swap as sent');
+  assert.deepEqual([lines.at(-3).kind, lines.at(-3).won], ['end', true]);
 });
 
 const si: Record<string, string> = fixtures['skills-items'];

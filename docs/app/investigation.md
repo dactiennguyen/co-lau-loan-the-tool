@@ -43,6 +43,7 @@
 | H1: v3 với quái gần cấp mình (31/10) | Bot TS v3 với manina cấp 22 ở M2: `npm run quest -- --farm="Kẻ Quấy Phá" --fights=20 --max-losses=20` có `CLLT_TRACE`, không bình. Thắng 6/20 (30%); đo HP, `W`, kỹ năng hai bên rồi mô phỏng các cách cộng 71 điểm tiềm năng và 15 điểm kỹ năng. [07-auto-battle](events/07-auto-battle.md#quái-mạnh-h1) | Chỉ 1 loại quái; `W` theo Tấn công cao chưa đo |
 | X1: số 32 bit của kết quả nước đi (31/10) | Phát lại bàn của G2 và H1, so số đó với CRC32 và nhiều bộ sinh số ngẫu nhiên. Là CRC32 của bàn sau nước đi, 844/844. [05-battle](events/05-battle.md#bàn-chơi) | Viên rơi không đoán trước được |
 | I1: túi đồ trên máy (31/10) | Điện thoại với Tiheo2, Frida ghi mọi gói, ADB chạm: bấm Sắp xếp, xem popup đồ, mở hộp Vứt bỏ rồi Hủy. Sắp xếp là `c2s/1257`; không có nút mặc đồ tốt nhất. [12-skills-items](events/12-skills-items.md#sắp-xếp) | Chưa thử túi lộn xộn hơn (chồng cùng loại) |
+| R1: ghi trận, hệ của quái (31/10) | Bot TS ghi mỗi trận thành file (`captures/battles`); `npm run battles` đọc lại 20 trace cũ: 134 trận, 119 trận phát lại khớp server ở cả 4921 nước. Byte thứ ba của khối quái trong `s2c/22` là hệ (7 loại quái). [07-auto-battle](events/07-auto-battle.md#ghi-trận) | Chưa chạy thật với ghi trận (bot TS lẫn app) |
 
 Giá trị HP, khu vực, danh sách thực thể và key có thể khác giữa các phiên. Nhãn field và nhãn event trong tài liệu là diễn giải, trừ khi đã chỉ rõ chữ ký/field thực của binary. Raw trace/script tạm đã xoá sau khi ghi lại các quan sát cần thiết.
 

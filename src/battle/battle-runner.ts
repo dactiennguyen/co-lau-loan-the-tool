@@ -11,6 +11,9 @@ export interface BattleEnd { won: boolean; actor: string; exp?: number; coin?: n
 export interface BattleIo {
   send(opcode: number, payload: Uint8Array): void;
   log(event: string, fields?: Record<string, unknown>): void;
+  /** Every own turn, not printed: what was picked and the best actions weighed with their scores (the battle file of
+   * battle-record.ts). */
+  note?(event: string, fields: Record<string, unknown>): void;
   onEnd(end: BattleEnd): void;
   /** Own skill to cast (c2s/20) once own stat1 (nội lực) reaches `cost`, when castSkill says so; without an answer in 3 s the
    * turn falls back to a swap. Only without `skills`. */
@@ -36,6 +39,8 @@ export interface BattleIo {
    * or the best swap without any skill. Test plans use it; without an answer in 3 s the turn falls back to a swap. */
   choose?(runner: BattleRunner, seq: number): { skill: number } | { item: number } | { swap: true } | undefined;
 }
+
+const round1 = (x: number) => Math.round(x * 10) / 10;
 
 type Piece = 'sword' | 'heart' | 'yinyang' | 'peach' | 'skillDamage' | 'skillCost';
 type Unit = ReturnType<typeof battleResult>['units'][number];
@@ -148,6 +153,7 @@ export class BattleRunner {
     const id = forced && 'skill' in forced ? forced.skill
       : forced && 'swap' in forced ? undefined
       : skill && !this.skillRefused && castSkill(this.board, this.me, this.mob, s, pick?.score ?? null) ? skill.id : undefined;
+    this.io.note?.('turn', { seq, pick: id === undefined ? 'swap' : `skill ${id}`, scores: pick ? [['swap', round1(pick.score)]] : [] });
     if (id !== undefined) return this.castOwn(seq, id, pick);
     this.swapMove(seq, pick);
   }
@@ -159,6 +165,7 @@ export class BattleRunner {
     Object.assign(this.me, skillWorth(this.me.sword, skills));
     const { best, all } = bestAction(this.board, this.me, this.mob, s, { skills, potions: this.potions, potionCost: this.io.potionCost, buffs: this.buffs });
     const swap = all.find(a => a.action.kind === 'swap'), pick = swap?.action.kind === 'swap' ? { move: swap.action.move, score: swap.score } : null;
+    this.io.note?.('turn', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, mobHp: this.mob.hp, scores: all.slice(0, 3).map(a => [a.label, round1(a.score)]) });
     // Only turns where a skill could be cast or something else than a swap was picked: why it cast, healed or did not.
     if (all.some(a => a.action.kind === 'skill') || (best && best.action.kind !== 'swap')) this.io.log('choice', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, mobHp: this.mob.hp, scores: all.slice(0, 4).map(a => [a.label, Math.round(a.score)]) });
     const forced = this.io.choose?.(this, seq);

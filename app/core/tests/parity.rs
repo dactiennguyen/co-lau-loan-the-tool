@@ -2468,6 +2468,8 @@ fn tu_nhat_do_counts_the_drops_of_the_last_battle_in_the_job_it_ended() {
     bot.on_packet(1182, &drop_packet("more-gold", 41, 40), end, &mut out)
         .unwrap();
     bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+    // As the server ends every battle (05-battle): the battle data goes out with it.
+    bot.on_packet(1214, &[], end, &mut out).unwrap();
     assert!(bot.snapshot().job.unwrap().done.is_some());
     for i in 1..3 {
         bot.on_timer(end + Duration::from_millis(200) * i, &mut out);
@@ -2549,6 +2551,8 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     bot.on_packet(1182, &gold, end, &mut out).unwrap();
     out.clear();
     bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+    // As the server ends every battle (05-battle): the battle data goes out with it.
+    bot.on_packet(1214, &[], end, &mut out).unwrap();
     let request = |uuid: &str| tohex(&Writer::new().string(uuid).build());
     assert_eq!(sends(&out, 1188), 1, "{out:?}");
     assert_eq!(sent(&out, 1188), Some(request(gold_uuid)));
@@ -2686,4 +2690,132 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     out.clear();
     bot.on_packet(19, &won_battle(), t, &mut out).unwrap();
     assert_eq!(sends(&out, 1188), 0, "{out:?}");
+}
+
+/// Lưu dữ liệu trận (battle_record.rs, 07-auto-battle.md#ghi-trận): a battle goes out as one Out::BattleData at its
+/// s2c/1214: the header with the mob's element from its s2c/22 block, the packets both ways, the turn notes, the result.
+#[test]
+fn luu_du_lieu_tran_keeps_a_battle_with_its_header_packets_notes_and_result() {
+    use std::io::Read;
+    let (mut bot, mut out, now, old) = coc_xanh_bot();
+    // s2c/22 in the layout of 07-auto-battle.md#s2c22-641-byte (manina Hỏa, Cóc Xanh Thủy), with the captured board.
+    let mut setup = Writer::new()
+        .u8(1)
+        .u8(0)
+        .string("manina")
+        .string("manina")
+        .u8(0)
+        .u8(0)
+        .u8(1)
+        .i32(21)
+        .i32(0)
+        .u8(0)
+        .i32(150)
+        .i32(180)
+        .string("mob61000")
+        .string("Cóc Xanh")
+        .u8(1)
+        .u8(0)
+        .u8(4)
+        .i32(13)
+        .i32(100_000)
+        .u8(0)
+        .i32(249)
+        .i32(249)
+        .string("3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e")
+        .i32(64)
+        .build();
+    setup.extend_from_slice(&old[old.len() - 66..]);
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    out.clear();
+    // The session hands every packet it sends to the bot (session.rs).
+    let step = |bot: &mut Bot, op: i32, payload: &[u8], at: Instant, out: &mut Vec<Out>| {
+        let from = out.len();
+        bot.on_packet(op, payload, at, out).unwrap();
+        for o in &out[from..] {
+            if let Out::Send(op, p) = o {
+                bot.record_sent(*op, p, at);
+            }
+        }
+    };
+    step(&mut bot, 22, &setup, now, &mut out);
+    step(&mut bot, 18, &hex("000000000000"), now, &mut out);
+    let end = now + Duration::from_secs(1);
+    step(&mut bot, 19, &won_battle(), end, &mut out);
+    assert!(
+        !out.iter().any(|o| matches!(o, Out::BattleData(_))),
+        "waits for s2c/1214"
+    );
+    let mut durability = Writer::new().i32(8).build(); // 8 empty gear slots
+    durability.extend_from_slice(&[0xff; 8]);
+    step(&mut bot, 36, &durability, end, &mut out);
+    step(&mut bot, 1214, &[], end, &mut out);
+    let data: Vec<_> = out
+        .iter()
+        .filter_map(|o| match o {
+            Out::BattleData(d) => Some(d.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(data.len(), 1);
+    let d = &data[0];
+    assert_eq!(
+        (d.uuid.as_str(), d.format),
+        ("3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e", 1)
+    );
+    let mut text = String::new();
+    flate2::read::GzDecoder::new(&d.packets[..])
+        .read_to_string(&mut text)
+        .unwrap();
+    let lines: Vec<Value> = text
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    let h = &lines[0];
+    assert!(
+        text.starts_with(r#"{"kind":"header","format":1,"at":""#),
+        "{text}"
+    );
+    assert_eq!(
+        (
+            &h["bot"],
+            &h["character"],
+            &h["hp"],
+            &h["map"],
+            &h["play"]["source"]
+        ),
+        (
+            &json!("app"),
+            &json!("manina"),
+            &json!(150),
+            &json!("M2"),
+            &json!("fight")
+        )
+    );
+    assert_eq!(
+        h["mob"],
+        json!({ "id": "mob61000", "name": "Cóc Xanh", "level": 13, "element": 4, "elementName": "Thủy", "hp": 249, "maxHp": 249, "boss": false })
+    );
+    let kinds: Vec<String> = lines[1..]
+        .iter()
+        .map(|l| match l {
+            Value::Array(a) => a[1].as_str().unwrap().to_string(),
+            _ => l
+                .get("note")
+                .or(l.get("kind"))
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        ["s2c/22", "c2s/18", "s2c/18", "c2s/14", "s2c/19", "end", "s2c/36", "s2c/1214"]
+    );
+    let result = lines.iter().find(|l| l["kind"] == "end").unwrap();
+    assert_eq!(
+        (&result["won"], &result["ms"]),
+        (&json!(true), &json!(1000))
+    );
 }

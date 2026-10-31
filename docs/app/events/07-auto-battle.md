@@ -547,6 +547,46 @@ Script `plan/run-plan.ts` trong scratchpad (dùng `sim2.ts`, bot v3, HP mang san
 - **Điểm kỹ năng:** ở cấp 22 chỉ học thêm được Hỏa Cầu Thuật cấp 5 (1 điểm), Hỏa Kiếm Thuật tới cấp 3, Liệt Hỏa Chi Kiếm và Thiên Hỏa Kích tới cấp 3 (2 điểm mỗi cấp). Mọi tổ hợp 15 điểm cho kết quả y như chỉ nâng Hỏa Cầu Thuật cấp 5. Bot không bao giờ dùng các kỹ năng 50 nội lực: nội lực vừa đủ 25 là Hỏa Cầu Thuật đã đáng dùng hơn (khoảng 92 sát thương cho 25 nội lực, Liệt Hỏa Chi Kiếm cấp 3 khoảng 112 cho 50). [Mô phỏng]
 - Cách làm an toàn: cộng một phần Cường Lực trước (ví dụ 21, Tấn công 53), đánh khoảng 10 trận để đo `W` mới (dự đoán đòn 3 kiếm vào Kẻ Quấy Phá ≈ 50). Nếu khớp thì cộng phần còn lại. Cộng điểm thì không lấy lại được, trừ khi dùng Tẩy Tủy Đan. Chưa cộng điểm nào.
 
+<a id="ghi-trận"></a>
+
+### Ghi trận để học thuật toán (31/10)
+
+Mỗi trận bot đánh được ghi thành một file, để sau này hiệu chỉnh mô phỏng, dò tham số và dạy mô hình chọn nước. Hai thứ phải có: **thông tin trước trận** của cả hai bên và của bot, và **mọi gói tin của trận**. Thiếu chúng thì chỉ đếm được thắng thua. Code: [src/bot/battle-record.ts](../../../src/bot/battle-record.ts) (ghi), [src/battle/battle-data.ts](../../../src/battle/battle-data.ts) (đọc lại, phát lại). Test: [test/battle-record.test.ts](../../../test/battle-record.test.ts).
+
+- **Bot TS** (`npm run quest`) ghi mặc định vào `captures/battles/<ngày>/<giờ phút giây>-<nhân vật>-<quái>.jsonl.gz`, ví dụ `2026-10-31/161203-manina-ke-quay-pha.jsonl.gz`. `captures/` không lên git. `--record=<thư mục>` ghi chỗ khác, `--no-record` không ghi ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)).
+- **App Rust** ghi cùng các dòng này vào bảng `battle_data` của `cllt.db`, mỗi trận một dòng, khi ô **Lưu dữ liệu trận** của tab Cài đặt đang bật (mặc định bật). `cllt fight`, `cllt quest` ghi file vào `captures/battles/` như bot TS ([features](../../integration/rust/features.md#nhật-ký-và-thống-kê)). Dòng đầu của app có `bot: "app"` và `version`, không có `memory` (runner Rust chưa nhớ thông số giữa các trận); dòng `turn` chỉ có điểm nước đổi viên cho tới khi app có v3.
+- **Đọc lại:** `npm run battles` đọc `captures/battles` (cả file trận lẫn trace `CLLT_TRACE` cũ) và bảng `battle_data` của `app/cllt.db` nếu có. Lệnh in bảng theo quái và theo nguồn: số trận, thắng, thua, số nước, số trận phát lại bị lệch. `--export=<file>` ghi mỗi trận một dòng JSON (dòng đầu, kết quả, ghi chú, từng nước đã phát lại) để học.
+
+**Định dạng (bản 1).** File là gzip của các dòng JSON, theo thứ tự:
+
+1. **Dòng đầu** `{ "kind": "header", "format": 1, "at": "<ISO>", … }`, ghi lúc nhận `s2c/22`:
+
+   | Trường | Nghĩa | Lấy từ |
+   |---|---|---|
+   | `bot`, `commit`, `goal` | `ts`, commit của repo, `--goal` | `quest-run.ts` |
+   | `character`, `level`, `hp`, `maxHp` | Nhân vật lúc vào trận | `s2c/22`, `s2c/9` |
+   | `element`, `elementName` | Hệ nhân vật: 1 Hỏa, 2 Lôi, 4 Thủy | `field01` của `s2c/9` |
+   | `combat` | Tấn công, phòng thủ, chính xác, né tránh, chí mạng | `s2c/9`, `extra[1..5]` của `s2c/10` kiểu 4 |
+   | `potentials` | 10 số chỉ số tiềm năng, thứ tự của `s2c/9` | `s2c/9`, `s2c/10` kiểu 2 |
+   | `skills` | `[mã, cấp]` các kỹ năng đã học | đuôi `s2c/9`, `s2c/10` kiểu 32 |
+   | `gear` | Mỗi ô: `slot`, `itemId`, `element`, `durability` (theo `s2c/36` của trận trước), `stats` | `s2c/9`, `s2c/36` |
+   | `potions` | Bình trong túi: ô, mã, số lượng | `s2c/42`, `s2c/1187` |
+   | `mob` | `id`, `name`, `level`, `element`, `elementName`, `hp`, `maxHp`, `boss` | khối quái của `s2c/22` |
+   | `map`, `zone` | Chỗ đánh | `s2c/29`, `s2c/11` |
+   | `play` | `strategy` (các trọng số của `--goal`), `skills` (kỹ năng bot được dùng), `skill`, `potionCost` | tham số dòng lệnh |
+   | `memory` | Thông số bot đã học từ các trận trước trong phiên: `[tổng, số lần]` theo `tên quái.sword`, `me>tên quái.sword`… | `BattleIo.memory` |
+
+2. **Gói tin** `[ms, "s2c/19", "hex"]`: ms tính từ `s2c/22`, hex đủ cả gói. Chỉ có các gói của trận: `s2c/22`, `c2s/18`, `s2c/18`, `c2s/14`, `s2c/24`, `c2s/19`, `s2c/19`, `s2c/20`, `s2c/21`, `c2s/20`, `c2s/44`, `s2c/44`, `c2s/11`, `c2s/40`, `s2c/10`, `s2c/1201`, `s2c/36`, `s2c/1214`. Không có gói đăng nhập (`c2s/4`), chat, hay người chơi khác.
+3. **Ghi chú của bot** `{ "ms": …, "note": … }`, xen giữa các gói:
+   - `turn` mỗi lượt của mình: `pick` (`swap`, `skill 1000`, `item 0`), `scores` (3 hành động điểm cao nhất kèm điểm), với v3 thêm `hp`, `stat1`, `mobHp` bot đang tin;
+   - `skill_try`, `item_try`, `action_no_answer`, `skill_cast`, `item_used`, `board_desync`, `board_reshuffled`, `turn_inferred`, `timed_attack`, `no_legal_move`;
+   - `estimates` lúc hết trận: các thông số bot học được.
+4. **Kết quả** `{ "kind": "end", … }`: `won`, `exp`, `coin`, `myTurns`, `hp`, `damage`, `ms`, `skillsCast`; hoặc `cancelled`, `left` (đầu hàng), `stopped` (bot dừng giữa trận). Sau dòng này còn `s2c/10`, `s2c/36` và `s2c/1214`, vì chúng đến trong khoảng 1 ms sau gói kết thúc trận. File được ghi khi có `s2c/1214`, chậm nhất 500 ms sau dòng kết quả.
+
+**Kích thước.** Với 20 trận của H1, phần gói của trận là 33,5 KB mỗi trận trước khi nén, 4,4 KB sau khi nén. 100 000 trận khoảng 440 MB. [Đo]
+
+**Trace cũ.** 20 trace `CLLT_TRACE` còn lại của các lần chạy 30–31/10 (trong đó Q3–Q20 và H1) được chép (gzip) vào `captures/battles/traces/`. `npm run battles` đọc ra 134 trận. 119 trận phát lại khớp server ở cả 4921 nước, không trận nào lệch. 15 trận của Q3, Q4 và hai lần chạy đầu không phát lại được, vì trace lúc đó chỉ giữ 128 byte hex đầu của mỗi gói. Dòng đầu của trận trong trace cũ chỉ có nhân vật (từ `s2c/9` gần nhất) và quái (`legacy: true`). [Đo]
+
 ## Cách bot gửi gói
 
 Có hai cách. Cả hai dùng cùng bố cục payload.
@@ -661,13 +701,13 @@ Từ seq 3 tới seq 8 bàn không còn kiếm nào ăn được. Bot chọn nh�
 
 ```text
    0  0000 00000006 "manina" 00000006 "manina"                 2 byte đầu; tên; tên hiển thị
-  22  00 00 01 00000003 00000000 00 00000082 00000082           3 byte; cấp 3; i32 0; u8 0; HP 130/130
+  22  00 00 01 00000003 00000000 00 00000082 00000082           2 byte; hệ 1 (Hỏa); cấp 3; i32 0; u8 0; HP 130/130
   42  00000000 00000064 00000000 00000064                       nội lực 0/100, sức mạnh 0/100  [Suy luận]
   58  00000004 "1097" 00000003 "125"                            [Chưa rõ]
   73  00000009 000003e8 ffffffff × 8                           9 ô kỹ năng: 1000, còn lại -1 (chưa học)  [Đo]
  113  00016120, …, uuid người chơi "d3d51a41-…", bảng màu ARGB (ff525252 ffbfbfbf …)   [Chưa rõ]
  369  00000005 "mob10" 0000000a "Gà Điên"                       khối quái
- 392  01 00 04 00000001 000186a0 00 00000032 00000032           3 byte; cấp 1; i32 100000; u8 0; HP 50/50
+ 392  01 00 04 00000001 000186a0 00 00000032 00000032           2 byte; hệ 4 (Thủy); cấp 1; i32 100000; u8 0; HP 50/50
  412  00000000 00000064 00000000 00000064                       0, 100, 0, 100
  428  00000009 "Chưa có" 00000009 "Chưa có"
  454  00000009 00000fa0 … 00000fa8                              9 kỹ năng 4000…4008  [Đo]
@@ -676,6 +716,8 @@ Từ seq 3 tới seq 8 bàn không còn kiếm nào ăn được. Bot chọn nh�
  571  00000040 + 64 byte bàn (575–638)                          xem dưới
  639  1e 00                                                     30 giây/lượt
 ```
+
+Byte thứ ba của khối người chơi và của khối quái là **hệ** (1 Hỏa, 2 Lôi, 4 Thủy, như hệ của vật phẩm). manina luôn có 1. Trong các trace: Kẻ Quấy Phá 1 (nó dùng Hỏa Cầu Thuật), Sơn Tặc 1, Kẻ Gây Rối 1, Sói Xám 2, Chỉ Huy Sơn Tặc 2, Cóc Xanh 4, Gà Điên 4 (khối của nó liệt kê các kỹ năng Thủy 4000–4008). `mobBlock` đọc byte này. [Suy luận từ 7 loại quái]
 
 Bàn ban đầu (`G` = nén vàng `0x46`):
 

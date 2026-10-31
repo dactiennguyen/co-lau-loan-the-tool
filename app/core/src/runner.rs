@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 pub enum Act {
     Send(i32, Vec<u8>),
     Log(String),
+    /// For the battle data only (battle_record.rs), not the log: what an own turn picked and why ("turn").
+    Note(&'static str, serde_json::Value),
     End(BattleEnd),
 }
 
@@ -315,6 +317,10 @@ impl BattleRunner {
             .skill
             .filter(|s| !self.skill_refused && self.me.s1 >= s.cost as f64)
         {
+            out.push(Act::Note(
+                "turn",
+                serde_json::json!({ "seq": seq, "pick": format!("skill {}", skill.id), "stat1": self.me.s1 }),
+            ));
             self.send(
                 out,
                 20,
@@ -344,6 +350,10 @@ impl BattleRunner {
             out.push(Act::Log(format!("Không còn nước đi ở lượt {seq}")));
             return;
         };
+        out.push(Act::Note(
+            "turn",
+            serde_json::json!({ "seq": seq, "pick": "swap", "scores": [["swap", (pick.score * 10.0).round() / 10.0]] }),
+        ));
         self.turns += 1;
         self.send(
             out,

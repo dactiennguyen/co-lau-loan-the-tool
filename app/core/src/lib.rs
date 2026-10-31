@@ -3,6 +3,7 @@
 pub mod accounts;
 pub mod atlas;
 pub mod battle;
+pub mod battle_record;
 pub mod bot;
 pub mod items;
 pub mod net;

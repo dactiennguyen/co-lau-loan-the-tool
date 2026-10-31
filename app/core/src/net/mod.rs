@@ -3,6 +3,7 @@
 //! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
 use crate::atlas::Atlas;
+use crate::battle_record::BattleData;
 use crate::bot::{
     BattleRecord, Bot, BotOptions, FightSettings, ItemAct, LogKind, Out, PickupRecord, Snapshot,
 };
@@ -83,6 +84,8 @@ pub enum Event {
     Battle(Box<BattleRecord>),
     /// An item Tự nhặt đồ picked up (Out::Pickup), likewise.
     Pickup(Box<PickupRecord>),
+    /// The packets of a battle and what both sides were (Out::BattleData), for battle_data of cllt.db.
+    BattleData(Box<BattleData>),
 }
 
 type Emit = Arc<dyn Fn(Event) + Send + Sync>;

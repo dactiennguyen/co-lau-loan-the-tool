@@ -10,6 +10,8 @@ pub enum Out {
     Battle(Box<BattleRecord>),
     /// An item Tự nhặt đồ picked up, for the history of the account (PickupRecord).
     Pickup(Box<PickupRecord>),
+    /// Lưu dữ liệu trận: the packets of a battle with what both sides were (battle_record.rs), for cllt.db.
+    BattleData(Box<BattleData>),
 }
 
 /// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/features.md#nhật-ký-và-thống-kê
@@ -242,6 +244,9 @@ pub struct FightSettings {
     /// Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up (Bot::loot).
     #[serde(default = "on")]
     pub pickup: bool,
+    /// Lưu dữ liệu trận, on unless turned off: every battle goes out as Out::BattleData (battle_record.rs).
+    #[serde(default = "on")]
+    pub record: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -266,6 +271,7 @@ impl Default for FightSettings {
         Self {
             repair: false,
             pickup: true,
+            record: true,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),

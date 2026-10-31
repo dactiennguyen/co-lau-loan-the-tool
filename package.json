@@ -19,6 +19,7 @@
     "skills": "node --experimental-strip-types src/cli/skills-run.ts",
     "zone": "node --experimental-strip-types src/cli/zone-run.ts",
     "buy": "node --experimental-strip-types src/cli/buy-run.ts",
+    "battles": "node --experimental-strip-types --no-warnings src/cli/battles.ts",
     "test:scenario": "node --experimental-strip-types test/scenario-runner.ts",
     "check:apk": "node --experimental-strip-types src/cli/check-apk.ts",
     "check:capture": "node --experimental-strip-types src/cli/check-capture.ts",

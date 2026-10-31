@@ -10,6 +10,10 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) -> crate::protocol::Result<()> {
+        // s2c/22 opens the battle data in on_setup and goes in after its header.
+        if opcode != 22 {
+            self.record_received(opcode, payload, now, out);
+        }
         if let Some(b) = &mut self.battle {
             let mut acts = vec![];
             if b.on_packet(opcode, payload, now, &mut acts)? {
@@ -582,6 +586,7 @@ impl Bot {
                 if self.left(36, now, out) {
                 } else if self.battle.take().is_some() {
                     out.push(Out::Log(LogKind::Battle, "Server đã huỷ trận".into()));
+                    self.record_end(serde_json::json!({ "cancelled": true }), now);
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                 }
                 match gear_durability(payload) {

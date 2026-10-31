@@ -10,7 +10,8 @@ import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
 import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { BattleRecorder } from './battle-record.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -79,6 +80,9 @@ export interface QuestBotOptions {
   items?: Items;
   /** Picks up the own drops of a won battle with c2s/1188 (pick()); default true. */
   pickup?: boolean;
+  /** Keeps each battle as a file in `dir` (battle-record.ts); `tags` go into the header of every file (quest-run: the
+   * commit and the --goal). */
+  record?: { dir: string; tags?: Record<string, unknown> };
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -98,6 +102,10 @@ export class QuestBot implements WorldSession {
   fights = 0; wins = 0; losses = 0; hp = 0; maxHp = 0; level = 0; statPoints?: number; challenged = 0; battleStart = 0;
   /** Tấn công (combat[0] of s2c/9) and the bag (s2c/42 at login, s2c/1187 after a change, s2c/83 for one slot). */
   attack?: number; bag: { slot: number; itemId: number; quantity: number }[] = [];
+  /** Tấn công, phòng thủ, chính xác, né tránh, chí mạng (combat of s2c/9, then extra[1..5] of s2c/10 kind 4), and the 8
+   * gear slots of s2c/9 with the durability of the last s2c/36: for the header of the battle files. */
+  combat: number[] = []; gear: ReturnType<typeof characterGear> = [];
+  private recorder?: BattleRecorder;
   /** Other players of the zone (s2c/1263, 1167, 1170, 1253). */
   readonly nearby = new ZonePlayers();
   /** A talk or stat-point step is answered by s2c/34 alone. */
@@ -126,7 +134,10 @@ export class QuestBot implements WorldSession {
   picked = 0;
   private wait?: ReturnType<typeof setTimeout>;
   options: QuestBotOptions;
-  constructor(options: QuestBotOptions) { this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas); }
+  constructor(options: QuestBotOptions) {
+    this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas);
+    if (options.record) this.recorder = new BattleRecorder(options.record.dir, r => this.log('error' in r ? 'battle_record_error' : 'battle_recorded', r));
+  }
   private log(event: string, fields: Record<string, unknown> = {}) { this.options.log({ kind: 'quest', event, at: Date.now(), ...fields }); }
 
   onReady(api: SessionApi) {
@@ -138,6 +149,8 @@ export class QuestBot implements WorldSession {
   }
 
   onPacket(opcode: number, payload: Buffer) {
+    // s2c/22 opens the battle file in onSetup, and goes in after its header.
+    if (opcode !== 22) this.recorder?.packet('s2c', opcode, payload);
     try { this.handle(opcode, payload); }
     catch (error) { this.log('parse_error', { opcode, reason: (error as Error).message, payloadHex: payload.toString('hex') }); }
   }
@@ -151,12 +164,13 @@ export class QuestBot implements WorldSession {
     switch (opcode) {
       case 9: {
         const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level; this.element = c.field01;
-        const p = characterProfile(payload); this.statPoints = p.statPoints; this.skillPoints = p.skillPoints; this.potentials = p.stats; this.attack = p.combat[0];
+        const p = characterProfile(payload); this.statPoints = p.statPoints; this.skillPoints = p.skillPoints; this.potentials = p.stats; this.attack = p.combat[0]; this.combat = p.combat;
         this.log('character', { level: p.level, hp: `${p.hp}/${p.maxHp}`, exp: p.exp, levelExp: p.levelExp, coin: p.coin, combat: p.combat, statPoints: p.statPoints, skillPoints: p.skillPoints });
         this.skillLevels = new Map(characterSkills(payload).map(k => [k.id, k.level]));
         try {
           const items = this.options.items, max = (id: number) => items?.get(id)?.durability;
-          const gear = characterGear(payload).flatMap(g => g ? [`${g.slot}: ${items?.describe(g) ?? `#${g.itemId}`}, hệ ${ITEM_ELEMENTS[g.element] ?? g.element}, độ bền ${g.durability}${max(g.itemId) ? `/${max(g.itemId)}` : ''}`] : []);
+          this.gear = characterGear(payload);
+          const gear = this.gear.flatMap(g => g ? [`${g.slot}: ${items?.describe(g) ?? `#${g.itemId}`}, hệ ${ITEM_ELEMENTS[g.element] ?? g.element}, độ bền ${g.durability}${max(g.itemId) ? `/${max(g.itemId)}` : ''}`] : []);
           this.log('gear', { gear });
           // Timed effects at the end of s2c/9, such as the x2 EXP star of item 7 (12-skills-items.md#x2-exp).
           const { effects, faction } = characterTail(payload), left = (ms: number) => `${Math.floor(ms / 3_600_000)}h${String(Math.floor(ms / 60_000) % 60).padStart(2, '0')}`;
@@ -273,7 +287,7 @@ export class QuestBot implements WorldSession {
         if (s.level !== undefined && s.level !== this.level) { this.level = s.level; this.log('level', { level: s.level, stats: s.stats }); }
         if (s.hp !== undefined) { this.hp = s.hp; this.maxHp = s.maxHp; this.log('stats', { hp: `${this.hp}/${this.maxHp}`, exp: s.exp, levelExp: s.levelExp, coin: s.coin }); }
         // extra[1..5] of kind 4 are the combat stats of s2c/9 (user-data.md): Tấn công follows the gear worn.
-        if (s.extra) this.attack = s.extra[1];
+        if (s.extra) { this.attack = s.extra[1]; this.combat = s.extra.slice(1, 6); }
         if (s.stats) this.potentials = s.stats;
         // Kind 8 comes last of the three that answer c2s/10 (P1): the next point of --stats.
         if (s.statPoints !== undefined) { this.statPoints = s.statPoints; if (this.allotting) { this.allotting = false; this.later(250); } }
@@ -283,8 +297,9 @@ export class QuestBot implements WorldSession {
       case 36:
         // Gear durability, sent after every battle end and after c2s/40; inside a battle it means the server ended it.
         this.log('durability', { payloadHex: payload.toString('hex') });
+        try { for (const d of gearDurability(payload).slots) { const g = d && this.gear[d.slot]; if (g) g.durability = d.durability; } } catch { /* logged as hex above */ }
         if (this.battle?.surrendered) this.left(36);
-        else if (this.battle) { this.log('battle_cancelled'); this.battle = undefined; this.later(2000); }
+        else if (this.battle) { this.log('battle_cancelled'); this.recorder?.end({ cancelled: true }); this.battle = undefined; this.later(2000); }
         break;
       // Empty, at the end of a battle and after c2s/40 (05-battle).
       case 1214: if (this.battle?.surrendered) this.left(1214); break;
@@ -320,7 +335,7 @@ export class QuestBot implements WorldSession {
     const q = this.quest!, step = q.steps[q.current];
     return { id: q.id, title: q.title, current: q.current, progress: q.progress, step: step && `${step.text} (${step.required})`, steps: q.steps.map(s => s.text) };
   }
-  private send(opcode: number, payload: Uint8Array) { this.api?.send(opcode, payload); }
+  private send(opcode: number, payload: Uint8Array) { this.api?.send(opcode, payload); this.recorder?.packet('c2s', opcode, payload); }
   /** Writes the atlas file when something changed. */
   private remember() {
     const json = atlasJson(this.atlas);
@@ -339,6 +354,7 @@ export class QuestBot implements WorldSession {
   }
   private stop(reason: string, fields: Record<string, unknown> = {}) {
     clearTimeout(this.wait);
+    this.recorder?.end({ stopped: reason });
     this.log('stop', { reason, fights: this.fights, wins: this.wins, losses: this.losses, picked: this.picked, hp: `${this.hp}/${this.maxHp}`, quest: this.quest && this.describe(), ...fields });
     setTimeout(() => this.api?.close(), 1000);
   }
@@ -372,6 +388,7 @@ export class QuestBot implements WorldSession {
   private left(by: number) {
     clearTimeout(this.leaving);
     this.log('battle_left', { by: `s2c/${by}`, mobId: this.battle?.mobId });
+    this.recorder?.end({ left: `s2c/${by}` });
     this.battle = undefined;
     this.stop('surrendered');
   }
@@ -539,9 +556,31 @@ export class QuestBot implements WorldSession {
     this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, mob: mob && `${mob.name} ${mob.hp}/${mob.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
     const skills = this.battleSkills(), potions = this.bag.filter(i => POTIONS[i.itemId] && i.quantity > 0);
     if (skills) this.log('battle_skills', { skills: skills.map(k => `${k.id} ${k.name} ${k.level}: ${k.kind}, ${k.cost} nội lực`), potions: potions.map(p => `${POTIONS[p.itemId].name} ×${p.quantity}`), potionCost: this.options.potionCost });
-    this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log: (event, fields) => this.log(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, strategy: this.options.strategy, timedMoveMs: this.options.timedMoveMs,
+    if (this.recorder) { this.recorder.start(`${s.me} ${mob?.name ?? mobId}`, this.recordHeader(s, mobId, mob, skills, potions)); this.recorder.packet('s2c', 22, payload); }
+    // The bot's notes go to the battle file too, except the move lines that its packets hold.
+    const log = (event: string, fields?: Record<string, unknown>) => { this.log(event, fields); if (event !== 'move' && event !== 'choice') this.recorder?.note(event, fields); };
+    this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log, note: (event, fields) => this.recorder?.note(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, strategy: this.options.strategy, timedMoveMs: this.options.timedMoveMs,
       mob, memory: this.battleMemory, skills, potions, potionCost: this.options.potionCost, stats: this.attack === undefined ? undefined : { attack: this.attack, level: this.level } });
     this.battle.start();
+  }
+
+  /** The first line of a battle file (battle-record.ts): both sides and the bot's settings as the battle opens. Elements
+   * as codes and names (1 Hỏa, 2 Lôi, 4 Thủy): the character's from s2c/9, the mob's from its block of s2c/22. */
+  private recordHeader(s: ReturnType<typeof battleSetup>, mobId: string, mob: ReturnType<typeof mobBlock>, skills: ReturnType<QuestBot['battleSkills']>,
+    potions: QuestBot['bag']) {
+    const element = (code?: number) => code === undefined ? undefined : ITEM_ELEMENTS[code];
+    return {
+      ...this.options.record?.tags,
+      character: s.me, level: this.level, element: this.element, elementName: element(this.element), hp: s.hp, maxHp: s.maxHp,
+      combat: this.combat, potentials: this.potentials, skills: [...this.skillLevels].filter(([, level]) => level > 0),
+      gear: this.gear.flatMap(g => g ? [{ slot: g.slot, itemId: g.itemId, element: g.element, durability: g.durability, stats: g.stats }] : []),
+      potions: potions.map(p => ({ slot: p.slot, itemId: p.itemId, quantity: p.quantity })),
+      mob: { id: mobId, name: mob?.name, level: mob?.level ?? this.mobs.find(m => m.id === mobId)?.level, element: mob?.element, elementName: element(mob?.element),
+        hp: mob?.hp, maxHp: mob?.maxHp, boss: this.bosses.has(mobId) },
+      map: this.mapId, zone: this.zone,
+      play: { strategy: this.options.strategy, skills: skills?.map(k => k.id) ?? null, skill: this.options.skill, potionCost: this.options.potionCost },
+      memory: Object.fromEntries(this.battleMemory),
+    };
   }
 
   /** The skills of options.skills among the learnt ones of the s2c/30 table; undefined without the table (BattleIo.skill
@@ -557,6 +596,7 @@ export class QuestBot implements WorldSession {
     if (end.won) this.wins++; else this.losses++;
     this.hp = end.hp;
     this.log('battle_end', { ...end, ms: Date.now() - this.battleStart, skillsCast: this.battle?.skillsCast });
+    this.recorder?.end({ ...end, ms: Date.now() - this.battleStart, skillsCast: this.battle?.skillsCast });
     this.battle = undefined;
     // Own drops land with the battle end: within 0–58 ms before it in every capture (13-drops-items.md#tỉ-lệ-rơi). A
     // stranger's item in these 600 ms (about 5% of battles, at 4.6 items a minute) is refused for its first 16 s.

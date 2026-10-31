@@ -377,6 +377,41 @@ pub fn best_move(b: &Board, me: &Fighter, mob: &Fighter, s: &Strategy) -> Option
     best
 }
 
+/// The mob block of s2c/22 (mobBlock of src/battle/battle.ts): `string id; string name; u8; u8; u8 element; i32 level; i32;
+/// u8; i32 hp; i32 maxHp`. The element byte is 1 Hỏa, 2 Lôi, 4 Thủy as for items (07-auto-battle.md#s2c22-641-byte).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MobBlock {
+    pub name: String,
+    pub element: u8,
+    pub level: i32,
+    pub hp: i32,
+    pub max_hp: i32,
+}
+/// The block of `mob_id`, found by its length-prefixed id; None when the id is not in the packet.
+pub fn mob_block(p: &[u8], mob_id: &str) -> Option<MobBlock> {
+    let id = mob_id.as_bytes();
+    (4..p.len().saturating_sub(id.len()) + 1)
+        .filter(|&i| &p[i..i + id.len()] == id && p[i - 4..i] == (id.len() as u32).to_be_bytes())
+        .find_map(|i| {
+            let mut r = Reader::new(&p[i - 4..]);
+            r.string().ok()?;
+            let name = r.string().ok()?;
+            r.take(2).ok()?;
+            let element = r.u8().ok()?;
+            let level = r.i32().ok()?;
+            r.i32().ok()?;
+            r.u8().ok()?;
+            Some(MobBlock {
+                name,
+                element,
+                level,
+                hp: r.i32().ok()?,
+                max_hp: r.i32().ok()?,
+            })
+        })
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Setup {

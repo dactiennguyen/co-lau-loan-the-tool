@@ -261,10 +261,13 @@ pub(super) async fn session(
                 Out::Send(op, payload) => {
                     let frame = proto.encode(op, &payload).map_err(|e| e.to_string())?;
                     stream.write_all(&frame).await.map_err(|e| e.to_string())?;
+                    // Lưu dữ liệu trận: what goes out during a battle goes into its data.
+                    bot.record_sent(op, &payload, std::time::Instant::now());
                 }
                 Out::Log(kind, text) => emit(Event::Log(kind, text)),
                 Out::Battle(record) => emit(Event::Battle(record)),
                 Out::Pickup(record) => emit(Event::Pickup(record)),
+                Out::BattleData(data) => emit(Event::BattleData(data)),
             }
         }
         let snap = bot.snapshot();

@@ -57,7 +57,7 @@ function Setting({ id, on, disabled, onChange, icon, title, hint, children }: Se
  * Cài đặt tab: what the bot does on its own around the battles it plays (FightSettings of cllt-core), per account. A
  * change is saved to accounts.json and reaches a session at once; it shows as chosen while it saves. Beside Tự sửa đồ,
  * once in the game: the hammers of the bag and the worn items that are broken, with Mua búa when none is left (the bot
- * never buys one itself). Tự nhặt đồ is on unless turned off.
+ * never buys one itself). Tự nhặt đồ and Lưu dữ liệu trận are on unless turned off.
  */
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -68,7 +68,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const [error, setError] = useState<string | null>(null);
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update.
   useEffect(() => {
-    if (saving && saving.repair === saved.repair && saving.pickup === saved.pickup) setSaving(null);
+    if (saving && saving.repair === saved.repair && saving.pickup === saved.pickup && saving.record === saved.record) setSaving(null);
   }, [saving, saved]);
   const settings = saving ?? saved;
   const save = (next: FightSettings) => {
@@ -118,6 +118,15 @@ export function FightSettingsCard({ account }: { account: Account }) {
         icon="gem"
         title="Tự nhặt đồ"
         hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Không nhặt đồ người khác làm rơi. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
+      />
+      <Setting
+        id={`${id}record`}
+        on={settings.record}
+        disabled={!!saving}
+        onChange={(record) => save({ ...settings, record })}
+        icon="chart"
+        title="Lưu dữ liệu trận"
+        hint="Mỗi trận được lưu vào cllt.db: chỉ số, hệ, kỹ năng, đồ của nhân vật, quái và hệ của quái, mọi gói tin của trận và kết quả, khoảng 4–5 KB một trận. Dùng để học thuật toán đánh (npm run battles). Không lưu mật khẩu, chat hay người chơi khác; không bị xoá sau 90 ngày như lịch sử trận."
       />
       {error && (
         <p className="settings__error selectable" role="alert">
