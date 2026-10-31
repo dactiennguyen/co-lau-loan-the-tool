@@ -9,8 +9,8 @@ import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account } from "../types";
-import { lossesLeft } from "../useFightSetting";
 import { BattlePanel } from "./BattlePanel";
+import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
 import "./FightCard.css";
 
 export interface FightChoice {
@@ -74,15 +74,22 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           <Stepper label="số trận" max={999} value={choice.count} onChange={(count) => set({ count })} />
         </div>
         <div className="fight__row">
-          {/* While the job goes on, what is left of it instead of the field and its name; after Dừng the field again, as
-              saved. */}
-          {!running && <span className="fight__label">Thua tối đa</span>}
-          {running ? (
-            <span className="losses-left" title="Thua tối đa trừ số trận đã thua trong việc này; thua boss không làm bot dừng">
-              {bossJob ? "Thua boss không tính" : <>Còn <b className="px">{lossesLeft(job.maxLosses, job.losses)}</b> lượt thua nữa</>}
-            </span>
+          {/* While the job goes on, the losses it may still take, changed in place (against a boss, which never ends it, a
+              word instead); after Dừng Thua tối đa again, as saved. */}
+          {running && bossJob ? (
+            <span className="losses-left">Thua boss không tính</span>
+          ) : running ? (
+            <>
+              <span className="fight__label" title={LOSSES_LEFT_HINT}>
+                Thua còn lại
+              </span>
+              <LossesLeftField id={account.id} max={job.maxLosses} losses={job.losses} />
+            </>
           ) : (
-            <Stepper label="số trận thua" value={choice.losses} onChange={(losses) => set({ losses })} />
+            <>
+              <span className="fight__label">Thua tối đa</span>
+              <Stepper label="số trận thua" value={choice.losses} onChange={(losses) => set({ losses })} />
+            </>
           )}
         </div>
         <div className="fight__buttons">

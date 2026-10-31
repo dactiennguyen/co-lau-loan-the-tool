@@ -40,6 +40,8 @@ pub enum Command {
     Stats(Option<StatPlan>),
     /// Cài đặt đánh (Bot::set_fight).
     FightSettings(FightSettings),
+    /// "Lượt thua còn lại" of the fight job or quest run going on (Bot::set_losses_left).
+    LossesLeft(u32),
     /// "Cộng +1" on the potential of that c2s/10 index (Bot::add_stat).
     AddStat(usize),
     /// Nâng cấp on the skill of that id (Bot::upgrade_skill).

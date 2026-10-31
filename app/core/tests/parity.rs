@@ -1050,6 +1050,37 @@ fn fight_job_against_a_mob_stops_at_max_losses_and_a_missing_mob_ends_it() {
     );
 }
 
+/// "Lượt thua còn lại" changed during a job: Thua tối đa 10 with one loss leaves 9; set to 1, the next loss ends the job.
+/// Once it has ended, a change does nothing.
+#[test]
+fn losses_left_changed_during_a_fight_job_ends_it_after_that_many_more_losses() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 5, 10, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
+    let job = bot.snap.job.clone().unwrap();
+    assert_eq!((job.losses, job.max_losses, job.done), (1, 10, None));
+    out.clear();
+    bot.set_losses_left(1, &mut out);
+    assert!(
+        logged(&out, "Còn 1 lượt thua nữa thì dừng đánh Cóc Xanh"),
+        "{out:?}"
+    );
+    assert_eq!(bot.snap.job.as_ref().unwrap().max_losses, 2);
+    let t = bot.deadline().unwrap();
+    bot.on_timer(t, &mut out);
+    bot.on_packet(22, &setup, t, &mut out).unwrap();
+    bot.on_packet(19, &lost_battle(), t, &mut out).unwrap();
+    assert_eq!(
+        bot.snap.job.as_ref().unwrap().done.as_deref(),
+        Some("Thua 2 trận")
+    );
+    out.clear();
+    bot.set_losses_left(5, &mut out);
+    assert!(out.is_empty(), "{out:?}");
+    assert_eq!(bot.snap.job.as_ref().unwrap().max_losses, 2);
+}
+
 #[test]
 fn the_snapshot_keeps_the_result_that_ended_a_battle_until_the_next_one_opens() {
     let (mut bot, mut out, now, setup) = coc_xanh_bot();

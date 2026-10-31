@@ -539,6 +539,21 @@ impl Bot {
         }
     }
 
+    /// "Lượt thua còn lại" changed while a fight job or quest run goes on: it ends after `left` more losses (at least
+    /// one), as if its Thua tối đa were that many above the losses so far. The saved Thua tối đa of the tab stays.
+    pub fn set_losses_left(&mut self, left: u32, out: &mut Vec<Out>) {
+        let left = left.max(1);
+        if let Some(j) = self.snap.job.as_mut().filter(|j| j.done.is_none()) {
+            j.max_losses = j.losses + left;
+            let text = format!("Còn {left} lượt thua nữa thì dừng đánh {}", j.target);
+            out.push(Out::Log(LogKind::Battle, text));
+        } else if let Some(r) = self.snap.quest_run.as_mut().filter(|r| r.done.is_none()) {
+            r.max_losses = r.losses + left;
+            let text = format!("Còn {left} lượt thua nữa thì dừng làm nhiệm vụ");
+            out.push(Out::Log(LogKind::Quest, text));
+        }
+    }
+
     fn send(out: &mut Vec<Out>, opcode: i32, ctx: Ctx) {
         out.push(Out::Send(opcode, build(opcode, &ctx).expect("request")));
     }

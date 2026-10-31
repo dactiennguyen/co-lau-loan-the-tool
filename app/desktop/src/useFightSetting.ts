@@ -44,7 +44,3 @@ export function useFightSetting(account: Account, key: Key): [number, (v: number
   };
   return [value, set];
 }
-
-/** How many more losses end a run that allows `max` and has lost `losses` (Bot: a loss that brings the losses to `max`
- * ends it); at least one, as a loss to a boss counts but never ends it. */
-export const lossesLeft = (max: number, losses: number) => Math.max(1, max - losses);

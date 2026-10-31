@@ -10,8 +10,9 @@ import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account, Quest } from "../types";
-import { lossesLeft, useFightSetting } from "../useFightSetting";
+import { useFightSetting } from "../useFightSetting";
 import { BattlePanel } from "./BattlePanel";
+import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
 import "./QuestCard.css";
 
 interface Props {
@@ -152,15 +153,17 @@ export function QuestCard({ account, onStart, onStop }: Props) {
           Dừng
         </Button>
         <span className="quest__losses">
-          {/* While the run goes on, what is left of it instead of the field and its name; after Dừng the field again, as
-              saved. */}
-          {!running && <span>Thua tối đa</span>}
+          {/* While the run goes on, the losses it may still take, changed in place; after Dừng Thua tối đa again, as saved. */}
           {running ? (
-            <span className="losses-left" title="Thua tối đa trừ số trận đã thua trong lần chạy này; thua boss không làm bot dừng">
-              Còn <b className="px">{lossesLeft(run.maxLosses, run.losses)}</b> lượt thua nữa
-            </span>
+            <>
+              <span title={LOSSES_LEFT_HINT}>Thua còn lại</span>
+              <LossesLeftField id={account.id} max={run.maxLosses} losses={run.losses} />
+            </>
           ) : (
-            <Stepper label="số trận thua" value={losses} onChange={setLosses} />
+            <>
+              <span>Thua tối đa</span>
+              <Stepper label="số trận thua" value={losses} onChange={setLosses} />
+            </>
           )}
         </span>
       </div>

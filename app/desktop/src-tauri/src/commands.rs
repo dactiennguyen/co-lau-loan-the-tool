@@ -96,6 +96,13 @@ pub async fn set_stats(
     shared.set_stats(id, plan).await
 }
 
+/// "Lượt thua còn lại" of the fight job or quest run going on: it ends after that many more losses
+/// (Bot::set_losses_left).
+#[tauri::command]
+pub fn set_losses_left(shared: State<Shared>, id: u64, left: u32) {
+    shared.with(|app| app.send(id, Command::LossesLeft(left.max(1))));
+}
+
 /// Cài đặt đánh of the account: Tự sửa đồ, Tự nhặt đồ, and the numbers last chosen in the Đánh quái and Nhiệm vụ tabs,
 /// kept within what fight and quest take. Saved to accounts.json; the error is shown in a toast.
 #[tauri::command]
