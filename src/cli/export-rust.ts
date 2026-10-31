@@ -238,6 +238,8 @@ function requests() {
     [1172, {}], [1173, { zone: 20 }], [11, { mapId: 'M1', zone: 20 }],
     // Item actions of P4: Cởi ra the pet, Trang bị it again from bag slot 39, Sử dụng bag slot 3, Sửa chữa gear slot 2.
     [1186, { action: 1, slot: 5 }], [1186, { action: 0, slot: 39 }], [84, { slot: 3 }], [48, { slot: 2 }], [48, { where: 0, slot: 0 }],
+    // Vứt bỏ the Đá cấp 2 of bag slot 4 (K3), Sắp xếp (I1).
+    [1186, { action: 2, slot: 4 }], [1257, {}],
     // Nhặt the Xu khóa of 's2c/1182 gold' (G2).
     [1188, { uuid: 'f573bf90-942b-48d1-b466-4552dfa4f7cb' }]];
   return ctx.map(([opcode, c]) => ({ opcode, ctx: c, hex: hex(buildRequest(opcode, c as any)) }));

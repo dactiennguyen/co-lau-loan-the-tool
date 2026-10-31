@@ -57,6 +57,7 @@ event('c2s', 1169, 'player_move', 'world', 'Nhân vật đang chạy/nhảy/rơi
 event('c2s', 1173, 'change_zone', 'world', 'Chọn khu trong bảng Khu vực', 's2c/13 rồi c2s/11, c2s/43 của khu mới', 'u8 zone', 'Đo B2: khu 20');
 event('s2c', 13, 'zone_changed', 'world', 'Trả change_zone (c2s/1173), hoặc c2s/13 với id cổng', 'c2s/11 với mapId, khu mới', 'Qua cổng: string mapId; i32 thứ tự map trong bản đồ thế giới (M1 0, M2 1, M25 24); u8 0; u8 0xff. Đổi khu: như qua cổng nhưng byte cuối là khu mới (Z1); bản B2: string mapId; i32 khu', 'Đo B2 (đổi khu, dạng ngắn), Z1 (bot TS sang khu 4 của M2, 26 ms: 000000024d32 00000001 00 04); qua cổng B5, Q16, S1: số sau mapId luôn khớp thứ tự map');
 event('c2s', 1172, 'zone_list_request', 'world', 'Mở bảng chọn khu', 's2c/1172', 'Rỗng');
+event('c2s', 1257, 'bag_sort', 'world', 'Nút Sắp xếp dưới túi ở Bản thân → Trang bị (sqlq.l53), không hỏi lại', 's2c/1187 (cả túi, ô đánh số lại), s2c/1111 (rỗng)', 'Rỗng', 'Đo I1: server dồn các món về đầu túi lấp ô trống, giữ thứ tự, trả trong 45 ms');
 event('s2c', 1172, 'zone_list', 'world', 'Trả zone_list_request', 'Người chơi chọn khu: c2s/1173', 'u8 n; n * {u8 zone; u8 load; u8 players; u8 capacity}', 'Đo: khớp từng ô "Dân số" trên màn hình; load 0/1/2 theo số người');
 event('c2s', 13, 'npc_talk', 'world', 'Nói chuyện với NPC của bước nhiệm vụ, hoặc bấm Vào ở một cổng (id cổng trong s2c/11)', 'NPC: s2c/34 (lời thoại), trả nhiệm vụ: s2c/35, 39. Cổng: s2c/13 với map mới', 'string mapId; i32 npcId', 'Đo: npcId lấy từ bước nhiệm vụ trong s2c/39; bot Node gửi và server chấp nhận. Cổng 1015 (M1 → M2) đo B5');
 event('c2s', 10, 'add_stat_point', 'world', 'Bấm cộng điểm tiềm năng', 's2c/10 kiểu 2, 4, 8', 'i32 stat; i32 amount', 'L1: 10 lần (0, 1), Cường Lực; P1: (2, 1), Thân Pháp. stat là nút + trên bảng Chỉ số, theo hàng: 0 Cường Lực, 1 Nội Lực (suy luận), 2 Thân Pháp, 3 Thể Lực');
@@ -168,7 +169,7 @@ function required<T>(value: T | undefined, name: string): T {
 export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
   const w = new Writer();
   switch (opcode) {
-    case -1: case 1: case 2: case 3: case 1172: return w.build();
+    case -1: case 1: case 2: case 3: case 1172: case 1257: return w.build();
     case 1206: return w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build();
     case 5: return w.i32(ctx.serverId ?? BASELINE.observedServerId).i32(-1).u8(1).build();
     case 4: return loginPayload(required(ctx.username, 'username'), passwordProof(required(ctx.challenge, 'challenge'), required(ctx.password, 'password')), ctx.serverId ?? BASELINE.observedServerId);
@@ -213,7 +214,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
   let fields: Record<string, unknown> = {};
   if (direction === 'c2s') {
     switch (opcode) {
-      case -1: case 1: case 2: case 3: case 1172: case 1215: case 1196: case 1240: case 1241: break;
+      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: break;
       case 13: fields = { mapId: r.string(), npcId: r.i32() }; break;
       case 1173: fields = { zone: r.u8() }; break;
       case 15: fields = { mobId: r.string(), flag: r.u8() }; break;

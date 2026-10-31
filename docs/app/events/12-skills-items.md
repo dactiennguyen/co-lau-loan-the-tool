@@ -487,7 +487,7 @@ K3 (bot TS, Tiheo2, 31/10): vứt viên Đá cấp 2 ở ô túi 4 (viên nhặt
 - Món bị huỷ, không rơi xuống đất: không có `s2c/1182` nào cho viên đá. [Đo]
 - `s2c/83` là opcode trước đó chưa từng thấy ([opcode-map](../opcode-map.md#unseen)). Vứt một phần của chồng nhiều món thì số thứ hai có khác 0 không: chưa thử. [Chưa rõ]
 - Trên máy (I1): bấm Vứt bỏ thì game hỏi "Bạn có chắc là muốn vứt bỏ Đá cấp 2 này không?" với hai nút OK và Hủy. Mở popup, mở hộp hỏi và bấm Hủy đều không gửi gói nào. [Đo]
-- App desktop chưa có nút Vứt bỏ hay Sắp xếp: thẻ Túi đồ chỉ có Mặc, Dùng, Cởi ra, Sửa, Cửa hàng và Mua búa ([InventoryCard.tsx](../../../app/desktop/src/views/InventoryCard.tsx)). [Đo]
+- App desktop có Vứt bỏ (hỏi lại như game) và Sắp xếp ở thẻ Túi đồ ([InventoryCard.tsx](../../../app/desktop/src/views/InventoryCard.tsx), [Túi đồ và trang bị](../../integration/rust/features.md#túi-đồ-và-trang-bị)); bot đọc `s2c/83` để cập nhật ô túi. Chưa bấm thử từ app với server thật.
 
 <a id="sắp-xếp"></a>
 

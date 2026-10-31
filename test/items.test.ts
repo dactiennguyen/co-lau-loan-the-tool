@@ -122,6 +122,9 @@ test('K3 (bot TS, Tiheo2 at M1): far pickup to the bag (s2c/51), refusals, and V
   // Vứt bỏ: com.g.c.sqbz.run1 calls sqlq.b45(2, slot); the server answers s2c/83 (slot, 0) and the item is gone.
   assert.equal(buildRequest(1186, { action: 2, slot: 4 }).toString('hex'), '0200000004');
   assert.deepEqual(decodeEvent('s2c', 83, Buffer.from('0000000400000000', 'hex')).fields, { slot: 4, left: 0 });
+  // Sắp xếp (I1): c2s/1257 carries nothing; the server sends the whole bag again (s2c/1187), its slots numbered anew.
+  assert.equal(buildRequest(1257, {}).length, 0);
+  assert.deepEqual(decodeEvent('c2s', 1257, Buffer.alloc(0)).fields, {});
 });
 
 test('P5 on the phone (Tiheo2): Lái Buôn menu, the shop, buying for Xu khóa, and a potion used in battle (c2s/44)', () => {

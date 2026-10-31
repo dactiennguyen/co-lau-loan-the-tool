@@ -50,7 +50,7 @@ cargo run -p cllt-core --bin cllt -- status  # CLI không giao diện, để ki�
 cargo run -p cllt-core --bin cllt -- fight --target="Heo Mọi" --count=3 [--account=TÊN] [--max-losses=1]
 cargo run -p cllt-core --bin cllt -- quest [--account=TÊN] [--max-losses=1]   # tự làm nhiệm vụ tới khi dừng, rồi thoát
 cargo run -p cllt-core --bin cllt -- skill [--account=TÊN] [--id=1001]  # in cây kỹ năng; có --id thì Nâng cấp 1 lần (tốn điểm)
-cargo run -p cllt-core --bin cllt -- item [--account=TÊN] [--equip=Ô | --unequip=Ô | --use=Ô | --repair=Ô]
+cargo run -p cllt-core --bin cllt -- item [--account=TÊN] [--equip=Ô | --unequip=Ô | --use=Ô | --repair=Ô | --discard=Ô | --sort]
 cargo run -p cllt-core --bin cllt -- zone [--account=TÊN] [--zone=4]   # in số người từng khu; có --zone thì sang khu đó
 cargo run -p cllt-core --bin cllt -- goto --map=M1 [--account=TÊN]     # đi qua cổng tới map đó
                                                   # in trang bị, túi, chỉ số; có nút thì bấm 1 lần rồi in lại

@@ -64,12 +64,14 @@ struct Challenge {
 const CHALLENGE_KEPT: Duration = Duration::from_secs(60);
 
 /// A button of the item detail (12-skills-items.md#c2s-1186): Trang bị the item of a bag slot, Cởi ra the one of a gear
-/// slot, Sử dụng a bag slot, Sửa chữa a gear slot.
+/// slot, Sử dụng a bag slot, Sửa chữa a gear slot, Vứt bỏ a bag slot; and Sắp xếp under the bag (c2s/1257).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemAct {
     Equip(u8),
     Unequip(u8),
     Use(u8),
+    Discard(u8),
+    Sort,
     Repair(u8),
 }
 /// Item of the Búa Sửa Chữa that each repair takes.
@@ -123,7 +125,8 @@ enum Shopping {
     },
 }
 
-/// An item action waiting for its answer (s2c/1186, s2c/48, or a notice), and the item's name for the log.
+/// An item action waiting for its answer (s2c/1186, s2c/48, s2c/83 for Vứt bỏ, s2c/1187 for Sắp xếp, or a notice), and
+/// the item's name for the log.
 struct ItemWait {
     act: ItemAct,
     name: String,

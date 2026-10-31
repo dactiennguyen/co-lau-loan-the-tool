@@ -185,6 +185,91 @@ fn decoders_read_what_the_ts_decoders_read() {
 
 /// The buttons of the Túi đồ tab on manina's real gear and bag: Cởi ra and Sửa chữa send c2s/1186 and c2s/48 as the
 /// phone did (P4), and the answers name the item in the log; what the server would refuse is not sent.
+/// Vứt bỏ sends c2s/1186 action 2 as K3 did (02 00000004 for bag slot 4); s2c/83 says what is left in the slot. Sắp xếp
+/// sends an empty c2s/1257 (I1) and logs the s2c/1187 that answers it. Both wait for their answer like the other buttons.
+#[test]
+fn vut_bo_and_sap_xep_send_what_the_phone_sent_and_follow_the_answers() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str| {
+        let case = cases.iter().find(|c| c["fn"] == f).unwrap();
+        hex(case["hex"].as_str().unwrap())
+    };
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    let bag = |bot: &Bot| -> Vec<(u8, i32, i32)> {
+        let b = bot.snapshot().bag.unwrap();
+        b.items
+            .iter()
+            .map(|i| (i.slot, i.item_id, i.quantity))
+            .collect()
+    };
+    let lines = |out: &[Out]| -> Vec<String> {
+        out.iter()
+            .filter_map(|o| match o {
+                Out::Log(LogKind::Item, t) => Some(t.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+    // Vứt bỏ the Đá cấp 5 of bag slot 5; Sắp xếp before the answer waits.
+    out.clear();
+    bot.item(ItemAct::Discard(5), now, &mut out);
+    assert_eq!(sent(&out, 1186), Some("0200000005".into()));
+    bot.item(ItemAct::Sort, now, &mut out);
+    assert_eq!(sends(&out, 1257), 0);
+    assert_eq!(
+        lines(&out),
+        [
+            "Vứt Đá cấp 5 (ô túi 6)",
+            "Chưa sắp xếp túi đồ: đang đợi server trả lời lần trước"
+        ]
+    );
+    out.clear();
+    let left = |slot: i32, n: i32| Writer::new().i32(slot).i32(n).build();
+    bot.on_packet(83, &left(5, 0), now, &mut out).unwrap();
+    assert_eq!(lines(&out), ["Đã vứt Đá cấp 5"]);
+    assert!(bag(&bot).iter().all(|i| i.0 != 5));
+    // s2c/83 of a potion used in a battle: the stack goes down, nothing is said.
+    out.clear();
+    bot.on_packet(83, &left(0, 3), now, &mut out).unwrap();
+    assert_eq!((bag(&bot)[0], out.len()), ((0, 0, 3), 0));
+    // A stack thrown away says how many.
+    bot.item(ItemAct::Discard(0), now, &mut out);
+    assert_eq!(lines(&out), ["Vứt Hoàn Linh Dược ×3 (ô túi 1)"]);
+    bot.on_packet(83, &left(0, 0), now, &mut out).unwrap();
+    // Sắp xếp: an empty c2s/1257, then the bag of s2c/1187 says it is done; a later s2c/1187 says nothing.
+    out.clear();
+    bot.item(ItemAct::Sort, now, &mut out);
+    assert_eq!(sent(&out, 1257), Some(String::new()));
+    bot.on_packet(1187, &hex_of("inventory"), now, &mut out)
+        .unwrap();
+    assert_eq!(lines(&out), ["Sắp xếp túi đồ", "Đã sắp xếp túi đồ (7 món)"]);
+    out.clear();
+    bot.on_packet(1187, &hex_of("inventory"), now, &mut out)
+        .unwrap();
+    assert!(out.is_empty(), "{out:?}");
+    // In a battle neither goes out.
+    let (mut bot, mut out, t, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), t, &mut out)
+        .unwrap();
+    bot.fight("Cóc Xanh", 1, 1, t, &mut out);
+    bot.on_packet(22, &setup, t, &mut out).unwrap();
+    out.clear();
+    bot.item(ItemAct::Sort, t, &mut out);
+    bot.item(ItemAct::Discard(1), t, &mut out);
+    assert_eq!((sends(&out, 1257), sends(&out, 1186)), (0, 0));
+    assert_eq!(
+        lines(&out),
+        [
+            "Chưa sắp xếp túi đồ: đang đánh, đợi hết trận",
+            "Chưa vứt Đá cấp 2: đang đánh, đợi hết trận"
+        ]
+    );
+}
+
 #[test]
 fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
     let all = v();

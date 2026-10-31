@@ -1,15 +1,28 @@
 //! Túi đồ: the item buttons, Tự sửa đồ, Tự nhặt đồ and the wear of the gear.
 use super::*;
 
-/// Item actions of the Túi đồ tab (12-skills-items.md#c2s-1186): c2s/1186 to wear or take off, c2s/84 to use, c2s/48 to
-/// repair. The server answers with s2c/37 and s2c/42 (gear and bag), s2c/1186, s2c/48, or a notice.
+/// Item actions of the Túi đồ tab (12-skills-items.md#c2s-1186): c2s/1186 to wear, take off or throw away, c2s/84 to
+/// use, c2s/48 to repair, c2s/1257 to sort the bag. The server answers with s2c/37 and s2c/42 (gear and bag), s2c/1186,
+/// s2c/48, s2c/83 (what is left in a bag slot), s2c/1187 (the bag sorted), or a notice.
 impl Bot {
-    /// One button of the item detail. Refused, with the reason in the log and nothing sent, in a battle, while the last
-    /// action waits for its answer (5 s), or when the item cannot take it: a potion outside a battle, a repair without
-    /// a hammer, an item taken off into a full bag.
+    /// One button of the item detail, or Sắp xếp. Refused, with the reason in the log and nothing sent, in a battle,
+    /// while the last action waits for its answer (5 s), or when the item cannot take it: a potion outside a battle, a
+    /// repair without a hammer, an item taken off into a full bag.
     pub fn item(&mut self, act: ItemAct, now: Instant, out: &mut Vec<Out>) {
+        let pending = self
+            .item_wait
+            .as_ref()
+            .is_some_and(|w| now < w.at + Duration::from_secs(5));
+        let busy = if self.battle.is_some() {
+            Some("đang đánh, đợi hết trận")
+        } else if pending {
+            Some("đang đợi server trả lời lần trước")
+        } else {
+            None
+        };
         let (slot, worn) = match act {
-            ItemAct::Equip(s) | ItemAct::Use(s) => (s, false),
+            ItemAct::Sort => return self.sort_bag(busy, now, out),
+            ItemAct::Equip(s) | ItemAct::Use(s) | ItemAct::Discard(s) => (s, false),
             ItemAct::Unequip(s) | ItemAct::Repair(s) => (s, true),
         };
         let bag = self.snap.bag.as_ref();
@@ -31,33 +44,29 @@ impl Bot {
         let name = def.map_or_else(|| format!("#{}", item.item_id), |d| d.name.clone());
         let kind = def.map(|d| d.kind);
         let most = def.map_or(0, |d| d.durability);
-        let pending = self
-            .item_wait
-            .as_ref()
-            .is_some_and(|w| now < w.at + Duration::from_secs(5));
         let full = bag.is_some_and(|b| b.items.len() as i32 >= b.capacity);
         let hammer = bag.is_some_and(|b| b.items.iter().any(|i| i.item_id == HAMMER));
-        let refused = if self.battle.is_some() {
-            Some("đang đánh, đợi hết trận")
-        } else if pending {
-            Some("đang đợi server trả lời lần trước")
-        } else {
-            match act {
-                ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị"),
-                ItemAct::Unequip(_) if full => Some("túi đồ đã đầy"),
-                ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận"),
-                ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc"),
-                ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền"),
-                ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy"),
-                ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi"),
-                _ => None,
-            }
-        };
+        let refused = busy.or_else(|| match act {
+            ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị"),
+            ItemAct::Unequip(_) if full => Some("túi đồ đã đầy"),
+            ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận"),
+            ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc"),
+            ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền"),
+            ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy"),
+            ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi"),
+            _ => None,
+        });
         let verb = match act {
             ItemAct::Equip(_) => "Mặc",
             ItemAct::Unequip(_) => "Cởi",
             ItemAct::Use(_) => "Dùng",
             ItemAct::Repair(_) => "Sửa",
+            ItemAct::Discard(_) => "Vứt",
+            ItemAct::Sort => unreachable!("sort_bag"),
+        };
+        let name = match item.quantity {
+            q if q > 1 && act == ItemAct::Discard(slot) => format!("{name} ×{q}"),
+            _ => name,
         };
         if let Some(why) = refused {
             return out.push(Out::Log(
@@ -67,24 +76,46 @@ impl Bot {
         }
         out.push(Out::Log(LogKind::Item, format!("{verb} {name} ({place})")));
         let ctx = match act {
-            ItemAct::Equip(_) | ItemAct::Unequip(_) => Ctx {
-                action: Some(matches!(act, ItemAct::Unequip(_)) as i32),
+            ItemAct::Equip(_) | ItemAct::Unequip(_) | ItemAct::Discard(_) => Ctx {
+                action: Some(match act {
+                    ItemAct::Equip(_) => 0,
+                    ItemAct::Unequip(_) => 1,
+                    _ => 2,
+                }),
                 slot: Some(slot as i32),
                 ..Ctx::default()
             },
-            ItemAct::Use(_) | ItemAct::Repair(_) => Ctx {
+            _ => Ctx {
                 slot: Some(slot as i32),
                 place: Some(0),
                 ..Ctx::default()
             },
         };
         let opcode = match act {
-            ItemAct::Equip(_) | ItemAct::Unequip(_) => 1186,
             ItemAct::Use(_) => 84,
             ItemAct::Repair(_) => 48,
+            _ => 1186,
         };
         Self::send(out, opcode, ctx);
         self.item_wait = Some(ItemWait { act, name, at: now });
+    }
+
+    /// Sắp xếp (I1): c2s/1257, and the server sends the whole bag again (s2c/1187), its items moved up over the empty
+    /// slots in the same order, so every bag slot number may change. Refused like an item button.
+    fn sort_bag(&mut self, busy: Option<&str>, now: Instant, out: &mut Vec<Out>) {
+        if let Some(why) = busy {
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Chưa sắp xếp túi đồ: {why}"),
+            ));
+        }
+        out.push(Out::Log(LogKind::Item, "Sắp xếp túi đồ".into()));
+        Self::send(out, 1257, Ctx::default());
+        self.item_wait = Some(ItemWait {
+            act: ItemAct::Sort,
+            name: String::new(),
+            at: now,
+        });
     }
 
     /// Cài đặt đánh, from the UI (accounts.json keeps it). It counts from the next battle of a run.

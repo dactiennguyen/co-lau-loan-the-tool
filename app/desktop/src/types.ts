@@ -391,8 +391,9 @@ export interface Item {
   stats: string[];
 }
 
-/** A button of the item detail: wear or use the item of a bag slot, take off or repair the one of a gear slot. */
-export type ItemAction = "equip" | "unequip" | "use" | "repair";
+/** A button of the item detail: wear, use or throw away (discard) the item of a bag slot, take off or repair the one of a
+ * gear slot; "sort" is Sắp xếp of the bag. */
+export type ItemAction = "equip" | "unequip" | "use" | "repair" | "discard" | "sort";
 
 export interface BagContents {
   capacity: number;

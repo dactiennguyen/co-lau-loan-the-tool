@@ -49,7 +49,7 @@ fn required<T>(v: Option<T>, name: &str) -> Result<T> {
 pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
     let w = Writer::new();
     Ok(match opcode {
-        -1 | 1 | 2 | 3 | 1172 => w.build(),
+        -1 | 1 | 2 | 3 | 1172 | 1257 => w.build(),
         1206 => w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build(),
         5 => w
             .i32(c.server_id.unwrap_or(SERVER_ID))

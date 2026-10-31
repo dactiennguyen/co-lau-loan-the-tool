@@ -130,7 +130,7 @@ pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {
 }
 
 /// A button of the item detail in the Túi đồ tab: "equip" the item of a bag slot, "unequip" the one of a gear slot,
-/// "use" a bag slot, "repair" a gear slot.
+/// "use" a bag slot, "repair" a gear slot, "discard" (Vứt bỏ) a bag slot; "sort" is Sắp xếp of the bag, `slot` unused.
 #[tauri::command]
 pub fn item_action(shared: State<Shared>, id: u64, action: String, slot: u8) -> Result<(), String> {
     let act = match action.as_str() {
@@ -138,6 +138,8 @@ pub fn item_action(shared: State<Shared>, id: u64, action: String, slot: u8) -> 
         "unequip" => ItemAct::Unequip(slot),
         "use" => ItemAct::Use(slot),
         "repair" => ItemAct::Repair(slot),
+        "discard" => ItemAct::Discard(slot),
+        "sort" => ItemAct::Sort,
         other => return Err(format!("Không biết thao tác {other}")),
     };
     shared.with(|app| app.send(id, Command::Item(act)));

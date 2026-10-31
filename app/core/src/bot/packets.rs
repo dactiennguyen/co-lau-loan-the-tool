@@ -125,13 +125,52 @@ impl Bot {
                 let (_, uuid) = ground_item_remove(payload)?;
                 self.drops.retain(|d| d.uuid != uuid);
             }
+            // The whole bag, also after Sắp xếp: within 5 s of it, the bag sorted (it comes for rewards and repairs too).
             1187 => match inventory(payload) {
-                Ok(b) => s.bag = Some(b),
+                Ok(b) => {
+                    let sorted = self
+                        .item_wait
+                        .take_if(|w| w.act == ItemAct::Sort && now < w.at + Duration::from_secs(5));
+                    if sorted.is_some() {
+                        out.push(Out::Log(
+                            LogKind::Item,
+                            format!("Đã sắp xếp túi đồ ({} món)", b.items.len()),
+                        ));
+                    }
+                    s.bag = Some(b);
+                }
                 Err(e) => out.push(Out::Log(
                     LogKind::Item,
                     format!("Không đọc được túi đồ (s2c/1187): {e}"),
                 )),
             },
+            // What is left in a bag slot (K3, P5): after Vứt bỏ (c2s/1186 action 2) and after a potion used in a battle
+            // (c2s/44). 0 empties the slot.
+            83 => {
+                let mut r = Reader::new(payload);
+                let (slot, left) = (r.i32()?, r.i32()?);
+                if let Some(b) = s.bag.as_mut() {
+                    match left {
+                        ..=0 => b.items.retain(|i| i.slot as i32 != slot),
+                        _ => b
+                            .items
+                            .iter_mut()
+                            .filter(|i| i.slot as i32 == slot)
+                            .for_each(|i| i.quantity = left),
+                    }
+                }
+                let thrown = self.item_wait.take_if(|w| {
+                    matches!(w.act, ItemAct::Discard(at) if at as i32 == slot)
+                        && now < w.at + Duration::from_secs(5)
+                });
+                if let Some(w) = thrown {
+                    let text = match left {
+                        ..=0 => format!("Đã vứt {}", w.name),
+                        _ => format!("Đã vứt {}, ô còn {left}", w.name),
+                    };
+                    out.push(Out::Log(LogKind::Item, text));
+                }
+            }
             // The gear after Trang bị or Cởi ra; s2c/42 brings the bag, s2c/1186 the action.
             37 => match gear_update(payload) {
                 Ok(g) => s.gear = g.gear,

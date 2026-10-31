@@ -7,9 +7,10 @@
 //                                                       --no-pickup turns off Tự nhặt đồ (the own drops of a won battle)
 //   cllt skill --account=NAME [--id=1001]               print the skill tree; with --id, Nâng cấp that skill once
 //                                                       (c2s/1191, spends skill points), print the tree again
-//   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT]
+//   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT | --discard=SLOT | --sort]
 //                                                       print gear, bag and stats; with a button, press it once (bag
-//                                                       slots for equip and use, gear slots for unequip and repair)
+//                                                       slots for equip, use and discard, gear slots for unequip and
+//                                                       repair; --discard throws the item away for good)
 //   cllt zone --account=NAME [--zone=4]                 print the zones of the map (c2s/1172); with --zone, move there
 //   cllt goto --account=NAME --map=M1                   walk through portals to that map ("Đổi map")
 //   cllt buy --account=NAME [--item=2] [--pay=khoa|xu] [--qty=1] [--confirm]
@@ -190,7 +191,9 @@ fn main() {
         .map(ItemAct::Equip)
         .or_else(|| slot("unequip").map(ItemAct::Unequip))
         .or_else(|| slot("use").map(ItemAct::Use))
-        .or_else(|| slot("repair").map(ItemAct::Repair));
+        .or_else(|| slot("repair").map(ItemAct::Repair))
+        .or_else(|| slot("discard").map(ItemAct::Discard))
+        .or_else(|| args.iter().any(|a| a == "--sort").then_some(ItemAct::Sort));
     let zone = command == Some("zone");
     let zone_to: Option<i32> = arg("zone").and_then(|v| v.parse().ok());
     let goto = command == Some("goto");
@@ -391,7 +394,7 @@ fn main() {
                 }
                 // Bot::item echoes the button ("Mặc Áo Hào Kiệt (ô túi 3)"); the next line is its refusal, the answer
                 // ("Đã mặc …") or a notice of the server.
-                let echo = ["Mặc ", "Cởi ", "Dùng ", "Sửa "]
+                let echo = ["Mặc ", "Cởi ", "Dùng ", "Sửa ", "Vứt ", "Sắp xếp "]
                     .iter()
                     .any(|v| text.starts_with(v));
                 if pressed.is_some() && answered.is_none() && !echo {

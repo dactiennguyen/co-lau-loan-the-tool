@@ -51,7 +51,8 @@ export interface Api {
   addStat(id: number, stat: number): Promise<void>;
   /** Nâng cấp: one level of that skill (c2s/1191). */
   upgradeSkill(id: number, skill: number): Promise<void>;
-  /** A button of the item detail: wear or use the item of a bag slot, take off or repair the one of a gear slot. */
+  /** A button of the item detail: wear, use or throw away (discard) the item of a bag slot, take off or repair the one of
+   * a gear slot; "sort" is Sắp xếp of the bag, `slot` unused. */
   itemAction(id: number, action: ItemAction, slot: number): Promise<void>;
   /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
   listZones(id: number): Promise<void>;

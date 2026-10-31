@@ -37,21 +37,24 @@ const NO_HAMMER = "cần 1 Búa sửa chữa trong túi";
 /** An action the server has not answered in this long is let go, and the buttons come back. */
 const ANSWER_MS = 5000;
 
-/** A button of the item popup; Dùng and Sửa ask once more, as they use up the item or a hammer. */
+/** A button of the item popup; Dùng, Sửa and Vứt bỏ ask once more, as they use up the item or a hammer. */
 interface Act {
   action: ItemAction;
   label: string;
   icon: IconName;
   why: string | null;
   confirm?: string;
+  danger?: boolean;
 }
 
 /**
  * Túi đồ tab: the 8 gear slots (s2c/9, then s2c/37) around the character, the bag (s2c/42, s2c/1187) by slot, and the
  * item shown under them with the game's buttons for the item clicked: Mặc and Dùng in the bag, Cởi ra and Sửa on the
- * gear (12-skills-items.md#c2s-1186). Vứt bỏ is left out. The money is in the metric row. Cửa hàng opens the shop of Lái
- * Buôn; Mua búa does too, with the hammer picked, where Sửa lacks one. A right click on an item picks it and opens a menu
- * of the same buttons, greyed with the same reasons; Dùng and Sửa from it ask once more in the strip, as the buttons do.
+ * gear (12-skills-items.md#c2s-1186), and Vứt bỏ for every bag item, which asks once more as the game does. The money is
+ * in the metric row. Sắp xếp moves the bag items up over the empty slots (c2s/1257); Cửa hàng opens the shop of Lái Buôn;
+ * Mua búa does too, with the hammer picked, where Sửa lacks one. A right click on an item picks it and opens a menu of
+ * the same buttons, greyed with the same reasons; Dùng, Sửa and Vứt bỏ from it ask once more in the strip, as the buttons
+ * do.
  */
 export function InventoryCard({ account, onAction }: { account: Account; onAction: (action: ItemAction, slot: number) => void }) {
   const c = account.character;
@@ -121,12 +124,22 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
         : [];
       return [{ action: "unequip", label: "Cởi ra", icon: "logout", why: full ? "túi đồ đã đầy" : null }, ...repair];
     }
-    if (item.kind != null && item.kind <= 7) return [{ action: "equip", label: "Mặc", icon: "login", why: null }];
+    // Vứt bỏ, as the game asks it ("Bạn có chắc là muốn vứt bỏ Đá cấp 2 này không?", I1); a stack may go whole.
+    const qty = item.stacks && item.quantity > 1 ? ` ×${item.quantity}` : "";
+    const discard: Act = {
+      action: "discard",
+      label: "Vứt bỏ",
+      icon: "trash",
+      why: null,
+      danger: true,
+      confirm: `Vứt bỏ ${item.name}${qty}? Món mất hẳn, không lấy lại được.`,
+    };
+    if (item.kind != null && item.kind <= 7) return [{ action: "equip", label: "Mặc", icon: "login", why: null }, discard];
     if (item.kind != null && USABLE.has(item.kind)) {
       const why = item.kind === POTION ? "bình chỉ dùng được trong trận" : null;
-      return [{ action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` }];
+      return [{ action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` }, discard];
     }
-    return [];
+    return [discard];
   };
   /** Cửa hàng of Lái Buôn, with `item` picked first. */
   const shopFor = (item?: number) => useStore.getState().open({ kind: "shop", id: account.id, item });
@@ -136,7 +149,14 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     onAction(action, item.slot);
     // Worn, the item sits in the gear slot of its type; taken off, in a bag slot the server picks.
     if (action === "equip" && item.kind != null) setPinned(`gear-${item.kind}`);
-    if (action === "unequip") setPinned(null);
+    if (action === "unequip" || action === "discard") setPinned(null);
+  };
+  // Sắp xếp numbers the bag slots anew, so no item stays picked.
+  const sort = () => {
+    setAsk(null);
+    setPinned(null);
+    setSent(sig);
+    onAction("sort", 0);
   };
   /** The right-click menu of the item at `k`: its buttons, Mua búa where Sửa lacks a hammer, Mua thêm for what Lái
    * Buôn sells (potions, hammers). */
@@ -147,6 +167,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       icon: a.icon,
       disabled: !!(busy ?? a.why),
       hint: busy ?? a.why ?? undefined,
+      danger: a.danger,
+      separated: a.danger,
       onSelect: () => (a.confirm ? setAsk({ key: k, action: a.action }) : run(a.action, item)),
     }));
     if (list.some((a) => a.why === NO_HAMMER)) items.push({ label: "Mua búa", icon: "cart", onSelect: () => shopFor(HAMMER) });
@@ -171,8 +193,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
         <div className="inv__act">
           <span className="inv__ask">{asking.confirm}</span>
           <div className="inv__btns">
-            <Button kind="primary" small onClick={() => run(asking.action, shown)}>
-              Đồng ý
+            <Button kind={asking.danger ? "danger" : "primary"} small onClick={() => run(asking.action, shown)}>
+              {asking.danger ? asking.label : "Đồng ý"}
             </Button>
             <Button kind="ghost" small onClick={() => setAsk(null)}>
               Huỷ
@@ -188,7 +210,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
           {list.map((a) => (
             <Button
               key={a.action}
-              kind={a.confirm ? "tonal" : "primary"}
+              kind={a.danger ? "ghost" : a.confirm ? "tonal" : "primary"}
               small
               icon={a.icon}
               disabled={!!(busy ?? a.why)}
@@ -215,9 +237,21 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       className="inv"
       subtitle={bag ? `${num(bag.items.length)}/${num(bag.capacity)} ô · ${worn} món đang mặc` : "Chưa nhận túi đồ"}
       aside={
-        <Button kind="tonal" small icon="cart" onClick={() => shopFor()}>
-          Cửa hàng
-        </Button>
+        <div className="inv__aside">
+          <Button
+            kind="tonal"
+            small
+            icon="list"
+            disabled={!bag || !!busy}
+            title={busy ?? "Dồn các món lên lấp ô trống, như nút Sắp xếp của game"}
+            onClick={sort}
+          >
+            Sắp xếp
+          </Button>
+          <Button kind="tonal" small icon="cart" onClick={() => shopFor()}>
+            Cửa hàng
+          </Button>
+        </div>
       }
     >
       <div className="inv__body">
