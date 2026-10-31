@@ -15,7 +15,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 |---|---|
 | Bước "Sử dụng điểm kỹ năng" làm bằng gói gì? | **`c2s/1191 (i32 mãKỹNăng; i32 1)`**. Server trả `s2c/10` kiểu 32 (cấp của mọi kỹ năng), `s2c/1191` (điểm tiềm năng, điểm kỹ năng còn lại) và `s2c/34` (bước sau). Bot TS đã làm được bước này với server thật (K1). Xem [Nâng cấp kỹ năng](#c2s-1191). [Đo] |
 | Cộng điểm tiềm năng thế nào? | `c2s/10 (i32 chỉSố; i32 số)`. Số chỉ số theo nút "+" trên bảng: 0 Cường Lực, 1 Nội Lực, 2 Thân Pháp, 3 Thể Lực. Nhưng `stats` của `s2c/9` xếp Thân Pháp trước Nội Lực. manina còn **67 điểm**. Bot TS cộng hết bằng `--stats`. Xem [Điểm tiềm năng](#điểm-tiềm-năng). [Đo P1] |
-| Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
+| Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 2 Lôi, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
 | Lấy kỹ năng và giao diện tab Kỹ năng thế nào? | Không có gói xin riêng: `s2c/30` (cây của hệ) và đuôi `s2c/9` (cấp từng kỹ năng, điểm) đến lúc đăng nhập. `npm run skills` in cả cây. Icon nằm ở `offline-a2/skill<hệ>.dat`, ảnh nền cây ở APK; repo có bản WebP ở `data/icons/skills/`. Xem [Tab Kỹ năng](#tab-kỹ-năng). [Đo] |
 | Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Mở túi trong game không gửi gói nào. `npm run bag` đăng nhập và in cả hai. Xem [Túi đồ và trang bị](#túi-đồ) và [Cách lấy](#cách-lấy-túi-đồ). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
@@ -51,7 +51,7 @@ K1 (nick thứ hai, cấp 3, 2 điểm): bot gửi `c2s/1191 (4000, 1)`, Băng T
 
 ## Bảng kỹ năng: `s2c/30`
 
-`s2c/30` trả `c2s/30 (u8 hệ)` lúc đăng nhập. Hệ là `field01` của `s2c/9`: 1 Hỏa, 4 Thủy. App gửi `sqlq.e49(1)` cho manina. Client TS từng luôn gửi 1, nên nick thứ hai (hệ 4) nhận nhầm cây Hỏa. K1 gửi 4 thì nhận cây Thủy. Mã kỹ năng là 1000 × hệ + 0…8, khớp danh sách kỹ năng trong `s2c/9`. [Đo]
+`s2c/30` trả `c2s/30 (u8 hệ)` lúc đăng nhập. Hệ là `field01` của `s2c/9`: 1 Hỏa, 4 Thủy, và theo icon thì 2 Lôi. App gửi `sqlq.e49(1)` cho manina. Client TS từng luôn gửi 1, nên nick thứ hai (hệ 4) nhận nhầm cây Hỏa. K1 gửi 4 thì nhận cây Thủy. Mã kỹ năng là 1000 × hệ + 0…8, khớp danh sách kỹ năng trong `s2c/9`. [Đo]
 
 Bố cục là bảng định nghĩa kỹ năng của hệ:
 
@@ -277,7 +277,7 @@ u8 ô (0xfe: trên đất); i32 mãVậtPhẩm; string uuid; i32 field0; i32 đ�
 u8 field1; u8 hệ (1 Hỏa, 2 Lôi, 4 Thủy; 0xff ở vật phẩm thường); i32 field2; u8 field3; u8 field4; u8 n; n × {i32 chỉSố; i32 giáTrị}
 ```
 
-Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0`, `field2`, `field3` bằng 0 ở mọi mẫu, có thể là cấp cường hoá. `field4` bằng 1 ở mọi trang bị. [Đo giá trị; vai trò Chưa rõ]
+Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0` là cấp cường hoá: 8 ở đồ "+8" của symap, 0 ở đồ của manina ([x2 EXP](#x2-exp)). `field2`, `field3` bằng 0 ở mọi mẫu. `field4` bằng 1 ở mọi trang bị, 0 ở thú cưng; có lẽ là phẩm chất. [Đo giá trị; field4 Suy luận]
 
 | Gói | Khi nào | Bố cục | Mẫu |
 |---|---|---|---|
@@ -407,15 +407,87 @@ Trên máy: Bản thân → chạm món hỏng → "Sửa chữa" → hộp "B�
 
 | Gói | Bố cục | Mẫu (E2) |
 |---|---|---|
-| `c2s/48` | `u8 a; i32 b` | `00 00000000`: sửa Nón Âu Lạc ở ô trang bị 0. Hàm dựng `sqlq.c47(0, 0)`, gọi từ `com.g.f.sqh.run1` ← `com.g.c.sqaj.a5` (nút OK) |
+| `c2s/48` | `u8 nơi (0: đang mặc); i32 ô` | `00 00000000`: sửa Nón Âu Lạc ở ô trang bị 0. Hàm dựng `sqlq.c47(0, 0)`, gọi từ `com.g.f.sqh.run1` ← `com.g.c.sqaj.a5` (nút OK). P4: `00 00000002`, Chiến Đao của symap ở ô 2 |
 | `s2c/1187` | Cả túi ([bản ghi](#bản-ghi-vật-phẩm)) | 40 ms sau; 7 món, Búa sửa chữa (túi 6) đã mất |
 | `s2c/48` | `u8; i32` | `00 00000000`, giống hệt gói gửi đi |
 
 - `c47` ghi `sqi.b(I)` (1 byte) rồi `sqi.c(I)` (i32), khớp 5 byte trên dây. [Đo]
-- Vì `a` và `b` đều bằng 0 nên chưa tách được nghĩa. Có thể `a` là nơi chứa (0 = đang mặc, như `u8` đầu của gói túi đồ) và `b` là ô. [Suy luận]
+- Trường sau là số ô trang bị: sửa nón gửi 0, sửa vũ khí gửi 2 (P4). Trường đầu bằng 0 với đồ đang mặc. [Đo]
+- P4: Chiến Đao +8 của symap từ 0/60 lên 60/60, Búa Sửa Chữa 5 → 4. "Bộ cùng hệ" lên 3/4 → 4/4, vì món hỏng không tính vào bộ. [Đo]
 - `sqlq.a46(int, int, int)` cũng dựng `c2s/48` với `u8; i32; i32`, có lẽ là sửa món trong túi. [Chưa rõ]
 - **Sau khi sửa, chỉ số không đổi ngay**: không có `s2c/10` hay `s2c/36`, và bảng Chỉ số vẫn hiện Sinh Lực 180, P.Thủ 5. Chúng đổi ở lần `s2c/10` sau: lần cộng điểm P1 đưa HP tối đa lên 238 và P.Thủ lên 9 ([Điểm tiềm năng](#điểm-tiềm-năng)). [Đo]
 - Búa sửa chữa lấy ở đâu (mua ở NPC hay rơi từ quái) [Chưa rõ]. manina đã dùng chiếc búa duy nhất, vũ khí vẫn hỏng.
+
+<a id="c2s-1186"></a>
+
+## Mặc và cởi đồ: `c2s/1186` → `s2c/37`, `s2c/42`, `s2c/1186`
+
+Đo trên máy (P4, Tiheo1/symap, 31/10): Frida ghi gói, ADB chạm các nút của popup vật phẩm. Món đang mặc có nút **Cởi ra** (và **Sửa chữa** nếu có độ bền). Món trong túi có **Trang bị** và **Vứt bỏ**, hoặc **Sử dụng** và **Vứt bỏ**.
+
+| Thao tác | Hàm dựng (gọi từ) | `c2s/1186` |
+|---|---|---|
+| Cởi thú cưng (ô trang bị 5) | `sqlq.b45(1, 5)` (`com.g.f.sqe.a2` ← `com.g.c.sqce.g1`) | `01 00000005` |
+| Mặc lại nó (ô túi 39) | `sqlq.b45(0, 39)` (`com.g.f.sqf.run1` ← `sqe.a2`) | `00 00000027` |
+
+```text
+c2s/1186 = u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị); i32 ô
+```
+
+Server trả ngay, theo thứ tự [Đo 2 lần]:
+- `s2c/10` kiểu 4: chỉ số mới. Tấn công 361 → 342 khi cởi Chồn nhỏ (+19 cường lực), rồi lại 361 khi mặc.
+- `s2c/37`: 8 ô trang bị mới, `i32 0; u8 0x40; string tên; i32 8; 8 × (u8 0xff | bản ghi vật phẩm)`. Đọc hết byte (350 và 423 byte).
+- `s2c/42`: cả túi, giống lúc đăng nhập ([Túi đồ](#túi-đồ)).
+- `s2c/1186`: `i32` lặp lại action (1 khi cởi, 0 khi mặc).
+- `s2c/1166` (trang bị của người chơi, gửi cả khu) và `s2c/1212`. `s2c/1212` cho biết thú cưng: `000001d3 0000` khi cởi, `000001d3 0001 00002454 01` khi mặc. 0x2454 = 9300 là `hìnhẢnh` của Chồn nhỏ (`pet_9300`). [Đo]
+
+Đọc tĩnh hàm xử lý nút `com.g.c.sqbr.g31` (đồ thị JNI của T2), theo mã lệnh của nút [Đo tĩnh]:
+
+| Mã lệnh | Gói |
+|---|---|
+| 0xf44b | `c2s/84` (Sử dụng) |
+| 0xf454, 0xf455 | `c2s/1186` |
+| 0xb20b | `c2s/48` (Sửa chữa) |
+| 0xb20e | Hỏi "Bạn có chắc là muốn vứt bỏ … này không?"; đồng ý thì `com.g.c.sqbz.run1` cũng gửi `c2s/1186` |
+
+Vứt bỏ chưa thử, vì làm mất đồ. [Chưa rõ]
+
+<a id="c2s-84"></a>
+
+## Dùng vật phẩm: `c2s/84`
+
+```text
+c2s/84 = i32 ô túi      (sqlq.i79, gọi từ com.g.f.sqe.a2 ← com.g.c.sqce.g1)
+```
+
+P4: bấm **Sử dụng** ở Hoàn Linh Dược (ô túi 3, popup ghi "Bơm 30% sinh lực") gửi `00000003`. Server trả `s2c/1256` "**Vật phẩm không thể sử dụng!**", số bình không đổi. Vậy ngoài trận không dùng được bình máu, dù popup vẫn có nút. Món nào dùng được ngoài trận (Tăng Kinh Nghiệm, trứng, rương) thì chưa thử. [Đo 1 lần]
+
+<a id="x2-exp"></a>
+
+## Ngôi sao "x2" ở góc trái: nhân đôi kinh nghiệm
+
+Dưới avatar của symap có ngôi sao xanh ghi "x2" và giờ còn lại ("4h" lúc 10:47, "3h" lúc 11:12). manina và Tiheo2 không có. [Đo]
+
+Server gửi nó trong **đuôi `s2c/9`** lúc đăng nhập, ngay sau khối ngoại hình (`characterTail` trong [src/world.ts](../../../src/world.ts)):
+
+```text
+… 8 ô trang bị; i32 (symap 1, manina 0); khối ngoại hình (như bản ghi người chơi);
+i32 n; n × {string khoá; i32 tỉLệ; i32; i32 msCònLại};
+i32; string tên sứ quân; u8; u8
+```
+
+| Nick | Hiệu ứng | Sứ quân |
+|---|---|---|
+| symap | `"ef7"`, tỉ lệ 200000, còn 13.257.567 ms (3 giờ 41 phút) | `2`, "Thiên Tôn" (chữ hiện trên đầu nhân vật), `01 00` |
+| manina, Tiheo2 | không có | không có |
+
+- Tỉ lệ tính theo 1/100000: 200000 là ×2. Quái trong `s2c/22` cũng có một số 100000 ở chỗ tương ứng. [Suy luận]
+- Hiệu ứng đến từ vật phẩm **Tăng Kinh Nghiệm (mã 7)**. Mô tả trong bảng vật phẩm: "Tăng x2 kinh nghiệm trong 24 giờ kể từ lúc dùng, tính cả khi không đăng nhập. Dùng thêm khi còn hiệu lực thì cộng dồn thời gian." Khoá `ef7` có lẽ là "hiệu ứng của món 7". [Suy luận mạnh]
+- Vậy không phải mặc định cho mọi nick: chỉ nick đã dùng món này mới có, và giờ vẫn trôi khi thoát game. [Đo 3 nick; giờ trôi theo mô tả]
+- Bảng VIP (`com.g.m.sqfo`) có quyền lợi `EXP_BONUS_PERCENT` ("EXP + x%") và `GOLD_BONUS_PERCENT` ("Vàng + x%"). Đó là cộng EXP theo cấp VIP, khác ngôi sao này. [Đo tĩnh]
+
+**Cường hoá và phẩm chất** cũng thấy trong bản ghi vật phẩm của symap [Đo]:
+- `field0` = 8 ở cả 4 món "+8" (Nón Hào Kiệt, Áo Thuật Sĩ, Chiến Đao, Nhẫn Đại Hiệp). Đồ chưa cường hoá của manina có 0. Vậy `field0` là cấp cường hoá.
+- `field4` = 1 ở mọi trang bị (popup ghi "Phẩm chất: Hiếm"), = 0 ở thú cưng (popup không có dòng phẩm chất). Có lẽ đó là phẩm chất. [Suy luận]
 
 ## Bình máu và nội lực
 
@@ -438,7 +510,7 @@ Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bả
 | Boss | Không có Thưởng, chỉ có Điểm Thu Thập. Đầu hàng trận boss của nhiệm vụ chính không bị trừ EXP | Khớp B4 |
 | Vàng | Thỏi vàng ăn trong trận. Đủ 10.000 thì tự đổi thành 10.000 Xu khoá | Thanh "2664/10000" trên bảng Bản thân là Vàng ([user-data](../user-data.md)) |
 | Tăng Kinh Nghiệm | Nhân đôi EXP thắng trận trong 24 giờ, kể cả lúc offline | |
-| Đồ rơi | Hòm đồ có thể rơi sau trận. Đứng lên hòm rồi bấm Nhặt | `s2c/1182`; nút Nhặt gửi `c2s/1188 (uuid)`, đọc tĩnh, chưa gửi thử ([13](13-drops-items.md#c2s-1188)) |
+| Đồ rơi | Hòm đồ có thể rơi sau trận. Đứng lên hòm rồi bấm Nhặt | `s2c/1182`; nút Nhặt gửi `c2s/1188 (uuid)`, đã bắt trên máy ([13](13-drops-items.md#p3)) |
 | Nhiệm vụ hằng ngày | Nhận ở Hương Lão Trần Bá, tối đa 3 một ngày, làm từng cái một, trả cũng ở đó, huỷ được. Thưởng EXP, Xu khoá hoặc vật phẩm | Tab "Phụ" hiện "Chưa có nhiệm vụ" |
 | Quà cấp | Đạt cấp 20, 40, 60… tới 200 thì nhận quà qua Hòm thư | manina cấp 21 |
 | Bản đồ thế giới | Chạm một thành rồi "Vào thành" để đi nhanh. Ổ khoá nghĩa là phải làm tiếp nhiệm vụ chính | Cổng Hồng Giang ([10-quests](10-quests.md#cổng)) |
@@ -448,8 +520,9 @@ Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bả
 
 ## Chưa rõ
 
-- Nghĩa hai trường của `c2s/48`, và biến thể `a46` (`u8; i32; i32`).
-- Gói dùng bình, nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã bắt trên máy (P3), bot chưa gửi thử ([13](13-drops-items.md#p3)).
+- Biến thể `a46` của `c2s/48` (`u8; i32; i32`), có lẽ sửa món trong túi. Vứt bỏ (có lẽ `c2s/1186` với action khác) chưa thử.
+- Gói dùng vật phẩm trong trận (có lẽ `c2s/47`, `sqlq.b78(int, int, int)`, gọi từ lớp trận `sqlm`).
+- Món nào dùng được ngoài trận bằng `c2s/84`; nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã bắt trên máy (P3), bot chưa gửi thử ([13](13-drops-items.md#p3)).
 - `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều".
 - Sau sửa đồ, chỉ số có đổi trước lần `s2c/10` sau (sau trận, đăng nhập lại) không.
-- Cây kỹ năng và giá trị `field01` của hệ Lôi.
+- `field01` của một nhân vật hệ Lôi (đoán là 2). Cây kỹ năng Lôi đã có ([Bảng kỹ năng](#bảng-kỹ-năng)).

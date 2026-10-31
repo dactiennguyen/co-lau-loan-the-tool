@@ -281,7 +281,8 @@ test('skill and item packets: s2c/30 tree, s2c/9 skill list, s2c/10 kind 32, s2c
   assert.deepEqual([after.kind, after.capacity, after.items.map(i => i.itemId)], [1, 42, [0, 412, 147, 48, 306, 415, 1]]);
   assert.deepEqual([after.items[0].quantity, after.items[0].durability, after.items[2].durability, after.items[2].stats], [4, -1, 60, [{ stat: 6, value: 7 }, { stat: 3, value: 5 }]]);
   assert.equal(decodeEvent('s2c', 42, hex(a2Response(42))).opaqueBytes, 0);
-  assert.deepEqual(decodeEvent('c2s', 48, hex(si['c2s/48 repair hat'])).fields, { a: 0, b: 0 });
+  assert.deepEqual(decodeEvent('c2s', 48, hex(si['c2s/48 repair hat'])).fields, { where: 0, slot: 0 });
+  assert.equal(buildRequest(48, { slot: 0 }).toString('hex'), si['c2s/48 repair hat']);
   assert.equal(buildRequest(1191, { skillId: 1000, amount: 1 }).toString('hex'), '000003e800000001');
 });
 
@@ -394,4 +395,10 @@ test('quest bot logs Xu, Xu khóa and Lượng of s2c/46 (P3, after a pickup)', 
   const events: Record<string, any>[] = [];
   new QuestBot({ maxFights: 1, log: e => events.push(e) }).onPacket(46, Buffer.from('0000000975706461746520587500000000004ab2a80000000000539fdc0000000000002185', 'hex'));
   assert.deepEqual(events.find(e => e.event === 'currency'), { kind: 'quest', event: 'currency', at: events[0].at, xu: 4895400, xuKhoa: 5480412, luong: 8581 });
+});
+
+test('quest bot logs the x2 EXP star and the faction at login (s2c/9 tail, P4)', () => {
+  const events: Record<string, any>[] = [];
+  new QuestBot({ maxFights: 1, log: e => events.push(e) }).onPacket(9, Buffer.from(fixtures.equip['s2c/9 symap'], 'hex'));
+  assert.deepEqual(events.find(e => e.event === 'effects'), { kind: 'quest', event: 'effects', at: events[0].at, effects: ['ef7 x2, còn 3h40'], faction: 'Thiên Tôn' });
 });

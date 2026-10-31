@@ -19,7 +19,7 @@ Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../..
 | Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`. HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
 | Sang map khác thế nào? | `c2s/13 (mapId hiện tại, id cổng)`, cùng opcode với nói chuyện NPC. Id cổng lấy ở cuối `s2c/11`. Cổng chưa mở thì server trả `s2c/1256` "Bạn phải đạt cấp N mới vào được X" hoặc "Bạn cần hoàn thành nhiệm vụ trước khi tới đây". Ở cấp 19 chỉ vào được M1, M2, M25. Xem [Đi qua cổng](#cổng) và [Bản đồ đã quét](06-map-mobs.md#atlas). [Đo] |
 | Bot còn thiếu gì? | Bước "Sử dụng điểm kỹ năng" bot TS đã làm được (`c2s/1191`, K1); app Rust chưa port. Sửa đồ là `c2s/48` và tốn 1 Búa sửa chữa; manina đã dùng chiếc búa duy nhất cho chiếc nón, vũ khí vẫn hỏng. Hồi máu bằng Hoàn Linh Dược (30% sinh lực), gói dùng bình chưa biết. manina còn 67 điểm tiềm năng và 16 điểm kỹ năng chưa dùng; bot TS cộng điểm tiềm năng bằng `--stats` (chưa chạy thật). Bot chưa nhặt đồ rơi. Gói nhặt `c2s/1188 (uuid)` đã bắt được trên máy (P3), nhưng bot chưa gửi thử ([13-drops-items](13-drops-items.md#c2s-1188)). Xem [12-skills-items](12-skills-items.md). [Đo] |
-| Còn event nào chưa ghi? | Đã ghi 96 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **118 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
+| Còn event nào chưa ghi? | Đã ghi 100 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **115 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
 
 ## Gói nhiệm vụ
 

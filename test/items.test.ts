@@ -4,7 +4,7 @@ import { createCipheriv } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol.ts';
-import { characterExtra, characterGear, currencies, groundItems } from '../src/world.ts';
+import { characterExtra, characterGear, characterTail, currencies, gearUpdate, groundItems } from '../src/world.ts';
 import { QuestBot } from '../src/quest.ts';
 import { decodeAsset, Items, parseItemTable, parseStatTable, RETIRED } from '../src/items.ts';
 import { MapScanner } from '../src/map-scan.ts';
@@ -98,4 +98,22 @@ test('pickup on the phone (P3, Tiheo1 at M10): c2s/1188 carries the uuid of the 
   // 52, 54 and 56 ms after it: s2c/46 (Xu, Xu khóa, Lượng), s2c/1256, s2c/1183 for the whole map.
   assert.deepEqual(decodeEvent('s2c', 1256, Buffer.from('000000002842e1baa16e2076e1bbab61206e68e1baad6e20c491c6b0e1bba36320343734205875206b68c3b361', 'hex')).fields?.text, 'Bạn vừa nhận được 474 Xu khóa');
   assert.deepEqual(decodeEvent('s2c', 1183, Buffer.from('000000034d3130' + sent, 'hex')).fields, { mapId: 'M10', uuid });
+});
+
+test('item actions on the phone (P4): equip and unequip c2s/1186, use c2s/84, repair c2s/48; the new gear in s2c/37', () => {
+  assert.deepEqual([buildRequest(1186, { action: 1, slot: 5 }), buildRequest(1186, { action: 0, slot: 39 }), buildRequest(84, { slot: 3 }), buildRequest(48, { slot: 2 })]
+    .map(b => b.toString('hex')), ['0100000005', '0000000027', '00000003', '0000000002']);
+  assert.deepEqual(decodeEvent('c2s', 1186, Buffer.from('0100000005', 'hex')).fields, { action: 1, slot: 5 });
+  const gear = (k: string) => gearUpdate(Buffer.from(fixtures.equip[k], 'hex')).gear.map(g => g && `${g.slot} ${items.describe(g)} +${g.field0}`);
+  assert.deepEqual(gear('s2c/37 unequip pet'), ['0 Nón Hào Kiệt (+51 phòng thủ, +49 cường lực) +8', '1 Áo Thuật Sĩ (+52 phòng thủ, +547 sinh lực) +8',
+    '2 Chiến Đao (+67 sức tấn công, +46 cường lực) +8', '3 Nhẫn Đại Hiệp (+56 sức tấn công, +57 cường lực) +8', null, null, null, null]);
+  assert.equal(gear('s2c/37 equip pet')[5], '5 Thú cưng Chồn nhỏ (+19 cường lực) +0');
+  assert.deepEqual(decodeEvent('s2c', 1186, Buffer.from('00000001', 'hex')).fields, { action: 1 });
+});
+
+test('tail of s2c/9: the x2 EXP star (item 7, rate 200000, time left) and the faction; none for manina', () => {
+  assert.deepEqual(characterTail(Buffer.from(fixtures.equip['s2c/9 symap'], 'hex')), { field: 1, appearanceBytes: 203,
+    effects: [{ key: 'ef7', rate: 200000, field: 0, remainingMs: 13257567 }], factionField: 2, faction: 'Thiên Tôn', factionFlags: [1, 0] });
+  assert.deepEqual(characterTail(Buffer.from(fixtures.profile['s2c/9 level 21'], 'hex')).effects, []);
+  assert.match(items.get(7)!.desc, /^Tăng x2 kinh nghiệm trong 24 giờ/);
 });

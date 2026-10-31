@@ -35,7 +35,7 @@ Response mẫu dài **551 byte**. Prefix 40 byte đã đối chiếu getter nati
 | Offset mẫu | Kiểu | Nhãn phân tích | Giá trị A2 | Bằng chứng / giới hạn |
 |---:|---|---|---|---|
 | 0 | byte | status | 1 | Giá trị của nhánh đã đo |
-| 1 | byte | field01 | 1 | Không phải số nhân vật: nick thứ hai (31/10) có 4, bố cục phía sau vẫn y hệt. Bằng `flag1` ở cả ba mẫu. Là **hệ nhân vật**: 1 Hỏa, 4 Thủy. Gửi `c2s/30` với số này thì nhận cây kỹ năng của hệ đó, và mã kỹ năng trong đuôi `s2c/9` là 1000 × hệ + 0…8 ([12-skills-items](events/12-skills-items.md#bảng-kỹ-năng)) [Đo K1]. Parser từng chỉ nhận 1 nên nick này báo lỗi lúc đăng nhập |
+| 1 | byte | field01 | 1 | Không phải số nhân vật: nick thứ hai (31/10) có 4, bố cục phía sau vẫn y hệt. Bằng `flag1` ở cả ba mẫu. Là **hệ nhân vật**: 1 Hỏa, 4 Thủy (2 Lôi theo icon kỹ năng, chưa có nhân vật Lôi để đo). Gửi `c2s/30` với số này thì nhận cây kỹ năng của hệ đó, và mã kỹ năng trong đuôi `s2c/9` là 1000 × hệ + 0…8 ([12-skills-items](events/12-skills-items.md#bảng-kỹ-năng)) [Đo K1]. Parser từng chỉ nhận 1 nên nick này báo lỗi lúc đăng nhập |
 | 2 | string | name | manina | Tên dùng cho các request sau |
 | 12 | int32 | numericId | 155 | ID số trong packet; chưa khẳng định ID account/database |
 | 16 | string | displayName | manina | Khớp tên trên UI |

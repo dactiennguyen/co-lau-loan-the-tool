@@ -2,7 +2,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
-  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies } from './world.ts';
+  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate } from './world.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, type Move } from './battle.ts';
 
 export type Direction = 'c2s' | 's2c';
@@ -62,7 +62,9 @@ event('c2s', 13, 'npc_talk', 'world', 'Nói chuyện với NPC của bước nhi
 event('c2s', 10, 'add_stat_point', 'world', 'Bấm cộng điểm tiềm năng', 's2c/10 kiểu 2, 4, 8', 'i32 stat; i32 amount', 'L1: 10 lần (0, 1), Cường Lực; P1: (2, 1), Thân Pháp. stat là nút + trên bảng Chỉ số, theo hàng: 0 Cường Lực, 1 Nội Lực (suy luận), 2 Thân Pháp, 3 Thể Lực');
 event('c2s', 1191, 'skill_upgrade', 'world', 'Bấm Nâng cấp ở tab Kỹ năng (sqgu.a4 → sqlq.e52(skillId, 1)); bước nhiệm vụ "Sử dụng điểm kỹ năng"', 's2c/10 kiểu 32 và s2c/1191; ở bước nhiệm vụ thêm s2c/34', 'i32 skillId; i32 amount', 'Đo trên dây K1: 00000fa0 00000001 (Băng Tiễn Thuật 4000), server trả trong 30 ms; E1 3 lần qua tham số hàm dựng (1000, 1)');
 event('c2s', 1188, 'pickup_item', 'world', 'Chạm hòm đồ trên đất rồi bấm Nhặt (sqhz.d21 → sqlq.c44(uuid))', 's2c/46 (Xu khóa vào ví), s2c/1256 "Bạn vừa nhận được …", s2c/1183 (hòm rời khỏi đất, cả map)', 'string uuid (của s2c/1182, s2c/1184)', 'Đo P3 trên máy 1 lần: Xu khóa ×474 ở M10, server trả trong 52–56 ms');
-event('c2s', 48, 'repair_item', 'world', 'Sửa chữa ở chi tiết trang bị rồi OK (sqaj.a5 → sqlq.c47)', 's2c/1187 rồi s2c/48', 'u8 a; i32 b (00 00000000: nón ở ô trang bị 0)', 'Đo E2 1 lần, tốn 1 Búa sửa chữa; a là nơi chứa, b là ô: suy luận');
+event('c2s', 48, 'repair_item', 'world', 'Sửa chữa ở chi tiết trang bị rồi OK (sqh.run1 ← sqaj.a5 → sqlq.c47)', 's2c/1187 rồi s2c/48', 'u8 where (0: ô trang bị); i32 slot', 'Đo E2 (nón, 00 00000000) và P4 (vũ khí, 00 00000002); mỗi lần tốn 1 Búa sửa chữa');
+event('c2s', 1186, 'equip_item', 'world', 'Trang bị (món trong túi) hoặc Cởi ra (món đang mặc) ở chi tiết vật phẩm (sqe.a2, sqf.run1 → sqlq.b45)', 's2c/10 kiểu 4, s2c/37 (8 ô trang bị), s2c/42 (cả túi), s2c/1186, s2c/1166 và s2c/1212 cho cả khu', 'u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị); i32 slot', 'Đo P4: cởi thú cưng 01 00000005, mặc lại 00 00000027 (ô 39 của túi)');
+event('c2s', 84, 'use_item', 'world', 'Sử dụng ở chi tiết vật phẩm trong túi (sqe.a2 → sqlq.i79)', 's2c/1256 "Vật phẩm không thể sử dụng!" với Hoàn Linh Dược ngoài trận', 'i32 slot (ô túi)', 'Đo P4 1 lần: 00000003 (Hoàn Linh Dược), server từ chối');
 event('c2s', 1215, 'mail_request', 'world', 'Mở Hòm thư', 's2c/1215', 'Rỗng');
 event('s2c', 1215, 'mail_list', 'world', 'Trả mail_request', 'Không', 'i32 n; bản ghi thư chưa thấy (n = 0)', 'Đo 1 lần, hòm thư trống');
 event('c2s', 1196, 'friends_request', 'world', 'Mở Bạn bè', 's2c/1196', 'Rỗng');
@@ -101,7 +103,9 @@ const pushes: [number, string, string, string, string?][] = [
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau); sau c2s/1191 (kiểu 32)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]. Kind 32: i32 n; n * {i32 skillId; i32 level}', 'Đọc hết byte 4 kiểu (L1, Q2, E1, P1); EXP và tiền khớp phần thưởng trận; stats[0] tăng 1 mỗi điểm Cường Lực, stats[1] mỗi điểm Thân Pháp, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, chính xác, né tránh, chí mạng: khớp bảng ở P1), fields[0] là điểm kỹ năng (16 ở P1, khớp bảng), extra[0], labels chưa rõ; kiểu 32 tăng cấp Hỏa Cầu Thuật 1 → 4'],
   [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ', 'u8 1; i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 element; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
   [1191, 'skill_points', 'Sau c2s/1191', 'i32 statPoints; i32 skillPoints', 'Đo E1 3 lần: 68 và 18, 17, 16, khớp bảng Chỉ số và Kỹ năng'],
-  [48, 'repair_ack', 'Sau c2s/48 và s2c/1187', 'u8; i32 (giống c2s/48)', 'Đo E2 1 lần'],
+  [48, 'repair_ack', 'Sau c2s/48 và s2c/1187', 'u8 where; i32 slot (giống c2s/48)', 'Đo E2, P4'],
+  [37, 'gear_update', 'Sau c2s/1186 (mặc hoặc cởi đồ)', 'i32 0; u8 0x40; string name; i32 8; 8 * (u8 0xff | item record)', 'Đọc hết byte 2 mẫu (P4): 350 byte khi cởi thú cưng, 423 khi mặc lại'],
+  [1186, 'equip_result', 'Sau c2s/1186, sau s2c/42', 'i32 action (lặp lại action của c2s/1186)', 'Đo P4: 1 khi cởi, 0 khi mặc'],
   [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác; nhặt được đồ (P3)', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực", "Bạn vừa nhận được 474 Xu khóa")', 'Đọc hết byte 5 mẫu (Q6, Q15, S1, P3)'],
   [1201, 'step_progress', 'Sau mỗi trận được tính cho bước nhiệm vụ đang làm', 'i32 progress: số con đã diệt, hoặc tổng sát thương lên boss', 'Đo: Q2–Q9 tăng 1 sau mỗi trận thắng (1…9); B4 363 = sát thương lên boss sau trận thua'],
   [1200, 'signal_1200', 'Ngay sau s2c/19 end 1, và sau s2c/35 khi trả nhiệm vụ', 'Rỗng', 'Đo; vai trò chưa rõ'],
@@ -141,6 +145,8 @@ export interface RequestContext {
   mobId?: string; battleUuid?: string; seq?: number; move?: Move; skill?: number; skillId?: number;
   /** uuid of an item on the ground (s2c/1182, s2c/1184) for c2s/1188. */
   uuid?: string;
+  /** Bag or gear slot for c2s/1186, c2s/84, c2s/48; action 0 equip (bag slot), 1 unequip (gear slot); where 0 = gear. */
+  slot?: number; action?: number; where?: number;
   /** The character's element, field01 of s2c/9 (1 Hỏa, 4 Thủy): c2s/30 asks for the skill tree of that element. */
   element?: number;
 }
@@ -169,6 +175,10 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 1173: return w.u8(required(ctx.zone, 'zone')).build();
     // Nhặt in the dialog of a chest on the ground: sqlq.c44(uuid) (P3).
     case 1188: return w.string(required(ctx.uuid, 'uuid')).build();
+    // Chi tiết vật phẩm (P4): Trang bị / Cởi ra sqlq.b45(action, slot), Sử dụng sqlq.i79(slot), Sửa chữa sqlq.c47(where, slot).
+    case 1186: return w.u8(required(ctx.action, 'action')).i32(required(ctx.slot, 'slot')).build();
+    case 84: return w.i32(required(ctx.slot, 'slot')).build();
+    case 48: return w.u8(ctx.where ?? 0).i32(required(ctx.slot, 'slot')).build();
     case 15: return w.string(required(ctx.mobId, 'mobId')).u8(0).build();
     case 1178: return w.string(required(ctx.mobId, 'mobId')).i32(0).build();
     case 18: case 40: return w.string(required(ctx.battleUuid, 'battleUuid')).build();
@@ -199,7 +209,9 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 10: fields = { stat: r.i32(), amount: r.i32() }; break;
       case 1191: fields = { skillId: r.i32(), amount: r.i32() }; break;
       case 1188: fields = { uuid: r.string() }; break;
-      case 48: fields = { a: r.u8(), b: r.i32() }; break;
+      case 1186: fields = { action: r.u8(), slot: r.i32() }; break;
+      case 84: fields = { slot: r.i32() }; break;
+      case 48: fields = { where: r.u8(), slot: r.i32() }; break;
       case 1254: fields = payload.length > 1 ? { tab: r.u8(), field: r.u8() } : { tab: r.u8() }; break;
       case 1265: fields = { command: r.u8() }; break;
       case 1169: fields = moveRequest(payload); r.take(payload.length); break;
@@ -238,6 +250,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       // The whole skill tree is ~23 KB of descriptions; the log keeps each skill's id, name, prerequisite and level count.
       case 30: fields = { skills: skillTable(payload).skills.map(({ levels, ...s }) => ({ ...s, maxLevel: levels.length })) }; r.take(payload.length); break;
       case 42: fields = characterExtra(payload); r.take(payload.length); break;
+      case 37: fields = gearUpdate(payload); r.take(payload.length); break;
+      case 1186: fields = { action: r.i32() }; break;
       case 43: fields = mapEntities(payload); r.take(payload.length); break;
       case 13: fields = mapChange(payload); r.take(payload.length); break;
       case 22: fields = battleSetup(payload); r.take(Number(fields.knownBytes)); break;
@@ -251,7 +265,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 36: case 1214: case 1200: break;
       case 1187: fields = inventory(payload); r.take(payload.length); break;
       case 1191: fields = { statPoints: r.i32(), skillPoints: r.i32() }; break;
-      case 48: fields = { a: r.u8(), b: r.i32() }; break;
+      case 48: fields = { where: r.u8(), slot: r.i32() }; break;
       case 39: fields = questData(payload); r.take(payload.length); break;
       case 34: fields = questProgress(payload); r.take(payload.length); break;
       case 35: fields = questComplete(payload); r.take(payload.length); break;

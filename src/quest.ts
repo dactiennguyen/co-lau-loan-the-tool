@@ -9,7 +9,7 @@ import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
 import { ITEM_ELEMENTS, type Items } from './items.ts';
 import { skillTree } from './skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterGear, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -139,6 +139,9 @@ export class QuestBot implements WorldSession {
           const items = this.options.items, max = (id: number) => items?.get(id)?.durability;
           const gear = characterGear(payload).flatMap(g => g ? [`${g.slot}: ${items?.describe(g) ?? `#${g.itemId}`}, hệ ${ITEM_ELEMENTS[g.element] ?? g.element}, độ bền ${g.durability}${max(g.itemId) ? `/${max(g.itemId)}` : ''}`] : []);
           this.log('gear', { gear });
+          // Timed effects at the end of s2c/9, such as the x2 EXP star of item 7 (12-skills-items.md#x2-exp).
+          const { effects, faction } = characterTail(payload), left = (ms: number) => `${Math.floor(ms / 3_600_000)}h${String(Math.floor(ms / 60_000) % 60).padStart(2, '0')}`;
+          if (effects.length || faction) this.log('effects', { effects: effects.map(e => `${e.key} x${e.rate / 100_000}, còn ${left(e.remainingMs)}`), faction });
         } catch (error) { this.log('parse_error', { opcode, part: 'gear', reason: (error as Error).message }); }
         break;
       }

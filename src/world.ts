@@ -111,6 +111,13 @@ export function playerRecord(r: Reader) {
   const flag1 = r.u8(), flag2 = r.u8(), level = r.i32(), hp = r.i32(), maxHp = r.i32(), s1 = r.i32(), s1Max = r.i32();
   const field = u16(r), x = r.i32(), y = r.i32();
   const gear = Array.from({ length: 6 }, () => r.i32());
+  const appearanceBytes = appearance(r);
+  const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()]; // faction ("sứ quân") name, empty when none
+  return { kind, name, id, displayName, flag1, flag2, level, hp, maxHp, s1, s1Max, field, x, y, gear, appearanceBytes, factionField, faction, factionFlags };
+}
+
+/** The appearance block of a player record and of the s2c/9 tail, read but left unnamed; returns its length. */
+function appearance(r: Reader) {
   const start = r.offset;
   r.i32(); r.i32(); r.i32();
   r.u8(); r.bytes(); r.i32(); r.bytes();      // palette layers (ARGB)
@@ -119,9 +126,29 @@ export function playerRecord(r: Reader) {
   const marker = r.i32();
   if (marker !== 99000) throw new ProtocolError('PAYLOAD_SCHEMA', `Unobserved appearance marker ${marker}`, { offset: r.offset - 4 });
   for (let n = r.u8(); n > 0; n--) { r.i32(); r.bytes(); }
-  const appearanceBytes = r.offset - start;
-  const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()]; // faction ("sứ quân") name, empty when none
-  return { kind, name, id, displayName, flag1, flag2, level, hp, maxHp, s1, s1Max, field, x, y, gear, appearanceBytes, factionField, faction, factionFlags };
+  return r.offset - start;
+}
+
+/** What follows the 8 gear slots of s2c/9: an int (1 for symap, 0 for manina), the appearance block, the timed
+ * effects, then the faction ("sứ quân") as in a player record. An effect with rate 200000 is the "x2" star of the HUD:
+ * double EXP, from the item Tăng Kinh Nghiệm (7), rate in 1/100000; remainingMs counts down even offline
+ * (12-skills-items.md#x2-exp). */
+export function characterTail(payload: Uint8Array) {
+  const r = new Reader(payload);
+  r.take(characterProfile(payload).profileBytes);
+  for (let n = r.i32(); n > 0; n--) r.take(13);
+  for (let n = r.i32(); n > 0; n--) r.data[r.offset] === 0xff ? r.u8() : itemRecord(r);
+  const field = r.i32(), appearanceBytes = appearance(r), effects = [];
+  for (let n = r.i32(); n > 0; n--) effects.push({ key: r.string(), rate: r.i32(), field: r.i32(), remainingMs: r.i32() });
+  const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()];
+  return finish(r, { field, appearanceBytes, effects, factionField, faction, factionFlags }, 's2c/9');
+}
+
+/** s2c/37 after c2s/1186 (equip or unequip): the 8 gear slots again, as at the end of s2c/9. */
+export function gearUpdate(payload: Uint8Array) {
+  const r = new Reader(payload), field = r.i32(), flag = r.u8(), name = r.string();
+  const gear = Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
+  return finish(r, { field, flag, name, gear }, 's2c/37');
 }
 
 /** s2c/1212, also appended to every s2c/1263 entry. Mode 2 carries a list; the 11-byte form a single entry. */
