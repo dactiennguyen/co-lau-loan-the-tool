@@ -9,6 +9,7 @@ import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account } from "../types";
+import { lossesLeft } from "../useFightSetting";
 import { BattlePanel } from "./BattlePanel";
 import "./FightCard.css";
 
@@ -33,6 +34,8 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
   const targets = c?.targets ?? [];
   const job = c?.job;
   const running = !!job && job.done == null;
+  // Losses to a boss never end the job (Bot::on_battle_end).
+  const bossJob = !!job && targets.some((t) => t.name === job.target && t.boss);
   // One task at a time: a quest run is stopped first (Bot::fight refuses too).
   const questing = !!c?.questRun && c.questRun.done == null;
   const battle = c?.battle;
@@ -71,8 +74,16 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           <Stepper label="số trận" max={999} value={choice.count} onChange={(count) => set({ count })} />
         </div>
         <div className="fight__row">
-          <span className="fight__label">Thua tối đa</span>
-          <Stepper label="số trận thua" value={choice.losses} onChange={(losses) => set({ losses })} />
+          {/* While the job goes on, what is left of it instead of the field and its name; after Dừng the field again, as
+              saved. */}
+          {!running && <span className="fight__label">Thua tối đa</span>}
+          {running ? (
+            <span className="losses-left" title="Thua tối đa trừ số trận đã thua trong việc này; thua boss không làm bot dừng">
+              {bossJob ? "Thua boss không tính" : <>Còn <b className="px">{lossesLeft(job.maxLosses, job.losses)}</b> lượt thua nữa</>}
+            </span>
+          ) : (
+            <Stepper label="số trận thua" value={choice.losses} onChange={(losses) => set({ losses })} />
+          )}
         </div>
         <div className="fight__buttons">
           <Button kind="primary" icon="play" disabled={account.status !== 2 || !choice.target || questing} onClick={onStart}>

@@ -172,7 +172,8 @@ impl Default for BotOptions {
     }
 }
 
-/// Cài đặt đánh of an account (accounts.json): what the bot does on its own around the battles it plays.
+/// Cài đặt đánh of an account (accounts.json): what the bot does on its own around the battles it plays, and the numbers
+/// last chosen in the Đánh quái and Nhiệm vụ tabs, which the tabs offer again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FightSettings {
@@ -183,15 +184,33 @@ pub struct FightSettings {
     /// Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up (Bot::loot).
     #[serde(default = "on")]
     pub pickup: bool,
+    /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
+    /// tab again.
+    #[serde(default = "five")]
+    pub fight_count: u32,
+    #[serde(default = "one")]
+    pub fight_losses: u32,
+    /// Thua tối đa of the Nhiệm vụ tab, likewise.
+    #[serde(default = "one")]
+    pub quest_losses: u32,
 }
 fn on() -> bool {
     true
+}
+fn one() -> u32 {
+    1
+}
+fn five() -> u32 {
+    5
 }
 impl Default for FightSettings {
     fn default() -> Self {
         Self {
             repair: false,
             pickup: true,
+            fight_count: five(),
+            fight_losses: one(),
+            quest_losses: one(),
         }
     }
 }

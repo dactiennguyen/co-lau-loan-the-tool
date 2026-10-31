@@ -3,6 +3,7 @@ import { api } from "../api";
 import { TabPanel, Tabs } from "../components/Tabs";
 import { selectedLog, useStore } from "../store";
 import type { Account } from "../types";
+import { useFightSetting } from "../useFightSetting";
 import { FightCard, type FightChoice } from "./FightCard";
 import { BattleStatsCard } from "./BattleStatsCard";
 import { FightSettingsCard } from "./FightSettingsCard";
@@ -19,8 +20,8 @@ import "./AccountPage.css";
 type Task = "quest" | "fight" | "settings" | "bag" | "skills" | "stats";
 
 /**
- * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and fight
- * choice start fresh for each.
+ * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and target
+ * start fresh for each; Số trận and Thua tối đa come back as last chosen for that account (useFightSetting).
  */
 export function AccountPage({ account }: { account: Account }) {
   const c = account.character;
@@ -29,7 +30,15 @@ export function AccountPage({ account }: { account: Account }) {
   const open = useStore((s) => s.open);
   // During a battle Dừng asks whether to play it out or surrender; otherwise it stops at once.
   const onStop = () => (c?.battle ? open({ kind: "stop", id }) : api.stop(id));
-  const [choice, setChoice] = useState<FightChoice>({ target: "", count: 5, losses: 1 });
+  const [picked, setPicked] = useState("");
+  const [count, setCount] = useFightSetting(account, "fightCount");
+  const [losses, setLosses] = useFightSetting(account, "fightLosses");
+  const choice: FightChoice = { target: picked, count, losses };
+  const setChoice = (next: FightChoice) => {
+    if (next.target !== picked) setPicked(next.target);
+    if (next.count !== count) setCount(next.count);
+    if (next.losses !== losses) setLosses(next.losses);
+  };
   const [task, setTask] = useState<Task>("quest");
   const tabs = useId();
   const targets = c?.targets ?? [];

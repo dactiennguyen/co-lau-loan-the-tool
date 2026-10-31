@@ -2481,6 +2481,7 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
         FightSettings {
             repair: false,
             pickup: false,
+            ..FightSettings::default()
         },
         &mut out,
     );

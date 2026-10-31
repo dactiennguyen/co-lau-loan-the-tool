@@ -96,13 +96,17 @@ pub async fn set_stats(
     shared.set_stats(id, plan).await
 }
 
-/// Cài đặt đánh of the account: {"repair": true} for Tự sửa đồ. Saved to accounts.json; the error is shown in a toast.
+/// Cài đặt đánh of the account: Tự sửa đồ, Tự nhặt đồ, and the numbers last chosen in the Đánh quái and Nhiệm vụ tabs,
+/// kept within what fight and quest take. Saved to accounts.json; the error is shown in a toast.
 #[tauri::command]
 pub async fn set_fight(
     shared: State<'_, Shared>,
     id: u64,
-    settings: FightSettings,
+    mut settings: FightSettings,
 ) -> Result<(), String> {
+    settings.fight_count = settings.fight_count.clamp(1, 999);
+    settings.fight_losses = settings.fight_losses.max(1);
+    settings.quest_losses = settings.quest_losses.max(1);
     shared.set_fight(id, settings).await
 }
 

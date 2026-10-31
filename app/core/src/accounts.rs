@@ -22,7 +22,8 @@ pub struct Account {
     /// How potential points are spent on their own (Bot::set_stats); set from the Chỉ số card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stats: Option<StatPlan>,
-    /// Cài đặt đánh: Tự sửa đồ (Bot::set_fight); set from the Cài đặt tab.
+    /// Cài đặt đánh: Tự sửa đồ, Tự nhặt đồ (Bot::set_fight), set from the Cài đặt tab; and the numbers last chosen in the
+    /// Đánh quái and Nhiệm vụ tabs.
     #[serde(default, skip_serializing_if = "FightSettings::is_default")]
     pub fight: FightSettings,
     /// The proxy the session connects through while `enabled`; set in the add and edit form, which tests it first.
@@ -117,6 +118,9 @@ mod tests {
             fight: FightSettings {
                 repair: true,
                 pickup: false,
+                fight_count: 30,
+                fight_losses: 4,
+                quest_losses: 2,
             },
             proxy: Some(crate::proxy::Proxy {
                 enabled: false,
@@ -136,11 +140,14 @@ mod tests {
             assert_eq!(mode & 0o777, 0o600);
         }
         assert!(!dir.join("accounts.json.tmp").exists());
-        // Tự nhặt đồ is on for an account saved before it existed, or with only Tự sửa đồ set.
+        // Tự nhặt đồ is on, and the tabs offer 5 battles and 1 loss, for an account saved before they existed, or with only
+        // Tự sửa đồ set.
         std::fs::write(&path, r#"{"accounts":[{"username":"a","password":"x"},{"username":"b","password":"y","fight":{"repair":true}}]}"#).unwrap();
         let old = load(&path).unwrap();
         assert_eq!(old[0].fight, FightSettings::default());
         assert!(old[0].fight.pickup && old[1].fight.pickup && old[1].fight.repair);
+        let b = old[1].fight;
+        assert_eq!((b.fight_count, b.fight_losses, b.quest_losses), (5, 1, 1));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

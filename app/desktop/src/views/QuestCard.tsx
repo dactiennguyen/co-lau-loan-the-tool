@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { QuestStepRef } from "../api";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
@@ -10,6 +10,7 @@ import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account, Quest } from "../types";
+import { lossesLeft, useFightSetting } from "../useFightSetting";
 import { BattlePanel } from "./BattlePanel";
 import "./QuestCard.css";
 
@@ -44,7 +45,7 @@ export function QuestCard({ account, onStart, onStop }: Props) {
   const running = !!run && run.done == null;
   // The step whose ▶ turned into a stop button.
   const playing = running ? run.step : null;
-  const [losses, setLosses] = useState(1);
+  const [losses, setLosses] = useFightSetting(account, "questLosses");
   // Online and no fight job: one task at a time, so the job is stopped first (Bot::quest refuses too).
   const fighting = !!c?.job && c.job.done == null;
   const idle = account.status === 2 && !fighting;
@@ -151,8 +152,16 @@ export function QuestCard({ account, onStart, onStop }: Props) {
           Dừng
         </Button>
         <span className="quest__losses">
-          <span>Thua tối đa</span>
-          <Stepper label="số trận thua" value={losses} onChange={setLosses} />
+          {/* While the run goes on, what is left of it instead of the field and its name; after Dừng the field again, as
+              saved. */}
+          {!running && <span>Thua tối đa</span>}
+          {running ? (
+            <span className="losses-left" title="Thua tối đa trừ số trận đã thua trong lần chạy này; thua boss không làm bot dừng">
+              Còn <b className="px">{lossesLeft(run.maxLosses, run.losses)}</b> lượt thua nữa
+            </span>
+          ) : (
+            <Stepper label="số trận thua" value={losses} onChange={setLosses} />
+          )}
         </span>
       </div>
       {fighting && <p className="quest__hint quest__hint--busy">Đang đánh quái: bấm Dừng ở tab Đánh quái rồi mới làm nhiệm vụ.</p>}

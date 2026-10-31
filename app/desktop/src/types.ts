@@ -429,6 +429,10 @@ export interface FightSettings {
   repair: boolean;
   /** Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up. */
   pickup: boolean;
+  /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
+  fightCount: number;
+  fightLosses: number;
+  questLosses: number;
 }
 
 export interface AppState {
