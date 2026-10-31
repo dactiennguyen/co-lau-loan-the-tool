@@ -28,7 +28,7 @@ npm run world
 npm run connect -- --bootstrap
 ```
 
-`login` ngắt sau response nhân vật `9`; `world` ngắt sau entities `43` và players snapshot `1263`. Muốn giữ kết nối để chơi tiếp, truyền option `session` (xem [bot làm nhiệm vụ](quest-bot.md)); `npm run quest` dùng cách này. Client dùng credential bạn điền vào `.env` và không tự retry.
+`login` ngắt sau response nhân vật `9`; `world` ngắt sau entities `43` và players snapshot `1263`. Khu không có người chơi nào khác thì server không gửi `1263` (M25, 31/10): client đợi 1,5 s sau `43` (`snapshotWaitMs`) rồi coi như xong, với `playersSnapshotReceived: false`. Muốn giữ kết nối để chơi tiếp, truyền option `session` (xem [bot làm nhiệm vụ](quest-bot.md)); `npm run quest` dùng cách này. Client dùng credential bạn điền vào `.env` và không tự retry.
 
 ## Dùng bằng code
 

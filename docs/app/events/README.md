@@ -31,6 +31,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | Nhiệm vụ (`39`, `13`, `34`, `35`) và kết quả bot làm nhiệm vụ | [10-quests](10-quests.md) |
 | Bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân | [11-panels](11-panels.md) |
 | Kỹ năng (`1191`, bảng `30`), điểm tiềm năng, túi đồ (`42`, `1187`), sửa đồ (`48`), luật trong Cẩm nang | [12-skills-items](12-skills-items.md) |
+| Đồ rơi, nhặt đồ, bảng vật phẩm và mã chỉ số của game | [13-drops-items](13-drops-items.md) |
 | Mọi gói client gửi được: hàm dựng, opcode, kiểu từng trường | [c2s-builders](../c2s-builders.md) |
 
 ## Danh sách gói

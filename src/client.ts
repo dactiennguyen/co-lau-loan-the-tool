@@ -17,6 +17,8 @@ export interface ClientOptions {
   host?: string; port?: number; serverId?: number; username?: string; password?: string;
   mode?: 'bootstrap' | 'login' | 'world'; responseTimeoutMs?: number; overallTimeoutMs?: number;
   settleMs?: number; heartbeatMs?: number; log?: (event: Record<string, unknown>) => void;
+  /** After s2c/43, how long to wait for s2c/1263 (default 1500 ms): a zone with no other player sends none (M25, 31/10). */
+  snapshotWaitMs?: number;
   /** Payload prefix kept in packet logs (default 128 bytes); credentials `c2s/4` are never logged. */
   hexBytes?: number;
   /** World mode: keep the connection after the players snapshot and hand every packet to this handler. Decode errors
@@ -46,10 +48,11 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     const user: UserInfo = { account: username.toLowerCase() };
     let seedBytes: Buffer = Buffer.alloc(0), haveSeed = false, haveList = false, haveFlag = false;
     let state = 'seed', done = false, characterName = '', mapId = '', packets = 0;
-    let entities = false, snapshot = false, ready = false, lastReceiveOpcode: number | null = null;
+    let entities = false, snapshot = false, players = false, ready = false, lastReceiveOpcode: number | null = null;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     let stepTimer: ReturnType<typeof setTimeout> | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    let snapshotTimer: ReturnType<typeof setTimeout> | undefined;
     const start = Date.now();
     const emit = (event: string, fields: Record<string, unknown> = {}) => log({ kind: 'lifecycle', event, elapsedMs: Date.now() - start, state, ...fields });
     const socket = net.createConnection({ host, port }); socket.setNoDelay(true);
@@ -61,7 +64,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     }
     function finish(diagnostic?: Record<string, unknown>) {
       if (done) return;
-      done = true; clearInterval(heartbeat); clearTimeout(stepTimer); clearTimeout(settleTimer); clearTimeout(overall);
+      done = true; clearInterval(heartbeat); clearTimeout(stepTimer); clearTimeout(settleTimer); clearTimeout(snapshotTimer); clearTimeout(overall);
       socket.destroy(); resolve({ ok: !diagnostic, state, diagnostic, packets, user });
     }
     function fail(code: string, reason: string, details: Record<string, unknown> = {}) {
@@ -88,9 +91,9 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     }
     function worldReady() {
       if (!entities || !snapshot || settleTimer) return;
-      clearTimeout(stepTimer);
+      clearTimeout(stepTimer); clearTimeout(snapshotTimer);
       settleTimer = setTimeout(() => {
-        emit('world_initialization_received', { mapId, entitiesReceived: true, playersSnapshotReceived: true });
+        emit('world_initialization_received', { mapId, entitiesReceived: true, playersSnapshotReceived: players });
         if (!options.session) { finish(); return; }
         clearTimeout(overall); ready = true;
         options.session.onReady({ send: (opcode, payload) => { if (!done) write(opcode, payload); }, close: () => finish(), user });
@@ -177,9 +180,12 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
               emit('user_map', { kind: 'derived', sourceEvent: 's2c/11', map: user.map }); step('entities'); break;
             case 43:
               if (state !== 'entities') break;
-              entities = true; emit('initial_entities_received', { mapId: r.string(), payloadBytes: packet.payload.length }); worldReady(); break;
+              entities = true; emit('initial_entities_received', { mapId: r.string(), payloadBytes: packet.payload.length }); worldReady();
+              // Alone in the zone, the server sends no s2c/1263 at all.
+              if (!snapshot) snapshotTimer ??= setTimeout(() => { snapshot = true; emit('players_snapshot_absent', { mapId }); worldReady(); }, options.snapshotWaitMs ?? 1500);
+              break;
             // Receipt is what counts: a player record this decoder does not know yet is already a schema_warning.
-            case 1263: snapshot = true; worldReady(); break;
+            case 1263: snapshot = players = true; worldReady(); break;
           }
         }
       } catch (error) {

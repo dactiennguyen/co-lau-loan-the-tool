@@ -6,8 +6,8 @@ import { buildRequest, decodeEvent } from '../../src/events.ts';
 
 export const scenario = fixtures.scenario;
 const boot = fixtures.prelogin;
-export type SimFault = 'none' | 'bad-key' | 'bad-frame' | 'bad-map' | 'new-opcode' | 'stall-map' | 'already-online';
-export const SIM_FAULTS = ['none', 'bad-key', 'bad-frame', 'bad-map', 'new-opcode', 'stall-map', 'already-online'] as const;
+export type SimFault = 'none' | 'bad-key' | 'bad-frame' | 'bad-map' | 'new-opcode' | 'stall-map' | 'already-online' | 'alone-in-zone';
+export const SIM_FAULTS = ['none', 'bad-key', 'bad-frame', 'bad-map', 'new-opcode', 'stall-map', 'already-online', 'alone-in-zone'] as const;
 interface SimOptions { port?: number; fault?: SimFault; log?: (event: Record<string, unknown>) => void }
 
 /** Real local TCP server. Response bodies come from captures; framing/padding/timing are simulated. */
@@ -62,11 +62,13 @@ export async function startSimulator(options: SimOptions = {}) {
           if (fault === 'new-opcode' && opcode === 1206) reply(0, Buffer.from([1, 2]), 'injected unknown opcode', 123456789);
           for (const response of stage.responses) {
             if (!response.complete || response.hex.length / 2 !== response.bytes) throw new Error(`Truncated fixture ${response.opcode}`);
+            // Alone in the zone (M25, 31/10) the server sends no players snapshot.
+            if (fault === 'alone-in-zone' && response.opcode === 1263) continue;
             reply(response.opcode, Buffer.from(response.hex, 'hex'), `recorded stage ${opcode}`);
           }
           if (opcode === -1) keyed = true;
           if (opcode === 43) {
-            for (const push of scenario.extraPushExamples) reply(push.opcode, Buffer.from(push.hex, 'hex'), 'recorded extra example from first capture');
+            for (const push of scenario.extraPushExamples) if (fault !== 'alone-in-zone' || push.opcode !== 1263) reply(push.opcode, Buffer.from(push.hex, 'hex'), 'recorded extra example from first capture');
           }
         }
       } catch (error) { log({ event: 'sim_error', reason: (error as Error).message }); socket.destroy(); }

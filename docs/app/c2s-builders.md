@@ -157,5 +157,10 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 
 Ghi chú:
 - Kỹ năng và túi đồ dùng các gói `1191`, `48` ([12-skills-items](events/12-skills-items.md)).
+- Đồ thị gọi JNI (T2) gán thêm nghĩa cho ba gói chưa thấy trên dây ([13-drops-items](events/13-drops-items.md#c2s-1188)) [Đo tĩnh]:
+  - `1188` (`c44`) là nhặt đồ trên đất (`string uuid`), gửi từ nút "Nhặt" của lớp bản đồ.
+  - `1174` (`q120`) gửi chữ người chơi gõ trong một hộp nhập.
+  - `1181` (`a122`) là gói chạm vào một loại thực thể bản đồ, cùng chỗ với `c2s/15` và `c2s/1178`.
+- Lời gọi hàm dựng đi qua JNI: method ID nằm trong mảng `cmethods` của lớp gọi, được tạo lần đầu bằng `GetMethodID`. Không có lệnh `BL` trực tiếp. Muốn biết ai gọi hàm dựng nào thì phải ghép call site với khối `GetMethodID` đã điền ô đó (T2).
 - `c2s/1265` (Sứ quân) có trên dây nhưng không có hàm dựng trong `sqlq`: được dựng ở lớp khác. [Đo]
 - Opcode của bảng mã mà không có hàm nào ở đây có thể là gói chỉ chạy chiều server → client, hoặc được dựng ngoài `sqlq`. [Suy luận]

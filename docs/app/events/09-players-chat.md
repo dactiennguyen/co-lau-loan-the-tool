@@ -276,7 +276,7 @@ Vì sao là vật phẩm rơi:
 - Rơi theo nhóm cùng lúc, cách nhau đúng 32 đơn vị, ví dụ mã 41 + 412 + 312 ở x = 1391, 1423, 1455. [Đo]
 - Thường bị xoá bằng `1183` sau 7–20 s; vài cái nằm tới 212 s. [Đo]
 - `.so` có chuỗi "Nhặt". Bản ghi cùng khuôn với vật phẩm trong túi ở `s2c/1187`. [Đo]
-- Hai ảnh chụp lúc vật phẩm xuất hiện gần nhân vật chưa thấy rõ hình vật phẩm. Mã `41` nhiều khả năng là tiền. [Suy luận]
+- Tên theo bảng vật phẩm của game ([13-drops-items](13-drops-items.md#bảng-vật-phẩm)): mã `41` là Xu khóa, `411`–`413` là Đá cấp 1–3, các mã 104 byte là trang bị cấp 1. [Đo]
 
 ## Gói khác thấy trong L1 (người chơi tự bấm trên máy)
 
@@ -300,4 +300,4 @@ Trong L1, ai đó dùng chính điện thoại để trả nhiệm vụ, nhận 
 - `field14` của `1262`; trạng thái 2, 3, 4, 8; `cờ[0]`, `cờ[1]`, `cờ[4]`.
 - Ý nghĩa của khối ngoại hình, `loại`, hiệu ứng 9300–9302, `i32` trước tên sứ quân.
 - Gói gửi chat Thế giới và chat riêng.
-- Tên của các mã vật phẩm; ai được nhặt và trong bao lâu.
+- Ai được nhặt và trong bao lâu. Gói nhặt `c2s/1188 (uuid)` mới đọc tĩnh, chưa gửi thử ([13-drops-items](13-drops-items.md#c2s-1188)).

@@ -8,7 +8,7 @@ async function run(fault: SimFault = 'none') {
   const events: Record<string, any>[] = [], serverEvents: Record<string, any>[] = [];
   const server = await startSimulator({ fault, log: e => serverEvents.push(e) });
   try {
-    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 120, log: e => events.push(e) });
+    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 120, snapshotWaitMs: 40, log: e => events.push(e) });
     return { result, events, serverEvents };
   } finally { await server.close(); }
 }
@@ -50,6 +50,14 @@ for (const [fault, code, state] of [
     if (fault === 'already-online') assert.equal(result.diagnostic?.reason, 'Tài khoản hiện đang đăng nhập ở một nơi khác');
   });
 }
+
+test('a zone with no other player sends no s2c/1263: the client enters the world after s2c/43 anyway', async () => {
+  const { result, events } = await run('alone-in-zone');
+  assert.equal(result.ok, true, JSON.stringify(events.filter(e => e.kind === 'lifecycle')));
+  assert.ok(!events.some(e => e.event === 's2c/1263'));
+  assert.ok(events.some(e => e.event === 'players_snapshot_absent'));
+  assert.ok(events.some(e => e.event === 'world_initialization_received' && e.playersSnapshotReceived === false));
+});
 
 test('new opcode is reported and consumed without losing XOR stream position', async () => {
   const { result, events } = await run('new-opcode');

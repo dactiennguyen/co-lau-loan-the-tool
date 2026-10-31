@@ -50,7 +50,7 @@ Bot dừng khi thua đủ `--max-losses` trận (trừ trận boss của bước
 
 ```text
 quest-run.ts ─ envConnection() ─ runClient({ mode: 'world', session: QuestBot })
-client.ts    đăng nhập theo FLOW (c2s/30 gửi hệ nhân vật = field01 của s2c/9); sau s2c/43 + s2c/1263 gọi session.onReady(api)
+client.ts    đăng nhập theo FLOW (c2s/30 gửi hệ nhân vật = field01 của s2c/9); sau s2c/43 + s2c/1263 (khu vắng: 1,5 s sau s2c/43) gọi session.onReady(api)
              và chuyển mọi gói cho session.onPacket
 quest.ts     QuestBot: đọc s2c/39, chọn bước (stepAction), gửi c2s/13 (NPC hoặc cổng), c2s/15 hoặc c2s/1178 (boss),
              c2s/10 (điểm tiềm năng), c2s/1191 (điểm kỹ năng); s2c/9 + s2c/30 → cấp từng kỹ năng và cây kỹ năng;
@@ -93,6 +93,7 @@ npm run scan
 | Tham số | Mặc định | Ý nghĩa |
 |---|---|---|
 | `--atlas=<file>` | `data/maps.json` | File đọc vào rồi ghi lại sau mỗi map và mỗi cổng bị từ chối |
+| `CLLT_TRACE=<file>` | | Ghi mọi log client ra JSONL kèm hex đầy đủ, như `npm run quest`. Đồ đang nằm trên đất của từng map là `s2c/1184` trong file này ([13-drops-items](../../app/events/13-drops-items.md#đồ-đã-thấy)) |
 
 `data/maps.json` ([src/atlas.ts](../../../src/atlas.ts)) gồm:
 

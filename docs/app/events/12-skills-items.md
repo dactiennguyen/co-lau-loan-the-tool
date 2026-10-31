@@ -150,18 +150,18 @@ Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. `
 | Ô | Mã | Món | Số lượng | Độ bền | Phẩm | Chỉ số | Căn cứ |
 |---|---:|---|---:|---:|---:|---|---|
 | Túi 0 | 0 | Hoàn Linh Dược | 4 | | | | Popup: "Bơm 30% sinh lực" [Đo] |
-| Túi 1 | 412 | | 1 | | | | [Chưa rõ] |
-| Túi 2 | 147 | Áo (Hào Kiệt?) | 1 | 60 | 1 | 6: 7; 3: 5 | Biểu tượng áo, thưởng nhiệm vụ 3 [Suy luận] |
-| Túi 3 | 48 | Nón (Lá?) | 1 | 60 | 1 | 6: 5; 9: 66 | Biểu tượng nón, thưởng nhiệm vụ 3 [Suy luận] |
-| Túi 4 | 306 | Nhẫn (Trơn?) | 1 | 60 | 1 | 5: 9; 8: 1 | Biểu tượng nhẫn, thưởng nhiệm vụ 4 [Suy luận] |
-| Túi 5 | 415 | Viên màu cam | 1 | | | | [Chưa rõ] |
+| Túi 1 | 412 | Đá cấp 2 | 1 | | | | [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) [Đo] |
+| Túi 2 | 147 | Áo Hào Kiệt | 1 | 60 | 1 | 6: 7; 3: 5 | Thưởng nhiệm vụ 3; bảng vật phẩm [Đo] |
+| Túi 3 | 48 | Nón Lá | 1 | 60 | 1 | 6: 5; 9: 66 | Thưởng nhiệm vụ 3; bảng vật phẩm [Đo] |
+| Túi 4 | 306 | Nhẫn Trơn | 1 | 60 | 1 | 5: 9; 8: 1 | Thưởng nhiệm vụ 4; bảng vật phẩm [Đo] |
+| Túi 5 | 415 | Đá cấp 5 | 1 | | | | Viên màu cam; [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) [Đo] |
 | Túi 6 | 2 | Búa sửa chữa | 1 | | | | Mất khỏi túi sau khi sửa [Đo] |
-| Túi 7 | 1 | Bình xanh (Kim Đan Dược?) | 1 | | | | [Suy luận] |
+| Túi 7 | 1 | Kim Đan Dược | 1 | | | | Bình xanh; [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) [Đo] |
 | Trang bị 0 | 54 | Nón Âu Lạc (hệ Lôi, Hiếm) | 1 | 0 → đã sửa | 2 | 6: 4; 9: 58 | Popup: "Độ bền 0/60, +4 phòng thủ, +58 sinh lực" [Đo] |
-| Trang bị 2 | 261 | Vũ khí | 1 | 0 | 1 | 5: 8; 2: 10 | Vẫn hỏng [Đo] |
+| Trang bị 2 | 261 | Rìu Âu Lạc (hệ Lôi) | 1 | 0 | 1 | 5: 8; 2: 10 | Vẫn hỏng; tên và hệ theo bảng vật phẩm [Đo] |
 
-- **Mã chỉ số**: 6 là phòng thủ, 9 là sinh lực (popup Nón Âu Lạc). [Đo] Mã 2, 3, 5, 8 [Chưa rõ]. Vũ khí có 2 và 5, nên có thể là Tấn công và Chính xác.
-- **Phẩm**: 2 là "Hiếm" (popup), 1 có lẽ là "Thường". [Suy luận]
+- **Mã chỉ số** theo bảng `it0` của game ([mã chỉ số](13-drops-items.md#mã-chỉ-số)): 2 nội lực, 3 thân pháp, 5 sức tấn công, 6 phòng thủ, 8 % chí mạng, 9 sinh lực. Mã 6 và 9 khớp popup Nón Âu Lạc. [Đo]
+- **Phẩm**: 2 là "Hiếm" (popup), 1 có lẽ là "Thường". Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi ([13](13-drops-items.md#đồ-đã-thấy)). [Suy luận]
 - Hai trang bị hỏng từ Q6 ([10-quests](10-quests.md#kết-quả-q3-q4)) chính là chiếc nón (mã 54) và vũ khí (mã 261), cả hai độ bền 0 trong `s2c/9`. [Đo]
 
 Cẩm nang về trang bị (C1):
@@ -208,7 +208,7 @@ Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bả
 | Boss | Không có Thưởng, chỉ có Điểm Thu Thập. Đầu hàng trận boss của nhiệm vụ chính không bị trừ EXP | Khớp B4 |
 | Vàng | Thỏi vàng ăn trong trận. Đủ 10.000 thì tự đổi thành 10.000 Xu khoá | Thanh "2664/10000" trên bảng Bản thân là Vàng ([user-data](../user-data.md)) |
 | Tăng Kinh Nghiệm | Nhân đôi EXP thắng trận trong 24 giờ, kể cả lúc offline | |
-| Đồ rơi | Hòm đồ có thể rơi sau trận. Đứng lên hòm rồi bấm Nhặt | `s2c/1182`; gói nhặt chưa biết |
+| Đồ rơi | Hòm đồ có thể rơi sau trận. Đứng lên hòm rồi bấm Nhặt | `s2c/1182`; nút Nhặt gửi `c2s/1188 (uuid)`, đọc tĩnh, chưa gửi thử ([13](13-drops-items.md#c2s-1188)) |
 | Nhiệm vụ hằng ngày | Nhận ở Hương Lão Trần Bá, tối đa 3 một ngày, làm từng cái một, trả cũng ở đó, huỷ được. Thưởng EXP, Xu khoá hoặc vật phẩm | Tab "Phụ" hiện "Chưa có nhiệm vụ" |
 | Quà cấp | Đạt cấp 20, 40, 60… tới 200 thì nhận quà qua Hòm thư | manina cấp 21 |
 | Bản đồ thế giới | Chạm một thành rồi "Vào thành" để đi nhanh. Ổ khoá nghĩa là phải làm tiếp nhiệm vụ chính | Cổng Hồng Giang ([10-quests](10-quests.md#cổng)) |
@@ -219,8 +219,7 @@ Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bả
 ## Chưa rõ
 
 - Nghĩa hai trường của `c2s/48`, và biến thể `a46` (`u8; i32; i32`).
-- Gói dùng bình, nhặt đồ, nhận và trả nhiệm vụ hằng ngày, mua ở NPC.
-- `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều"; mã chỉ số 2, 3, 5, 8 của trang bị.
-- Tên vật phẩm mã 1, 412, 415, 261.
+- Gói dùng bình, nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã đọc tĩnh nhưng chưa gửi thử ([13](13-drops-items.md#c2s-1188)).
+- `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều".
 - Sau sửa đồ, chỉ số có đổi trước lần `s2c/10` sau (sau trận, đăng nhập lại) không.
 - Cây kỹ năng và giá trị `field01` của hệ Lôi.

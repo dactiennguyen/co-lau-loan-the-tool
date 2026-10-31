@@ -1,3 +1,4 @@
+import { createWriteStream } from 'node:fs';
 import { runClient } from './client.ts';
 import { MapScanner } from './map-scan.ts';
 import { loadAtlas, saveAtlas } from './atlas.ts';
@@ -8,8 +9,12 @@ import { envConnection } from './env.ts';
 const arg = (name: string) => process.argv.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const path = arg('atlas') ?? 'data/maps.json', atlas = loadAtlas(path);
 const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
+// CLLT_TRACE=<file> keeps every client log with full packet hex, as for quest-run (ground items of each map: s2c/1184).
+const trace = process.env.CLLT_TRACE ? createWriteStream(process.env.CLLT_TRACE) : undefined;
 const scanner = new MapScanner({ atlas, log: show, save: () => saveAtlas(path, atlas) });
-const result = await runClient({ ...envConnection(), mode: 'world', session: scanner, log: e => { if (e.event === 'failed') show(e); } });
+const result = await runClient({ ...envConnection(), mode: 'world', session: scanner, hexBytes: trace ? 65536 : 128,
+  log: e => { trace?.write(JSON.stringify(e) + '\n'); if (e.event === 'failed') show(e); } });
 await scanner.finished;
+trace?.end();
 show({ kind: 'summary', event: 'map_scan_result', ok: result.ok, state: result.state, diagnostic: result.diagnostic, maps: [...scanner.visited], atlas: path });
 if (!result.ok) process.exitCode = 1;
