@@ -43,11 +43,19 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            app/desktop/package-lock.json
 
       # TypeScript itself and the Node types, for the type-check.
       - name: npm ci
         run: npm ci
+
+      # The tests import app/desktop/src/updates.ts and toasts.ts, which take types from the desktop's packages
+      # (@tauri-apps/api): the type-check needs them installed as the app has them.
+      - name: npm ci (app/desktop)
+        run: npm ci
+        working-directory: app/desktop
 
       # tsc --noEmit over src/ and test/, then decoders, bots and docs links; test/rust-export.test.ts fails when app/core
       # was not re-exported after a TS change.
