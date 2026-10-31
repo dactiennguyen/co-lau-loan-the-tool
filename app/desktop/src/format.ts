@@ -6,6 +6,12 @@ const percents = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 /** 14238 → "14.238"; null → "—". */
 export const num = (n: number | null | undefined) => (n == null ? "—" : numbers.format(n));
 export const pct = (part: number) => `${percents.format(part * 100)}%`;
+/** A size on disk: 812 KB, 5,4 MB, 1,2 GB. */
+export function size(bytes: number) {
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${numbers.format(Math.max(1, Math.round(kb)))} KB`;
+  return kb < 1024 * 1024 ? `${percents.format(kb / 1024)} MB` : `${percents.format(kb / 1024 / 1024)} GB`;
+}
 export const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
 /** 245 → "4:05", 3723 → "1:02:03": seconds as a clock. */

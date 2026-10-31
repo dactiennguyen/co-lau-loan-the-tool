@@ -8,6 +8,10 @@ pub struct Manager {
     atlas: Arc<Atlas>,
     sessions: std::collections::HashMap<u64, UnboundedSender<Command>>,
     emit: Arc<dyn Fn(u64, Event) + Send + Sync>,
+    /// Where the sessions started from now on connect (set_server).
+    server: Server,
+    /// Lưu dữ liệu trận of every session (set_record).
+    record: bool,
 }
 impl Manager {
     pub fn new(
@@ -23,7 +27,23 @@ impl Manager {
             atlas: Arc::new(atlas),
             sessions: Default::default(),
             emit: Arc::new(emit),
+            server: Server::default(),
+            record: true,
         })
+    }
+    /// The game server of the logins from now on; the sessions running stay where they are.
+    pub fn set_server(&mut self, server: Server) {
+        self.server = server;
+    }
+    /// Lưu dữ liệu trận, for the sessions started from now on and those running (Command::Record).
+    pub fn set_record(&mut self, on: bool) {
+        if on == self.record {
+            return;
+        }
+        self.record = on;
+        for s in self.sessions.values() {
+            let _ = s.send(Command::Record(on));
+        }
     }
     pub fn running(&self, id: u64) -> bool {
         self.sessions.get(&id).is_some_and(|s| !s.is_closed())
@@ -37,6 +57,8 @@ impl Manager {
         self.sessions.insert(id, tx);
         let emit = self.emit.clone();
         self.runtime.spawn(run(
+            self.server.clone(),
+            self.record,
             account,
             self.atlas.clone(),
             rx,

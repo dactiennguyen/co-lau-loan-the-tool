@@ -43,6 +43,8 @@ pub enum Command {
     Stats(Option<StatPlan>),
     /// Cài đặt đánh (Bot::set_fight).
     FightSettings(FightSettings),
+    /// Lưu dữ liệu trận of the app's Cài đặt (Bot::set_record).
+    Record(bool),
     /// "Lượt thua còn lại" of the fight job or quest run going on (Bot::set_losses_left).
     LossesLeft(u32),
     /// "Cộng +1" on the potential of that c2s/10 index (Bot::add_stat).
@@ -86,6 +88,27 @@ pub enum Event {
     Pickup(Box<PickupRecord>),
     /// The packets of a battle and what both sides were (Out::BattleData), for battle_data of cllt.db.
     BattleData(Box<BattleData>),
+}
+
+/// The game server the sessions connect to: play.colauloanthe.vn:1688, as the game's config says, unless the app's Cài
+/// đặt names another (Manager::set_server).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Server {
+    pub host: String,
+    pub port: u16,
+}
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            host: HOST.into(),
+            port: PORT,
+        }
+    }
+}
+impl Server {
+    fn addr(&self) -> (&str, u16) {
+        (&self.host, self.port)
+    }
 }
 
 type Emit = Arc<dyn Fn(Event) + Send + Sync>;

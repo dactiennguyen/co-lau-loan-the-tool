@@ -10,11 +10,12 @@
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
 // UI is sent (../src/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
-// update.rs updates the installed app from the GitHub releases.
+// update.rs updates the installed app from the GitHub releases; settings.rs is the Cài đặt of the app (settings.json).
 mod app;
 mod commands;
 mod paths;
 mod sample;
+mod settings;
 mod store;
 mod update;
 mod view;
@@ -54,6 +55,7 @@ pub fn run() {
             let (wake, woken) = std::sync::mpsc::channel();
             let accounts = paths::accounts(tauri_app.path())?;
             let mut app = App::new(manager, accounts.clone(), wake);
+            app.apply_settings(settings::load(&app.settings_path()));
             if sample {
                 sample::fill(&mut app);
             } else {
@@ -106,6 +108,10 @@ pub fn run() {
             commands::test_proxy,
             commands::account_secrets,
             commands::remove_account,
+            commands::settings,
+            commands::set_settings,
+            commands::export_battles,
+            commands::reveal_export,
             commands::update_status,
             commands::check_update,
             commands::install_update,

@@ -13,7 +13,10 @@ import type {
   LogKind,
   LogLine,
   ProxyForm,
+  Exported,
   Secrets,
+  Settings,
+  SettingsView,
   StatPlan,
   StoredBattle,
   UpdateView,
@@ -91,6 +94,16 @@ export interface Api {
   testProxy(proxy: ProxyForm, id?: number): Promise<number>;
   /** The saved passwords of the account, which Sửa nick fills in; nothing else sends them. */
   accountSecrets(id: number): Promise<Secrets>;
+  /** Cài đặt of the app, their defaults, and what Lưu dữ liệu trận has kept. */
+  settings(): Promise<SettingsView>;
+  /** Saves the Cài đặt: the game server counts from the next login, Lưu dữ liệu trận at once. Rejects with a message
+   * to show. */
+  setSettings(settings: Settings): Promise<void>;
+  /** Xuất dữ liệu trận: every saved battle into a new cllt-battles-<time>.db in Downloads; rejects with a message to
+   * show. */
+  exportBattles(): Promise<Exported>;
+  /** The file of an export, selected in Finder or Explorer. */
+  revealExport(path: string): Promise<void>;
   onAccounts(handler: (update: AccountsUpdate) => void): Promise<UnlistenFn>;
   /** The lines logged since the last event, of every account. */
   onLog(handler: (events: LogEvent[]) => void): Promise<UnlistenFn>;
@@ -125,6 +138,10 @@ const tauri: Api = {
   removeAccount: (id) => invoke("remove_account", { id }),
   testProxy: (proxy, id) => invoke("test_proxy", { proxy, id: id ?? null }),
   accountSecrets: (id) => invoke("account_secrets", { id }),
+  settings: () => invoke("settings"),
+  setSettings: (settings) => invoke("set_settings", { settings }),
+  exportBattles: () => invoke("export_battles"),
+  revealExport: (path) => invoke("reveal_export", { path }),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
   onLog: (handler) => listen<LogEvent[]>("log", (e) => handler(e.payload)),
   updateStatus: () => invoke("update_status"),
@@ -176,6 +193,13 @@ const preview: Api = {
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),
   testProxy: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không kiểm tra được proxy")),
   accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
+  settings: async () => {
+    const defaults = { server: { host: "play.colauloanthe.vn", port: 1688 }, record: true };
+    return { settings: defaults, defaults, battleData: { battles: 1284, bytes: 5_712_384 } };
+  },
+  setSettings: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu cài đặt")),
+  exportBattles: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xuất được dữ liệu trận")),
+  revealExport: nothing,
   onAccounts: async () => () => {},
   onLog: async () => () => {},
   updateStatus: async () => ({ current: "0.2.0", state: "off", reason: "bản xem thử trong trình duyệt" }),

@@ -43,13 +43,9 @@ pub(super) async fn tunnel(p: &Proxy, server: (&str, u16)) -> Result<(TcpStream,
 
 /// "Kiểm tra" of the proxy in the add and edit form, and the test before saving: reaches the game server through
 /// `proxy` and waits for its 4-byte seed, then closes without logging in. How long that took.
-pub async fn check_proxy(proxy: &Proxy) -> Result<Duration, Error> {
-    check_proxy_at((HOST, PORT), proxy).await
-}
-
-pub(super) async fn check_proxy_at(server: (&str, u16), proxy: &Proxy) -> Result<Duration, Error> {
+pub async fn check_proxy(server: &Server, proxy: &Proxy) -> Result<Duration, Error> {
     let start = Instant::now();
-    let (mut stream, early) = tunnel(proxy, server).await?;
+    let (mut stream, early) = tunnel(proxy, server.addr()).await?;
     if early.len() < 4 {
         let mut rest = vec![0u8; 4 - early.len()];
         timeout(STEP, stream.read_exact(&mut rest))

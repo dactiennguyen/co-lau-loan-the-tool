@@ -3,27 +3,18 @@
 use super::connect::connect;
 use super::*;
 
-/// Runs the session of `account` until Logout, the server closing, or an error; reports through `emit`.
+/// Runs the session of `account` on `server` until Logout, the server closing, or an error; reports through `emit`.
+/// `record` is Lưu dữ liệu trận (BotOptions::record).
 pub async fn run(
-    account: Account,
-    atlas: Arc<Atlas>,
-    commands: UnboundedReceiver<Command>,
-    emit: Emit,
-) {
-    run_at(HOST.into(), PORT, account, atlas, commands, emit).await
-}
-
-/// `run` against the server at `host`:`port` (the tests run a local one).
-pub(super) async fn run_at(
-    host: String,
-    port: u16,
+    server: Server,
+    record: bool,
     account: Account,
     atlas: Arc<Atlas>,
     mut commands: UnboundedReceiver<Command>,
     emit: Emit,
 ) {
     emit(Event::State(ConnState::Connecting));
-    let state = match session((&host, port), &account, atlas, &mut commands, &emit).await {
+    let state = match session(server.addr(), record, &account, atlas, &mut commands, &emit).await {
         Ok(()) => ConnState::Offline,
         Err(e) => ConnState::Error(e),
     };
@@ -66,6 +57,7 @@ pub(super) fn unread(op: i32, e: impl std::fmt::Display) -> Error {
 
 pub(super) async fn session(
     server: (&str, u16),
+    record: bool,
     account: &Account,
     atlas: Arc<Atlas>,
     commands: &mut UnboundedReceiver<Command>,
@@ -99,6 +91,7 @@ pub(super) async fn session(
         skill: account.skill,
         stats: account.stats,
         fight: account.fight,
+        record,
         ..BotOptions::default()
     };
     let mut bot = Bot::new(options, atlas);
@@ -238,6 +231,7 @@ pub(super) async fn session(
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
                     Some(Command::FightSettings(settings)) => bot.set_fight(settings, &mut out),
+                    Some(Command::Record(on)) => bot.set_record(on, &mut out),
                     Some(Command::LossesLeft(left)) => bot.set_losses_left(left, &mut out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),

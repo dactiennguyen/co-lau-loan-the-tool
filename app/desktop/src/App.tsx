@@ -5,6 +5,7 @@ import { AccountDialog } from "./views/AccountDialog";
 import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
 import { PlaceDialog } from "./views/PlaceDialog";
+import { SettingsDialog } from "./views/SettingsDialog";
 import { ShopDialog } from "./views/ShopDialog";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
@@ -33,8 +34,8 @@ export default function App() {
   );
 }
 
-/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Cửa hàng, and Khởi
- * động lại để cập nhật while accounts play; nothing once the account it is about is gone. */
+/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Cửa hàng, Khởi động
+ * lại để cập nhật while accounts play, and the Cài đặt of the app; nothing once the account it is about is gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   const account = useStore((s) => (dialog && "id" in dialog ? s.byId[dialog.id] : undefined));
@@ -54,6 +55,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "update") {
     return <UpdateDialog onClose={close} />;
+  }
+  if (dialog?.kind === "settings") {
+    return <SettingsDialog onClose={close} />;
   }
   if (dialog?.kind === "stop" && account) {
     return <StopDialog account={account} onClose={close} />;

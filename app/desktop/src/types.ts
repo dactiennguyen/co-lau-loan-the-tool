@@ -465,12 +465,34 @@ export interface FightSettings {
   repair: boolean;
   /** Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up. */
   pickup: boolean;
-  /** Lưu dữ liệu trận, on unless turned off: every battle's packets go into battle_data of cllt.db. */
-  record: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;
   questLosses: number;
+}
+
+/** Settings of settings.rs: the Cài đặt of the app, the same for every account. */
+export interface Settings {
+  /** Where the sessions connect from their next login; play.colauloanthe.vn:1688 by default. */
+  server: { host: string; port: number };
+  /** Lưu dữ liệu trận: every battle of every account into battle_data of cllt.db. */
+  record: boolean;
+}
+
+/** SettingsView of settings.rs: what Cài đặt opens with. */
+export interface SettingsView {
+  settings: Settings;
+  /** What Mặc định puts back. */
+  defaults: Settings;
+  /** What Lưu dữ liệu trận has kept; null without cllt.db. */
+  battleData: { battles: number; bytes: number } | null;
+}
+
+/** Exported of settings.rs: the file Xuất dữ liệu trận wrote. */
+export interface Exported {
+  path: string;
+  battles: number;
+  bytes: number;
 }
 
 export interface AppState {

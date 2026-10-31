@@ -20,7 +20,9 @@ export type Dialog =
   /** Cửa hàng of Lái Buôn, with the item to pick first (Mua búa: 2). */
   | { kind: "shop"; id: number; item?: number }
   /** Khởi động lại để cập nhật while accounts are in the game. */
-  | { kind: "update" };
+  | { kind: "update" }
+  /** Cài đặt of the app: game server, Lưu and Xuất dữ liệu trận. */
+  | { kind: "settings" };
 
 export interface Store extends Accounts {
   /** Why accounts.json could not be read; the app then never writes it. */

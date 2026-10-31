@@ -1,9 +1,9 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { Hint } from "../components/Hint";
-import { Icon, type IconName } from "../components/Icon";
+import { Icon } from "../components/Icon";
+import { SettingRow } from "../components/SettingRow";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account, FightSettings, Item } from "../types";
@@ -12,52 +12,12 @@ import "./FightSettingsCard.css";
 /** Item id of the Búa Sửa Chữa. */
 const HAMMER = 2;
 
-interface SettingProps {
-  id: string;
-  on: boolean;
-  disabled: boolean;
-  onChange: (on: boolean) => void;
-  icon: IconName;
-  title: string;
-  /** What the setting does, behind its "?". */
-  hint: string;
-  /** What the bot sees for it, beside the name. */
-  children?: ReactNode;
-}
-
-/** One setting on one dark row: the box, its name and the space up to Bật/Tắt toggle it; the "?" between them only
- * explains. */
-function Setting({ id, on, disabled, onChange, icon, title, hint, children }: SettingProps) {
-  return (
-    <div className={`setting${on ? " setting--on" : ""}`}>
-      <div className="setting__row">
-        <input id={id} type="checkbox" checked={on} disabled={disabled} aria-describedby={`${id}-hint`} onChange={(e) => onChange(e.target.checked)} />
-        <label htmlFor={id} className="setting__pick">
-          <span className="setting__box" aria-hidden="true">
-            <Icon name="check" size={12} />
-          </span>
-          <span className="setting__icon" aria-hidden="true">
-            <Icon name={icon} size={14} />
-          </span>
-          <span className="setting__title">{title}</span>
-        </label>
-        <Hint label={`${title} là gì?`} id={`${id}-hint`}>
-          {hint}
-        </Hint>
-        {children && <span className="setting__facts">{children}</span>}
-        <label htmlFor={id} className="setting__state" aria-hidden="true">
-          {on ? "Bật" : "Tắt"}
-        </label>
-      </div>
-    </div>
-  );
-}
-
 /**
  * Cài đặt tab: what the bot does on its own around the battles it plays (FightSettings of cllt-core), per account. A
  * change is saved to accounts.json and reaches a session at once; it shows as chosen while it saves. Beside Tự sửa đồ,
  * once in the game: the hammers of the bag and the worn items that are broken, with Mua búa when none is left (the bot
- * never buys one itself). Tự nhặt đồ and Lưu dữ liệu trận are on unless turned off.
+ * never buys one itself). Tự nhặt đồ is on unless turned off. Lưu dữ liệu trận is not here: it is the same for every
+ * account, in the Cài đặt of the app (SettingsDialog).
  */
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -68,7 +28,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const [error, setError] = useState<string | null>(null);
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update.
   useEffect(() => {
-    if (saving && saving.repair === saved.repair && saving.pickup === saved.pickup && saving.record === saved.record) setSaving(null);
+    if (saving && saving.repair === saved.repair && saving.pickup === saved.pickup) setSaving(null);
   }, [saving, saved]);
   const settings = saving ?? saved;
   const save = (next: FightSettings) => {
@@ -83,7 +43,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const broken = (c?.gear ?? []).filter((g): g is Item & { durability: [number, number] } => g?.durability?.[0] === 0);
   return (
     <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ" className="settings">
-      <Setting
+      <SettingRow
         id={`${id}repair`}
         on={settings.repair}
         disabled={!!saving}
@@ -109,8 +69,8 @@ export function FightSettingsCard({ account }: { account: Account }) {
             )}
           </>
         )}
-      </Setting>
-      <Setting
+      </SettingRow>
+      <SettingRow
         id={`${id}pickup`}
         on={settings.pickup}
         disabled={!!saving}
@@ -118,15 +78,6 @@ export function FightSettingsCard({ account }: { account: Account }) {
         icon="gem"
         title="Tự nhặt đồ"
         hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Không nhặt đồ người khác làm rơi. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
-      />
-      <Setting
-        id={`${id}record`}
-        on={settings.record}
-        disabled={!!saving}
-        onChange={(record) => save({ ...settings, record })}
-        icon="chart"
-        title="Lưu dữ liệu trận"
-        hint="Mỗi trận được lưu vào cllt.db: chỉ số, hệ, kỹ năng, đồ của nhân vật, quái và hệ của quái, mọi gói tin của trận và kết quả, khoảng 4–5 KB một trận. Dùng để học thuật toán đánh (npm run battles). Không lưu mật khẩu, chat hay người chơi khác; không bị xoá sau 90 ngày như lịch sử trận."
       />
       {error && (
         <p className="settings__error selectable" role="alert">

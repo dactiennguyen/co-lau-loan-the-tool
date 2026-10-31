@@ -81,11 +81,12 @@ app/
       styles/                 tokens.css (màu, font, bo góc), base.css
       components/             thành phần dùng chung, không biết gì về game, mỗi cái một .tsx + .css:
                               Button, Icon, Badge, Pill, Bar, Avatar, Card, Stepper (ô số gõ được), StatTile, Tabs, TextField, Hint (dấu ? có lời giải thích),
-                              ItemSlot (một ô túi đồ), Dialog (khung hộp thoại), Menu (menu chuột phải)
+                              ItemSlot (một ô túi đồ), Dialog (khung hộp thoại), Menu (menu chuột phải),
+                              SettingRow (một dòng bật/tắt có dấu ?)
       views/                  các phần của app: Sidebar, AccountCard, AccountPage, HeroCard, MetricRow, StatsCard,
                               PlayersCard, QuestCard, FightCard, FightSettingsCard (Cài đặt), InventoryCard và ItemDetail
                               (Túi đồ), SkillsCard (Kỹ năng), LogCard, AccountDialog (thêm và sửa nick), ConfirmDialog (hỏi trước khi
-                              xoá), EmptyState
+                              xoá), SettingsDialog (Cài đặt của app), EmptyState
       itemIcons.ts, skillIcons.ts  icon vật phẩm và kỹ năng của data/icons, Vite gom vào bản build
       assets/fonts/           Silkscreen (chữ pixel cho số) và Be Vietnam Pro (chữ tiếng Việt), cả hai OFL
     src-tauri/              crate cllt-desktop
@@ -101,6 +102,8 @@ app/
                               và dòng nhật ký mới ("log"); ghi accounts.json ngoài khoá chung
       src/view.rs             Snapshot → AccountView mà giao diện nhận
       src/paths.rs            accounts.json, data/maps.json
+      src/settings.rs         Cài đặt của app (settings.json): server game, Lưu dữ liệu trận;
+                              tên file và Mở thư mục của Xuất dữ liệu trận
       src/sample.rs           dữ liệu mẫu cho --sample, --dump-sample
       src/update.rs           tự cập nhật từ GitHub Releases (tauri-plugin-updater), xem Tự cập nhật
       src/store.rs            cllt.db (SQLite): nhật ký, lịch sử trận và đồ nhặt, phiên bản bảng (user_version)

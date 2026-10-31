@@ -144,16 +144,6 @@ impl Bot {
                 .into(),
             ));
         }
-        if settings.record != self.fight.record {
-            out.push(Out::Log(
-                LogKind::Battle,
-                match settings.record {
-                    true => "Bật lưu dữ liệu trận: gói tin của mỗi trận được lưu vào cllt.db",
-                    false => "Tắt lưu dữ liệu trận",
-                }
-                .into(),
-            ));
-        }
         self.fight = settings;
     }
 

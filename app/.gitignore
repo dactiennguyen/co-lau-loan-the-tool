@@ -2,6 +2,9 @@ target/
 # Usernames and passwords of the accounts; local only.
 accounts.json
 
+# The Cài đặt of the desktop app (desktop/src-tauri/src/settings.rs); local only.
+settings.json
+
 # The log lines and battles of the accounts (desktop/src-tauri/src/store.rs); local only.
 cllt.db
 cllt.db-wal

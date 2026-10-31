@@ -1,11 +1,12 @@
 // Accounts and their sessions. Shared between the Tauri commands and the session events (tokio threads). A change marks
 // the account it touched and wakes the flusher thread, which sends the UI only the accounts that changed, at most every
 // FLUSH and with the revision they were read at, so the UI can drop what is older than what it shows.
+use crate::settings::{self, Settings};
 use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
 use cllt_core::bot::{add_picked, BattleResult, FightSettings, LogKind, Snapshot};
-use cllt_core::net::{Command, ConnState, Event, Manager};
+use cllt_core::net::{Command, ConnState, Event, Manager, Server};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::Proxy;
 use serde::Serialize;
@@ -124,6 +125,8 @@ pub struct App {
     pub load_error: Option<String>,
     /// cllt.db: every log line and battle, by account username. None when it could not be opened.
     store: Option<Arc<Store>>,
+    /// Cài đặt of the app (settings.json), as the manager was last given them.
+    settings: Settings,
 }
 
 /// The key of an account in cllt.db: its username in lower case, as the server takes it.
@@ -155,6 +158,10 @@ impl Shared {
     pub fn store(&self) -> Option<&Store> {
         self.store.as_deref()
     }
+    /// For work off the async threads (Xuất dữ liệu trận).
+    pub fn store_handle(&self) -> Option<Arc<Store>> {
+        self.store.clone()
+    }
     pub fn with<R>(&self, f: impl FnOnce(&mut App) -> R) -> R {
         f(&mut self.app.lock().unwrap_or_else(|e| e.into_inner()))
     }
@@ -165,7 +172,7 @@ impl Shared {
         let _turn = self.saving.lock().await;
         self.with(|app| app.unique(&account, None))?;
         if needs_check(None, account.proxy.as_ref()) {
-            check(account.proxy.as_ref().unwrap()).await?;
+            check(&self.server(), account.proxy.as_ref().unwrap()).await?;
         }
         let (path, mut list) = self.with(|app| app.saved(None, None))?;
         list.push(account.clone());
@@ -204,7 +211,7 @@ impl Shared {
             Ok::<_, String>((account, old.proxy.clone()))
         })?;
         if needs_check(old_proxy.as_ref(), account.proxy.as_ref()) {
-            check(account.proxy.as_ref().unwrap()).await?;
+            check(&self.server(), account.proxy.as_ref().unwrap()).await?;
         }
         let (path, list) = self.with(|app| app.saved(Some(id), Some(&account)))?;
         write(path, list).await?;
@@ -214,6 +221,25 @@ impl Shared {
                 app.touch(id, false);
             }
         });
+        Ok(())
+    }
+
+    /// The game server of the Cài đặt, which the proxy checks reach.
+    pub fn server(&self) -> Server {
+        self.with(|app| app.settings.server.clone())
+    }
+
+    /// Saves the Cài đặt of the app to settings.json, then gives them to the manager: the game server counts from the
+    /// next login, Lưu dữ liệu trận at once for every session. The error, for the dialog, when the file cannot be
+    /// written or a value cannot be used; nothing changes then.
+    pub async fn set_settings(&self, settings: Settings) -> Result<(), String> {
+        let settings = settings.checked()?;
+        let _turn = self.saving.lock().await;
+        let (path, saved) = (self.with(|app| app.settings_path()), settings.clone());
+        tauri::async_runtime::spawn_blocking(move || settings::save(&path, &saved))
+            .await
+            .map_err(|e| e.to_string())??;
+        self.with(|app| app.apply_settings(settings));
         Ok(())
     }
 
@@ -303,8 +329,8 @@ fn needs_check(old: Option<&Proxy>, new: Option<&Proxy>) -> bool {
 }
 
 /// The test before saving: the proxy must reach the game server (net::check_proxy).
-async fn check(proxy: &Proxy) -> Result<(), String> {
-    cllt_core::net::check_proxy(proxy)
+async fn check(server: &Server, proxy: &Proxy) -> Result<(), String> {
+    cllt_core::net::check_proxy(server, proxy)
         .await
         .map(|_| ())
         .map_err(|e| format!("Chưa lưu: kiểm tra proxy không qua. {e}"))
@@ -360,7 +386,26 @@ impl App {
             wake,
             load_error: None,
             store: None,
+            settings: Settings::default(),
         }
+    }
+
+    pub fn settings(&self) -> &Settings {
+        &self.settings
+    }
+
+    /// settings.json, beside accounts.json.
+    pub fn settings_path(&self) -> PathBuf {
+        settings::path(&self.path)
+    }
+
+    /// Gives the manager the game server of the next logins and Lưu dữ liệu trận.
+    pub fn apply_settings(&mut self, settings: Settings) {
+        if let Some(m) = &mut self.manager {
+            m.set_server(settings.server.clone());
+            m.set_record(settings.record);
+        }
+        self.settings = settings;
     }
 
     pub fn set_store(&mut self, store: Arc<Store>) {

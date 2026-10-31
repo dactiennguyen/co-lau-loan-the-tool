@@ -2,6 +2,7 @@
 // for the filters of the Nhật ký card and the Thống kê tab (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
 // mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk. PRAGMA user_version is the number of
 // MIGRATIONS applied; a change of the tables is a new entry at the end, never an edit of an old one.
+use crate::settings::BattleDataSize;
 use cllt_core::battle_record::BattleData;
 use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind, Picked, PickupRecord};
 use rusqlite::types::Value;
@@ -83,7 +84,11 @@ CREATE INDEX IF NOT EXISTS pickups_by_time ON pickups (at);
     "ALTER TABLE logs ADD COLUMN battle_at INTEGER;",
     // Lưu dữ liệu trận (battle_record.rs): each battle's packets and header, the gzip of a battle file of the TS bot.
     // Store::prune leaves it alone: it is kept for the training of the battle algorithm.
-    "
+    BATTLE_DATA,
+];
+
+/// The battle_data table of Lưu dữ liệu trận, also the table of a file of Xuất dữ liệu trận (Store::export_battle_data).
+const BATTLE_DATA: &str = "
 CREATE TABLE IF NOT EXISTS battle_data (
     id INTEGER PRIMARY KEY,
     username TEXT NOT NULL,
@@ -94,8 +99,7 @@ CREATE TABLE IF NOT EXISTS battle_data (
     packets BLOB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS battle_data_by_account ON battle_data (username, started_at);
-",
-];
+";
 
 /// A log line as cllt.db keeps it; the line of a won battle with the items picked up after it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -415,6 +419,41 @@ impl Store {
             params![username, d.started_at as i64, d.uuid, d.format, d.header, d.packets],
         )?;
         Ok(())
+    }
+
+    /// What Lưu dữ liệu trận has kept: battles, and bytes of their rows.
+    pub fn battle_data_size(&self) -> rusqlite::Result<BattleDataSize> {
+        self.db().query_row(
+            "SELECT COUNT(*), COALESCE(SUM(LENGTH(header) + LENGTH(packets)), 0) FROM battle_data",
+            [],
+            |r| {
+                Ok(BattleDataSize {
+                    battles: r.get::<_, i64>(0)? as u64,
+                    bytes: r.get::<_, i64>(1)? as u64,
+                })
+            },
+        )
+    }
+
+    /// Xuất dữ liệu trận: a new SQLite file at `to` that holds battle_data alone, as cllt.db has it; `npm run battles
+    /// --db=<file>` reads it. How many battles it holds. The file is created by the export, so it must not exist yet.
+    pub fn export_battle_data(&self, to: &Path) -> rusqlite::Result<u64> {
+        let db = self.db();
+        db.execute("ATTACH DATABASE ?1 AS export", [to.to_string_lossy()])?;
+        // The table as cllt.db has it, without its index: CREATE TABLE IF NOT EXISTS export.battle_data (…).
+        let table = BATTLE_DATA.split(';').next().unwrap_or_default();
+        let copied = db
+            .execute_batch(&format!(
+                "{};INSERT INTO export.battle_data SELECT * FROM main.battle_data;",
+                table.replacen("battle_data", "export.battle_data", 1)
+            ))
+            .and_then(|()| {
+                db.query_row("SELECT COUNT(*) FROM export.battle_data", [], |r| {
+                    r.get::<_, i64>(0)
+                })
+            });
+        db.execute("DETACH DATABASE export", [])?;
+        Ok(copied? as u64)
     }
 
     pub fn add_pickup(&self, username: &str, p: &PickupRecord) -> rusqlite::Result<()> {
@@ -920,6 +959,58 @@ mod tests {
             row,
             ("manina2".into(), 1_000, d.uuid, 1, d.header, d.packets)
         );
+    }
+
+    #[test]
+    fn battle_data_exports_to_a_file_that_holds_it_alone() {
+        let s = Store::memory().unwrap();
+        s.add_log("manina2", 1_000, LogKind::Battle, 0, "Trận 1: thắng");
+        for (i, user) in ["manina2", "ttuananh"].into_iter().enumerate() {
+            let d = BattleData {
+                uuid: format!("uuid-{i}"),
+                started_at: 1_000 + i as u64,
+                format: 1,
+                header: r#"{"kind":"header","format":1}"#.into(),
+                packets: vec![0x1f, 0x8b, 8, i as u8],
+            };
+            s.add_battle_data(user, &d).unwrap();
+        }
+        assert_eq!(
+            s.battle_data_size().unwrap(),
+            BattleDataSize {
+                battles: 2,
+                bytes: 2 * (28 + 4),
+            }
+        );
+        let dir = std::env::temp_dir().join(format!("cllt-export-db-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("cllt-battles-test.db");
+        let _ = std::fs::remove_file(&file);
+        assert_eq!(s.export_battle_data(&file).unwrap(), 2);
+        let out = Connection::open(&file).unwrap();
+        let tables: Vec<String> = out
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(tables, ["battle_data"]);
+        let rows: Vec<(String, Vec<u8>)> = out
+            .prepare("SELECT username, packets FROM battle_data ORDER BY id")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(rows[1], ("ttuananh".into(), vec![0x1f, 0x8b, 8, 1]));
+        // The database can still be written after the export, and the export can run again into another file.
+        assert_eq!(
+            s.export_battle_data(&dir.join("cllt-battles-test-2.db"))
+                .unwrap(),
+            2
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

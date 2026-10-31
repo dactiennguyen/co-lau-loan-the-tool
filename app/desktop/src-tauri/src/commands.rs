@@ -2,6 +2,7 @@
 // change the App; the flusher of app.rs tells the UI. Adding and removing an account write accounts.json, so they are
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
+use crate::settings::{self, Exported, Settings, SettingsView};
 use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
@@ -12,7 +13,7 @@ use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager as _, State};
 
 #[tauri::command]
 pub fn state(shared: State<Shared>) -> Value {
@@ -386,8 +387,67 @@ pub async fn test_proxy(
     let edit = proxy.proxy()?.ok_or("Nhập địa chỉ proxy trước")?;
     let saved = id.and_then(|id| shared.with(|app| app.proxy_of(id)));
     let proxy = crate::app::keep_password(saved.as_ref(), Some(edit)).unwrap();
-    let took = cllt_core::net::check_proxy(&proxy).await?;
+    let took = cllt_core::net::check_proxy(&shared.server(), &proxy).await?;
     Ok(took.as_millis() as u64)
+}
+
+/// Cài đặt: the settings, their defaults, and what Lưu dữ liệu trận has kept.
+#[tauri::command]
+pub fn settings(shared: State<Shared>) -> SettingsView {
+    SettingsView {
+        settings: shared.with(|app| app.settings().clone()),
+        defaults: Settings::default(),
+        battle_data: shared.store().and_then(|s| s.battle_data_size().ok()),
+    }
+}
+
+/// Lưu of Cài đặt (Shared::set_settings); the error is shown in the dialog.
+#[tauri::command]
+pub async fn set_settings(shared: State<'_, Shared>, settings: Settings) -> Result<(), String> {
+    shared.set_settings(settings).await
+}
+
+/// Xuất dữ liệu trận: battle_data of cllt.db into a new file cllt-battles-<time>.db in Downloads, which `npm run
+/// battles --db=<file>` reads (Store::export_battle_data). The error is shown under the button.
+#[tauri::command]
+pub async fn export_battles(app: AppHandle, shared: State<'_, Shared>) -> Result<Exported, String> {
+    let store = shared
+        .store_handle()
+        .ok_or("Không mở được cllt.db nên không có dữ liệu trận")?;
+    let dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| format!("Không thấy thư mục Downloads: {e}"))?;
+    let time = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let size = store.battle_data_size().map_err(|e| e.to_string())?;
+        if size.battles == 0 {
+            return Err("Chưa có trận nào được lưu".to_string());
+        }
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let path = settings::export_path(&dir, &time);
+        let battles = store
+            .export_battle_data(&path)
+            .map_err(|e| format!("Chưa xuất được: {e}"))?;
+        let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        Ok(Exported {
+            path: path.display().to_string(),
+            battles,
+            bytes,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// "Mở thư mục" after Xuất dữ liệu trận: the file selected in Finder or Explorer. Only a file the export wrote.
+#[tauri::command]
+pub fn reveal_export(path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(path);
+    if !settings::is_export(&path) {
+        return Err("Không còn thấy file đã xuất".into());
+    }
+    settings::reveal(&path).map_err(|e| format!("Không mở được thư mục: {e}"))
 }
 
 /// The error is shown in the dialog that asked; the account then stays.

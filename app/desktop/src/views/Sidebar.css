@@ -19,7 +19,13 @@
   height: 34px;
   object-fit: contain;
 }
+/* The name with the Cài đặt button at the right of its line; the summary has the whole width under them. */
+.brand__text { flex: 1; min-width: 0; }
+.brand__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .brand__name { font: 700 15px/1.2 var(--font-pixel); text-transform: uppercase; }
+/* Above the strip that drags the window, which covers the brand where the window has no room left for its buttons; the
+   negative margin keeps the line as tall as the name. */
+.brand__settings { position: relative; z-index: 1; flex-shrink: 0; margin: -6px -4px -6px 0; }
 .brand__summary { font-size: 11px; color: var(--fg-3); }
 .brand__summary b { color: var(--s-online); font-weight: 700; }
 .sidebar__label { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); }

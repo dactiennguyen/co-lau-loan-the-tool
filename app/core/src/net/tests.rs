@@ -188,6 +188,14 @@ async fn socks5(user: &'static str, pass: &'static str) -> u16 {
     });
     port
 }
+/// The test server of `server` on this machine.
+fn local(port: u16) -> Server {
+    Server {
+        host: "127.0.0.1".into(),
+        port,
+    }
+}
+
 fn socks(port: u16, username: &str, password: &str) -> Proxy {
     Proxy {
         enabled: true,
@@ -231,9 +239,9 @@ async fn login_via(
         algorithm: Default::default(),
     };
     let emit: Emit = Arc::new(move |e| sink.lock().unwrap().push(e));
-    let task = tokio::spawn(run_at(
-        "127.0.0.1".into(),
-        port,
+    let task = tokio::spawn(run(
+        local(port),
+        true,
         account,
         Default::default(),
         rx,
@@ -406,12 +414,10 @@ async fn a_proxy_that_fails_is_the_error_of_the_login_and_a_proxy_turned_off_is_
 async fn the_proxy_check_waits_for_the_game_servers_seed() {
     let game = server(Fault::None).await;
     let proxy = socks(socks5("bot", "s3cret").await, "bot", "s3cret");
-    assert!(check_proxy_at(("127.0.0.1", game), &proxy).await.is_ok());
+    assert!(check_proxy(&local(game), &proxy).await.is_ok());
     let game = server(Fault::None).await;
     let refused = socks(socks5("bot", "s3cret").await, "bot", "x");
-    let err = check_proxy_at(("127.0.0.1", game), &refused)
-        .await
-        .unwrap_err();
+    let err = check_proxy(&local(game), &refused).await.unwrap_err();
     assert_eq!(
         err,
         format!(

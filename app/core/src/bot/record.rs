@@ -1,10 +1,27 @@
-//! Lưu dữ liệu trận (FightSettings::record): each battle the bot plays, its packets both ways between s2c/22 and the
+//! Lưu dữ liệu trận (BotOptions::record): each battle the bot plays, its packets both ways between s2c/22 and the
 //! s2c/1214 after its end, with what both sides were as it opened, goes out as Out::BattleData (battle_record.rs,
 //! docs/app/events/07-auto-battle.md#ghi-trận). The session hands the packets it sends to record_sent.
 use super::*;
 use serde_json::{json, Value};
 
 impl Bot {
+    /// Lưu dữ liệu trận, from the app's Cài đặt (Manager::set_record). It counts from the next battle; the one being
+    /// recorded is kept.
+    pub fn set_record(&mut self, on: bool, out: &mut Vec<Out>) {
+        if on == self.options.record {
+            return;
+        }
+        self.options.record = on;
+        out.push(Out::Log(
+            LogKind::Battle,
+            match on {
+                true => "Bật lưu dữ liệu trận: gói tin của mỗi trận được lưu vào cllt.db",
+                false => "Tắt lưu dữ liệu trận",
+            }
+            .into(),
+        ));
+    }
+
     /// A packet the session sent, kept when it belongs to the battle being recorded.
     pub fn record_sent(&mut self, opcode: i32, payload: &[u8], now: Instant) {
         if let Some(r) = &mut self.recorder {
@@ -56,7 +73,7 @@ impl Bot {
         if self.recorder.is_some() {
             self.flush_record(out);
         }
-        if !self.fight.record {
+        if !self.options.record {
             return;
         }
         let mut r = Recorder::start(

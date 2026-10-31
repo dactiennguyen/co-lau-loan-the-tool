@@ -227,6 +227,9 @@ pub struct BotOptions {
     pub stats: Option<StatPlan>,
     /// Cài đặt đánh (Bot::set_fight).
     pub fight: FightSettings,
+    /// Lưu dữ liệu trận, of the app's Cài đặt, the same for every account: every battle goes out as Out::BattleData
+    /// (battle_record.rs, Bot::set_record).
+    pub record: bool,
 }
 impl Default for BotOptions {
     fn default() -> Self {
@@ -239,6 +242,7 @@ impl Default for BotOptions {
             rest: Duration::from_secs(3),
             stats: None,
             fight: FightSettings::default(),
+            record: true,
         }
     }
 }
@@ -255,9 +259,6 @@ pub struct FightSettings {
     /// Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up (Bot::loot).
     #[serde(default = "on")]
     pub pickup: bool,
-    /// Lưu dữ liệu trận, on unless turned off: every battle goes out as Out::BattleData (battle_record.rs).
-    #[serde(default = "on")]
-    pub record: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -282,7 +283,6 @@ impl Default for FightSettings {
         Self {
             repair: false,
             pickup: true,
-            record: true,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),

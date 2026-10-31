@@ -307,11 +307,11 @@ fn main() {
             std::process::exit(2);
         }
     };
+    manager.set_record(!no_record);
     for (id, a) in &chosen {
         let mut a = a.clone();
         a.fight.repair |= auto_repair && fight;
         a.fight.pickup &= !no_pickup;
-        a.fight.record &= !no_record;
         a.algorithm = algorithm;
         manager.login(*id, a);
     }

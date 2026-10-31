@@ -24,7 +24,7 @@ function accountMenu(a: Account, open: (d: Dialog) => void): MenuItem[] {
 }
 
 /**
- * Brand, "Thêm nick", the accounts with their menus, the update of the app, and login/logout of every account. Its top
+ * Brand with the Cài đặt of the app, "Thêm nick", the accounts with their menus, the update of the app, and login/logout of every account. Its top
  * strip drags the window.
  * It re-renders when the order of the accounts or the count in the game changes; each card follows its own account.
  */
@@ -49,8 +49,11 @@ export function Sidebar() {
       <div className="sidebar__drag" data-tauri-drag-region />
       <div className="brand">
         <img className="brand__logo" src={appIcon} alt="" draggable={false} />
-        <div>
-          <div className="brand__name">colautool</div>
+        <div className="brand__text">
+          <div className="brand__top">
+            <div className="brand__name">colautool</div>
+            <Button kind="ghost" small icon="settings" aria-label="Cài đặt" className="brand__settings" onClick={() => open({ kind: "settings" })} />
+          </div>
           <div className="brand__summary">
             {order.length} nick · <b>{playing}</b> đang trong game
           </div>
