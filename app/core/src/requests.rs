@@ -23,6 +23,11 @@ pub struct Ctx<'a> {
     /// The character's element, field01 of s2c/9 (1 Hỏa, 2 Lôi, 4 Thủy): c2s/30 asks for the skill tree of that element.
     pub element: Option<i32>,
     pub skill_id: Option<i32>,
+    /// Bag or gear slot of c2s/1186, c2s/84, c2s/48; `action` 0 equip (a bag slot), 1 unequip (a gear slot); `place` is
+    /// `where` of TS, 0 for the gear.
+    pub slot: Option<i32>,
+    pub action: Option<i32>,
+    pub place: Option<i32>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -77,6 +82,17 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         1191 => w
             .i32(required(c.skill_id, "skillId")?)
             .i32(required(c.amount, "amount")?)
+            .build(),
+        // Chi tiết vật phẩm (P4): Trang bị / Cởi ra sqlq.b45(action, slot), Sử dụng sqlq.i79(slot), Sửa chữa
+        // sqlq.c47(where, slot).
+        1186 => w
+            .u8(required(c.action, "action")? as u8)
+            .i32(required(c.slot, "slot")?)
+            .build(),
+        84 => w.i32(required(c.slot, "slot")?).build(),
+        48 => w
+            .u8(c.place.unwrap_or(0) as u8)
+            .i32(required(c.slot, "slot")?)
             .build(),
         15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),

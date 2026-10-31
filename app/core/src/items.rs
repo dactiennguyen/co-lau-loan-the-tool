@@ -104,16 +104,43 @@ pub fn character_gear(p: &[u8]) -> Result<Vec<Option<ItemRecord>>> {
     let mut r = Reader::new(p);
     r.take(character_profile_end(p)?)?;
     skill_list(&mut r)?;
+    gear_slots(&mut r)
+}
+/// `i32 n; n × (u8 0xff for an empty slot | item record)`, at the end of s2c/9 and in s2c/37.
+fn gear_slots(r: &mut Reader) -> Result<Vec<Option<ItemRecord>>> {
     (0..r.i32()?.max(0))
         .map(|_| {
             if r.data.get(r.offset) == Some(&0xff) {
                 r.u8()?;
                 Ok(None)
             } else {
-                item_record(&mut r).map(Some)
+                item_record(r).map(Some)
             }
         })
         .collect()
+}
+
+/// s2c/37 after c2s/1186 (equip or unequip): the 8 gear slots again, as at the end of s2c/9.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GearUpdate {
+    pub field: i32,
+    pub flag: u8,
+    pub name: String,
+    pub gear: Vec<Option<ItemRecord>>,
+}
+pub fn gear_update(p: &[u8]) -> Result<GearUpdate> {
+    let mut r = Reader::new(p);
+    let (field, flag, name) = (r.i32()?, r.u8()?, r.string()?);
+    let gear = gear_slots(&mut r)?;
+    r.finish(
+        GearUpdate {
+            field,
+            flag,
+            name,
+            gear,
+        },
+        "s2c/37",
+    )
 }
 
 /// s2c/46 after s2c/9 and whenever money changes: Xu, Xu khoá and Lượng as on the Bản thân panel. Vàng is `coin` of

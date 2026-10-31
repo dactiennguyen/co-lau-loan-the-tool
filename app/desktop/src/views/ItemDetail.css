@@ -10,6 +10,7 @@
   background: var(--ink);
 }
 .detail--none { display: flex; align-items: center; font-size: 11px; color: var(--fg-3); }
+.detail--act { grid-template-columns: auto minmax(0, 1fr) auto; }
 .detail__icon { display: grid; place-items: center; width: 46px; height: 46px; background: var(--bg-2); }
 .detail__icon img { width: 42px; height: 42px; }
 .detail__body { display: grid; gap: 4px; min-width: 0; }

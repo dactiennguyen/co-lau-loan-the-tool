@@ -2,7 +2,7 @@
 // shows public/sample.json, written by `npm run sample`, and the commands do nothing: enough to work on the design.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AccountForm, AccountsUpdate, AppState, LogLine, ProxyForm, Secrets, StatPlan } from "./types";
+import type { AccountForm, AccountsUpdate, AppState, ItemAction, LogLine, ProxyForm, Secrets, StatPlan } from "./types";
 
 export interface LogEvent {
   id: number;
@@ -32,6 +32,8 @@ export interface Api {
   addStat(id: number, stat: number): Promise<void>;
   /** Nâng cấp: one level of that skill (c2s/1191). */
   upgradeSkill(id: number, skill: number): Promise<void>;
+  /** A button of the item detail: wear or use the item of a bag slot, take off or repair the one of a gear slot. */
+  itemAction(id: number, action: ItemAction, slot: number): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -61,6 +63,7 @@ const tauri: Api = {
   setStats: (id, plan) => invoke("set_stats", { id, plan }),
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
+  itemAction: (id, action, slot) => invoke("item_action", { id, action, slot }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
@@ -94,6 +97,7 @@ const preview: Api = {
   setStats: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   addStat: nothing,
   upgradeSkill: nothing,
+  itemAction: nothing,
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),

@@ -7,7 +7,8 @@
 use crate::atlas::{Atlas, MapRecord, Portal};
 use crate::battle::{battle_setup, Strategy};
 use crate::items::{
-    character_extra, character_gear, currencies, inventory, Bag, Currencies, ItemRecord,
+    book, character_extra, character_gear, currencies, gear_update, inventory, Bag, Currencies,
+    ItemRecord,
 };
 use crate::potentials::{next_stat, StatPlan, POTENTIALS};
 use crate::protocol::{
@@ -215,6 +216,27 @@ struct Challenge {
 /// A challenge left unanswered this long is taken as refused: no battle opens that late.
 const CHALLENGE_KEPT: Duration = Duration::from_secs(60);
 
+/// A button of the item detail (12-skills-items.md#c2s-1186): Trang bị the item of a bag slot, Cởi ra the one of a gear
+/// slot, Sử dụng a bag slot, Sửa chữa a gear slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ItemAct {
+    Equip(u8),
+    Unequip(u8),
+    Use(u8),
+    Repair(u8),
+}
+/// Item of the Búa Sửa Chữa that each repair takes.
+const HAMMER: i32 = 2;
+/// The type of Hoàn Linh Dược and Kim Đan Dược: the server refuses them outside a battle (P4).
+const POTION: u8 = 20;
+
+/// An item action waiting for its answer (s2c/1186, s2c/48, or a notice), and the item's name for the log.
+struct ItemWait {
+    act: ItemAct,
+    name: String,
+    at: Instant,
+}
+
 /// A c2s/1191 waiting for s2c/1191: the skill, when it went out, and whether the quest step "Sử dụng điểm kỹ năng" sent
 /// it (Nâng cấp in the UI does too).
 struct Upgrade {
@@ -282,6 +304,7 @@ pub struct Bot {
     allot_failed: bool,
     plan_warned: bool,
     upgrading: Option<Upgrade>,
+    item_wait: Option<ItemWait>,
 }
 
 impl Bot {
@@ -318,6 +341,7 @@ impl Bot {
             allot_failed: false,
             plan_warned: false,
             upgrading: None,
+            item_wait: None,
         }
     }
 
@@ -897,6 +921,31 @@ impl Bot {
                 Ok(b) => s.bag = Some(b),
                 Err(e) => out.push(Out::Log(format!("Không đọc được túi đồ (s2c/1187): {e}"))),
             },
+            // The gear after Trang bị or Cởi ra; s2c/42 brings the bag, s2c/1186 the action.
+            37 => match gear_update(payload) {
+                Ok(g) => s.gear = g.gear,
+                Err(e) => out.push(Out::Log(format!("Không đọc được trang bị (s2c/37): {e}"))),
+            },
+            1186 | 48 => {
+                let done = match (opcode, self.item_wait.as_ref().map(|w| w.act)) {
+                    (1186, Some(ItemAct::Equip(_))) => Some("Đã mặc"),
+                    (1186, Some(ItemAct::Unequip(_))) => Some("Đã cởi"),
+                    (48, Some(ItemAct::Repair(_))) => Some("Đã sửa"),
+                    _ => None,
+                };
+                if let (Some(done), Some(w)) = (done, self.item_wait.take()) {
+                    out.push(Out::Log(format!("{done} {}", w.name)));
+                    // The server sends no gear after a repair; it brings the item to its full durability (P4: 0/60 →
+                    // 60/60), so the gear shown is not left broken until the next login.
+                    if let ItemAct::Repair(slot) = w.act {
+                        if let Some(Some(i)) = s.gear.get_mut(slot as usize) {
+                            if let Some(d) = book().get(i.item_id) {
+                                i.durability = i.durability.max(d.durability);
+                            }
+                        }
+                    }
+                }
+            }
             46 => match currencies(payload) {
                 Ok(c) => s.currencies = Some(c),
                 Err(e) => out.push(Out::Log(format!("Không đọc được tiền (s2c/46): {e}"))),
@@ -1065,6 +1114,8 @@ impl Bot {
             1256 => {
                 let text = notice(payload)?;
                 out.push(Out::Log(text.clone()));
+                // The answer to Sử dụng ("Vật phẩm không thể sử dụng!") or a refusal of another item action.
+                self.item_wait = None;
                 // A portal the character may not enter: "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" (Q15) or "Bạn cần hoàn
                 // thành nhiệm vụ trước khi tới đây" (S1); travel() then leaves it out.
                 if let Some((id, name)) = self.travelling.take() {
@@ -1814,5 +1865,89 @@ impl Bot {
         } else {
             Self::send(out, 1191, ctx);
         }
+    }
+}
+
+/// Item actions of the Túi đồ tab (12-skills-items.md#c2s-1186): c2s/1186 to wear or take off, c2s/84 to use, c2s/48 to
+/// repair. The server answers with s2c/37 and s2c/42 (gear and bag), s2c/1186, s2c/48, or a notice.
+impl Bot {
+    /// One button of the item detail. Refused, with the reason in the log and nothing sent, in a battle, while the last
+    /// action waits for its answer (5 s), or when the item cannot take it: a potion outside a battle, a repair without
+    /// a hammer, an item taken off into a full bag.
+    pub fn item(&mut self, act: ItemAct, now: Instant, out: &mut Vec<Out>) {
+        let (slot, worn) = match act {
+            ItemAct::Equip(s) | ItemAct::Use(s) => (s, false),
+            ItemAct::Unequip(s) | ItemAct::Repair(s) => (s, true),
+        };
+        let bag = self.snap.bag.as_ref();
+        let item = match worn {
+            true => self.snap.gear.get(slot as usize).and_then(Option::as_ref),
+            false => bag.and_then(|b| b.items.iter().find(|i| i.slot == slot)),
+        };
+        let place = match worn {
+            true => format!("ô trang bị {slot}"),
+            false => format!("ô túi {}", slot as u32 + 1),
+        };
+        let Some(item) = item else {
+            return out.push(Out::Log(format!("Không có món nào ở {place}")));
+        };
+        let def = book().get(item.item_id);
+        let name = def.map_or_else(|| format!("#{}", item.item_id), |d| d.name.clone());
+        let kind = def.map(|d| d.kind);
+        let most = def.map_or(0, |d| d.durability);
+        let pending = self
+            .item_wait
+            .as_ref()
+            .is_some_and(|w| now < w.at + Duration::from_secs(5));
+        let full = bag.is_some_and(|b| b.items.len() as i32 >= b.capacity);
+        let hammer = bag.is_some_and(|b| b.items.iter().any(|i| i.item_id == HAMMER));
+        let refused = if self.battle.is_some() {
+            Some("đang đánh, đợi hết trận")
+        } else if pending {
+            Some("đang đợi server trả lời lần trước")
+        } else {
+            match act {
+                ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị"),
+                ItemAct::Unequip(_) if full => Some("túi đồ đã đầy"),
+                ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận"),
+                ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc"),
+                ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền"),
+                ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy"),
+                ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi"),
+                _ => None,
+            }
+        };
+        let verb = match act {
+            ItemAct::Equip(_) => "Mặc",
+            ItemAct::Unequip(_) => "Cởi",
+            ItemAct::Use(_) => "Dùng",
+            ItemAct::Repair(_) => "Sửa",
+        };
+        if let Some(why) = refused {
+            return out.push(Out::Log(format!(
+                "Chưa {} {name}: {why}",
+                verb.to_lowercase()
+            )));
+        }
+        out.push(Out::Log(format!("{verb} {name} ({place})")));
+        let ctx = match act {
+            ItemAct::Equip(_) | ItemAct::Unequip(_) => Ctx {
+                action: Some(matches!(act, ItemAct::Unequip(_)) as i32),
+                slot: Some(slot as i32),
+                ..Ctx::default()
+            },
+            ItemAct::Use(_) | ItemAct::Repair(_) => Ctx {
+                slot: Some(slot as i32),
+                place: Some(0),
+                ..Ctx::default()
+            },
+        };
+        let opcode = match act {
+            ItemAct::Equip(_) | ItemAct::Unequip(_) => 1186,
+            ItemAct::Use(_) => 84,
+            ItemAct::Repair(_) => 48,
+        };
+        Self::send(out, opcode, ctx);
+        self.item_wait = Some(ItemWait { act, name, at: now });
     }
 }

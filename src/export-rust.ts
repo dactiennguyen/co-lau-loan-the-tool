@@ -9,7 +9,7 @@ import { BASELINE, OPCODE_ENTRIES } from './config.ts';
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from './protocol.ts';
 import { buildRequest } from './events.ts';
 import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable,
-  characterExtra, characterGear, inventory, currencies } from './world.ts';
+  characterExtra, characterGear, inventory, currencies, gearUpdate } from './world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from './battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 import { QuestBot, stepAction } from './quest.ts';
@@ -69,6 +69,8 @@ function decoders() {
   add('inventory', si0['s2c/1187 after repair'], inventory(bytes(si0['s2c/1187 after repair'])));
   for (const h of [fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterGear', h, characterGear(bytes(h)));
   add('currencies', fixtures.currencies['s2c/46 E1'], currencies(bytes(fixtures.currencies['s2c/46 E1'])));
+  // The gear after Cởi ra and Trang bị on the phone (P4, 12-skills-items.md#c2s-1186).
+  for (const k of ['s2c/37 unequip pet', 's2c/37 equip pet']) add('gearUpdate', fixtures.equip[k], gearUpdate(bytes(fixtures.equip[k])));
   // The skill step (docs/app/events/12-skills-items.md): the tree of s2c/30, the skill list of the s2c/9 tail, s2c/10 kind 32.
   add('skillTable', response(7, 30), skillTable(bytes(response(7, 30))));
   for (const h of [a2, fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterSkills', h, characterSkills(bytes(h)));
@@ -221,7 +223,9 @@ function requests() {
   const ctx: [number, Record<string, unknown>][] = [[1, {}], [1206, {}], [5, { serverId: 24 }], [9, { username: 'Manina' }], [30, {}], [30, { element: 4 }], [42, { characterName: 'manina' }],
     [29, { characterName: 'manina' }], [11, { mapId: 'M2' }], [43, { mapId: 'M2' }], [13, { mapId: 'M1', npcId: 1015 }], [15, { mobId: 'mob61000' }],
     [1178, { mobId: 'mob89100002' }], [18, { battleUuid }], [14, { battleUuid, seq: 4 }], [19, { battleUuid, seq: 3, move }], [20, { battleUuid, seq: 7, skill: 1000 }],
-    [10, { stat: 0, amount: 1 }], [1191, { skillId: 1000, amount: 1 }]];
+    [10, { stat: 0, amount: 1 }], [1191, { skillId: 1000, amount: 1 }],
+    // Item actions of P4: Cởi ra the pet, Trang bị it again from bag slot 39, Sử dụng bag slot 3, Sửa chữa gear slot 2.
+    [1186, { action: 1, slot: 5 }], [1186, { action: 0, slot: 39 }], [84, { slot: 3 }], [48, { slot: 2 }], [48, { where: 0, slot: 0 }]];
   return ctx.map(([opcode, c]) => ({ opcode, ctx: c, hex: hex(buildRequest(opcode, c as any)) }));
 }
 

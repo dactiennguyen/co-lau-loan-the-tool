@@ -4,6 +4,7 @@
 use crate::app::Shared;
 use crate::view::LogLine;
 use cllt_core::accounts::Account;
+use cllt_core::bot::ItemAct;
 use cllt_core::net::Command;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -103,6 +104,21 @@ pub fn add_stat(shared: State<Shared>, id: u64, stat: usize) {
 #[tauri::command]
 pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {
     shared.with(|app| app.send(id, Command::UpgradeSkill(skill)));
+}
+
+/// A button of the item detail in the Túi đồ tab: "equip" the item of a bag slot, "unequip" the one of a gear slot,
+/// "use" a bag slot, "repair" a gear slot.
+#[tauri::command]
+pub fn item_action(shared: State<Shared>, id: u64, action: String, slot: u8) -> Result<(), String> {
+    let act = match action.as_str() {
+        "equip" => ItemAct::Equip(slot),
+        "unequip" => ItemAct::Unequip(slot),
+        "use" => ItemAct::Use(slot),
+        "repair" => ItemAct::Repair(slot),
+        other => return Err(format!("Không biết thao tác {other}")),
+    };
+    shared.with(|app| app.send(id, Command::Item(act)));
+    Ok(())
 }
 
 /// The proxy part of the add and edit form. An empty password with a username keeps the saved one when editing.

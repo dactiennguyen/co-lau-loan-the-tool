@@ -4,7 +4,7 @@ use cllt_core::atlas::{Atlas, MapRecord};
 use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
-use cllt_core::bot::{duration_text, Bot, BotOptions, Out};
+use cllt_core::bot::{duration_text, Bot, BotOptions, ItemAct, Out};
 use cllt_core::potentials::StatPlan;
 use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
@@ -157,6 +157,7 @@ fn decoders_read_what_the_ts_decoders_read() {
             "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
             "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
             "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
+            "gearUpdate" => serde_json::to_value(items::gear_update(&p).unwrap()),
             "skillTable" => serde_json::to_value(skills::skill_table(&p).unwrap()),
             "characterSkills" => serde_json::to_value(skills::character_skills(&p).unwrap()),
             other => panic!("no Rust decoder for {other}"),
@@ -164,6 +165,102 @@ fn decoders_read_what_the_ts_decoders_read() {
         .unwrap();
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
     }
+}
+
+/// The buttons of the Túi đồ tab on manina's real gear and bag: Cởi ra and Sửa chữa send c2s/1186 and c2s/48 as the
+/// phone did (P4), and the answers name the item in the log; what the server would refuse is not sent.
+#[test]
+fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str, n: usize| {
+        let case = cases.iter().filter(|c| c["fn"] == f).nth(n).unwrap();
+        hex(case["hex"].as_str().unwrap())
+    };
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (mut now, mut out) = (Instant::now(), vec![]);
+    bot.on_packet(9, &hex_of("characterGear", 0), now, &mut out)
+        .unwrap();
+    bot.on_packet(42, &hex_of("characterExtra", 0), now, &mut out)
+        .unwrap();
+    let slot_of = |bot: &Bot, id: i32| {
+        let bag = bot.snapshot().bag.unwrap();
+        bag.items.iter().find(|i| i.item_id == id).unwrap().slot
+    };
+    let step = |bot: &mut Bot, act: ItemAct, now: Instant| {
+        let mut out = vec![];
+        bot.item(act, now, &mut out);
+        out
+    };
+    let sends = |out: &[Out]| -> Vec<(i32, String)> {
+        out.iter()
+            .filter_map(|o| match o {
+                Out::Send(op, p) => Some((*op, tohex(p))),
+                Out::Log(_) => None,
+            })
+            .collect()
+    };
+    // Hoàn Linh Dược outside a battle, and a stone that is no gear: nothing goes out.
+    let potion = slot_of(&bot, 0);
+    let out1 = step(&mut bot, ItemAct::Use(potion), now);
+    assert_eq!(sends(&out1), []);
+    assert_eq!(
+        out1,
+        [Out::Log(
+            "Chưa dùng Hoàn Linh Dược: bình chỉ dùng được trong trận".into()
+        )]
+    );
+    let stone = slot_of(&bot, 412);
+    assert_eq!(sends(&step(&mut bot, ItemAct::Equip(stone), now)), []);
+    // Cởi ra the hat (gear slot 0), as the phone took off the pet with 01 00000005.
+    assert_eq!(
+        sends(&step(&mut bot, ItemAct::Unequip(0), now)),
+        [(1186, "0100000000".to_string())]
+    );
+    // A second button before the answer waits for it.
+    assert_eq!(sends(&step(&mut bot, ItemAct::Repair(2), now)), []);
+    bot.on_packet(37, &hex_of("gearUpdate", 0), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_packet(1186, &hex("00000001"), now, &mut out)
+        .unwrap();
+    assert_eq!(out, [Out::Log("Đã cởi Nón Âu Lạc".into())]);
+    // s2c/37 brought the new gear (symap's capture: the pet slot empty).
+    assert!(bot.snapshot().gear[5].is_none() && bot.snapshot().gear[2].is_some());
+    // Sửa chữa the weapon with the hammer of the bag: 00 00000002 as on the phone.
+    bot.on_packet(9, &hex_of("characterGear", 0), now, &mut out)
+        .unwrap();
+    now += Duration::from_secs(1);
+    assert_eq!(
+        sends(&step(&mut bot, ItemAct::Repair(2), now)),
+        [(48, "0000000002".to_string())]
+    );
+    out.clear();
+    bot.on_packet(48, &hex("0000000002"), now, &mut out)
+        .unwrap();
+    assert_eq!(out, [Out::Log("Đã sửa Rìu Âu Lạc".into())]);
+    // Repaired to its full durability (60), as the phone showed, though no gear came with the answer.
+    assert_eq!(
+        bot.snapshot().gear[2].as_ref().map(|i| i.durability),
+        Some(60)
+    );
+    // The bag after that repair has no hammer left.
+    bot.on_packet(1187, &hex_of("inventory", 0), now, &mut out)
+        .unwrap();
+    let out2 = step(&mut bot, ItemAct::Repair(0), now);
+    assert_eq!(sends(&out2), []);
+    assert_eq!(
+        out2,
+        [Out::Log(
+            "Chưa sửa Nón Âu Lạc: cần 1 Búa sửa chữa trong túi".into()
+        )]
+    );
+    // Trang bị Nón Lá from its bag slot.
+    let hat = slot_of(&bot, 48);
+    assert_eq!(
+        sends(&step(&mut bot, ItemAct::Equip(hat), now)),
+        [(1186, format!("00{:08x}", hat))]
+    );
 }
 
 /// The skill tree of s2c/30 and the levels of s2c/9 in the snapshot; Nâng cấp sends c2s/1191 only when the tab would
@@ -254,13 +351,14 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
             "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
             "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
             "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
+            "gearUpdate" => serde_json::to_value(items::gear_update(&p).unwrap()),
             _ => continue,
         }
         .unwrap();
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
         seen += 1;
     }
-    assert_eq!(seen, 5);
+    assert_eq!(seen, 7);
 }
 
 #[test]
@@ -374,6 +472,9 @@ fn requests_match_build_request() {
             amount: i("amount"),
             element: i("element"),
             skill_id: i("skillId"),
+            slot: i("slot"),
+            action: i("action"),
+            place: i("where"),
             ..Ctx::default()
         };
         let op = r["opcode"].as_i64().unwrap() as i32;

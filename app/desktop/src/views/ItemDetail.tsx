@@ -2,6 +2,7 @@ import { Icon } from "../components/Icon";
 import { ELEMENT_ICON } from "../components/ItemSlot";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
+import type { ReactNode } from "react";
 import type { Item } from "../types";
 import "./ItemDetail.css";
 
@@ -11,10 +12,13 @@ interface Props {
   where: string;
   /** Element of the character (field01 of s2c/9): an item of the same one gets +5 % to its stats (Cẩm nang). */
   element: number | null;
+  /** The buttons for the item (Mặc, Cởi ra, Dùng, Sửa), at the right end. */
+  actions?: ReactNode;
 }
 
-/** The item shown under the bag, as its popup in the game: icon, name, element, type, level, durability, stats. */
-export function ItemDetail({ item, where, element }: Props) {
+/** The item shown under the bag, as its popup in the game: icon, name, element, type, level, durability, stats, and the
+ * popup's buttons. */
+export function ItemDetail({ item, where, element, actions }: Props) {
   if (!item) {
     return <div className="detail detail--none">Rê chuột hay bấm vào một món để xem chi tiết.</div>;
   }
@@ -27,7 +31,7 @@ export function ItemDetail({ item, where, element }: Props) {
     where,
   ].filter(Boolean);
   return (
-    <div className="detail" aria-live="polite">
+    <div className={`detail${actions ? " detail--act" : ""}`} aria-live="polite">
       <span className="detail__icon">{url ? <img src={url} alt="" /> : <span className="px">#{item.id}</span>}</span>
       <div className="detail__body">
         <div className="detail__name">
@@ -59,6 +63,7 @@ export function ItemDetail({ item, where, element }: Props) {
           </div>
         )}
       </div>
+      {actions}
     </div>
   );
 }

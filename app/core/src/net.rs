@@ -3,7 +3,7 @@
 //! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
 use crate::atlas::Atlas;
-use crate::bot::{Bot, BotOptions, Out, Snapshot};
+use crate::bot::{Bot, BotOptions, ItemAct, Out, Snapshot};
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
 use crate::protocol::{
@@ -42,6 +42,8 @@ pub enum Command {
     AddStat(usize),
     /// Nâng cấp on the skill of that id (Bot::upgrade_skill).
     UpgradeSkill(i32),
+    /// A button of the item detail: wear, take off, use, repair (Bot::item).
+    Item(ItemAct),
     Logout,
 }
 
@@ -301,6 +303,7 @@ async fn session(
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),
+                    Some(Command::Item(act)) => bot.item(act, now, &mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),

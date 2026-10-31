@@ -244,6 +244,9 @@ export interface Item {
   stats: string[];
 }
 
+/** A button of the item detail: wear or use the item of a bag slot, take off or repair the one of a gear slot. */
+export type ItemAction = "equip" | "unequip" | "use" | "repair";
+
 export interface BagContents {
   capacity: number;
   items: Item[];

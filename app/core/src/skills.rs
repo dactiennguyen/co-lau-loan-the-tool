@@ -202,6 +202,35 @@ impl SkillNode<'_> {
         self.skill.levels.len()
     }
 
+    /// "1003 Liệt Hỏa Chi Kiếm 0/20 (trái 1): học được, 2 điểm" or "… (trái 2): cần cấp 32, phải học Liệt Hỏa Chi Kiếm",
+    /// as skillLine of src/skills.ts (npm run skills).
+    pub fn line(&self) -> String {
+        let place = match self.place {
+            Some(b) if b.depth > 0 => format!("{} {}", b.branch, b.depth),
+            Some(b) => b.branch.to_string(),
+            None => format!("ô {}", self.index),
+        };
+        let state = match (&self.blockers[..], self.next) {
+            ([], Some(n)) => format!(
+                "{} được, {} điểm",
+                if self.level > 0 {
+                    format!("lên cấp {}", self.level + 1)
+                } else {
+                    "học".into()
+                },
+                n.cost
+            ),
+            (b, _) => b.join(", "),
+        };
+        format!(
+            "{} {} {}/{} ({place}): {state}",
+            self.skill.id,
+            self.skill.name,
+            self.level,
+            self.max_level()
+        )
+    }
+
     /// The detail panel on the right of the tab, line by line as the game writes it.
     pub fn panel(&self) -> Vec<String> {
         // As the TS division: 2 for 50, 1.2 for 30.
@@ -287,6 +316,14 @@ mod tests {
         assert_eq!(
             (nodes[1].index, nodes[1].place.unwrap().branch),
             (3, "trái")
+        );
+        assert_eq!(
+            nodes[0].line(),
+            "1000 Hỏa Cầu Thuật 0/2 (gốc): học được, 1 điểm"
+        );
+        assert_eq!(
+            nodes[1].line(),
+            "1003 Liệt Hỏa Chi Kiếm 0/2 (trái 1): cần cấp 10, phải học Hỏa Cầu Thuật, thiếu điểm kỹ năng (cần 2, còn 1)"
         );
         assert_eq!(
             nodes[1].panel(),
