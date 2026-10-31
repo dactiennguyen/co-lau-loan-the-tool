@@ -31,7 +31,10 @@ Huỷ trận C→S 40 (uuid) + C→S 11/43; S→C 10
 
 - Lưới **8×8**. Trong s2c/22 là `i32 64` theo sau bởi 64 byte, **theo hàng** (row-major), hàng 0 ở trên. Hai hàng dưới (chưa bị nước nào chạm) khớp ảnh chụp từng ô. [Đo]
 - Toạ độ trong gói 19/20 là **(hàng + 2, cột + 2)**. Ví dụ nước kéo viên tim từ hàng 5 cột 6 lên hàng 4 cột 6 trên màn hình được gửi là `(7,8) → (6,8)`. Bàn trong bộ nhớ có viền 2 ô. [Đo cho phép cộng; lý do viền là Suy luận]
-- Mỗi kết quả nước đi có một `seed` 32 bit và danh sách viên mới rơi xuống. Client tự mô phỏng rơi rồi lấp bằng danh sách này. Chuỗi `SQControllerManager.checkSumToSyncDataWithServer()` trong `.so` cho thấy client còn tính checksum để đối chiếu với server. [Suy luận]
+- Mỗi kết quả nước đi có một số 32 bit (trước đây gọi là `seed`) và danh sách viên mới rơi xuống. Client tự mô phỏng rơi rồi lấp bằng danh sách này. [Đo]
+- **Số 32 bit đó là CRC32 của 64 byte bàn cờ sau nước đi** (sau khi rơi, lấp và xếp lại nếu có), theo thứ tự hàng như `s2c/22`. Khớp 844/844 kết quả: 136 nước của manina trong 6 trận Sơn Tặc tính giờ (G2), 708 nước của cả manina lẫn quái (đổi chỗ và kỹ năng) trong 20 trận Kẻ Quấy Phá (H1). Đây là checksum để client đối chiếu bàn với server (chuỗi `SQControllerManager.checkSumToSyncDataWithServer()` trong `.so`), không phải mầm sinh số ngẫu nhiên. [Đo]
+  - Viên rơi không suy ra được từ số này: đã thử `java.util.Random`, 3 kiểu LCG, xorshift32 và MT19937 với số của chính nước đó, nước trước và nước sau, lệch 0–3 lần rút. Không kiểu nào hơn mức ngẫu nhiên. Số của nước sau cũng không tính được từ nước trước. Danh sách viên rơi dài đúng bằng số ô cần lấp, nên không lộ viên của lượt sau. Vậy bot không thể biết trước viên sắp rơi. [Đo]
+  - Dùng được để phát hiện lệch bàn: sau mỗi nước, CRC32 bàn của bot phải bằng số này. Script ở scratchpad `seed/` (`extract.ts`, `prng.ts`, `purity.ts`, `chain.ts`). [Đo]
 - Luật rơi/lấp đã kiểm 52/52 bước [Đo]:
   - Đoạn ≥3 cùng loại bị xoá (nén vàng cũng vậy). Viên rơi xuống đáy cột.
   - Lấp **từng cột trái → phải, trong cột từ dưới lên**. Chuỗi ăn lặp lại với cùng danh sách.

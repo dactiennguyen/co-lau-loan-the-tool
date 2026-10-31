@@ -494,6 +494,57 @@ Mỗi giờ tốn khoảng 1500–2400 Xu khóa (120 mỗi bình) để thua ít
 - Chưa nên tốn điểm cho Hàn Lưu Thánh Thủy cấp 2, Băng Đao Kích hay Tuyết Sơn Áp Đỉnh khi Băng Tiễn còn nâng được.
 - Bình chỉ đáng dùng khi một trận thua đáng giá hơn khoảng 5–6 bình.
 
+<a id="quái-mạnh-h1"></a>
+
+### Đo v3 với quái gần cấp mình (H1, 31/10)
+
+Các trận thật trước đây gần như thắng hết vì nhân vật cao hơn quái 8–15 cấp. H1 thử quái mạnh nhất manina tới được: **Kẻ Quấy Phá cấp 20** ở M2 (manina cấp 22, Tấn công 32, HP 244, 71 điểm tiềm năng chưa cộng). Bot TS v3, không bình, đánh tiếp cả khi thua: `npm run quest -- --farm="Kẻ Quấy Phá" --fights=20 --max-losses=20` có `CLLT_TRACE`.
+
+- **Thắng 6/20 (30%)**, 14 trận thua bắt đầu cả với HP đầy. Trận thắng 35–60 nước, trận thua 16–66 nước, trung bình 1,35 phút một trận. [Đo]
+- EXP 16 121 → 17 447: trận thắng được 260–356 EXP, trận thua mất khoảng 41. Nhặt được 2 đống Xu khóa (211, 243), Đá cấp 2 và Áo Hào Kiệt (+8 phòng thủ, +6 cường lực). [Đo]
+- Bàn phát lại khớp server ở cả 1614 nước (`desync` 0), kể cả 45 lần manina dùng Hỏa Cầu Thuật và 26 lần quái dùng kỹ năng. [Đo]
+
+Thông số đo được (script `plan/replay-any.ts`, `plan/calib.ts` trong scratchpad):
+
+| | manina đánh Kẻ Quấy Phá | Kẻ Quấy Phá đánh manina |
+|---|---|---|
+| HP | 244 | **526** (`s2c/22`) |
+| Đòn 3 kiếm hay gặp nhất | 29 (162/199 lần), `W` = 9,67 | **45** (42/62 lần), `W` = 15 |
+| Kiếm đánh hụt | 9,1% | 19,7% |
+| Kỹ năng | Hỏa Cầu Thuật cấp 4: 2,25 lần/trận, 64–112 | Hỏa Cầu Thuật cấp 1 (`K` = 11): 1,3 lần/trận, 56–131 |
+| Hồi máu | | 149–245 HP trong mỗi trận thắng, khoảng 8,5 mỗi viên tim |
+
+- Theo `3 kiếm ≈ Tấn công + ⌊cấp/2⌋ − 6`, manina lẽ ra đánh 37. Thực tế 29, nên Kẻ Quấy Phá bớt khoảng 8, có lẽ do phòng thủ của quái. [Đo; lý do là Suy luận]
+- Trên mô phỏng với thông số này (tim quái 10), manina thắng 39% khi đánh liên tục (thật: 30%, khoảng tin cậy 95% của 6/20 là 12–54%). Mô phỏng hơi lạc quan: manina mô phỏng dùng kỹ năng 2,8 lần/trận, thật 2,25. [Mô phỏng]
+
+<a id="cộng-điểm"></a>
+
+### Cộng điểm tiềm năng và kỹ năng cho manina (mô phỏng, 31/10)
+
+Mô hình chỉ số rút từ số đo:
+- **Tấn công = Cường Lực** với hệ Hỏa: manina có cả hai bằng 32, không đổi từ cấp 8 tới 22 ([12-skills-items](12-skills-items.md#điểm-tiềm-năng)). [Đo, 1 nhân vật]
+- **Đòn 3 kiếm tăng khoảng 1 cho mỗi điểm Tấn công**: Tiheo2 (23) và manina (32) chênh 9 Tấn công thì chênh 10 sát thương ([A1](#đo-trên-máy-a1)). Mô phỏng coi `W = (Tấn công + ⌊cấp/2⌋ − 6 − phần của quái) / 3` đúng cả khi Tấn công lên gấp 3. Đây là chỗ yếu nhất của mô hình. [Suy luận]
+- **HP = 6 × Thể Lực + đồ**: manina Thể Lực 30 → HP gốc 180, lên cấp 22 (Thể Lực 31) → 186; Tiheo2 Thể Lực 25 → 150. Nón Âu Lạc cộng 58. [Đo]
+- Thân Pháp: +3 Chính xác mỗi điểm ([P1](12-skills-items.md#điểm-tiềm-năng)); mô phỏng cho tỉ lệ đánh hụt giảm từ 8,7% (Chính xác 30) về 0 (Chính xác 64). Phần P.Thủ, Né tránh, Chí mạng của Thân Pháp chưa đo nên không tính. [Suy luận]
+
+Script `plan/run-plan.ts` trong scratchpad (dùng `sim2.ts`, bot v3, HP mang sang trận sau). Mỗi ô là 24 giờ đánh liên tục. EXP/giờ của mô phỏng tính theo công thức của Cóc Xanh, nên với Kẻ Quấy Phá (thắng ~300 EXP) nên nhìn số thắng/giờ:
+
+| 71 điểm tiềm năng | Tấn công | HP | Cóc Xanh: tỉ lệ, thắng/giờ | Kẻ Quấy Phá: tỉ lệ, thắng/giờ, thua/giờ |
+|---|---:|---:|---|---|
+| Giữ nguyên | 32 | 244 | 84,7%, 72,6 | 39,0%, 17,1, 26,8 |
+| Chỉ nâng Hỏa Cầu Thuật lên cấp 5 | 32 | 244 | 86,0%, 74,8 | 42,3%, 18,8, 25,6 |
+| 71 Cường Lực | 103 | 244 | 94,6%, **165** | 86,5%, **89,2**, 14,0 |
+| 55 Cường Lực, 16 Thân Pháp | 87 | 244 | 94,1%, 155 | 85,3%, 79,8, 13,8 |
+| 50 Cường Lực, 21 Thể Lực | 82 | 370 | 96,0%, 144 | **89,5%**, 75,9, 8,9 |
+| 36 Cường Lực, 35 Thể Lực | 68 | 454 | 96,6%, 127 | 89,8%, 65,4, 7,4 |
+| 21 Cường Lực, 50 Thể Lực | 53 | 544 | 96,7%, 109 | 87,9%, 52,5, 7,3 |
+| 71 Thể Lực | 32 | 670 | 95,7%, 78 | 76,1%, 28,3, 8,9 |
+| 71 Thân Pháp | 32 | 244 | 85,6%, 75 | |
+
+- Cường Lực cho nhiều trận thắng nhất: gấp 2,3 lần với Cóc Xanh, 5 lần với Kẻ Quấy Phá. Thêm Thể Lực bớt trận thua nhưng bớt cả trận thắng. [Mô phỏng]
+- **Điểm kỹ năng:** ở cấp 22 chỉ học thêm được Hỏa Cầu Thuật cấp 5 (1 điểm), Hỏa Kiếm Thuật tới cấp 3, Liệt Hỏa Chi Kiếm và Thiên Hỏa Kích tới cấp 3 (2 điểm mỗi cấp). Mọi tổ hợp 15 điểm cho kết quả y như chỉ nâng Hỏa Cầu Thuật cấp 5. Bot không bao giờ dùng các kỹ năng 50 nội lực: nội lực vừa đủ 25 là Hỏa Cầu Thuật đã đáng dùng hơn (khoảng 92 sát thương cho 25 nội lực, Liệt Hỏa Chi Kiếm cấp 3 khoảng 112 cho 50). [Mô phỏng]
+- Cách làm an toàn: cộng một phần Cường Lực trước (ví dụ 21, Tấn công 53), đánh khoảng 10 trận để đo `W` mới (dự đoán đòn 3 kiếm vào Kẻ Quấy Phá ≈ 50). Nếu khớp thì cộng phần còn lại. Cộng điểm thì không lấy lại được, trừ khi dùng Tẩy Tủy Đan. Chưa cộng điểm nào.
+
 ## Cách bot gửi gói
 
 Có hai cách. Cả hai dùng cùng bố cục payload.

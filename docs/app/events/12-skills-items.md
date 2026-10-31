@@ -263,6 +263,7 @@ Cẩm nang (C1):
 - Mỗi lần lên cấp nhận 4 điểm tiềm năng, 1 điểm kỹ năng và tự cộng 1 Thể Lực.
 - Chỉ số chính tăng Tấn Công: hệ Hỏa là Cường Lực, hệ Lôi là Thân Pháp, hệ Thủy là Nội Lực. Nick thứ hai (hệ Thủy) lại khởi đầu với Thân Pháp 20 (`stats` `[10, 20, 10, 11]`), nên chỉ số khởi đầu không phải chỉ số chính. [Đo]
 - Thân Pháp tăng P.Thủ, Chính Xác, Né Tránh và Chí Mạng. Thể Lực tăng Sinh Lực và lượng máu Tim hồi. Cường Lực và Nội Lực giúp Đào và Âm dương nạp nhiều hơn.
+- Đo được (31/10): **HP gốc = 6 × Thể Lực**. manina Thể Lực 30 → 180, cấp 22 (Thể Lực 31) → 186; Tiheo2 Thể Lực 25 → 150. Nón Âu Lạc cộng thêm 58. **Tấn Công = Cường Lực** ở manina (hệ Hỏa): cả hai bằng 32 từ cấp 8 tới 22. Mô phỏng các cách cộng 71 điểm của manina ở [07-auto-battle](07-auto-battle.md#cộng-điểm). [Đo]
 - Tẩy Tủy Đan trả lại toàn bộ điểm tiềm năng đã cộng; Tẩy Kinh Đan trả lại toàn bộ điểm kỹ năng.
 
 **Bot TS**: không có `--stats` thì bot chỉ cộng 1 điểm vào Cường Lực ở bước "Nâng điểm tiềm năng". Có `--stats` thì bot cộng hết điểm theo lựa chọn ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)):
