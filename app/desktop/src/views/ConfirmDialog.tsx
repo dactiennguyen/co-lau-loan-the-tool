@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { Button } from "../components/Button";
 import { Dialog } from "../components/Dialog";
+import type { IconName } from "../components/Icon";
 
 interface Props {
   title: string;
   message: ReactNode;
-  /** Label of the button that does it. */
+  /** Label of the button that does it, and its icon (a bin by default). */
   confirm: string;
+  icon?: IconName;
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }
@@ -15,7 +17,7 @@ interface Props {
  * Asks before something that cannot be undone; focus starts on Huỷ, so Enter alone does nothing harmful. It closes once
  * `onConfirm` resolves; a rejection stays on screen with its message, so a failure never looks like success.
  */
-export function ConfirmDialog({ title, message, confirm, onConfirm, onClose }: Props) {
+export function ConfirmDialog({ title, message, confirm, icon = "trash", onConfirm, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
@@ -45,7 +47,7 @@ export function ConfirmDialog({ title, message, confirm, onConfirm, onClose }: P
         <Button kind="ghost" onClick={onClose}>
           Huỷ
         </Button>
-        <Button kind="danger" type="submit" icon="trash" disabled={busy}>
+        <Button kind="danger" type="submit" icon={icon} disabled={busy}>
           {confirm}
         </Button>
       </footer>

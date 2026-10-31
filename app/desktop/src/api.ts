@@ -15,6 +15,7 @@ import type {
   Secrets,
   StatPlan,
   StoredBattle,
+  UpdateView,
 } from "./types";
 
 export interface LogEvent {
@@ -61,6 +62,14 @@ export interface Api {
   battleStats(id: number, since: number | null, source: BattleSource | null): Promise<BattleStats | null>;
   /** Thống kê: the battles themselves, newest first, before row `before`. */
   battleHistory(id: number, since: number | null, source: BattleSource | null, before: number | null, limit: number): Promise<StoredBattle[]>;
+  /** Tự cập nhật: the version running and where its update stands. */
+  updateStatus(): Promise<UpdateView>;
+  /** Kiểm tra cập nhật now; a newer version is downloaded, and the "update" event tells how it went. */
+  checkUpdate(): Promise<void>;
+  /** Khởi động lại để cập nhật: logs every account out, installs the update and opens the new version; rejects with a
+   * message to show. */
+  installUpdate(): Promise<void>;
+  onUpdate(handler: (update: UpdateView) => void): Promise<UnlistenFn>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -104,6 +113,10 @@ const tauri: Api = {
   accountSecrets: (id) => invoke("account_secrets", { id }),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
   onLog: (handler) => listen<LogEvent[]>("log", (e) => handler(e.payload)),
+  updateStatus: () => invoke("update_status"),
+  checkUpdate: () => invoke("check_update"),
+  installUpdate: () => invoke("install_update"),
+  onUpdate: (handler) => listen<UpdateView>("update", (e) => handler(e.payload)),
 };
 
 interface Sample extends AppState {
@@ -147,6 +160,10 @@ const preview: Api = {
   accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
   onAccounts: async () => () => {},
   onLog: async () => () => {},
+  updateStatus: async () => ({ current: "0.2.0", state: "off", reason: "bản xem thử trong trình duyệt" }),
+  checkUpdate: nothing,
+  installUpdate: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không cập nhật")),
+  onUpdate: async () => () => {},
 };
 
 export const api: Api = isTauri() ? tauri : preview;

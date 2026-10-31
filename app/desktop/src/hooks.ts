@@ -4,11 +4,17 @@ import { selectedId, useStore } from "./store";
 import type { LogLine } from "./types";
 import { append, listenThenLoad } from "./updates";
 
-/** Keeps the store in step with src-tauri: every account, then the log of the selected one. Mounted once, in App. */
+/** Keeps the store in step with src-tauri: every account, the log of the selected one, and the update of the app.
+ * Mounted once, in App. */
 export function useSync() {
   useEffect(() => {
     const { loaded, updated } = useStore.getState();
     return listenThenLoad(api.onAccounts, api.state, loaded, updated);
+  }, []);
+  useEffect(() => {
+    const { updateChanged } = useStore.getState();
+    // An event newer than the answer of update_status wins.
+    return listenThenLoad(api.onUpdate, api.updateStatus, (now, early) => updateChanged(early[early.length - 1] ?? now), updateChanged);
   }, []);
   const id = useStore(selectedId);
   useEffect(() => {

@@ -22,6 +22,23 @@ export interface LogLine {
   turn?: Turn;
 }
 
+/** Where the update of the app stands (UpdateState of src-tauri's update.rs). */
+export type UpdateState =
+  /** This copy does not update itself (tauri dev, the portable exe, --sample), and why. */
+  | { state: "off"; reason: string }
+  | { state: "idle" }
+  | { state: "checking" }
+  /** Nothing newer at `checkedAt` (ms since 1970). */
+  | { state: "latest"; checkedAt: number }
+  | { state: "downloading"; version: string; notes: string; got: number; total: number | null }
+  /** Downloaded and verified: installed when the app quits, or at once with Khởi động lại. */
+  | { state: "ready"; version: string; notes: string }
+  | { state: "installing"; version: string }
+  | { state: "failed"; message: string; checkedAt: number };
+
+/** Tự cập nhật: the version running, then where its update stands. */
+export type UpdateView = { current: string } & UpdateState;
+
 /** What a log line is about (LogKind of cllt-core's bot.rs); logKinds.ts names them. */
 export type LogKind = "connection" | "battle" | "quest" | "travel" | "character" | "item" | "server";
 

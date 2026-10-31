@@ -51,5 +51,17 @@
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-"
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDAwNEI0QkQ0QjNGODVGNkUKUldSdVgvaXoxRXRMQUdNenovUHFnMk1WSC9GMFRDZU4yc0t0WEFuOWpTSG1xUHZWeVArd0I4RlQK",
+      "endpoints": [
+        "https://github.com/dactiennguyen/co-lau-loan-the-tool/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -10,6 +10,7 @@ import { Sidebar } from "./views/Sidebar";
 import { StatPlanDialog } from "./views/StatPlanDialog";
 import { StopDialog } from "./views/StopDialog";
 import { Toaster } from "./views/Toaster";
+import { UpdateDialog } from "./views/UpdateDialog";
 import "./App.css";
 
 /** Sidebar of accounts, the selected account, the dialog the store says is open, and the toasts. */
@@ -31,11 +32,11 @@ export default function App() {
   );
 }
 
-/** "Thêm nick", "Sửa nick", the question before removing one, and Dừng during a battle; nothing once the account it is
- * about is gone. */
+/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, and Khởi động lại để cập nhật while
+ * accounts play; nothing once the account it is about is gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
-  const account = useStore((s) => (dialog && dialog.kind !== "add" ? s.byId[dialog.id] : undefined));
+  const account = useStore((s) => (dialog && "id" in dialog ? s.byId[dialog.id] : undefined));
   const { close, select } = useStore.getState();
   if (dialog?.kind === "add" || (dialog?.kind === "edit" && account)) {
     return (
@@ -49,6 +50,9 @@ function Dialogs() {
         }}
       />
     );
+  }
+  if (dialog?.kind === "update") {
+    return <UpdateDialog onClose={close} />;
   }
   if (dialog?.kind === "stop" && account) {
     return <StopDialog account={account} onClose={close} />;

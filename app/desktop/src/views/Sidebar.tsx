@@ -6,6 +6,7 @@ import appIcon from "../../app-icon.png";
 import { inGame, useStore, type Dialog } from "../store";
 import type { Account } from "../types";
 import { AccountCard } from "./AccountCard";
+import { UpdateBox } from "./UpdateBox";
 import "./Sidebar.css";
 
 /** The menu of an account: log in, or log out (cancel while connecting); edit; remove once it has no session. */
@@ -23,7 +24,8 @@ function accountMenu(a: Account, open: (d: Dialog) => void): MenuItem[] {
 }
 
 /**
- * Brand, "Thêm nick", the accounts with their menus, and login/logout of every account. Its top strip drags the window.
+ * Brand, "Thêm nick", the accounts with their menus, the update of the app, and login/logout of every account. Its top
+ * strip drags the window.
  * It re-renders when the order of the accounts or the count in the game changes; each card follows its own account.
  */
 export function Sidebar() {
@@ -72,6 +74,7 @@ export function Sidebar() {
       {menu && menuAccount && (
         <Menu x={menu.x} y={menu.y} label={`Nick ${menuAccount.label}`} items={accountMenu(menuAccount, open)} onClose={closeMenu} />
       )}
+      <UpdateBox />
       <div className="sidebar__footer">
         <Button kind="outline" icon="bolt" block disabled={order.length === 0} onClick={api.loginAll}>
           Đăng nhập tất cả

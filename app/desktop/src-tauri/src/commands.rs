@@ -3,6 +3,7 @@
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
 use crate::store::{BattleFilter, BattleStats, StoredBattle};
+use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{BattleSource, ItemAct, LogKind};
@@ -11,7 +12,7 @@ use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub fn state(shared: State<Shared>) -> Value {
@@ -206,6 +207,26 @@ pub fn battle_history(
     store
         .battles(filter, before, limit.clamp(1, 200))
         .map_err(|e| e.to_string())
+}
+
+/// Tự cập nhật: the version running and where its update stands.
+#[tauri::command]
+pub fn update_status(app: AppHandle) -> UpdateView {
+    update::view(&app)
+}
+
+/// Kiểm tra cập nhật: checks now, and downloads a newer version; the "update" event tells how it went.
+#[tauri::command]
+pub async fn check_update(app: AppHandle) {
+    update::check(&app).await;
+}
+
+/// Khởi động lại để cập nhật: off the main thread, which macOS needs free to ask for an admin password.
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || update::install_now(&app))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// The proxy part of the add and edit form. An empty password with a username keeps the saved one when editing.

@@ -1,8 +1,9 @@
 name: Build Matrix
 
 # Tests, then the desktop app (app/desktop) built for macOS Apple Silicon, macOS Intel, Windows x64 and Ubuntu x64.
-# The bundles stay as artifacts of the run; release.yml calls this workflow on a v* tag and publishes them.
-# Nothing is signed and there is no updater (docs/integration/rust/README.md#cicd-và-phát-hành).
+# The bundles stay as artifacts of the run; release.yml calls this workflow on a v* tag and publishes them. With the
+# updater key in the secrets, each bundle also gets its updater file and .sig (docs/integration/rust/README.md#tự-cập-nhật);
+# there is no Apple or Windows code signing (docs/integration/rust/README.md#cicd-và-phát-hành).
 
 on:
   push:
@@ -150,11 +151,25 @@ jobs:
         run: npm ci
 
       # beforeBuildCommand builds the frontend; --bundles overrides bundle.targets (only "app" in tauri.macos.conf.json).
+      # With TAURI_SIGNING_PRIVATE_KEY in the secrets (pushes and tags of this repository; not pull requests from forks),
+      # createUpdaterArtifacts makes the updater files and signs them; without it the build is the same, unsigned. The
+      # setting goes in a file: a JSON string argument could lose its quotes on its way to npx on Windows.
       - name: tauri build
         working-directory: app/desktop
+        shell: bash
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
-        run: npx tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          updater=()
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo '{"bundle":{"createUpdaterArtifacts":true}}' > updater.conf.json
+            updater=(--config updater.conf.json)
+          else
+            echo "::warning::No TAURI_SIGNING_PRIVATE_KEY secret: built without the updater files."
+          fi
+          npx tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} "${updater[@]}"
 
       - name: Stage bundles
         run: node .github/scripts/stage-bundles.mjs ${{ matrix.target }} staged

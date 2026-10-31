@@ -9,12 +9,14 @@
 //   --dump-sample=FILE writes the sample accounts as the UI receives them (the UI reads it in a plain browser).
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
-// UI is sent (../src/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample.
+// UI is sent (../src/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
+// update.rs updates the installed app from the GitHub releases.
 mod app;
 mod commands;
 mod paths;
 mod sample;
 mod store;
+mod update;
 mod view;
 
 use app::{App, Shared};
@@ -35,6 +37,8 @@ pub fn run() {
     let (sample, login_all) = (flag("--sample"), flag("--login-all"));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(update::Updates::default())
         .setup(move |tauri_app| {
             // Session events come from tokio threads and update the accounts; the flusher thread tells the UI.
             let events = tauri_app.handle().clone();
@@ -70,6 +74,7 @@ pub fn run() {
             if login_all {
                 tauri_app.state::<Shared>().with(|app| app.login_all());
             }
+            update::start(tauri_app.handle(), sample);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -97,7 +102,15 @@ pub fn run() {
             commands::test_proxy,
             commands::account_secrets,
             commands::remove_account,
+            commands::update_status,
+            commands::check_update,
+            commands::install_update,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                update::install_on_quit(app);
+            }
+        });
 }

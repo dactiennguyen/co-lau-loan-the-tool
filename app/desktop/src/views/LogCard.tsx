@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { api } from "../api";
+import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { FilterChip } from "../components/FilterChip";
 import { LOG_KINDS, kindOf } from "../logKinds";
+import { useStore } from "../store";
 import type { LogKind, LogLine } from "../types";
 import { TurnStatus } from "./TurnStatus";
 import "./LogCard.css";
@@ -21,11 +23,14 @@ interface Props {
 /**
  * What happened to the selected account, newest at the bottom; follows new lines while scrolled to the end. The line a
  * battle opened on shows the battle's latest result under it, live while `fighting`. Chips filter by kind (several at
- * once, none for all) and to the red lines; "Xem dòng cũ hơn" brings older lines of the filter from cllt.db.
+ * once, none for all) and to the red lines; "Xem dòng cũ hơn" brings older lines of the filter from cllt.db. "Xoá màn
+ * hình" only hides the lines on show (store.ts logCleared): the log and cllt.db keep them, and "Hiện lại" brings them back.
  */
 export function LogCard({ id, lines, fighting }: Props) {
   const list = useRef<HTMLOListElement>(null);
   const pinned = useRef(true);
+  const clearedAt = useStore((s) => s.logCleared[id]);
+  const clearLog = useStore((s) => s.clearLog);
   const [kinds, setKinds] = useState<LogKind[]>([]);
   const [bad, setBad] = useState(false);
   const [older, setOlder] = useState<LogLine[]>([]);
@@ -62,9 +67,12 @@ export function LogCard({ id, lines, fighting }: Props) {
   }, [older]);
 
   const match = (l: LogLine) => (!kinds.length || kinds.includes(l.kind)) && (!bad || l.tone === BAD);
-  const shown = [...older, ...lines.filter(match)];
+  // After Xoá màn hình, the lines up to then are hidden; older lines are not asked for while some are.
+  const visible = clearedAt == null ? lines : lines.filter((l) => l.seq > clearedAt);
+  const hidden = lines.length - visible.length;
+  const shown = [...older, ...visible.filter(match)];
   // The oldest row the card has, matching or not: older lines start below it, so none comes twice.
-  const ids = [...older, ...lines].flatMap((l) => (l.id == null ? [] : [l.id]));
+  const ids = [...older, ...visible].flatMap((l) => (l.id == null ? [] : [l.id]));
   const cursor = ids.length ? Math.min(...ids) : null;
 
   let live = -1;
@@ -74,6 +82,13 @@ export function LogCard({ id, lines, fighting }: Props) {
       break;
     }
   }
+  const clear = () => {
+    if (!lines.length) return;
+    asked.current++;
+    setOlder([]);
+    setEnd(false);
+    clearLog(id, lines[lines.length - 1].seq);
+  };
   const toggle = (k: LogKind) => setKinds((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...ks, k]));
   const loadOlder = async () => {
     if (cursor == null || loading) return;
@@ -97,8 +112,20 @@ export function LogCard({ id, lines, fighting }: Props) {
       icon="list"
       tone="var(--exp)"
       aside={
-        <span className="log__count">
-          <span className="px">{shown.length}</span> dòng
+        <span className="log__aside">
+          <span className="log__count">
+            <span className="px">{shown.length}</span> dòng
+          </span>
+          <Button
+            kind="ghost"
+            small
+            icon="eraser"
+            disabled={!older.length && !visible.length}
+            onClick={clear}
+            title="Ẩn các dòng đang hiện; nhật ký vẫn giữ nguyên, bấm Hiện lại để xem lại"
+          >
+            Xoá màn hình
+          </Button>
         </span>
       }
       className="log-card"
@@ -131,19 +158,32 @@ export function LogCard({ id, lines, fighting }: Props) {
           pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
         }}
       >
-        {cursor != null && !end && (
+        {hidden > 0 ? (
           <li className="log__more">
-            <button type="button" disabled={loading} onClick={loadOlder}>
-              {loading ? "Đang tải…" : "Xem dòng cũ hơn"}
+            <button type="button" onClick={() => clearLog(id, null)}>
+              Đã xoá {hidden} dòng khỏi màn hình · Hiện lại
             </button>
           </li>
+        ) : (
+          cursor != null &&
+          !end && (
+            <li className="log__more">
+              <button type="button" disabled={loading} onClick={loadOlder}>
+                {loading ? "Đang tải…" : "Xem dòng cũ hơn"}
+              </button>
+            </li>
+          )
         )}
-        {shown.length === 0 && <li className="log__empty">{lines.length ? "Không có dòng nào khớp bộ lọc." : "Chưa có gì."}</li>}
+        {shown.length === 0 && (
+          <li className="log__empty">
+            {visible.length ? "Không có dòng nào khớp bộ lọc." : hidden ? "Dòng mới sẽ hiện ở đây." : "Chưa có gì."}
+          </li>
+        )}
         {shown.map((l, i) => {
           const k = kindOf(l.kind);
           return (
             <li key={l.id != null ? `i${l.id}` : `s${l.seq}`} className={`tone-${l.tone}`}>
-              <time className="px" dateTime={new Date(l.at).toISOString()}>
+              <time className="px" dateTime={l.at ? new Date(l.at).toISOString() : undefined}>
                 {l.time}
               </time>
               <span className="log__kind" style={{ "--kind": k.tone } as CSSProperties}>

@@ -36,3 +36,20 @@ export function hue(name: string) {
 }
 
 export const initial = (name: string) => (name.trim()[0] ?? "?").toUpperCase();
+
+/** The notes of a release (the body of its release commit) in paragraphs: a line goes on with the one before unless a
+ * blank line or a "- " starts it. */
+export function paragraphs(notes: string): string[] {
+  const out: string[] = [];
+  let open = false;
+  for (const raw of notes.split("\n")) {
+    const line = raw.trim();
+    if (!line) open = false;
+    else if (open && !/^[-•*] /.test(line)) out[out.length - 1] += ` ${line}`;
+    else {
+      out.push(line);
+      open = true;
+    }
+  }
+  return out;
+}

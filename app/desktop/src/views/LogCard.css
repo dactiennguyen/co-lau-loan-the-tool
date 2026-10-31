@@ -1,4 +1,5 @@
-.log__count { font-size: 11px; color: var(--fg-3); }
+.log__aside { display: flex; align-items: center; gap: 8px; }
+.log__count { font-size: 11px; color: var(--fg-3); white-space: nowrap; }
 /* The kinds, then "Chỉ lỗi" after a rule; they wrap on a narrow card. */
 .log__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
 .log__sep { width: 1px; height: 16px; margin: 0 2px; background: var(--line); }

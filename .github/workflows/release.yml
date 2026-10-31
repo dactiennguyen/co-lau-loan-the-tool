@@ -1,10 +1,11 @@
 name: Release
 
 # On a v* tag: checks the tag against the app version, runs build-matrix.yml (tests and the four builds), then publishes a
-# GitHub release with every bundle, SHA256SUMS.txt and .github/release-notes.md. Nothing is signed and there is no
-# updater (docs/integration/rust/README.md#cicd-và-phát-hành). To release 0.1.1:
-#   set "version" to 0.1.1 in app/Cargo.toml, app/desktop/package.json and app/desktop/src-tauri/tauri.conf.json, commit,
-#   git tag v0.1.1 && git push origin main v0.1.1
+# GitHub release with every bundle, their updater files and .sig, SHA256SUMS.txt, latest.json for the updater of the
+# installed apps, and .github/release-notes.md (docs/integration/rust/README.md#cicd-và-phát-hành). The body of the
+# release commit is the "Có gì mới" of the app. No Apple or Windows code signing. To release 0.1.1:
+#   set "version" to 0.1.1 in app/Cargo.toml, app/desktop/package.json and app/desktop/src-tauri/tauri.conf.json, commit
+#   ("Release 0.1.1", then what changed), git tag v0.1.1 && git push origin main v0.1.1
 
 on:
   push:
@@ -53,6 +54,8 @@ jobs:
     name: Build
     needs: prepare
     uses: ./.github/workflows/build-matrix.yml
+    # TAURI_SIGNING_PRIVATE_KEY and its password, for the updater files.
+    secrets: inherit
 
   publish:
     name: Publish release
@@ -83,6 +86,15 @@ jobs:
           mv ../SHA256SUMS.txt .
           ls -l
           cat SHA256SUMS.txt
+
+      # What the updater of the installed apps reads from the latest release (docs/integration/rust/README.md#tự-cập-nhật).
+      # Its notes, "Có gì mới" in the app, are the body of the release commit.
+      - name: latest.json
+        run: |
+          set -euo pipefail
+          git log -1 --format=%b HEAD > commit-body.txt
+          node .github/scripts/latest-json.mjs assets "$VERSION" "$GH_REPO" "$TAG" commit-body.txt > assets/latest.json
+          cat assets/latest.json
 
       - name: Release notes
         run: sed "s/{{VERSION}}/${VERSION}/g" .github/release-notes.md > notes.md

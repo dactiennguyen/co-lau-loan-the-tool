@@ -8,7 +8,7 @@ export type ToastTone = "info" | "good" | "warn";
 
 export interface ToastInput {
   tone: ToastTone;
-  /** The account it is about. */
+  /** The account it is about, or "Cập nhật". */
   title: string;
   text: string;
 }
@@ -54,6 +54,11 @@ export function errorToasts(before: Record<number, Account>, after: Account[]): 
       return a.status === 4 && prev != null && prev.status !== 4 && !running;
     })
     .map((a) => ({ tone: "warn", title: a.label, text: `Lỗi: ${a.error}` }));
+}
+
+/** A newer version of the app downloaded while the app runs (update.rs). */
+export function updateToast(version: string): ToastInput {
+  return { tone: "good", title: "Cập nhật", text: `Bản ${version} đã tải xong: bấm Khởi động lại ở thanh bên, hoặc bản mới tự cài khi tắt app.` };
 }
 
 let lastId = 0;

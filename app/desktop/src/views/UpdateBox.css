@@ -1,0 +1,40 @@
+/* The version and its check button: one quiet line, the reason of a failed check under it. */
+.upd-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-1); min-height: 26px; font-size: 11px; color: var(--fg-3); }
+.upd-line__text { flex: 1; min-width: 0; }
+.upd-line__text .px { font-size: 10px; }
+.upd-line__bad { color: var(--danger); }
+.upd-line__why { flex-basis: 100%; overflow-wrap: anywhere; color: var(--fg-3); font-size: 10.5px; line-height: 1.4; }
+
+/* A newer version on its way or ready: a framed block, gold once it can be installed. */
+.upd {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--ink);
+  border: 2px solid var(--line);
+  clip-path: var(--notch-sm);
+}
+.upd--ready { border-color: var(--primary); }
+.upd__head { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--fg); }
+.upd__head svg { flex: none; color: var(--exp); }
+.upd--ready .upd__head svg { color: var(--primary); }
+.upd__sub { color: var(--fg-3); font-size: 11px; line-height: 1.4; }
+.upd__toggle {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: 700 11px/1.4 var(--font-ui);
+  color: var(--exp);
+  cursor: pointer;
+}
+.upd__toggle:hover { color: var(--fg); }
+.upd__toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.upd__chev { transition: transform var(--fast) var(--step); }
+.upd__chev--open { transform: rotate(180deg); }
+.upd__notes { max-height: 150px; padding-right: 4px; font-size: 11px; line-height: 1.45; color: var(--fg-2); }
+.upd__notes p { margin: 0 0 4px; }
+.upd__error { color: var(--danger); font-size: 11px; overflow-wrap: anywhere; }
