@@ -3,7 +3,7 @@ import { levelProgress, num, pct } from "../format";
 import type { Character } from "../types";
 import "./MetricRow.css";
 
-/** HP, EXP of the level, coins, and the points left to spend; dashes until the character is in the game. */
+/** HP, EXP of the level and coins; dashes until the character is in the game. The points left to spend are in StatsCard. */
 export function MetricRow({ character: c }: { character: Character | null }) {
   const level = c && levelProgress(c);
   return (
@@ -25,13 +25,6 @@ export function MetricRow({ character: c }: { character: Character | null }) {
         progress={level?.part ?? 0}
       />
       <StatTile label="Xu" icon="coin" fill="var(--coin)" value={num(c?.coin)} caption={c ? "tiền thưởng các trận" : undefined} />
-      <StatTile
-        label="Tiềm năng"
-        icon="gem"
-        fill="var(--points)"
-        value={c?.statPoints != null ? <>{num(c.statPoints)} <small>điểm</small></> : "—"}
-        caption={c?.skillPoints != null ? `${num(c.skillPoints)} điểm kỹ năng chưa dùng` : undefined}
-      />
     </div>
   );
 }
