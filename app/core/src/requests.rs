@@ -30,6 +30,11 @@ pub struct Ctx<'a> {
     pub slot: Option<i32>,
     pub action: Option<i32>,
     pub place: Option<i32>,
+    /// The line of an NPC menu that c2s/57 picks (s2c/57).
+    pub option: Option<i32>,
+    /// The shop line of c2s/1190 (s2c/1190), and how many.
+    pub shop_id: Option<i32>,
+    pub quantity: Option<i32>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -94,6 +99,16 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .i32(required(c.slot, "slot")?)
             .build(),
         84 => w.i32(required(c.slot, "slot")?).build(),
+        57 => w
+            .u8(required(c.option, "option")? as u8)
+            .string(required(c.map_id, "mapId")?)
+            .i32(required(c.npc_id, "npcId")?)
+            .build(),
+        1190 => w
+            .u8(0)
+            .i32(required(c.shop_id, "shopId")?)
+            .i32(c.quantity.unwrap_or(1))
+            .build(),
         48 => w
             .u8(c.place.unwrap_or(0) as u8)
             .i32(required(c.slot, "slot")?)

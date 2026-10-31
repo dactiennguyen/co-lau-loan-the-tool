@@ -8,6 +8,7 @@ import { ItemSlot } from "../components/ItemSlot";
 import { num } from "../format";
 import type { Account, Item, ItemAction } from "../types";
 import { ItemDetail } from "./ItemDetail";
+import { useStore } from "../store";
 import "./InventoryCard.css";
 
 /** The 8 gear slots around the character, as the Bản thân panel lays them out: 0, 1, 2, 3 and 5 are measured (manina,
@@ -31,6 +32,7 @@ const POTION = 20;
 const USABLE = new Set([POTION, 23, 24, 29]);
 /** Búa Sửa Chữa: each repair takes one. */
 const HAMMER = 2;
+const NO_HAMMER = "cần 1 Búa sửa chữa trong túi";
 /** An action the server has not answered in this long is let go, and the buttons come back. */
 const ANSWER_MS = 5000;
 
@@ -46,7 +48,8 @@ interface Act {
 /**
  * Túi đồ tab: the 8 gear slots (s2c/9, then s2c/37) around the character, the bag (s2c/42, s2c/1187) by slot, and the
  * item shown under them with the game's buttons for the item clicked: Mặc and Dùng in the bag, Cởi ra and Sửa on the
- * gear (12-skills-items.md#c2s-1186). Vứt bỏ is left out. The money is in the metric row.
+ * gear (12-skills-items.md#c2s-1186). Vứt bỏ is left out. The money is in the metric row. Cửa hàng opens the shop of Lái
+ * Buôn; Mua búa does too, with the hammer picked, where Sửa lacks one.
  */
 export function InventoryCard({ account, onAction }: { account: Account; onAction: (action: ItemAction, slot: number) => void }) {
   const c = account.character;
@@ -102,7 +105,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     if (isWorn) {
       const d = item.durability;
       const repair: Act[] = d
-        ? [{ action: "repair", label: "Sửa", icon: "pencil", why: d[0] >= d[1] ? "độ bền còn đầy" : hammer ? null : "cần 1 Búa sửa chữa trong túi", confirm: `Sửa ${item.name}? Tốn 1 Búa sửa chữa.` }]
+        ? [{ action: "repair", label: "Sửa", icon: "pencil", why: d[0] >= d[1] ? "độ bền còn đầy" : hammer ? null : NO_HAMMER, confirm: `Sửa ${item.name}? Tốn 1 Búa sửa chữa.` }]
         : [];
       return [{ action: "unequip", label: "Cởi ra", icon: "logout", why: full ? "túi đồ đã đầy" : null }, ...repair];
     }
@@ -113,6 +116,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     }
     return [];
   };
+  /** Cửa hàng of Lái Buôn, with `item` picked first. */
+  const shopFor = (item?: number) => useStore.getState().open({ kind: "shop", id: account.id, item });
   const run = (action: ItemAction, item: Item) => {
     setAsk(null);
     setSent(sig);
@@ -160,8 +165,13 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
               {a.label}
             </Button>
           ))}
+          {why === NO_HAMMER && (
+            <Button kind="tonal" small icon="cart" onClick={() => shopFor(HAMMER)}>
+              Mua búa
+            </Button>
+          )}
         </div>
-        {why && <span className="inv__why">{why}</span>}
+        {why && why !== NO_HAMMER && <span className="inv__why">{why}</span>}
       </div>
     );
   })();
@@ -171,6 +181,11 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       icon="gem"
       className="inv"
       subtitle={bag ? `${num(bag.items.length)}/${num(bag.capacity)} ô · ${worn} món đang mặc` : "Chưa nhận túi đồ"}
+      aside={
+        <Button kind="tonal" small icon="cart" onClick={() => shopFor()}>
+          Cửa hàng
+        </Button>
+      }
     >
       <div className="inv__body">
         <section className="inv__gear" aria-label="Trang bị đang mặc">

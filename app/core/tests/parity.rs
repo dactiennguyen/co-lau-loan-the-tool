@@ -1973,3 +1973,171 @@ fn every_battle_that_ends_leaves_a_record_for_the_history_of_the_account() {
         [(BattleSource::Quest, BattleResult::Left, 0, "Cóc Xanh")]
     );
 }
+
+/// Lái Buôn's menu (s2c/57) and Dược phẩm shop (s2c/1190) of P5, as npcMenu and shopList of src/world.ts read them.
+const LAI_BUON_MENU: &str = "000000030000000a4cc3a169204275c3b46e00000030e1bb9e206368e1bb972074612063c3b32072e1baa574206e6869e1bb8175206dc3b36e20c491e1bb932074e1bb91742e000000000856c5a9206b68c3ad010000000e44c6b0e1bba363207068e1baa96d020000001643e1bbad612068c3a06e67205b4cc6b0e1bba36e675d";
+const LAI_BUON_SHOP: &str = "060000000c56e1baad74205068e1baa96d000000080000000000000000000000006dffffffff0000000101ff000000000000000000000000000100000001000000006dffffffff0000000101ff0000000000000000000000000002000000020000000049ffffffff0000000101ff0000000000000000000000000004000000000100000078ffffffff0000000100ff0000000000000000000000000005000000010100000078ffffffff0000000100ff0000000000000000000000000006000000020100000050ffffffff0000000100ff000000000000000000000000019f000000100000000fa0ffffffff0000000101ff00000000000000000000000001e70000001500000001f4ffffffff0000000101ff00000000000000000000";
+
+#[test]
+fn lai_buon_s_menu_and_shop_read_as_the_ts_decoders_read_them() {
+    let menu = world::npc_menu(&hex(LAI_BUON_MENU)).unwrap();
+    assert_eq!(
+        (menu.npc.as_str(), menu.text.as_str()),
+        ("Lái Buôn", "Ở chỗ ta có rất nhiều món đồ tốt.")
+    );
+    assert_eq!(
+        menu.options,
+        [
+            (0, "Vũ khí".to_string()),
+            (1, "Dược phẩm".to_string()),
+            (2, "Cửa hàng [Lượng]".to_string())
+        ]
+    );
+    let shop = world::shop_list(&hex(LAI_BUON_SHOP)).unwrap();
+    assert_eq!((shop.kind, shop.title.as_str()), (6, "Vật Phẩm"));
+    let lines: Vec<_> = shop
+        .items
+        .iter()
+        .map(|i| (i.shop_id, i.item_id, i.currency, i.price))
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            (0, 0, 0, 109),
+            (1, 1, 0, 109),
+            (2, 2, 0, 73),
+            (4, 0, 1, 120),
+            (5, 1, 1, 120),
+            (6, 2, 1, 80),
+            (415, 16, 0, 4000),
+            (487, 21, 0, 500)
+        ]
+    );
+    // c2s/57 and c2s/1190 as buildRequest builds them (P5: Dược phẩm; slot 0, then slot 4).
+    let ctx = |option, shop_id| Ctx {
+        option,
+        shop_id,
+        map_id: Some("M1"),
+        npc_id: Some(106),
+        quantity: Some(1),
+        ..Ctx::default()
+    };
+    assert_eq!(
+        tohex(&build(57, &ctx(Some(1), None)).unwrap()),
+        "01000000024d310000006a"
+    );
+    assert_eq!(
+        tohex(&build(1190, &ctx(None, Some(0))).unwrap()),
+        "000000000000000001"
+    );
+    assert_eq!(
+        tohex(&build(1190, &ctx(None, Some(4))).unwrap()),
+        "000000000400000001"
+    );
+}
+
+/// B1 (manina, 31/10): Lái Buôn answers c2s/13 anywhere on M1 and "Không thể thực hiện" from another map; the purchase
+/// of 1 Búa Sửa Chữa for 80 Xu khóa sent c2s/1190 (0, 6, 1) and got "Bạn vừa mua thành công! 1 Búa Sửa Chữa".
+#[test]
+fn the_shop_opens_on_m1_and_buys_a_line_the_money_pays_for() {
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    out.clear();
+    bot.open_shop(now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Chưa mở cửa hàng: Lái Buôn ở Làng Thanh Khê (M1), hãy sang M1 trước"
+        ),
+        "{out:?}"
+    );
+    assert_eq!(sends(&out, 13), 0);
+    // On M1 (zone 1) with B1's money: 500 Xu, 8517 Xu khóa.
+    bot.on_packet(13, &hex("000000024d31000000010001"), now, &mut out)
+        .unwrap();
+    let money = hex(concat!(
+        "00000009757064617465205875",
+        "00000000000001f4",
+        "0000000000002145",
+        "0000000000000000"
+    ));
+    bot.on_packet(46, &money, now, &mut out).unwrap();
+    out.clear();
+    bot.buy(6, 1, now, &mut out);
+    assert!(logged(&out, "Chưa mua ô 6: mở cửa hàng trước"), "{out:?}");
+    // A menu that comes unasked opens nothing.
+    bot.on_packet(57, &hex(LAI_BUON_MENU), now, &mut out)
+        .unwrap();
+    assert_eq!(sends(&out, 57), 0);
+    bot.open_shop(now, &mut out);
+    assert!(logged(&out, "Mở cửa hàng Lái Buôn (Dược phẩm)"));
+    assert_eq!(sent(&out, 13).as_deref(), Some("000000024d310000006a"));
+    bot.open_shop(now, &mut out);
+    assert!(logged(&out, "Chưa mở cửa hàng: đang đợi Lái Buôn trả lời"));
+    out.clear();
+    bot.on_packet(57, &hex(LAI_BUON_MENU), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 57).as_deref(), Some("01000000024d310000006a"));
+    out.clear();
+    bot.on_packet(1190, &hex(LAI_BUON_SHOP), now, &mut out)
+        .unwrap();
+    assert!(logged(&out, "Cửa hàng Lái Buôn: 8 món"), "{out:?}");
+    assert_eq!(bot.snapshot().shop.map(|s| s.items.len()), Some(8));
+    assert_eq!(bot.deadline(), None);
+    for (shop_id, quantity, why) in [
+        (3, 1, "Chưa mua ô 3: cửa hàng không có ô này"),
+        (6, 0, "Chưa mua Búa Sửa Chữa: số lượng phải từ 1 tới 99"),
+        (2, 7, "Chưa mua Búa Sửa Chữa: không đủ Xu (cần 511, có 500)"),
+    ] {
+        out.clear();
+        bot.buy(shop_id, quantity, now, &mut out);
+        assert!(logged(&out, why), "{out:?}");
+        assert_eq!(sends(&out, 1190), 0);
+    }
+    out.clear();
+    bot.buy(6, 1, now, &mut out);
+    assert!(logged(&out, "Mua 1 Búa Sửa Chữa giá 80 Xu khóa"), "{out:?}");
+    assert_eq!(sent(&out, 1190).as_deref(), Some("000000000600000001"));
+    bot.buy(6, 1, now, &mut out);
+    assert!(logged(
+        &out,
+        "Chưa mua Búa Sửa Chữa: đang đợi Lái Buôn trả lời"
+    ));
+    assert_eq!(sends(&out, 1190), 1);
+    out.clear();
+    let bought = Writer::new()
+        .u8(1)
+        .string("Bạn vừa mua thành công! 1 Búa Sửa Chữa")
+        .build();
+    bot.on_packet(1256, &bought, now, &mut out).unwrap();
+    assert!(
+        logged(&out, "Đã mua 1 Búa Sửa Chữa (80 Xu khóa)"),
+        "{out:?}"
+    );
+    // Refused by the server, or unanswered for 8 s.
+    out.clear();
+    bot.buy(2, 1, now, &mut out);
+    let short = Writer::new()
+        .u8(1)
+        .string("Không đủ Xu để thực hiện")
+        .build();
+    bot.on_packet(1256, &short, now, &mut out).unwrap();
+    assert!(logged(
+        &out,
+        "Chưa mua được Búa Sửa Chữa: Không đủ Xu để thực hiện"
+    ));
+    out.clear();
+    bot.open_shop(now, &mut out);
+    bot.on_timer(now + Duration::from_secs(8), &mut out);
+    assert!(logged(&out, "Lái Buôn không trả lời sau 8 s"), "{out:?}");
+    bot.open_shop(now, &mut out);
+    let refused = Writer::new().u8(1).string("Không thể thực hiện").build();
+    bot.on_packet(1256, &refused, now, &mut out).unwrap();
+    assert!(logged(
+        &out,
+        "Không mở được cửa hàng Lái Buôn: Không thể thực hiện"
+    ));
+    // Leaving M1 closes the shop.
+    bot.on_packet(13, &hex("000000024d32000000010000"), now, &mut out)
+        .unwrap();
+    assert_eq!(bot.snapshot().shop, None);
+}

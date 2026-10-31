@@ -50,6 +50,13 @@ pub enum Command {
     ChangeZone(i32),
     /// Another map, through the portals of the atlas (Bot::go_to).
     GoTo(String),
+    /// The Dược phẩm shop of Lái Buôn (Bot::open_shop).
+    OpenShop,
+    /// Buys a line of that shop: its shop id and how many (Bot::buy).
+    Buy {
+        shop_id: i32,
+        quantity: i32,
+    },
     Logout,
 }
 
@@ -315,6 +322,8 @@ async fn session(
                     Some(Command::ListZones) => bot.list_zones(&mut out),
                     Some(Command::ChangeZone(zone)) => bot.change_zone(zone, now, &mut out),
                     Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, &mut out),
+                    Some(Command::OpenShop) => bot.open_shop(now, &mut out),
+                    Some(Command::Buy { shop_id, quantity }) => bot.buy(shop_id, quantity, now, &mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),

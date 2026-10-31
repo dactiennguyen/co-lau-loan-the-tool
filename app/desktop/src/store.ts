@@ -17,6 +17,8 @@ export type Dialog =
   | { kind: "stats"; id: number }
   /** Đổi khu / map of the Vị trí card. */
   | { kind: "place"; id: number }
+  /** Cửa hàng of Lái Buôn, with the item to pick first (Mua búa: 2). */
+  | { kind: "shop"; id: number; item?: number }
   /** Khởi động lại để cập nhật while accounts are in the game. */
   | { kind: "update" };
 

@@ -387,6 +387,69 @@ pub fn notice(p: &[u8]) -> Result<String> {
     r.finish(text, "s2c/1256")
 }
 
+/// s2c/57 after c2s/13 to an NPC with a menu (Lái Buôn, P5): its name, its line, and the choices (code, label) that
+/// c2s/57 picks from. ← npcMenu of src/world.ts.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct NpcMenu {
+    pub npc: String,
+    pub text: String,
+    pub options: Vec<(u8, String)>,
+}
+pub fn npc_menu(p: &[u8]) -> Result<NpcMenu> {
+    let mut r = Reader::new(p);
+    let n = r.i32()?;
+    let (npc, text) = (r.string()?, r.string()?);
+    let mut options = vec![];
+    for _ in 0..n.max(0) {
+        options.push((r.u8()?, r.string()?));
+    }
+    r.finish(NpcMenu { npc, text, options }, "s2c/57")
+}
+
+/// One line of a shop: `shop_id` is what c2s/1190 buys, not the item id, since the same item is sold for Xu
+/// (`currency` 0) and for Xu khóa (1) in two lines.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopItem {
+    pub shop_id: i32,
+    pub item_id: i32,
+    pub currency: u8,
+    pub price: i32,
+    pub durability: i32,
+    pub quantity: i32,
+    pub flag: u8,
+    pub element: u8,
+}
+
+/// s2c/1190 after c2s/57 opens a shop (Dược phẩm of Lái Buôn: kind 6, "Vật Phẩm", 8 lines of 33 bytes, P5). ← shopList of
+/// src/world.ts.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopList {
+    pub kind: u8,
+    pub title: String,
+    pub items: Vec<ShopItem>,
+}
+pub fn shop_list(p: &[u8]) -> Result<ShopList> {
+    let mut r = Reader::new(p);
+    let (kind, title) = (r.u8()?, r.string()?);
+    let mut items = vec![];
+    for _ in 0..r.i32()?.max(0) {
+        items.push(ShopItem {
+            shop_id: r.i32()?,
+            item_id: r.i32()?,
+            currency: r.u8()?,
+            price: r.i32()?,
+            durability: r.i32()?,
+            quantity: r.i32()?,
+            flag: r.u8()?,
+            element: r.u8()?,
+        });
+        r.take(10)?;
+    }
+    r.finish(ShopList { kind, title, items }, "s2c/1190")
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {

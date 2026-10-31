@@ -9,7 +9,7 @@ use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
 use cllt_core::skills::{skill_tree, Prerequisite, SkillBox, SkillLevel};
-use cllt_core::world::{Nearby, Quest, Zone};
+use cllt_core::world::{Nearby, Quest, ShopList, Zone};
 use serde::Serialize;
 
 /// Colour of a log line in the UI (LogLine.tone).
@@ -192,6 +192,54 @@ pub struct CharacterView<'a> {
     pub moving: Option<&'a str>,
     /// The maps of the atlas, nearest first, with the portals to take.
     pub maps: &'a [MapChoice],
+    /// The Dược phẩm shop of Lái Buôn as s2c/1190 last listed it; None until opened, and again once off M1.
+    pub shop: Option<ShopView<'a>>,
+}
+
+/// The shop of the Cửa hàng dialog: each line named from data/items.json, with its price and money.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopView<'a> {
+    pub title: &'a str,
+    pub items: Vec<ShopLineView>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopLineView {
+    /// What c2s/1190 buys.
+    pub shop_id: i32,
+    pub item_id: i32,
+    pub name: String,
+    pub icon: Option<i32>,
+    pub desc: &'static str,
+    /// 0 Xu, 1 Xu khóa.
+    pub currency: u8,
+    pub price: i32,
+}
+impl<'a> ShopView<'a> {
+    pub fn of(s: &'a ShopList) -> Self {
+        let b = book();
+        ShopView {
+            title: &s.title,
+            items: s
+                .items
+                .iter()
+                .map(|l| {
+                    let def = b.get(l.item_id);
+                    ShopLineView {
+                        shop_id: l.shop_id,
+                        item_id: l.item_id,
+                        name: def.map_or_else(|| format!("#{}", l.item_id), |d| d.name.clone()),
+                        icon: def.map(|d| d.icon).filter(|&n| n >= 0),
+                        desc: def.map_or("", |d| d.desc.as_str()),
+                        currency: l.currency,
+                        price: l.price,
+                    }
+                })
+                .collect(),
+        }
+    }
 }
 
 /// One skill of the Kỹ năng tab (skills::skill_tree): its box on the tree background, the level the character has, the
@@ -373,6 +421,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             })
             .collect(),
             zones: s.zones.as_deref(),
+            shop: s.shop.as_ref().map(ShopView::of),
             moving: s.moving.as_deref(),
             maps: &s.maps,
         }),

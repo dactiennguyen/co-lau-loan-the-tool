@@ -9,6 +9,9 @@
 //                                                       slots for equip and use, gear slots for unequip and repair)
 //   cllt zone --account=NAME [--zone=4]                 print the zones of the map (c2s/1172); with --zone, move there
 //   cllt goto --account=NAME --map=M1                   walk through portals to that map ("Đổi map")
+//   cllt buy --account=NAME [--item=2] [--pay=khoa|xu] [--qty=1] [--confirm]
+//                                                       open the Dược phẩm shop of Lái Buôn (on M1) and print it; with
+//                                                       --confirm buy that item (2 Búa Sửa Chữa), which spends money
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
 // --account=NAME also finds the one of .env when the file lacks it.
 // Passwords are never printed.
@@ -97,6 +100,27 @@ fn skills(s: &Snapshot) -> Vec<String> {
 }
 
 /// Gear, bag and the stats they change, with the slots `cllt item` takes.
+/// "Xu 500, Xu khóa 8437; Búa Sửa Chữa trong túi: 1", for `cllt buy`.
+fn wallet(s: &Snapshot, item_id: i32) -> String {
+    let have: i32 = s.bag.as_ref().map_or(0, |b| {
+        b.items
+            .iter()
+            .filter(|i| i.item_id == item_id)
+            .map(|i| i.quantity)
+            .sum()
+    });
+    let name = book()
+        .get(item_id)
+        .map_or_else(|| format!("#{item_id}"), |d| d.name.clone());
+    match &s.currencies {
+        Some(c) => format!(
+            "Xu {}, Xu khóa {}; {name} trong túi: {have}",
+            c.xu, c.xu_khoa
+        ),
+        None => format!("{name} trong túi: {have}"),
+    }
+}
+
 fn gear_and_bag(s: &Snapshot) -> Vec<String> {
     let b = book();
     let name = |id: i32| {
@@ -167,8 +191,17 @@ fn main() {
     let zone = command == Some("zone");
     let zone_to: Option<i32> = arg("zone").and_then(|v| v.parse().ok());
     let goto = command == Some("goto");
+    let buy = command == Some("buy");
+    let buy_item: i32 = arg("item").and_then(|v| v.parse().ok()).unwrap_or(2);
+    let buy_currency = if arg("pay").as_deref() == Some("xu") {
+        0
+    } else {
+        1
+    };
+    let buy_quantity: i32 = arg("qty").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let confirm = args.iter().any(|a| a == "--confirm");
     let fight = command == Some("fight") || quest;
-    let chosen: Vec<(u64, Account)> = if fight || skill || item || zone || goto {
+    let chosen: Vec<(u64, Account)> = if fight || skill || item || zone || goto || buy {
         let name = arg("account").unwrap_or_else(|| all[0].username.clone());
         let env = || find_upwards(".env").and_then(|p| accounts::from_env(&p));
         all.iter()
@@ -202,6 +235,8 @@ fn main() {
     let (mut pressed, mut answered): (Option<Instant>, Option<Instant>) = (None, None);
     // `cllt zone` waits for s2c/1172 after its c2s/1172; zone and goto log out a second after their last line.
     let mut listing = false;
+    // `cllt buy` waits for the shop (s2c/1190) after its Command::OpenShop.
+    let mut shopping = false;
     let mut moved: Option<Instant> = None;
     while ended < chosen.len() {
         let Ok((id, event)) = rx.recv_timeout(Duration::from_millis(200)) else {
@@ -217,6 +252,9 @@ fn main() {
             if moved.is_some_and(|t| t.elapsed() > Duration::from_secs(1)) {
                 moved = None;
                 println!("{}", line(&chosen[0].1, &snaps[0]));
+                if buy {
+                    println!("{}", wallet(&snaps[0], buy_item));
+                }
                 manager.send(0, Command::Logout);
             }
             if upgrading.is_some_and(|t| t.elapsed() > Duration::from_secs(10)) {
@@ -232,6 +270,11 @@ fn main() {
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         listing = true;
                         manager.send(i as u64, Command::ListZones);
+                    } else if buy {
+                        println!("{}", line(&chosen[i].1, &snaps[i]));
+                        println!("{}", wallet(&snaps[i], buy_item));
+                        shopping = true;
+                        manager.send(i as u64, Command::OpenShop);
                     } else if goto {
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         match arg("map") {
@@ -322,7 +365,17 @@ fn main() {
                     ]
                     .iter()
                     .any(|v| text.starts_with(v)))
-                    || (goto && (text.starts_with("Kết thúc") || text.starts_with("Chưa đi tới")));
+                    || (goto && (text.starts_with("Kết thúc") || text.starts_with("Chưa đi tới")))
+                    || (buy
+                        && [
+                            "Đã mua",
+                            "Chưa mua",
+                            "Chưa mở cửa hàng",
+                            "Không mở được",
+                            "Lái Buôn không trả lời",
+                        ]
+                        .iter()
+                        .any(|v| text.starts_with(v)));
                 if over {
                     moved = Some(Instant::now());
                 }
@@ -365,6 +418,57 @@ fn main() {
                         Some(z) => manager.send(id, Command::ChangeZone(z)),
                         None => manager.send(id, Command::Logout),
                     };
+                }
+                if let (true, Some(shop)) = (buy && shopping, &s.shop) {
+                    shopping = false;
+                    let name = |id: i32| {
+                        book()
+                            .get(id)
+                            .map_or_else(|| format!("#{id}"), |d| d.name.clone())
+                    };
+                    let money = |c: u8| if c == 1 { "Xu khóa" } else { "Xu" };
+                    for l in &shop.items {
+                        println!(
+                            "  ô {}: {} {} {}",
+                            l.shop_id,
+                            name(l.item_id),
+                            l.price,
+                            money(l.currency)
+                        );
+                    }
+                    match shop
+                        .items
+                        .iter()
+                        .find(|l| l.item_id == buy_item && l.currency == buy_currency)
+                    {
+                        Some(l) if confirm => {
+                            manager.send(
+                                id,
+                                Command::Buy {
+                                    shop_id: l.shop_id,
+                                    quantity: buy_quantity,
+                                },
+                            );
+                        }
+                        Some(l) => {
+                            println!(
+                                "Chạy thử: sẽ mua {buy_quantity} {} ở ô {} giá {} {}; thêm --confirm để mua",
+                                name(buy_item),
+                                l.shop_id,
+                                l.price as i64 * buy_quantity as i64,
+                                money(l.currency)
+                            );
+                            manager.send(id, Command::Logout);
+                        }
+                        None => {
+                            println!(
+                                "Cửa hàng không bán {} bằng {}",
+                                name(buy_item),
+                                money(buy_currency)
+                            );
+                            manager.send(id, Command::Logout);
+                        }
+                    }
                 }
                 if skill
                     && upgrade.is_some()

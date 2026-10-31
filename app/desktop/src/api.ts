@@ -54,6 +54,10 @@ export interface Api {
   changeZone(id: number, zone: number): Promise<void>;
   /** Another map, through the portals of the atlas; the log tells how it went. */
   goToMap(id: number, mapId: string): Promise<void>;
+  /** Cửa hàng: opens the Dược phẩm shop of Lái Buôn (on M1); the account's `shop` then lists it. */
+  openShop(id: number): Promise<void>;
+  /** Mua: `quantity` of the shop line `shopId`; the log tells how it went. */
+  buy(id: number, shopId: number, quantity: number): Promise<void>;
   /** Older lines of the Nhật ký from cllt.db, oldest first: before row `before`, of `kinds` (all when empty), only the
    * red ones with `bad`. Empty without the database. */
   logHistory(id: number, before: number | null, kinds: LogKind[], bad: boolean, limit: number): Promise<LogLine[]>;
@@ -103,6 +107,8 @@ const tauri: Api = {
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
+  openShop: (id) => invoke("open_shop", { id }),
+  buy: (id, shopId, quantity) => invoke("buy", { id, shopId, quantity }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
   battleStats: (id, since, source) => invoke("battle_stats", { id, since, source }),
   battleHistory: (id, since, source, before, limit) => invoke("battle_history", { id, since, source, before, limit }),
@@ -150,6 +156,8 @@ const preview: Api = {
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,
+  openShop: nothing,
+  buy: nothing,
   logHistory: async () => [],
   battleStats: async () => (await loadSample()).battleStats ?? null,
   battleHistory: async (_id, _since, _source, before) => (before == null ? ((await loadSample()).battleHistory ?? []) : []),

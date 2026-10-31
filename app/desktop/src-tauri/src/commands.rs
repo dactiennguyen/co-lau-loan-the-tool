@@ -141,6 +141,18 @@ pub fn go_to_map(shared: State<Shared>, id: u64, map_id: String) {
     shared.with(|app| app.send(id, Command::GoTo(map_id)));
 }
 
+/// Cửa hàng: opens the Dược phẩm shop of Lái Buôn (on M1); the account's `shop` then lists it.
+#[tauri::command]
+pub fn open_shop(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::OpenShop));
+}
+
+/// Mua: `quantity` of the shop line `shop_id`; the log tells how it went.
+#[tauri::command]
+pub fn buy(shared: State<Shared>, id: u64, shop_id: i32, quantity: i32) {
+    shared.with(|app| app.send(id, Command::Buy { shop_id, quantity }));
+}
+
 /// Older lines of the Nhật ký from cllt.db, oldest first as the card lists them: before row `before` (the oldest line
 /// the card has), of `kinds` (all when empty), only the red ones with `bad`. None without the database.
 #[tauri::command]

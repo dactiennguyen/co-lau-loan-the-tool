@@ -19,8 +19,9 @@ use crate::requests::{build, Ctx};
 use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill, Turn};
 use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
 use crate::world::{
-    character_stats, map_boss, map_change, map_data, map_entities, notice, quest_complete,
-    quest_data, quest_progress, zone_list, Mob, Nearby, Place, Quest, Zone, ZonePlayers,
+    character_stats, map_boss, map_change, map_data, map_entities, notice, npc_menu,
+    quest_complete, quest_data, quest_progress, shop_list, zone_list, Mob, Nearby, Place, Quest,
+    ShopList, Zone, ZonePlayers,
 };
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
@@ -346,6 +347,8 @@ pub struct Snapshot {
     pub skills: Arc<Vec<SkillDef>>,
     /// The level of each skill by id: the s2c/9 tail, then s2c/10 kind 32 after every c2s/1191.
     pub skill_levels: BTreeMap<i32, i32>,
+    /// The Dược phẩm shop of Lái Buôn as s2c/1190 last listed it (open_shop), until the character leaves M1.
+    pub shop: Option<ShopList>,
 }
 
 /// Wall-clock ms since 1970, for the start and end of a job or quest run.
@@ -387,6 +390,27 @@ pub enum ItemAct {
 const HAMMER: i32 = 2;
 /// The type of Hoàn Linh Dược and Kim Đan Dược: the server refuses them outside a battle (P4).
 const POTION: u8 = 20;
+
+/// Lái Buôn (NPC 106 of M1) and the line of his menu that opens the Dược phẩm shop (12-skills-items.md#c2s-1190). The
+/// server answers c2s/13 to him from anywhere on M1, and "Không thể thực hiện" from another map (B1).
+const SELLER: (&str, i32) = ("M1", 106);
+const SELLER_MENU: &str = "Dược phẩm";
+/// How long a step of the shop waits for the server.
+const SHOP_WAIT: Duration = Duration::from_secs(8);
+/// Most items one c2s/1190 asks for.
+pub const MAX_BUY: i32 = 99;
+
+/// Where the shop stands: c2s/13 waits for s2c/57, c2s/57 for s2c/1190, c2s/1190 for the notice of the purchase.
+#[derive(Debug, Clone)]
+enum Shopping {
+    Talk,
+    Menu,
+    Buy {
+        name: String,
+        quantity: i32,
+        cost: String,
+    },
+}
 
 /// An item action waiting for its answer (s2c/1186, s2c/48, or a notice), and the item's name for the log.
 struct ItemWait {
@@ -475,6 +499,8 @@ pub struct Bot {
     trip: Option<(String, String)>,
     /// Until when the zone change, or the portal of the trip, waits for the server.
     move_until: Option<Instant>,
+    /// The step of the shop waiting for the server, and until when.
+    shopping: Option<(Shopping, Instant)>,
 }
 
 impl Bot {
@@ -519,6 +545,7 @@ impl Bot {
             zoning: None,
             trip: None,
             move_until: None,
+            shopping: None,
         }
     }
 
@@ -676,6 +703,7 @@ impl Bot {
             self.battle.as_ref().and_then(|b| b.deadline()),
             self.leave_until,
             self.move_until,
+            self.shopping.as_ref().map(|s| s.1),
         ]
         .into_iter()
         .flatten()
@@ -720,6 +748,13 @@ impl Bot {
                     }
                 }
             }
+        }
+        if self.shopping.as_ref().is_some_and(|s| s.1 <= now) {
+            self.shopping = None;
+            out.push(Out::Log(
+                LogKind::Item,
+                format!("Lái Buôn không trả lời sau {} s", SHOP_WAIT.as_secs()),
+            ));
         }
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
@@ -1344,6 +1379,9 @@ impl Bot {
             }
             13 => {
                 let c = map_change(payload)?;
+                if c.map_id != s.map_id {
+                    s.shop = None;
+                }
                 s.map_id = c.map_id.clone();
                 if let Some(z) = c.zone {
                     s.zone = z;
@@ -1488,9 +1526,68 @@ impl Bot {
                 }
             }
             1172 => self.snap.zones = Some(zone_list(payload)?.zones),
+            // Lái Buôn's menu after c2s/13 (open_shop): Dược phẩm opens the shop.
+            57 => {
+                let menu = npc_menu(payload)?;
+                if matches!(self.shopping, Some((Shopping::Talk, _))) {
+                    match menu.options.iter().find(|o| o.1 == SELLER_MENU) {
+                        Some(&(option, _)) => {
+                            Self::send(
+                                out,
+                                57,
+                                Ctx {
+                                    option: Some(option as i32),
+                                    map_id: Some(SELLER.0),
+                                    npc_id: Some(SELLER.1),
+                                    ..Ctx::default()
+                                },
+                            );
+                            self.shopping = Some((Shopping::Menu, now + SHOP_WAIT));
+                        }
+                        None => {
+                            self.shopping = None;
+                            out.push(Out::Log(
+                                LogKind::Item,
+                                format!("{} không có dòng {SELLER_MENU}", menu.npc),
+                            ));
+                        }
+                    }
+                }
+            }
+            1190 => {
+                let shop = shop_list(payload)?;
+                if matches!(self.shopping, Some((Shopping::Menu, _))) {
+                    self.shopping = None;
+                    out.push(Out::Log(
+                        LogKind::Item,
+                        format!("Cửa hàng Lái Buôn: {} món", shop.items.len()),
+                    ));
+                }
+                self.snap.shop = Some(shop);
+            }
             1256 => {
                 let text = notice(payload)?;
                 out.push(Out::Log(LogKind::Server, text.clone()));
+                // The purchase ("Bạn vừa mua thành công! 1 Búa Sửa Chữa", "Không đủ Xu để thực hiện"), or c2s/13 to Lái
+                // Buôn refused ("Không thể thực hiện" from another map, B1).
+                match self.shopping.take().map(|s| s.0) {
+                    Some(Shopping::Buy {
+                        name,
+                        quantity,
+                        cost,
+                    }) => {
+                        let line = match text.contains("thành công") {
+                            true => format!("Đã mua {quantity} {name} ({cost})"),
+                            false => format!("Chưa mua được {name}: {text}"),
+                        };
+                        out.push(Out::Log(LogKind::Item, line));
+                    }
+                    Some(_) => out.push(Out::Log(
+                        LogKind::Item,
+                        format!("Không mở được cửa hàng Lái Buôn: {text}"),
+                    )),
+                    None => {}
+                }
                 // The answer to Sử dụng ("Vật phẩm không thể sử dụng!") or a refusal of another item action.
                 self.item_wait = None;
                 // A portal the character may not enter: "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" (Q15) or "Bạn cần hoàn
@@ -2391,6 +2488,111 @@ impl Bot {
         };
         Self::send(out, opcode, ctx);
         self.item_wait = Some(ItemWait { act, name, at: now });
+    }
+}
+
+/// The Dược phẩm shop of Lái Buôn (12-skills-items.md#c2s-1190): c2s/13 to him, c2s/57 for Dược phẩm, and s2c/1190 lists
+/// it; c2s/1190 buys a line, and the server answers with a notice, then the bag (s2c/42) and the money (s2c/46).
+impl Bot {
+    /// Why the shop cannot be used now: busy, a step of it waiting, or away from M1.
+    fn shop_refusal(&self) -> Option<String> {
+        self.busy().map(String::from).or_else(|| {
+            if self.shopping.is_some() {
+                Some("đang đợi Lái Buôn trả lời".into())
+            } else if self.snap.map_id != SELLER.0 {
+                Some("Lái Buôn ở Làng Thanh Khê (M1), hãy sang M1 trước".into())
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Opens the shop: c2s/13 to Lái Buôn, then c2s/57 when his menu comes. Refused, with the reason in the log and
+    /// nothing sent, while busy, while a step of the shop waits, and away from M1.
+    pub fn open_shop(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if let Some(why) = self.shop_refusal() {
+            return out.push(Out::Log(LogKind::Item, format!("Chưa mở cửa hàng: {why}")));
+        }
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Mở cửa hàng Lái Buôn ({SELLER_MENU})"),
+        ));
+        Self::send(
+            out,
+            13,
+            Ctx {
+                map_id: Some(SELLER.0),
+                npc_id: Some(SELLER.1),
+                ..Ctx::default()
+            },
+        );
+        self.shopping = Some((Shopping::Talk, now + SHOP_WAIT));
+    }
+
+    /// Buys `quantity` of the shop line `shop_id` (c2s/1190). Refused as open_shop is, and before the shop is open, for
+    /// a line it does not have, a count outside 1..=MAX_BUY, or without the money for it.
+    pub fn buy(&mut self, shop_id: i32, quantity: i32, now: Instant, out: &mut Vec<Out>) {
+        let line = self
+            .snap
+            .shop
+            .as_ref()
+            .and_then(|s| s.items.iter().find(|i| i.shop_id == shop_id))
+            .cloned();
+        let name = line.as_ref().map_or_else(
+            || format!("ô {shop_id}"),
+            |l| {
+                book()
+                    .get(l.item_id)
+                    .map_or_else(|| format!("#{}", l.item_id), |d| d.name.clone())
+            },
+        );
+        let locked = line.as_ref().is_some_and(|l| l.currency == 1);
+        let money = if locked { "Xu khóa" } else { "Xu" };
+        let cost = line
+            .as_ref()
+            .map_or(0, |l| l.price as i64 * quantity as i64);
+        let have = self
+            .snap
+            .currencies
+            .as_ref()
+            .map(|c| if locked { c.xu_khoa } else { c.xu });
+        let why = self.shop_refusal().or_else(|| {
+            if self.snap.shop.is_none() {
+                Some("mở cửa hàng trước".into())
+            } else if line.is_none() {
+                Some("cửa hàng không có ô này".into())
+            } else if !(1..=MAX_BUY).contains(&quantity) {
+                Some(format!("số lượng phải từ 1 tới {MAX_BUY}"))
+            } else {
+                have.filter(|&h| cost > h)
+                    .map(|h| format!("không đủ {money} (cần {cost}, có {h})"))
+            }
+        });
+        if let Some(why) = why {
+            return out.push(Out::Log(LogKind::Item, format!("Chưa mua {name}: {why}")));
+        }
+        let cost = format!("{cost} {money}");
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Mua {quantity} {name} giá {cost}"),
+        ));
+        Self::send(
+            out,
+            1190,
+            Ctx {
+                shop_id: Some(shop_id),
+                quantity: Some(quantity),
+                ..Ctx::default()
+            },
+        );
+        self.shopping = Some((
+            Shopping::Buy {
+                name,
+                quantity,
+                cost,
+            },
+            now + SHOP_WAIT,
+        ));
     }
 }
 

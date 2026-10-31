@@ -276,6 +276,26 @@ export interface Character {
   moving: string | null;
   /** The maps of the atlas, nearest first, with the portals to take. */
   maps: MapChoice[];
+  /** The Dược phẩm shop of Lái Buôn (s2c/1190) once opened; null again off M1. */
+  shop: Shop | null;
+}
+
+/** A shop as s2c/1190 lists it (ShopView of view.rs). */
+export interface Shop {
+  title: string;
+  items: ShopLine[];
+}
+
+/** One line of a shop: `shopId` is what Mua sends, not the item id; the same item is sold for Xu and for Xu khóa. */
+export interface ShopLine {
+  shopId: number;
+  itemId: number;
+  name: string;
+  icon?: number | null;
+  desc: string;
+  /** 0 Xu, 1 Xu khóa. */
+  currency: 0 | 1;
+  price: number;
 }
 
 /** One zone of s2c/1172: `load` 0, 1, 2 as the game colours it (2 red), players of `capacity` (20). */

@@ -94,6 +94,8 @@ pub fn run() {
             commands::list_zones,
             commands::change_zone,
             commands::go_to_map,
+            commands::open_shop,
+            commands::buy,
             commands::log_history,
             commands::battle_stats,
             commands::battle_history,

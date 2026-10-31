@@ -111,6 +111,7 @@ const paths = {
   eraser: <path d="m7 21-4.3-4.3a2.4 2.4 0 0 1 0-3.4l9.6-9.6a2.4 2.4 0 0 1 3.4 0l5.6 5.6a2.4 2.4 0 0 1 0 3.4L13 21M22 21H7M5 11l9 9" />,
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
+  cart: <path d="M3 4h2l2.2 10.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L19.5 8H6.2M9 20h.01M17 20h.01" />,
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof paths;
