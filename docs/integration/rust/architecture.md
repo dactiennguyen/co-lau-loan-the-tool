@@ -98,5 +98,5 @@ app/
       src/paths.rs            accounts.json, data/maps.json
       src/sample.rs           dữ liệu mẫu cho --sample, --dump-sample
       src/update.rs           tự cập nhật từ GitHub Releases (tauri-plugin-updater), xem Tự cập nhật
-      src/store.rs            cllt.db (SQLite): nhật ký và lịch sử trận, phiên bản bảng (user_version)
+      src/store.rs            cllt.db (SQLite): nhật ký, lịch sử trận và đồ nhặt, phiên bản bảng (user_version)
 ```

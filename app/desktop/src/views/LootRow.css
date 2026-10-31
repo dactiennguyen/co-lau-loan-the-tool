@@ -1,0 +1,7 @@
+/* "Đã nhặt" of the fight job and the quest run: the items picked up, wrapping onto more lines when many. */
+.loot { display: flex; align-items: baseline; gap: var(--space-3); font-size: 11.5px; }
+.loot__label { flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-3); }
+.loot__items { display: flex; flex-wrap: wrap; gap: 4px 12px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.loot__items li { display: inline-flex; align-items: center; gap: 4px; color: var(--fg); }
+.loot__items b { color: var(--coin); }
+.picked-icon { width: 16px; height: 16px; flex: none; align-self: center; }

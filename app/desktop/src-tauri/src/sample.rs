@@ -6,7 +6,7 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, BossTile, Job, LogKind, MapChoice,
-    QuestRun, Snapshot, Target,
+    Picked, PickupRecord, QuestRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::net::ConnState;
@@ -266,6 +266,7 @@ fn main_character() -> Snapshot {
             exp: 284,
             coin: 36,
             completed: 0,
+            picked: vec![Picked::of(41, 431), Picked::of(412, 1)],
             doing: "Đánh Cóc Xanh (14/15)".into(),
             done: None,
             started_at: ago(12 * 60 + 34),
@@ -440,6 +441,7 @@ pub fn entries() -> Vec<Entry> {
             damage: 1150,
             exp: 460,
             coin: 60,
+            picked: vec![Picked::of(41, 402), Picked::of(3, 1)],
             done: Some("Đã đánh đủ 5 trận".into()),
             started_at: ago(40 * 60),
             ended_at: Some(ago(40 * 60 - 462)),
@@ -468,7 +470,7 @@ pub fn fill(app: &mut App) {
 
 /// A week of battles of the first account (username manina) in an in-memory cllt.db, for the Thống kê tab: Cóc Xanh
 /// of the fight job won but for one loss in eight, Kẻ Quấy Phá lost one in three, Sói Xám and a boss of the quest run,
-/// one battle left with Đầu hàng.
+/// one battle left with Đầu hàng; Xu khóa after half the battles won, now and then a stone, a ring or an egg.
 fn store() -> Result<Store, String> {
     let s = Store::memory().map_err(|e| e.to_string())?;
     let battle = |i: u64, mob: &str, level: i32, boss: bool, source, result| {
@@ -529,6 +531,31 @@ fn store() -> Result<Store, String> {
             ),
         };
         s.add_battle("manina", &b).map_err(|e| e.to_string())?;
+        if b.result != Won {
+            continue;
+        }
+        let drops = [
+            (i % 2 == 0, 41, "Xu khóa", 205 + (i % 45) as i64),
+            (i % 5 == 1, 412, "Đá cấp 2", 1),
+            (i % 11 == 3, 413, "Đá cấp 3", 1),
+            (i % 17 == 6, 312, "Nhẫn Hào Kiệt", 1),
+            (i % 13 == 7, 3, "Trứng Gà", 1),
+        ];
+        for (_, item_id, name, quantity) in drops.into_iter().filter(|d| d.0) {
+            let p = PickupRecord {
+                character: b.character.clone(),
+                at: b.ended_at + 40,
+                battle_at: b.ended_at,
+                map_name: b.map_name.clone(),
+                mob_name: b.mob_name.clone(),
+                source: b.source,
+                item: Picked {
+                    name: name.into(),
+                    ..Picked::of(item_id, quantity)
+                },
+            };
+            s.add_pickup("manina", &p).map_err(|e| e.to_string())?;
+        }
     }
     Ok(s)
 }

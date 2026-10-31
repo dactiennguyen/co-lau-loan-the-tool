@@ -108,23 +108,22 @@ impl Bot {
             // An item fell in the map, anyone's: kept a moment, as a won battle's own drops come just before its end.
             1182 => {
                 let g = ground_item_add(payload)?;
-                let def = book().get(g.item.item_id);
-                let name = def.map_or_else(|| format!("#{}", g.item.item_id), |d| d.name.clone());
-                let name = match g.item.quantity {
-                    q if q > 1 => format!("{name} ×{q}"),
-                    _ => name,
+                let fallen = Fallen {
+                    item: Picked::of(g.item.item_id, g.item.quantity.max(1) as i64),
+                    uuid: g.item.uuid,
+                    at: now,
                 };
                 self.drops
-                    .retain(|d| now.saturating_duration_since(d.2) < DROPS_KEPT);
-                self.drops.push((g.item.uuid.clone(), name.clone(), now));
+                    .retain(|d| now.saturating_duration_since(d.at) < DROPS_KEPT);
+                self.drops.push(fallen.clone());
                 if self.loot_until.is_some_and(|t| now < t) {
-                    self.pick(g.item.uuid, name, now, out);
+                    self.pick(fallen, now, out);
                 }
             }
             // An item left the ground (picked up, or expired): it is not asked for again.
             1183 => {
                 let (_, uuid) = ground_item_remove(payload)?;
-                self.drops.retain(|d| d.0 != uuid);
+                self.drops.retain(|d| d.uuid != uuid);
             }
             1187 => match inventory(payload) {
                 Ok(b) => s.bag = Some(b),
@@ -421,13 +420,7 @@ impl Bot {
                     || self.item_wait.is_some()
                     || self.zoning.is_some();
                 if picking && (about || !waiting) {
-                    out.push(Out::Log(
-                        LogKind::Item,
-                        match text.contains("nhận được") {
-                            true => text,
-                            false => format!("Không nhặt được: {text}"),
-                        },
-                    ));
+                    self.pick_answer(text, out);
                     return Ok(());
                 }
                 out.push(Out::Log(LogKind::Server, text.clone()));

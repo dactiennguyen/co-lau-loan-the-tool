@@ -32,6 +32,8 @@
 .quest__score { margin-left: auto; color: var(--fg-2); }
 .quest__score .win { color: var(--s-online); }
 .quest__score .loss { color: var(--danger); }
+/* Đã nhặt of the run, as a second line of the row above. */
+.quest__loot { margin-top: calc(-1 * var(--space-3)); padding: 0 10px 5px; background: var(--ink); }
 .quest__battle { padding: var(--space-3); background: var(--ink); }
 
 .quest__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }

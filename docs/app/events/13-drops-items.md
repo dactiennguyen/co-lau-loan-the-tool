@@ -171,7 +171,7 @@ Món nằm đúng chỗ nhân vật đứng, các món cùng trận cách nhau 3
 - Hai nhân vật như nhau: manina 47/74 (64%), Tiheo2 12/19 (63%). Chưa thấy cấp chênh lệch ảnh hưởng tới tỉ lệ. [Đo]
 - Giữa các loại quái, khoảng tin cậy còn chồng lên nhau. Kẻ Gây Rối có vẻ rơi ít hơn, nhưng chưa đủ trận để khẳng định. [Đo, mẫu nhỏ]
 - Mỗi đống Xu khóa ở M1 là 121–148, ở M2 là 205–250. Sói Xám cấp 11 cho nhiều gấp rưỡi Chỉ Huy Sơn Tặc cấp 10, nên số Xu khóa có lẽ theo map hơn là theo cấp quái. [Suy luận]
-- **Đồ trên đất đáng hơn thưởng cuối trận.** Trung bình mỗi trận thắng có 63 Xu khóa nằm trên đất ở M1 và 91 ở M2. Thưởng cuối trận chỉ là Vàng, trung bình 34 (74 trận của bot TS). Vàng chỉ đổi ra Xu khóa khi đầy thanh 10.000 ([04-push](04-push.md)). Nhặt từ xa được, và trong 16–17 s đầu chỉ người làm rơi nhặt được ([K3](#k3)). Vì vậy bot nhặt ngay sau gói kết thúc trận mà không phải đi tới hòm. Bot TS làm vậy từ G2; app Rust chưa. [Đo]
+- **Đồ trên đất đáng hơn thưởng cuối trận.** Trung bình mỗi trận thắng có 63 Xu khóa nằm trên đất ở M1 và 91 ở M2. Thưởng cuối trận chỉ là Vàng, trung bình 34 (74 trận của bot TS). Vàng chỉ đổi ra Xu khóa khi đầy thanh 10.000 ([04-push](04-push.md)). Nhặt từ xa được, và trong 16–17 s đầu chỉ người làm rơi nhặt được ([K3](#k3)). Vì vậy bot nhặt ngay sau gói kết thúc trận mà không phải đi tới hòm. Bot TS làm vậy từ G2; app Rust cũng vậy ([Tự nhặt đồ](../../integration/rust/features.md#tự-nhặt-đồ)). [Đo]
 
 <a id="g2"></a>
 

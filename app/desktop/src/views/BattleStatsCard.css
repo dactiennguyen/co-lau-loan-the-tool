@@ -1,4 +1,4 @@
-/* Thống kê: filters, six tiles, the table by mob, the recent battles. Scrolls inside the card; a column of parts that
+/* Thống kê: filters, six tiles, the table by mob, the items picked up, the recent battles. Scrolls inside the card; a column of parts that
    keep their height (in a grid of fixed height the table's scroll box would shrink to nothing). */
 .bstats .card__body { display: flex; flex-direction: column; gap: var(--space-3); overflow: auto; container-type: inline-size; }
 .bstats .card__body > * { flex: none; }
@@ -25,6 +25,8 @@
 .bstats__table tbody th { display: grid; gap: 1px; font-weight: 700; color: var(--fg); }
 .bstats__table tbody th small { font-size: 10.5px; font-weight: 500; color: var(--fg-3); }
 .bstats__mob { display: inline-flex; align-items: center; gap: 6px; }
+.bstats__item { display: inline-flex; align-items: center; gap: 6px; }
+.bstats__loot { max-width: 520px; }
 .bstats__rate { display: inline-grid; grid-template-columns: 40px 60px; align-items: center; gap: 6px; }
 
 /* The recent battles scroll on their own, so a narrow window does not get a card of thousands of pixels. */
@@ -43,6 +45,9 @@
 .bstats__name small { font-weight: 500; color: var(--fg-3); }
 .bstats__where, .bstats__facts { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); }
 .bstats__result { font-size: 11.5px; }
+/* What the battle brought, on a line of its own under the rest. */
+.bstats__picked { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; font-size: 11px; color: var(--coin); }
+.bstats__picked > span { display: inline-flex; align-items: center; gap: 3px; }
 .bstats__more {
   align-self: center;
   padding: 4px 14px;

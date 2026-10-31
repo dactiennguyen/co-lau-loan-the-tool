@@ -10,6 +10,7 @@ import { num } from "../format";
 import { useStore } from "../store";
 import type { Account } from "../types";
 import { BattlePanel } from "./BattlePanel";
+import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
 import "./FightCard.css";
 
@@ -117,6 +118,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             </span>
           </div>
           <Bar value={job.fights / Math.max(1, job.count)} />
+          <LootRow items={job.picked} />
           {job.done && <div className="job__done">{job.done}</div>}
           {battle && details && <BattlePanel battle={battle} id="fight-battle" />}
         </div>

@@ -86,6 +86,7 @@ impl Bot {
             exp: 0,
             coin: 0,
             completed: 0,
+            picked: vec![],
             doing: String::new(),
             ended_at: done.is_some().then(epoch_ms),
             done,

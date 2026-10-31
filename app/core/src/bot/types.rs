@@ -8,6 +8,8 @@ pub enum Out {
     Log(LogKind, String),
     /// A battle that ended, for the history of the account (BattleRecord).
     Battle(Box<BattleRecord>),
+    /// An item Tự nhặt đồ picked up, for the history of the account (PickupRecord).
+    Pickup(Box<PickupRecord>),
 }
 
 /// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/features.md#nhật-ký-và-thống-kê
@@ -148,6 +150,62 @@ pub struct BattleRecord {
     pub coin: i32,
 }
 
+/// An item Tự nhặt đồ picked up (the server said "Bạn vừa nhận được …"), for the Thống kê tab: what, how many, and the
+/// battle it fell from.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PickupRecord {
+    pub character: String,
+    /// When the server said it, in ms since 1970.
+    pub at: u64,
+    /// `ended_at` of the battle (BattleRecord) it fell from.
+    pub battle_at: u64,
+    pub map_name: String,
+    pub mob_name: String,
+    pub source: BattleSource,
+    #[serde(flatten)]
+    pub item: Picked,
+}
+
+/// Some of an item picked up: its id in the item table (items.rs), its name there, and how many (the Xu khóa of a pile;
+/// 1 for gear); for the UI, its icon there (data/icons/i<icon>.webp).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Picked {
+    pub item_id: i32,
+    pub name: String,
+    pub quantity: i64,
+    pub icon: Option<i32>,
+}
+impl Picked {
+    /// `quantity` of the item `item_id`, named and drawn as the item table has it ("#9999" for one it lacks).
+    pub fn of(item_id: i32, quantity: i64) -> Self {
+        let def = crate::items::book().get(item_id);
+        Self {
+            item_id,
+            name: def.map_or_else(|| format!("#{item_id}"), |d| d.name.clone()),
+            quantity,
+            icon: def.map(|d| d.icon).filter(|&n| n >= 0),
+        }
+    }
+
+    /// "Xu khóa ×236", "Đá cấp 2".
+    pub fn label(&self) -> String {
+        match self.quantity {
+            q if q > 1 => format!("{} ×{q}", self.name),
+            _ => self.name.clone(),
+        }
+    }
+}
+
+/// Adds `item` to the items picked up in a run, to its own entry when the run has one.
+pub(super) fn add_picked(list: &mut Vec<Picked>, item: &Picked) {
+    match list.iter_mut().find(|p| p.item_id == item.item_id) {
+        Some(p) => p.quantity += item.quantity,
+        None => list.push(item.clone()),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BotOptions {
     pub skill: Option<Skill>,
@@ -243,6 +301,9 @@ pub struct Job {
     pub damage: i64,
     pub exp: i64,
     pub coin: i64,
+    /// What Tự nhặt đồ picked up after the job's battles, by item, first picked first. The drops of the last battle
+    /// come just after the job ended.
+    pub picked: Vec<Picked>,
     /// Why the job ended; None while it runs.
     pub done: Option<String>,
     /// When it started and ended, in ms since 1970: the UI shows the time it took, live while it runs.
@@ -268,6 +329,8 @@ pub struct QuestRun {
     pub coin: i64,
     /// Quests handed in during the run (s2c/35).
     pub completed: u32,
+    /// What Tự nhặt đồ picked up after the run's battles, as for Job.
+    pub picked: Vec<Picked>,
     /// What the bot does for the current step.
     pub doing: String,
     /// Why the run ended; None while it runs.

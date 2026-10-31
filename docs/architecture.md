@@ -58,7 +58,7 @@ Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `pro
 
 - `app.rs` giữ danh sách nick và nhận `Event` của các phiên. Một luồng gửi sang giao diện những nick vừa đổi (sự kiện `accounts`) và dòng nhật ký mới (`log`).
 - `commands.rs` là các lệnh giao diện gọi được; `view.rs` đổi `Snapshot` của bot thành dữ liệu giao diện nhận.
-- `store.rs` giữ `cllt.db` (SQLite): nhật ký 30 ngày, trận 90 ngày, phiên bản bảng bằng `user_version` ([Nhật ký và thống kê](integration/rust/features.md#nhật-ký-và-thống-kê)).
+- `store.rs` giữ `cllt.db` (SQLite): nhật ký 30 ngày, trận và đồ nhặt được 90 ngày, phiên bản bảng bằng `user_version` ([Nhật ký và thống kê](integration/rust/features.md#nhật-ký-và-thống-kê)).
 - `update.rs` tự cập nhật từ GitHub Releases.
 
 ## Giao diện

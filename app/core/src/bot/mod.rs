@@ -86,6 +86,22 @@ const LOOT: Duration = Duration::from_millis(300);
 const PICK_GAP: Duration = Duration::from_millis(200);
 const PICK_ANSWER: Duration = Duration::from_secs(2);
 
+/// An item fallen in the map (s2c/1182), for Tự nhặt đồ: its uuid on the ground, what it is and how many, when it fell.
+#[derive(Debug, Clone)]
+struct Fallen {
+    uuid: String,
+    item: Picked,
+    at: Instant,
+}
+/// The won battle whose drops Tự nhặt đồ picks up, for the PickupRecord of each.
+#[derive(Debug, Clone)]
+struct LootFrom {
+    battle_at: u64,
+    map_name: String,
+    mob_name: String,
+    source: BattleSource,
+}
+
 /// Lái Buôn (NPC 106 of M1) and the line of his menu that opens the Dược phẩm shop (12-skills-items.md#c2s-1190). The
 /// server answers c2s/13 to him from anywhere on M1, and "Không thể thực hiện" from another map (B1).
 const SELLER: (&str, i32) = ("M1", 106);
@@ -202,15 +218,17 @@ pub struct Bot {
     repairing: Option<(u8, String)>,
     repair_failed: HashSet<u8>,
     repair_warned: bool,
-    /// Tự nhặt đồ: the items fallen in the last DROPS_KEPT (uuid, name, when); until when a won battle's drops are still
-    /// coming; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
-    /// when the last c2s/1188 went.
-    drops: Vec<(String, String, Instant)>,
+    /// Tự nhặt đồ: the items fallen in the last DROPS_KEPT; until when a won battle's drops are still coming, and that
+    /// battle; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
+    /// when the last c2s/1188 went; the ones it sent that the server has not answered yet, oldest first.
+    drops: Vec<Fallen>,
     loot_until: Option<Instant>,
-    to_pick: VecDeque<(String, String)>,
+    loot_from: Option<LootFrom>,
+    to_pick: VecDeque<Fallen>,
     pick_at: Option<Instant>,
     asked: HashSet<String>,
     picked_at: Option<Instant>,
+    unanswered: VecDeque<Fallen>,
 }
 
 impl Bot {
@@ -262,10 +280,12 @@ impl Bot {
             repair_warned: false,
             drops: vec![],
             loot_until: None,
+            loot_from: None,
             to_pick: VecDeque::new(),
             pick_at: None,
             asked: HashSet::new(),
             picked_at: None,
+            unanswered: VecDeque::new(),
         }
     }
 

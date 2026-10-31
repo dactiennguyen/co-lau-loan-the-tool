@@ -70,6 +70,21 @@ export interface StoredBattle {
   maxHp: number;
   exp: number;
   coin: number;
+  /** What Tự nhặt đồ picked up after it. */
+  picked: PickedItem[];
+}
+
+/** Some of an item Tự nhặt đồ picked up (Picked of cllt-core): how many, and its icon in data/icons. */
+export interface Picked {
+  itemId: number;
+  name: string;
+  quantity: number;
+  icon: number | null;
+}
+
+/** An item picked up after some battles: the quantities summed, and how many times (PickedItem of store.rs). */
+export interface PickedItem extends Picked {
+  times: number;
 }
 
 /** Sums over some battles (store.rs); `ms` is the time spent in them. */
@@ -92,9 +107,10 @@ export interface MobTotals extends Totals {
   mapName: string;
 }
 
-/** The Thống kê tab: totals, then each mob and map, most battles first. */
+/** The Thống kê tab: totals, then each mob and map, most battles first, then each item picked up, most times first. */
 export interface BattleStats extends Totals {
   mobs: MobTotals[];
+  picked: PickedItem[];
 }
 
 /** What one result of a battle did (Turn of cllt-core's runner.rs). */
@@ -159,6 +175,8 @@ export interface Job {
   damage: number;
   exp: number;
   coin: number;
+  /** What Tự nhặt đồ picked up after its battles, by item; the last battle's come just after the job ended. */
+  picked: Picked[];
   /** Why the job ended; null while it runs. */
   done: string | null;
   /** When it started and ended, in ms since 1970. */
@@ -219,6 +237,8 @@ export interface QuestRun {
   coin: number;
   /** Quests handed in during the run. */
   completed: number;
+  /** What Tự nhặt đồ picked up after its battles, as for Job. */
+  picked: Picked[];
   /** What the bot does for the current step. */
   doing: string;
   /** Why the run ended; null while it runs. */

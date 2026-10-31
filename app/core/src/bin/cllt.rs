@@ -355,7 +355,7 @@ fn main() {
                 ended += 1;
             }
             Event::State(ConnState::Connecting) => {}
-            Event::Battle(_) => {}
+            Event::Battle(_) | Event::Pickup(_) => {}
             Event::Log(_, text) => {
                 println!("{}: {text}", chosen[i].1.username);
                 // Bot::upgrade_skill refused it, or s2c/1191 answered it.

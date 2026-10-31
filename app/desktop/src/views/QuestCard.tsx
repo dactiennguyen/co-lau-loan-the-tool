@@ -12,6 +12,7 @@ import { useStore } from "../store";
 import type { Account, Quest } from "../types";
 import { useFightSetting } from "../useFightSetting";
 import { BattlePanel } from "./BattlePanel";
+import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
 import "./QuestCard.css";
 
@@ -122,6 +123,11 @@ export function QuestCard({ account, onStart, onStop }: Props) {
             <b className="win">{run.wins} thắng</b> · <b className="loss">{run.losses} thua</b> · +{num(run.exp)} EXP · +{num(run.coin)} xu
             {run.completed > 0 && <> · xong {run.completed} nhiệm vụ</>} · <Elapsed from={run.startedAt} to={run.endedAt} />
           </span>
+        </div>
+      )}
+      {run && run.picked.length > 0 && (
+        <div className="quest__loot">
+          <LootRow items={run.picked} />
         </div>
       )}
       {/* The battle on, as the fight job shows it, under Chi tiết: a step's fights ("Đánh bại Kẻ Gây Rối"), one played out

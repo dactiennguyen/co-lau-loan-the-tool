@@ -5,7 +5,8 @@ import { Bar } from "../components/Bar";
 import { Card } from "../components/Card";
 import { FilterChip } from "../components/FilterChip";
 import { num, pct } from "../format";
-import type { Account, BattleResult, BattleSource, BattleStats, StoredBattle, Totals } from "../types";
+import type { Account, BattleResult, BattleSource, BattleStats, Picked, StoredBattle, Totals } from "../types";
+import { PickedIcon, pickedLabel } from "./LootRow";
 import "./BattleStatsCard.css";
 
 type Range = "today" | "week" | "month" | "all";
@@ -46,6 +47,11 @@ function span(ms: number) {
 }
 
 const rate = (t: Totals) => (t.battles ? t.won / t.battles : 0);
+const twoPlaces = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+/** 130.27 → "130", 0.17 → "0,17": an average of items, whole once it is large. */
+const avg = (v: number) => (v >= 10 ? num(Math.round(v)) : twoPlaces.format(v));
+/** Items in all, of a fight job's or quest run's picks: it grows with each pickup. */
+const count = (picked: Picked[] | undefined) => (picked ?? []).reduce((n, p) => n + p.quantity, 0);
 /** "31/10 13:15", local time. */
 function when(at: number) {
   const d = new Date(at);
@@ -55,8 +61,9 @@ function when(at: number) {
 
 /**
  * Thống kê of the account (by username, from cllt.db): battles of a range and a source, their win rate, EXP and Xu,
- * the time in them; each mob with its own rate and averages; the battles themselves, newest first. Asked again when
- * a battle of the account ends.
+ * the time in them; each mob with its own rate and averages; the items Tự nhặt đồ picked up after them; the battles
+ * themselves, newest first, with what each brought. Asked again when a battle of the account ends, and when an item is
+ * picked up after it.
  */
 export function BattleStatsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -66,8 +73,8 @@ export function BattleStatsCard({ account }: { account: Account }) {
   const [history, setHistory] = useState<StoredBattle[]>([]);
   const [end, setEnd] = useState(false);
   const [loading, setLoading] = useState(false);
-  // A battle that ends changes these: the numbers are asked again then.
-  const ended = `${c?.job?.fights ?? 0}-${c?.questRun?.fights ?? 0}-${c?.battle ? 1 : 0}`;
+  // A battle that ends changes these, and an item picked up after it: the numbers are asked again then.
+  const ended = `${c?.job?.fights ?? 0}-${c?.questRun?.fights ?? 0}-${c?.battle ? 1 : 0}-${count(c?.job?.picked)}-${count(c?.questRun?.picked)}`;
   // Bumped by each new first page, so an answer to an earlier one, or a Xem thêm asked before it, is dropped.
   const asked = useRef(0);
 
@@ -213,6 +220,39 @@ export function BattleStatsCard({ account }: { account: Account }) {
             </table>
           </div>
 
+          <h3 className="bstats__h">Đồ nhặt được</h3>
+          {t.picked.length === 0 ? (
+            <p className="bstats__none">Chưa nhặt được món nào sau các trận này (Tự nhặt đồ ở tab Cài đặt).</p>
+          ) : (
+            <div className="bstats__wrap">
+              <table className="bstats__table bstats__loot">
+                <thead>
+                  <tr>
+                    <th scope="col">Món</th>
+                    <th scope="col">Số lần nhặt</th>
+                    <th scope="col">Tổng số</th>
+                    <th scope="col">Mỗi trận thắng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {t.picked.map((p) => (
+                    <tr key={p.itemId}>
+                      <th scope="row">
+                        <span className="bstats__item">
+                          <PickedIcon icon={p.icon} />
+                          {p.name}
+                        </span>
+                      </th>
+                      <td className="px">{num(p.times)}</td>
+                      <td className="px">{num(p.quantity)}</td>
+                      <td className="px">{t.won > 0 ? avg(p.quantity / t.won) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <h3 className="bstats__h">Trận gần đây</h3>
           <ol className="bstats__list">
             {history.map((b) => (
@@ -231,6 +271,18 @@ export function BattleStatsCard({ account }: { account: Account }) {
                 <span className="bstats__facts">
                   {b.turns} lượt · {span(b.endedAt - b.startedAt)} · +{num(b.exp)} EXP · +{num(b.coin)} xu
                 </span>
+                {b.picked.length > 0 && (
+                  <span className="bstats__picked">
+                    Nhặt:{" "}
+                    {b.picked.map((p, i) => (
+                      <span key={p.itemId}>
+                        {i > 0 && ", "}
+                        <PickedIcon icon={p.icon} />
+                        {pickedLabel(p)}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </li>
             ))}
           </ol>

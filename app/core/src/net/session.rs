@@ -264,6 +264,7 @@ pub(super) async fn session(
                 }
                 Out::Log(kind, text) => emit(Event::Log(kind, text)),
                 Out::Battle(record) => emit(Event::Battle(record)),
+                Out::Pickup(record) => emit(Event::Pickup(record)),
             }
         }
         let snap = bot.snapshot();

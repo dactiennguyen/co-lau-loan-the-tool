@@ -601,6 +601,14 @@ impl App {
                     eprintln!("cllt.db: không ghi được trận: {e}");
                 }
             }
+            Event::Pickup(record) => {
+                let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
+                    return;
+                };
+                if let Err(e) = store.add_pickup(&user, &record) {
+                    eprintln!("cllt.db: không ghi được món nhặt: {e}");
+                }
+            }
         }
     }
 }
@@ -625,9 +633,9 @@ mod tests {
     }
 
     #[test]
-    fn log_lines_and_battles_go_to_cllt_db_by_username_and_come_back_at_the_next_start() {
+    fn log_lines_battles_and_pickups_go_to_cllt_db_by_username_and_come_back_at_the_next_start() {
         use crate::store::BattleFilter;
-        use cllt_core::bot::{BattleRecord, BattleResult, BattleSource};
+        use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, Picked, PickupRecord};
         let store = Arc::new(Store::memory().unwrap());
         let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
         app.set_store(store.clone());
@@ -668,13 +676,24 @@ mod tests {
             exp: 52,
             coin: 6,
         };
+        let pickup = PickupRecord {
+            character: "manina".into(),
+            at: 30_031,
+            battle_at: battle.ended_at,
+            map_name: battle.map_name.clone(),
+            mob_name: battle.mob_name.clone(),
+            source: battle.source,
+            item: Picked::of(41, 230),
+        };
         app.on_event(id, Event::Battle(Box::new(battle)));
+        app.on_event(id, Event::Pickup(Box::new(pickup)));
         let filter = BattleFilter {
             username: "manina2",
             since: None,
             source: None,
         };
-        assert_eq!(store.stats(filter).unwrap().totals.won, 1);
+        let st = store.stats(filter).unwrap();
+        assert_eq!((st.totals.won, st.picked[0].item.quantity), (1, 230));
 
         // The next start: the account, under any case, gets its lines back before its new ones.
         let mut again = App::new(None, PathBuf::from("accounts.json"), channel().0);

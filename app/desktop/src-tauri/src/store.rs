@@ -1,15 +1,16 @@
-// cllt.db beside accounts.json: every log line and every battle, by account username (lower case), for the filters of
-// the Nhật ký card and the Thống kê tab (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
+// cllt.db beside accounts.json: every log line, every battle and every item picked up, by account username (lower case),
+// for the filters of the Nhật ký card and the Thống kê tab (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
 // mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk. PRAGMA user_version is the number of
 // MIGRATIONS applied; a change of the tables is a new entry at the end, never an edit of an old one.
-use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind};
+use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind, Picked, PickupRecord};
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, Row};
 use serde::Serialize;
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 
-/// Log lines and battles older than this many days are deleted when the app starts (Store::prune).
+/// Log lines, and battles with the items picked up after them, older than this many days are deleted when the app starts
+/// (Store::prune).
 pub const LOG_DAYS: u64 = 30;
 pub const BATTLE_DAYS: u64 = 90;
 pub const DAY_MS: u64 = 86_400_000;
@@ -58,6 +59,24 @@ CREATE INDEX IF NOT EXISTS battles_by_account ON battles (username, ended_at);
 ",
     // For the BATTLE_DAYS cut of prune.
     "CREATE INDEX IF NOT EXISTS battles_by_time ON battles (ended_at);",
+    // Tự nhặt đồ: each item picked up, and the battle it fell from (battle_at is its ended_at).
+    "
+CREATE TABLE IF NOT EXISTS pickups (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    character TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    battle_at INTEGER NOT NULL,
+    map_name TEXT NOT NULL,
+    mob_name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    quantity INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS pickups_by_account ON pickups (username, battle_at);
+CREATE INDEX IF NOT EXISTS pickups_by_time ON pickups (at);
+",
 ];
 
 /// A log line as cllt.db keeps it.
@@ -71,12 +90,35 @@ pub struct StoredLog {
     pub text: String,
 }
 
-/// A battle of the history, with its row id (the cursor for the next page).
+/// A battle of the history, with its row id (the cursor for the next page) and what was picked up after it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct StoredBattle {
     pub id: i64,
     #[serde(flatten)]
     pub record: BattleRecord,
+    pub picked: Vec<PickedItem>,
+}
+
+/// An item picked up after some battles: the quantities summed, and how many times.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PickedItem {
+    #[serde(flatten)]
+    pub item: Picked,
+    pub times: u32,
+}
+
+/// SUMS of the pickups of a group, from column `at`: item_id, name, times, quantity.
+const SUMS: &str = "item_id, MAX(name), COUNT(*), SUM(quantity)";
+fn picked_item(row: &Row, at: usize) -> rusqlite::Result<PickedItem> {
+    let item_id: i32 = row.get(at)?;
+    Ok(PickedItem {
+        item: Picked {
+            name: row.get(at + 1)?,
+            ..Picked::of(item_id, row.get(at + 3)?)
+        },
+        times: row.get(at + 2)?,
+    })
 }
 
 /// Sums over some battles. `ms` is the time spent in them.
@@ -106,16 +148,18 @@ pub struct MobTotals {
     pub totals: Totals,
 }
 
-/// The Thống kê tab: the totals, then each mob, most battles first.
+/// The Thống kê tab: the totals, then each mob, most battles first, then each item picked up, most times first.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BattleStats {
     #[serde(flatten)]
     pub totals: Totals,
     pub mobs: Vec<MobTotals>,
+    pub picked: Vec<PickedItem>,
 }
 
-/// Which battles a query takes: of one account, ended since a time, played for one source.
+/// Which battles a query takes, or the items picked up after them: of one account, ended since a time, played for one
+/// source.
 #[derive(Debug, Clone, Copy)]
 pub struct BattleFilter<'a> {
     pub username: &'a str,
@@ -123,11 +167,12 @@ pub struct BattleFilter<'a> {
     pub source: Option<BattleSource>,
 }
 impl BattleFilter<'_> {
-    fn sql(&self) -> (String, Vec<Value>) {
+    /// The WHERE of the battles table, or with `ended` "battle_at" of the pickups table.
+    fn sql(&self, ended: &str) -> (String, Vec<Value>) {
         let mut sql = "username = ?".to_string();
         let mut args = vec![Value::from(self.username.to_string())];
         if let Some(t) = self.since {
-            sql.push_str(" AND ended_at >= ?");
+            sql.push_str(&format!(" AND {ended} >= ?"));
             args.push(Value::from(t as i64));
         }
         if let Some(s) = self.source {
@@ -186,6 +231,7 @@ fn battle(row: &Row) -> rusqlite::Result<StoredBattle> {
             exp: row.get(19)?,
             coin: row.get(20)?,
         },
+        picked: vec![],
     })
 }
 
@@ -304,14 +350,34 @@ impl Store {
         Ok(())
     }
 
-    /// Newest first: the battles of `f` before row `before`.
+    pub fn add_pickup(&self, username: &str, p: &PickupRecord) -> rusqlite::Result<()> {
+        self.db().execute(
+            "INSERT INTO pickups (username, character, at, battle_at, map_name, mob_name, source, item_id, name, \
+             quantity) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                username,
+                p.character,
+                p.at as i64,
+                p.battle_at as i64,
+                p.map_name,
+                p.mob_name,
+                p.source.key(),
+                p.item.item_id,
+                p.item.name,
+                p.item.quantity
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Newest first: the battles of `f` before row `before`, each with the items picked up after it.
     pub fn battles(
         &self,
         f: BattleFilter,
         before: Option<i64>,
         limit: u32,
     ) -> rusqlite::Result<Vec<StoredBattle>> {
-        let (mut sql, mut args) = f.sql();
+        let (mut sql, mut args) = f.sql("ended_at");
         if let Some(b) = before {
             sql.push_str(" AND id < ?");
             args.push(Value::from(b));
@@ -321,13 +387,33 @@ impl Store {
         let mut q = db.prepare(&format!(
             "SELECT {BATTLE} FROM battles WHERE {sql} ORDER BY id DESC LIMIT ?"
         ))?;
-        let rows = q.query_map(params_from_iter(args), battle)?;
-        rows.collect()
+        let mut page: Vec<StoredBattle> = q
+            .query_map(params_from_iter(args), battle)?
+            .collect::<rusqlite::Result<_>>()?;
+        let ends = page.iter().map(|b| b.record.ended_at as i64);
+        let (Some(first), Some(last)) = (ends.clone().min(), ends.max()) else {
+            return Ok(page);
+        };
+        let mut q = db.prepare(&format!(
+            "SELECT battle_at, {SUMS} FROM pickups WHERE username = ?1 AND battle_at BETWEEN ?2 AND ?3 \
+             GROUP BY battle_at, item_id ORDER BY MIN(id)"
+        ))?;
+        let rows = q.query_map(params![f.username, first, last], |r| {
+            Ok((r.get::<_, i64>(0)? as u64, picked_item(r, 1)?))
+        })?;
+        for row in rows {
+            let (at, item) = row?;
+            if let Some(b) = page.iter_mut().find(|b| b.record.ended_at == at) {
+                b.picked.push(item);
+            }
+        }
+        Ok(page)
     }
 
-    /// The totals of the battles of `f`, then by mob and map, most battles first.
+    /// The totals of the battles of `f`, then by mob and map, most battles first, then the items picked up after them,
+    /// most times first.
     pub fn stats(&self, f: BattleFilter) -> rusqlite::Result<BattleStats> {
-        let (sql, args) = f.sql();
+        let (sql, args) = f.sql("ended_at");
         let db = self.db();
         let totals_of = db.query_row(
             &format!("SELECT {TOTALS} FROM battles WHERE {sql}"),
@@ -349,15 +435,23 @@ impl Store {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
+        let (sql, args) = f.sql("battle_at");
+        let mut q = db.prepare(&format!(
+            "SELECT {SUMS} FROM pickups WHERE {sql} GROUP BY item_id ORDER BY COUNT(*) DESC, SUM(quantity) DESC"
+        ))?;
+        let picked = q
+            .query_map(params_from_iter(args), |r| picked_item(r, 0))?
+            .collect::<rusqlite::Result<_>>()?;
         Ok(BattleStats {
             totals: totals_of,
             mobs,
+            picked,
         })
     }
 
-    /// Deletes the log lines older than LOG_DAYS and the battles that ended more than BATTLE_DAYS before `now`; the
-    /// numbers deleted.
-    pub fn prune(&self, now: u64) -> rusqlite::Result<(usize, usize)> {
+    /// Deletes the log lines older than LOG_DAYS, and the battles that ended more than BATTLE_DAYS before `now` with the
+    /// items picked up after them; the numbers deleted (lines, battles, pickups).
+    pub fn prune(&self, now: u64) -> rusqlite::Result<(usize, usize, usize)> {
         let cut = |days: u64| now.saturating_sub(days * DAY_MS) as i64;
         let db = self.db();
         let logs = db.execute("DELETE FROM logs WHERE at < ?1", params![cut(LOG_DAYS)])?;
@@ -365,7 +459,11 @@ impl Store {
             "DELETE FROM battles WHERE ended_at < ?1",
             params![cut(BATTLE_DAYS)],
         )?;
-        Ok((logs, battles))
+        let pickups = db.execute(
+            "DELETE FROM pickups WHERE battle_at < ?1",
+            params![cut(BATTLE_DAYS)],
+        )?;
+        Ok((logs, battles, pickups))
     }
 }
 
@@ -546,6 +644,98 @@ mod tests {
         assert_eq!(next.len(), 3);
     }
 
+    fn pickup(battle: &BattleRecord, item_id: i32, name: &str, quantity: i64) -> PickupRecord {
+        PickupRecord {
+            character: battle.character.clone(),
+            at: battle.ended_at + 30,
+            battle_at: battle.ended_at,
+            map_name: battle.map_name.clone(),
+            mob_name: battle.mob_name.clone(),
+            source: battle.source,
+            item: Picked {
+                name: name.into(),
+                ..Picked::of(item_id, quantity)
+            },
+        }
+    }
+
+    #[test]
+    fn pickups_sum_by_item_in_the_stats_and_come_with_their_battle_in_the_history() {
+        let s = Store::memory().unwrap();
+        let day = 1_793_400_000_000;
+        use BattleResult::*;
+        use BattleSource::*;
+        let fight = record("Cóc Xanh", 13, Won, Fight, day);
+        let quest = record("Sói Xám", 11, Won, Quest, day + 60_000);
+        let lost = record("Sói Xám", 11, Lost, Quest, day + 120_000);
+        let old = record("Cóc Xanh", 13, Won, Fight, day - DAY_MS);
+        for b in [&old, &fight, &quest, &lost] {
+            s.add_battle("manina2", b).unwrap();
+        }
+        for (b, id, name, qty) in [
+            (&fight, 41, "Xu khóa", 230),
+            (&fight, 412, "Đá cấp 2", 1),
+            (&fight, 412, "Đá cấp 2", 1),
+            (&quest, 41, "Xu khóa", 212),
+            (&old, 41, "Xu khóa", 207),
+        ] {
+            s.add_pickup("manina2", &pickup(b, id, name, qty)).unwrap();
+        }
+        s.add_pickup("tiheo2", &pickup(&fight, 3, "Trứng Gà", 1))
+            .unwrap();
+        let all = BattleFilter {
+            username: "manina2",
+            since: None,
+            source: None,
+        };
+        let sums = |st: BattleStats| -> Vec<(String, u32, i64, Option<i32>)> {
+            st.picked
+                .into_iter()
+                .map(|p| (p.item.name, p.times, p.item.quantity, p.item.icon))
+                .collect()
+        };
+        assert_eq!(
+            sums(s.stats(all).unwrap()),
+            [
+                ("Xu khóa".into(), 3, 649, Some(190)),
+                ("Đá cấp 2".into(), 2, 2, Some(168))
+            ]
+        );
+        // Of the battles of the range and the source, as the battles are.
+        let today = BattleFilter {
+            since: Some(day),
+            ..all
+        };
+        assert_eq!(
+            sums(
+                s.stats(BattleFilter {
+                    source: Some(Quest),
+                    ..today
+                })
+                .unwrap()
+            ),
+            [("Xu khóa".into(), 1, 212, Some(190))]
+        );
+        let page = s.battles(today, None, 10).unwrap();
+        let picked: Vec<Vec<(String, u32, i64)>> = page
+            .iter()
+            .map(|b| {
+                b.picked
+                    .iter()
+                    .map(|p| (p.item.name.clone(), p.times, p.item.quantity))
+                    .collect()
+            })
+            .collect();
+        assert_eq!(
+            picked,
+            [
+                vec![],
+                vec![("Xu khóa".into(), 1, 212)],
+                vec![("Xu khóa".into(), 1, 230), ("Đá cấp 2".into(), 2, 2)],
+            ]
+        );
+    }
+
     #[test]
     fn prune_drops_log_lines_and_battles_older_than_the_kept_days() {
         let s = Store::memory().unwrap();
@@ -560,16 +750,16 @@ mod tests {
         .unwrap();
         s.add_log("manina2", now - DAY_MS, LogKind::Battle, 0, "mới")
             .unwrap();
-        // A battle past BATTLE_DAYS goes; one past LOG_DAYS only stays, as the 30 ngày of Thống kê needs it.
+        // A battle past BATTLE_DAYS goes with its pickups; one past LOG_DAYS only stays, as the 30 ngày of Thống kê needs
+        // it.
         for (mob, days) in [("Cóc Xanh", BATTLE_DAYS + 1), ("Heo Mọi", LOG_DAYS + 1)] {
             let ended = now - days * DAY_MS;
-            s.add_battle(
-                "manina2",
-                &record(mob, 13, BattleResult::Won, BattleSource::Fight, ended),
-            )
-            .unwrap();
+            let b = record(mob, 13, BattleResult::Won, BattleSource::Fight, ended);
+            s.add_battle("manina2", &b).unwrap();
+            s.add_pickup("manina2", &pickup(&b, 41, "Xu khóa", 140))
+                .unwrap();
         }
-        assert_eq!(s.prune(now).unwrap(), (1, 1));
+        assert_eq!(s.prune(now).unwrap(), (1, 1, 1));
         let left: Vec<_> = s
             .logs("manina2", None, &[], None, 10)
             .unwrap()
@@ -589,6 +779,7 @@ mod tests {
             .map(|b| b.record.mob_name)
             .collect();
         assert_eq!(kept, ["Heo Mọi"]);
+        assert_eq!(s.stats(all).unwrap().picked[0].times, 1);
     }
 
     fn version(db: &Connection) -> usize {
@@ -631,6 +822,15 @@ mod tests {
             )
             .unwrap();
         assert_eq!(index, 1);
+        assert!(s
+            .stats(BattleFilter {
+                username: "manina2",
+                since: None,
+                source: None
+            })
+            .unwrap()
+            .picked
+            .is_empty());
         // Opened again, nothing more to do.
         let again = Store::init(s.db.into_inner().unwrap()).unwrap();
         assert_eq!(version(&again.db()), MIGRATIONS.len());

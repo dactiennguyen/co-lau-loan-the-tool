@@ -35,6 +35,7 @@ impl Bot {
             damage: 0,
             exp: 0,
             coin: 0,
+            picked: vec![],
             done: None,
             started_at: epoch_ms(),
             ended_at: None,
@@ -198,14 +199,11 @@ impl Bot {
     }
 
     pub(super) fn on_battle_end(&mut self, end: BattleEnd, now: Instant, out: &mut Vec<Out>) {
-        if end.won && self.fight.pickup {
-            self.loot(now, out);
-        }
         // The result that ended it reaches no snapshot with the battle on: the snapshot keeps it until the next battle.
         self.snap.turn = self.battle.take().and_then(|b| self.turn_of(&b));
         self.snap.hp = end.hp as i32;
         let boss = self.bosses.contains(&end.mob_id);
-        out.push(Out::Battle(self.record(
+        let record = self.record(
             &end.mob_id,
             match end.won {
                 true => BattleResult::Won,
@@ -215,7 +213,11 @@ impl Bot {
             end.damage,
             end.exp.unwrap_or(0),
             end.coin.unwrap_or(0),
-        )));
+        );
+        if end.won && self.fight.pickup {
+            self.loot(&record, now, out);
+        }
+        out.push(Out::Battle(record));
         if self.battle_seq != self.job_seq {
             out.push(Out::Log(
                 LogKind::Battle,

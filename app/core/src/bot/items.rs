@@ -116,48 +116,115 @@ impl Bot {
         self.fight = settings;
     }
 
-    /// Tự nhặt đồ, at the end of a won battle (13-drops-items.md#g2): its own drops came just before the end, in the same
-    /// read, and a few may come just after, so every item fallen within LOOT of it, before or after, is picked up with
-    /// c2s/1188 from where the character stands; the server does not check the distance. A stranger's item in that window
-    /// is refused for its first 16 s ("Không thể nhặt vật phẩm của người khác"), which costs nothing.
-    pub(super) fn loot(&mut self, now: Instant, out: &mut Vec<Out>) {
+    /// Tự nhặt đồ, at the end of the won battle `won` (13-drops-items.md#g2): its own drops came just before the end, in
+    /// the same read, and a few may come just after, so every item fallen within LOOT of it, before or after, is picked
+    /// up with c2s/1188 from where the character stands; the server does not check the distance. A stranger's item in
+    /// that window is refused for its first 16 s ("Không thể nhặt vật phẩm của người khác"), which costs nothing.
+    pub(super) fn loot(&mut self, won: &BattleRecord, now: Instant, out: &mut Vec<Out>) {
         self.loot_until = Some(now + LOOT);
+        self.loot_from = Some(LootFrom {
+            battle_at: won.ended_at,
+            map_name: won.map_name.clone(),
+            mob_name: won.mob_name.clone(),
+            source: won.source,
+        });
         self.asked.clear();
-        let own: Vec<(String, String)> = self
+        self.unanswered.clear();
+        let own: Vec<Fallen> = self
             .drops
             .iter()
-            .filter(|d| now.saturating_duration_since(d.2) <= LOOT)
-            .map(|d| (d.0.clone(), d.1.clone()))
+            .filter(|d| now.saturating_duration_since(d.at) <= LOOT)
+            .cloned()
             .collect();
-        for (uuid, name) in own {
-            self.pick(uuid, name, now, out);
+        for fallen in own {
+            self.pick(fallen, now, out);
         }
     }
     /// Queues an item for c2s/1188, once; one goes out every PICK_GAP.
-    pub(super) fn pick(&mut self, uuid: String, name: String, now: Instant, out: &mut Vec<Out>) {
-        if self.asked.contains(&uuid) || self.to_pick.iter().any(|p| p.0 == uuid) {
+    pub(super) fn pick(&mut self, fallen: Fallen, now: Instant, out: &mut Vec<Out>) {
+        if self.asked.contains(&fallen.uuid) || self.to_pick.iter().any(|p| p.uuid == fallen.uuid) {
             return;
         }
-        self.to_pick.push_back((uuid, name));
+        self.to_pick.push_back(fallen);
         if self.pick_at.is_none() {
             self.pick_next(now, out);
         }
     }
+    /// The next c2s/1188, said in the log as the bot's own action ("Nhặt Xu khóa ×236 rơi từ Cua Càng").
     pub(super) fn pick_next(&mut self, now: Instant, out: &mut Vec<Out>) {
-        let Some((uuid, _)) = self.to_pick.pop_front() else {
+        let Some(fallen) = self.to_pick.pop_front() else {
             self.pick_at = None;
             return;
         };
+        let from = self.loot_from.as_ref().map_or("", |l| l.mob_name.as_str());
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Nhặt {} rơi từ {from}", fallen.item.label()),
+        ));
         Self::send(
             out,
             1188,
             Ctx {
-                uuid: Some(&uuid),
+                uuid: Some(&fallen.uuid),
                 ..Ctx::default()
             },
         );
-        self.asked.insert(uuid);
+        self.asked.insert(fallen.uuid.clone());
+        self.unanswered.push_back(fallen);
         (self.picked_at, self.pick_at) = (Some(now), Some(now + PICK_GAP));
+    }
+    /// The server's answer to a c2s/1188: "Bạn vừa nhận được 137 Xu khóa", or a refusal ("Không thể nhặt vật phẩm của
+    /// người khác"). It answers the oldest request not answered yet; a pickup, the one whose item it names, with that
+    /// quantity if one does. What was picked up counts in the fight job or quest run its battle was played for, and goes
+    /// to the history (Out::Pickup).
+    pub(super) fn pick_answer(&mut self, text: String, out: &mut Vec<Out>) {
+        let got = text.contains("nhận được");
+        let find = |says: &dyn Fn(&Picked) -> String| {
+            self.unanswered
+                .iter()
+                .position(|f| got && text.contains(&says(&f.item)))
+        };
+        let at = find(&|i| format!("{} {}", i.quantity, i.name))
+            .or_else(|| find(&|i| i.name.clone()))
+            .or((!self.unanswered.is_empty()).then_some(0));
+        let (Some(fallen), Some(from)) = (
+            at.and_then(|i| self.unanswered.remove(i)),
+            self.loot_from.clone(),
+        ) else {
+            // Every request answered already: the line as the server says it.
+            return out.push(Out::Log(
+                LogKind::Item,
+                match got {
+                    true => text,
+                    false => format!("Không nhặt được: {text}"),
+                },
+            ));
+        };
+        let item = fallen.item;
+        if !got {
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Không nhặt được {}: {text}", item.label()),
+            ));
+        }
+        out.push(Out::Log(LogKind::Item, format!("Đã nhặt {}", item.label())));
+        let run = match from.source {
+            BattleSource::Fight => self.snap.job.as_mut().map(|j| &mut j.picked),
+            BattleSource::Quest => self.snap.quest_run.as_mut().map(|r| &mut r.picked),
+            BattleSource::Other => None,
+        };
+        if let Some(list) = run {
+            add_picked(list, &item);
+        }
+        out.push(Out::Pickup(Box::new(PickupRecord {
+            character: self.snap.name.clone(),
+            at: epoch_ms(),
+            battle_at: from.battle_at,
+            map_name: from.map_name,
+            mob_name: from.mob_name,
+            source: from.source,
+            item,
+        })));
     }
 
     /// s2c/36 after a battle: the durability of each worn item. One that just reached 0 is said in the log, as it adds
