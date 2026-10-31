@@ -35,6 +35,7 @@ npm run quest -- --fights=40
 | "Tiêu diệt X", "Tiêu diệt 1 X", "Đánh bại X" | `c2s/15` lần lượt từng con tên X trong `s2c/43`, đánh hết trận, mỗi trận thắng tính 1 |
 | "Đạt cấp độ N" (chưa đủ cấp) | Đánh quái mạnh nhất không quá cấp mình, không chọn boss (boss bỏ qua `c2s/15`), hoặc `--grind` |
 | "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào chỉ số 0 |
+| "Sử dụng điểm kỹ năng" | `c2s/1191 (mã, 1)` cho kỹ năng đầu tiên trong cây `s2c/30` lên được một cấp ngay: đã học kỹ năng đứng trước, đủ cấp, đủ điểm. Nhân vật mới thì là kỹ năng gốc (1000 Hỏa Cầu Thuật, 4000 Băng Tiễn Thuật). Server trả `s2c/10` kiểu 32, `s2c/1191`, rồi `s2c/34` sang bước sau. Có `s2c/1191` mà không có lời nhiệm vụ trong 8 s thì dừng. Không kỹ năng nào lên được thì dừng với `no skill can take a level now` ([12-skills-items](../../app/events/12-skills-items.md#c2s-1191)) |
 | "Gây N sát thương lên X" | `c2s/1178` với boss X từ `s2c/1177`; thua vẫn đánh tiếp, tiến độ là tổng sát thương ([10-quests](../../app/events/10-quests.md#boss)) |
 | NPC hoặc quái của bước không có ở map này | Đi qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Chọn cổng đầu tiên trên đường ngắn nhất (theo `data/maps.json`) tới map có NPC/quái đó, nếu không thì cổng mà tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 lần cho mỗi bước. Cổng bị từ chối (`s2c/1256`: thiếu cấp, chưa xong nhiệm vụ) được ghi lại và bỏ qua ([10-quests](../../app/events/10-quests.md#cổng)) |
 | Khác | Dừng với `step needs an action this bot does not know` |
@@ -47,8 +48,10 @@ Bot dừng khi thua đủ `--max-losses` trận (trừ trận boss của bước
 
 ```text
 quest-run.ts ─ envConnection() ─ runClient({ mode: 'world', session: QuestBot })
-client.ts    đăng nhập theo FLOW; sau s2c/43 + s2c/1263 gọi session.onReady(api) và chuyển mọi gói cho session.onPacket
-quest.ts     QuestBot: đọc s2c/39, chọn bước (stepAction), gửi c2s/13 (NPC hoặc cổng), c2s/15 hoặc c2s/1178 (boss);
+client.ts    đăng nhập theo FLOW (c2s/30 gửi hệ nhân vật = field01 của s2c/9); sau s2c/43 + s2c/1263 gọi session.onReady(api)
+             và chuyển mọi gói cho session.onPacket
+quest.ts     QuestBot: đọc s2c/39, chọn bước (stepAction), gửi c2s/13 (NPC hoặc cổng), c2s/15 hoặc c2s/1178 (boss),
+             c2s/10 (điểm tiềm năng), c2s/1191 (điểm kỹ năng); s2c/9 + s2c/30 → cấp từng kỹ năng và cây kỹ năng;
              s2c/11 → danh sách NPC/cổng; s2c/1201 → tiến độ; s2c/22 → tạo BattleRunner
 atlas.ts     data/maps.json: NPC/cổng, quái theo khu, boss, cổng dẫn đâu hoặc bị từ chối; route() tìm đường
 battle-runner.ts  BattleRunner: c2s/18 → s2c/18

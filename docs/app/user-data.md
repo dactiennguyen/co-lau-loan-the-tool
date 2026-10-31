@@ -35,7 +35,7 @@ Response mẫu dài **551 byte**. Prefix 40 byte đã đối chiếu getter nati
 | Offset mẫu | Kiểu | Nhãn phân tích | Giá trị A2 | Bằng chứng / giới hạn |
 |---:|---|---|---|---|
 | 0 | byte | status | 1 | Giá trị của nhánh đã đo |
-| 1 | byte | field01 | 1 | Không phải số nhân vật: nick thứ hai (31/10) có 4, bố cục phía sau vẫn y hệt. Bằng `flag1` ở cả ba mẫu; có thể là hệ phái [Suy luận]. Parser từng chỉ nhận 1 nên nick này báo lỗi lúc đăng nhập |
+| 1 | byte | field01 | 1 | Không phải số nhân vật: nick thứ hai (31/10) có 4, bố cục phía sau vẫn y hệt. Bằng `flag1` ở cả ba mẫu. Là **hệ nhân vật**: 1 Hỏa, 4 Thủy. Gửi `c2s/30` với số này thì nhận cây kỹ năng của hệ đó, và mã kỹ năng trong đuôi `s2c/9` là 1000 × hệ + 0…8 ([12-skills-items](events/12-skills-items.md#bảng-kỹ-năng)) [Đo K1]. Parser từng chỉ nhận 1 nên nick này báo lỗi lúc đăng nhập |
 | 2 | string | name | manina | Tên dùng cho các request sau |
 | 12 | int32 | numericId | 155 | ID số trong packet; chưa khẳng định ID account/database |
 | 16 | string | displayName | manina | Khớp tên trên UI |
@@ -72,15 +72,17 @@ Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắ
 | 8 | i32 × 10 | `stats` | 22, 10, 10, 12, 0… | 32, 10, 10, 30, 0… | 10, 20, 10, 11, 0… | Cùng 10 số của `s2c/10` kiểu 2. `stats[0]` tăng 1 mỗi lần cộng điểm: 22 → 32 sau 10 lần cộng ở L1 [Đo] |
 | 48 | i32 × 5 | `combat` | 22, 9, 30, 20, 6 | 32, 5, 30, 20, 6 | 13, 10, 40, 60, 7 | Bằng `extra[1..5]` của `s2c/10` kiểu 4. Xem bảng dưới |
 | 68 | i32 | `exp` | 176 | 14238 | 88 | Nằm trong `levelExp` ở cả ba mẫu. A2 bằng đúng EXP của `s2c/10` trước trận B1 [Đo] |
-| 72 | i32 | `coin` | 0 | 2664 | 0 | Cùng vai trò với `coin` của `s2c/10` kiểu 4, tức tiền thưởng trận. Có thể là Xu khoá: bảng Bản thân từng hiện 0 Xu, 2.060 Xu khoá ([11](events/11-panels.md)) [Suy luận] |
-| 76 | i32 | `field` | 10000 | 10000 | 10000 | Bằng `extra[0]` của `s2c/10` kiểu 4 [Chưa rõ] |
+| 72 | i32 | `coin` | 0 | 2664 | 0 | **Vàng** (thỏi vàng ăn trong trận), không phải Xu khoá. Bảng Bản thân ngày 31/10 hiện thanh vàng "2664/10000", trong khi Xu khoá là 7.370 (khớp `s2c/46`). Cùng vai trò với `coin` của `s2c/10` kiểu 4, tức vàng thưởng trận ([12-skills-items](events/12-skills-items.md#cẩm-nang-luật-liên-quan-tới-bot)) [Đo] |
+| 76 | i32 | `field` | 10000 | 10000 | 10000 | Bằng `extra[0]` của `s2c/10` kiểu 4. Là mốc đổi vàng: Cẩm nang ghi "đủ 10.000 tự đổi thành 10.000 Xu khóa", và bảng Bản thân hiện "2664/10000" [Suy luận mạnh] |
 | 80 | i32 | `statPoints` | 6 | 68 | 4 | Điểm tiềm năng còn lại: mỗi cấp +4. 6 + 4 × 18 − 10 điểm đã cộng = 68. `s2c/10` kiểu 8 cho 10 ở cấp 4 (6 + 4) [Suy luận mạnh] |
-| 84 | i32 | `skillPoints` | 1 | 19 | 1 | Bằng `fields[0]` của `s2c/10` kiểu 8 (2 ở cấp 4). Bằng cấp − 2 ở hai mẫu của manina nhưng cấp − 1 ở nick thứ hai, nên chưa có công thức. manina chưa dùng điểm kỹ năng nào [Suy luận] |
+| 84 | i32 | `skillPoints` | 1 | 19 | 1 | Bằng `fields[0]` của `s2c/10` kiểu 8 (2 ở cấp 4). Bằng cấp − 1 − số điểm đã dùng: hai mẫu của manina đã học Hỏa Cầu Thuật cấp 1 (1 điểm), nick thứ hai chưa học kỹ năng nào; khớp "mỗi cấp 1 điểm kỹ năng" của Cẩm nang. Sau E1 manina còn 16 (Hỏa Cầu Thuật lên cấp 4, [12](events/12-skills-items.md#c2s-1191)) [Đo ba mẫu] |
 | 88 | i32 × 2 | `levelExp` | 150, 300 | 13841, 15882 | 50, 150 | Mốc EXP của cấp. Cặp cấp 3 là cặp đầu của bảng mốc trong `s2c/19` [Đo] |
 | 96 | string × 2 | `labels` | "780", "125" | "355", "125" | "1662", "1510" | Như `labels` của `s2c/10` kiểu 8 [Chưa rõ] |
 | sau đó | 6 byte | `gap` | 0 | 0 | 0 | [Chưa rõ] |
 | sau đó | i32, i32 | `x`, `y` | 932, 544 | 2784, 864 | 90, 640 | Trùng x/y của `s2c/11` nhận ngay sau ở hai mẫu đầu [Đo] |
-| sau đó | | | | | | `i32 n` (9) rồi danh sách kỹ năng `{i32 mã; i32 cấp; i32; u8}`, bắt đầu bằng 1000 Hỏa Cầu Thuật ([05-battle](events/05-battle.md#c2s-20)); sau đó là trang bị. Chưa đặt tên |
+| sau đó | | | | | | `i32 n` (9) rồi danh sách kỹ năng `{i32 mã; i32 cấp; i32; u8}`, bắt đầu bằng 1000 Hỏa Cầu Thuật ([bảng kỹ năng](events/12-skills-items.md#bảng-kỹ-năng)) |
+| sau đó | | | | | | 8 ô trang bị: `i32 8; 8 × (u8 0xff: ô trống \| bản ghi vật phẩm)`. Mẫu 30/10 (nhận lại ngày 31/10, E1): ô 0 Nón Âu Lạc (mã 54), ô 2 vũ khí (mã 261), cả hai độ bền 0 ([12-skills-items](events/12-skills-items.md#túi-đồ)) [Đo] |
+| sau đó | | | | | | Phần còn lại (khoảng 170 byte, có bảng màu ARGB) chưa đặt tên |
 
 `combat` là các chỉ số chiến đấu:
 

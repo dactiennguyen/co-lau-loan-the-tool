@@ -18,8 +18,8 @@ Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../..
 | Đánh quái nhanh nhất thế nào? | Trận tính giờ (Sơn Tặc), 0,5 s/nước, dùng Hỏa Cầu Thuật: ~15 s/trận, **~500 EXP/phút**, gấp ~3 lần đánh theo lượt. EXP = 2 × (2 × sao + giọt nước) + phần cộng theo quái; xu = 2 × vàng. Xem [Đánh nhanh hay ăn sao](#đánh-nhanh-hay-ăn-sao). [Đo] |
 | Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`. HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
 | Sang map khác thế nào? | `c2s/13 (mapId hiện tại, id cổng)`, cùng opcode với nói chuyện NPC. Id cổng lấy ở cuối `s2c/11`. Cổng chưa mở thì server trả `s2c/1256` "Bạn phải đạt cấp N mới vào được X" hoặc "Bạn cần hoàn thành nhiệm vụ trước khi tới đây". Ở cấp 19 chỉ vào được M1, M2, M25. Xem [Đi qua cổng](#cổng) và [Bản đồ đã quét](06-map-mobs.md#atlas). [Đo] |
-| Bot còn thiếu gì? | Trang bị hỏng cần "búa sửa chữa" (chưa có gói). HP không tự hồi khi đứng yên (nghỉ 3 phút vẫn nguyên, Q19), chỉ hồi đầy sau một trận thua; chưa biết cách hồi máu khác. [Đo] |
-| Còn event nào chưa ghi? | Đã ghi 91 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **121 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
+| Bot còn thiếu gì? | Bước "Sử dụng điểm kỹ năng" bot TS đã làm được (`c2s/1191`, K1); app Rust chưa port. Sửa đồ là `c2s/48` và tốn 1 Búa sửa chữa; manina đã dùng chiếc búa duy nhất cho chiếc nón, vũ khí vẫn hỏng. Hồi máu bằng Hoàn Linh Dược (30% sinh lực), gói dùng bình chưa biết. manina còn 68 điểm tiềm năng và 16 điểm kỹ năng chưa dùng. Xem [12-skills-items](12-skills-items.md). [Đo] |
+| Còn event nào chưa ghi? | Đã ghi 95 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **119 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
 
 ## Gói nhiệm vụ
 
@@ -41,7 +41,8 @@ Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../..
 | "Nói chuyện với X", "Báo cáo với X" | id NPC | 1 | id NPC | `c2s/13 (mapId, npcId)` |
 | "Tiêu diệt X", "Đánh bại X" | loại quái (Gà Điên 0, Heo Mọi 1) | số con (1, 10, 10) | -1 | Đánh trận với quái tên X, đếm số trận thắng |
 | "Gây N sát thương lên X" (nhiệm vụ 7) | | N (500) | -1 | Thách đấu boss X của `s2c/1177`, cộng dồn sát thương. Server chưa nhận ([bước boss](#boss)) |
-| "Nâng điểm tiềm năng", "Sử dụng điểm kỹ năng" | 0 | 1 | -1 | Bot gửi `c2s/10 (0, 1)` ([09](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy)), chưa gặp bước này khi chạy thật; gói dùng điểm kỹ năng [Chưa rõ] |
+| "Nâng điểm tiềm năng" | 0 | 1 | -1 | Bot gửi `c2s/10 (0, 1)` ([09](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy)), chưa gặp bước này khi chạy thật |
+| "Sử dụng điểm kỹ năng" | 0 | 1 | -1 | `c2s/1191 (mãKỹNăng, 1)` cho kỹ năng đầu tiên của cây `s2c/30` lên được một cấp. Server trả `s2c/10` kiểu 32, `s2c/1191`, `s2c/34` ([12-skills-items](12-skills-items.md#c2s-1191)) [Đo K1: nick thứ hai học Băng Tiễn Thuật 4000] |
 
 ```text
 00000004 0000001b "Ruộng Dưa Bị Tàn Phá" 000000a0 "Mùa màng là nguồn sống…" 00000004 "main"
@@ -237,7 +238,6 @@ Trận boss (B4, Thủ Lĩnh Sơn Tặc cấp 11, manina cấp 17 với 2 món �
 
 - `c2s/1178` có cần đứng gần boss không (B4 đứng sát boss).
 - Cổng Hồng Giang (1016) cần xong nhiệm vụ nào.
-- Gói sửa trang bị (cần "búa sửa chữa" theo chuỗi `.so`).
-- Phần cộng cố định của công thức EXP phụ thuộc gì; có cách hồi máu nào ngoài thua trận không (đứng yên 3 phút không hồi, Q19).
-- Món nào ứng với từng ô của `s2c/36`, gói sửa đồ, và có giới hạn số trận mỗi ngày không.
-- Gói dùng điểm kỹ năng, nhiệm vụ phụ, nhiệm vụ hằng ngày, nhiệm vụ Bảo Điển khi có mùa.
+- Phần cộng cố định của công thức EXP phụ thuộc gì. Hồi máu ngoài thua trận: dùng Hoàn Linh Dược ([12](12-skills-items.md#bình-máu-và-nội-lực)), gói dùng bình chưa biết.
+- Món nào ứng với từng ô của `s2c/36`; có giới hạn số trận mỗi ngày không. Gói sửa đồ đã biết (`c2s/48`), nhưng Búa sửa chữa lấy ở đâu thì chưa rõ.
+- Gói nhận và trả nhiệm vụ hằng ngày. Cẩm nang nói nhận ở Hương Lão Trần Bá (NPC 102), tối đa 3 lần một ngày ([12](12-skills-items.md#cẩm-nang-luật-liên-quan-tới-bot)). Nhiệm vụ Bảo Điển khi có mùa.

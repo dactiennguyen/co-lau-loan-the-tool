@@ -53,7 +53,7 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Xuất hiện khi | Trả character_request |
 | Sau đó | c2s/30 |
 | Bố cục payload | u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; i32 s1,s1Max; i32 stats[10]; i32 combat[5]; i32 exp,coin,field; i32 statPoints,skillPoints; i32 levelExp[2]; string labels[2]; u8[6]; i32 x,y; opaque tail (kỹ năng, trang bị) |
-| Độ chắc chắn | Prefix: getter native, level/HP khớp UI; field01 không phải số nhân vật: bằng flag1 ở cả ba mẫu (1, 1, 4), có thể là hệ phái. Đuôi: ba mẫu (A2 cấp 3, 30/10 cấp 21, nick thứ hai 31/10 cấp 2) cùng bố cục; hai mẫu đầu khớp s2c/10 và x/y của s2c/11; statPoints, skillPoints là suy luận |
+| Độ chắc chắn | Prefix: getter native, level/HP khớp UI; field01 không phải số nhân vật: bằng flag1 ở cả ba mẫu (1, 1, 4), là hệ nhân vật (1 Hỏa, 4 Thủy; K1). Đuôi: ba mẫu (A2 cấp 3, 30/10 cấp 21, nick thứ hai 31/10 cấp 2) cùng bố cục; hai mẫu đầu khớp s2c/10 và x/y của s2c/11; statPoints, skillPoints là suy luận |
 | Độ dài payload mẫu | 551 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -146,8 +146,8 @@ Nguồn: A2: packet đọc từ native reader, record 100.
 | Nhãn phân tích | skills_request |
 | Xuất hiện khi | Đã lấy nhân vật |
 | Sau đó | s2c/30 |
-| Bố cục payload | u8 flag=1 |
-| Độ chắc chắn | Đã đo kiểu/byte; tên field chưa rõ được giữ trung tính |
+| Bố cục payload | u8 element (field01 của s2c/9: 1 Hỏa, 4 Thủy) |
+| Độ chắc chắn | Đo: app gửi 1 cho manina (Hỏa); K1: gửi 4 cho nick thứ hai (field01 4) thì nhận cây Thủy 4000–4008, gửi 1 thì nhận cây Hỏa |
 | Độ dài payload mẫu | 1 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -184,8 +184,8 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Nhãn phân tích | skills_data |
 | Xuất hiện khi | Trả skills_request; có push khác xen giữa |
 | Sau đó | c2s/42 |
-| Bố cục payload | Payload 23442 byte trong mẫu; prefix i32, i32, string; phần còn lại opaque |
-| Độ chắc chắn | Vai trò kỹ năng suy từ chuỗi Hỏa Cầu Thuật; chưa giải schema toàn bộ |
+| Bố cục payload | i32 n; n * {i32 skillId; string name; i32 prerequisiteId (-1 = không); i32 maxLevel; maxLevel * {i32 level; string description; i32 skillPointCost; i32 requiredLevel; i32 manaCost}} |
+| Độ chắc chắn | Đọc hết 23442 byte mẫu A2: 9 kỹ năng hệ Hỏa (1000–1008); điều kiện từng cấp khớp chi tiết kỹ năng trên máy (E1); K1: cây Thủy 4000–4008 cùng bố cục |
 | Độ dài payload mẫu | 23442 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -194,7 +194,7 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 00000009000003e80000001348e1bb8f612043e1baa77520546875e1baad74ffffffff00000014000000010000007f54e1baa56e2063c3b46e672076c3a02067c3a2792031312073c3a174207468c6b0c6a16e672063686f20c491e1bb9169207068c6b0c6a16e672c20c491e1bb936e67207468e1bb9d69207068c3a12068e1
 ```
 
-Hiển thị 128/23442 byte đầu. Các giá trị đã đọc được ghi bên dưới; phần chưa rõ không được điền thêm byte hoặc coi là schema đã hiểu.
+Hiển thị 128/23442 byte đầu. JSON dưới đây là bản ghi gốc của A2, khi mới đọc được prefix. Bố cục đầy đủ và bảng 9 kỹ năng đã giải sau, xem [bảng kỹ năng](12-skills-items.md#bảng-kỹ-năng).
 
 Nguồn: A2: packet đọc từ native reader, record 150.
 
@@ -264,8 +264,8 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Nhãn phân tích | character_extra |
 | Xuất hiện khi | Trả character_extra_request |
 | Sau đó | c2s/29 |
-| Bố cục payload | Prefix string; phần còn lại opaque |
-| Độ chắc chắn | Vai trò chưa chốt; prefix chuỗi quan sát từ length/bytes |
+| Bố cục payload | string label ("test dong 1"); i32 42; i32 3; túi đồ: u8 2; i32 capacity; i32 n; n * item record (như s2c/1187) |
+| Độ chắc chắn | Đọc hết 608 byte (E1): 8 món khớp túi trên máy; i32 42, i32 3 sau label chưa rõ |
 | Độ dài payload mẫu | 246 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -274,7 +274,7 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 0000000b7465737420646f6e6720310000002a00000003020000002a0000000300000000000000002464336435316134312d326335372d346633302d626630632d33656363643262353532646500000000ffffffff0000000300ff00000000000000010000019c0000002438623065656336332d303631352d343962382d3931
 ```
 
-Hiển thị 128/246 byte đầu. Các giá trị đã đọc được ghi bên dưới; phần chưa rõ không được điền thêm byte hoặc coi là schema đã hiểu.
+Hiển thị 128/246 byte đầu. JSON dưới đây là bản ghi gốc của A2, khi mới đọc được chuỗi đầu. Phần sau là túi đồ, đã giải sau, xem [túi đồ](12-skills-items.md#túi-đồ).
 
 Nguồn: A2: packet đọc từ native reader, record 152.
 

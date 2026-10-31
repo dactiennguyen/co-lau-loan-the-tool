@@ -265,7 +265,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào Cường lực |
 | NPC hoặc quái ở map khác | Qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Cổng đầu tiên trên đường ngắn nhất theo `data/maps.json` cộng những gì phiên đã thấy, nếu không thì cổng tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 cổng một bước. Cổng bị từ chối (`s2c/1256`) bị bỏ qua |
 | Quái của bước có ở map này nhưng chưa thấy (boss đang đổi chỗ) | Đợi 5 s, tối đa 6 lần |
-| Bước khác (vd. "Sử dụng điểm kỹ năng") | Dừng, ghi rõ bước nào |
+| Bước khác (vd. "Sử dụng điểm kỹ năng") | Dừng, ghi rõ bước nào. Bot TS đã làm được bước này (`c2s/1191`, [12-skills-items](../../app/events/12-skills-items.md#c2s-1191)); app Rust chưa port. `vectors.json` đã có phần cần cho việc port: `skillTable`, `characterSkills`, `characterStats` kiểu 32, `c2s/1191` và `c2s/30` theo hệ, kịch bản "skill step". Bốn test parity sẽ đỏ cho tới khi port xong |
 
 - **Trả nhiệm vụ:** server gửi `s2c/35` (phần thưởng, ghi vào nhật ký), rồi `s2c/39` của nhiệm vụ mới; bot làm tiếp nhiệm vụ mới.
 - **Dừng khi:** bấm Dừng (trận đang đánh vẫn đánh hết), thua đủ số trận cho phép (không tính trận thua boss), gặp bước chưa biết, không còn quái của bước ở khu, NPC hay cổng không trả lời trong 8 s, đã đủ cấp mà server không sang bước sau, hoặc không đọc được NPC và cổng của map vừa tới (`s2c/11`; khi đó bản đồ trong atlas giữ nguyên, không bị ghi thành map rỗng).
@@ -305,11 +305,12 @@ Server chỉ tính tiến độ cho bước đang làm, nên chỉ ▶ của bư
 - **Nhiều nick cùng một IP:** chưa thử, cần thêm nick thứ hai. Phía app, mỗi nick đã là một kết nối độc lập.
 - **Nhãn chỉ số:** "Tấn công" và "Phòng thủ" khớp số đo. "Chính xác", "Né tránh", "Chí mạng" và thứ tự Thân pháp / Nội lực / Thể lực là suy luận từ chuỗi giao diện của game ([user-data](../../app/user-data.md#đuôi-s2c9)).
 - **Vị trí:** là x/y lúc vào map. App không cho nhân vật đi lại, nên vị trí chỉ đổi khi sang map khác.
-- **Trang bị:** app không sửa trang bị có độ bền 0, vì chưa tìm ra gói sửa.
+- **Trang bị:** app không sửa trang bị có độ bền 0. Gói sửa là `c2s/48` và mỗi lần tốn 1 Búa sửa chữa ([12-skills-items](../../app/events/12-skills-items.md#c2s-48)); chưa cài.
 - **Windows và Linux:** mới kiểm tra `cargo check` chéo của `cllt-core` cho `x86_64-pc-windows-msvc` và `x86_64-unknown-linux-gnu`. Phần Tauri chưa chạy thử trên hai hệ này; [build-matrix.yml](#cicd-và-phát-hành) sẽ là lần build đầu tiên.
 - **Nhiệm vụ:**
-  - Chưa biết gói "Sử dụng điểm kỹ năng", nên bot dừng ở bước đó.
+  - Bot dừng ở bước "Sử dụng điểm kỹ năng". Bot TS đã làm được bước này, phía Rust chưa port.
+  - `requests.rs` vẫn ghi `c2s/30` là 1, nên nhân vật hệ Thủy nhận nhầm cây Hỏa. Phải gửi `field01` của `s2c/9`, như client TS.
   - Điểm tiềm năng luôn cộng vào Cường lực.
-  - Server chưa gửi nhiệm vụ phụ hay hằng ngày.
-  - HP chỉ hồi đầy sau một trận thua; trang bị hỏng chưa sửa được.
+  - Server chưa gửi nhiệm vụ phụ hay hằng ngày. Nhiệm vụ hằng ngày phải tự nhận ở Hương Lão Trần Bá (Cẩm nang), gói chưa bắt.
+  - HP chỉ hồi đầy sau một trận thua; bot chưa dùng Hoàn Linh Dược (gói chưa biết) và chưa sửa đồ.
 - **Chưa port:** app không mua bán, không chat, không tự đổi map ngoài lúc làm nhiệm vụ. Quét map và ghi `data/maps.json` vẫn chỉ có bên TS.

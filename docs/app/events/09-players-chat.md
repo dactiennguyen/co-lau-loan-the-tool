@@ -286,7 +286,7 @@ Trong L1, ai đó dùng chính điện thoại để trả nhiệm vụ, nhận 
 |---|---|---|
 | `c2s/13` | `00000002 4d31 00000066` | `string mapId; i32 npcId`. Nói chuyện với NPC 102 rồi 103 trên `M1` (trả và nhận nhiệm vụ). Bot Node đã dùng gói này, xem [10-quests](10-quests.md#c2s-13) [Đo] |
 | `s2c/35` | `00000003 "Những Việc Đầu Tiên" 00000004 "127 kinh nghiệm" "660 Xu khóa" "1 Áo Hào Kiệt" "1 Nón Lá" …` | Hoàn thành nhiệm vụ: tên và danh sách phần thưởng [Đo chuỗi] |
-| `s2c/1187` | `01 0000002a 00000003 … uuid … 00000003 00 ff …` | Vật phẩm vào túi (mã 42, số lượng 3); cùng khuôn bản ghi vật phẩm [Suy luận] |
+| `s2c/1187` | `01 0000002a 00000003 … uuid … 00000003 00 ff …` | Cả túi đồ sau khi nhận thưởng: sức chứa 42, 3 món (lúc ghi L1 từng đọc nhầm `0000002a` là "mã 42"). Bố cục đầy đủ ở [12-skills-items](12-skills-items.md#túi-đồ) [Đo E2] |
 | `s2c/39`, `s2c/34`, `s2c/1200`, `s2c/46` | | Nhiệm vụ mới "Ruộng Dưa Bị Tàn Phá", tiến độ, cập nhật Xu (như [04-push](04-push.md#s2c-39), [07](07-auto-battle.md#các-gói-mới-thấy-trong-bot)) |
 | `c2s/10` | `00000000 00000001` | Cộng 1 điểm tiềm năng vào chỉ số 0, bấm 10 lần [Suy luận] |
 | `s2c/10` kiểu 2 | `00000002 "manina" 00000004 00000016 0000000a 0000000a 0000000d 0…` | Cấp 4 và các chỉ số; chỉ số đầu tăng 22 → 32 sau 10 lần cộng [Đo] |
