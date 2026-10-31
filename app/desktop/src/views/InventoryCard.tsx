@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { ElementTag } from "../components/ElementTag";
 import type { IconName } from "../components/Icon";
 import { ItemSlot } from "../components/ItemSlot";
+import { Menu, type MenuItem } from "../components/Menu";
 import { num } from "../format";
 import type { Account, Item, ItemAction } from "../types";
 import { ItemDetail } from "./ItemDetail";
@@ -49,13 +50,15 @@ interface Act {
  * Túi đồ tab: the 8 gear slots (s2c/9, then s2c/37) around the character, the bag (s2c/42, s2c/1187) by slot, and the
  * item shown under them with the game's buttons for the item clicked: Mặc and Dùng in the bag, Cởi ra and Sửa on the
  * gear (12-skills-items.md#c2s-1186). Vứt bỏ is left out. The money is in the metric row. Cửa hàng opens the shop of Lái
- * Buôn; Mua búa does too, with the hammer picked, where Sửa lacks one.
+ * Buôn; Mua búa does too, with the hammer picked, where Sửa lacks one. A right click on an item picks it and opens a menu
+ * of the same buttons, greyed with the same reasons; Dùng and Sửa from it ask once more in the strip, as the buttons do.
  */
 export function InventoryCard({ account, onAction }: { account: Account; onAction: (action: ItemAction, slot: number) => void }) {
   const c = account.character;
   const [pinned, setPinned] = useState<Key | null>(null);
   const [hover, setHover] = useState<Key | null>(null);
   const [ask, setAsk] = useState<{ key: Key; action: ItemAction } | null>(null);
+  const [menu, setMenu] = useState<{ key: Key; x: number; y: number } | null>(null);
   // The gear and bag when the last action went out: the buttons wait until they change, or ANSWER_MS.
   const sig = c ? JSON.stringify([c.gear.map((g) => g && [g.id, g.durability?.[0]]), c.bag?.items.map((i) => [i.slot, i.id, i.quantity])]) : "";
   const [sent, setSent] = useState<string | null>(null);
@@ -92,6 +95,15 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       active={shownKey === k}
       onShow={(on) => setHover((h) => (on ? k : h === k ? null : h))}
       onPick={() => setPinned((p) => (p === k ? null : k))}
+      onMenu={
+        item
+          ? (x, y) => {
+              setPinned(k);
+              setAsk(null);
+              setMenu({ key: k, x, y });
+            }
+          : undefined
+      }
     />
   );
   const gearSlot = (n: number) => slot(`gear-${n}`, c.gear[n] ?? null, GEAR[n].label, GEAR[n].icon, true);
@@ -126,12 +138,33 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     if (action === "equip" && item.kind != null) setPinned(`gear-${item.kind}`);
     if (action === "unequip") setPinned(null);
   };
+  /** The right-click menu of the item at `k`: its buttons, Mua búa where Sửa lacks a hammer, Mua thêm for what Lái
+   * Buôn sells (potions, hammers). */
+  const menuItems = (k: Key, item: Item): MenuItem[] => {
+    const list = acts(item, k.startsWith("gear"));
+    const items: MenuItem[] = list.map((a) => ({
+      label: a.confirm ? `${a.label}…` : a.label,
+      icon: a.icon,
+      disabled: !!(busy ?? a.why),
+      hint: busy ?? a.why ?? undefined,
+      onSelect: () => (a.confirm ? setAsk({ key: k, action: a.action }) : run(a.action, item)),
+    }));
+    if (list.some((a) => a.why === NO_HAMMER)) items.push({ label: "Mua búa", icon: "cart", onSelect: () => shopFor(HAMMER) });
+    if (item.kind === POTION || item.id === HAMMER) {
+      items.push({ label: `Mua thêm ${item.name}`, icon: "cart", separated: items.length > 0, onSelect: () => shopFor(item.id) });
+    }
+    if (items.length === 0) items.push({ label: "Không có thao tác", icon: "gem", disabled: true, hint: "món này không mặc hay dùng được", onSelect: () => {} });
+    return items;
+  };
+  const menuItem = menu ? find(menu.key) : null;
   const actions = (() => {
     if (!shown || !shownKey) return undefined;
     const list = acts(shown, shownKey.startsWith("gear"));
     if (!list.length) return undefined;
     // Only the item clicked has buttons: a hovered one changes as the mouse moves to them.
-    if (shownKey !== pinned) return <span className="inv__hint">Bấm vào món để {list.map((a) => a.label.toLowerCase()).join(", ")}</span>;
+    if (shownKey !== pinned) {
+      return <span className="inv__hint">Bấm hoặc chuột phải vào món để {list.map((a) => a.label.toLowerCase()).join(", ")}</span>;
+    }
     const asking = ask?.key === shownKey ? list.find((a) => a.action === ask.action) : undefined;
     if (asking) {
       return (
@@ -211,6 +244,9 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       </div>
 
       <ItemDetail item={shown} where={where} element={c.element} actions={actions} />
+      {menu && menuItem && (
+        <Menu x={menu.x} y={menu.y} label={`Món ${menuItem.name}`} items={menuItems(menu.key, menuItem)} onClose={() => setMenu(null)} />
+      )}
     </Card>
   );
 }

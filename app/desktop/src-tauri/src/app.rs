@@ -4,7 +4,7 @@
 use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
-use cllt_core::bot::{FightSettings, LogKind, Snapshot};
+use cllt_core::bot::{add_picked, BattleResult, FightSettings, LogKind, Snapshot};
 use cllt_core::net::{Command, ConnState, Event, Manager};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::Proxy;
@@ -35,6 +35,10 @@ pub struct Entry {
     next_line: u64,
     /// While a battle is on: the line it opened on, which shows its latest result.
     live: Option<u64>,
+    /// Tự nhặt đồ: the end (ms) of the battle just won, until the bot's line about it ("Trận 3: thắng …") comes; then
+    /// that end and the line, which shows what is picked up after it.
+    loot_next: Option<u64>,
+    loot_line: Option<(u64, u64)>,
 }
 impl Entry {
     pub fn new(id: u64, account: Account) -> Self {
@@ -47,6 +51,8 @@ impl Entry {
             log: VecDeque::new(),
             next_line: 1,
             live: None,
+            loot_next: None,
+            loot_line: None,
         }
     }
     /// Numbers the line, so the UI can tell the lines it has from new ones, and keeps it.
@@ -553,16 +559,30 @@ impl App {
             .for_each(|id| self.send(id, command.clone()));
     }
 
-    /// Keeps the line in the log of the account and in cllt.db, and tells the UI.
+    /// Keeps the line in the log of the account and in cllt.db, and tells the UI. The first line after a won battle is the
+    /// bot's line about it ("Trận 3: thắng …", "Trận của việc trước: thắng …"): the items picked up after that battle go
+    /// under it.
     pub fn log(&mut self, id: u64, kind: LogKind, text: &str) {
         let mut line = LogLine::new(epoch_ms(), kind, text);
         let Some(e) = self.entries.iter_mut().find(|e| e.id == id) else {
             return;
         };
+        let won = e
+            .loot_next
+            .take()
+            .filter(|_| kind == LogKind::Battle && text.starts_with("Trận"));
         if let Some(s) = &self.store {
             line.id = s.add_log(&username(&e.account), line.at, kind, line.tone, text);
+            if let (Some(row), Some(at)) = (line.id, won) {
+                if let Err(err) = s.link_battle(row, at) {
+                    eprintln!("cllt.db: không ghi được trận của dòng nhật ký: {err}");
+                }
+            }
         }
         let line = e.push(line);
+        if let Some(at) = won {
+            e.loot_line = Some((at, line.seq));
+        }
         self.pending.push((id, line));
         let _ = self.wake.send(());
     }
@@ -594,6 +614,9 @@ impl App {
             }
             Event::Log(kind, text) => self.log(id, kind, &text),
             Event::Battle(record) => {
+                if let Some(e) = self.entry_mut(id) {
+                    e.loot_next = (record.result == BattleResult::Won).then_some(record.ended_at);
+                }
                 let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
                     return;
                 };
@@ -601,12 +624,30 @@ impl App {
                     eprintln!("cllt.db: không ghi được trận: {e}");
                 }
             }
+            // Under the line of its battle, sent to the UI again; without that line (gone from the 500 kept), a line of
+            // its own.
             Event::Pickup(record) => {
-                let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
-                    return;
-                };
-                if let Err(e) = store.add_pickup(&user, &record) {
-                    eprintln!("cllt.db: không ghi được món nhặt: {e}");
+                if let (Some(store), Some(user)) = (&self.store, self.username(id)) {
+                    if let Err(e) = store.add_pickup(&user, &record) {
+                        eprintln!("cllt.db: không ghi được món nhặt: {e}");
+                    }
+                }
+                let line = self.entry_mut(id).and_then(|e| {
+                    let (_, seq) = e.loot_line.filter(|l| l.0 == record.battle_at)?;
+                    let line = e.log.iter_mut().rev().find(|l| l.seq == seq)?;
+                    add_picked(&mut line.picked, &record.item);
+                    Some(line.clone())
+                });
+                match line {
+                    Some(line) => {
+                        self.pending.push((id, line));
+                        let _ = self.wake.send(());
+                    }
+                    None => self.log(
+                        id,
+                        LogKind::Item,
+                        &format!("Đã nhặt {}", record.item.label()),
+                    ),
                 }
             }
         }
@@ -702,7 +743,16 @@ mod tests {
         again.load_history();
         again.on_event(id, Event::State(ConnState::Connecting));
         let texts: Vec<String> = again.logs(id).into_iter().map(|l| l.text).collect();
-        assert_eq!(texts, ["Đã vào game", "Sang khu 4", "Đang kết nối…"]);
+        // The item came with no line of its battle here, so it has a line of its own.
+        assert_eq!(
+            texts,
+            [
+                "Đã vào game",
+                "Sang khu 4",
+                "Đã nhặt Xu khóa ×230",
+                "Đang kết nối…"
+            ]
+        );
     }
 
     #[test]
@@ -732,6 +782,90 @@ mod tests {
         let update = app.take_update().0.unwrap();
         assert!(update.accounts.is_empty());
         assert_eq!(update.ids, Some(vec![b]));
+    }
+
+    #[test]
+    fn the_items_picked_up_after_a_won_battle_go_under_its_line_and_come_back_with_it() {
+        use cllt_core::bot::{BattleRecord, BattleSource, Picked, PickupRecord};
+        let store = Arc::new(Store::memory().unwrap());
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        app.set_store(store.clone());
+        let id = app.add(account("manina2"));
+        let battle = |result, ended_at| BattleRecord {
+            character: "manina".into(),
+            level: 22,
+            started_at: ended_at - 40_000,
+            ended_at,
+            map_id: "M2".into(),
+            map_name: "Trại Vân Sơn".into(),
+            zone: 1,
+            mob_id: "mob80".into(),
+            mob_name: "Kẻ Quấy Phá".into(),
+            mob_level: 20,
+            boss: false,
+            source: BattleSource::Fight,
+            result,
+            turns: 37,
+            damage: 704,
+            hp_before: 180,
+            hp_after: 135,
+            max_hp: 180,
+            exp: 236,
+            coin: 24,
+        };
+        let pickup = |battle_at, item_id, quantity| {
+            Event::Pickup(Box::new(PickupRecord {
+                character: "manina".into(),
+                at: battle_at + 40,
+                battle_at,
+                map_name: "Trại Vân Sơn".into(),
+                mob_name: "Kẻ Quấy Phá".into(),
+                source: BattleSource::Fight,
+                item: Picked::of(item_id, quantity),
+            }))
+        };
+        let won = 1_793_400_000_000;
+        app.on_event(id, Event::Battle(Box::new(battle(BattleResult::Won, won))));
+        app.on_event(
+            id,
+            Event::Log(LogKind::Battle, "Trận 1: thắng, 37 lượt".into()),
+        );
+        app.take_update();
+        for (item, qty) in [(413, 1), (41, 230), (413, 1)] {
+            app.on_event(id, pickup(won, item, qty));
+        }
+        let items = |l: &LogLine| -> Vec<(i32, i64)> {
+            l.picked.iter().map(|p| (p.item_id, p.quantity)).collect()
+        };
+        let lines = app.logs(id);
+        assert_eq!(lines.len(), 1, "no line of their own");
+        assert_eq!(items(&lines[0]), [(413, 2), (41, 230)]);
+        // Sent to the UI again with each item.
+        let sent = app.take_update().1;
+        assert_eq!(sent.len(), 3);
+        assert_eq!(
+            (sent[2].line.seq, items(&sent[2].line)),
+            (1, vec![(413, 2), (41, 230)])
+        );
+        // A lost battle takes nothing; an item whose battle line is not there gets a line of its own.
+        app.on_event(
+            id,
+            Event::Battle(Box::new(battle(BattleResult::Lost, won + 60_000))),
+        );
+        app.on_event(id, Event::Log(LogKind::Battle, "Trận 2: thua".into()));
+        app.on_event(id, pickup(won + 60_000, 3, 1));
+        let texts: Vec<String> = app.logs(id).into_iter().map(|l| l.text).collect();
+        assert_eq!(texts[1..], ["Trận 2: thua", "Đã nhặt Trứng Gà"]);
+        assert!(app.logs(id)[1].picked.is_empty());
+
+        // The next start: the line of the won battle comes back from cllt.db with its items.
+        let mut again = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        again.set_store(store);
+        let id = again.add(account("manina2"));
+        again.load_history();
+        let lines = again.logs(id);
+        assert_eq!(items(&lines[0]), [(413, 2), (41, 230)]);
+        assert!(lines[1..].iter().all(|l| l.picked.is_empty()));
     }
 
     #[test]

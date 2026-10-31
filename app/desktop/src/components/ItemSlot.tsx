@@ -15,13 +15,16 @@ interface Props {
   wear?: boolean;
   onShow: (shown: boolean) => void;
   onPick: () => void;
+  /** Chuột phải, or the Menu key and Shift+F10: the item's menu, opened at that point of the window. */
+  onMenu?: (x: number, y: number) => void;
 }
 
 /**
  * One square of the bag or the gear: the item's icon with its quantity (items that stack) and element in the corners; a
- * red tint when it is worn out. Hover or focus shows it in the detail strip; a click keeps it there.
+ * red tint when it is worn out. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens
+ * its menu.
  */
-export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPick }: Props) {
+export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPick, onMenu }: Props) {
   if (!item) {
     return (
       <span className="slot slot--empty" title={`${label}: trống`}>
@@ -43,6 +46,17 @@ export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPic
       onFocus={() => onShow(true)}
       onBlur={() => onShow(false)}
       onClick={onPick}
+      onContextMenu={(e) => {
+        if (!onMenu) return;
+        e.preventDefault();
+        onMenu(e.clientX, e.clientY);
+      }}
+      onKeyDown={(e) => {
+        if (!onMenu || !(e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) return;
+        e.preventDefault();
+        const r = e.currentTarget.getBoundingClientRect();
+        onMenu(r.left + 8, r.bottom - 4);
+      }}
     >
       {url ? <img src={url} alt="" draggable={false} /> : <span className="slot__id px">#{item.id}</span>}
       {item.stacks && <b className="slot__qty px">{item.quantity}</b>}

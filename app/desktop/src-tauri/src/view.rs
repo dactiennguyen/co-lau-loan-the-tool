@@ -3,7 +3,7 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BattleView, BossTile, FightSettings, Job, LogKind, MapChoice, QuestRun, Target,
+    BattleView, BossTile, FightSettings, Job, LogKind, MapChoice, Picked, QuestRun, Target,
 };
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
@@ -59,6 +59,9 @@ pub struct LogLine {
     /// On the line a battle opened on: the battle's latest result, sent again with each one (App::on_event).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub turn: Option<Turn>,
+    /// On the line of a won battle ("Trận 3: thắng …"): what Tự nhặt đồ picked up after it, sent again with each item.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub picked: Vec<Picked>,
 }
 impl LogLine {
     pub fn new(at: u64, kind: LogKind, text: &str) -> Self {
@@ -71,6 +74,7 @@ impl LogLine {
             text: text.into(),
             tone: LogTone::of(text) as u8,
             turn: None,
+            picked: vec![],
         }
     }
     /// A line of an earlier session, from cllt.db.
@@ -78,6 +82,7 @@ impl LogLine {
         Self {
             id: Some(l.id),
             tone: l.tone,
+            picked: l.picked.clone(),
             ..Self::new(l.at, l.kind, &l.text)
         }
     }

@@ -27,6 +27,10 @@
   color: var(--kind);
 }
 .log__main { min-width: 0; }
+/* Đã nhặt under the line of a won battle (LootRow); its items are list items too, which the rows above must not lay out. */
+.log__main .loot { margin-top: 3px; }
+.log .loot__items li { display: inline-flex; padding: 0; line-height: 1.4; }
+.log .loot__items li:hover { background: none; }
 .log .tone-0 .log__text { color: var(--fg-2); }
 .log .tone-1 .log__text { color: var(--s-online); }
 .log .tone-2 .log__text { color: var(--danger); }

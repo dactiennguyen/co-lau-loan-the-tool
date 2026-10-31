@@ -1,9 +1,10 @@
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
 import { Icon, type IconName } from "../components/Icon";
 import { num } from "../format";
-import { planText, POTENTIALS } from "../potentials";
+import { mainStat, planText, POTENTIALS } from "../potentials";
 import type { Account } from "../types";
 import "./StatsCard.css";
 
@@ -25,8 +26,9 @@ interface Props {
 }
 
 /** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8) and a + on each;
- * the gear after Tiềm năng opens how the bot spends them on its own, lit while it does. The skill points are on the Kỹ
- * năng tab. */
+ * the gear after Tiềm năng opens how the bot spends them on its own, lit while it does. The main stat of the element
+ * (Hỏa Cường lực, Thủy Nội lực, Lôi Thân pháp) is framed and lit in the element's colour, so a point does not go to
+ * another one by mistake. The skill points are on the Kỹ năng tab. */
 export function StatsCard({ account, onAdd, onPlan }: Props) {
   const c = account.character;
   // A point goes out between battles only, as Bot::add_stat requires.
@@ -34,6 +36,9 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
   // Bars against the strongest of the five, so they show the build rather than a scale the game does not give.
   const top = Math.max(1, ...(c?.combat ?? []));
   const plan = `Tự cộng điểm: ${planText(account.statPlan, c?.element)}`;
+  const element = c?.element ?? null;
+  const main = mainStat(element);
+  const elementName = element != null ? ELEMENT_NAME[element] : undefined;
   return (
     <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? "Chiến đấu và tiềm năng" : "Đăng nhập để xem chỉ số"}>
       <ul className="combat">
@@ -75,21 +80,36 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
         </span>
       </div>
       <div className="potentials">
-        {POTENTIALS.map((p, i) => (
-          <div key={p.name} className="potential">
-            <span className="potential__value px">{num(c?.stats[i])}</span>
-            <span className="potential__label">{p.name}</span>
-            <Button
-              kind="tonal"
-              small
-              icon="plus"
-              className="potential__add"
-              aria-label={`Cộng 1 điểm vào ${p.name}`}
-              disabled={!canAdd}
-              onClick={() => onAdd(p.index)}
-            />
-          </div>
-        ))}
+        {POTENTIALS.map((p, i) => {
+          // Without an element whose main stat is known, the four look alike.
+          const kind = main == null ? "" : p.index === main ? ` potential--main el--${element}` : " potential--other";
+          return (
+            <div key={p.name} className={`potential${kind}`}>
+              {p.index === main && element != null && (
+                <span className="potential__mark" title={`Chỉ số chính của hệ ${elementName}`}>
+                  <Icon name={ELEMENT_ICON[element]} size={10} />
+                </span>
+              )}
+              <span className="potential__value px">{num(c?.stats[i])}</span>
+              <span className="potential__label">{p.name}</span>
+              <Button
+                kind="tonal"
+                small
+                icon="plus"
+                className="potential__add"
+                aria-label={
+                  p.index === main
+                    ? `Cộng 1 điểm vào ${p.name}, chỉ số chính của hệ ${elementName}`
+                    : `Cộng 1 điểm vào ${p.name}`
+                }
+                {...(main != null &&
+                  p.index !== main && { title: `Cộng 1 điểm vào ${p.name} (không phải chỉ số chính của hệ ${elementName})` })}
+                disabled={!canAdd}
+                onClick={() => onAdd(p.index)}
+              />
+            </div>
+          );
+        })}
       </div>
     </Card>
   );

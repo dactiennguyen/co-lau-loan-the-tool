@@ -6,6 +6,7 @@ import { FilterChip } from "../components/FilterChip";
 import { LOG_KINDS, kindOf } from "../logKinds";
 import { useStore } from "../store";
 import type { LogKind, LogLine } from "../types";
+import { LootRow } from "./LootRow";
 import { TurnStatus } from "./TurnStatus";
 import "./LogCard.css";
 
@@ -192,6 +193,7 @@ export function LogCard({ id, lines, fighting }: Props) {
               <div className="log__main">
                 <span className="log__text">{l.text}</span>
                 {l.turn && <TurnStatus turn={l.turn} live={i === live} />}
+                {l.picked && <LootRow items={l.picked} />}
               </div>
             </li>
           );

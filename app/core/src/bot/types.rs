@@ -198,8 +198,8 @@ impl Picked {
     }
 }
 
-/// Adds `item` to the items picked up in a run, to its own entry when the run has one.
-pub(super) fn add_picked(list: &mut Vec<Picked>, item: &Picked) {
+/// Adds `item` to some items picked up (of a run, of a battle's log line), to its own entry when they have one.
+pub fn add_picked(list: &mut Vec<Picked>, item: &Picked) {
     match list.iter_mut().find(|p| p.item_id == item.item_id) {
         Some(p) => p.quantity += item.quantity,
         None => list.push(item.clone()),

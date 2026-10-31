@@ -20,6 +20,9 @@ export interface LogLine {
   tone: Tone;
   /** On the line a battle opened on: its latest result. The line comes again with each new one. */
   turn?: Turn;
+  /** On the line of a won battle ("Trận 3: thắng …"): what Tự nhặt đồ picked up after it. The line comes again with each
+   * item. */
+  picked?: Picked[];
 }
 
 /** Where the update of the app stands (UpdateState of src-tauri's update.rs). */

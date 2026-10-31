@@ -77,9 +77,12 @@ CREATE TABLE IF NOT EXISTS pickups (
 CREATE INDEX IF NOT EXISTS pickups_by_account ON pickups (username, battle_at);
 CREATE INDEX IF NOT EXISTS pickups_by_time ON pickups (at);
 ",
+    // The line of a won battle ("Trận 3: thắng …") keeps that battle's ended_at, so the items picked up after it come back
+    // under it (Store::link_battle, Store::logs).
+    "ALTER TABLE logs ADD COLUMN battle_at INTEGER;",
 ];
 
-/// A log line as cllt.db keeps it.
+/// A log line as cllt.db keeps it; the line of a won battle with the items picked up after it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct StoredLog {
     pub id: i64,
@@ -88,6 +91,7 @@ pub struct StoredLog {
     pub kind: LogKind,
     pub tone: u8,
     pub text: String,
+    pub picked: Vec<Picked>,
 }
 
 /// A battle of the history, with its row id (the cursor for the next page) and what was picked up after it.
@@ -110,6 +114,24 @@ pub struct PickedItem {
 
 /// SUMS of the pickups of a group, from column `at`: item_id, name, times, quantity.
 const SUMS: &str = "item_id, MAX(name), COUNT(*), SUM(quantity)";
+/// The items picked up after the battles of `username` that ended from `first` to `last` (ms since 1970), summed by
+/// battle and item: (battle_at, item), first picked first.
+fn picked_by_battle(
+    db: &Connection,
+    username: &str,
+    first: i64,
+    last: i64,
+) -> rusqlite::Result<Vec<(u64, PickedItem)>> {
+    let mut q = db.prepare(&format!(
+        "SELECT battle_at, {SUMS} FROM pickups WHERE username = ?1 AND battle_at BETWEEN ?2 AND ?3 \
+         GROUP BY battle_at, item_id ORDER BY MIN(id)"
+    ))?;
+    let rows = q.query_map(params![username, first, last], |r| {
+        Ok((r.get::<_, i64>(0)? as u64, picked_item(r, 1)?))
+    })?;
+    rows.collect()
+}
+
 fn picked_item(row: &Row, at: usize) -> rusqlite::Result<PickedItem> {
     let item_id: i32 = row.get(at)?;
     Ok(PickedItem {
@@ -274,7 +296,17 @@ impl Store {
         Some(db.last_insert_rowid())
     }
 
-    /// Newest first: lines of `username` before row `before`, of `kinds` (all when empty), of `tone` only when given.
+    /// Line `id` is the one of the won battle that ended at `battle_at`: the items picked up after it come with it.
+    pub fn link_battle(&self, id: i64, battle_at: u64) -> rusqlite::Result<()> {
+        self.db().execute(
+            "UPDATE logs SET battle_at = ?1 WHERE id = ?2",
+            params![battle_at as i64, id],
+        )?;
+        Ok(())
+    }
+
+    /// Newest first: lines of `username` before row `before`, of `kinds` (all when empty), of `tone` only when given; the
+    /// line of a won battle with what was picked up after it.
     pub fn logs(
         &self,
         username: &str,
@@ -283,7 +315,8 @@ impl Store {
         tone: Option<u8>,
         limit: u32,
     ) -> rusqlite::Result<Vec<StoredLog>> {
-        let mut sql = "SELECT id, at, kind, tone, text FROM logs WHERE username = ?".to_string();
+        let mut sql =
+            "SELECT id, at, kind, tone, text, battle_at FROM logs WHERE username = ?".to_string();
         let mut args = vec![Value::from(username.to_string())];
         if let Some(b) = before {
             sql.push_str(" AND id < ?");
@@ -305,15 +338,26 @@ impl Store {
         let db = self.db();
         let mut q = db.prepare(&sql)?;
         let rows = q.query_map(params_from_iter(args), |r| {
-            Ok(StoredLog {
+            let line = StoredLog {
                 id: r.get(0)?,
                 at: r.get::<_, i64>(1)? as u64,
                 kind: LogKind::from_key(&r.get::<_, String>(2)?).unwrap_or(LogKind::Server),
                 tone: r.get(3)?,
                 text: r.get(4)?,
-            })
+                picked: vec![],
+            };
+            Ok((line, r.get::<_, Option<i64>>(5)?))
         })?;
-        rows.collect()
+        let mut lines: Vec<(StoredLog, Option<i64>)> = rows.collect::<rusqlite::Result<_>>()?;
+        let ends = lines.iter().filter_map(|l| l.1);
+        if let (Some(first), Some(last)) = (ends.clone().min(), ends.max()) {
+            for (at, item) in picked_by_battle(&db, username, first, last)? {
+                if let Some(l) = lines.iter_mut().find(|l| l.1 == Some(at as i64)) {
+                    l.0.picked.push(item.item);
+                }
+            }
+        }
+        Ok(lines.into_iter().map(|l| l.0).collect())
     }
 
     pub fn add_battle(&self, username: &str, b: &BattleRecord) -> rusqlite::Result<()> {
@@ -394,15 +438,7 @@ impl Store {
         let (Some(first), Some(last)) = (ends.clone().min(), ends.max()) else {
             return Ok(page);
         };
-        let mut q = db.prepare(&format!(
-            "SELECT battle_at, {SUMS} FROM pickups WHERE username = ?1 AND battle_at BETWEEN ?2 AND ?3 \
-             GROUP BY battle_at, item_id ORDER BY MIN(id)"
-        ))?;
-        let rows = q.query_map(params![f.username, first, last], |r| {
-            Ok((r.get::<_, i64>(0)? as u64, picked_item(r, 1)?))
-        })?;
-        for row in rows {
-            let (at, item) = row?;
+        for (at, item) in picked_by_battle(&db, f.username, first, last)? {
             if let Some(b) = page.iter_mut().find(|b| b.record.ended_at == at) {
                 b.picked.push(item);
             }
@@ -734,6 +770,47 @@ mod tests {
                 vec![("Xu khóa".into(), 1, 230), ("Đá cấp 2".into(), 2, 2)],
             ]
         );
+    }
+
+    #[test]
+    fn a_log_line_linked_to_its_battle_comes_back_with_the_items_picked_up_after_it() {
+        let s = Store::memory().unwrap();
+        let day = 1_793_400_000_000;
+        let won = record("Cóc Xanh", 13, BattleResult::Won, BattleSource::Fight, day);
+        s.add_battle("manina2", &won).unwrap();
+        let open = s
+            .add_log(
+                "manina2",
+                day - 30_000,
+                LogKind::Battle,
+                0,
+                "Trận 1: thách đấu Cóc Xanh",
+            )
+            .unwrap();
+        let line = s
+            .add_log("manina2", day + 5, LogKind::Battle, 1, "Trận 1: thắng")
+            .unwrap();
+        s.link_battle(line, won.ended_at).unwrap();
+        for (id, name, qty) in [
+            (41, "Xu khóa", 230),
+            (412, "Đá cấp 2", 1),
+            (412, "Đá cấp 2", 1),
+        ] {
+            s.add_pickup("manina2", &pickup(&won, id, name, qty))
+                .unwrap();
+        }
+        // Another account's item after a battle that ended at the same time is not this line's.
+        s.add_pickup("tiheo2", &pickup(&won, 3, "Trứng Gà", 1))
+            .unwrap();
+        let lines = s.logs("manina2", None, &[], None, 10).unwrap();
+        assert_eq!(lines.iter().map(|l| l.id).collect::<Vec<_>>(), [line, open]);
+        let picked: Vec<(&str, i64)> = lines[0]
+            .picked
+            .iter()
+            .map(|p| (p.name.as_str(), p.quantity))
+            .collect();
+        assert_eq!(picked, [("Xu khóa", 230), ("Đá cấp 2", 2)]);
+        assert!(lines[1].picked.is_empty());
     }
 
     #[test]

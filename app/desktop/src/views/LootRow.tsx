@@ -13,8 +13,9 @@ export function PickedIcon({ icon }: { icon: number | null }) {
 }
 
 /**
- * "Đã nhặt" and what Tự nhặt đồ picked up in the fight job or quest run, each item with its icon and quantity; nothing
- * before the first item. The drops of the last battle come just after the run ended.
+ * "Đã nhặt" and what Tự nhặt đồ picked up in the fight job or quest run, or under the Nhật ký line of a won battle, each
+ * item with its icon and quantity; nothing before the first item. The drops of a job's last battle come just after the
+ * job ended.
  */
 export function LootRow({ items }: { items: Picked[] }) {
   if (items.length === 0) return null;

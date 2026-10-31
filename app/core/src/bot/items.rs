@@ -150,17 +150,11 @@ impl Bot {
             self.pick_next(now, out);
         }
     }
-    /// The next c2s/1188, said in the log as the bot's own action ("Nhặt Xu khóa ×236 rơi từ Cua Càng").
     pub(super) fn pick_next(&mut self, now: Instant, out: &mut Vec<Out>) {
         let Some(fallen) = self.to_pick.pop_front() else {
             self.pick_at = None;
             return;
         };
-        let from = self.loot_from.as_ref().map_or("", |l| l.mob_name.as_str());
-        out.push(Out::Log(
-            LogKind::Item,
-            format!("Nhặt {} rơi từ {from}", fallen.item.label()),
-        ));
         Self::send(
             out,
             1188,
@@ -175,8 +169,9 @@ impl Bot {
     }
     /// The server's answer to a c2s/1188: "Bạn vừa nhận được 137 Xu khóa", or a refusal ("Không thể nhặt vật phẩm của
     /// người khác"). It answers the oldest request not answered yet; a pickup, the one whose item it names, with that
-    /// quantity if one does. What was picked up counts in the fight job or quest run its battle was played for, and goes
-    /// to the history (Out::Pickup).
+    /// quantity if one does. A refusal is a Vật phẩm line. What was picked up is not: it counts in the fight job or quest
+    /// run its battle was played for, and goes out as Out::Pickup, which the app shows under the line of that battle and
+    /// keeps for Thống kê.
     pub(super) fn pick_answer(&mut self, text: String, out: &mut Vec<Out>) {
         let got = text.contains("nhận được");
         let find = |says: &dyn Fn(&Picked) -> String| {
@@ -207,7 +202,6 @@ impl Bot {
                 format!("Không nhặt được {}: {text}", item.label()),
             ));
         }
-        out.push(Out::Log(LogKind::Item, format!("Đã nhặt {}", item.label())));
         let run = match from.source {
             BattleSource::Fight => self.snap.job.as_mut().map(|j| &mut j.picked),
             BattleSource::Quest => self.snap.quest_run.as_mut().map(|r| &mut r.picked),

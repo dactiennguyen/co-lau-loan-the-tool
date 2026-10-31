@@ -40,6 +40,18 @@
 .potentials__plan.is-on { color: var(--points); background: var(--ink); box-shadow: inset 0 0 0 2px var(--points); }
 .potential__value { font-size: 14px; line-height: 1.1; color: var(--points); }
 .potential__label { font-size: 10px; color: var(--fg-3); white-space: nowrap; }
+/* The main stat of the element (mainStat of potentials.ts; --el from `el--N`): framed and tinted in the element's colour,
+   its + filled with it and brighter, the element's icon in the corner. The + of the other three is dimmed, still there
+   for a point put elsewhere on purpose. The tint sits behind the content (isolation), so the + keeps its own colour. */
+.potential--main { isolation: isolate; box-shadow: inset 0 0 0 2px var(--el); }
+.potential--main::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--el); opacity: 0.14; }
+.potential--main .potential__label { font-weight: 800; color: var(--el); }
+.potential--main .potential__add { background: var(--el); color: var(--ink); filter: brightness(1.08); }
+.potential--main .potential__add:not(:disabled):hover { filter: brightness(1.22); }
+.potential__mark { position: absolute; top: 4px; left: 5px; display: flex; color: var(--el); }
+.potential--other .potential__add:not(:disabled) { opacity: 0.55; }
+.potential--other .potential__add:not(:disabled):hover,
+.potential--other .potential__add:focus-visible { opacity: 1; }
 
 @media (max-width: 1120px) {
   .potentials { grid-template-columns: repeat(2, minmax(0, 1fr)); }

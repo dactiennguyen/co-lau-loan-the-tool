@@ -381,9 +381,15 @@ pub fn entries() -> Vec<Entry> {
             "Đã vào game" => LogKind::Connection,
             _ => LogKind::Quest,
         };
+        // The won battle with Đã nhặt under it.
+        let picked = match text.starts_with("Trận 2: thắng") {
+            true => vec![Picked::of(41, 236), Picked::of(413, 1)],
+            false => vec![],
+        };
         let line = LogLine {
             time: format!("17:4{i}:0{i}"),
             turn,
+            picked,
             ..LogLine::new(ago(600 - i as u64 * 60), kind, text)
         };
         main.push(line);

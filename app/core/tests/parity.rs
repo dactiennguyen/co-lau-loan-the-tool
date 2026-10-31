@@ -2398,25 +2398,15 @@ fn tu_nhat_do_counts_the_drops_of_the_last_battle_in_the_job_it_ended() {
     ] {
         bot.on_packet(1256, &notice(text), at, &mut out).unwrap();
     }
-    let lines: Vec<&str> = out
+    let picked: Vec<(i32, i64)> = out
         .iter()
         .filter_map(|o| match o {
-            Out::Log(LogKind::Item, t) => Some(t.as_str()),
+            Out::Pickup(p) => Some((p.item.item_id, p.item.quantity)),
             _ => None,
         })
         .collect();
-    assert_eq!(
-        lines,
-        [
-            "Đã nhặt Xu khóa ×40",
-            "Đã nhặt Đá cấp 2",
-            "Đã nhặt Xu khóa ×80"
-        ]
-    );
-    assert_eq!(
-        out.iter().filter(|o| matches!(o, Out::Pickup(_))).count(),
-        3
-    );
+    assert_eq!(picked, [(41, 40), (412, 1), (41, 80)]);
+    assert_eq!(out.len(), 3, "{out:?}");
     assert_eq!(
         bot.snapshot().job.unwrap().picked,
         [Picked::of(41, 120), Picked::of(412, 1),]
@@ -2447,9 +2437,9 @@ fn drop_packet(uuid: &str, item_id: i32, quantity: i32) -> Vec<u8> {
 }
 
 /// Tự nhặt đồ (13-drops-items.md#g2), on by default: after a won battle the bot sends c2s/1188 for the items fallen within
-/// 300 ms of its end, before it or after, one every 200 ms, each said in the log; a stranger's older item, a lost battle,
-/// or the setting off pick nothing. The answers are Vật phẩm lines, what was picked up goes to the history and to the
-/// job, s2c/51 puts the item in the bag.
+/// 300 ms of its end, before it or after, one every 200 ms; a stranger's older item, a lost battle, or the setting off
+/// pick nothing. What was picked up goes to the history and to the job (no log line: the app shows it under the battle's),
+/// a refusal is a Vật phẩm line, s2c/51 puts the item in the bag.
 #[test]
 fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     let all = v();
@@ -2477,7 +2467,7 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     let request = |uuid: &str| tohex(&Writer::new().string(uuid).build());
     assert_eq!(sends(&out, 1188), 1, "{out:?}");
     assert_eq!(sent(&out, 1188), Some(request(gold_uuid)));
-    assert!(logged(&out, "Nhặt Xu khóa ×123 rơi từ Cóc Xanh"), "{out:?}");
+    assert!(!logged(&out, "Nhặt"), "{out:?}");
     let battle = out
         .iter()
         .find_map(|o| match o {
@@ -2497,10 +2487,6 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
         sent(&out, 1188),
         Some(request("fdcdeddb-5213-4b53-b67b-8a82ed08815d"))
     );
-    assert!(
-        logged(&out, "Nhặt Nhẫn Hào Kiệt rơi từ Cóc Xanh"),
-        "{out:?}"
-    );
     out.clear();
     bot.on_packet(
         1182,
@@ -2511,8 +2497,8 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     .unwrap();
     bot.on_timer(end + Duration::from_millis(400), &mut out);
     assert_eq!(sends(&out, 1188), 0, "{out:?}");
-    // The answers: what was received, a refusal, both as Vật phẩm lines; the Xu khóa goes to the history and to the
-    // job. 2 s later a notice is the server's again.
+    // The answers: the Xu khóa received goes to the history and to the job, the refusal is a Vật phẩm line. 2 s later a
+    // notice is the server's again.
     let notice = |text: &str| Writer::new().u8(0).string(text).build();
     out.clear();
     let at = end + Duration::from_millis(230);
@@ -2526,7 +2512,7 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     )
     .unwrap();
     let gold_item = Picked::of(41, 123);
-    let Out::Pickup(record) = &out[1] else {
+    let Out::Pickup(record) = &out[0] else {
         panic!("{out:?}")
     };
     assert_eq!(
@@ -2548,16 +2534,13 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
         )
     );
     assert_eq!(
-        [&out[0], &out[2]],
-        [
-            &Out::Log(LogKind::Item, "Đã nhặt Xu khóa ×123".into()),
-            &Out::Log(
-                LogKind::Item,
-                "Không nhặt được Nhẫn Hào Kiệt: Không thể nhặt vật phẩm của người khác".into()
-            ),
-        ]
+        out[1],
+        Out::Log(
+            LogKind::Item,
+            "Không nhặt được Nhẫn Hào Kiệt: Không thể nhặt vật phẩm của người khác".into()
+        )
     );
-    assert_eq!(out.len(), 3);
+    assert_eq!(out.len(), 2);
     assert_eq!(bot.snapshot().job.unwrap().picked, [gold_item]);
     // Sử dụng pressed meanwhile on the hammer of bag slot 6 waits for its own answer: its refusal is not the pickup's.
     out.clear();
