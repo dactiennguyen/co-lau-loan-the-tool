@@ -2,7 +2,20 @@
 // shows public/sample.json, written by `npm run sample`, and the commands do nothing: enough to work on the design.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AccountForm, AccountsUpdate, AppState, ItemAction, LogLine, ProxyForm, Secrets, StatPlan } from "./types";
+import type {
+  AccountForm,
+  AccountsUpdate,
+  AppState,
+  BattleSource,
+  BattleStats,
+  ItemAction,
+  LogKind,
+  LogLine,
+  ProxyForm,
+  Secrets,
+  StatPlan,
+  StoredBattle,
+} from "./types";
 
 export interface LogEvent {
   id: number;
@@ -40,6 +53,14 @@ export interface Api {
   changeZone(id: number, zone: number): Promise<void>;
   /** Another map, through the portals of the atlas; the log tells how it went. */
   goToMap(id: number, mapId: string): Promise<void>;
+  /** Older lines of the Nhật ký from cllt.db, oldest first: before row `before`, of `kinds` (all when empty), only the
+   * red ones with `bad`. Empty without the database. */
+  logHistory(id: number, before: number | null, kinds: LogKind[], bad: boolean, limit: number): Promise<LogLine[]>;
+  /** Thống kê: battles ended since `since` (ms since 1970, all when null), of one source or all; null without the
+   * database. */
+  battleStats(id: number, since: number | null, source: BattleSource | null): Promise<BattleStats | null>;
+  /** Thống kê: the battles themselves, newest first, before row `before`. */
+  battleHistory(id: number, since: number | null, source: BattleSource | null, before: number | null, limit: number): Promise<StoredBattle[]>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -73,6 +94,9 @@ const tauri: Api = {
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
+  logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
+  battleStats: (id, since, source) => invoke("battle_stats", { id, since, source }),
+  battleHistory: (id, since, source, before, limit) => invoke("battle_history", { id, since, source, before, limit }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
@@ -84,6 +108,9 @@ const tauri: Api = {
 
 interface Sample extends AppState {
   logs: Record<string, LogLine[]>;
+  /** What battle_stats and battle_history answer for the first account, with no filter. */
+  battleStats?: BattleStats;
+  battleHistory?: StoredBattle[];
 }
 
 let sample: Promise<Sample> | undefined;
@@ -110,6 +137,9 @@ const preview: Api = {
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,
+  logHistory: async () => [],
+  battleStats: async () => (await loadSample()).battleStats ?? null,
+  battleHistory: async (_id, _since, _source, before) => (before == null ? ((await loadSample()).battleHistory ?? []) : []),
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),

@@ -8,13 +8,76 @@ export type Status = 0 | 1 | 2 | 3 | 4;
 export type Tone = 0 | 1 | 2 | 3;
 
 export interface LogLine {
-  /** Number of the line in the log of its account, from 1. */
+  /** Number of the line in the log of its account, from 1; 0 for a line of cllt.db asked with logHistory. */
   seq: number;
+  /** Row in cllt.db, the cursor for older lines; absent without the database. */
+  id?: number;
+  /** ms since 1970; `time` is what the card shows of it ("12:30:05" today, "30/10 12:30" another day). */
+  at: number;
   time: string;
+  kind: LogKind;
   text: string;
   tone: Tone;
   /** On the line a battle opened on: its latest result. The line comes again with each new one. */
   turn?: Turn;
+}
+
+/** What a log line is about (LogKind of cllt-core's bot.rs); logKinds.ts names them. */
+export type LogKind = "connection" | "battle" | "quest" | "travel" | "character" | "item" | "server";
+
+/** What a battle was played for, and how it ended (bot.rs). */
+export type BattleSource = "fight" | "quest" | "other";
+export type BattleResult = "won" | "lost" | "left";
+
+/** One battle of the history (BattleRecord of bot.rs, with its row in cllt.db). */
+export interface StoredBattle {
+  id: number;
+  character: string;
+  level: number;
+  startedAt: number;
+  endedAt: number;
+  mapId: string;
+  mapName: string;
+  zone: number;
+  mobId: string;
+  mobName: string;
+  /** 0 when unknown. */
+  mobLevel: number;
+  boss: boolean;
+  source: BattleSource;
+  result: BattleResult;
+  turns: number;
+  damage: number;
+  hpBefore: number;
+  hpAfter: number;
+  maxHp: number;
+  exp: number;
+  coin: number;
+}
+
+/** Sums over some battles (store.rs); `ms` is the time spent in them. */
+export interface Totals {
+  battles: number;
+  won: number;
+  lost: number;
+  left: number;
+  exp: number;
+  coin: number;
+  damage: number;
+  turns: number;
+  ms: number;
+}
+
+export interface MobTotals extends Totals {
+  mobName: string;
+  mobLevel: number;
+  boss: boolean;
+  mapName: string;
+}
+
+/** The Thống kê tab: totals, then each mob and map, most battles first. */
+export interface BattleStats extends Totals {
+  mobs: MobTotals[];
 }
 
 /** What one result of a battle did (Turn of cllt-core's runner.rs). */

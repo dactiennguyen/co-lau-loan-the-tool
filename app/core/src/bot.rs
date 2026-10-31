@@ -29,7 +29,147 @@ use std::time::{Duration, Instant};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Out {
     Send(i32, Vec<u8>),
-    Log(String),
+    Log(LogKind, String),
+    /// A battle that ended, for the history of the account (BattleRecord).
+    Battle(Box<BattleRecord>),
+}
+
+/// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/README.md#nhật-ký-và-thống-kê
+/// lists every kind with examples: a new kind, or a new kind of line, goes in that table too.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LogKind {
+    /// Login, logout, proxy, the connection lost or refused.
+    Connection,
+    /// Challenges, battle results, surrender, the fight job.
+    Battle,
+    /// Quests and their steps, NPC lines, the quest run.
+    Quest,
+    /// Portals, zones, maps.
+    Travel,
+    /// Level, potential points, skills.
+    Character,
+    /// Gear, bag, items used, money.
+    Item,
+    /// What the server says (s2c/1256; s2c/0 and s2c/5 while playing).
+    Server,
+}
+impl LogKind {
+    pub const ALL: [LogKind; 7] = [
+        LogKind::Connection,
+        LogKind::Battle,
+        LogKind::Quest,
+        LogKind::Travel,
+        LogKind::Character,
+        LogKind::Item,
+        LogKind::Server,
+    ];
+    /// The key in cllt.db and in the UI.
+    pub fn key(self) -> &'static str {
+        match self {
+            LogKind::Connection => "connection",
+            LogKind::Battle => "battle",
+            LogKind::Quest => "quest",
+            LogKind::Travel => "travel",
+            LogKind::Character => "character",
+            LogKind::Item => "item",
+            LogKind::Server => "server",
+        }
+    }
+    pub fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.key() == key)
+    }
+    /// The name the Nhật ký filters show.
+    pub fn label(self) -> &'static str {
+        match self {
+            LogKind::Connection => "Kết nối",
+            LogKind::Battle => "Trận",
+            LogKind::Quest => "Nhiệm vụ",
+            LogKind::Travel => "Di chuyển",
+            LogKind::Character => "Nhân vật",
+            LogKind::Item => "Vật phẩm",
+            LogKind::Server => "Server",
+        }
+    }
+}
+
+/// What the battle was played for: the fight job, the quest run, or neither (a challenge of a job since replaced or
+/// stopped, played out because a battle cannot be left).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BattleSource {
+    Fight,
+    Quest,
+    Other,
+}
+impl BattleSource {
+    pub fn key(self) -> &'static str {
+        match self {
+            BattleSource::Fight => "fight",
+            BattleSource::Quest => "quest",
+            BattleSource::Other => "other",
+        }
+    }
+    pub fn from_key(key: &str) -> Option<Self> {
+        [Self::Fight, Self::Quest, Self::Other]
+            .into_iter()
+            .find(|s| s.key() == key)
+    }
+}
+
+/// How a battle ended: won, lost, or left (Đầu hàng, s2c/1214 or s2c/36 after c2s/40).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BattleResult {
+    Won,
+    Lost,
+    Left,
+}
+impl BattleResult {
+    pub fn key(self) -> &'static str {
+        match self {
+            BattleResult::Won => "won",
+            BattleResult::Lost => "lost",
+            BattleResult::Left => "left",
+        }
+    }
+    pub fn from_key(key: &str) -> Option<Self> {
+        [Self::Won, Self::Lost, Self::Left]
+            .into_iter()
+            .find(|r| r.key() == key)
+    }
+}
+
+/// One battle for the history of the account (the Thống kê tab): who, where, against what, and what it brought.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BattleRecord {
+    pub character: String,
+    /// The character's level when the battle ended.
+    pub level: i32,
+    /// When s2c/22 opened it and when it ended, in ms since 1970.
+    pub started_at: u64,
+    pub ended_at: u64,
+    pub map_id: String,
+    pub map_name: String,
+    pub zone: i32,
+    pub mob_id: String,
+    pub mob_name: String,
+    /// 0 when the mob was not in the zone list (a boss that changed tiles).
+    pub mob_level: i32,
+    pub boss: bool,
+    pub source: BattleSource,
+    pub result: BattleResult,
+    /// The player's own moves.
+    pub turns: u32,
+    /// Damage dealt to the mob.
+    pub damage: i32,
+    /// HP when it opened and when it ended, of `max_hp`.
+    pub hp_before: i32,
+    pub hp_after: i32,
+    pub max_hp: i32,
+    pub exp: i32,
+    pub coin: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -314,6 +454,10 @@ pub struct Bot {
     battle_started: Instant,
     /// When the fight job or quest run started: each result line says how long it has run.
     run_started: Instant,
+    /// The battle on, for its BattleRecord: when it opened (ms since 1970), what it is played for, the HP it opened with.
+    battle_at: u64,
+    battle_source: BattleSource,
+    battle_hp: i32,
     /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
     /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
     /// 8, `allot_failed` once one went unanswered, until the plan is set again.
@@ -361,6 +505,9 @@ impl Bot {
             leave_until: None,
             battle_started: Instant::now(),
             run_started: Instant::now(),
+            battle_at: 0,
+            battle_source: BattleSource::Other,
+            battle_hp: 0,
             stat_plan,
             given: [0; 4],
             spent: [0; 4],
@@ -408,6 +555,54 @@ impl Bot {
             leaving: b.leaving,
         });
         s
+    }
+
+    /// The battle against `mob_id` that just ended, for the history (Out::Battle). A boss that changed tiles is not in
+    /// the zone list any more: its name and level come from the atlas, which keeps its id by zone.
+    fn record(
+        &self,
+        mob_id: &str,
+        result: BattleResult,
+        turns: u32,
+        damage: i32,
+        exp: i32,
+        coin: i32,
+    ) -> Box<BattleRecord> {
+        let known = self
+            .mobs
+            .iter()
+            .find(|m| m.id == mob_id)
+            .map(|m| (m.name.clone(), m.level))
+            .or_else(|| {
+                self.atlas
+                    .bosses(&self.snap.map_id)
+                    .iter()
+                    .find(|b| b.ids.values().any(|i| i == mob_id))
+                    .map(|b| (b.name.clone(), b.level))
+            });
+        let (mob_name, mob_level) = known.unwrap_or_else(|| (mob_id.to_string(), 0));
+        Box::new(BattleRecord {
+            character: self.snap.name.clone(),
+            level: self.snap.level,
+            started_at: self.battle_at,
+            ended_at: epoch_ms(),
+            map_id: self.snap.map_id.clone(),
+            map_name: self.snap.map_name.clone(),
+            zone: self.snap.zone,
+            mob_id: mob_id.to_string(),
+            boss: self.bosses.contains(mob_id) || self.is_boss(&mob_name),
+            mob_name,
+            mob_level,
+            source: self.battle_source,
+            result,
+            turns,
+            damage,
+            hp_before: self.battle_hp,
+            hp_after: self.snap.hp,
+            max_hp: self.snap.max_hp,
+            exp,
+            coin,
+        })
     }
 
     fn mob_name(&self, id: &str) -> String {
@@ -500,10 +695,13 @@ impl Bot {
                 Wake::Next => self.next(now, out),
                 Wake::ChallengeTimeout => {
                     if self.battle.is_none() {
-                        out.push(Out::Log(format!(
-                            "Server không mở trận với {} sau 8 s",
-                            self.target.as_ref().map_or("?", |m| &m.name)
-                        )));
+                        out.push(Out::Log(
+                            LogKind::Battle,
+                            format!(
+                                "Server không mở trận với {} sau 8 s",
+                                self.target.as_ref().map_or("?", |m| &m.name)
+                            ),
+                        ));
                         self.next(now, out);
                     }
                 }
@@ -511,7 +709,10 @@ impl Bot {
                 Wake::StatSilence => {
                     (self.allotting, self.allot_failed) = (false, true);
                     let reason = "Server không trả lời khi cộng điểm tiềm năng";
-                    out.push(Out::Log(format!("{reason}; thôi tự cộng điểm")));
+                    out.push(Out::Log(
+                        LogKind::Character,
+                        format!("{reason}; thôi tự cộng điểm"),
+                    ));
                     if self.quest_running() {
                         self.finish_quest(reason, out);
                     } else if self.job_running() {
@@ -523,15 +724,17 @@ impl Bot {
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
             if let Some(z) = self.zoning.take() {
-                out.push(Out::Log(format!(
-                    "Server không trả lời khi sang khu {z} sau 8 s"
-                )));
+                out.push(Out::Log(
+                    LogKind::Travel,
+                    format!("Server không trả lời khi sang khu {z} sau 8 s"),
+                ));
             }
             if let Some((_, name)) = self.trip.take() {
                 self.travelling = None;
-                out.push(Out::Log(format!(
-                    "Kết thúc: cổng không trả lời sau 8 s, thôi đi tới {name}"
-                )));
+                out.push(Out::Log(
+                    LogKind::Travel,
+                    format!("Kết thúc: cổng không trả lời sau 8 s, thôi đi tới {name}"),
+                ));
             }
         }
         if self.leave_until.is_some_and(|t| t <= now) {
@@ -540,6 +743,7 @@ impl Bot {
                 let mut acts = vec![];
                 b.resume(now, &mut acts);
                 out.push(Out::Log(
+                    LogKind::Battle,
                     "Server chưa nhận đầu hàng sau 8 s; đánh tiếp trận".into(),
                 ));
                 self.apply(acts, now, out);
@@ -560,11 +764,13 @@ impl Bot {
         // One task at a time: the quest run has to be stopped first (and the other way round in quest()).
         if self.quest_running() {
             return out.push(Out::Log(
+                LogKind::Battle,
                 "Đang tự làm nhiệm vụ: bấm Dừng rồi mới đánh quái".into(),
             ));
         }
         if self.moving() {
             return out.push(Out::Log(
+                LogKind::Battle,
                 "Đang đổi chỗ: đợi tới nơi rồi mới đánh quái".into(),
             ));
         }
@@ -585,7 +791,10 @@ impl Bot {
         self.run_started = now;
         self.waits = 0;
         self.job_seq += 1;
-        out.push(Out::Log(format!("Bắt đầu: đánh {target} {count} lần")));
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!("Bắt đầu: đánh {target} {count} lần"),
+        ));
         let challenging = matches!(self.timer, Some((_, Wake::ChallengeTimeout)));
         if self.battle.is_none() && !challenging {
             self.next(now, out);
@@ -604,11 +813,13 @@ impl Bot {
     ) {
         if self.job_running() {
             return out.push(Out::Log(
+                LogKind::Quest,
                 "Đang đánh quái: bấm Dừng rồi mới làm nhiệm vụ".into(),
             ));
         }
         if self.moving() {
             return out.push(Out::Log(
+                LogKind::Quest,
                 "Đang đổi chỗ: đợi tới nơi rồi mới làm nhiệm vụ".into(),
             ));
         }
@@ -623,7 +834,10 @@ impl Bot {
         let index = step.map(|(_, i)| i);
         if let (Some(i), None) = (index, &playing) {
             let reason = "Bước đó không còn là bước đang làm";
-            out.push(Out::Log(format!("Không làm bước {}: {reason}", i + 1)));
+            out.push(Out::Log(
+                LogKind::Quest,
+                format!("Không làm bước {}: {reason}", i + 1),
+            ));
             if !self.quest_running() {
                 self.snap.quest_run = Some(self.new_run(max_losses, index, Some(reason.into())));
             }
@@ -637,10 +851,13 @@ impl Bot {
         (self.waits, self.hops, self.travelling, self.awaiting_reply) = (0, 0, None, false);
         self.refused.clear();
         self.job_seq += 1;
-        out.push(Out::Log(match &playing {
-            Some((_, _, text)) => format!("Bắt đầu: làm bước \"{text}\""),
-            None => "Bắt đầu: tự làm nhiệm vụ".into(),
-        }));
+        out.push(Out::Log(
+            LogKind::Quest,
+            match &playing {
+                Some((_, _, text)) => format!("Bắt đầu: làm bước \"{text}\""),
+                None => "Bắt đầu: tự làm nhiệm vụ".into(),
+            },
+        ));
         self.playing = playing;
         let challenging = matches!(self.timer, Some((_, Wake::ChallengeTimeout)));
         if self.battle.is_none() && !challenging {
@@ -685,7 +902,10 @@ impl Bot {
         // A portal already taken is followed to its map; no other is taken.
         if let Some((_, name)) = self.trip.take() {
             self.snap.moving = None;
-            out.push(Out::Log(format!("Kết thúc: thôi đi tới {name}")));
+            out.push(Out::Log(
+                LogKind::Travel,
+                format!("Kết thúc: thôi đi tới {name}"),
+            ));
         }
         if surrender {
             self.surrender(now, out);
@@ -707,7 +927,10 @@ impl Bot {
             .iter()
             .find(|m| m.id == mob)
             .map_or(mob.as_str(), |m| &m.name);
-        out.push(Out::Log(format!("Đầu hàng trận với {name}")));
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!("Đầu hàng trận với {name}"),
+        ));
         self.reload_map = true;
         self.leave_until = Some(now + Duration::from_secs(8));
         self.apply(acts, now, out);
@@ -719,8 +942,17 @@ impl Bot {
         if !self.battle.as_ref().is_some_and(|b| b.surrendered) {
             return false;
         }
+        if let Some(b) = &self.battle {
+            let damage = match (b.mob.max_hp - b.mob.hp).max(0.0) {
+                d if d.is_finite() => d as i32,
+                _ => 0,
+            };
+            let mut record = self.record(&b.mob_id, BattleResult::Left, b.turns, damage, 0, 0);
+            record.hp_after = b.me.hp as i32;
+            out.push(Out::Battle(record));
+        }
         (self.battle, self.leave_until) = (None, None);
-        out.push(Out::Log(format!("Đã rời trận (s2c/{by})")));
+        out.push(Out::Log(LogKind::Battle, format!("Đã rời trận (s2c/{by})")));
         if self.job_running() || self.quest_running() {
             self.timer = Some((now + Duration::from_secs(2), Wake::Next));
         }
@@ -739,7 +971,7 @@ impl Bot {
         if let Some(r) = &mut self.snap.quest_run {
             let end = epoch_ms();
             (r.done, r.ended_at) = (Some(reason.into()), Some(end));
-            out.push(Out::Log(format!(
+            out.push(Out::Log(LogKind::Quest, format!(
                 "Kết thúc {what}: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, xong {} nhiệm vụ, trong {})",
                 r.wins,
                 r.losses,
@@ -755,14 +987,17 @@ impl Bot {
         if let Some(j) = &mut self.snap.job {
             let end = epoch_ms();
             (j.done, j.ended_at) = (Some(reason.into()), Some(end));
-            out.push(Out::Log(format!(
-                "Kết thúc: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, trong {})",
-                j.wins,
-                j.losses,
-                j.exp,
-                j.coin,
-                duration_text(Duration::from_millis(end.saturating_sub(j.started_at)))
-            )));
+            out.push(Out::Log(
+                LogKind::Battle,
+                format!(
+                    "Kết thúc: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, trong {})",
+                    j.wins,
+                    j.losses,
+                    j.exp,
+                    j.coin,
+                    duration_text(Duration::from_millis(end.saturating_sub(j.started_at)))
+                ),
+            ));
         }
     }
 
@@ -799,10 +1034,10 @@ impl Bot {
         let boss = self.is_boss(&job.target);
         if targets.is_empty() && boss && self.waits < 6 {
             self.waits += 1;
-            out.push(Out::Log(format!(
-                "{} đang đổi chỗ, đợi 5 s ({}/6)",
-                job.target, self.waits
-            )));
+            out.push(Out::Log(
+                LogKind::Battle,
+                format!("{} đang đổi chỗ, đợi 5 s ({}/6)", job.target, self.waits),
+            ));
             self.timer = Some((now + Duration::from_secs(5), Wake::Next));
             return;
         }
@@ -814,10 +1049,13 @@ impl Bot {
         let opcode = if boss { 1178 } else { 15 };
         let j = self.snap.job.as_mut().unwrap();
         j.fights += 1;
-        out.push(Out::Log(format!(
-            "Trận {}/{}: thách đấu {} cấp {} ({})",
-            j.fights, j.count, mob.name, mob.level, mob.id
-        )));
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "Trận {}/{}: thách đấu {} cấp {} ({})",
+                j.fights, j.count, mob.name, mob.level, mob.id
+            ),
+        ));
         Self::send(
             out,
             opcode,
@@ -846,7 +1084,7 @@ impl Bot {
         for a in acts {
             match a {
                 Act::Send(op, p) => out.push(Out::Send(op, p)),
-                Act::Log(text) => out.push(Out::Log(text)),
+                Act::Log(text) => out.push(Out::Log(LogKind::Battle, text)),
                 Act::End(end) => self.on_battle_end(end, now, out),
             }
         }
@@ -857,12 +1095,26 @@ impl Bot {
         self.snap.turn = self.battle.take().and_then(|b| self.turn_of(&b));
         self.snap.hp = end.hp as i32;
         let boss = self.bosses.contains(&end.mob_id);
+        out.push(Out::Battle(self.record(
+            &end.mob_id,
+            match end.won {
+                true => BattleResult::Won,
+                false => BattleResult::Lost,
+            },
+            end.my_turns,
+            end.damage,
+            end.exp.unwrap_or(0),
+            end.coin.unwrap_or(0),
+        )));
         if self.battle_seq != self.job_seq {
-            out.push(Out::Log(format!(
-                "Trận của việc trước: {}, +{} EXP",
-                if end.won { "thắng" } else { "thua" },
-                end.exp.unwrap_or(0)
-            )));
+            out.push(Out::Log(
+                LogKind::Battle,
+                format!(
+                    "Trận của việc trước: {}, +{} EXP",
+                    if end.won { "thắng" } else { "thua" },
+                    end.exp.unwrap_or(0)
+                ),
+            ));
             if self.job_running() || self.quest_running() {
                 self.timer = Some((now + self.options.rest, Wake::Next));
             }
@@ -882,17 +1134,20 @@ impl Bot {
         j.damage += end.damage as i64;
         j.exp += end.exp.unwrap_or(0) as i64;
         j.coin += end.coin.unwrap_or(0) as i64;
-        out.push(Out::Log(format!(
-            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu; đã chạy {}",
-            j.fights,
-            if end.won { "thắng" } else { "thua" },
-            end.my_turns,
-            took,
-            end.damage,
-            end.exp.unwrap_or(0),
-            end.coin.unwrap_or(0),
-            ran
-        )));
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu; đã chạy {}",
+                j.fights,
+                if end.won { "thắng" } else { "thua" },
+                end.my_turns,
+                took,
+                end.damage,
+                end.exp.unwrap_or(0),
+                end.coin.unwrap_or(0),
+                ran
+            ),
+        ));
         if j.done.is_some() {
             return;
         }
@@ -939,26 +1194,32 @@ impl Bot {
                         (s.stat_points, s.skill_points) =
                             (Some(p.stat_points), Some(p.skill_points));
                     }
-                    Err(e) => out.push(Out::Log(format!("Không đọc được phần sau của s2c/9: {e}"))),
+                    Err(e) => out.push(Out::Log(
+                        LogKind::Character,
+                        format!("Không đọc được phần sau của s2c/9: {e}"),
+                    )),
                 }
                 match character_gear(payload) {
                     Ok(g) => s.gear = g,
-                    Err(e) => out.push(Out::Log(format!(
-                        "Không đọc được trang bị trong s2c/9: {e}"
-                    ))),
+                    Err(e) => out.push(Out::Log(
+                        LogKind::Item,
+                        format!("Không đọc được trang bị trong s2c/9: {e}"),
+                    )),
                 }
                 match character_skills(payload) {
                     Ok(k) => s.skill_levels = k.iter().map(|k| (k.id, k.level)).collect(),
-                    Err(e) => {
-                        out.push(Out::Log(format!("Không đọc được kỹ năng trong s2c/9: {e}")))
-                    }
+                    Err(e) => out.push(Out::Log(
+                        LogKind::Character,
+                        format!("Không đọc được kỹ năng trong s2c/9: {e}"),
+                    )),
                 }
             }
             30 => match skill_table(payload) {
                 Ok(t) => s.skills = Arc::new(t.skills),
-                Err(e) => out.push(Out::Log(format!(
-                    "Không đọc được cây kỹ năng (s2c/30): {e}"
-                ))),
+                Err(e) => out.push(Out::Log(
+                    LogKind::Character,
+                    format!("Không đọc được cây kỹ năng (s2c/30): {e}"),
+                )),
             },
             // Answer to c2s/1191, after s2c/10 kind 32 (E1): the points left. The quest step moves on with s2c/34 or s2c/39
             // as for a stat point; without either the run stops rather than spend another point.
@@ -968,10 +1229,13 @@ impl Bot {
                 (s.stat_points, s.skill_points) = (Some(stat_points), Some(skill_points));
                 if let Some(u) = self.upgrading.take() {
                     let level = s.skill_levels.get(&u.id).copied().unwrap_or(0);
-                    out.push(Out::Log(format!(
-                        "Đã nâng {} lên cấp {level}; còn {skill_points} điểm kỹ năng",
-                        u.name
-                    )));
+                    out.push(Out::Log(
+                        LogKind::Character,
+                        format!(
+                            "Đã nâng {} lên cấp {level}; còn {skill_points} điểm kỹ năng",
+                            u.name
+                        ),
+                    ));
                     if u.step && self.awaiting_reply {
                         self.timer = Some((
                             now + Duration::from_secs(8),
@@ -983,16 +1247,25 @@ impl Bot {
             // The bag and the money are shown, never acted on: one that does not read is logged and left as it was.
             42 => match character_extra(payload) {
                 Ok(x) => s.bag = Some(x.bag),
-                Err(e) => out.push(Out::Log(format!("Không đọc được túi đồ (s2c/42): {e}"))),
+                Err(e) => out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Không đọc được túi đồ (s2c/42): {e}"),
+                )),
             },
             1187 => match inventory(payload) {
                 Ok(b) => s.bag = Some(b),
-                Err(e) => out.push(Out::Log(format!("Không đọc được túi đồ (s2c/1187): {e}"))),
+                Err(e) => out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Không đọc được túi đồ (s2c/1187): {e}"),
+                )),
             },
             // The gear after Trang bị or Cởi ra; s2c/42 brings the bag, s2c/1186 the action.
             37 => match gear_update(payload) {
                 Ok(g) => s.gear = g.gear,
-                Err(e) => out.push(Out::Log(format!("Không đọc được trang bị (s2c/37): {e}"))),
+                Err(e) => out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Không đọc được trang bị (s2c/37): {e}"),
+                )),
             },
             1186 | 48 => {
                 let done = match (opcode, self.item_wait.as_ref().map(|w| w.act)) {
@@ -1002,7 +1275,7 @@ impl Bot {
                     _ => None,
                 };
                 if let (Some(done), Some(w)) = (done, self.item_wait.take()) {
-                    out.push(Out::Log(format!("{done} {}", w.name)));
+                    out.push(Out::Log(LogKind::Item, format!("{done} {}", w.name)));
                     // The server sends no gear after a repair; it brings the item to its full durability (P4: 0/60 →
                     // 60/60), so the gear shown is not left broken until the next login.
                     if let ItemAct::Repair(slot) = w.act {
@@ -1016,7 +1289,10 @@ impl Bot {
             }
             46 => match currencies(payload) {
                 Ok(c) => s.currencies = Some(c),
-                Err(e) => out.push(Out::Log(format!("Không đọc được tiền (s2c/46): {e}"))),
+                Err(e) => out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Không đọc được tiền (s2c/46): {e}"),
+                )),
             },
             29 => s.map_id = character_location(payload)?.map_id,
             11 if payload.first() == Some(&1) => {
@@ -1039,10 +1315,13 @@ impl Bot {
                     }
                     Err(e) => {
                         self.snap.places.clear();
-                        out.push(Out::Log(format!(
-                            "Không đọc được NPC và cổng của {} (s2c/11): {e}",
-                            self.snap.map_name
-                        )));
+                        out.push(Out::Log(
+                            LogKind::Travel,
+                            format!(
+                                "Không đọc được NPC và cổng của {} (s2c/11): {e}",
+                                self.snap.map_name
+                            ),
+                        ));
                         if self.quest_running() {
                             self.finish_quest("Không đọc được NPC và cổng của map này", out);
                         }
@@ -1084,7 +1363,10 @@ impl Bot {
                 }
                 if let Some((id, name)) = self.travelling.clone() {
                     self.timer = None;
-                    out.push(Out::Log(format!("Qua cổng {name}: sang {}", c.map_id)));
+                    out.push(Out::Log(
+                        LogKind::Travel,
+                        format!("Qua cổng {name}: sang {}", c.map_id),
+                    ));
                     self.atlas.record_portal(
                         id,
                         Portal {
@@ -1108,20 +1390,23 @@ impl Bot {
                 self.atlas.record_mobs(&d.map_id, self.snap.zone, &d.mobs);
                 self.mobs = d.mobs;
                 if let Some((_, via)) = self.travelling.take() {
-                    out.push(Out::Log(format!(
-                        "Đã tới {} qua cổng {via}",
-                        self.snap.map_name
-                    )));
+                    out.push(Out::Log(
+                        LogKind::Travel,
+                        format!("Đã tới {} qua cổng {via}", self.snap.map_name),
+                    ));
                     self.move_until = None;
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                 }
                 if let Some(z) = self.zoning.take() {
                     (self.move_until, self.snap.moving) = (None, None);
-                    out.push(Out::Log(format!(
-                        "Đã sang khu {z} của {}: {} con quái",
-                        self.snap.map_name,
-                        self.mobs.len()
-                    )));
+                    out.push(Out::Log(
+                        LogKind::Travel,
+                        format!(
+                            "Đã sang khu {z} của {}: {} con quái",
+                            self.snap.map_name,
+                            self.mobs.len()
+                        ),
+                    ));
                 }
             }
             1263 => {
@@ -1176,7 +1461,7 @@ impl Bot {
                 let st = character_stats(payload)?;
                 if let Some(l) = st.level {
                     if l != s.level && s.level != 0 {
-                        out.push(Out::Log(format!("Lên cấp {l}")));
+                        out.push(Out::Log(LogKind::Character, format!("Lên cấp {l}")));
                     }
                     s.level = l;
                 }
@@ -1205,7 +1490,7 @@ impl Bot {
             1172 => self.snap.zones = Some(zone_list(payload)?.zones),
             1256 => {
                 let text = notice(payload)?;
-                out.push(Out::Log(text.clone()));
+                out.push(Out::Log(LogKind::Server, text.clone()));
                 // The answer to Sử dụng ("Vật phẩm không thể sử dụng!") or a refusal of another item action.
                 self.item_wait = None;
                 // A portal the character may not enter: "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" (Q15) or "Bạn cần hoàn
@@ -1218,7 +1503,7 @@ impl Bot {
                 }
                 if let Some(z) = self.zoning.take() {
                     (self.move_until, self.snap.moving) = (None, None);
-                    out.push(Out::Log(format!("Chưa sang khu {z}")));
+                    out.push(Out::Log(LogKind::Travel, format!("Chưa sang khu {z}")));
                 }
             }
             39 => {
@@ -1228,13 +1513,16 @@ impl Bot {
                     .steps
                     .get(q.current.max(0) as usize)
                     .map_or("", |s| &s.text);
-                out.push(Out::Log(format!(
-                    "Nhiệm vụ {}: {}; bước {}/{}: {step}",
-                    q.id,
-                    q.title,
-                    q.current + 1,
-                    q.steps.len()
-                )));
+                out.push(Out::Log(
+                    LogKind::Quest,
+                    format!(
+                        "Nhiệm vụ {}: {}; bước {}/{}: {step}",
+                        q.id,
+                        q.title,
+                        q.current + 1,
+                        q.steps.len()
+                    ),
+                ));
                 let changed = before != Some((q.id, q.current));
                 self.snap.quest = Some(q);
                 self.awaiting_reply = false;
@@ -1245,10 +1533,10 @@ impl Bot {
             34 => {
                 let p = quest_progress(payload)?;
                 if !p.text.is_empty() {
-                    out.push(Out::Log(format!(
-                        "NPC: {}",
-                        p.text.chars().take(160).collect::<String>()
-                    )));
+                    out.push(Out::Log(
+                        LogKind::Quest,
+                        format!("NPC: {}", p.text.chars().take(160).collect::<String>()),
+                    ));
                 }
                 // A talk step is answered by s2c/34 alone (no new s2c/39), so the step is advanced here (L1 capture).
                 if self.awaiting_reply
@@ -1270,11 +1558,10 @@ impl Bot {
             }
             35 => {
                 let c = quest_complete(payload)?;
-                out.push(Out::Log(format!(
-                    "Xong nhiệm vụ {}: {}",
-                    c.title,
-                    c.rewards.join(", ")
-                )));
+                out.push(Out::Log(
+                    LogKind::Quest,
+                    format!("Xong nhiệm vụ {}: {}", c.title, c.rewards.join(", ")),
+                ));
                 if let Some(r) = self.snap.quest_run.as_mut().filter(|r| r.done.is_none()) {
                     r.completed += 1;
                 }
@@ -1287,14 +1574,14 @@ impl Bot {
                     .and_then(|_| r.string())
                     .unwrap_or_default();
                 if !text.is_empty() {
-                    out.push(Out::Log(format!("Server: {text}")));
+                    out.push(Out::Log(LogKind::Server, format!("Server: {text}")));
                 }
             }
             // Gear durability, after every battle; inside a battle it means the server ended it.
             36 => {
                 if self.left(36, now, out) {
                 } else if self.battle.take().is_some() {
-                    out.push(Out::Log("Server đã huỷ trận".into()));
+                    out.push(Out::Log(LogKind::Battle, "Server đã huỷ trận".into()));
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                 }
             }
@@ -1317,6 +1604,7 @@ impl Bot {
         // A battle cannot be left, so the bot never plays two at once or drops the one it plays.
         if self.battle.is_some() {
             out.push(Out::Log(
+                LogKind::Battle,
                 "Server mở thêm một trận khi trận trước chưa xong; bỏ qua".into(),
             ));
             return Ok(());
@@ -1338,7 +1626,10 @@ impl Bot {
             .rposition(|c| has(&c.mob_id))
             .or(self.challenges.len().checked_sub(1))
         else {
-            out.push(Out::Log("Có trận không do app mở; bỏ qua".into()));
+            out.push(Out::Log(
+                LogKind::Battle,
+                "Có trận không do app mở; bỏ qua".into(),
+            ));
             return Ok(());
         };
         let Challenge { mob_id, seq, .. } = self.challenges.remove(i);
@@ -1350,7 +1641,7 @@ impl Bot {
                 .iter()
                 .find(|m| m.id == mob_id)
                 .map_or(mob_id.as_str(), |m| &m.name);
-            out.push(Out::Log(format!(
+            out.push(Out::Log(LogKind::Battle, format!(
                 "Trận với {name} từ thách đấu trước mới mở: vẫn đánh cho xong vì không rời trận được"
             )));
         }
@@ -1368,6 +1659,17 @@ impl Bot {
         runner.start(&mut acts);
         (self.battle, self.snap.turn) = (Some(runner), None);
         self.battle_started = now;
+        // As on_battle_end counts it: the quest run's unless a fight job runs; a challenge of an earlier job is neither.
+        self.battle_source = if seq != self.job_seq {
+            BattleSource::Other
+        } else if self.job_running() {
+            BattleSource::Fight
+        } else if self.quest_running() {
+            BattleSource::Quest
+        } else {
+            BattleSource::Other
+        };
+        (self.battle_at, self.battle_hp) = (epoch_ms(), setup.hp);
         self.apply(acts, now, out);
         Ok(())
     }
@@ -1388,10 +1690,10 @@ impl Bot {
         (q.current, q.progress) = (q.current + 1, 0);
         self.hops = 0;
         let next = q.steps.get(q.current as usize).map(|s| s.text.as_str());
-        out.push(Out::Log(format!(
-            "{reason}; bước tiếp: {}",
-            next.unwrap_or("(hết)")
-        )));
+        out.push(Out::Log(
+            LogKind::Quest,
+            format!("{reason}; bước tiếp: {}", next.unwrap_or("(hết)")),
+        ));
     }
 
     /// Decides the next action from the current quest step.
@@ -1480,7 +1782,7 @@ impl Bot {
                 };
                 let text = format!("Cộng 1 điểm tiềm năng vào {}", POTENTIALS[stat].0);
                 self.doing(text.clone());
-                out.push(Out::Log(text));
+                out.push(Out::Log(LogKind::Character, text));
                 let ctx = Ctx {
                     stat: Some(stat as i32),
                     amount: Some(1),
@@ -1498,7 +1800,10 @@ impl Bot {
             StepAction::Talk { npc_id } => {
                 let map_id = self.snap.map_id.clone();
                 self.doing(step.text.clone());
-                out.push(Out::Log(format!("{} (NPC {npc_id})", step.text)));
+                out.push(Out::Log(
+                    LogKind::Quest,
+                    format!("{} (NPC {npc_id})", step.text),
+                ));
                 let ctx = Ctx {
                     map_id: Some(&map_id),
                     npc_id: Some(npc_id),
@@ -1551,10 +1856,10 @@ impl Bot {
                 }
                 self.waits += 1;
                 self.doing(format!("Đợi {mob} ({}/6)", self.waits));
-                out.push(Out::Log(format!(
-                    "Chưa thấy {mob}, đợi 5 s ({}/6)",
-                    self.waits
-                )));
+                out.push(Out::Log(
+                    LogKind::Quest,
+                    format!("Chưa thấy {mob}, đợi 5 s ({}/6)", self.waits),
+                ));
                 self.timer = Some((now + Duration::from_secs(5), Wake::Next));
                 return true;
             }
@@ -1613,10 +1918,13 @@ impl Bot {
         self.hops += 1;
         self.travelling = Some((portal.id, portal.name.clone()));
         self.doing(format!("Qua cổng {}", portal.name));
-        out.push(Out::Log(format!(
-            "{reason}: không ở {map_id}, qua cổng {} ({}/6)",
-            portal.name, self.hops
-        )));
+        out.push(Out::Log(
+            LogKind::Travel,
+            format!(
+                "{reason}: không ở {map_id}, qua cổng {} ({}/6)",
+                portal.name, self.hops
+            ),
+        ));
         Self::send(
             out,
             13,
@@ -1670,10 +1978,13 @@ impl Bot {
         let mob = targets[r.fights as usize % targets.len()].clone();
         r.fights += 1;
         r.doing = doing;
-        out.push(Out::Log(format!(
-            "Trận {}: thách đấu {} cấp {} ({})",
-            r.fights, mob.name, mob.level, mob.id
-        )));
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "Trận {}: thách đấu {} cấp {} ({})",
+                r.fights, mob.name, mob.level, mob.id
+            ),
+        ));
         Self::send(
             out,
             opcode,
@@ -1701,17 +2012,20 @@ impl Bot {
         r.exp += end.exp.unwrap_or(0) as i64;
         r.coin += end.coin.unwrap_or(0) as i64;
         let (losses, max_losses) = (r.losses, r.max_losses);
-        out.push(Out::Log(format!(
-            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu; đã chạy {}",
-            r.fights,
-            if end.won { "thắng" } else { "thua" },
-            end.my_turns,
-            took,
-            end.damage,
-            end.exp.unwrap_or(0),
-            end.coin.unwrap_or(0),
-            ran
-        )));
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu; đã chạy {}",
+                r.fights,
+                if end.won { "thắng" } else { "thua" },
+                end.my_turns,
+                took,
+                end.damage,
+                end.exp.unwrap_or(0),
+                end.coin.unwrap_or(0),
+                ran
+            ),
+        ));
         let name = self
             .mobs
             .iter()
@@ -1724,17 +2038,17 @@ impl Bot {
                     match action {
                         StepAction::Damage { amount, .. } => {
                             q.progress += end.damage;
-                            out.push(Out::Log(format!(
-                                "Sát thương lên boss: {}/{amount}",
-                                q.progress
-                            )));
+                            out.push(Out::Log(
+                                LogKind::Quest,
+                                format!("Sát thương lên boss: {}/{amount}", q.progress),
+                            ));
                         }
                         StepAction::Kill { .. } if end.won => {
                             q.progress += 1;
-                            out.push(Out::Log(format!(
-                                "Đã diệt {}/{}",
-                                q.progress, step.required
-                            )));
+                            out.push(Out::Log(
+                                LogKind::Quest,
+                                format!("Đã diệt {}/{}", q.progress, step.required),
+                            ));
                         }
                         _ => {}
                     }
@@ -1742,7 +2056,10 @@ impl Bot {
             }
         }
         if !end.won && boss {
-            out.push(Out::Log("Thua boss: không mất EXP, vẫn đánh tiếp".into()));
+            out.push(Out::Log(
+                LogKind::Battle,
+                "Thua boss: không mất EXP, vẫn đánh tiếp".into(),
+            ));
         }
         if !end.won && !boss && losses >= max_losses {
             return self.finish_quest(&format!("Thua {losses} trận"), out);
@@ -1765,14 +2082,17 @@ impl Bot {
     pub fn set_stats(&mut self, plan: Option<StatPlan>, now: Instant, out: &mut Vec<Out>) {
         (self.stat_plan, self.given, self.spent) = (plan, [0; 4], [0; 4]);
         (self.allot_failed, self.plan_warned) = (false, false);
-        out.push(Out::Log(match plan {
-            None => "Thôi tự cộng điểm tiềm năng".into(),
-            Some(StatPlan::Auto) => "Tự cộng điểm tiềm năng vào chỉ số chính của hệ".into(),
-            Some(StatPlan::Weights(w)) => format!(
-                "Tự cộng điểm tiềm năng theo tỉ lệ {}",
-                Self::by_stat(&w, ", ", |n| format!(" {n}"))
-            ),
-        }));
+        out.push(Out::Log(
+            LogKind::Character,
+            match plan {
+                None => "Thôi tự cộng điểm tiềm năng".into(),
+                Some(StatPlan::Auto) => "Tự cộng điểm tiềm năng vào chỉ số chính của hệ".into(),
+                Some(StatPlan::Weights(w)) => format!(
+                    "Tự cộng điểm tiềm năng theo tỉ lệ {}",
+                    Self::by_stat(&w, ", ", |n| format!(" {n}"))
+                ),
+            },
+        ));
         if self.idle() {
             self.next(now, out);
         }
@@ -1794,9 +2114,15 @@ impl Bot {
             None
         };
         if let Some(why) = refused {
-            return out.push(Out::Log(format!("Chưa cộng {name}: {why}")));
+            return out.push(Out::Log(
+                LogKind::Character,
+                format!("Chưa cộng {name}: {why}"),
+            ));
         }
-        out.push(Out::Log(format!("Cộng 1 điểm tiềm năng vào {name}")));
+        out.push(Out::Log(
+            LogKind::Character,
+            format!("Cộng 1 điểm tiềm năng vào {name}"),
+        ));
         let ctx = Ctx {
             stat: Some(stat as i32),
             amount: Some(1),
@@ -1848,6 +2174,7 @@ impl Bot {
             if self.stat_plan.is_some() && !self.plan_warned {
                 self.plan_warned = true;
                 out.push(Out::Log(
+                    LogKind::Character,
                     "Chưa biết chỉ số chính của hệ này: không tự cộng điểm tiềm năng".into(),
                 ));
             }
@@ -1867,16 +2194,22 @@ impl Bot {
                     0 => String::new(),
                     n => format!(", chừa {n} cho bước \"Nâng điểm tiềm năng\""),
                 };
-                out.push(Out::Log(format!(
-                    "Đã tự cộng điểm tiềm năng: {}; còn {left}{kept}",
-                    Self::by_stat(&self.spent, ", ", |n| format!(" +{n}"))
-                )));
+                out.push(Out::Log(
+                    LogKind::Character,
+                    format!(
+                        "Đã tự cộng điểm tiềm năng: {}; còn {left}{kept}",
+                        Self::by_stat(&self.spent, ", ", |n| format!(" +{n}"))
+                    ),
+                ));
                 self.spent = [0; 4];
             }
             return false;
         }
         if self.spent.iter().all(|&n| n == 0) {
-            out.push(Out::Log(format!("Tự cộng {} điểm tiềm năng", left - keep)));
+            out.push(Out::Log(
+                LogKind::Character,
+                format!("Tự cộng {} điểm tiềm năng", left - keep),
+            ));
         }
         let stat = next_stat(&weights, &self.given);
         self.given[stat] += 1;
@@ -1899,9 +2232,10 @@ impl Bot {
     /// waits for its answer.
     pub fn upgrade_skill(&mut self, id: i32, now: Instant, out: &mut Vec<Out>) {
         if self.snap.skills.iter().all(|k| k.id != id) {
-            return out.push(Out::Log(format!(
-                "Chưa nâng kỹ năng {id}: không có trong cây"
-            )));
+            return out.push(Out::Log(
+                LogKind::Character,
+                format!("Chưa nâng kỹ năng {id}: không có trong cây"),
+            ));
         }
         self.upgrade(Some(id), now, out);
     }
@@ -1942,11 +2276,17 @@ impl Bot {
             None
         };
         if let Some(why) = refused {
-            return out.push(Out::Log(format!("Chưa nâng {name}: {why}")));
+            return out.push(Out::Log(
+                LogKind::Character,
+                format!("Chưa nâng {name}: {why}"),
+            ));
         }
         let cost = node.next.map_or(0, |n| n.cost);
         let text = format!("Nâng {name} lên cấp {level}");
-        out.push(Out::Log(format!("{text} ({cost} điểm kỹ năng)")));
+        out.push(Out::Log(
+            LogKind::Character,
+            format!("{text} ({cost} điểm kỹ năng)"),
+        ));
         self.upgrading = Some(Upgrade {
             id: node.skill.id,
             name,
@@ -1988,7 +2328,10 @@ impl Bot {
             false => format!("ô túi {}", slot as u32 + 1),
         };
         let Some(item) = item else {
-            return out.push(Out::Log(format!("Không có món nào ở {place}")));
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Không có món nào ở {place}"),
+            ));
         };
         let def = book().get(item.item_id);
         let name = def.map_or_else(|| format!("#{}", item.item_id), |d| d.name.clone());
@@ -2023,12 +2366,12 @@ impl Bot {
             ItemAct::Repair(_) => "Sửa",
         };
         if let Some(why) = refused {
-            return out.push(Out::Log(format!(
-                "Chưa {} {name}: {why}",
-                verb.to_lowercase()
-            )));
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Chưa {} {name}: {why}", verb.to_lowercase()),
+            ));
         }
-        out.push(Out::Log(format!("{verb} {name} ({place})")));
+        out.push(Out::Log(LogKind::Item, format!("{verb} {name} ({place})")));
         let ctx = match act {
             ItemAct::Equip(_) | ItemAct::Unequip(_) => Ctx {
                 action: Some(matches!(act, ItemAct::Unequip(_)) as i32),
@@ -2123,9 +2466,12 @@ impl Bot {
             }
         });
         if let Some(why) = why {
-            return out.push(Out::Log(format!("Chưa sang khu {zone}: {why}")));
+            return out.push(Out::Log(
+                LogKind::Travel,
+                format!("Chưa sang khu {zone}: {why}"),
+            ));
         }
-        out.push(Out::Log(format!("Sang khu {zone}")));
+        out.push(Out::Log(LogKind::Travel, format!("Sang khu {zone}")));
         Self::send(
             out,
             1173,
@@ -2161,9 +2507,15 @@ impl Bot {
             }
         });
         if let Some(why) = why {
-            return out.push(Out::Log(format!("Chưa đi tới {name}: {why}")));
+            return out.push(Out::Log(
+                LogKind::Travel,
+                format!("Chưa đi tới {name}: {why}"),
+            ));
         }
-        out.push(Out::Log(format!("Bắt đầu: đi tới {name} ({map_id})")));
+        out.push(Out::Log(
+            LogKind::Travel,
+            format!("Bắt đầu: đi tới {name} ({map_id})"),
+        ));
         (self.trip, self.hops) = (Some((map_id.to_string(), name)), 0);
         self.refused.clear();
         self.trip_next(now, out);
@@ -2192,16 +2544,16 @@ impl Bot {
         };
         if let Some(end) = end {
             (self.trip, self.snap.moving, self.move_until) = (None, None, None);
-            return out.push(Out::Log(format!("Kết thúc: {end}")));
+            return out.push(Out::Log(LogKind::Travel, format!("Kết thúc: {end}")));
         }
         let portal = portal.unwrap();
         self.hops += 1;
         self.travelling = Some((portal.id, portal.name.clone()));
         self.snap.moving = Some(format!("Đi tới {name}"));
-        out.push(Out::Log(format!(
-            "Qua cổng {} ({}/6)",
-            portal.name, self.hops
-        )));
+        out.push(Out::Log(
+            LogKind::Travel,
+            format!("Qua cổng {} ({}/6)", portal.name, self.hops),
+        ));
         Self::send(
             out,
             13,

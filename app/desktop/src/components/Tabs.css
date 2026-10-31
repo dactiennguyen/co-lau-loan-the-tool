@@ -1,7 +1,9 @@
-.tabs { display: flex; gap: 6px; }
+/* Labels never wrap: a narrow bar drops the icons and some padding, and scrolls sideways when still too narrow. */
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; container-type: inline-size; }
 .tabs button {
   position: relative;
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 6px;
   height: 30px;
@@ -14,8 +16,13 @@
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
   box-shadow: var(--bevel-sm);
+}
+@container (max-width: 600px) {
+  .tabs button { gap: 4px; padding: 0 8px; letter-spacing: 0.02em; }
+  .tabs button > svg { display: none; }
 }
 .tabs button:hover { color: var(--fg); }
 .tabs button:focus-visible { outline: 2px solid var(--ring); outline-offset: -5px; }

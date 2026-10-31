@@ -2,9 +2,10 @@
 // change the App; the flusher of app.rs tells the UI. Adding and removing an account write accounts.json, so they are
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
-use crate::view::LogLine;
+use crate::store::{BattleFilter, BattleStats, StoredBattle};
+use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
-use cllt_core::bot::ItemAct;
+use cllt_core::bot::{BattleSource, ItemAct, LogKind};
 use cllt_core::net::Command;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -52,7 +53,7 @@ pub fn logout_all(shared: State<Shared>) {
 pub fn fight(shared: State<Shared>, id: u64, target: String, count: u32, max_losses: u32) {
     shared.with(|app| {
         if target.is_empty() {
-            return app.log(id, "Chọn một quái hoặc boss trước");
+            return app.log(id, LogKind::Battle, "Chọn một quái hoặc boss trước");
         }
         let command = Command::Fight {
             target,
@@ -137,6 +138,74 @@ pub fn change_zone(shared: State<Shared>, id: u64, zone: i32) {
 #[tauri::command]
 pub fn go_to_map(shared: State<Shared>, id: u64, map_id: String) {
     shared.with(|app| app.send(id, Command::GoTo(map_id)));
+}
+
+/// Older lines of the Nhật ký from cllt.db, oldest first as the card lists them: before row `before` (the oldest line
+/// the card has), of `kinds` (all when empty), only the red ones with `bad`. None without the database.
+#[tauri::command]
+pub fn log_history(
+    shared: State<Shared>,
+    id: u64,
+    before: Option<i64>,
+    kinds: Vec<LogKind>,
+    bad: bool,
+    limit: u32,
+) -> Result<Vec<LogLine>, String> {
+    let (Some(store), Some(user)) = (shared.store(), shared.with(|app| app.username(id))) else {
+        return Ok(vec![]);
+    };
+    let tone = bad.then_some(LogTone::Bad as u8);
+    let mut lines: Vec<LogLine> = store
+        .logs(&user, before, &kinds, tone, limit.clamp(1, 500))
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(LogLine::stored)
+        .collect();
+    lines.reverse();
+    Ok(lines)
+}
+
+/// Thống kê: the battles of the account ended since `since` (ms since 1970, all when None), of one source or all;
+/// None without the database.
+#[tauri::command]
+pub fn battle_stats(
+    shared: State<Shared>,
+    id: u64,
+    since: Option<u64>,
+    source: Option<BattleSource>,
+) -> Result<Option<BattleStats>, String> {
+    let (Some(store), Some(user)) = (shared.store(), shared.with(|app| app.username(id))) else {
+        return Ok(None);
+    };
+    let filter = BattleFilter {
+        username: &user,
+        since,
+        source,
+    };
+    store.stats(filter).map(Some).map_err(|e| e.to_string())
+}
+
+/// Thống kê: the battles themselves, newest first, before row `before`.
+#[tauri::command]
+pub fn battle_history(
+    shared: State<Shared>,
+    id: u64,
+    since: Option<u64>,
+    source: Option<BattleSource>,
+    before: Option<i64>,
+    limit: u32,
+) -> Result<Vec<StoredBattle>, String> {
+    let (Some(store), Some(user)) = (shared.store(), shared.with(|app| app.username(id))) else {
+        return Ok(vec![]);
+    };
+    let filter = BattleFilter {
+        username: &user,
+        since,
+        source,
+    };
+    store
+        .battles(filter, before, limit.clamp(1, 200))
+        .map_err(|e| e.to_string())
 }
 
 /// The proxy part of the add and edit form. An empty password with a username keeps the saved one when editing.

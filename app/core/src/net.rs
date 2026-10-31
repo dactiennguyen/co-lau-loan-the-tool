@@ -3,7 +3,7 @@
 //! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
 use crate::atlas::Atlas;
-use crate::bot::{Bot, BotOptions, ItemAct, Out, Snapshot};
+use crate::bot::{BattleRecord, Bot, BotOptions, ItemAct, LogKind, Out, Snapshot};
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
 use crate::protocol::{
@@ -65,7 +65,9 @@ pub enum ConnState {
 pub enum Event {
     State(ConnState),
     Snapshot(Box<Snapshot>),
-    Log(String),
+    Log(LogKind, String),
+    /// A battle that ended (Out::Battle), for the history of the account.
+    Battle(Box<BattleRecord>),
 }
 
 type Emit = Arc<dyn Fn(Event) + Send + Sync>;
@@ -125,7 +127,7 @@ async fn logged_out(commands: &mut UnboundedReceiver<Command>, emit: &Emit) {
     loop {
         match commands.recv().await {
             None | Some(Command::Logout) => return,
-            Some(_) => emit(Event::Log(NOT_READY.into())),
+            Some(_) => emit(Event::Log(LogKind::Connection, NOT_READY.into())),
         }
     }
 }
@@ -213,7 +215,7 @@ async fn session(
                     let Some(op) = p.opcode else { continue };
                     let now = std::time::Instant::now();
                     if let Err(e) = bot.on_packet(op, &p.payload, now, &mut out) {
-                        out.push(Out::Log(format!("Không đọc được s2c/{op}: {e}")));
+                        out.push(Out::Log(LogKind::Server, format!("Không đọc được s2c/{op}: {e}")));
                     }
                     if op == 0 && step != Step::Ready {
                         let mut r = Reader::new(&p.payload);
@@ -302,7 +304,7 @@ async fn session(
                 let now = std::time::Instant::now();
                 match cmd {
                     None | Some(Command::Logout) => return Ok(()),
-                    Some(_) if step != Step::Ready => out.push(Out::Log(NOT_READY.into())),
+                    Some(_) if step != Step::Ready => out.push(Out::Log(LogKind::Connection, NOT_READY.into())),
                     Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
@@ -318,7 +320,7 @@ async fn session(
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),
             // Alone in the zone, the server sends no s2c/1263 at all.
             _ = sleep_until(players_wait.unwrap_or_else(Instant::now)), if players_wait.is_some() && step == Step::Entities => {
-                out.push(Out::Log("Không có người chơi nào khác trong khu (server không gửi s2c/1263)".into()));
+                out.push(Out::Log(LogKind::Connection, "Không có người chơi nào khác trong khu (server không gửi s2c/1263)".into()));
                 online!();
             }
             _ = sleep_until(deadline), if step != Step::Ready => return Err(format!("Hết giờ chờ server ở bước {step:?}")),
@@ -329,7 +331,8 @@ async fn session(
                     let frame = proto.encode(op, &payload).map_err(|e| e.to_string())?;
                     stream.write_all(&frame).await.map_err(|e| e.to_string())?;
                 }
-                Out::Log(text) => emit(Event::Log(text)),
+                Out::Log(kind, text) => emit(Event::Log(kind, text)),
+                Out::Battle(record) => emit(Event::Battle(record)),
             }
         }
         let snap = bot.snapshot();
@@ -355,12 +358,15 @@ async fn connect(
         stream.set_nodelay(true).map_err(|e| e.to_string())?;
         return Ok((stream, vec![]));
     };
-    emit(Event::Log(format!("Kết nối qua proxy {}", p.label())));
+    emit(Event::Log(
+        LogKind::Connection,
+        format!("Kết nối qua proxy {}", p.label()),
+    ));
     let through = tunnel(p, server).await?;
-    emit(Event::Log(format!(
-        "Proxy {} đã mở đường tới server game",
-        p.label()
-    )));
+    emit(Event::Log(
+        LogKind::Connection,
+        format!("Proxy {} đã mở đường tới server game", p.label()),
+    ));
     Ok(through)
 }
 
@@ -714,7 +720,7 @@ mod tests {
         events
             .iter()
             .filter_map(|e| match e {
-                Event::Log(t) => Some(t.clone()),
+                Event::Log(_, t) => Some(t.clone()),
                 _ => None,
             })
             .collect()

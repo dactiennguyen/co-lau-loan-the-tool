@@ -1,4 +1,7 @@
 .log__count { font-size: 11px; color: var(--fg-3); }
+/* The kinds, then "Chỉ lỗi" after a rule; they wrap on a narrow card. */
+.log__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
+.log__sep { width: 1px; height: 16px; margin: 0 2px; background: var(--line); }
 .log {
   list-style: none;
   margin: 0;
@@ -7,12 +10,35 @@
   min-height: 0;
   background: var(--ink);
 }
-.log li { display: grid; grid-template-columns: 62px 1fr; gap: 6px; padding: 1px 6px; font-size: 11.5px; line-height: 1.5; }
+/* Time ("12:30:05", or "30/10 12:30" for another day), the kind, the line. */
+.log li { display: grid; grid-template-columns: 78px 58px 1fr; gap: 6px; padding: 1px 6px; font-size: 11.5px; line-height: 1.5; }
 .log li:hover { background: var(--bg-2); }
-.log time { font-size: 10px; line-height: 1.75; color: var(--fg-3); }
+.log time { font-size: 10px; line-height: 1.75; color: var(--fg-3); white-space: nowrap; }
+.log__kind {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.75;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--kind);
+}
 .log__main { min-width: 0; }
 .log .tone-0 .log__text { color: var(--fg-2); }
 .log .tone-1 .log__text { color: var(--s-online); }
 .log .tone-2 .log__text { color: var(--danger); }
 .log .tone-3 .log__text { color: var(--primary); }
-.log li.log__empty { display: block; color: var(--fg-3); }
+.log li.log__empty, .log li.log__more { display: block; color: var(--fg-3); }
+.log__more button {
+  width: 100%;
+  padding: 3px 0;
+  background: none;
+  border: 1px dashed var(--line);
+  font: 600 11px/1.4 var(--font-ui);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.log__more button:hover:not(:disabled) { border-color: var(--exp); color: var(--fg); }
+.log__more button:disabled { cursor: default; opacity: 0.6; }

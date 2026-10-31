@@ -303,7 +303,8 @@ fn main() {
                 ended += 1;
             }
             Event::State(ConnState::Connecting) => {}
-            Event::Log(text) => {
+            Event::Battle(_) => {}
+            Event::Log(_, text) => {
                 println!("{}: {text}", chosen[i].1.username);
                 // Bot::upgrade_skill refused it, or s2c/1191 answered it.
                 if upgrading.is_some()

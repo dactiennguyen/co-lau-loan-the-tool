@@ -1,7 +1,7 @@
 // Where the app finds its files: this repository when it is there (cargo run, or the app built here), else the app's
 // local data folder for accounts and the copy of data/maps.json built into the binary.
 use cllt_core::atlas::Atlas;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{path::PathResolver, Runtime};
 
 const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../..");
@@ -22,6 +22,11 @@ pub fn accounts<R: Runtime>(paths: &PathResolver<R>) -> tauri::Result<PathBuf> {
         Some(r) => Ok(r.join("app/accounts.json")),
         None => Ok(paths.app_local_data_dir()?.join("accounts.json")),
     }
+}
+
+/// cllt.db, the log lines and battles of every account (store.rs), beside accounts.json.
+pub fn db(accounts: &Path) -> PathBuf {
+    accounts.with_file_name("cllt.db")
 }
 
 /// data/maps.json of the repository, else the copy built in.

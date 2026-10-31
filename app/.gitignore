@@ -1,3 +1,8 @@
 target/
 # Usernames and passwords of the accounts; local only.
 accounts.json
+
+# The log lines and battles of the accounts (desktop/src-tauri/src/store.rs); local only.
+cllt.db
+cllt.db-wal
+cllt.db-shm

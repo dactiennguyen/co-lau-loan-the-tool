@@ -4,6 +4,7 @@ import { TabPanel, Tabs } from "../components/Tabs";
 import { selectedLog, useStore } from "../store";
 import type { Account } from "../types";
 import { FightCard, type FightChoice } from "./FightCard";
+import { BattleStatsCard } from "./BattleStatsCard";
 import { HeroCard } from "./HeroCard";
 import { InventoryCard } from "./InventoryCard";
 import { LogCard } from "./LogCard";
@@ -14,7 +15,7 @@ import { SkillsCard } from "./SkillsCard";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
-type Task = "quest" | "fight" | "bag" | "skills";
+type Task = "quest" | "fight" | "bag" | "skills" | "stats";
 
 /**
  * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and fight
@@ -59,6 +60,7 @@ export function AccountPage({ account }: { account: Account }) {
               { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
               { key: "bag", label: "Túi đồ", icon: "gem" },
               { key: "skills", label: "Kỹ năng", icon: "bolt" },
+              { key: "stats", label: "Thống kê", icon: "chart" },
             ]}
           />
           <TabPanel id={tabs} value={task}>
@@ -68,6 +70,8 @@ export function AccountPage({ account }: { account: Account }) {
               <InventoryCard account={account} onAction={(action, slot) => api.itemAction(id, action, slot)} />
             ) : task === "skills" ? (
               <SkillsCard account={account} onUpgrade={(skill) => api.upgradeSkill(id, skill)} />
+            ) : task === "stats" ? (
+              <BattleStatsCard account={account} />
             ) : (
               <FightCard
                 account={account}
@@ -78,7 +82,7 @@ export function AccountPage({ account }: { account: Account }) {
               />
             )}
           </TabPanel>
-          <LogCard lines={log} fighting={!!c?.battle} />
+          <LogCard id={id} lines={log} fighting={!!c?.battle} />
         </div>
       </div>
     </div>

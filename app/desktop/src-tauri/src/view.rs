@@ -1,7 +1,8 @@
 // What the web UI (ui/) is told about each account: built from its session snapshot, sent as JSON with the "accounts"
 // event and the `state` command. Field names are camelCase on the JavaScript side.
 use crate::app::Entry;
-use cllt_core::bot::{BattleView, BossTile, Job, MapChoice, QuestRun, Target};
+use crate::store::StoredLog;
+use cllt_core::bot::{BattleView, BossTile, Job, LogKind, MapChoice, QuestRun, Target};
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
@@ -44,7 +45,13 @@ impl LogTone {
 pub struct LogLine {
     /// Number of the line in the log of its account, from 1 (Entry::push).
     pub seq: u64,
+    /// Row of the line in cllt.db, the cursor for older lines; None without the database.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+    /// ms since 1970; `time` is what the card shows of it.
+    pub at: u64,
     pub time: String,
+    pub kind: LogKind,
     pub text: String,
     pub tone: u8,
     /// On the line a battle opened on: the battle's latest result, sent again with each one (App::on_event).
@@ -52,14 +59,37 @@ pub struct LogLine {
     pub turn: Option<Turn>,
 }
 impl LogLine {
-    pub fn new(time: String, text: &str) -> Self {
+    pub fn new(at: u64, kind: LogKind, text: &str) -> Self {
         Self {
             seq: 0,
-            time,
+            id: None,
+            at,
+            time: time_of(at),
+            kind,
             text: text.into(),
             tone: LogTone::of(text) as u8,
             turn: None,
         }
+    }
+    /// A line of an earlier session, from cllt.db.
+    pub fn stored(l: &StoredLog) -> Self {
+        Self {
+            id: Some(l.id),
+            tone: l.tone,
+            ..Self::new(l.at, l.kind, &l.text)
+        }
+    }
+}
+
+/// "12:30:05" for today, "30/10 12:30" for another day, in local time.
+pub fn time_of(at: u64) -> String {
+    use chrono::{Local, TimeZone};
+    let Some(t) = Local.timestamp_millis_opt(at as i64).single() else {
+        return String::new();
+    };
+    match t.date_naive() == Local::now().date_naive() {
+        true => t.format("%H:%M:%S").to_string(),
+        false => t.format("%d/%m %H:%M").to_string(),
     }
 }
 

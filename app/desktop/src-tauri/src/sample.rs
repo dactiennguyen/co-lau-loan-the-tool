@@ -1,9 +1,13 @@
 // Sample accounts for --sample and --dump-sample: no network, nothing read from disk. The character of the first one is
 // the profile s2c/9 gave at the read-only login of 30/10/2026 (docs/app/user-data.md); other players' names are made up.
 use crate::app::{App, Entry};
+use crate::store::{BattleFilter, Store};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleView, BossTile, Job, MapChoice, QuestRun, Snapshot, Target};
+use cllt_core::bot::{
+    BattleRecord, BattleResult, BattleSource, BattleView, BossTile, Job, LogKind, MapChoice,
+    QuestRun, Snapshot, Target,
+};
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
@@ -370,8 +374,17 @@ pub fn entries() -> Vec<Entry> {
         ),
     ];
     for (i, (text, turn)) in lines.into_iter().enumerate() {
-        let line = LogLine::new(format!("17:4{i}:0{i}"), text);
-        main.push(LogLine { turn, ..line });
+        let kind = match text {
+            t if t.starts_with("Trận") => LogKind::Battle,
+            "Đã vào game" => LogKind::Connection,
+            _ => LogKind::Quest,
+        };
+        let line = LogLine {
+            time: format!("17:4{i}:0{i}"),
+            turn,
+            ..LogLine::new(ago(600 - i as u64 * 60), kind, text)
+        };
+        main.push(line);
     }
 
     let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"));
@@ -446,6 +459,77 @@ pub fn entries() -> Vec<Entry> {
 
 pub fn fill(app: &mut App) {
     entries().into_iter().for_each(|e| app.push(e));
+    match store() {
+        Ok(s) => app.set_store(Arc::new(s)),
+        Err(e) => eprintln!("{e}"),
+    }
+}
+
+/// A week of battles of the first account (username manina) in an in-memory cllt.db, for the Thống kê tab: Cóc Xanh
+/// of the fight job won but for one loss in eight, Kẻ Quấy Phá lost one in three, Sói Xám and a boss of the quest run,
+/// one battle left with Đầu hàng.
+fn store() -> Result<Store, String> {
+    let s = Store::memory().map_err(|e| e.to_string())?;
+    let battle = |i: u64, mob: &str, level: i32, boss: bool, source, result| {
+        let ended_at = ago(i * 2_900 + 120);
+        let won = result == BattleResult::Won;
+        BattleRecord {
+            character: "manina".into(),
+            level: 21,
+            started_at: ended_at - 25_000 - (i % 7) * 4_000,
+            ended_at,
+            map_id: "M2".into(),
+            map_name: "Trại Vân Sơn".into(),
+            zone: (i % 3) as i32,
+            mob_id: format!("mob{}", 61_000 + i % 5),
+            mob_name: mob.into(),
+            mob_level: level,
+            boss,
+            source,
+            result,
+            turns: 9 + (i % 9) as u32,
+            damage: if won { 249 } else { 120 + (i % 80) as i32 },
+            hp_before: 238,
+            hp_after: if won { 238 - (i % 60) as i32 } else { 0 },
+            max_hp: 238,
+            exp: if won { level * 4 } else { 0 },
+            coin: if won { level / 2 } else { 0 },
+        }
+    };
+    use BattleResult::*;
+    use BattleSource::*;
+    for i in (0..60).rev() {
+        let b = match i % 10 {
+            0..=4 => battle(
+                i,
+                "Cóc Xanh",
+                13,
+                false,
+                Fight,
+                if i % 8 == 3 { Lost } else { Won },
+            ),
+            5 | 6 => battle(
+                i,
+                "Kẻ Quấy Phá",
+                20,
+                false,
+                Fight,
+                if i % 3 == 0 { Lost } else { Won },
+            ),
+            7 | 8 => battle(i, "Sói Xám", 11, false, Quest, Won),
+            _ if i == 29 => battle(i, "Sơn Tặc", 9, false, Fight, Left),
+            _ => battle(
+                i,
+                "Hào Trưởng phía Bắc",
+                21,
+                true,
+                Quest,
+                if i % 20 == 9 { Won } else { Lost },
+            ),
+        };
+        s.add_battle("manina", &b).map_err(|e| e.to_string())?;
+    }
+    Ok(s)
 }
 
 /// The sample as the UI receives it: the reply of `state` and the log of each account.
@@ -456,11 +540,20 @@ pub fn dump(out: &Path) -> Result<(), String> {
         .map(|e| (e.id.to_string(), json!(e.log)))
         .collect();
     let views: Vec<_> = entries.iter().map(view::account).collect();
+    // The Thống kê tab of the first account: what battle_stats and battle_history answer with no filter.
+    let s = store()?;
+    let all = BattleFilter {
+        username: "manina",
+        since: None,
+        source: None,
+    };
     let body = json!({
         "rev": 0,
         "accounts": views,
         "accountsError": null,
         "logs": logs,
+        "battleStats": s.stats(all).map_err(|e| e.to_string())?,
+        "battleHistory": s.battles(all, None, 30).map_err(|e| e.to_string())?,
     });
     std::fs::write(
         out,

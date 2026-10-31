@@ -4,7 +4,9 @@ use cllt_core::atlas::{find_upwards, Atlas, MapRecord};
 use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
-use cllt_core::bot::{duration_text, Bot, BotOptions, ItemAct, Out};
+use cllt_core::bot::{
+    duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, ItemAct, LogKind, Out,
+};
 use cllt_core::potentials::StatPlan;
 use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
@@ -197,7 +199,7 @@ fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
         out.iter()
             .filter_map(|o| match o {
                 Out::Send(op, p) => Some((*op, tohex(p))),
-                Out::Log(_) => None,
+                _ => None,
             })
             .collect()
     };
@@ -208,6 +210,7 @@ fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
     assert_eq!(
         out1,
         [Out::Log(
+            LogKind::Item,
             "Chưa dùng Hoàn Linh Dược: bình chỉ dùng được trong trận".into()
         )]
     );
@@ -225,7 +228,7 @@ fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
     out.clear();
     bot.on_packet(1186, &hex("00000001"), now, &mut out)
         .unwrap();
-    assert_eq!(out, [Out::Log("Đã cởi Nón Âu Lạc".into())]);
+    assert_eq!(out, [Out::Log(LogKind::Item, "Đã cởi Nón Âu Lạc".into())]);
     // s2c/37 brought the new gear (symap's capture: the pet slot empty).
     assert!(bot.snapshot().gear[5].is_none() && bot.snapshot().gear[2].is_some());
     // Sửa chữa the weapon with the hammer of the bag: 00 00000002 as on the phone.
@@ -239,7 +242,7 @@ fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
     out.clear();
     bot.on_packet(48, &hex("0000000002"), now, &mut out)
         .unwrap();
-    assert_eq!(out, [Out::Log("Đã sửa Rìu Âu Lạc".into())]);
+    assert_eq!(out, [Out::Log(LogKind::Item, "Đã sửa Rìu Âu Lạc".into())]);
     // Repaired to its full durability (60), as the phone showed, though no gear came with the answer.
     assert_eq!(
         bot.snapshot().gear[2].as_ref().map(|i| i.durability),
@@ -253,6 +256,7 @@ fn item_buttons_send_what_the_phone_sent_and_refuse_what_cannot_be_done() {
     assert_eq!(
         out2,
         [Out::Log(
+            LogKind::Item,
             "Chưa sửa Nón Âu Lạc: cần 1 Búa sửa chữa trong túi".into()
         )]
     );
@@ -296,7 +300,7 @@ fn the_snapshot_holds_the_skills_and_nang_cap_sends_c2s_1191_when_it_can() {
         out.iter()
             .filter_map(|o| match o {
                 Out::Send(op, p) => Some((*op, tohex(p))),
-                Out::Log(_) => None,
+                _ => None,
             })
             .collect()
     };
@@ -306,6 +310,7 @@ fn the_snapshot_holds_the_skills_and_nang_cap_sends_c2s_1191_when_it_can() {
     assert_eq!(
         out,
         [Out::Log(
+            LogKind::Character,
             "Chưa nâng Đại Lực Công: cần cấp 32, phải học Hỏa Kiếm Thuật".into()
         )]
     );
@@ -329,6 +334,7 @@ fn the_snapshot_holds_the_skills_and_nang_cap_sends_c2s_1191_when_it_can() {
     assert_eq!(
         out,
         [Out::Log(
+            LogKind::Character,
             "Đã nâng Hỏa Cầu Thuật lên cấp 2; còn 18 điểm kỹ năng".into()
         )]
     );
@@ -425,7 +431,7 @@ fn the_snapshot_holds_the_gear_of_s2c_9_the_bag_and_the_money() {
     bot.on_packet(1187, &[1], now, &mut out).unwrap();
     assert_eq!(ids(&bot), Some((42, vec![0, 412, 147, 48, 306, 415, 1])));
     assert!(
-        matches!(&out[..], [Out::Log(l)] if l.contains("s2c/1187")),
+        matches!(&out[..], [Out::Log(_, l)] if l.contains("s2c/1187")),
         "{out:?}"
     );
 }
@@ -913,7 +919,7 @@ fn fight_job_challenges_a_boss_with_1178_waits_while_it_moves_and_goes_on_after_
     // The boss leaves its tile; no answer to the challenge in 8 s: the job waits for it instead of giving up.
     bot.on_packet(1177, &boss(1), now, &mut out).unwrap();
     bot.on_timer(now + Duration::from_secs(9), &mut out);
-    assert!(matches!(out.last(), Some(Out::Log(t)) if t.contains("đang đổi chỗ")));
+    assert!(matches!(out.last(), Some(Out::Log(_, t)) if t.contains("đang đổi chỗ")));
     assert!(!out.iter().any(|o| matches!(o, Out::Send(..))));
     bot.on_packet(1177, &boss(0), now, &mut out).unwrap();
     bot.on_timer(now + Duration::from_secs(15), &mut out);
@@ -1067,7 +1073,7 @@ fn a_battle_line_says_how_long_it_took_and_the_job_so_far_and_when_it_ended() {
     let logs: Vec<&str> = out
         .iter()
         .filter_map(|o| match o {
-            Out::Log(t) => Some(t.as_str()),
+            Out::Log(_, t) => Some(t.as_str()),
             _ => None,
         })
         .collect();
@@ -1106,7 +1112,10 @@ fn a_job_started_mid_battle_does_not_count_that_battle_or_challenge_twice() {
         (job.count, job.fights, job.losses, job.done),
         (3, 0, 0, None)
     );
-    assert!(out.contains(&Out::Log("Trận của việc trước: thua, +0 EXP".into())));
+    assert!(out.contains(&Out::Log(
+        LogKind::Battle,
+        "Trận của việc trước: thua, +0 EXP".into()
+    )));
     // After the rest, the new job challenges.
     let later = bot.deadline().expect("rest timer");
     bot.on_timer(later, &mut out);
@@ -1157,7 +1166,7 @@ fn a_late_setup_counts_for_the_job_whose_challenge_it_answers() {
         .unwrap();
     assert!(matches!(out.last(), Some(Out::Send(18, _))));
     assert!(out.iter().any(
-        |o| matches!(o, Out::Log(t) if t.starts_with("Trận với Cóc Xanh từ thách đấu trước"))
+        |o| matches!(o, Out::Log(_, t) if t.starts_with("Trận với Cóc Xanh từ thách đấu trước"))
     ));
     bot.on_packet(19, &lost_battle(), now + Duration::from_secs(20), &mut out)
         .unwrap();
@@ -1166,7 +1175,10 @@ fn a_late_setup_counts_for_the_job_whose_challenge_it_answers() {
         (job.target.as_str(), job.fights, job.losses, job.done),
         ("Cua Càng", 1, 0, None)
     );
-    assert!(out.contains(&Out::Log("Trận của việc trước: thua, +0 EXP".into())));
+    assert!(out.contains(&Out::Log(
+        LogKind::Battle,
+        "Trận của việc trước: thua, +0 EXP".into()
+    )));
 }
 
 #[test]
@@ -1175,7 +1187,10 @@ fn a_setup_after_stop_is_played_out_and_one_nobody_asked_for_is_not() {
     // No challenge sent: nothing is played.
     bot.on_packet(22, &setup, now, &mut out).unwrap();
     assert_eq!(sends(&out, 18), 0);
-    assert!(out.contains(&Out::Log("Có trận không do app mở; bỏ qua".into())));
+    assert!(out.contains(&Out::Log(
+        LogKind::Battle,
+        "Có trận không do app mở; bỏ qua".into()
+    )));
     // Stop while the challenge waits: the server opens that battle anyway, and an idle one would be lost.
     bot.fight("Cóc Xanh", 5, 1, now, &mut out);
     bot.stop(false, now, &mut out);
@@ -1201,6 +1216,7 @@ fn a_second_setup_does_not_replace_the_battle_in_progress() {
     let turns = bot.snapshot().battle.unwrap().turns;
     bot.on_packet(22, &setup, now, &mut out).unwrap();
     assert!(out.contains(&Out::Log(
+        LogKind::Battle,
         "Server mở thêm một trận khi trận trước chưa xong; bỏ qua".into()
     )));
     assert_eq!(
@@ -1225,7 +1241,7 @@ fn a_map_that_does_not_read_stops_the_quest_run_and_leaves_the_atlas_alone() {
         .build();
     bot.on_packet(11, &broken, now, &mut out).unwrap();
     assert!(out.iter().any(
-        |o| matches!(o, Out::Log(t) if t.starts_with("Không đọc được NPC và cổng của Rừng Trúc"))
+        |o| matches!(o, Out::Log(_, t) if t.starts_with("Không đọc được NPC và cổng của Rừng Trúc"))
     ));
     assert_eq!(
         bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
@@ -1358,7 +1374,7 @@ fn quest_replay(s: &Value, name: &str) {
                 .iter()
                 .filter_map(|o| match o {
                     Out::Send(op, p) => Some(json!([op, tohex(p)])),
-                    Out::Log(_) => None,
+                    _ => None,
                 })
                 .collect();
             assert_eq!(Value::from(sent), step["sent"], "{name}, step {i}: sent");
@@ -1527,6 +1543,7 @@ fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
     assert_eq!(
         out,
         [Out::Log(
+            LogKind::Battle,
             "Đang tự làm nhiệm vụ: bấm Dừng rồi mới đánh quái".into()
         )]
     );
@@ -1539,6 +1556,7 @@ fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
     assert_eq!(
         out,
         [Out::Log(
+            LogKind::Quest,
             "Đang đánh quái: bấm Dừng rồi mới làm nhiệm vụ".into()
         )]
     );
@@ -1591,6 +1609,7 @@ fn the_stat_plan_spends_points_while_idle_and_between_battles_and_plus_one_waits
     assert_eq!(
         out,
         [Out::Log(
+            LogKind::Character,
             "Đã tự cộng điểm tiềm năng: Thân pháp +2; còn 0".into()
         )]
     );
@@ -1602,6 +1621,7 @@ fn the_stat_plan_spends_points_while_idle_and_between_battles_and_plus_one_waits
     assert_eq!(
         out,
         [Out::Log(
+            LogKind::Character,
             "Chưa cộng Cường lực: đang đánh, đợi hết trận".into()
         )]
     );
@@ -1630,6 +1650,7 @@ fn auto_needs_the_element_and_the_stat_step_follows_the_plan() {
     out.clear();
     bot.set_stats(Some(StatPlan::Auto), now, &mut out);
     assert!(out.contains(&Out::Log(
+        LogKind::Character,
         "Chưa biết chỉ số chính của hệ này: không tự cộng điểm tiềm năng".into()
     )));
     assert!(!out.iter().any(|o| matches!(o, Out::Send(..))));
@@ -1678,7 +1699,7 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     bot.on_packet(1214, &[], now, &mut out).unwrap();
     assert!(bot.snapshot().battle.is_none());
-    assert!(out.contains(&Out::Log("Đã rời trận (s2c/1214)".into())));
+    assert!(out.contains(&Out::Log(LogKind::Battle, "Đã rời trận (s2c/1214)".into())));
     let next = bot.deadline().expect("next");
     bot.on_timer(next, &mut out);
     assert_eq!(
@@ -1712,6 +1733,7 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
     assert_eq!(later - now, Duration::from_secs(8));
     bot.on_timer(later, &mut out);
     assert!(out.contains(&Out::Log(
+        LogKind::Battle,
         "Server chưa nhận đầu hàng sau 8 s; đánh tiếp trận".into()
     )));
     assert_eq!(
@@ -1725,7 +1747,7 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
 
 fn logged(out: &[Out], text: &str) -> bool {
     out.iter()
-        .any(|o| matches!(o, Out::Log(t) if t.starts_with(text)))
+        .any(|o| matches!(o, Out::Log(_, t) if t.starts_with(text)))
 }
 fn sent(out: &[Out], op: i32) -> Option<String> {
     out.iter().find_map(|o| match o {
@@ -1899,4 +1921,55 @@ fn doi_map_walks_the_portals_of_the_atlas_and_ends_on_the_map_or_when_no_way_is_
         "{out:?}"
     );
     assert_eq!((bot.snapshot().moving, bot.deadline()), (None, None));
+}
+
+fn records(out: &[Out]) -> Vec<BattleRecord> {
+    out.iter()
+        .filter_map(|o| match o {
+            Out::Battle(r) => Some(r.as_ref().clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn every_battle_that_ends_leaves_a_record_for_the_history_of_the_account() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    let opened = battle::battle_setup(&setup).unwrap();
+    bot.fight("Cóc Xanh", 5, 3, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(19, &won_battle(), now + Duration::from_secs(30), &mut out)
+        .unwrap();
+    let r = records(&out);
+    assert_eq!(r.len(), 1, "{out:?}");
+    let r = &r[0];
+    assert_eq!(
+        (r.mob_id.as_str(), r.mob_name.as_str(), r.mob_level, r.boss),
+        ("mob61000", "Cóc Xanh", 13, false)
+    );
+    assert_eq!(
+        (r.source, r.result, r.map_id.as_str(), r.hp_before),
+        (BattleSource::Fight, BattleResult::Won, "M2", opened.hp)
+    );
+    assert!(r.started_at > 0 && r.ended_at >= r.started_at);
+    assert!(out
+        .iter()
+        .any(|o| matches!(o, Out::Log(LogKind::Battle, t) if t.starts_with("Trận 1: thắng"))));
+
+    // A quest step's battle, left with Đầu hàng: result Left, no EXP.
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
+    bot.quest(1, Some((9, 3)), now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.stop(true, now, &mut out);
+    out.clear();
+    bot.on_packet(1214, &[], now, &mut out).unwrap();
+    let r = records(&out);
+    assert_eq!(
+        r.iter()
+            .map(|r| (r.source, r.result, r.exp, r.mob_name.as_str()))
+            .collect::<Vec<_>>(),
+        [(BattleSource::Quest, BattleResult::Left, 0, "Cóc Xanh")]
+    );
 }

@@ -107,6 +107,7 @@ const paths = {
   ),
   swap: <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16" />,
   chevron: <path d="m6 9 6 6 6-6" />,
+  chart: <path d="M3 21h18M6 17v-5M11 17V7M16 17v-8M21 17V4" />,
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
 } satisfies Record<string, ReactElement>;
 

@@ -1,9 +1,10 @@
 // Accounts and their sessions. Shared between the Tauri commands and the session events (tokio threads). A change marks
 // the account it touched and wakes the flusher thread, which sends the UI only the accounts that changed, at most every
 // FLUSH and with the revision they were read at, so the UI can drop what is older than what it shows.
+use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
-use cllt_core::bot::Snapshot;
+use cllt_core::bot::{LogKind, Snapshot};
 use cllt_core::net::{Command, ConnState, Event, Manager};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::Proxy;
@@ -11,12 +12,14 @@ use serde::Serialize;
 use std::collections::{BTreeSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager as _};
 
 /// Lines of log kept per account.
 const LOG_LINES: usize = 500;
+/// Lines of the earlier sessions shown when the app starts; older ones come from cllt.db on demand.
+const HISTORY: u32 = 200;
 /// Longest wait before the UI hears of a change: the changes of that window (a battle turn on every account, a zone
 /// full of players) go in one update.
 const FLUSH: Duration = Duration::from_millis(50);
@@ -113,10 +116,24 @@ pub struct App {
     /// Why accounts.json could not be read. While set, the app never writes the file, so a typo does not cost the
     /// accounts in it.
     pub load_error: Option<String>,
+    /// cllt.db: every log line and battle, by account username. None when it could not be opened.
+    store: Option<Arc<Store>>,
+}
+
+/// The key of an account in cllt.db: its username in lower case, as the server takes it.
+pub fn username(account: &Account) -> String {
+    account.username.to_lowercase()
+}
+
+/// Wall clock in ms since 1970.
+pub fn epoch_ms() -> u64 {
+    chrono::Utc::now().timestamp_millis().max(0) as u64
 }
 
 pub struct Shared {
     app: Mutex<App>,
+    /// The queries of the Nhật ký and Thống kê go to the database without the App lock.
+    store: Option<Arc<Store>>,
     /// Held while accounts.json is written, instead of the App lock: writes go one at a time and in order, and the
     /// sessions and the window never wait for the disk.
     saving: tauri::async_runtime::Mutex<()>,
@@ -124,9 +141,13 @@ pub struct Shared {
 impl Shared {
     pub fn new(app: App) -> Self {
         Self {
+            store: app.store.clone(),
             app: Mutex::new(app),
             saving: Default::default(),
         }
+    }
+    pub fn store(&self) -> Option<&Store> {
+        self.store.as_deref()
     }
     pub fn with<R>(&self, f: impl FnOnce(&mut App) -> R) -> R {
         f(&mut self.app.lock().unwrap_or_else(|e| e.into_inner()))
@@ -316,7 +337,31 @@ impl App {
             pending: vec![],
             wake,
             load_error: None,
+            store: None,
         }
+    }
+
+    pub fn set_store(&mut self, store: Arc<Store>) {
+        self.store = Some(store);
+    }
+
+    /// The last lines of each account from the earlier sessions, before its new ones.
+    pub fn load_history(&mut self) {
+        let Some(store) = self.store.clone() else {
+            return;
+        };
+        for e in &mut self.entries {
+            let lines = store
+                .logs(&username(&e.account), None, &[], None, HISTORY)
+                .unwrap_or_default();
+            for l in lines.iter().rev() {
+                e.push(LogLine::stored(l));
+            }
+        }
+    }
+
+    pub fn username(&self, id: u64) -> Option<String> {
+        self.entry(id).map(|e| username(&e.account))
     }
 
     /// The accounts of accounts.json, in its order; none when there is no file yet.
@@ -482,7 +527,7 @@ impl App {
         let logout = command == Command::Logout;
         let sent = self.manager.as_ref().is_some_and(|m| m.send(id, command));
         if !sent && !logout {
-            self.log(id, "Nick chưa đăng nhập");
+            self.log(id, LogKind::Connection, "Nick chưa đăng nhập");
         }
     }
 
@@ -492,13 +537,18 @@ impl App {
             .for_each(|id| self.send(id, command.clone()));
     }
 
-    pub fn log(&mut self, id: u64, text: &str) {
-        let line = LogLine::new(now("%H:%M:%S"), text);
-        if let Some(e) = self.entry_mut(id) {
-            let line = e.push(line);
-            self.pending.push((id, line));
-            let _ = self.wake.send(());
+    /// Keeps the line in the log of the account and in cllt.db, and tells the UI.
+    pub fn log(&mut self, id: u64, kind: LogKind, text: &str) {
+        let mut line = LogLine::new(epoch_ms(), kind, text);
+        let Some(e) = self.entries.iter_mut().find(|e| e.id == id) else {
+            return;
+        };
+        if let Some(s) = &self.store {
+            line.id = s.add_log(&username(&e.account), line.at, kind, line.tone, text);
         }
+        let line = e.push(line);
+        self.pending.push((id, line));
+        let _ = self.wake.send(());
     }
 
     pub fn on_event(&mut self, id: u64, event: Event) {
@@ -510,7 +560,7 @@ impl App {
                     ConnState::Online => "Đã vào game".to_string(),
                     ConnState::Error(m) => format!("Lỗi: {m}"),
                 };
-                self.log(id, &text);
+                self.log(id, LogKind::Connection, &text);
                 if let Some(e) = self.entry_mut(id) {
                     if state == ConnState::Online {
                         e.since = now("%H:%M");
@@ -526,7 +576,15 @@ impl App {
                 }
                 self.touch(id, false);
             }
-            Event::Log(text) => self.log(id, &text),
+            Event::Log(kind, text) => self.log(id, kind, &text),
+            Event::Battle(record) => {
+                let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
+                    return;
+                };
+                if let Err(e) = store.add_battle(&user, &record) {
+                    eprintln!("cllt.db: không ghi được trận: {e}");
+                }
+            }
         }
     }
 }
@@ -547,6 +605,68 @@ mod tests {
             stats: None,
             proxy: None,
         }
+    }
+
+    #[test]
+    fn log_lines_and_battles_go_to_cllt_db_by_username_and_come_back_at_the_next_start() {
+        use crate::store::BattleFilter;
+        use cllt_core::bot::{BattleRecord, BattleResult, BattleSource};
+        let store = Arc::new(Store::memory().unwrap());
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        app.set_store(store.clone());
+        let id = app.add(account("Manina2"));
+        app.on_event(id, Event::State(ConnState::Online));
+        app.on_event(id, Event::Log(LogKind::Travel, "Sang khu 4".into()));
+        let lines = app.logs(id);
+        assert_eq!(
+            lines
+                .iter()
+                .map(|l| (l.kind, l.text.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (LogKind::Connection, "Đã vào game"),
+                (LogKind::Travel, "Sang khu 4")
+            ]
+        );
+        assert!(lines.iter().all(|l| l.id.is_some() && l.at > 0));
+        let battle = BattleRecord {
+            character: "manina".into(),
+            level: 21,
+            started_at: 1,
+            ended_at: 30_001,
+            map_id: "M2".into(),
+            map_name: "Trại Vân Sơn".into(),
+            zone: 4,
+            mob_id: "mob61000".into(),
+            mob_name: "Cóc Xanh".into(),
+            mob_level: 13,
+            boss: false,
+            source: BattleSource::Fight,
+            result: BattleResult::Won,
+            turns: 11,
+            damage: 249,
+            hp_before: 238,
+            hp_after: 200,
+            max_hp: 238,
+            exp: 52,
+            coin: 6,
+        };
+        app.on_event(id, Event::Battle(Box::new(battle)));
+        let filter = BattleFilter {
+            username: "manina2",
+            since: None,
+            source: None,
+        };
+        assert_eq!(store.stats(filter).unwrap().totals.won, 1);
+
+        // The next start: the account, under any case, gets its lines back before its new ones.
+        let mut again = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        again.set_store(store);
+        let id = again.add(account("manina2"));
+        again.load_history();
+        again.on_event(id, Event::State(ConnState::Connecting));
+        let texts: Vec<String> = again.logs(id).into_iter().map(|l| l.text).collect();
+        assert_eq!(texts, ["Đã vào game", "Sang khu 4", "Đang kết nối…"]);
     }
 
     #[test]
@@ -609,10 +729,16 @@ mod tests {
         // The line logged last when the battle opens is its challenge; a later line does not take the results.
         app.on_event(
             id,
-            Event::Log("Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)".into()),
+            Event::Log(
+                LogKind::Battle,
+                "Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)".into(),
+            ),
         );
         app.on_event(id, snap(Some(battle()), None));
-        app.on_event(id, Event::Log("Bàn cờ lệch với server ở lượt 2".into()));
+        app.on_event(
+            id,
+            Event::Log(LogKind::Battle, "Bàn cờ lệch với server ở lượt 2".into()),
+        );
         app.take_update();
         let sent = |app: &mut App| -> Vec<(u64, Option<u32>)> {
             let lines = app.take_update().1;
@@ -634,7 +760,10 @@ mod tests {
         // The next battle, before its first result, leaves that line as it is.
         app.on_event(
             id,
-            Event::Log("Trận 2: thách đấu Cóc Xanh cấp 13 (mob61000)".into()),
+            Event::Log(
+                LogKind::Battle,
+                "Trận 2: thách đấu Cóc Xanh cấp 13 (mob61000)".into(),
+            ),
         );
         app.on_event(id, snap(Some(battle()), None));
         assert_eq!(sent(&mut app), [(3, None)]);

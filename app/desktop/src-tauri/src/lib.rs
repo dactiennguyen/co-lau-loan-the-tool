@@ -14,6 +14,7 @@ mod app;
 mod commands;
 mod paths;
 mod sample;
+mod store;
 mod view;
 
 use app::{App, Shared};
@@ -47,11 +48,22 @@ pub fn run() {
                 })?)
             };
             let (wake, woken) = std::sync::mpsc::channel();
-            let mut app = App::new(manager, paths::accounts(tauri_app.path())?, wake);
+            let accounts = paths::accounts(tauri_app.path())?;
+            let mut app = App::new(manager, accounts.clone(), wake);
             if sample {
                 sample::fill(&mut app);
             } else {
                 app.load();
+                match store::Store::open(&paths::db(&accounts)) {
+                    Ok(store) => {
+                        if let Err(e) = store.prune(app::epoch_ms()) {
+                            eprintln!("cllt.db: không xoá được nhật ký cũ: {e}");
+                        }
+                        app.set_store(std::sync::Arc::new(store));
+                        app.load_history();
+                    }
+                    Err(e) => eprintln!("Không mở được cllt.db: {e}"),
+                }
             }
             tauri_app.manage(Shared::new(app));
             app::spawn_flusher(tauri_app.handle().clone(), woken);
@@ -77,6 +89,9 @@ pub fn run() {
             commands::list_zones,
             commands::change_zone,
             commands::go_to_map,
+            commands::log_history,
+            commands::battle_stats,
+            commands::battle_history,
             commands::add_account,
             commands::update_account,
             commands::test_proxy,
