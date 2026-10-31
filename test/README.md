@@ -15,6 +15,12 @@
 | map-packets | Gói thật từ điện thoại B4, B5: `s2c/11` của M2 (NPC, cổng), qua cổng `c2s/13` → `s2c/13`, đánh boss `c2s/1178`, tiến độ `s2c/1201` |
 | world | Bản đồ thế giới, khu, người chơi, chat, vật phẩm rơi, di chuyển (L1/W1) |
 | quest | Nhiệm vụ `s2c/39`, `34`, `35` và bảng xếp hạng `s2c/1254` |
+| board before skill on a special | Bàn cờ ngay trước lần dùng kỹ năng ở Q5 (seq 41): khối 2×2 trúng một quân đặc biệt |
+| profile | `s2c/9` của manina cấp 21 và nick thứ hai (`field01` 4), tên nhân vật thay bằng chuỗi cùng độ dài |
+| skills-items | E1/E2 trên máy: nâng Hỏa Cầu Thuật (`s2c/10` kiểu 32, `s2c/1191`), túi lúc đăng nhập (`s2c/42`), sửa nón (`c2s/48`, `s2c/1187`) |
+| stat-points | P1: cộng 1 Thân Pháp (`c2s/10`) và ba `s2c/10` server trả |
+| currencies | `s2c/46` lúc đăng nhập (E1): Xu, Xu khoá, Lượng |
+| equip | P4 (symap): `s2c/9` có hiệu ứng x2 EXP và sứ quân ở đuôi; `s2c/37` sau khi cởi và mặc lại thú cưng |
 
 [atlas.test.ts](atlas.test.ts) kiểm `data/maps.json` ([src/atlas.ts](../src/atlas.ts)) và lệnh quét map trên một server giả gồm M1, M2, M25 với đủ ba kiểu trả lời cổng (sang map, thiếu cấp, chưa xong nhiệm vụ). Các gói giả dùng chung (`mapPacket`, `mobsPacket`, `noticePacket`) ở [support/packets.ts](support/packets.ts).
 

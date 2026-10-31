@@ -10,6 +10,8 @@ Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#n
 - **T2**: đọc tĩnh `libgdx-flashds.so`, dựng đồ thị gọi JNI của cả thư viện: hàm nào gọi phương thức Java nào. Từ đó tìm ra gói nhặt đồ, xem [Nhặt đồ](#nhặt-đồ).
 - Thêm các gói vật phẩm trên đất của E1, E2 ([12-skills-items](12-skills-items.md)).
 
+Bộ giải mã và bảng vật phẩm: [src/items.ts](../../../src/items.ts), [src/world.ts](../../../src/world.ts); lệnh `npm run items` ở [src/items-run.ts](../../../src/items-run.ts). Test: [test/items.test.ts](../../../test/items.test.ts) (đồ trên đất, gói nhặt P3, bảng vật phẩm, icon).
+
 Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 ## Trả lời nhanh
@@ -48,7 +50,7 @@ Chuỗi trong `libgdx-flashds.so` [Đo]:
 c2s/1188 = string uuid      (hàm dựng sqlq.c(String), ngen c44)
 ```
 
-Chuỗi gửi đi là trường `n` của món. Với hòm thật, `n` có lẽ là uuid trong bản ghi `s2c/1182`/`s2c/1184` ([09](09-players-chat.md#ground-items)). Tìm bằng đọc tĩnh (T2), **chưa gửi thử lên server**. [Đo tĩnh; uuid là Suy luận mạnh]
+Chuỗi gửi đi là trường `n` của món. Với hòm thật, `n` có lẽ là uuid trong bản ghi `s2c/1182`/`s2c/1184` ([09](09-players-chat.md#ground-items)). Tìm bằng đọc tĩnh (T2). P3 bắt được gói này trên máy: chuỗi gửi đi đúng là uuid của bản ghi đồ trên đất ([P3](#p3)). Bot TS có hàm dựng (`buildRequest(1188, { uuid })`) nhưng chưa tự nhặt. [Đo]
 
 Luồng trong client (lớp bản đồ `com.mh.sqhz`):
 
@@ -165,7 +167,7 @@ Game vẽ mỗi món trên đất là **cùng một hình rương màu cam** ở
 
 - **Trang bị rơi** đều là món cấp mặc 1, độ bền 60, đủ các hệ. Mỗi món có đúng 2 chỉ số. Chỉ số đầu theo ô: nón và áo là 6 (phòng thủ), nhẫn và vũ khí là 5 (sức tấn công). Chỉ số sau thay đổi: 1–4 (tiềm năng), 8 (% chí mạng) hoặc 9 (sinh lực). [Đo]
 - **Hệ**: byte trước đây ghi là "phẩm" chính là hệ của món. Popup ngày 31/10: 1 có ngọn lửa (Hỏa), 2 có tia sét (Lôi). 4 là Thủy theo cách đánh số hệ nhân vật ([12](12-skills-items.md#bản-ghi-vật-phẩm)). Vật phẩm không phải trang bị có `0xff`. Cùng một món rơi ra với nhiều hệ khác nhau (Áo Âu Lạc có cả ba hệ). [Đo 1, 2; Suy luận 4]
-- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm". Bốn tên phẩm trong `.so` đứng cạnh nhau: "Hiếm", "Thường", "Quý", "Sử Thi". Chưa biết trường nào mang phẩm chất. [Chưa rõ]
+- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm". Bốn tên phẩm trong `.so` đứng cạnh nhau: "Hiếm", "Thường", "Quý", "Sử Thi". Có lẽ phẩm chất là `field4` của bản ghi vật phẩm: 1 ở mọi trang bị, 0 ở thú cưng ([12](12-skills-items.md#cường-hoá)). [Suy luận]
 - M2 có quái cấp 7–20 ([atlas](06-map-mobs.md#atlas)). Chưa biết món nào rơi từ quái nào. [Chưa rõ]
 
 <a id="bảng-vật-phẩm"></a>
@@ -284,4 +286,4 @@ Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS
 - `c2s/1188`: server trả gì khi nhặt không được; có bắt đứng gần hòm không; món vào túi có kèm `s2c/1187` không.
 - Ai được nhặt món người khác làm rơi, sau bao lâu; tỉ lệ rơi theo quái.
 - Loại thực thể thứ ba trong `sqhz.a17` (gửi `c2s/1181`).
-- Phẩm chất nằm ở trường nào; trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.
+- Phẩm chất có đúng là `field4` không (cần một món không phải Hiếm); trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.

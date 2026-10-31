@@ -52,8 +52,8 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 | Nhãn phân tích | character_data |
 | Xuất hiện khi | Trả character_request |
 | Sau đó | c2s/30 |
-| Bố cục payload | u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; i32 s1,s1Max; i32 stats[10]; i32 combat[5]; i32 exp,coin,field; i32 statPoints,skillPoints; i32 levelExp[2]; string labels[2]; u8[6]; i32 x,y; opaque tail (kỹ năng, trang bị) |
-| Độ chắc chắn | Prefix: getter native, level/HP khớp UI; field01 không phải số nhân vật: bằng flag1 ở cả ba mẫu (1, 1, 4), là hệ nhân vật (1 Hỏa, 4 Thủy; K1). Đuôi: ba mẫu (A2 cấp 3, 30/10 cấp 21, nick thứ hai 31/10 cấp 2) cùng bố cục; hai mẫu đầu khớp s2c/10 và x/y của s2c/11; statPoints khớp bảng Chỉ số (68 ở E2), skillPoints = cấp − 1 − số điểm đã dùng ở cả ba mẫu |
+| Bố cục payload | u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; i32 s1,s1Max; i32 stats[10]; i32 combat[5]; i32 exp,coin,field; i32 statPoints,skillPoints; i32 levelExp[2]; string labels[2]; u8[6]; i32 x,y; i32 n; n × kỹ năng {i32 mã; i32 cấp; i32; u8}; i32 8; 8 × (0xff | vật phẩm); i32; khối ngoại hình; i32 n; n × hiệu ứng {string khoá; i32 tỉLệ; i32; i32 msCònLại}; i32; string sứ quân; u8; u8 |
+| Độ chắc chắn | Prefix: getter native, level/HP khớp UI; field01 không phải số nhân vật: bằng flag1 ở cả ba mẫu (1, 1, 4), là hệ nhân vật (1 Hỏa, 4 Thủy; K1). Đuôi: ba mẫu (A2 cấp 3, 30/10 cấp 21, nick thứ hai 31/10 cấp 2) cùng bố cục; hai mẫu đầu khớp s2c/10 và x/y của s2c/11; statPoints khớp bảng Chỉ số (68 ở E2), skillPoints = cấp − 1 − số điểm đã dùng ở cả ba mẫu; đuôi sau x/y đọc hết byte ở symap (P4: hiệu ứng x2 EXP "ef7", sứ quân "Thiên Tôn") và manina |
 | Độ dài payload mẫu | 551 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -62,7 +62,7 @@ Nguồn: A2: packet gửi của app, thu ở native writer.
 0101000000066d616e696e610000009b000000066d616e696e6101000000000300000078000000820000000000000064000000160000000a0000000a0000000c00000000000000000000000000000000000000000000000000000016000000090000001e0000001400000006000000b000000000000027100000000600000001
 ```
 
-Hiển thị 128/551 byte đầu. JSON và bảng getter dưới đây là bản ghi gốc của A2, khi mới đọc được 40 byte prefix. Phần đuôi (EXP, chỉ số, x/y) giải sau, xem [dữ liệu nhân vật](../user-data.md#đuôi-s2c9).
+Hiển thị 128/551 byte đầu. JSON và bảng getter dưới đây là bản ghi gốc của A2, khi mới đọc được 40 byte prefix. Phần đuôi (EXP, chỉ số, x/y, kỹ năng, trang bị, hiệu ứng như x2 EXP, sứ quân) giải sau, xem [dữ liệu nhân vật](../user-data.md#đuôi-s2c9).
 
 Nguồn: A2: packet đọc từ native reader, record 100.
 

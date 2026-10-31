@@ -79,7 +79,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 57 | a103 | (int, Object, int) | u8; string; i32 |  |
 | 58 | p113 | (Object) | string |  |
 | 59 | Z174 | () | u8 … |  |
-| 84 | i79 | (int) | i32 |  |
+| 84 | i79 | (int) | i32 | có |
 | 86 | A106 | () | rỗng |  |
 | 91 | m109 | (Object) | string |  |
 | 95 | o111 | (Object) | rỗng |  |
@@ -100,8 +100,8 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1174 | q120 | (Object) | string |  |
 | 1178 | b121 | (Object, boolean) | string; i32 | có |
 | 1181 | a122 | (Object, int, boolean) | string; i32; i32 |  |
-| 1186 | b45 | (int, int) | u8; i32 |  |
-| 1188 | c44 | (Object) | string |  |
+| 1186 | b45 | (int, int) | u8; i32 | có |
+| 1188 | c44 | (Object) | string | có |
 | 1189 | j123 | (int, int) | u8; i32 |  |
 | 1190 | h87 | static (int, int) | u8; i32; i32 |  |
 | 1191 | e52 | (int, int) | i32; i32 | có |
@@ -156,9 +156,9 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1268 | n55 | static () | u8 |  |
 
 Ghi chú:
-- Kỹ năng và túi đồ dùng các gói `1191`, `48` ([12-skills-items](events/12-skills-items.md)).
-- Đồ thị gọi JNI (T2) gán thêm nghĩa cho ba gói chưa thấy trên dây ([13-drops-items](events/13-drops-items.md#c2s-1188)) [Đo tĩnh]:
-  - `1188` (`c44`) là nhặt đồ trên đất (`string uuid`), gửi từ nút "Nhặt" của lớp bản đồ.
+- Kỹ năng và vật phẩm dùng các gói `1191` (nâng kỹ năng), `30` (cây kỹ năng theo hệ), `1186` (mặc, cởi), `84` (dùng), `48` (sửa) ([12-skills-items](events/12-skills-items.md)); đo trên máy ở K1, P4.
+- Đồ thị gọi JNI (T2) gán thêm nghĩa cho ba gói lúc đó chưa thấy trên dây ([13-drops-items](events/13-drops-items.md#c2s-1188)) [Đo tĩnh]:
+  - `1188` (`c44`) là nhặt đồ trên đất (`string uuid`), gửi từ nút "Nhặt" của lớp bản đồ. P3 đã bắt được trên máy ([13-drops-items](events/13-drops-items.md#p3)).
   - `1174` (`q120`) gửi chữ người chơi gõ trong một hộp nhập.
   - `1181` (`a122`) là gói chạm vào một loại thực thể bản đồ, cùng chỗ với `c2s/15` và `c2s/1178`.
 - Lời gọi hàm dựng đi qua JNI: method ID nằm trong mảng `cmethods` của lớp gọi, được tạo lần đầu bằng `GetMethodID`. Không có lệnh `BL` trực tiếp. Muốn biết ai gọi hàm dựng nào thì phải ghép call site với khối `GetMethodID` đã điền ô đó (T2).

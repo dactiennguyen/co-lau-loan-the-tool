@@ -35,7 +35,7 @@ Response mẫu dài **551 byte**. Prefix 40 byte đã đối chiếu getter nati
 | Offset mẫu | Kiểu | Nhãn phân tích | Giá trị A2 | Bằng chứng / giới hạn |
 |---:|---|---|---|---|
 | 0 | byte | status | 1 | Giá trị của nhánh đã đo |
-| 1 | byte | field01 | 1 | Không phải số nhân vật: nick thứ hai (31/10) có 4, bố cục phía sau vẫn y hệt. Bằng `flag1` ở cả ba mẫu. Là **hệ nhân vật**: 1 Hỏa, 4 Thủy (2 Lôi theo icon kỹ năng, chưa có nhân vật Lôi để đo). Gửi `c2s/30` với số này thì nhận cây kỹ năng của hệ đó, và mã kỹ năng trong đuôi `s2c/9` là 1000 × hệ + 0…8 ([12-skills-items](events/12-skills-items.md#bảng-kỹ-năng)) [Đo K1]. Parser từng chỉ nhận 1 nên nick này báo lỗi lúc đăng nhập |
+| 1 | byte | field01 | 1 | Không phải số nhân vật: nick thứ hai (31/10) có 4, bố cục phía sau vẫn y hệt. Bằng `flag1` ở cả ba mẫu. Là **hệ nhân vật**: 1 Hỏa, 4 Thủy, 2 Lôi (`c2s/30` với 2 trả cây Lôi; chưa có nhân vật Lôi để đo byte này). Gửi `c2s/30` với số này thì nhận cây kỹ năng của hệ đó, và mã kỹ năng trong đuôi `s2c/9` là 1000 × hệ + 0…8 ([12-skills-items](events/12-skills-items.md#bảng-kỹ-năng)) [Đo K1]. Parser từng chỉ nhận 1 nên nick này báo lỗi lúc đăng nhập |
 | 2 | string | name | manina | Tên dùng cho các request sau |
 | 12 | int32 | numericId | 155 | ID số trong packet; chưa khẳng định ID account/database |
 | 16 | string | displayName | manina | Khớp tên trên UI |
@@ -55,14 +55,14 @@ Offset từ 12 trở đi chỉ đúng với độ dài tên trong mẫu. Phải 
 
 ### Đuôi s2c/9: EXP, chỉ số, toạ độ
 
-Sau `maxHp` là đúng những số mà `s2c/10` gửi lại sau mỗi trận hoặc khi lên cấp, rồi tới toạ độ nhân vật. Nhờ vậy app hiện được EXP, xu và chỉ số **ngay khi đăng nhập**, không phải đợi trận đầu.
+Sau `maxHp` là đúng những số mà `s2c/10` gửi lại sau mỗi trận hoặc khi lên cấp, rồi tới toạ độ nhân vật, cấp từng kỹ năng, 8 ô trang bị, hiệu ứng có hạn giờ (ngôi sao x2 EXP) và sứ quân. Nhờ vậy app hiện được EXP, xu và chỉ số **ngay khi đăng nhập**, không phải đợi trận đầu.
 
 Đã so ba mẫu:
 - **A2:** capture app, cấp 3.
 - **30/10:** bot TS đăng nhập chỉ đọc ngày 30/10/2026. manina cấp 21 ở M2, không đánh trận nào. Mẫu lưu ở `fixtures['profile']`.
 - **31/10, nick thứ hai:** đăng nhập chỉ đọc tới `s2c/9` rồi ngắt, cấp 2, `field01` = 4. Mẫu lưu ở `fixtures['profile']` với tên nhân vật thay bằng `nickthu2` cùng độ dài. Chưa có `s2c/11` đi kèm để đối chiếu x/y.
 
-Bộ giải mã là `characterProfile` trong [src/protocol.ts](../../src/protocol.ts). Test ở [test/protocol.test.ts](../../test/protocol.test.ts).
+Bộ giải mã là `characterProfile` trong [src/protocol.ts](../../src/protocol.ts); phần sau trang bị là `characterTail` trong [src/world.ts](../../src/world.ts). Test ở [test/protocol.test.ts](../../test/protocol.test.ts).
 
 Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắn khác nhau:
 
@@ -82,7 +82,10 @@ Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắ
 | sau đó | i32, i32 | `x`, `y` | 932, 544 | 2784, 864 | 90, 640 | Trùng x/y của `s2c/11` nhận ngay sau ở hai mẫu đầu [Đo] |
 | sau đó | | | | | | `i32 n` (9) rồi danh sách kỹ năng `{i32 mã; i32 cấp; i32; u8}`, bắt đầu bằng 1000 Hỏa Cầu Thuật ([bảng kỹ năng](events/12-skills-items.md#bảng-kỹ-năng)) |
 | sau đó | | | | | | 8 ô trang bị: `i32 8; 8 × (u8 0xff: ô trống \| bản ghi vật phẩm)`. Mẫu 30/10 (nhận lại ngày 31/10, E1): ô 0 Nón Âu Lạc (mã 54), ô 2 vũ khí (mã 261), cả hai độ bền 0 ([12-skills-items](events/12-skills-items.md#túi-đồ)) [Đo] |
-| sau đó | | | | | | Phần còn lại (khoảng 170 byte, có bảng màu ARGB) chưa đặt tên |
+| sau đó | i32 | | | | | symap 1, manina 0 [Chưa rõ] |
+| sau đó | | | | | | Khối ngoại hình, cùng bố cục với bản ghi người chơi (mốc 99000, bảng màu ARGB) ([09](events/09-players-chat.md#player-record)) [Đo] |
+| sau đó | | | | | | Hiệu ứng có hạn giờ: `i32 n; n × {string khoá; i32 tỉLệ; i32; i32 msCònLại}`. symap (P4): `"ef7"` tỉ lệ 200000, tức ngôi sao **x2 EXP** của vật phẩm Tăng Kinh Nghiệm; manina, nick thứ hai: n = 0 ([12-skills-items](events/12-skills-items.md#x2-exp)) [Đo] |
+| sau đó | i32; string; u8; u8 | | | | | Sứ quân: symap `2`, "Thiên Tôn" (chữ trên đầu nhân vật), `01 00`; manina chuỗi rỗng. Giải mã cả đuôi: `characterTail` trong [src/world.ts](../../src/world.ts), hết byte [Đo] |
 
 `combat` là các chỉ số chiến đấu:
 

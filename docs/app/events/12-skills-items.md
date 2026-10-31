@@ -1,11 +1,16 @@
-# Kỹ năng, điểm tiềm năng, túi đồ và sửa đồ
+# Kỹ năng, điểm tiềm năng, túi đồ, mặc, sửa và dùng đồ
 
-Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2. Nguồn ([các phiên](../investigation.md#nguồn-dữ-liệu)):
+Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2; từ P4 thêm `symap` (Tiheo1) cấp 42 ở M10. Nguồn ([các phiên](../investigation.md#nguồn-dữ-liệu)):
 - **E1, E2**: điện thoại, Frida hook writer/reader và 114 hàm dựng gói `com.mh.sqlq` (bỏ các gói đăng nhập `c2s/1…8`), ADB chạm màn hình. E1 có lỗi trong agent nên chỉ ghi được gói nhận và tham số của hàm dựng; E2 ghi đủ hai chiều.
 - **C1**: Cẩm nang trong game (Chức năng → Cẩm nang), chụp từng trang.
 - **T1**: phân tích tĩnh hàm dựng gói ([bảng 125 hàm](../c2s-builders.md)).
 - **P1**: điện thoại, Frida hook writer/reader cho `c2s/10`, `s2c/10`, `s2c/1191` và hàm dựng `d50`, `e52`; ADB bấm "Cộng +1" một lần cho Thân Pháp của manina.
 - **K1**: bot TS ([quest-bot](../../integration/nodejs/quest-bot.md)) đăng nhập nick thứ hai (hệ Thủy, cấp 3, nhiệm vụ 3 ở bước "Sử dụng điểm kỹ năng"): hai lần chỉ đọc, một lần thử `c2s/30` với hệ 4, rồi `--once` làm bước kỹ năng.
+- **T4, R2**: ảnh nền cây và icon kỹ năng trong APK và `offline-a2`, đối chiếu ảnh chụp tab Kỹ năng; `npm run skills` ([Tab Kỹ năng](#tab-kỹ-năng)).
+- **R1**: `npm run bag` đọc túi và trang bị bằng bot TS ([Cách lấy](#cách-lấy-túi-đồ)).
+- **P4**: điện thoại với Tiheo1, Frida gắn trước khi đăng nhập; cởi và mặc lại thú cưng, sửa Chiến Đao, bấm Sử dụng ở bình máu; đọc đuôi `s2c/9` của 3 nick ([Mặc và cởi đồ](#c2s-1186), [x2 EXP](#x2-exp)).
+
+Bộ giải mã: [src/world.ts](../../../src/world.ts) (`skillTable`, `characterTail`, `gearUpdate`), [src/skills.ts](../../../src/skills.ts), [src/items.ts](../../../src/items.ts); hàm dựng gói ở [src/events.ts](../../../src/events.ts). Test: [test/skills.test.ts](../../../test/skills.test.ts), [test/items.test.ts](../../../test/items.test.ts), [test/quest.test.ts](../../../test/quest.test.ts).
 
 Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -18,8 +23,10 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 2 Lôi, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
 | Lấy kỹ năng và giao diện tab Kỹ năng thế nào? | Không có gói xin riêng: `s2c/30` (cây của hệ) và đuôi `s2c/9` (cấp từng kỹ năng, điểm) đến lúc đăng nhập. `npm run skills` in cả cây. Icon nằm ở `offline-a2/skill<hệ>.dat`, ảnh nền cây ở APK; repo có bản WebP ở `data/icons/skills/`. Xem [Tab Kỹ năng](#tab-kỹ-năng). [Đo] |
 | Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Mở túi trong game không gửi gói nào. `npm run bag` đăng nhập và in cả hai. Xem [Túi đồ và trang bị](#túi-đồ) và [Cách lấy](#cách-lấy-túi-đồ). [Đo] |
+| Mặc và cởi đồ bằng gói gì? | **`c2s/1186 (u8 action; i32 ô)`**: 0 mặc món ở ô túi, 1 cởi món ở ô trang bị. Server trả `s2c/10` kiểu 4 (chỉ số mới), `s2c/37` (8 ô trang bị), `s2c/42` (cả túi) và `s2c/1186`. Đo 2 lần trên máy (P4). Xem [Mặc và cởi đồ](#c2s-1186). [Đo] |
+| Ngôi sao xanh "x2" ở góc trái là gì? | Nhân đôi EXP thắng trận của vật phẩm **Tăng Kinh Nghiệm (mã 7)**, 24 giờ, trôi cả lúc offline. Không phải mặc định: server gửi nó trong đuôi `s2c/9` (`"ef7"`, tỉ lệ 200000, ms còn lại), chỉ nick đã dùng món mới có. Xem [x2 EXP](#x2-exp). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
-| Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, dùng trong trận bằng nút Túi đồ hoặc ngoài trận bằng nút Sử dụng. Gói dùng bình [Chưa rõ]. Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
+| Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, dùng trong trận bằng nút Túi đồ. Ngoài trận nút Sử dụng gửi `c2s/84 (i32 ô túi)` nhưng server từ chối bình: "Vật phẩm không thể sử dụng!" ([Dùng vật phẩm](#c2s-84), P4). Gói dùng bình trong trận [Chưa rõ]. Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
 | Nhiệm vụ hằng ngày lấy ở đâu? | Gặp Hương Lão Trần Bá (NPC 102, M1) → "Nhiệm vụ hằng ngày" → "Nhận nhiệm vụ". Tối đa 3 nhiệm vụ một ngày, làm từng cái một (C1). Gói chưa bắt. |
 
 <a id="c2s-1191"></a>
@@ -304,7 +311,7 @@ Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. B
 | Trang bị 2 | 261 | Rìu Âu Lạc | 1 | 0 | 1 Hỏa | 5: 8; 2: 10 | Popup: ngọn lửa, Hiếm, "Độ bền 0/60", "Cần 1 búa để sửa chữa". Vẫn hỏng, nên chỉ số không tính [Đo] |
 
 - **Mã chỉ số** theo bảng `it0` của game ([mã chỉ số](13-drops-items.md#mã-chỉ-số)): 2 nội lực, 3 thân pháp, 5 sức tấn công, 6 phòng thủ, 8 % chí mạng, 9 sinh lực. Mã 6 và 9 khớp popup Nón Âu Lạc. [Đo]
-- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm", dù byte hệ là 1 hay 2. Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi. Phẩm chất nằm ở trường nào thì chưa rõ, có thể là `field4` (bằng 1 ở mọi trang bị). [Chưa rõ]
+- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm", dù byte hệ là 1 hay 2. Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi. Có lẽ phẩm chất là `field4` của bản ghi: 1 ở mọi trang bị, 0 ở thú cưng, mà popup thú cưng không có dòng phẩm chất (P4, [Cường hoá và phẩm chất](#cường-hoá)). Cần một món không phải Hiếm để chắc. [Suy luận]
 - **Đang mặc** (bảng Bản thân, 31/10): ô 0 Nón Âu Lạc (đang bật "Ẩn Nón" nên nón không hiện trên người), ô 2 Rìu Âu Lạc (hỏng). Áo Hào Kiệt, Nón Lá, Nhẫn Trơn còn trong túi, chưa mặc. Dưới bảng: Xu 500, Xu khóa 7.370, Lượng 0; thanh Vàng 2708/10000. Mỗi món trong túi có hình ổ khoá nhỏ (món đã khoá). [Đo]
 - Hai trang bị hỏng từ Q6 ([10-quests](10-quests.md#kết-quả-q3-q4)) chính là chiếc nón (mã 54) và vũ khí (mã 261), cả hai độ bền 0 trong `s2c/9`. [Đo]
 
@@ -335,7 +342,8 @@ Theo popup trên máy, một món gồm:
 | Icon | `data/icons/i<icon>.webp`, `icon` theo `mãVậtPhẩm` trong [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm). Khung màu nằm sẵn trong ảnh |
 | Số lượng ở góc icon | `sốLượng` của bản ghi. Máy vẽ số cho món xếp chồng được (`xếpChồng` > 1), kể cả khi chỉ có 1 (Kim Đan Dược "1"). Trang bị không có số |
 | Biểu tượng hệ, tên | Byte `hệ` (ngọn lửa 1, tia sét 2), `tên` trong bảng |
-| Phẩm chất | Chưa rõ trường (mọi trang bị đã xem: Hiếm) |
+| Cường hoá (+8 cạnh tên) | `field0` của bản ghi (P4: 8 ở cả 4 món +8 của symap, 0 ở đồ manina) |
+| Phẩm chất | Có lẽ `field4` (1 ở trang bị, 0 ở thú cưng); mọi trang bị đã xem đều Hiếm [Suy luận] |
 | Yêu cầu cấp | `cấpMặc` trong bảng |
 | Độ bền | `độBền` của bản ghi / `độBềnTốiĐa` trong bảng, ví dụ 55/60. Màu đỏ khi bằng 0 |
 | Chỉ số | Từng `{chỉSố; giáTrị}` theo mẫu `it0`, ví dụ `+ 4 phòng thủ` |
@@ -485,6 +493,8 @@ i32; string tên sứ quân; u8; u8
 - Vậy không phải mặc định cho mọi nick: chỉ nick đã dùng món này mới có, và giờ vẫn trôi khi thoát game. [Đo 3 nick; giờ trôi theo mô tả]
 - Bảng VIP (`com.g.m.sqfo`) có quyền lợi `EXP_BONUS_PERCENT` ("EXP + x%") và `GOLD_BONUS_PERCENT` ("Vàng + x%"). Đó là cộng EXP theo cấp VIP, khác ngôi sao này. [Đo tĩnh]
 
+<a id="cường-hoá"></a>
+
 **Cường hoá và phẩm chất** cũng thấy trong bản ghi vật phẩm của symap [Đo]:
 - `field0` = 8 ở cả 4 món "+8" (Nón Hào Kiệt, Áo Thuật Sĩ, Chiến Đao, Nhẫn Đại Hiệp). Đồ chưa cường hoá của manina có 0. Vậy `field0` là cấp cường hoá.
 - `field4` = 1 ở mọi trang bị (popup ghi "Phẩm chất: Hiếm"), = 0 ở thú cưng (popup không có dòng phẩm chất). Có lẽ đó là phẩm chất. [Suy luận]
@@ -494,9 +504,9 @@ i32; string tên sứ quân; u8; u8
 Cẩm nang (C1):
 - Hoàn Linh Dược hồi 30% sinh lực tối đa; Kim Đan Dược hồi 25% nội lực (1 thành).
 - Trong trận, bấm nút Túi đồ ở cột trái bàn cờ. Mỗi lượt dùng được 1 món, kể cả khi đấu với người chơi. Bình mua ở NPC Lái Buôn.
-- Ngoài trận, chạm bình trong túi sẽ có nút "Sử dụng" và "Vứt bỏ". E1 chỉ mở popup, chưa dùng bình nào.
+- Ngoài trận, chạm bình trong túi sẽ có nút "Sử dụng" và "Vứt bỏ".
 
-Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bảng) có vài gói `u8; i32` chưa thấy trên dây, như `c2s/1186` và `c2s/1189`, có thể là dùng vật phẩm theo ô. Chưa kiểm. [Suy luận yếu]
+P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, server trả "Vật phẩm không thể sử dụng!" và số bình không đổi ([Dùng vật phẩm](#c2s-84)). Vậy dù Cẩm nang nói vậy, ngoài trận không hồi máu bằng bình được. [Đo] `c2s/1186` từng được đoán là dùng vật phẩm, nhưng đó là mặc và cởi đồ ([Mặc và cởi đồ](#c2s-1186)). Gói dùng bình trong trận chưa bắt, có lẽ `c2s/47` (`sqlq.b78(int, int, int)`, gọi từ lớp trận `sqlm`). [Chưa rõ]
 
 ## Cẩm nang: luật liên quan tới bot
 
