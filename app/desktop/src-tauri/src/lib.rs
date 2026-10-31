@@ -55,7 +55,7 @@ pub fn run() {
             let (wake, woken) = std::sync::mpsc::channel();
             let accounts = paths::accounts(tauri_app.path())?;
             let mut app = App::new(manager, accounts.clone(), wake);
-            app.apply_settings(settings::load(&app.settings_path()));
+            app.apply_settings(settings::first_load(&app.settings_path(), &accounts));
             if sample {
                 sample::fill(&mut app);
             } else {

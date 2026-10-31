@@ -8,6 +8,7 @@ export const num = (n: number | null | undefined) => (n == null ? "—" : number
 export const pct = (part: number) => `${percents.format(part * 100)}%`;
 /** A size on disk: 812 KB, 5,4 MB, 1,2 GB. */
 export function size(bytes: number) {
+  if (bytes <= 0) return "0 KB";
   const kb = bytes / 1024;
   if (kb < 1024) return `${numbers.format(Math.max(1, Math.round(kb)))} KB`;
   return kb < 1024 * 1024 ? `${percents.format(kb / 1024)} MB` : `${percents.format(kb / 1024 / 1024)} GB`;

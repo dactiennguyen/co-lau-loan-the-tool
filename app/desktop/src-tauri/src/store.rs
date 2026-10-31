@@ -8,7 +8,7 @@ use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind, Picked, 
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, Row};
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 /// Log lines, and battles with the items picked up after them, older than this many days are deleted when the app starts
@@ -84,11 +84,7 @@ CREATE INDEX IF NOT EXISTS pickups_by_time ON pickups (at);
     "ALTER TABLE logs ADD COLUMN battle_at INTEGER;",
     // Lưu dữ liệu trận (battle_record.rs): each battle's packets and header, the gzip of a battle file of the TS bot.
     // Store::prune leaves it alone: it is kept for the training of the battle algorithm.
-    BATTLE_DATA,
-];
-
-/// The battle_data table of Lưu dữ liệu trận, also the table of a file of Xuất dữ liệu trận (Store::export_battle_data).
-const BATTLE_DATA: &str = "
+    "
 CREATE TABLE IF NOT EXISTS battle_data (
     id INTEGER PRIMARY KEY,
     username TEXT NOT NULL,
@@ -99,7 +95,42 @@ CREATE TABLE IF NOT EXISTS battle_data (
     packets BLOB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS battle_data_by_account ON battle_data (username, started_at);
-";
+",
+];
+
+/// battle_data of `db` into a new database at `to`. The table is made from the columns `db` has now (PRAGMA table_info,
+/// which follows ALTER TABLE): name, type, primary key, not null; no index, defaults or constraints, which a copy does
+/// not need.
+fn copy_battle_data(db: &Connection, to: &Path) -> rusqlite::Result<u64> {
+    let columns = db
+        .prepare("SELECT name, type, pk, \"notnull\" FROM pragma_table_info('battle_data')")?
+        .query_map([], |r| {
+            let (name, kind, pk, not_null): (String, String, i64, bool) =
+                (r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?);
+            let name = name.replace('"', "\"\"");
+            let pk = if pk == 1 { " PRIMARY KEY" } else { "" };
+            let not_null = if not_null { " NOT NULL" } else { "" };
+            Ok(format!("\"{name}\" {kind}{pk}{not_null}"))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if columns.is_empty() {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+    db.execute("ATTACH DATABASE ?1 AS export", [to.to_string_lossy()])?;
+    let copied = db
+        .execute_batch(&format!(
+            "CREATE TABLE export.battle_data ({});\
+             INSERT INTO export.battle_data SELECT * FROM main.battle_data;",
+            columns.join(", ")
+        ))
+        .and_then(|()| {
+            db.query_row("SELECT COUNT(*) FROM export.battle_data", [], |r| {
+                r.get::<_, i64>(0)
+            })
+        });
+    db.execute("DETACH DATABASE export", [])?;
+    Ok(copied? as u64)
+}
 
 /// A log line as cllt.db keeps it; the line of a won battle with the items picked up after it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -278,20 +309,25 @@ fn battle(row: &Row) -> rusqlite::Result<StoredBattle> {
 
 pub struct Store {
     db: Mutex<Connection>,
+    /// The file, for the connection of its own that Xuất dữ liệu trận reads with; None in memory.
+    path: Option<PathBuf>,
 }
 impl Store {
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
-        Self::init(Connection::open(path)?)
+        Self::init(Connection::open(path)?, Some(path.to_path_buf()))
     }
     /// For the tests and the sample.
     pub fn memory() -> rusqlite::Result<Self> {
-        Self::init(Connection::open_in_memory()?)
+        Self::init(Connection::open_in_memory()?, None)
     }
-    fn init(mut db: Connection) -> rusqlite::Result<Self> {
+    fn init(mut db: Connection, path: Option<PathBuf>) -> rusqlite::Result<Self> {
         db.pragma_update_and_check(None, "journal_mode", "WAL", |_| Ok(()))?;
         db.pragma_update(None, "synchronous", "NORMAL")?;
         migrate(&mut db)?;
-        Ok(Self { db: Mutex::new(db) })
+        Ok(Self {
+            db: Mutex::new(db),
+            path,
+        })
     }
     fn db(&self) -> MutexGuard<'_, Connection> {
         self.db.lock().unwrap_or_else(|e| e.into_inner())
@@ -421,10 +457,11 @@ impl Store {
         Ok(())
     }
 
-    /// What Lưu dữ liệu trận has kept: battles, and bytes of their rows.
+    /// What Lưu dữ liệu trận has kept: battles, and bytes of their rows (octet_length: LENGTH of a text counts its
+    /// characters, and the headers have Vietnamese names).
     pub fn battle_data_size(&self) -> rusqlite::Result<BattleDataSize> {
         self.db().query_row(
-            "SELECT COUNT(*), COALESCE(SUM(LENGTH(header) + LENGTH(packets)), 0) FROM battle_data",
+            "SELECT COUNT(*), COALESCE(SUM(octet_length(header) + octet_length(packets)), 0) FROM battle_data",
             [],
             |r| {
                 Ok(BattleDataSize {
@@ -435,25 +472,28 @@ impl Store {
         )
     }
 
-    /// Xuất dữ liệu trận: a new SQLite file at `to` that holds battle_data alone, as cllt.db has it; `npm run battles
-    /// --db=<file>` reads it. How many battles it holds. The file is created by the export, so it must not exist yet.
+    /// Xuất dữ liệu trận: a new SQLite file at `to` that holds battle_data alone, as cllt.db has it; `npm run battles --
+    /// --db=<file>` reads it. How many battles it holds. A file already at `to` is an error and stays as it is; a copy
+    /// that fails takes away the file it began. The copy reads on a connection of its own: in WAL mode it does not hold
+    /// up the sessions, which write through the shared one (in memory, the shared one).
     pub fn export_battle_data(&self, to: &Path) -> rusqlite::Result<u64> {
-        let db = self.db();
-        db.execute("ATTACH DATABASE ?1 AS export", [to.to_string_lossy()])?;
-        // The table as cllt.db has it, without its index: CREATE TABLE IF NOT EXISTS export.battle_data (…).
-        let table = BATTLE_DATA.split(';').next().unwrap_or_default();
-        let copied = db
-            .execute_batch(&format!(
-                "{};INSERT INTO export.battle_data SELECT * FROM main.battle_data;",
-                table.replacen("battle_data", "export.battle_data", 1)
-            ))
-            .and_then(|()| {
-                db.query_row("SELECT COUNT(*) FROM export.battle_data", [], |r| {
-                    r.get::<_, i64>(0)
-                })
-            });
-        db.execute("DETACH DATABASE export", [])?;
-        Ok(copied? as u64)
+        if to.exists() {
+            return Err(rusqlite::Error::InvalidPath(to.to_path_buf()));
+        }
+        let own = self.path.as_deref().map(Connection::open).transpose()?;
+        let shared;
+        let db = match &own {
+            Some(db) => db,
+            None => {
+                shared = self.db();
+                &*shared
+            }
+        };
+        let copied = copy_battle_data(db, to);
+        if copied.is_err() {
+            let _ = std::fs::remove_file(to);
+        }
+        copied
     }
 
     pub fn add_pickup(&self, username: &str, p: &PickupRecord) -> rusqlite::Result<()> {
@@ -963,14 +1003,19 @@ mod tests {
 
     #[test]
     fn battle_data_exports_to_a_file_that_holds_it_alone() {
-        let s = Store::memory().unwrap();
+        let dir = std::env::temp_dir().join(format!("cllt-export-db-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // On a file, as the app has it: the export reads on a connection of its own.
+        let s = Store::open(&dir.join("cllt.db")).unwrap();
         s.add_log("manina2", 1_000, LogKind::Battle, 0, "Trận 1: thắng");
+        let header = r#"{"kind":"header","mob":{"name":"Kẻ Quấy Phá"}}"#;
         for (i, user) in ["manina2", "ttuananh"].into_iter().enumerate() {
             let d = BattleData {
                 uuid: format!("uuid-{i}"),
                 started_at: 1_000 + i as u64,
                 format: 1,
-                header: r#"{"kind":"header","format":1}"#.into(),
+                header: header.into(),
                 packets: vec![0x1f, 0x8b, 8, i as u8],
             };
             s.add_battle_data(user, &d).unwrap();
@@ -979,14 +1024,15 @@ mod tests {
             s.battle_data_size().unwrap(),
             BattleDataSize {
                 battles: 2,
-                bytes: 2 * (28 + 4),
-            }
+                bytes: 2 * (header.len() as u64 + 4),
+            },
+            "bytes, not characters"
         );
-        let dir = std::env::temp_dir().join(format!("cllt-export-db-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("cllt-battles-test.db");
-        let _ = std::fs::remove_file(&file);
+        // Held by the sessions meanwhile, the shared connection does not stop it.
+        let held = s.db();
         assert_eq!(s.export_battle_data(&file).unwrap(), 2);
+        drop(held);
         let out = Connection::open(&file).unwrap();
         let tables: Vec<String> = out
             .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
@@ -1004,7 +1050,27 @@ mod tests {
             .collect::<Result<_, _>>()
             .unwrap();
         assert_eq!(rows[1], ("ttuananh".into(), vec![0x1f, 0x8b, 8, 1]));
-        // The database can still be written after the export, and the export can run again into another file.
+        // A file already there is refused and kept as it was.
+        assert!(s.export_battle_data(&file).is_err());
+        assert_eq!(
+            out.query_row("SELECT COUNT(*) FROM battle_data", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+        // A copy that fails once its file is made takes the file away: a generated column is not in table_info, so SELECT *
+        // has one value more than the copy has columns.
+        let bare = Store::memory().unwrap();
+        bare.db()
+            .execute_batch(
+                "DROP TABLE battle_data; CREATE TABLE battle_data (a INTEGER, b INTEGER AS (a + 1)); \
+                 INSERT INTO battle_data (a) VALUES (1);",
+            )
+            .unwrap();
+        let failed = dir.join("cllt-battles-failed.db");
+        assert!(bare.export_battle_data(&failed).is_err());
+        assert!(!failed.exists());
+        // Another export into another file.
         assert_eq!(
             s.export_battle_data(&dir.join("cllt-battles-test-2.db"))
                 .unwrap(),
@@ -1030,7 +1096,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(version(&db), 0);
-        let s = Store::init(db).unwrap();
+        let s = Store::init(db, None).unwrap();
         assert_eq!(version(&s.db()), MIGRATIONS.len());
         let texts: Vec<_> = s
             .logs("manina2", None, &[], None, 10)
@@ -1058,7 +1124,7 @@ mod tests {
             .picked
             .is_empty());
         // Opened again, nothing more to do.
-        let again = Store::init(s.db.into_inner().unwrap()).unwrap();
+        let again = Store::init(s.db.into_inner().unwrap(), None).unwrap();
         assert_eq!(version(&again.db()), MIGRATIONS.len());
     }
 
@@ -1067,7 +1133,7 @@ mod tests {
         let db = Connection::open_in_memory().unwrap();
         db.pragma_update(None, "user_version", MIGRATIONS.len() as i64 + 1)
             .unwrap();
-        let e = Store::init(db).err().unwrap().to_string();
+        let e = Store::init(db, None).err().unwrap().to_string();
         assert!(e.contains("bản app mới hơn"), "{e}");
     }
 }

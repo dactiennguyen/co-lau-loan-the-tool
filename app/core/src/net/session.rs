@@ -39,11 +39,17 @@ pub(super) enum Step {
     Ready,
 }
 
-/// Resolves on Logout, or when the app drops the session. Jobs wait for the game, so the ones sent before are dropped.
-pub(super) async fn logged_out(commands: &mut UnboundedReceiver<Command>, emit: &Emit) {
+/// Resolves on Logout, or when the app drops the session. Jobs wait for the game, so the ones sent before are dropped;
+/// Lưu dữ liệu trận changed meanwhile goes to `record`, for the Bot to come (Manager::set_record sends it only once).
+pub(super) async fn logged_out(
+    commands: &mut UnboundedReceiver<Command>,
+    emit: &Emit,
+    record: &mut bool,
+) {
     loop {
         match commands.recv().await {
             None | Some(Command::Logout) => return,
+            Some(Command::Record(on)) => *record = on,
             Some(_) => emit(Event::Log(LogKind::Connection, NOT_READY.into())),
         }
     }
@@ -65,9 +71,10 @@ pub(super) async fn session(
 ) -> Result<(), Error> {
     // Logout works at every step: the connect and the seed wait end on it too, as the login steps below do.
     let proxy = account.proxy.as_ref().filter(|p| p.enabled);
+    let mut record = record;
     let (mut stream, early) = tokio::select! {
         r = connect(server, proxy, emit) => r?,
-        () = logged_out(commands, emit) => return Ok(()),
+        () = logged_out(commands, emit, &mut record) => return Ok(()),
     };
     // A proxy may pass on the start of the seed with its last reply.
     let mut seed = [0u8; 4];
@@ -77,7 +84,7 @@ pub(super) async fn session(
         r = timeout(STEP, stream.read_exact(&mut seed[have..])) => r
             .map_err(|_| "Server không gửi seed".to_string())?
             .map_err(|e| e.to_string())?,
-        () = logged_out(commands, emit) => return Ok(()),
+        () = logged_out(commands, emit, &mut record) => return Ok(()),
     };
     stream
         .write_all(&handshake(i32::from_be_bytes(seed)))
@@ -225,13 +232,14 @@ pub(super) async fn session(
                 let now = std::time::Instant::now();
                 match cmd {
                     None | Some(Command::Logout) => return Ok(()),
+                    // Sent once to every session, so kept even before the game is ready.
+                    Some(Command::Record(on)) => bot.set_record(on, &mut out),
                     Some(_) if step != Step::Ready => out.push(Out::Log(LogKind::Connection, NOT_READY.into())),
                     Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
                     Some(Command::FightSettings(settings)) => bot.set_fight(settings, &mut out),
-                    Some(Command::Record(on)) => bot.set_record(on, &mut out),
                     Some(Command::LossesLeft(left)) => bot.set_losses_left(left, &mut out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),

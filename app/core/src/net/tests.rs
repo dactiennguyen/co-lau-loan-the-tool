@@ -313,6 +313,26 @@ async fn a_login_whose_answers_read_goes_online() {
 }
 
 #[tokio::test]
+async fn lưu_dữ_liệu_trận_turned_off_while_logging_in_is_kept() {
+    let (events, tx, task) = login(Fault::None).await;
+    // Before the session has even connected: Manager::set_record sends it once, so it must not be dropped.
+    tx.send(Command::Record(false)).unwrap();
+    online(&events).await;
+    tx.send(Command::Record(true)).unwrap();
+    let on = "Bật lưu dữ liệu trận: gói tin của mỗi trận được lưu vào cllt.db";
+    timeout(Duration::from_secs(2), async {
+        while !logs(&events).iter().any(|l| l == on) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("the session never had it off: {:?}", logs(&events)));
+    assert!(!logs(&events).iter().any(|l| l == NOT_READY));
+    tx.send(Command::Logout).unwrap();
+    ends(task).await;
+}
+
+#[tokio::test]
 async fn a_map_or_mobs_that_do_not_read_stop_the_login() {
     for (fault, op) in [(Fault::Map, "s2c/11"), (Fault::Mobs, "s2c/43")] {
         let (events, _tx, task) = login(fault).await;

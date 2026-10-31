@@ -93,6 +93,7 @@ pub enum Event {
 /// The game server the sessions connect to: play.colauloanthe.vn:1688, as the game's config says, unless the app's Cài
 /// đặt names another (Manager::set_server).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Server {
     pub host: String,
     pub port: u16,

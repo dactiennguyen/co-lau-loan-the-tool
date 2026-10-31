@@ -391,14 +391,19 @@ pub async fn test_proxy(
     Ok(took.as_millis() as u64)
 }
 
-/// Cài đặt: the settings, their defaults, and what Lưu dữ liệu trận has kept.
+/// Cài đặt: the settings, their defaults, and what Lưu dữ liệu trận has kept, counted off the main thread.
 #[tauri::command]
-pub fn settings(shared: State<Shared>) -> SettingsView {
-    SettingsView {
-        settings: shared.with(|app| app.settings().clone()),
+pub async fn settings(shared: State<'_, Shared>) -> Result<SettingsView, String> {
+    let settings = shared.with(|app| app.settings().clone());
+    let store = shared.store_handle();
+    let battle_data = tauri::async_runtime::spawn_blocking(move || store?.battle_data_size().ok())
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(SettingsView {
+        settings,
         defaults: Settings::default(),
-        battle_data: shared.store().and_then(|s| s.battle_data_size().ok()),
-    }
+        battle_data,
+    })
 }
 
 /// Lưu of Cài đặt (Shared::set_settings); the error is shown in the dialog.
@@ -408,7 +413,7 @@ pub async fn set_settings(shared: State<'_, Shared>, settings: Settings) -> Resu
 }
 
 /// Xuất dữ liệu trận: battle_data of cllt.db into a new file cllt-battles-<time>.db in Downloads, which `npm run
-/// battles --db=<file>` reads (Store::export_battle_data). The error is shown under the button.
+/// battles -- --db=<file>` reads (Store::export_battle_data). The error is shown under the button.
 #[tauri::command]
 pub async fn export_battles(app: AppHandle, shared: State<'_, Shared>) -> Result<Exported, String> {
     let store = shared

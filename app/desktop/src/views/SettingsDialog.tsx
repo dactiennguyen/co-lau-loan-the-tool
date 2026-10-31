@@ -80,7 +80,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const saved = view?.settings;
   const defaults = view?.defaults;
   const atDefault = !!form && !!defaults && sameServer(form, defaults);
-  const valid = !!form && !!form.server.host.trim() && form.server.port >= 1 && form.server.port <= 65535;
+  const port = form?.server.port ?? 0;
+  const valid = !!form && !!form.server.host.trim() && Number.isInteger(port) && port >= 1 && port <= 65535;
   const data = view?.battleData;
 
   return (

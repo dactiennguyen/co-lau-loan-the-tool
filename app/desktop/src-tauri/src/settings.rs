@@ -21,14 +21,21 @@ impl Default for Settings {
     }
 }
 impl Settings {
-    /// The host trimmed; the error to show for an empty host, one that is not a bare name or IP, or port 0.
+    /// The host trimmed, an IPv6 address without its brackets; the error to show for an empty host, one that is not a
+    /// bare name or IP, or port 0.
     pub fn checked(mut self) -> Result<Self, String> {
-        self.server.host = self.server.host.trim().to_string();
+        let host = self.server.host.trim();
+        let bare = host
+            .strip_prefix('[')
+            .and_then(|h| h.strip_suffix(']'))
+            .unwrap_or(host);
+        let ipv6 = bare.parse::<std::net::Ipv6Addr>().is_ok();
+        self.server.host = if ipv6 { bare } else { host }.to_string();
         let host = &self.server.host;
         if host.is_empty() {
             return Err("Nhập địa chỉ server game".into());
         }
-        if host.contains(|c: char| c.is_whitespace() || c == '/' || c == ':') {
+        if !ipv6 && host.contains(|c: char| c.is_whitespace() || c == '/' || c == ':') {
             return Err(
                 "Địa chỉ server game chỉ gồm tên miền hoặc IP, không có http://, dấu cách hay cổng"
                     .into(),
@@ -46,7 +53,8 @@ pub fn path(accounts: &Path) -> PathBuf {
     accounts.with_file_name("settings.json")
 }
 
-/// settings.json; the defaults when there is none, or when it does not read (said on stderr; the next save replaces it).
+/// settings.json; the defaults when there is none, or when it does not read, and the default server when the one it
+/// names cannot be dialled (said on stderr; the next save replaces it). A key left out is its default.
 pub fn load(path: &Path) -> Settings {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
@@ -56,10 +64,47 @@ pub fn load(path: &Path) -> Settings {
             return Settings::default();
         }
     };
-    serde_json::from_str(&text).unwrap_or_else(|e| {
+    let settings: Settings = serde_json::from_str(&text).unwrap_or_else(|e| {
         eprintln!("{}: {e}", path.display());
         Settings::default()
+    });
+    settings.clone().checked().unwrap_or_else(|e| {
+        eprintln!("{}: {e}", path.display());
+        Settings {
+            server: Server::default(),
+            ..settings
+        }
     })
+}
+
+/// `load` at the start of the app. Before settings.json, Lưu dữ liệu trận was a setting of each account ("record" of
+/// "fight" in accounts.json, which the app no longer reads and drops at its next write): one account with it off turns
+/// it off for all, and settings.json is written at once so that it stays off.
+pub fn first_load(path: &Path, accounts: &Path) -> Settings {
+    if path.exists() || !record_was_off(accounts) {
+        return load(path);
+    }
+    let settings = Settings {
+        record: false,
+        ..Settings::default()
+    };
+    if let Err(e) = save(path, &settings) {
+        eprintln!("{e}");
+    }
+    settings
+}
+
+/// An account of accounts.json with `"fight": {"record": false}`.
+fn record_was_off(accounts: &Path) -> bool {
+    std::fs::read_to_string(accounts)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|file| {
+            file["accounts"]
+                .as_array()
+                .map(|list| list.iter().any(|a| a["fight"]["record"] == false))
+        })
+        .unwrap_or(false)
 }
 
 pub fn save(path: &Path, settings: &Settings) -> Result<(), String> {
@@ -130,8 +175,10 @@ pub fn reveal(path: &Path) -> std::io::Result<()> {
     };
     #[cfg(target_os = "windows")]
     let mut command = {
+        use std::os::windows::process::CommandExt;
         let mut c = Command::new("explorer");
-        c.arg(format!("/select,{}", path.display()));
+        // Explorer reads /select,"path" itself; the quotes Rust puts around a whole argument with a space break it.
+        c.raw_arg(format!("/select,\"{}\"", path.display()));
         c
     };
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -171,8 +218,64 @@ mod tests {
         };
         save(&file, &changed).unwrap();
         assert_eq!(load(&file), changed);
+        // A server without its port keeps the rest; one that cannot be dialled goes back to the default, the rest kept.
+        std::fs::write(
+            &file,
+            r#"{"server": {"host": "10.0.0.2"}, "record": false}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            load(&file),
+            Settings {
+                server: Server {
+                    host: "10.0.0.2".into(),
+                    port: Server::default().port,
+                },
+                record: false,
+            }
+        );
+        std::fs::write(
+            &file,
+            r#"{"server": {"host": "play.colauloanthe.vn:1688", "port": 1688}, "record": false}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            load(&file),
+            Settings {
+                record: false,
+                ..Settings::default()
+            }
+        );
         std::fs::write(&file, "{").unwrap();
         assert_eq!(load(&file), Settings::default());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn an_account_that_had_lưu_dữ_liệu_trận_off_turns_it_off_for_all_once() {
+        let dir = std::env::temp_dir().join(format!("cllt-settings-old-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let accounts = dir.join("accounts.json");
+        let file = path(&accounts);
+        assert_eq!(first_load(&file, &accounts), Settings::default());
+        std::fs::write(
+            &accounts,
+            r#"{"accounts": [{"username": "a", "password": "x"}, {"username": "b", "password": "y", "fight": {"record": false}}]}"#,
+        )
+        .unwrap();
+        let off = Settings {
+            record: false,
+            ..Settings::default()
+        };
+        assert_eq!(first_load(&file, &accounts), off);
+        assert_eq!(
+            load(&file),
+            off,
+            "written, so it stays off once accounts.json drops the key"
+        );
+        // From then on settings.json decides.
+        save(&file, &Settings::default()).unwrap();
+        assert_eq!(first_load(&file, &accounts), Settings::default());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -185,14 +288,13 @@ mod tests {
             },
             record: true,
         };
+        let host = |s: Settings| s.checked().unwrap().server.host;
         assert_eq!(
-            with(" play.colauloanthe.vn ", 1688)
-                .checked()
-                .unwrap()
-                .server
-                .host,
+            host(with(" play.colauloanthe.vn ", 1688)),
             "play.colauloanthe.vn"
         );
+        assert_eq!(host(with("[2001:db8::5]", 1688)), "2001:db8::5");
+        assert_eq!(host(with("2001:db8::5", 1688)), "2001:db8::5");
         for bad in [
             with("  ", 1688),
             with("http://play.colauloanthe.vn", 1688),
