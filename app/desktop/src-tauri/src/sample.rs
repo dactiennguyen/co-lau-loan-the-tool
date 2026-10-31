@@ -30,6 +30,7 @@ fn account(label: &str, username: &str) -> Account {
         stats: None,
         fight: Default::default(),
         proxy: None,
+        algorithm: Default::default(),
     }
 }
 

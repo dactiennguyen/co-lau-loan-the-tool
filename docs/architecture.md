@@ -50,7 +50,7 @@ Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `pro
 
 - **Giải mã gói:** `protocol.rs`, `opcodes.rs` (sinh từ TS), `requests.rs`, `world.rs`, `items.rs`, `skills.rs`, `battle.rs`. Mỗi bộ giải có vector từ TS trong `tests/vectors.json`, và `tests/parity.rs` kiểm từng byte.
 - **Bot, không I/O:** `bot/` nhận gói (`on_packet`), lệnh và giờ (`on_timer`, `deadline`), rồi trả danh sách `Out`: gói cần gửi, dòng nhật ký, trận đã xong. Nhờ vậy test chạy cả việc đánh quái và làm nhiệm vụ mà không cần socket. Mỗi việc một file: `fight.rs`, `quest.rs`, `items.rs`, `shop.rs`, `stats.rs`, `travel.rs`, `record.rs` (Lưu dữ liệu trận, cùng `battle_record.rs`); `packets.rs` chia gói theo opcode, `types.rs` giữ các kiểu gửi ra ngoài.
-- **Một trận:** `runner.rs` chơi một trận trên bàn của `battle.rs`.
+- **Một trận:** `runner_v3.rs` chơi một trận trên bàn của `battle.rs` với thuật toán v3 (`battle_actions.rs` chọn hành động mỗi lượt). `runner.rs` là v1, cách app chơi trước v3, giữ lại để so (`cllt fight --algo=v1`).
 - **Phiên mạng:** `net/` chạy mỗi nick một phiên trên runtime tokio chung: `session.rs` (đăng nhập, heartbeat, vòng gói và lệnh), `connect.rs` (TCP, proxy), `manager.rs`.
 - **Khác:** `accounts.rs` (`accounts.json`), `atlas.rs` (`data/maps.json`), `potentials.rs`, `proxy.rs`, `bin/cllt.rs` (CLI không giao diện để thử với server thật).
 

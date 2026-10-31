@@ -834,10 +834,6 @@ fn runner_joins_steps_for_the_mob_plays_a_legal_move_and_ends() {
         .i32(3)
         .i32(1)
         .bytes(&[])
-        .u8(0)
-        .u8(0)
-        .u8(0)
-        .u8(0)
         .u8(1)
         .string("mob872604")
         .i32(29)
@@ -1111,7 +1107,7 @@ fn coc_xanh_bot() -> (Bot, Vec<Out>, Instant, Vec<u8>) {
     (bot, out, now, setup)
 }
 
-/// s2c/19 ending the battle against mob61000 with a loss.
+/// s2c/19 ending the battle against mob61000 with a loss; without refill, so without the reshuffle byte and the 3 after it.
 fn lost_battle() -> Vec<u8> {
     Writer::new()
         .i32(2)
@@ -1123,10 +1119,6 @@ fn lost_battle() -> Vec<u8> {
         .i32(3)
         .i32(1)
         .bytes(&[])
-        .u8(0)
-        .u8(0)
-        .u8(0)
-        .u8(0)
         .u8(1)
         .string("manina")
         .i32(40)
@@ -2860,4 +2852,134 @@ fn luu_du_lieu_tran_keeps_a_battle_with_its_header_packets_notes_and_result() {
         (&result["won"], &result["ms"]),
         (&json!(true), &json!(1000))
     );
+}
+
+/// v1 is kept beside v3 (BotOptions::algorithm, `cllt fight --algo=v1`): on the same first own turn v1 sends the Q20
+/// `kill` move of runner.rs as before v3, v3 its own pick, and the battle data says which one played, with a turn note.
+#[test]
+fn v1_is_kept_beside_v3_and_the_battle_data_names_the_algorithm() {
+    use cllt_core::bot::Algorithm;
+    use std::io::Read;
+    let all = v();
+    let decoder = |name: &str, pick: &dyn Fn(&Value) -> bool| {
+        hex(all["decoders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["fn"] == name && pick(&d["expected"]))
+            .unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let setup = decoder("battleSetup", &|_| true);
+    let own = decoder("turnState", &|e| e["playerTurn"] == json!(1));
+    let s = battle::battle_setup(&setup).unwrap();
+    let mut board: Board = [battle::UNKNOWN; battle::N * battle::N];
+    for (i, &x) in s.board.iter().enumerate() {
+        board[i] = x;
+    }
+    // runner.rs as v1 starts: own fighter without a skill, the unknown mob, the `kill` search.
+    let me = battle::fighter(s.hp as f64, s.max_hp as f64);
+    let kill = battle::best_move(&board, &me, &battle::unknown_mob(), &Strategy::kill()).unwrap();
+    let seq = battle::turn_state(&own).unwrap().seq;
+    let expected = build(
+        19,
+        &Ctx {
+            battle_uuid: Some(&s.uuid),
+            seq: Some(seq),
+            mv: Some(kill.mv),
+            ..Ctx::default()
+        },
+    )
+    .unwrap();
+    for algorithm in [Algorithm::V1, Algorithm::V3] {
+        let options = BotOptions {
+            algorithm,
+            ..BotOptions::default()
+        };
+        let (mut bot, mut out, now) = (
+            Bot::new(options, Arc::new(Atlas::default())),
+            vec![],
+            Instant::now(),
+        );
+        let feed = |bot: &mut Bot, op: i32, p: &[u8], out: &mut Vec<Out>| {
+            let from = out.len();
+            bot.on_packet(op, p, now, out).unwrap();
+            for o in &out[from..] {
+                if let Out::Send(op, p) = o {
+                    bot.record_sent(*op, p, now);
+                }
+            }
+        };
+        feed(
+            &mut bot,
+            29,
+            &Writer::new().string("manina").string("M2").i32(0).build(),
+            &mut out,
+        );
+        let mobs = Writer::new()
+            .string("M2")
+            .u8(3)
+            .string("mob61000")
+            .string("Cóc Xanh")
+            .i32(13)
+            .u8(0)
+            .i32(6)
+            .i32(1)
+            .u8(0)
+            .build();
+        feed(&mut bot, 43, &mobs, &mut out);
+        bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+        feed(&mut bot, 22, &setup, &mut out);
+        feed(&mut bot, 18, &hex("000000000000"), &mut out);
+        out.clear();
+        feed(&mut bot, 24, &own, &mut out);
+        let swap: Vec<&Vec<u8>> = out
+            .iter()
+            .filter_map(|o| match o {
+                Out::Send(19, p) => Some(p),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(swap.len(), 1, "{algorithm:?}: {out:?}");
+        if algorithm == Algorithm::V1 {
+            assert_eq!(swap[0], &expected, "v1 plays the kill move of runner.rs");
+        }
+        feed(&mut bot, 19, &won_battle(), &mut out);
+        feed(&mut bot, 1214, &[], &mut out);
+        let data = out
+            .iter()
+            .find_map(|o| match o {
+                Out::BattleData(d) => Some(d.clone()),
+                _ => None,
+            })
+            .expect("battle data");
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(&data.packets[..])
+            .read_to_string(&mut text)
+            .unwrap();
+        let lines: Vec<Value> = text
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        let play = &lines[0]["play"];
+        assert_eq!(play["algorithm"], json!(algorithm.key()));
+        let (model, memory) = match algorithm {
+            Algorithm::V1 => ("best", Value::Null),
+            Algorithm::V3 => ("odds", json!({})),
+        };
+        assert_eq!(
+            (&play["strategy"]["mobModel"], &lines[0]["memory"]),
+            (&json!(model), &memory)
+        );
+        let turn = lines
+            .iter()
+            .find(|l| l["note"] == "turn")
+            .expect("turn note");
+        assert_eq!(
+            (&turn["seq"], &turn["pick"]),
+            (&json!(seq), &json!("swap")),
+            "{algorithm:?}"
+        );
+    }
 }

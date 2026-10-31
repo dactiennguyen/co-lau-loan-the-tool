@@ -3,6 +3,7 @@
 pub mod accounts;
 pub mod atlas;
 pub mod battle;
+pub mod battle_actions;
 pub mod battle_record;
 pub mod bot;
 pub mod items;
@@ -15,5 +16,6 @@ pub mod proxy;
 pub mod quest;
 pub mod requests;
 pub mod runner;
+pub mod runner_v3;
 pub mod skills;
 pub mod world;

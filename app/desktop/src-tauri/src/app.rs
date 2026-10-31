@@ -679,6 +679,7 @@ mod tests {
             stats: None,
             fight: Default::default(),
             proxy: None,
+            algorithm: Default::default(),
         }
     }
 

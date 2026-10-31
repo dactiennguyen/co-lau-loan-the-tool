@@ -307,7 +307,7 @@ Bảng trên dùng mô hình quái cũ (chọn nước ăn nhiều nhất 40–1
 
 ### Thuật toán v2 (31/10)
 
-Chọn bằng `--goal=win` (thắng nhiều trận nhất) hoặc `--goal=farm` (thêm thưởng cho giọt 2, sao 4, vàng 1 như `exp`). `kill` và `exp` giữ nguyên cách Q20, vì bot Rust trong `app/core` vẫn chơi theo cách đó và `export:rust` kiểm hai chiến lược này. Code ở `bestMove`, `answerValue`, `castSkill`, `mobMoveOdds` trong [src/battle/battle.ts](../../../src/battle/battle.ts).
+Chọn bằng `--goal=win` (thắng nhiều trận nhất) hoặc `--goal=farm` (thêm thưởng cho giọt 2, sao 4, vàng 1 như `exp`). `kill` và `exp` giữ nguyên cách Q20. App Rust chơi `win` với `best_action` (v3) từ 31/10, xem [Chọn hành động](#chọn-hành-động); v1 của app (`kill`) vẫn giữ để so. `export:rust` kiểm cả bốn chiến lược. Code ở `bestMove`, `answerValue`, `castSkill`, `mobMoveOdds` trong [src/battle/battle.ts](../../../src/battle/battle.ts).
 
 | Phần | Q20 (`kill`, `exp`) | v2 (`win`, `farm`) |
 |---|---|---|
@@ -377,7 +377,15 @@ Mỗi lượt bot so ba loại hành động trên cùng một thang điểm, t�
 
 Code ở `bestAction` trong [src/battle/battle-actions.ts](../../../src/battle/battle-actions.ts). `BattleRunner` dùng nó khi biết danh sách kỹ năng. `QuestBot` tự lấy danh sách này từ bảng kỹ năng và túi đồ. Tham số dòng lệnh: `--skills` (mặc định `auto`) và `--potions` ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)). Không có bảng kỹ năng thì bot chơi như v2 với `--skill`. Test: [test/battle-actions.test.ts](../../../test/battle-actions.test.ts).
 
-**App Rust chưa có v3 (31/10).** App desktop (`app/core`) vẫn chơi `kill` của Q20 và chỉ dùng kỹ năng ghi trong `accounts.json`. Đã có một bản port v3 sang Rust (`battle_actions.rs`, phần v2 trong `battle.rs`, `runner.rs`), kiểm bằng `export:rust`: 69 thế cờ cho cùng hành động và cùng điểm với bot TS. Bản này nằm ở nhánh `worktree-agent-aaefeb9b02a4e9b60` (gốc `c973520`), chưa gộp vào main vì main đã tách `src/` thành `src/battle`, `src/bot`… sau đó, và chưa đánh trận thật nào. [Đo trên vector]
+**App Rust (31/10).** App desktop chơi v3, chọn mỗi lượt giống hệt bot TS. Code ở `app/core/src/battle_actions.rs` (bản port của `battle-actions.ts`), `battle.rs` (phần v2: `mob_move_odds`, `answer_value`, `cast_skill`, `mob_block`) và `runner_v3.rs` (`chooseAction` của `BattleRunner`).
+- Bot biết cây kỹ năng (`s2c/30`) thì dùng v3; chưa biết thì chơi v2, dùng kỹ năng ghi trong `accounts.json` theo `castSkill`. Nick có ghi kỹ năng thì v3 chỉ dùng kỹ năng đó, như `--skill` của bot TS.
+- Bot lấy kỹ năng đã học và cấp từ đuôi `s2c/9` và `s2c/10` kiểu 32, bình từ túi đồ, Tấn công và cấp từ `s2c/9`, HP quái từ khối quái của `s2c/22`. Thông số học được nhớ suốt phiên theo tên quái, kể cả `W` của mình (`me>tên.sword`).
+- App chưa dùng bình: giá bình mặc định là vô hạn, như bot TS khi không có `--potions` (`BotOptions::potion_cost`).
+- **v1 vẫn giữ** ở `runner.rs`, không sửa dòng nào: chiến lược `kill`, kỹ năng của nick dùng ngay khi đủ nội lực, giá trị ban đầu cho kỹ năng của quái là 40 sát thương và 30 nội lực (v3 dùng 43 và 25 như bot TS). Giao diện không có chỗ chọn; `cllt fight --algo=v1` chơi v1 để so.
+- Gói kết quả không có viên rơi (kỹ năng chỉ hồi máu, `s2c/44` của bình) không còn byte xếp lại bàn và 3 byte sau đó; trước đây Rust luôn đọc 4 byte ấy, nay đọc như `battleResult` của TS, cho cả v1.
+- Kiểm bằng `npm run export:rust` rồi `cargo test` ([tests/battle_v3.rs](../../../app/core/tests/battle_v3.rs)): 69 thế cờ cho cùng danh sách hành động, cùng thứ tự, cùng điểm; 540 mô tả kỹ năng được đọc giống nhau. Ngày 31/10 thêm một lần trên mọi bàn của 119 trận đã ghi: 4865 trường hợp `best_action` và 4851 thế `bestMove` khớp hết; 47 960 lựa chọn không có cái nào sai luật ([status](../../integration/rust/status.md)).
+- Rust tính `Math.exp` như V8 trên máy arm64 (`js_exp`: `exp` của fdlibm, phần đa thức tính bằng FMA); `f64::exp` lệch ở khoảng 10% giá trị. V8 trên x86 không dùng FMA nên có thể lệch bit cuối, vì vậy vector ghi những số phụ thuộc `Math.exp` đã làm tròn (HP tới 1e-6, xác suất tới 1e-9). [Đo]
+- App chưa đánh trận thật nào với v3.
 
 **Bot biết gì trước trận:**
 
@@ -554,7 +562,7 @@ Script `plan/run-plan.ts` trong scratchpad (dùng `sim2.ts`, bot v3, HP mang san
 Mỗi trận bot đánh được ghi thành một file, để sau này hiệu chỉnh mô phỏng, dò tham số và dạy mô hình chọn nước. Hai thứ phải có: **thông tin trước trận** của cả hai bên và của bot, và **mọi gói tin của trận**. Thiếu chúng thì chỉ đếm được thắng thua. Code: [src/bot/battle-record.ts](../../../src/bot/battle-record.ts) (ghi), [src/battle/battle-data.ts](../../../src/battle/battle-data.ts) (đọc lại, phát lại). Test: [test/battle-record.test.ts](../../../test/battle-record.test.ts).
 
 - **Bot TS** (`npm run quest`) ghi mặc định vào `captures/battles/<ngày>/<giờ phút giây>-<nhân vật>-<quái>.jsonl.gz`, ví dụ `2026-10-31/161203-manina-ke-quay-pha.jsonl.gz`. `captures/` không lên git. `--record=<thư mục>` ghi chỗ khác, `--no-record` không ghi ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)).
-- **App Rust** ghi cùng các dòng này vào bảng `battle_data` của `cllt.db`, mỗi trận một dòng, khi ô **Lưu dữ liệu trận** của tab Cài đặt đang bật (mặc định bật). `cllt fight`, `cllt quest` ghi file vào `captures/battles/` như bot TS ([features](../../integration/rust/features.md#nhật-ký-và-thống-kê)). Dòng đầu của app có `bot: "app"` và `version`, không có `memory` (runner Rust chưa nhớ thông số giữa các trận); dòng `turn` chỉ có điểm nước đổi viên cho tới khi app có v3.
+- **App Rust** ghi cùng các dòng này vào bảng `battle_data` của `cllt.db`, mỗi trận một dòng, khi ô **Lưu dữ liệu trận** của tab Cài đặt đang bật (mặc định bật). `cllt fight`, `cllt quest` ghi file vào `captures/battles/` như bot TS ([features](../../integration/rust/features.md#nhật-ký-và-thống-kê)). Dòng đầu của app có `bot: "app"`, `version` và `play.algorithm` (`v3`, hay `v1` khi chạy `cllt --algo=v1`); với v3 thêm `memory`, và dòng `turn` có ba hành động điểm cao nhất như bot TS. Với v1 dòng `turn` chỉ có điểm nước đổi viên.
 - **Đọc lại:** `npm run battles` đọc `captures/battles` (cả file trận lẫn trace `CLLT_TRACE` cũ) và bảng `battle_data` của `app/cllt.db` nếu có. Lệnh in bảng theo quái và theo nguồn: số trận, thắng, thua, số nước, số trận phát lại bị lệch. `--export=<file>` ghi mỗi trận một dòng JSON (dòng đầu, kết quả, ghi chú, từng nước đã phát lại) để học.
 
 **Định dạng (bản 1).** File là gzip của các dòng JSON, theo thứ tự:

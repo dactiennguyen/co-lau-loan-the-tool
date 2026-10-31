@@ -18,6 +18,8 @@ use crate::protocol::{
 use crate::quest::{step_action, StepAction};
 use crate::requests::{build, Ctx};
 use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill, Turn};
+pub use crate::runner_v3::Algorithm;
+use crate::runner_v3::{Memory, Runner};
 use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
 use crate::world::{
     character_stats, map_boss, map_change, map_data, map_entities, notice, npc_menu,
@@ -165,7 +167,9 @@ pub struct Bot {
     /// data/maps.json and what this session has seen since.
     atlas: Atlas,
     options: BotOptions,
-    battle: Option<BattleRunner>,
+    battle: Option<Runner>,
+    /// What the v3 battles of this session taught about each side (BattleIo.memory of the TS side).
+    battle_memory: Memory,
     target: Option<Mob>,
     waits: u32,
     timer: Option<(Instant, Wake)>,
@@ -251,6 +255,7 @@ impl Bot {
             atlas: (*atlas).clone(),
             options,
             battle: None,
+            battle_memory: Memory::default(),
             target: None,
             waits: 0,
             timer: None,
@@ -320,15 +325,15 @@ impl Bot {
             s.turn = self.turn_of(b);
         }
         s.battle = self.battle.as_ref().map(|b| BattleView {
-            mob_id: b.mob_id.clone(),
-            mob_name: self.mob_name(&b.mob_id),
-            hp: b.me.hp,
-            max_hp: b.me.max_hp,
-            mob_hp: Some(b.mob.hp).filter(|v| v.is_finite()),
-            mob_max_hp: Some(b.mob.max_hp).filter(|v| v.is_finite()),
-            turns: b.turns,
-            timed: b.timed,
-            leaving: b.leaving,
+            mob_id: b.mob_id().to_string(),
+            mob_name: self.mob_name(b.mob_id()),
+            hp: b.me().hp,
+            max_hp: b.me().max_hp,
+            mob_hp: Some(b.mob().hp).filter(|v| v.is_finite()),
+            mob_max_hp: Some(b.mob().max_hp).filter(|v| v.is_finite()),
+            turns: b.turns(),
+            timed: b.timed(),
+            leaving: b.leaving(),
         });
         s
     }
@@ -389,9 +394,9 @@ impl Bot {
     }
 
     /// The last result of `b`, with the mob's name.
-    fn turn_of(&self, b: &BattleRunner) -> Option<Turn> {
-        let foe = self.mob_name(&b.mob_id);
-        b.last.clone().map(|t| Turn { foe, ..t })
+    fn turn_of(&self, b: &Runner) -> Option<Turn> {
+        let foe = self.mob_name(b.mob_id());
+        b.last().cloned().map(|t| Turn { foe, ..t })
     }
 
     /// Bosses of the current map: seen in this session, or in data/maps.json.
@@ -528,7 +533,7 @@ impl Bot {
         }
         if self.leave_until.is_some_and(|t| t <= now) {
             self.leave_until = None;
-            if let Some(b) = self.battle.as_mut().filter(|b| b.leaving) {
+            if let Some(b) = self.battle.as_mut().filter(|b| b.leaving()) {
                 let mut acts = vec![];
                 b.resume(now, &mut acts);
                 out.push(Out::Log(

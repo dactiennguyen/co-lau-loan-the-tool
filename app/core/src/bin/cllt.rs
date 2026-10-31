@@ -7,7 +7,9 @@
 //                                                       --no-pickup turns off Tự nhặt đồ (the own drops of a won battle)
 //                                                       fight and quest keep each battle as captures/battles/<day>/
 //                                                       <time>-<character>-<mob>.jsonl.gz of the repository, as the TS
-//                                                       bot does (UTC day and time); --no-record keeps none
+//                                                       bot does (UTC day and time); --no-record keeps none.
+//                                                       Battles play v3, the app's algorithm; --algo=v1 plays the v1
+//                                                       kept for comparison (runner.rs, BotOptions::algorithm)
 //   cllt skill --account=NAME [--id=1001]               print the skill tree; with --id, Nâng cấp that skill once
 //                                                       (c2s/1191, spends skill points), print the tree again
 //   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT | --discard=SLOT | --sort]
@@ -297,11 +299,20 @@ fn main() {
     let auto_repair = args.iter().any(|a| a == "--auto-repair");
     let no_pickup = args.iter().any(|a| a == "--no-pickup");
     let no_record = args.iter().any(|a| a == "--no-record");
+    let algorithm = match args.iter().find_map(|a| a.strip_prefix("--algo=")) {
+        None | Some("v3") => cllt_core::bot::Algorithm::V3,
+        Some("v1") => cllt_core::bot::Algorithm::V1,
+        Some(other) => {
+            eprintln!("--algo: v1 hay v3, không có {other}");
+            std::process::exit(2);
+        }
+    };
     for (id, a) in &chosen {
         let mut a = a.clone();
         a.fight.repair |= auto_repair && fight;
         a.fight.pickup &= !no_pickup;
         a.fight.record &= !no_record;
+        a.algorithm = algorithm;
         manager.login(*id, a);
     }
     let mut snaps: Vec<Snapshot> = vec![Snapshot::default(); chosen.len()];

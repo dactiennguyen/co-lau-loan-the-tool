@@ -29,6 +29,10 @@ pub struct Account {
     /// The proxy the session connects through while `enabled`; set in the add and edit form, which tests it first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy: Option<Proxy>,
+    /// The battle algorithm of the session: v3, the app's. Never read from or written to accounts.json; only
+    /// `cllt fight --algo=v1` sets v1, to compare (BotOptions::algorithm).
+    #[serde(skip)]
+    pub algorithm: crate::bot::Algorithm,
 }
 fn default_server() -> i32 {
     crate::opcodes::SERVER_ID
@@ -96,6 +100,7 @@ pub fn from_env(path: &Path) -> Option<Account> {
         stats: None,
         fight: FightSettings::default(),
         proxy: None,
+        algorithm: Default::default(),
     })
 }
 
@@ -131,6 +136,7 @@ mod tests {
                 username: "bot".into(),
                 password: "pw".into(),
             }),
+            algorithm: Default::default(),
         };
         save(&path, std::slice::from_ref(&account)).unwrap();
         assert_eq!(load(&path).unwrap(), vec![account]);

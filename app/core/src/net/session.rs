@@ -95,6 +95,7 @@ pub(super) async fn session(
     let mut proto = Protocol::default();
     proto.push(&early[have..]);
     let options = BotOptions {
+        algorithm: account.algorithm,
         skill: account.skill,
         stats: account.stats,
         fight: account.fight,

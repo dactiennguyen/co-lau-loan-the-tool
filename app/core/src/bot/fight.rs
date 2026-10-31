@@ -58,12 +58,12 @@ impl Bot {
     /// either in 8 s it is played on (`surrender` of QuestBot).
     pub(super) fn surrender(&mut self, now: Instant, out: &mut Vec<Out>) {
         let map_id = self.snap.map_id.clone();
-        let Some(b) = self.battle.as_mut().filter(|b| !b.leaving) else {
+        let Some(b) = self.battle.as_mut().filter(|b| !b.leaving()) else {
             return;
         };
         let mut acts = vec![];
         b.leave(&map_id, &mut acts);
-        let mob = b.mob_id.clone();
+        let mob = b.mob_id().to_string();
         let name = self
             .mobs
             .iter()
@@ -81,16 +81,16 @@ impl Bot {
     /// The battle surrendered is over: s2c/1214 or s2c/36 after c2s/40, even later than the 8 s wait (the server took it
     /// then). A job or quest run started meanwhile goes on. False when this battle was never surrendered.
     pub(super) fn left(&mut self, by: i32, now: Instant, out: &mut Vec<Out>) -> bool {
-        if !self.battle.as_ref().is_some_and(|b| b.surrendered) {
+        if !self.battle.as_ref().is_some_and(|b| b.surrendered()) {
             return false;
         }
         if let Some(b) = &self.battle {
-            let damage = match (b.mob.max_hp - b.mob.hp).max(0.0) {
+            let damage = match (b.mob().max_hp - b.mob().hp).max(0.0) {
                 d if d.is_finite() => d as i32,
                 _ => 0,
             };
-            let mut record = self.record(&b.mob_id, BattleResult::Left, b.turns, damage, 0, 0);
-            record.hp_after = b.me.hp as i32;
+            let mut record = self.record(b.mob_id(), BattleResult::Left, b.turns(), damage, 0, 0);
+            record.hp_after = b.me().hp as i32;
             out.push(Out::Battle(record));
         }
         self.record_end(serde_json::json!({ "left": format!("s2c/{by}") }), now);
@@ -334,15 +334,22 @@ impl Bot {
             )));
         }
         (self.snap.hp, self.snap.max_hp) = (setup.hp, setup.max_hp);
-        let runner = BattleRunner::new(
-            &setup,
-            &mob_id,
-            RunnerOptions {
-                skill: self.options.skill,
-                strategy: self.options.strategy.clone(),
-                timed_move: self.options.timed_move,
-            },
-        );
+        let runner = match self.options.algorithm {
+            Algorithm::V1 => Runner::V1(Box::new(BattleRunner::new(
+                &setup,
+                &mob_id,
+                RunnerOptions {
+                    skill: self.options.skill,
+                    strategy: self.options.strategy.clone(),
+                    timed_move: self.options.timed_move,
+                },
+            ))),
+            Algorithm::V3 => Runner::V3(Box::new(crate::runner_v3::BattleRunner::new(
+                &setup,
+                &mob_id,
+                self.runner_options(mob_block(payload, &mob_id)),
+            ))),
+        };
         let mut acts = vec![];
         runner.start(&mut acts);
         (self.battle, self.snap.turn) = (Some(runner), None);
@@ -362,5 +369,47 @@ impl Bot {
         self.record_start(payload, &setup.uuid, &mob_id, now, out);
         self.apply(acts, now, out);
         Ok(())
+    }
+
+    /// What a v3 battle plays with (onSetup and battleSkills of QuestBot): the learnt skills of the s2c/30 tree at their
+    /// levels, only the account's skill when it names one, and the potions of the bag, for best_action; without the
+    /// tree, v2 with the account's skill. Tấn công and level give the damage per sword before the first hit, the mob
+    /// block of s2c/22 its HP, and the memory what the earlier battles of the session learnt.
+    fn runner_options(
+        &self,
+        mob: Option<crate::battle::MobBlock>,
+    ) -> crate::runner_v3::RunnerOptions {
+        use crate::battle_actions::{learnt_skills, potion_effect, Potion};
+        let s = &self.snap;
+        let skills = (!s.skills.is_empty()).then(|| {
+            let learnt = learnt_skills(&s.skills, &s.skill_levels);
+            match self.options.skill {
+                Some(k) => learnt.into_iter().filter(|e| e.id == k.id).collect(),
+                None => learnt,
+            }
+        });
+        let potions = s
+            .bag
+            .iter()
+            .flat_map(|b| &b.items)
+            .filter(|i| potion_effect(i.item_id).is_some() && i.quantity > 0)
+            .map(|i| Potion {
+                slot: i.slot as i32,
+                item_id: i.item_id,
+                quantity: i.quantity,
+            })
+            .collect();
+        crate::runner_v3::RunnerOptions {
+            skill: self.options.skill,
+            skills,
+            potions,
+            potion_cost: self.options.potion_cost,
+            attack: s.combat.map(|c| c[0]),
+            level: s.level,
+            mob,
+            memory: Arc::clone(&self.battle_memory),
+            strategy: Strategy::win(),
+            timed_move: self.options.timed_move,
+        }
     }
 }

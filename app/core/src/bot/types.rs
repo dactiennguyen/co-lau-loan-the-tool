@@ -210,8 +210,17 @@ pub fn add_picked(list: &mut Vec<Picked>, item: &Picked) {
 
 #[derive(Debug, Clone)]
 pub struct BotOptions {
+    /// The battle algorithm: v3 (runner_v3.rs) in the app; v1 (runner.rs, as the app played before v3) only for
+    /// comparison, `cllt fight --algo=v1`.
+    pub algorithm: Algorithm,
+    /// The account's skill (accounts.json): v1 casts it as soon as nội lực pays for it; v3 with the skill tree casts no
+    /// other learnt skill, without the tree it casts it when cast_skill says so (v2).
     pub skill: Option<Skill>,
+    /// The move search of v1 (Q20 `kill`). v3 plays Strategy::win(): the mob as it really plays and a look past an
+    /// extra turn (07-auto-battle.md#thuật-toán-v2).
     pub strategy: Strategy,
+    /// v3: what one potion of the bag costs in HP for best_action; None (the default) never uses one.
+    pub potion_cost: Option<f64>,
     pub timed_move: Duration,
     pub rest: Duration,
     /// How potential points are spent on their own (Bot::set_stats).
@@ -222,8 +231,10 @@ pub struct BotOptions {
 impl Default for BotOptions {
     fn default() -> Self {
         Self {
+            algorithm: Algorithm::default(),
             skill: None,
             strategy: Strategy::kill(),
+            potion_cost: None,
             timed_move: Duration::from_millis(1000),
             rest: Duration::from_secs(3),
             stats: None,

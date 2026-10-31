@@ -84,7 +84,7 @@ impl Bot {
 
     /// The first line of the battle data, as recordHeader of src/bot/quest.ts: the character (element as code and name: 1
     /// Hỏa, 2 Lôi, 4 Thủy), its stats, skills, gear and potions, the mob of the s2c/22 block, the map, and how the bot
-    /// plays. The runner keeps nothing from battle to battle, so there is no `memory`.
+    /// plays (algorithm, strategy; for v3 the potion cost and `memory`, what the session learnt, as the TS bot).
     fn record_header(&self, payload: &[u8], mob_id: &str) -> Value {
         let s = &self.snap;
         let element = |e: Option<i32>| {
@@ -114,6 +114,19 @@ impl Bot {
             .as_ref()
             .map(|m| m.name.clone())
             .or_else(|| known.map(|m| m.name.clone()));
+        // What the battle plays (on_setup): v1 the account's search, v3 `win` with what the session learnt.
+        let algorithm = self.options.algorithm;
+        let strategy = match algorithm {
+            Algorithm::V1 => self.options.strategy.clone(),
+            Algorithm::V3 => Strategy::win(),
+        };
+        let memory: Option<serde_json::Map<String, Value>> =
+            (algorithm == Algorithm::V3).then(|| {
+                let m = self.battle_memory.lock().unwrap_or_else(|e| e.into_inner());
+                m.iter()
+                    .map(|(k, &(sum, n))| (k.clone(), json!([sum, n])))
+                    .collect()
+            });
         json!({
             "bot": "app",
             "version": env!("CARGO_PKG_VERSION"),
@@ -141,14 +154,19 @@ impl Bot {
             "map": s.map_id,
             "zone": s.zone,
             "play": {
+                "algorithm": algorithm.key(),
                 "strategy": {
-                    "extraTurn": self.options.strategy.extra_turn,
-                    "reply": self.options.strategy.reply,
-                    "bonus": self.options.strategy.bonus,
+                    "extraTurn": strategy.extra_turn,
+                    "reply": strategy.reply,
+                    "bonus": strategy.bonus,
+                    "mobModel": format!("{:?}", strategy.mob_model).to_lowercase(),
+                    "lookahead": strategy.lookahead,
                 },
                 "skill": self.options.skill.map(|k| json!({ "id": k.id, "cost": k.cost })),
+                "potionCost": self.options.potion_cost.filter(|_| algorithm == Algorithm::V3),
                 "source": self.battle_source.key(),
             },
+            "memory": memory,
         })
     }
 }

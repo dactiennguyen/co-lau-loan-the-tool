@@ -32,7 +32,9 @@ app/
                             nhiệm vụ (39, 34, 35)
     src/battle.rs           ← src/battle/battle.ts: bàn 8×8, cascade, bestMove, gói trận, khối quái của s2c/22 (mob_block)
     src/battle_record.rs    ← src/bot/battle-record.ts: Lưu dữ liệu trận, các dòng của một trận nén gzip (BattleData)
-    src/runner.rs           ← src/battle/battle-runner.ts: một trận, học thông số hai bên
+    src/runner.rs           v1: một trận như app chơi trước v3 (`kill`), giữ lại để so (`cllt --algo=v1`)
+    src/runner_v3.rs        ← src/battle/battle-runner.ts: một trận với v3, học và nhớ thông số hai bên; Runner, Algorithm
+    src/battle_actions.rs   ← src/battle/battle-actions.ts: chọn hành động mỗi lượt trong số đổi viên, kỹ năng, bình (v3)
     src/quest.rs            ← stepAction của src/bot/quest.ts: bước nhiệm vụ đòi làm gì
     src/items.rs            vật phẩm: bản ghi món, túi, trang bị, độ bền (s2c/36), đồ rơi trên đất (1182, 1183, 51)
     src/skills.rs           ← src/protocol/skills.ts: cây kỹ năng, kỹ năng nhân vật
@@ -59,6 +61,7 @@ app/
     src/accounts.rs         accounts.json, .env
     src/bin/cllt.rs         CLI không giao diện: status, fight, quest
     tests/parity.rs         so với vectors.json
+    tests/battle_v3.rs      thuật toán v2 và v3 so với phần battleV3 của vectors.json
     tests/vectors.json      sinh từ TS
   desktop/                project Tauri 2 (cấu trúc của create-tauri-app, template react-ts)
     package.json            dev, build (tsc && vite build), tauri, app, sample

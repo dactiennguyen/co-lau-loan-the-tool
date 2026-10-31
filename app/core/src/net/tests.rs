@@ -228,6 +228,7 @@ async fn login_via(
         stats: None,
         fight: Default::default(),
         proxy,
+        algorithm: Default::default(),
     };
     let emit: Emit = Arc::new(move |e| sink.lock().unwrap().push(e));
     let task = tokio::spawn(run_at(

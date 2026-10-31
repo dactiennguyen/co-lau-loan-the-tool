@@ -13,6 +13,10 @@ import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterSta
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from '../battle/battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from '../bot/atlas.ts';
 import { QuestBot, stepAction } from '../bot/quest.ts';
+// The v2 search and the v3 choice of an own turn (battleV3 below).
+import { readFileSync } from 'node:fs';
+import { UNKNOWN, mobMoveOdds, answerValue, castSkill, mobBlock, battleItemResult, type Board, type Strategy } from '../battle/battle.ts';
+import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from '../battle/battle-actions.ts';
 import { fixtures } from '../../test/fixtures.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 
@@ -24,8 +28,8 @@ const response = (stage: number, opcode: number) => fixtures.scenario.stages[sta
 /** Bosses and battle setups have no capture with every byte; these are built in the layout of world.ts and battle.ts. */
 const bossGone = new Writer().string('M1').u8(1).string('mob86100001').build();
 const setupBoard = fixtures.battles[0].board as number[];
-const setup = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(0).i32(21).i32(0).u8(0).i32(150).i32(180)
-  .string('mob61000').string('Cóc Xanh').i32(13).i32(249).i32(249)
+const setup = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(1).i32(21).i32(0).u8(0).i32(150).i32(180)
+  .string('mob61000').string('Cóc Xanh').u8(1).u8(0).u8(4).i32(13).i32(100000).u8(0).i32(249).i32(249)
   .string('3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e').i32(64).bytes(Buffer.alloc(0)).build();
 const setupPacket = Buffer.concat([setup.subarray(0, setup.length - 4), Buffer.from(setupBoard), Buffer.from([30, 0])]);
 
@@ -275,6 +279,99 @@ function bestMoves() {
   return out;
 }
 
+type Tree = { id: number; name: string; levels: { level: number; description: string; mana: number }[] }[];
+
+/** What the Rust app plays since the v3 port (07-auto-battle.md#thuật-toán-v2, #chọn-hành-động): skillEffect on every
+ * level of the three trees of data/skills.json, Math.exp as the mob's odds use it, mobMoveOdds, answerValue, bestMove with
+ * win and farm, castSkill, destroyPatterns on a fixed generator, and bestAction on the replayed positions with sides,
+ * skills, potions and buffs varied by position, plus the cases of test/battle-actions.test.ts; then the heal and potion
+ * packets, the mob block of s2c/22 and c2s/44. Math.exp itself is checked by a unit test of battle.rs. */
+function battleV3() {
+  const trees = JSON.parse(readFileSync(new URL('../../data/skills.json', import.meta.url), 'utf8')).trees as Record<string, Tree>;
+  const every = Object.values(trees).flat();
+  const effect = (id: number, level: number) => {
+    const k = every.find(x => x.id === id)!, l = k.levels[level - 1];
+    return skillEffect(id, level, l.description, l.mana, k.name);
+  };
+  // What depends on Math.exp (the mob's odds of win and farm) is rounded: V8 on x86 (CI) computes it without the FMA of
+  // arm64, a last bit apart, and the file must come out the same on both. HP to 1e-6, odds to 1e-9.
+  const hp = (x: number) => Number(x.toFixed(6)), odd = (x: number) => Number(x.toFixed(9));
+  const finite = (f: Fighter) => ({ ...f, hp: Number.isFinite(f.hp) ? f.hp : null, maxHp: Number.isFinite(f.maxHp) ? f.maxHp : null });
+  const positions = battles().flatMap(b => [b.board, ...b.steps.map(s => s.board)]) as Board[];
+  const timed = (s: Strategy): Strategy => ({ ...s, reply: 0, extraTurn: 0, lookahead: 0 });
+  const strategies: Strategy[] = [STRATEGIES.win, STRATEGIES.farm, timed(STRATEGIES.win), { ...STRATEGIES.win, lookahead: 0.5 }, STRATEGIES.kill, STRATEGIES.exp, { ...STRATEGIES.farm, reply: 0.5 }];
+  // Both sides by position: own HP, nội lực and power across their range, the mob near death, full or unknown.
+  const side = (i: number) => {
+    const me = fighter(20 + (i * 41) % 160, 180, { s1: [0, 24, 25, 30, 49, 50, 60, 75, 80, 100][i % 10], s2: i % 7 === 0 ? 100 : (i * 13) % 100,
+      sword: [8, 25 / 3, 10.4, 12][i % 4], heart: [5.45, 3.33][i % 2], yinyang: [2, 2.3][i % 2], peach: [4.4, 5][i % 2], skillCost: 25, skillDamage: 59 });
+    const mob = i % 6 === 5 ? { ...unknownMob(), s1: 30, skillCost: 25, skillDamage: 43 }
+      : fighter([30, 65, 120, 202, 249][i % 5], 249, { sword: [3.33, 10.9, 12][i % 3], heart: 6.2, yinyang: 3.45, peach: 5, s1: [0, 30, 25, 10][i % 4], s2: (i * 29) % 100, skillCost: 25, skillDamage: [43, 59][i % 2] });
+    return { me, mob };
+  };
+  const lcg = (seed: number) => { let x = seed; return () => (x = (x * 16807) % 2147483647) / 2147483647; };
+
+  const effects = every.flatMap(k => k.levels.map(l => skillEffect(k.id, l.level, l.description, l.mana, k.name)));
+  const odds = positions.filter((_, i) => i % 6 === 0).map(board => ({ board, moves: mobMoveOdds(board).map(m => ({ move: m.move, p: odd(m.p), cleared: m.outcome.cleared, extraTurn: m.outcome.extraTurn })) }));
+  const answers = positions.map((board, i) => {
+    const { me, mob } = side(i);
+    return { board, me: finite(me), mob: finite(mob), best: hp(answerValue(board, mob, me, STRATEGIES.kill)), odds: hp(answerValue(board, mob, me, STRATEGIES.win)) };
+  });
+  const moves = positions.map((board, i) => {
+    const { me, mob } = side(i), strategy = strategies[i % strategies.length], p = bestMove(board, me, mob, strategy);
+    return { board, me: finite(me), mob: finite(mob), strategy, move: p && p.move, score: p && hp(p.score) };
+  });
+  const casts = positions.filter((_, i) => i % 2 === 0).map((board, i) => {
+    const { me, mob } = side(i * 2), strategy = strategies[i % strategies.length], p = bestMove(board, me, mob, strategy);
+    return { board, me: finite(me), mob: finite(mob), strategy, cases: [p?.score ?? null, null, 0, 40, 1e4, -50].map(x => [x, castSkill(board, me, mob, strategy, x)]) };
+  });
+  const patterns = every.flatMap(k => [1, 20].map(level => ({ id: k.id, level, seed: k.id + level, patterns: destroyPatterns(effect(k.id, level), lcg(k.id + level), 3) })));
+  const learnt = ([['4', [[4000, 2], [4001, 1], [4002, 0]]], ['1', [[1000, 4], [1001, 1], [1003, 25], [1004, -1]]]] as [string, [number, number][]][])
+    .map(([element, levels]) => ({ element, levels, skills: learntSkills(trees[element], new Map(levels)).map(e => [e.id, e.level, e.kind, e.cost]) }));
+  const priors = [[32, 21], [23, 16], [0, 1], [50, 33]].map(([attack, level]) => [attack, level, swordPrior(attack, level)]);
+  const worths = [[[4001, 1]], [[4001, 1], [4000, 2]], [[1000, 4], [1003, 1], [1004, 1]], [[1002, 1]]].map(set => ({ sword: 8, skills: set, worth: skillWorth(8, set.map(([id, l]) => effect(id, l))) }));
+
+  // bestAction: every replayed position with one set of learnt skills, then the decisions of test/battle-actions.test.ts.
+  type Case = { name?: string; board: Board; me: Fighter; mob: Fighter; strategy: Strategy; skills: [number, number][]; potions?: Potion[]; potionCost?: number; spend?: number; buffs?: Partial<Record<'attack' | 'defense' | 'dodge', number>> };
+  const sets: [number, number][][] = [[[4000, 2], [4001, 1]], [[1000, 4], [1001, 1]], [[1002, 1], [1000, 1]], [[2000, 1], [2001, 1], [2002, 1]], [[2004, 1], [2005, 1], [2006, 1]],
+    [[1008, 1], [4002, 1], [4006, 1]], [[2008, 1], [4008, 1], [1007, 1], [2007, 1]], [[1003, 1], [1005, 1], [4003, 1], [4004, 1], [1004, 3]], [[4000, 20], [4001, 20], [1001, 20], [2008, 20]]];
+  const potionSets: Potion[][] = [[], [{ slot: 0, itemId: 0, quantity: 4 }, { slot: 7, itemId: 1, quantity: 1 }], [{ slot: 4, itemId: 0, quantity: 0 }, { slot: 9, itemId: 7, quantity: 3 }, { slot: 5, itemId: 1, quantity: 2 }]];
+  const cases: Case[] = positions.map((board, i) => {
+    const { me, mob } = side(i);
+    return { board, me, mob, strategy: strategies[i % strategies.length], skills: sets[i % sets.length], potions: potionSets[i % 3], potionCost: [300, 0, undefined, 40][i % 4],
+      spend: i % 9 === 4 ? 0.5 : undefined, buffs: i % 5 === 2 ? { attack: 2 } : i % 5 === 4 ? { defense: 1 } : undefined };
+  });
+  const two = Array<number>(N * N).fill(UNKNOWN);
+  for (const [r, c, v] of [[0, 0, 4], [0, 1, 4], [0, 2, 2], [1, 2, 4], [5, 0, 0], [5, 1, 0], [5, 2, 1], [6, 2, 0]]) two[r * N + c] = v;
+  const tiheo2 = (hp: number, s1: number, sword = 8) => fighter(hp, 150, { s1, sword, heart: 3.33, yinyang: 2.3, peach: 5 });
+  const chiHuy = (hp: number) => fighter(hp, 202, { s1: 30, sword: 3.33, skillCost: 25, skillDamage: 43 });
+  const thuy: [number, number][] = [[4000, 2], [4001, 1]], potion: Potion[] = [{ slot: 8, itemId: 0, quantity: 1 }];
+  for (const [name, me, mobHp, extra] of [['heal when the mob could end it', tiheo2(40, 50), 200, {}], ['swap at 60 HP', tiheo2(60, 50), 200, {}], ['cast at 80 nội lực', tiheo2(60, 80), 200, {}],
+    ['nothing charged', tiheo2(60, 50), 200, { spend: 0 }], ['the skill likely kills', tiheo2(150, 25), 30, {}], ['no nội lực', tiheo2(150, 24), 30, {}],
+    ['no potion cost', tiheo2(40, 0), 200, { potions: potion }], ['a potion at 300', tiheo2(40, 0), 200, { potions: potion, potionCost: 300 }], ['no threat', tiheo2(100, 0), 200, { potions: potion, potionCost: 300 }],
+    ['heal charged at 60', tiheo2(100, 60), 200, {}], ['heal free at 80', tiheo2(100, 80), 200, {}], ['timed heal', tiheo2(100, 60), 200, { strategy: timed(STRATEGIES.win) }],
+    ['a buff that keeps the turn', tiheo2(150, 75, 12), 200, { skills: [[1002, 1]] }], ['the buff lasts', tiheo2(150, 75, 12), 200, { skills: [[1002, 1]], buffs: { attack: 2 } }]] as [string, Fighter, number, Partial<Case>][])
+    cases.push({ name, board: two, me, mob: chiHuy(mobHp), strategy: STRATEGIES.win, skills: thuy, ...extra });
+  const actions = cases.map(c => {
+    const skills = c.skills.map(([id, l]) => effect(id, l)), me = { ...c.me, ...skillWorth(c.me.sword, skills) };
+    const { all } = bestAction(c.board, me, c.mob, c.strategy, { skills, potions: c.potions, potionCost: c.potionCost, spend: c.spend, buffs: c.buffs });
+    return { name: c.name ?? null, board: c.board, me: finite(me), mob: finite(c.mob), strategy: c.strategy, skills: c.skills, potions: c.potions ?? [], potionCost: c.potionCost ?? null,
+      spend: c.spend ?? null, buffs: c.buffs ?? null, all: all.map(a => ({ label: a.label, action: a.action, score: hp(a.score) })) };
+  });
+
+  // A proper mob block behind a decoy without its length prefix; the s2c/20 of Hàn Lưu Thánh Thủy and the s2c/44 of P5.
+  const block = new Writer().u8(1).string('xmob61000').string('mob61000').string('Cóc Xanh').u8(0).u8(1).u8(2).i32(13).i32(7).u8(0).i32(201).i32(249).string('tail').build();
+  const heal = '0000000700000000c85e76ba00000fa100000000000000000000000000000000000000000100000008547475616e616e68ffffffff000000002200000000ffffffff0000000100000008547475616e616e6800';
+  const item = '0000000100000000fafab599000000000000000400000000000000000100000008547475616e616e68ffffffff0000000043ffffffffffffffff0000000100000008547475616e616e6800';
+  const battleUuid = 'f88a4c00-bcb7-49bf-8a30-93e3dbbff9ca';
+  return {
+    effects, odds, answers, moves, casts, patterns, learnt, priors, worths, actions,
+    mobBlocks: ([[block, 'mob61000'], [block, 'mob99'], [setupPacket, 'mob61000']] as [Uint8Array, string][]).map(([p, id]) => ({ hex: hex(p), id, expected: mobBlock(p, id) ?? null })),
+    healResult: { hex: heal, expected: battleResult(new Reader(bytes(heal)), 20) },
+    itemResult: { hex: item, expected: battleItemResult(new Reader(bytes(item))) },
+    request44: { ctx: { battleUuid, slot: 4 }, hex: hex(buildRequest(44, { battleUuid, slot: 4 })) },
+  };
+}
+
 /** Indented JSON with every innermost array or object on one line (a board, a unit), as atlasJson does. */
 const oneLineInner = (v: unknown) => JSON.stringify(v, null, 1).replace(/[[{][^[\]{}]*[\]}]/g, s => s.replace(/\s*\n\s*/g, ' ')) + '\n';
 
@@ -293,6 +390,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
+    battleV3: battleV3(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }

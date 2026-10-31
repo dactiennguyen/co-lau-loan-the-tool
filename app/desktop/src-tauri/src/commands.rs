@@ -329,6 +329,7 @@ fn form(
         stats: None,
         fight: Default::default(),
         proxy: proxy.map(ProxyForm::proxy).transpose()?.flatten(),
+        algorithm: Default::default(),
     })
 }
 

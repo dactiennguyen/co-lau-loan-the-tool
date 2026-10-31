@@ -128,6 +128,12 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .i32(required(c.seq, "seq")?)
             .i32(required(c.skill, "skill")?)
             .build(),
+        // An item of the bag used in battle (P5): Túi đồ in the battle, then the item, sqlq.g76(slot, 0).
+        44 => w
+            .string(required(c.battle_uuid, "battleUuid")?)
+            .i32(0)
+            .i32(required(c.slot, "slot")?)
+            .build(),
         19 => {
             let m = required(c.mv, "move")?;
             w.string(required(c.battle_uuid, "battleUuid")?)

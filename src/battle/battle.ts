@@ -114,8 +114,9 @@ export interface Strategy { extraTurn: number; reply: number; bonus: Partial<Rec
 /** `kill` ends battles soonest; `exp` also collects drops, stars and gold on the way. `win` and `farm` are the same goals
  * with the mob as it really plays (MOB_AI) and a look at the move after an extra turn. In the simulator of
  * 07-auto-battle.md#thuật-toán-v2 (manina 174 HP against Cóc Xanh, HP carried from battle to battle, 12 hours) `win`
- * won 61.1 battles an hour against 55.5 for `kill`, and `farm` made 7728 EXP an hour against 5806. The Rust bot
- * (app/core) still plays `kill`/`exp` (the Q20 search); export-rust checks those two. */
+ * won 61.1 battles an hour against 55.5 for `kill`, and `farm` made 7728 EXP an hour against 5806. The Rust app
+ * (app/core) plays `win` with bestAction (v3, runner_v3.rs); its v1 (runner.rs, `kill`) stays for comparison. export-rust
+ * checks all four. */
 export const STRATEGIES: Record<'kill' | 'exp' | 'win' | 'farm', Strategy> = {
   kill: { extraTurn: 10, reply: 1, bonus: {} },
   exp: { extraTurn: 10, reply: 1, bonus: { 4: 2, 5: 4, 0x46: 1 } },
