@@ -377,6 +377,8 @@ Mỗi lượt bot so ba loại hành động trên cùng một thang điểm, t�
 
 Code ở `bestAction` trong [src/battle/battle-actions.ts](../../../src/battle/battle-actions.ts). `BattleRunner` dùng nó khi biết danh sách kỹ năng. `QuestBot` tự lấy danh sách này từ bảng kỹ năng và túi đồ. Tham số dòng lệnh: `--skills` (mặc định `auto`) và `--potions` ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)). Không có bảng kỹ năng thì bot chơi như v2 với `--skill`. Test: [test/battle-actions.test.ts](../../../test/battle-actions.test.ts).
 
+**App Rust chưa có v3 (31/10).** App desktop (`app/core`) vẫn chơi `kill` của Q20 và chỉ dùng kỹ năng ghi trong `accounts.json`. Đã có một bản port v3 sang Rust (`battle_actions.rs`, phần v2 trong `battle.rs`, `runner.rs`), kiểm bằng `export:rust`: 69 thế cờ cho cùng hành động và cùng điểm với bot TS. Bản này nằm ở nhánh `worktree-agent-aaefeb9b02a4e9b60` (gốc `c973520`), chưa gộp vào main vì main đã tách `src/` thành `src/battle`, `src/bot`… sau đó, và chưa đánh trận thật nào. [Đo trên vector]
+
 **Bot biết gì trước trận:**
 
 | Dữ liệu | Lấy từ | Dùng làm gì |

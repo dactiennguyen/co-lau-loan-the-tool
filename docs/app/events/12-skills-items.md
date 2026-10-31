@@ -12,6 +12,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2; từ P
 - **K3**: bot TS với Tiheo2 (nhân vật Ttuananh, hệ Thủy cấp 15, M1): vứt viên Đá cấp 2 nhặt được từ đất ([Vứt bỏ](#vứt-bỏ)); phần nhặt đồ ở [13](13-drops-items.md#k3).
 - **P5**: điện thoại với Tiheo2, Frida ghi mọi gói: tới Lái Buôn (M1, đổi sang khu 2 vì khu 0 đông người che NPC), mở Dược phẩm, mua 1 Hoàn Linh Dược bằng Xu khóa, rồi dùng nó trong trận với Sơn Tặc ([Mua ở Lái Buôn](#c2s-1190), [Dùng trong trận](#c2s-44)).
 - **B1**: bot TS với manina (cấp 21, ngày 31/10), `npm run buy`: mở cửa hàng Lái Buôn từ M2 rồi từ M1, mua 1 Búa Sửa Chữa bằng 80 Xu khóa ([Mua bằng bot TS](#mua-bằng-bot)).
+- **I1** (31/10): điện thoại với Tiheo2 (Ttuananh cấp 18, M1), Frida ghi mọi gói (scratchpad `live/capture.py` với `agent-v3.js`), ADB chạm: mở Bản thân → Trang bị, bấm **Sắp xếp**, chạm Đá cấp 2 và Nhẫn Trơn để xem popup, bấm Vứt bỏ rồi **Hủy** ([Sắp xếp](#sắp-xếp)).
 
 Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts) (`skillTable`, `characterTail`, `gearUpdate`), [src/protocol/skills.ts](../../../src/protocol/skills.ts), [src/protocol/items.ts](../../../src/protocol/items.ts); hàm dựng gói ở [src/protocol/events.ts](../../../src/protocol/events.ts). Test: [test/skills.test.ts](../../../test/skills.test.ts), [test/items.test.ts](../../../test/items.test.ts), [test/quest.test.ts](../../../test/quest.test.ts).
 
@@ -27,6 +28,8 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Lấy kỹ năng và giao diện tab Kỹ năng thế nào? | Không có gói xin riêng: `s2c/30` (cây của hệ) và đuôi `s2c/9` (cấp từng kỹ năng, điểm) đến lúc đăng nhập. `npm run skills` in cả cây. Icon nằm ở `offline-a2/skill<hệ>.dat`, ảnh nền cây ở APK; repo có bản WebP ở `data/icons/skills/`. Xem [Tab Kỹ năng](#tab-kỹ-năng). [Đo] |
 | Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Mở túi trong game không gửi gói nào. `npm run bag` đăng nhập và in cả hai. Xem [Túi đồ và trang bị](#túi-đồ) và [Cách lấy](#cách-lấy-túi-đồ). [Đo] |
 | Mặc, cởi, vứt đồ bằng gói gì? | **`c2s/1186 (u8 action; i32 ô)`**: 0 mặc món ở ô túi, 1 cởi món ở ô trang bị, 2 vứt bỏ món ở ô túi. Mặc, cởi: server trả `s2c/10` kiểu 4 (chỉ số mới), `s2c/37` (8 ô trang bị), `s2c/42` (cả túi) và `s2c/1186` (P4, 2 lần). Vứt: `s2c/83 (ô; 0)`, món bị huỷ (K3). Xem [Mặc và cởi đồ](#c2s-1186), [Vứt bỏ](#vứt-bỏ). [Đo] |
+| Có nút sắp xếp túi không? | **Có**: nút "Sắp xếp" dưới túi (Bản thân → Trang bị). Nút gửi **`c2s/1257`** không có nội dung. Server dồn các món lên lấp ô trống, giữ nguyên thứ tự, rồi gửi lại cả túi bằng `s2c/1187` và một `s2c/1111` rỗng, sau 45 ms. Xem [Sắp xếp](#sắp-xếp). [Đo I1] |
+| Có nút mặc đồ tốt nhất không? | **Không.** Màn Trang bị chỉ có Sắp xếp; popup từng món chỉ có Trang bị và Vứt bỏ (đồ mặc được) hoặc Sử dụng và Vứt bỏ. Thư viện game cũng không có chuỗi nào cho việc này. Muốn có thì bot hay app tự chọn món rồi gửi `c2s/1186 (0, ô túi)` cho từng món. Món phải đúng giới tính (`gender` của [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm)): server lặng lẽ bỏ qua món sai giới tính ([Mặc và cởi đồ](#mặc-cởi)). [Đo I1] |
 | Ngôi sao xanh "x2" ở góc trái là gì? | Nhân đôi EXP thắng trận của vật phẩm **Tăng Kinh Nghiệm (mã 7)**, 24 giờ, trôi cả lúc offline. Không phải mặc định: server gửi nó trong đuôi `s2c/9` (`"ef7"`, tỉ lệ 200000, ms còn lại), chỉ nick đã dùng món mới có. Xem [x2 EXP](#x2-exp). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
 | Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, chỉ dùng được **trong trận**: nút Túi đồ → chạm bình gửi **`c2s/44 (uuidTrận; 0; ô túi)`**, P5 đo hồi +36 (31 → 67 trên 145) ([Dùng trong trận](#c2s-44)). Ngoài trận nút Sử dụng gửi `c2s/84 (i32 ô túi)` nhưng server từ chối bình: "Vật phẩm không thể sử dụng!" ([Dùng vật phẩm](#c2s-84), P4). Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
@@ -434,6 +437,8 @@ Trên máy: Bản thân → chạm món hỏng → "Sửa chữa" → hộp "B�
 
 <a id="c2s-1186"></a>
 
+<a id="mặc-cởi"></a>
+
 ## Mặc và cởi đồ: `c2s/1186` → `s2c/37`, `s2c/42`, `s2c/1186`
 
 Đo trên máy (P4, Tiheo1/symap, 31/10): Frida ghi gói, ADB chạm các nút của popup vật phẩm. Món đang mặc có nút **Cởi ra** (và **Sửa chữa** nếu có độ bền). Món trong túi có **Trang bị** và **Vứt bỏ**, hoặc **Sử dụng** và **Vứt bỏ**.
@@ -453,6 +458,8 @@ Server trả ngay, theo thứ tự [Đo 2 lần]:
 - `s2c/42`: cả túi, giống lúc đăng nhập ([Túi đồ](#túi-đồ)).
 - `s2c/1186`: `i32` lặp lại action (1 khi cởi, 0 khi mặc).
 - `s2c/1166` (trang bị của người chơi, gửi cả khu) và `s2c/1212`. `s2c/1212` cho biết thú cưng: `000001d3 0000` khi cởi, `000001d3 0001 00002454 01` khi mặc. 0x2454 = 9300 là `hìnhẢnh` của Chồn nhỏ (`pet_9300`). [Đo]
+
+**Món sai giới tính không mặc được.** Bảng vật phẩm có hai bản của nhiều món, khác nhau ở `gender` (0, 1; 2 là cả hai): Áo Hào Kiệt 147 (`gender` 0) và 217 (1), Áo Âu Lạc 502 và 509. manina mặc đồ `gender` 0 (Nón Âu Lạc 54). `cllt item --equip=9` với Áo Hào Kiệt 217 nhặt được ở H1 không đổi gì: đăng nhập lại, áo vẫn nằm ở ô túi 9 và áo cũ vẫn được mặc. Đồ nhặt từ đất có thể là bản của giới tính kia. [Đo 31/10]
 
 Đọc tĩnh hàm xử lý nút `com.g.c.sqbr.g31` (đồ thị JNI của T2), theo mã lệnh của nút [Đo tĩnh]:
 
@@ -479,6 +486,35 @@ K3 (bot TS, Tiheo2, 31/10): vứt viên Đá cấp 2 ở ô túi 4 (viên nhặt
 - Không có `s2c/1187` hay `s2c/42`: client tự xoá ô theo `s2c/83`. Đăng nhập lại thì ô 4 trống, các ô khác giữ nguyên số ô. [Đo]
 - Món bị huỷ, không rơi xuống đất: không có `s2c/1182` nào cho viên đá. [Đo]
 - `s2c/83` là opcode trước đó chưa từng thấy ([opcode-map](../opcode-map.md#unseen)). Vứt một phần của chồng nhiều món thì số thứ hai có khác 0 không: chưa thử. [Chưa rõ]
+- Trên máy (I1): bấm Vứt bỏ thì game hỏi "Bạn có chắc là muốn vứt bỏ Đá cấp 2 này không?" với hai nút OK và Hủy. Mở popup, mở hộp hỏi và bấm Hủy đều không gửi gói nào. [Đo]
+- App desktop chưa có nút Vứt bỏ hay Sắp xếp: thẻ Túi đồ chỉ có Mặc, Dùng, Cởi ra, Sửa, Cửa hàng và Mua búa ([InventoryCard.tsx](../../../app/desktop/src/views/InventoryCard.tsx)). [Đo]
+
+<a id="sắp-xếp"></a>
+
+### Sắp xếp túi: `c2s/1257` → `s2c/1187`, `s2c/1111`
+
+Trên máy: Bản thân → tab Trang bị, nút **Sắp xếp** ở góc dưới bên phải túi. Không có hộp hỏi. Hàm dựng là `sqlq.l53()`, không tham số ([bảng hàm dựng](../c2s-builders.md#bảng)).
+
+I1 (Tiheo2, 31/10). Ô túi 4 trống từ lần vứt đá ở K3:
+
+| ms | Gói | Byte | Nghĩa |
+|---:|---|---|---|
+| 0 | `c2s/1257` | (rỗng) | Bấm Sắp xếp |
+| 45 | `s2c/1187` | 633 byte, 8 món | Cả túi sau khi xếp |
+| 50 | `s2c/1111` | (rỗng) | Có lẽ báo xếp xong [Suy luận] |
+
+| | Ô túi |
+|---|---|
+| Lúc đăng nhập (`s2c/42`) | 0 Cành Gai, 1 Áo Lụa, 2 Khăn Vòng, 3 Nhẫn Trơn, 4 trống, 5 Áo Chiến, 6 Đá cấp 2, 7 Rìu Âu Lạc, 8 Hoàn Linh Dược |
+| Sau Sắp xếp (`s2c/1187`) | 0 Cành Gai, 1 Áo Lụa, 2 Khăn Vòng, 3 Nhẫn Trơn, 4 Áo Chiến, 5 Đá cấp 2, 6 Rìu Âu Lạc, 7 Hoàn Linh Dược |
+
+- Server dồn các món về đầu túi và đánh số lại ô, thứ tự cũ giữ nguyên. Ảnh chụp sau khi bấm khớp: ô trống biến mất. [Đo]
+- Đổi số ô thì mọi lệnh theo ô túi (`c2s/1186`, `c2s/84`, `c2s/44`) phải dùng số ô của `s2c/1187` mới. [Suy luận]
+- Chưa rõ: Sắp xếp có gộp các chồng cùng loại, hay xếp theo loại món khi túi lộn xộn hơn không. Lần này 8 món khác loại nên chỉ thấy dồn ô. [Chưa rõ]
+
+Popup trên máy (I1): Đá cấp 2 có "Yêu cầu cấp: 1", "Nguyên liệu nâng cấp vật phẩm", nút Sử dụng và Vứt bỏ. Nhẫn Trơn (hệ Thủy) ghi Phẩm chất Hiếm, Yêu cầu cấp 1, Độ bền 60/60, +5 sức tấn công, +10 thể lực, **"Bộ cùng hệ (0/4)"** (có lẽ thưởng khi mặc 4 món cùng hệ, [Suy luận]) và "Cần 1 búa để sửa chữa", nút Trang bị và Vứt bỏ. [Đo]
+
+Trong lúc thử, một người chơi mời giao dịch ("… mời bạn giao dịch. Bạn có muốn giao dịch không?", OK và Hủy). Bấm Hủy gửi `c2s/55` = `01; string uuid; 00` (36 ký tự uuid của lời mời); server trả `s2c/1256` "Lời mời giao dịch đã hết hạn" vì bấm muộn. [Đo 1 lần; nghĩa từng trường là Suy luận]
 
 <a id="c2s-84"></a>
 

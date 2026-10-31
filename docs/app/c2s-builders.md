@@ -152,7 +152,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1254 | a59 | (byte) | u8; u8 | có |
 | 1254 | p58 | () | u8 | có |
 | 1255 | g62 | (int) | i32 |  |
-| 1257 | l53 | static () | rỗng |  |
+| 1257 | l53 | static () | rỗng | Sắp xếp túi: server dồn ô và trả `s2c/1187`, `s2c/1111` ([12](events/12-skills-items.md#sắp-xếp), I1) |
 | 1268 | n55 | static () | u8 |  |
 
 Ghi chú:
