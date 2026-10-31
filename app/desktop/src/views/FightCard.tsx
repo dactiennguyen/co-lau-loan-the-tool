@@ -77,7 +77,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           <Button kind="primary" icon="play" disabled={account.status !== 2 || !choice.target} onClick={onStart}>
             Bắt đầu
           </Button>
-          <Button kind="danger" icon="stop" disabled={!running} onClick={onStop}>
+          <Button kind="danger" icon="stop" disabled={!running && !battle} onClick={onStop}>
             Dừng
           </Button>
         </div>

@@ -23,7 +23,8 @@ export interface Api {
   /** "Tự làm nhiệm vụ" on the current main quest; with `step`, ▶ on that step: only it, which must be the current one of
    * that quest. */
   quest(id: number, maxLosses: number, step?: QuestStepRef): Promise<void>;
-  stop(id: number): Promise<void>;
+  /** Dừng; with `surrender`, a battle in progress is left as the game's Đầu hàng does instead of played out. */
+  stop(id: number, surrender?: boolean): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -44,7 +45,7 @@ const tauri: Api = {
   logoutAll: () => invoke("logout_all"),
   fight: (id, target, count, maxLosses) => invoke("fight", { id, target, count, maxLosses }),
   quest: (id, maxLosses, step) => invoke("quest", { id, maxLosses, step: step ?? null }),
-  stop: (id) => invoke("stop", { id }),
+  stop: (id, surrender) => invoke("stop", { id, surrender: surrender ?? false }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),

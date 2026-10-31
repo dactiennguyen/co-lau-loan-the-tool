@@ -143,6 +143,7 @@ fn main_character() -> Snapshot {
             mob_max_hp: Some(249.0),
             turns: 7,
             timed: false,
+            leaving: false,
         }),
         ..Snapshot::default()
     }

@@ -107,6 +107,13 @@ pub struct BattleRunner {
     pub damage: i32,
     /// s2c/18 timed 1: no turns; the mob hits on a ~30 s timer and the player may swap any time.
     pub timed: bool,
+    /// Set by leave() until the session sees the battle end or gives up on it (resume): no move is sent, a result still
+    /// counts.
+    pub leaving: bool,
+    /// leave() was called in this battle: a late s2c/1214 still means the server took the surrender.
+    pub surrendered: bool,
+    /// The last turn passed over while leaving (seq, own turn), for resume().
+    missed: Option<(i32, bool)>,
     skill_refused: bool,
     /// Running sums behind each learnt value: (total, pieces), seeded with the default as `prior` pieces.
     seen: HashMap<(Side, Key), (f64, f64)>,
@@ -138,6 +145,9 @@ impl BattleRunner {
             skills_cast: 0,
             damage: 0,
             timed: false,
+            leaving: false,
+            surrendered: false,
+            missed: None,
             skill_refused: false,
             seen: HashMap::new(),
             options,
@@ -159,6 +169,29 @@ impl BattleRunner {
 
     pub fn start(&self, out: &mut Vec<Act>) {
         self.send(out, 18, Ctx::default());
+    }
+
+    /// Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map, then c2s/40. The session reads
+    /// the server's answer; clearing `leaving` plays on from the next turn (s2c/24, or s2c/21 in a timed battle).
+    pub fn leave(&mut self, map_id: &str, out: &mut Vec<Act>) {
+        (self.skill_wait, self.turn_wait, self.missed) = (None, None, None);
+        (self.leaving, self.surrendered) = (true, true);
+        let map = Ctx {
+            map_id: Some(map_id),
+            ..Ctx::default()
+        };
+        self.send(out, 11, map);
+        self.send(out, 40, Ctx::default());
+    }
+
+    /// Gives up a surrender the server did not take: plays the turn passed over while leaving, if one came.
+    pub fn resume(&mut self, now: Instant, out: &mut Vec<Act>) {
+        self.leaving = false;
+        match self.missed.take() {
+            Some((seq, true)) => self.my_move(seq, now, out),
+            Some((seq, false)) => self.step(seq, out),
+            None => {}
+        }
     }
 
     pub fn deadline(&self) -> Option<Instant> {
@@ -207,7 +240,9 @@ impl BattleRunner {
         match opcode {
             18 => {
                 self.timed = battle_join_ack(payload)?.timed == 1;
-                if self.timed {
+                if self.leaving {
+                    self.missed = Some((0, self.timed));
+                } else if self.timed {
                     self.my_move(0, now, out)
                 } else {
                     self.step(0, out)
@@ -216,7 +251,9 @@ impl BattleRunner {
             24 => {
                 self.turn_wait = None;
                 let t = turn_state(payload)?;
-                if t.player_turn == 1 {
+                if self.leaving {
+                    self.missed = Some((t.seq, t.player_turn == 1));
+                } else if t.player_turn == 1 {
                     self.my_move(t.seq, now, out)
                 } else {
                     self.step(t.seq, out)
@@ -357,6 +394,11 @@ impl BattleRunner {
             if u.s2 >= 0 {
                 f.s2 = u.s2 as f64;
             }
+        }
+        if !x.end && self.leaving {
+            let again = self.timed || (x.actor == self.name) == x.extra_turn;
+            self.missed = Some((x.seq, again));
+            return;
         }
         if !x.end {
             self.turn_wait = Some(if self.timed {

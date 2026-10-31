@@ -31,6 +31,13 @@ export class BattleRunner {
   private seen = new Map<string, [number, number]>();
   /** s2c/18 timed 1 (Sơn Tặc, Q6–Q9): no turns; the mob hits on a ~30 s timer (s2c/21) and the player may swap any time. */
   timed = false;
+  /** Set by leave() until the session sees the battle end or gives up on it (resume): no move is sent, a result still
+   * counts. */
+  leaving = false;
+  /** leave() was called in this battle: a late s2c/1214 still means the server took the surrender. */
+  surrendered = false;
+  /** The last turn passed over while leaving: [seq, own turn], for resume(). */
+  private missed?: [number, boolean];
   io: BattleIo;
   private skillWait?: ReturnType<typeof setTimeout>;
   /** Fallback for a turn-based battle whose s2c/24 does not come: 2 s after a result the next turn is inferred from it. */
@@ -43,16 +50,34 @@ export class BattleRunner {
 
   start() { this.io.send(18, buildRequest(18, { battleUuid: this.uuid })); }
 
+  /** Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map, then c2s/40. The session reads
+   * the server's answer, or gives up on it with resume(). */
+  leave(mapId: string) {
+    clearTimeout(this.skillWait); clearTimeout(this.turnWait); this.missed = undefined;
+    this.leaving = true; this.surrendered = true;
+    this.io.send(11, buildRequest(11, { mapId }));
+    this.io.send(40, buildRequest(40, { battleUuid: this.uuid }));
+  }
+
+  /** Gives up a surrender the server did not take: plays the turn passed over while leaving, if one came. */
+  resume() {
+    this.leaving = false;
+    const m = this.missed; this.missed = undefined;
+    if (m) { if (m[1]) this.myMove(m[0]); else this.step(m[0]); }
+  }
+
   /** Returns false for packets that are not part of the battle. */
   onPacket(opcode: number, payload: Buffer): boolean {
     switch (opcode) {
       case 18:
         this.timed = battleJoinAck(new Reader(payload)).timed === 1;
+        if (this.leaving) { this.missed = [0, this.timed]; return true; }
         if (this.timed) this.myMove(0); else this.step(0);
         return true;
       case 24: {
         clearTimeout(this.turnWait);
         const t = turnState(new Reader(payload));
+        if (this.leaving) { this.missed = [t.seq, t.playerTurn === 1]; return true; }
         if (t.playerTurn === 1) this.myMove(t.seq); else this.step(t.seq);
         return true;
       }
@@ -105,6 +130,7 @@ export class BattleRunner {
     // One line per move: what the actor cleared and what it did, for the damage and speed analysis of 10-quests.md.
     this.io.log('move', { seq: x.seq, actor: x.actor === this.name ? 'me' : 'mob', skill, cleared: o.cleared, waves: o.waves, extraTurn: x.extraTurn,
       units: x.units.map(u => [u.name === this.name ? 'me' : 'mob', u.damage, u.hp, u.s1, u.s2]) });
+    if (!x.end && this.leaving) { this.missed = [x.seq, this.timed || (x.actor === this.name) === x.extraTurn]; return; }
     if (!x.end && this.timed) { this.turnWait = setTimeout(() => this.myMove(x.seq), this.io.timedMoveMs ?? 1000); return; }
     if (!x.end) {
       const mine = x.actor === this.name, again = mine === x.extraTurn;

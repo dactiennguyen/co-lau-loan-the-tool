@@ -4,7 +4,7 @@ import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol.ts';
 import { decodeEvent } from '../src/events.ts';
 import { QuestBot, stepAction } from '../src/quest.ts';
-import { mapPacket, noticePacket } from './support/packets.ts';
+import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 
 const q: Record<string, string> = fixtures.quest;
 const mp: Record<string, string> = fixtures['map-packets'];
@@ -190,4 +190,64 @@ test('quest bot: --max-losses lets a kill step go on after a lost battle, and st
   assert.deepEqual([events.includes('stop'), events.includes('kill_counted'), bot.quest.progress], [false, false, 2]); // a loss kills nothing
   (bot as any).onBattleEnd(loss);
   assert.equal(events.at(-1), 'stop');
+});
+
+/** s2c/22 against Cóc Xanh (mob61000) in the layout of battle.ts, with a captured board (as src/export-rust.ts builds it);
+ * battleSetup reads the uuid from a tail of fixed length, so it has the 36 characters of a real one. */
+const UUID = '3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e';
+const cocXanhSetup = () => {
+  const setup = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(0).i32(21).i32(0).u8(0).i32(150).i32(180)
+    .string('mob61000').string('Cóc Xanh').i32(13).i32(249).i32(249).string(UUID).i32(64).bytes(Buffer.alloc(0)).build();
+  return Buffer.concat([setup.subarray(0, setup.length - 4), Buffer.from(fixtures.battles[0].board as number[]), Buffer.from([30, 0])]);
+};
+const bp: Record<string, string> = fixtures['battle-packets'];
+/** A QuestBot in M2 with --surrender-after=1, in a Cóc Xanh battle where its first swap has just gone out. */
+const surrendering = () => {
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, surrenderAfter: 1, log: e => events.push(e) });
+  bot.api = recorder(sent);
+  bot.onPacket(29, new Writer().string('manina').string('M2').i32(0).build());
+  bot.onPacket(43, mobsPacket('M2', [['mob61000', 'Cóc Xanh', 13]]));
+  bot.onPacket(22, cocXanhSetup());
+  bot.onPacket(18, Buffer.from(bp['s2c/18'], 'hex'));
+  bot.onPacket(24, Buffer.from(bp['s2c/24 own turn'], 'hex'));
+  return { bot, sent, events };
+};
+
+test('quest bot: --surrender-after leaves with c2s/11 then c2s/40, moves no more, reloads the map, and stops on s2c/1214', () => {
+  const { bot, sent, events } = surrendering();
+  assert.deepEqual(sent.map(s => s.opcode), [18, 14, 19, 11, 40]);
+  assert.deepEqual(sent.slice(-2).map(s => s.hex), [new Writer().string('M2').u8(-1).i32(-1).build().toString('hex'), new Writer().string(UUID).build().toString('hex')]);
+  bot.onPacket(24, Buffer.from(bp['s2c/24 mob turn'], 'hex'));
+  assert.equal(sent.length, 5, 'no step request while leaving');
+  // The order of the game's Đầu hàng (06-map-mobs): s2c/11, then c2s/43; s2c/10; s2c/1214.
+  bot.onPacket(11, mapPacket('M2', 'Trại Vân Sơn', []));
+  assert.deepEqual(sent.at(-1), { opcode: 43, hex: new Writer().string('M2').build().toString('hex') });
+  assert.ok(bot.battle?.leaving, 's2c/11 answers our c2s/11, it does not end the battle');
+  bot.onPacket(1214, Buffer.alloc(0));
+  assert.equal(bot.battle, undefined);
+  assert.deepEqual(events.filter(e => ['surrender', 'battle_left', 'stop'].includes(String(e.event))).map(e => [e.event, e.by ?? e.reason ?? '']),
+    [['surrender', ''], ['battle_left', 's2c/1214'], ['stop', 'surrendered']]);
+});
+
+test('quest bot: a surrender not taken in 8 s plays the turn passed over meanwhile, and a late s2c/1214 still ends the battle', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { bot, sent, events } = surrendering();
+  bot.onPacket(24, Buffer.from(bp['s2c/24 mob turn'], 'hex'));
+  assert.equal(sent.length, 5);
+  t.mock.timers.tick(8000);
+  assert.ok(events.some(e => e.event === 'surrender_no_answer'));
+  assert.deepEqual([sent.at(-1)!.opcode, decodeEvent('c2s', 14, Buffer.from(sent.at(-1)!.hex, 'hex')).fields], [14, { battleUuid: UUID, seq: 4 }]);
+  assert.equal(bot.battle?.leaving, false);
+  bot.onPacket(1214, Buffer.alloc(0));
+  assert.equal(bot.battle, undefined);
+  assert.deepEqual(events.filter(e => e.event === 'battle_left' || e.event === 'stop').map(e => e.by ?? e.reason), ['s2c/1214', 'surrendered']);
+});
+
+test('quest bot: --surrender-after stops after the battle even when it ends before the surrender is taken', () => {
+  const { bot, events } = surrendering();
+  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0)).u8(0).u8(0).u8(0).u8(0)
+    .u8(1).string('mob61000').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
+  bot.onPacket(19, end);
+  assert.deepEqual([bot.battle, events.at(-1)?.event, events.at(-1)?.reason], [undefined, 'stop', 'battle over without the surrender']);
 });

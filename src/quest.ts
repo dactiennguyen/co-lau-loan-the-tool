@@ -45,6 +45,9 @@ export interface QuestBotOptions {
   atlas?: string;
   /** Plays only the step current at onReady (the app's ▶ on a step), and stops once the quest moves past it. */
   once?: boolean;
+  /** Surrenders the first battle once own swaps reach this (surrender()), then stops when that battle is over, left or
+   * played out: to try leaving live. It costs EXP ("Rời trận, mất 29 kinh nghiệm" in B3). */
+  surrenderAfter?: number;
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -66,6 +69,12 @@ export class QuestBot implements WorldSession {
   awaitingReply = false;
   /** With `once`: the quest id and step index played, and the step's text. */
   playing?: { id: number; at: number; text: string };
+  /** After surrender(): 8 s for the server to end the battle; and s2c/11 of the map asked with c2s/40 still to answer
+   * with c2s/43, as the game does. */
+  private leaving?: ReturnType<typeof setTimeout>;
+  private reloadMap = false;
+  /** --surrender-after tries once in a run, even when the server ignores it. */
+  private surrenderTried = false;
   private wait?: ReturnType<typeof setTimeout>;
   options: QuestBotOptions;
   constructor(options: QuestBotOptions) { this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas); }
@@ -85,7 +94,11 @@ export class QuestBot implements WorldSession {
   }
 
   private handle(opcode: number, payload: Buffer) {
-    if (this.battle?.onPacket(opcode, payload)) return;
+    if (this.battle?.onPacket(opcode, payload)) {
+      const n = this.options.surrenderAfter;
+      if (n !== undefined && !this.surrenderTried && this.battle && this.battle.turns >= n) { this.surrenderTried = true; this.surrender(); }
+      return;
+    }
     switch (opcode) {
       case 9: {
         const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level;
@@ -103,7 +116,10 @@ export class QuestBot implements WorldSession {
         this.mapId = d.mapId; this.zone = d.area; this.places = d.places;
         recordMap(this.atlas, d); this.remember();
         this.log('map', { mapId: d.mapId, name: d.name, npcs: d.places.filter(p => p.type === 2).map(p => `${p.id} ${p.name}`), portals: d.places.filter(p => p.type === 0).map(p => `${p.id} ${p.name}`) });
-        if (this.travelling) this.send(43, buildRequest(43, { mapId: d.mapId }));
+        // After a surrender the map comes back for the c2s/11 sent with c2s/40; it answers that request, so it does not
+        // prove the battle over (s2c/36 or s2c/1214 does).
+        const reload = this.reloadMap; this.reloadMap = false;
+        if (this.travelling || reload) this.send(43, buildRequest(43, { mapId: d.mapId }));
         break;
       }
       // Through a portal: the new map; the client then asks for the map (c2s/11) and its mobs (c2s/43), B5.
@@ -166,8 +182,11 @@ export class QuestBot implements WorldSession {
       case 36:
         // Gear durability, sent after every battle end and after c2s/40; inside a battle it means the server ended it.
         this.log('durability', { payloadHex: payload.toString('hex') });
-        if (this.battle) { this.log('battle_cancelled'); this.battle = undefined; this.later(2000); }
+        if (this.battle?.surrendered) this.left(36);
+        else if (this.battle) { this.log('battle_cancelled'); this.battle = undefined; this.later(2000); }
         break;
+      // Empty, at the end of a battle and after c2s/40 (05-battle).
+      case 1214: if (this.battle?.surrendered) this.left(1214); break;
       case 46: this.log('currency', { payloadHex: payload.toString('hex') }); break;
       case 1187: this.log('inventory_item', { payloadHex: payload.toString('hex') }); break;
       case 22: this.onSetup(payload); break;
@@ -200,6 +219,22 @@ export class QuestBot implements WorldSession {
     clearTimeout(this.wait);
     this.log('stop', { reason, fights: this.fights, wins: this.wins, losses: this.losses, hp: `${this.hp}/${this.maxHp}`, quest: this.quest && this.describe(), ...fields });
     setTimeout(() => this.api?.close(), 1000);
+  }
+
+  /** Leaves the battle in progress as the game's Đầu hàng does (BattleRunner.leave). s2c/1214 (every capture) or s2c/36
+   * then ends it, even after the 8 s wait; without either by then the battle is played on (BattleRunner.resume). */
+  surrender() {
+    const b = this.battle;
+    if (!b || b.leaving) return;
+    this.log('surrender', { mobId: b.mobId, turns: b.turns });
+    b.leave(this.mapId); this.reloadMap = true;
+    this.leaving = setTimeout(() => { if (this.battle === b && b.leaving) { this.log('surrender_no_answer', { mobId: b.mobId }); b.resume(); } }, 8000);
+  }
+  private left(by: number) {
+    clearTimeout(this.leaving);
+    this.log('battle_left', { by: `s2c/${by}`, mobId: this.battle?.mobId });
+    this.battle = undefined;
+    this.stop('surrendered');
   }
 
   /** Decide the next action from the current quest step. */
@@ -323,6 +358,7 @@ export class QuestBot implements WorldSession {
     if (!end.won && this.bosses.has(end.mobId)) this.log('boss_loss', { mobId: end.mobId, damage: end.damage });
     if (boss) { q.progress += end.damage; this.log('damage_counted', { step: step.text, progress: `${q.progress}/${action.amount}` }); }
     if (counted && action.kind === 'kill' && end.won) { q.progress++; this.log('kill_counted', { step: step.text, progress: `${q.progress}/${step.required}` }); }
+    if (this.surrenderTried) return this.stop('battle over without the surrender');
     if (!end.won && !this.bosses.has(end.mobId) && this.losses >= (this.options.maxLosses ?? 1)) return this.stop('lost a battle');
     this.later(this.options.restMs ?? 3000);
   }

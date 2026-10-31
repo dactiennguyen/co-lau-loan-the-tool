@@ -118,6 +118,8 @@ pub struct BattleView {
     pub mob_max_hp: Option<f64>,
     pub turns: u32,
     pub timed: bool,
+    /// A surrender waits for the server (Bot::stop with `surrender`).
+    pub leaving: bool,
 }
 
 /// Everything the UI shows for one account.
@@ -207,6 +209,11 @@ pub struct Bot {
     playing: Option<(i32, i32, String)>,
     /// Quest runs started in this session (QuestRun::id).
     runs: u32,
+    /// The map asked with c2s/40 (c2s/11) still to answer with c2s/43 when it comes, as the game does after Đầu hàng.
+    reload_map: bool,
+    /// Until when a surrender waits for s2c/1214 or s2c/36 before the battle is played on. Its own deadline, so a job
+    /// started or stopped meanwhile cannot clear it.
+    leave_until: Option<Instant>,
 }
 
 impl Bot {
@@ -232,6 +239,8 @@ impl Bot {
             awaiting_reply: false,
             playing: None,
             runs: 0,
+            reload_map: false,
+            leave_until: None,
         }
     }
 
@@ -265,6 +274,7 @@ impl Bot {
             mob_max_hp: Some(b.mob.max_hp).filter(|v| v.is_finite()),
             turns: b.turns,
             timed: b.timed,
+            leaving: b.leaving,
         });
         s
     }
@@ -325,6 +335,7 @@ impl Bot {
         [
             self.timer.as_ref().map(|t| t.0),
             self.battle.as_ref().and_then(|b| b.deadline()),
+            self.leave_until,
         ]
         .into_iter()
         .flatten()
@@ -352,6 +363,17 @@ impl Bot {
                     }
                 }
                 Wake::Silence(reason) => self.finish_quest(reason, out),
+            }
+        }
+        if self.leave_until.is_some_and(|t| t <= now) {
+            self.leave_until = None;
+            if let Some(b) = self.battle.as_mut().filter(|b| b.leaving) {
+                let mut acts = vec![];
+                b.resume(now, &mut acts);
+                out.push(Out::Log(
+                    "Server chưa nhận đầu hàng sau 8 s; đánh tiếp trận".into(),
+                ));
+                self.apply(acts, now, out);
             }
         }
     }
@@ -454,12 +476,14 @@ impl Bot {
             done,
         }
     }
-    /// Ends the job or quest run after the battle in progress (a battle cannot be left).
-    pub fn stop(&mut self, out: &mut Vec<Out>) {
-        let reason = if self.battle.is_some() {
-            "Đã dừng; trận đang đánh vẫn tiếp tục tới hết"
-        } else {
-            "Đã dừng"
+    /// Ends the job or quest run. A battle in progress is played out, or with `surrender` left as the game's Đầu hàng
+    /// does, which costs EXP ("Rời trận, mất 29 kinh nghiệm" in B3); a battle played out after an earlier Stop can be
+    /// left this way too.
+    pub fn stop(&mut self, surrender: bool, now: Instant, out: &mut Vec<Out>) {
+        let reason = match (&self.battle, surrender) {
+            (Some(_), true) => "Đã dừng và đầu hàng trận đang đánh",
+            (Some(_), false) => "Đã dừng; trận đang đánh vẫn tiếp tục tới hết",
+            (None, _) => "Đã dừng",
         };
         if self.job_running() {
             self.timer = None;
@@ -468,6 +492,44 @@ impl Bot {
         if self.quest_running() {
             self.finish_quest(reason, out);
         }
+        if surrender {
+            self.surrender(now, out);
+        }
+    }
+
+    /// Leaves the battle in progress (BattleRunner::leave). s2c/1214 (every capture) or s2c/36 then ends it; without
+    /// either in 8 s it is played on (`surrender` of QuestBot).
+    fn surrender(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let map_id = self.snap.map_id.clone();
+        let Some(b) = self.battle.as_mut().filter(|b| !b.leaving) else {
+            return;
+        };
+        let mut acts = vec![];
+        b.leave(&map_id, &mut acts);
+        let mob = b.mob_id.clone();
+        let name = self
+            .mobs
+            .iter()
+            .find(|m| m.id == mob)
+            .map_or(mob.as_str(), |m| &m.name);
+        out.push(Out::Log(format!("Đầu hàng trận với {name}")));
+        self.reload_map = true;
+        self.leave_until = Some(now + Duration::from_secs(8));
+        self.apply(acts, now, out);
+    }
+
+    /// The battle surrendered is over: s2c/1214 or s2c/36 after c2s/40, even later than the 8 s wait (the server took it
+    /// then). A job or quest run started meanwhile goes on. False when this battle was never surrendered.
+    fn left(&mut self, by: i32, now: Instant, out: &mut Vec<Out>) -> bool {
+        if !self.battle.as_ref().is_some_and(|b| b.surrendered) {
+            return false;
+        }
+        (self.battle, self.leave_until) = (None, None);
+        out.push(Out::Log(format!("Đã rời trận (s2c/{by})")));
+        if self.job_running() || self.quest_running() {
+            self.timer = Some((now + Duration::from_secs(2), Wake::Next));
+        }
+        true
     }
 
     fn finish_quest(&mut self, reason: &str, out: &mut Vec<Out>) {
@@ -690,8 +752,10 @@ impl Bot {
                         }
                     }
                 }
-                // Through a portal: the client asks for the mobs of the new map next (B5).
-                if self.travelling.is_some() {
+                // Through a portal the client asks for the mobs of the new map next (B5), and after Đầu hàng for those of
+                // the map it asked with c2s/40 (06-map-mobs). That map answers our c2s/11: it does not end the battle.
+                let reload = std::mem::take(&mut self.reload_map);
+                if self.travelling.is_some() || reload {
                     let map_id = self.snap.map_id.clone();
                     Self::send(
                         out,
@@ -897,10 +961,15 @@ impl Bot {
             }
             // Gear durability, after every battle; inside a battle it means the server ended it.
             36 => {
-                if self.battle.take().is_some() {
+                if self.left(36, now, out) {
+                } else if self.battle.take().is_some() {
                     out.push(Out::Log("Server đã huỷ trận".into()));
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                 }
+            }
+            // Empty, at the end of a battle and after c2s/40 (05-battle).
+            1214 => {
+                self.left(1214, now, out);
             }
             22 => self.on_setup(payload, now, out)?,
             _ => {}

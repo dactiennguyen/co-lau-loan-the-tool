@@ -23,7 +23,8 @@ export function AccountPage({ account }: { account: Account }) {
   const id = account.id;
   const log = useStore(selectedLog);
   const open = useStore((s) => s.open);
-  const onStop = () => api.stop(id);
+  // During a battle Dừng asks whether to play it out or surrender; otherwise it stops at once.
+  const onStop = () => (c?.battle ? open({ kind: "stop", id }) : api.stop(id));
   const [choice, setChoice] = useState<FightChoice>({ target: "", count: 5, losses: 1 });
   const [task, setTask] = useState<Task>("quest");
   const tabs = useId();

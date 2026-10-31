@@ -6,6 +6,7 @@ import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
+import { StopDialog } from "./views/StopDialog";
 import { Toaster } from "./views/Toaster";
 import "./App.css";
 
@@ -28,7 +29,8 @@ export default function App() {
   );
 }
 
-/** "Thêm nick", "Sửa nick" and the question before removing one; nothing once the account it is about is gone. */
+/** "Thêm nick", "Sửa nick", the question before removing one, and Dừng during a battle; nothing once the account it is
+ * about is gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   const account = useStore((s) => (dialog && dialog.kind !== "add" ? s.byId[dialog.id] : undefined));
@@ -45,6 +47,9 @@ function Dialogs() {
         }}
       />
     );
+  }
+  if (dialog?.kind === "stop" && account) {
+    return <StopDialog account={account} onClose={close} />;
   }
   if (dialog?.kind === "remove" && account) {
     return (

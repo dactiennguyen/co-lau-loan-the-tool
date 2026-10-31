@@ -731,7 +731,7 @@ fn a_setup_after_stop_is_played_out_and_one_nobody_asked_for_is_not() {
     assert!(out.contains(&Out::Log("Có trận không do app mở; bỏ qua".into())));
     // Stop while the challenge waits: the server opens that battle anyway, and an idle one would be lost.
     bot.fight("Cóc Xanh", 5, 1, now, &mut out);
-    bot.stop(&mut out);
+    bot.stop(false, now, &mut out);
     bot.on_packet(22, &setup, now, &mut out).unwrap();
     assert_eq!(sends(&out, 18), 1);
     bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
@@ -1057,4 +1057,92 @@ fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
         bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
         Some("Đã chuyển sang việc đánh quái")
     );
+}
+
+#[test]
+fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_answer() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    let uuid = battle::battle_setup(&setup).unwrap().uuid;
+    bot.on_packet(39, &quest9(3, 14), now, &mut out).unwrap();
+    bot.quest(1, Some((9, 3)), now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    let at = out.len();
+    bot.stop(true, now, &mut out);
+    assert_eq!(
+        bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
+        Some("Đã dừng và đầu hàng trận đang đánh")
+    );
+    let sent: Vec<&Out> = out[at..]
+        .iter()
+        .filter(|o| matches!(o, Out::Send(..)))
+        .collect();
+    assert_eq!(
+        sent,
+        [
+            &Out::Send(11, Writer::new().string("M2").u8(0xff).i32(-1).build()),
+            &Out::Send(40, Writer::new().string(&uuid).build()),
+        ]
+    );
+    // The map answers that c2s/11: c2s/43 follows, as in the game, and the battle is not over until s2c/1214.
+    let map = Writer::new()
+        .u8(1)
+        .string("M2")
+        .string("Trại Vân Sơn")
+        .u8(1)
+        .i32(64)
+        .i32(320)
+        .build();
+    bot.on_packet(11, &map, now, &mut out).unwrap();
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(43, Writer::new().string("M2").build()))
+    );
+    assert!(bot.snapshot().battle.is_some());
+    // A fight started while the surrender waits goes on once the battle is left.
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    bot.on_packet(1214, &[], now, &mut out).unwrap();
+    assert!(bot.snapshot().battle.is_none());
+    assert!(out.contains(&Out::Log("Đã rời trận (s2c/1214)".into())));
+    let next = bot.deadline().expect("next");
+    bot.on_timer(next, &mut out);
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            15,
+            Writer::new().string("mob61000").u8(0).build()
+        ))
+    );
+
+    // Unanswered: the mob's turn that came meanwhile is played after 8 s (c2s/14 with its seq), and a late s2c/1214
+    // still ends the battle, since the server took the surrender after all.
+    let all = v();
+    let mob_turn = all["decoders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["fn"] == "turnState" && d["expected"]["playerTurn"] == json!(0))
+        .unwrap()
+        .clone();
+    let seq = mob_turn["expected"]["seq"].as_i64().unwrap() as i32;
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.stop(true, now, &mut out);
+    assert!(bot.snapshot().battle.unwrap().leaving);
+    bot.on_packet(24, &hex(mob_turn["hex"].as_str().unwrap()), now, &mut out)
+        .unwrap();
+    assert_eq!(sends(&out, 14), 0);
+    let later = bot.deadline().expect("leave wait");
+    assert_eq!(later - now, Duration::from_secs(8));
+    bot.on_timer(later, &mut out);
+    assert!(out.contains(&Out::Log(
+        "Server chưa nhận đầu hàng sau 8 s; đánh tiếp trận".into()
+    )));
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(14, Writer::new().string(&uuid).i32(seq).build()))
+    );
+    assert!(!bot.snapshot().battle.unwrap().leaving);
+    bot.on_packet(1214, &[], now, &mut out).unwrap();
+    assert!(bot.snapshot().battle.is_none());
 }

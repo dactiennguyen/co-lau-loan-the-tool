@@ -125,7 +125,8 @@ export function QuestCard({ account, onStart, onStop }: Props) {
         >
           Tự làm nhiệm vụ
         </Button>
-        <Button kind="danger" icon="stop" disabled={!running} onClick={onStop}>
+        {/* Also live for a battle played out after an earlier Dừng, so it can still be surrendered. */}
+        <Button kind="danger" icon="stop" disabled={!running && !c?.battle} onClick={onStop}>
           Dừng
         </Button>
         <span className="quest__losses">

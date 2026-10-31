@@ -147,6 +147,25 @@ test('battle and quest requests: builders match the captured layouts and decode 
   assert.deepEqual(decodeEvent('c2s', 19, buildRequest(19, { battleUuid: uuid, seq: 13, move })).fields, { battleUuid: uuid, seq: 13, ...move });
 });
 
+test('battle runner: leave() sends c2s/11 then c2s/40 like the game\'s Đầu hàng, no move after it, and resume() plays the turn passed over', () => {
+  const sent: [number, Buffer][] = [];
+  const runner = new BattleRunner({ me: 'manina', level: 3, hp: 130, maxHp: 130, uuid: 'u', board: battles[0].board.slice(), turnSeconds: 30, knownBytes: 0 }, 'mob872604',
+    { send: (op, p) => sent.push([op, Buffer.from(p)]), log: () => {}, onEnd: () => {} });
+  runner.start();
+  runner.onPacket(18, Buffer.from(packets['s2c/18'], 'hex'));
+  runner.leave('M1');
+  assert.deepEqual(sent.slice(-2).map(([op, p]) => [op, decodeEvent('c2s', op, p).fields]),
+    [[11, { mapId: 'M1', area: 255, field: -1 }], [40, { battleUuid: 'u' }]]);
+  const before = sent.length;
+  assert.equal(runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex')), true);
+  assert.equal(runner.onPacket(24, Buffer.from(packets['s2c/24 mob turn'], 'hex')), true);
+  assert.equal(sent.length, before, 'no swap or step while leaving');
+  runner.resume();
+  assert.deepEqual(decodeEvent('c2s', 14, sent.at(-1)![1]).fields, { battleUuid: 'u', seq: 4 }, 'the mob turn passed over last');
+  runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex'));
+  assert.equal(sent.at(-1)![0], 19, 'plays on once the leave is given up');
+});
+
 test('battle runner: joins, steps for the mob, plays a legal move on its own turn, ends on end=1', () => {
   const sent: [number, Buffer][] = [], ends: BattleEnd[] = [];
   const board = battles[0].board.slice();

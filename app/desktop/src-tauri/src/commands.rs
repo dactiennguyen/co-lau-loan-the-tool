@@ -73,9 +73,10 @@ pub fn quest(shared: State<Shared>, id: u64, max_losses: u32, step: Option<(i32,
     });
 }
 
+/// Dừng: ends the job or quest run; with `surrender` ("Đầu hàng") a battle in progress is left too, else played out.
 #[tauri::command]
-pub fn stop(shared: State<Shared>, id: u64) {
-    shared.with(|app| app.send(id, Command::Stop));
+pub fn stop(shared: State<Shared>, id: u64, surrender: bool) {
+    shared.with(|app| app.send(id, Command::Stop { surrender }));
 }
 
 /// The account of the add and edit form; `password` may be empty only when editing (it then stays as it was).

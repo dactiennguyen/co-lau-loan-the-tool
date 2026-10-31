@@ -63,6 +63,8 @@ export interface Battle {
   mobMaxHp: number | null;
   turns: number;
   timed: boolean;
+  /** A surrender waits for the server (up to 8 s, then the battle is played on). */
+  leaving: boolean;
 }
 
 /** A step of the current quest, as s2c/39 sends it. */

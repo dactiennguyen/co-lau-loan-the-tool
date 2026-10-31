@@ -29,7 +29,10 @@ pub enum Command {
         max_losses: u32,
         step: Option<(i32, i32)>,
     },
-    Stop,
+    /// Ends the job or quest run; `surrender` also leaves a battle in progress (Bot::stop), else it is played out.
+    Stop {
+        surrender: bool,
+    },
     Logout,
 }
 
@@ -267,7 +270,7 @@ async fn session(
                     Some(_) if step != Step::Ready => out.push(Out::Log(NOT_READY.into())),
                     Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
-                    Some(Command::Stop) => bot.stop(&mut out),
+                    Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),

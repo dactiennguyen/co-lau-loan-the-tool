@@ -268,7 +268,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | Bước khác (vd. "Sử dụng điểm kỹ năng") | Dừng, ghi rõ bước nào. Bot TS đã làm được bước này (`c2s/1191`, [12-skills-items](../../app/events/12-skills-items.md#c2s-1191)); app Rust chưa port. `vectors.json` đã có phần cần cho việc port: `skillTable`, `characterSkills`, `characterStats` kiểu 32, `c2s/1191` và `c2s/30` theo hệ, kịch bản "skill step". Bốn test parity sẽ đỏ cho tới khi port xong |
 
 - **Trả nhiệm vụ:** server gửi `s2c/35` (phần thưởng, ghi vào nhật ký), rồi `s2c/39` của nhiệm vụ mới; bot làm tiếp nhiệm vụ mới.
-- **Dừng khi:** bấm Dừng (trận đang đánh vẫn đánh hết), thua đủ số trận cho phép (không tính trận thua boss), gặp bước chưa biết, không còn quái của bước ở khu, NPC hay cổng không trả lời trong 8 s, đã đủ cấp mà server không sang bước sau, hoặc không đọc được NPC và cổng của map vừa tới (`s2c/11`; khi đó bản đồ trong atlas giữ nguyên, không bị ghi thành map rỗng).
+- **Dừng khi:** bấm Dừng (đang có trận thì chọn đánh nốt hay đầu hàng, xem [Dừng giữa trận](#dừng-giữa-trận)), thua đủ số trận cho phép (không tính trận thua boss), gặp bước chưa biết, không còn quái của bước ở khu, NPC hay cổng không trả lời trong 8 s, đã đủ cấp mà server không sang bước sau, hoặc không đọc được NPC và cổng của map vừa tới (`s2c/11`; khi đó bản đồ trong atlas giữ nguyên, không bị ghi thành map rỗng).
 - **Chuyển việc:** bắt đầu đánh quái thì việc làm nhiệm vụ dừng, và ngược lại.
 - **Bản đồ:** mỗi phiên chép `data/maps.json` lúc mở app, rồi ghi thêm map, quái, boss, cổng đã qua hay bị từ chối vào bản chép đó. App không ghi lại file; `npm run scan` và bot TS mới ghi.
 
@@ -277,6 +277,18 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 Nút ▶ trên một bước gửi `Command::Quest { step: Some((id nhiệm vụ, i)) }`, port từ `QuestBot` với `--once` ([Bot làm nhiệm vụ](../nodejs/quest-bot.md#chạy)). Bot làm bước `i` như bảng trên. Khi nhiệm vụ đã qua bước đó, hoặc có nhiệm vụ mới sau khi báo cáo, bot dừng với "Xong bước \"…\"" (`QuestRun.stepDone`). Nhiệm vụ qua bước khi NPC trả lời, có `s2c/39` mới, hoặc đủ số con hay đủ sát thương. Bước đủ số con từ trước thì dừng luôn, không gửi gói nào. Bot không đi tiếp sang bước sau. Nếu nhiệm vụ lùi về bước trước (chưa từng thấy) thì bot dừng với "Nhiệm vụ không còn ở bước \"…\"", không tính là xong. Các lý do dừng khác vẫn như trên.
 
 Server chỉ tính tiến độ cho bước đang làm, nên chỉ ▶ của bước đó bấm được. Nếu UI chậm một nhịp và gửi một bước không còn là bước đang làm của nhiệm vụ đó, hoặc bước của một nhiệm vụ đã trả, bot từ chối ("Bước đó không còn là bước đang làm") và không gửi gói nào. Bắt đầu một lần chạy khi lần trước chưa xong thì lần trước kết thúc với "Đã bắt đầu lần chạy mới". Mỗi lần chạy có `QuestRun.id` riêng, nhờ đó UI biết một lần chạy mới bắt đầu hay vừa kết thúc để hiện toast. Nick rời game giữa chừng (thoát, mất kết nối, lỗi) cũng có toast "Bot dừng: …".
+
+### Dừng giữa trận
+
+Bấm Dừng (hay ■ trên bước) lúc không có trận thì việc dừng ngay. Lúc đang có trận, app hỏi (focus ở Huỷ, Enter không làm mất EXP):
+
+| Chọn | Bot làm gì |
+|---|---|
+| **Đợi xong trận** | Việc dừng ngay, trận được đánh nốt và vẫn tính (thắng cộng EXP và tiến độ, thua mất EXP). Trong lúc đó nút Dừng vẫn bấm được để đổi ý đầu hàng |
+| **Đầu hàng** | `Command::Stop { surrender: true }`: gửi `c2s/11` (map) rồi `c2s/40` (uuid trận) như nút "Đầu hàng" của game ([06-map-mobs](../../app/events/06-map-mobs.md#đầu-hàng)), rồi không đi nước nào nữa; hộp thoại hiện "Đang chờ server nhận đầu hàng". `s2c/11` trả lời `c2s/11` thì gửi `c2s/43` như game. Trận xong khi có `s2c/1214` (có ở mọi lần đo) hoặc `s2c/36`, kể cả khi đến muộn. Không có trong 8 s thì đánh tiếp, bắt đầu bằng lượt đã đến trong lúc chờ. Server trừ EXP ("Rời trận, mất 29 kinh nghiệm" ở B3) và trang bị mòn thêm |
+| Huỷ | Không dừng gì |
+
+Cách khác để bỏ trận mà không mất EXP là Đăng xuất: trận dở không được tính, HP giữ mức lúc rời ([10-quests](../../app/events/10-quests.md#boss)). Port từ `--surrender-after` của bot TS ([Bot làm nhiệm vụ](../nodejs/quest-bot.md#chạy)); **chưa thử với server thật**.
 
 ## Đã kiểm chứng
 

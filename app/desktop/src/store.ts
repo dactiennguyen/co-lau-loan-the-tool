@@ -7,7 +7,12 @@ import { addToasts, questToasts, type ToastItem } from "./toasts";
 import type { Account, AccountsUpdate, AppState, LogLine } from "./types";
 import { accountsOf, append, merge, type Accounts } from "./updates";
 
-export type Dialog = { kind: "add" } | { kind: "edit"; id: number } | { kind: "remove"; id: number };
+export type Dialog =
+  | { kind: "add" }
+  | { kind: "edit"; id: number }
+  | { kind: "remove"; id: number }
+  /** Dừng while a battle is on: play it out or surrender. */
+  | { kind: "stop"; id: number };
 
 export interface Store extends Accounts {
   /** Why accounts.json could not be read; the app then never writes it. */
