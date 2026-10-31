@@ -2412,7 +2412,13 @@ fn the_shop_opens_on_m1_and_buys_a_line_the_money_pays_for() {
     assert_eq!(bot.deadline(), None);
     for (shop_id, quantity, why) in [
         (3, 1, "Chưa mua ô 3: cửa hàng không có ô này"),
-        (6, 0, "Chưa mua Búa Sửa Chữa: số lượng phải từ 1 tới 99"),
+        (6, 0, "Chưa mua Búa Sửa Chữa: số lượng phải từ 1 trở lên"),
+        // No upper bound on the count: 200 is refused for the money only.
+        (
+            6,
+            200,
+            "Chưa mua Búa Sửa Chữa: không đủ Xu khóa (cần 16000, có 8517)",
+        ),
         (2, 7, "Chưa mua Búa Sửa Chữa: không đủ Xu (cần 511, có 500)"),
     ] {
         out.clear();

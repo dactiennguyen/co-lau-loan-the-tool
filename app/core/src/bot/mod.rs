@@ -114,8 +114,6 @@ const SELLER: (&str, i32) = ("M1", 106);
 const SELLER_MENU: &str = "Dược phẩm";
 /// How long a step of the shop waits for the server.
 const SHOP_WAIT: Duration = Duration::from_secs(8);
-/// Most items one c2s/1190 asks for.
-pub const MAX_BUY: i32 = 99;
 
 /// Where the shop stands: c2s/13 waits for s2c/57, c2s/57 for s2c/1190, c2s/1190 for the notice of the purchase.
 #[derive(Debug, Clone)]

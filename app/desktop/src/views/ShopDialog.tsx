@@ -11,8 +11,6 @@ import "./ShopDialog.css";
 
 /** Lái Buôn stands in Làng Thanh Khê; the server opens his shop only on that map (B1). */
 const SELLER_MAP = "M1";
-/** Most items one Mua asks for (Bot::buy). */
-const MAX_BUY = 99;
 const MONEY = ["Xu", "Xu khóa"] as const;
 /** The lines Bot::buy and the server leave in the log for a purchase. */
 const RESULT = /^(Đã mua|Chưa mua|Lái Buôn không trả lời)/;
@@ -153,7 +151,7 @@ export function ShopDialog({ account, item, onClose }: Props) {
               <span className="shop__what">
                 {line.name} · trong túi {owned(line.itemId)}
               </span>
-              <Stepper value={quantity} onChange={setQuantity} min={1} max={MAX_BUY} label="số lượng" />
+              <Stepper value={quantity} onChange={setQuantity} min={1} label="số lượng" />
               <span className={short ? "shop__cost shop__cost--short" : "shop__cost"}>
                 = <b className="px">{num(cost)}</b> {MONEY[line.currency]}
                 {short && ` · thiếu ${num(cost - (wallet ?? 0))}`}

@@ -40,7 +40,7 @@ impl Bot {
     }
 
     /// Buys `quantity` of the shop line `shop_id` (c2s/1190). Refused as open_shop is, and before the shop is open, for
-    /// a line it does not have, a count outside 1..=MAX_BUY, or without the money for it.
+    /// a line it does not have, a count under 1, or without the money for it. There is no upper bound: the money is.
     pub fn buy(&mut self, shop_id: i32, quantity: i32, now: Instant, out: &mut Vec<Out>) {
         let line = self
             .snap
@@ -71,8 +71,8 @@ impl Bot {
                 Some("mở cửa hàng trước".into())
             } else if line.is_none() {
                 Some("cửa hàng không có ô này".into())
-            } else if !(1..=MAX_BUY).contains(&quantity) {
-                Some(format!("số lượng phải từ 1 tới {MAX_BUY}"))
+            } else if quantity < 1 {
+                Some("số lượng phải từ 1 trở lên".into())
             } else {
                 have.filter(|&h| cost > h)
                     .map(|h| format!("không đủ {money} (cần {cost}, có {h})"))
