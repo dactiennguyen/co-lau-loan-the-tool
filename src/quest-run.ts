@@ -18,7 +18,8 @@ const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 // Every own turn is chosen among the swaps, the learnt skills (s2c/30 and their levels) and the potions of the bag by
 // bestAction (07-auto-battle.md#chọn-hành-động). --skills=none plays swaps only, --skills=4000,4001 only those skills;
 // --skill=1000:25 is the older form for one skill. --potions=<HP> lets it use a potion when that beats every other action
-// by this much HP (300: only when the mob could end the battle; default none).
+// by this much HP (300: only when the mob could end the battle; default none). After a won battle it picks up its own
+// drops with c2s/1188 (13-drops-items.md#c2s-1188); --no-pickup leaves them.
 const [skillId, skillCost] = (arg('skill') ?? '').split(':').map(Number);
 const skill = skillId ? { id: skillId, cost: skillCost || 25 } : undefined;
 const skillsArg = arg('skills'), skills = skillsArg === undefined || skillsArg === 'auto' ? 'auto' as const : skillsArg === 'none' ? 'none' as const : skillsArg.split(',').map(Number);
@@ -34,7 +35,7 @@ const stats = arg('stats') === undefined ? undefined : statPlan(arg('stats')!);
 const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, skills, potionCost, strategy: STRATEGIES[goal],
   timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
   maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', once: process.argv.includes('--once'),
-  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, items: Items.load(), log: show });
+  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, items: Items.load(), pickup: !process.argv.includes('--no-pickup'), log: show });
 const result = await runClient({
   ...connection, mode: 'world', session: bot, hexBytes: trace ? 65536 : 128,
   log: e => {
@@ -43,6 +44,6 @@ const result = await runClient({
     if (e.event === 'failed' || e.event === 'world_initialization_received' || (/^[cs]2c\//.test(name) && !quiet.has(name))) show({ ...e, payloadHex: undefined });
   },
 });
-show({ kind: 'summary', event: 'quest_run_result', ok: result.ok, state: result.state, diagnostic: result.diagnostic, fights: bot.fights, wins: bot.wins, losses: bot.losses });
+show({ kind: 'summary', event: 'quest_run_result', ok: result.ok, state: result.state, diagnostic: result.diagnostic, fights: bot.fights, wins: bot.wins, losses: bot.losses, picked: bot.picked });
 trace?.end();
 if (!result.ok) process.exitCode = 1;

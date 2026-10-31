@@ -17,6 +17,7 @@ npm run quest -- --fights=40
 | `--skills=auto\|none\|ID,ID` | `auto` | Kỹ năng bot được dùng trong trận. `auto`: mọi kỹ năng đã học (cây `s2c/30`, cấp trong `s2c/9` và `s2c/10` kiểu 32). Mỗi lượt bot so nước đổi chỗ, từng kỹ năng đủ nội lực và bình trên cùng một thang điểm ([Chọn hành động](../../app/events/07-auto-battle.md#chọn-hành-động)). `none`: chỉ đổi chỗ |
 | `--skill=ID:COST` | tắt | Cách cũ: chỉ một kỹ năng. Có bảng kỹ năng thì giống `--skills=ID`; không có thì dùng `castSkill` với giá `COST` |
 | `--potions=HP` | không dùng | Cho phép dùng Hoàn Linh Dược và Kim Đan Dược trong túi (`c2s/44`), mỗi bình tính như mất `HP` máu. `300`: chỉ dùng khi quái có thể kết thúc trận ở nước sau. Mỗi bình tốn 120 Xu khóa ở Lái Buôn |
+| `--no-pickup` | nhặt | Không nhặt đồ. Mặc định, thắng trận xong bot gửi `c2s/1188` cho từng món của mình vừa rơi (đến trong 300 ms quanh gói kết thúc), mỗi món cách nhau 200 ms, không cần đi tới hòm ([G2](../../app/events/13-drops-items.md#g2)). Dòng log `pickup`, `pickup_notice` (lời server), `picked` (món rời khỏi đất trong 1 s sau gói nhặt, tức bot nhặt được); tổng ở `picked` của `stop` và `quest_run_result` |
 | `--goal=kill\|exp\|win\|farm` | `kill` | Cách chấm nước ([07-auto-battle](../../app/events/07-auto-battle.md#thuật-toán-của-bot)): thắng nhanh, hoặc ăn thêm sao/giọt nước/vàng. `win` và `farm` là hai mục tiêu đó với mô hình quái đo được ([Thuật toán v2](../../app/events/07-auto-battle.md#thuật-toán-v2)) |
 | `--move-ms=N`, `--rest-ms=N` | 1000, 3000 | Nghỉ giữa các nước trong trận tính giờ; nghỉ trước trận sau |
 | `--farm=<tên quái>` | tắt | Bỏ qua nhiệm vụ, chỉ đánh loại quái hoặc boss này ở map đang đứng; với `--fights=N` là "đánh X N lần". Boss (`s2c/1177`, hoặc `data/maps.json` ghi có ở map này) được thách đấu bằng `c2s/1178`, được đợi 6 × 5 s khi đang đổi chỗ, và thua boss không làm bot dừng. App Rust port đúng luật này ([App Rust](../rust/README.md#việc-đánh-x-n-lần)) |
@@ -28,7 +29,7 @@ npm run quest -- --fights=40
 | `CLLT_TRACE=<file>` | | Ghi mọi log client ra JSONL, kèm hex đầy đủ của từng gói (trừ `c2s/4`) |
 
 - Tài khoản **không được online ở máy khác**. Khi đó server trả `s2c/0` và từ chối đăng nhập; đóng game trên điện thoại trước.
-- Bot đánh trận thật với server: EXP, tiền, vật phẩm và tiến độ nhiệm vụ được ghi vào tài khoản. Bot không mua bán, không chat.
+- Bot đánh trận thật với server: EXP, tiền, vật phẩm và tiến độ nhiệm vụ được ghi vào tài khoản. Bot nhặt đồ mình làm rơi (trừ khi có `--no-pickup`), không mua bán, không chat.
 - Lệnh in JSON từng dòng: sự kiện của bot (`kind: "quest"`), gói ít gặp, và dòng cuối `quest_run_result`.
 
 ## Bot làm gì với từng bước

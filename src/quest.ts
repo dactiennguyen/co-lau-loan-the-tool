@@ -10,7 +10,7 @@ import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
 import { ITEM_ELEMENTS, type Items } from './items.ts';
 import { skillTree } from './skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -77,6 +77,8 @@ export interface QuestBotOptions {
   stats?: number[] | 'auto';
   /** Item names for the bag log (s2c/1187); quest-run loads data/items.json. Without it items show as #id. */
   items?: Items;
+  /** Picks up the own drops of a won battle with c2s/1188 (pick()); default true. */
+  pickup?: boolean;
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -115,6 +117,13 @@ export class QuestBot implements WorldSession {
   private reloadMap = false;
   /** --surrender-after tries once in a run, even when the server ignores it. */
   private surrenderTried = false;
+  /** Items fallen in the map in the last 2 s (s2c/1182); lootUntil keeps picking those that come just after a won battle;
+   * toPick waits for its turn, picking holds what c2s/1188 asked for (and when) until s2c/1183 takes it off the ground. */
+  private drops: { uuid: string; name: string; at: number }[] = [];
+  private lootUntil = 0; private toPick: { uuid: string; name: string }[] = []; private pickTimer?: ReturnType<typeof setTimeout>;
+  private picking = new Map<string, { name: string; at: number }>(); private pickedAt = 0;
+  /** Items picked up in this run. */
+  picked = 0;
   private wait?: ReturnType<typeof setTimeout>;
   options: QuestBotOptions;
   constructor(options: QuestBotOptions) { this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas); }
@@ -203,12 +212,33 @@ export class QuestBot implements WorldSession {
       }
       // A portal the character may not enter answers c2s/13 with "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" (Q15) or
       // "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" (S1); travel() then leaves it out.
+      // A pickup is answered by "Bạn vừa nhận được 474 Xu khóa" or "Không thể nhặt vật phẩm của người khác" (13-drops-items),
+      // which may come after the next step went for a portal (--rest-ms under 1 s): it is not that portal's refusal.
       case 1256: {
-        if (!this.travelling) break;
         const text = notice(payload).text;
+        if (Date.now() - this.pickedAt < 2000 && (!this.travelling || /nhặt|nhận được/i.test(text))) { this.log('pickup_notice', { text }); break; }
+        if (!this.travelling) break;
         recordRefusal(this.atlas, this.travelling, text); this.remember(); this.refused.add(this.travelling.id);
         this.log('portal_refused', { portal: this.travelling.id, name: this.travelling.name, text });
         this.travelling = undefined; this.later(1000);
+        break;
+      }
+      // An item fell in the map. Own drops come in the same ms as the end of a won battle (13-drops-items.md#tỉ-lệ-rơi).
+      case 1182: {
+        const r = new Reader(payload); r.string();
+        const g = groundItem(r), now = Date.now(), drop = { uuid: g.uuid, name: this.options.items?.describe(g) ?? `#${g.itemId} ×${g.quantity}`, at: now };
+        this.drops = [...this.drops.filter(d => now - d.at < 2000), drop];
+        if (now < this.lootUntil) this.pick(drop);
+        break;
+      }
+      // An item left the ground: picked up by someone, or expired. Ours goes 25–56 ms after c2s/1188; a stranger's item the
+      // server refused us may go later, when its owner picks it up.
+      case 1183: {
+        const r = new Reader(payload); r.string();
+        const uuid = r.string(), asked = this.picking.get(uuid);
+        if (!asked) break;
+        this.picking.delete(uuid);
+        if (Date.now() - asked.at < 1000) { this.picked++; this.log('picked', { item: asked.name, picked: this.picked }); }
         break;
       }
       case 1177: {
@@ -309,8 +339,25 @@ export class QuestBot implements WorldSession {
   }
   private stop(reason: string, fields: Record<string, unknown> = {}) {
     clearTimeout(this.wait);
-    this.log('stop', { reason, fights: this.fights, wins: this.wins, losses: this.losses, hp: `${this.hp}/${this.maxHp}`, quest: this.quest && this.describe(), ...fields });
+    this.log('stop', { reason, fights: this.fights, wins: this.wins, losses: this.losses, picked: this.picked, hp: `${this.hp}/${this.maxHp}`, quest: this.quest && this.describe(), ...fields });
     setTimeout(() => this.api?.close(), 1000);
+  }
+
+  /** Picks up an item on the ground with c2s/1188 (13-drops-items.md#c2s-1188), as the game's Nhặt button does but from
+   * anywhere in the map: the server does not check the distance. One every 200 ms. */
+  private pick(drop: { uuid: string; name: string }) {
+    if (this.picking.has(drop.uuid) || this.toPick.some(d => d.uuid === drop.uuid)) return;
+    this.toPick.push(drop);
+    if (!this.pickTimer) this.pickNext();
+  }
+  private pickNext() {
+    const drop = this.toPick.shift();
+    this.pickTimer = undefined;
+    if (!drop) return;
+    this.pickedAt = Date.now(); this.picking.set(drop.uuid, { name: drop.name, at: this.pickedAt });
+    this.log('pickup', { item: drop.name });
+    this.send(1188, buildRequest(1188, { uuid: drop.uuid }));
+    this.pickTimer = setTimeout(() => this.pickNext(), 200);
   }
 
   /** Leaves the battle in progress as the game's Đầu hàng does (BattleRunner.leave). s2c/1214 (every capture) or s2c/36
@@ -511,6 +558,12 @@ export class QuestBot implements WorldSession {
     this.hp = end.hp;
     this.log('battle_end', { ...end, ms: Date.now() - this.battleStart, skillsCast: this.battle?.skillsCast });
     this.battle = undefined;
+    // Own drops land with the battle end: within 0–58 ms before it in every capture (13-drops-items.md#tỉ-lệ-rơi). A
+    // stranger's item in these 600 ms (about 5% of battles, at 4.6 items a minute) is refused for its first 16 s.
+    if (end.won && this.options.pickup !== false) {
+      const now = Date.now(); this.lootUntil = now + 300; this.picking.clear();
+      for (const d of this.drops) if (now - d.at <= 300) this.pick(d);
+    }
     const q = this.quest, step = q?.steps[q.current], action = step && stepAction(step);
     const counted = q && step && action && 'mob' in action && this.mobs.find(m => m.id === end.mobId)?.name === action.mob;
     // Local count; s2c/1201 replaces it with the server's a few ms later, before next() decides (and advances). A boss

@@ -10,6 +10,8 @@ Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#n
 - **T3**: đọc tĩnh hàm nạp asset và lớp AES, rồi giải mã thật 246 icon; xem [Giải mã asset](#giải-mã-asset).
 - **T2**: đọc tĩnh `libgdx-flashds.so`, dựng đồ thị gọi JNI của cả thư viện: hàm nào gọi phương thức Java nào. Từ đó tìm ra gói nhặt đồ, xem [Nhặt đồ](#nhặt-đồ).
 - Thêm các gói vật phẩm trên đất của E1, E2 ([12-skills-items](12-skills-items.md)).
+- **G1** (31/10): đọc lại log của 108 trận. 89 trận do bot TS đánh (manina cấp 8–20, Q3–Q20, M1 và M2); 19 trận qua cầu nối trên điện thoại (Tiheo2 cấp 15–18, A1 và A2, M1). Xem [Tỉ lệ rơi](#tỉ-lệ-rơi).
+- **G2** (31/10): bot TS với manina (cấp 21–22, M1) đánh 6 trận Sơn Tặc và tự nhặt đồ của mình sau mỗi trận thắng; xem [G2](#g2).
 
 Bộ giải mã và bảng vật phẩm: [src/items.ts](../../../src/items.ts), [src/world.ts](../../../src/world.ts); lệnh `npm run items` ở [src/items-run.ts](../../../src/items-run.ts). Test: [test/items.test.ts](../../../test/items.test.ts) (đồ trên đất, gói nhặt P3, bảng vật phẩm, icon).
 
@@ -20,7 +22,8 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Câu hỏi | Trả lời |
 |---|---|
 | Đồ rơi ra sao? | Sau trận thắng quái, hòm đồ "có thể rơi xuống đất" (Cẩm nang). Server báo cho cả map: `s2c/1182` khi có món rơi, `s2c/1183` khi món mất (bị nhặt hoặc hết hạn), `s2c/1184` là danh sách món đang nằm trên đất lúc vào map hay vào khu. Mỗi món hết hạn khoảng 600 s sau khi rơi. Xem [Đồ trên đất](#đồ-trên-đất). [Đo] |
-| Nhặt thế nào? | Trên máy: chạm hòm rồi bấm **Nhặt**. Nút đó gửi **`c2s/1188` = `string uuid`**, uuid của món trong `s2c/1182`/`1184`. Đã bắt trên máy thật (P3, 31/10): server trả trong 52–56 ms `s2c/46` (số Xu mới), `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" và `s2c/1183` (món rời khỏi đất, báo cả map). Xem [Nhặt đồ](#nhặt-đồ). [Đo] |
+| Đánh xong có rơi đồ không, tỉ lệ bao nhiêu? | **Có, chỉ khi thắng.** 59/93 trận thắng có đồ (**63%**, khoảng tin cậy 95%: 53–73%), trung bình 0,76 món mỗi trận thắng. 0/15 trận thua có đồ. Xu khóa rơi ở 44% trận thắng, Đá 20%, trang bị 10%, Trứng Gà 2%. Trung bình mỗi trận thắng có 63 Xu khóa trên đất ở M1 và 91 ở M2, gấp 2–3 lần Vàng thưởng cuối trận (34). Bot TS tự nhặt từ G2; app Rust chưa nhặt. Xem [Tỉ lệ rơi](#tỉ-lệ-rơi). [Đo G1] |
+| Nhặt thế nào? | Trên máy: chạm hòm rồi bấm **Nhặt**. Nút đó gửi **`c2s/1188` = `string uuid`**, uuid của món trong `s2c/1182`/`1184`. Đã bắt trên máy thật (P3, 31/10): server trả trong 52–56 ms `s2c/46` (số Xu mới), `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" và `s2c/1183` (món rời khỏi đất, báo cả map). Bot TS gửi gói này ngay khi thắng trận, cho từng món của mình: 4/4 món nhặt được, server trả trong 25 ms ([G2](#g2)). Xem [Nhặt đồ](#nhặt-đồ). [Đo] |
 | Nhặt đồ người khác được không? | **Được, sau khoảng 16–17 s.** Trước đó server trả `s2c/1256` "Không thể nhặt vật phẩm của người khác" (16 lần thất bại khi món 5–7 s và 16 s tuổi; nhặt được ở 17, 18, 31 s). Bản ghi đồ trên đất không có trường chủ, server tự giữ. Xem [K3](#k3). [Đo] |
 | Phải đứng gần hòm không? | **Không.** Bot đứng ở (90, 640) vẫn nhặt được món ở (1520, 640), cách 1430 px, và món ở (3413, 192). [Đo K3] |
 | Đồ gì rơi? | 106 món đã thấy, gần hết ở M2: Xu khóa (mã 41) 54 đống, mỗi đống 124–250; Đá cấp 1–3 (411–413) 28 viên; Trứng Gà (3) 7 quả; 12 món trang bị cấp 1 (nón, áo, nhẫn, vũ khí), mỗi món 2 chỉ số. M1: 4 đống Xu khóa, 1 Đá cấp 2. M25 không có quái. Xem [Đồ đã thấy](#đồ-đã-thấy). [Đo] |
@@ -52,7 +55,7 @@ Chuỗi trong `libgdx-flashds.so` [Đo]:
 c2s/1188 = string uuid      (hàm dựng sqlq.c(String), ngen c44)
 ```
 
-Chuỗi gửi đi là trường `n` của món. Với hòm thật, `n` có lẽ là uuid trong bản ghi `s2c/1182`/`s2c/1184` ([09](09-players-chat.md#ground-items)). Tìm bằng đọc tĩnh (T2). P3 bắt được gói này trên máy: chuỗi gửi đi đúng là uuid của bản ghi đồ trên đất ([P3](#p3)). Bot TS có hàm dựng (`buildRequest(1188, { uuid })`) nhưng chưa tự nhặt. [Đo]
+Chuỗi gửi đi là trường `n` của món. Với hòm thật, `n` có lẽ là uuid trong bản ghi `s2c/1182`/`s2c/1184` ([09](09-players-chat.md#ground-items)). Tìm bằng đọc tĩnh (T2). P3 bắt được gói này trên máy: chuỗi gửi đi đúng là uuid của bản ghi đồ trên đất ([P3](#p3)). Bot TS dùng `buildRequest(1188, { uuid })` để nhặt đồ của mình sau mỗi trận thắng ([G2](#g2)). [Đo]
 
 Luồng trong client (lớp bản đồ `com.mh.sqhz`):
 
@@ -140,6 +143,56 @@ Bố cục ba gói và bản ghi vật phẩm ở [09-players-chat](09-players-c
 - Ở M2 đông người, P2 nhận 33 lần `s2c/1182` trong khoảng 9 phút. [Đo]
 - Trận Cóc Xanh thắng ở K2 không rơi gì: sau `s2c/36` không có `s2c/1182`. [Đo, 1 trận]
 - Ai được nhặt món của người khác, và sau bao lâu: sau khoảng 16–17 s thì ai cũng được ([K3](#k3)). [Đo]
+
+<a id="tỉ-lệ-rơi"></a>
+
+### Tỉ lệ rơi sau trận (G1)
+
+**Cách đếm.** Đồ của chính mình đến cùng lúc với gói kết thúc trận (`s2c/19`, `s2c/20` hay `s2c/21` có end = 1):
+- trace bot TS: cùng mili-giây (0 hoặc −1 ms);
+- log cầu nối trên điện thoại: sớm hơn 45–58 ms, do agent ghi gói theo lúc đọc.
+
+Món nằm đúng chỗ nhân vật đứng, các món cùng trận cách nhau 32. Ví dụ Tiheo2 đứng ở (320, 576): món rơi ở (320, 576) và (352, 576). Script đếm mọi `s2c/1182` từ 100 ms trước đến 5 ms sau gói kết thúc. Đồ người khác rơi khoảng 4,6 món mỗi phút, nên xác suất một món của người khác lọt vào khung này là 0,8% mỗi trận. [Đo]
+
+| Quái (map, cấp) | Trận thắng | Trận có đồ | Khoảng tin cậy 95% | Đồ đã rơi (số lần) |
+|---|---:|---:|---|---|
+| Sơn Tặc (M1, 9) | 40 | 30 (75%) | 60–86% | Xu khóa 21 (121–148 mỗi đống), Đá cấp 1: 6, Đá cấp 2: 3, Muôi Sắt, Khăn rằn, Khăn Vòng, Nhẫn Âu Lạc |
+| Sói Xám (M2, 11) | 16 | 9 (56%) | 33–77% | Xu khóa 5 (205–247), Đá cấp 2: 2, Đá cấp 3, Khăn Vòng: 2, Trứng Gà: 2, Nhẫn Hào Kiệt |
+| Cóc Xanh (M2, 13) | 14 | 9 (64%) | 39–84% | Xu khóa 7 (209–250), Đá cấp 2: 2 |
+| Kẻ Gây Rối (M1, 7) | 14 | 5 (36%) | 16–61% | Xu khóa 3 (137–142), Đá cấp 2, Nón Lá |
+| Chỉ Huy Sơn Tặc (M1, 10) | 7 | 5 (71%) | 36–92% | Xu khóa 4 (129–136), Đá cấp 1: 3, Áo Âu Lạc |
+| Heo Mọi (M1, 7) | 1 | 1 | | Xu khóa 134, Đá cấp 2 |
+| Một trận không rõ quái (A1) | 1 | 0 | | |
+| **Tổng** | **93** | **59 (63%)** | **53–73%** | 71 món |
+
+- **Thua thì không rơi gì**: 0/15 trận thua có món trong khung. [Đo]
+- Số món mỗi trận thắng: 34 trận không có món, 49 trận 1 món, 8 trận 2 món, 2 trận 3 món. Trung bình 0,76 món. [Đo]
+- Theo loại, tính trên 93 trận thắng: có Xu khóa 44%, Đá 20%, trang bị 10%, Trứng Gà 2%. [Đo]
+- Hai nhân vật như nhau: manina 47/74 (64%), Tiheo2 12/19 (63%). Chưa thấy cấp chênh lệch ảnh hưởng tới tỉ lệ. [Đo]
+- Giữa các loại quái, khoảng tin cậy còn chồng lên nhau. Kẻ Gây Rối có vẻ rơi ít hơn, nhưng chưa đủ trận để khẳng định. [Đo, mẫu nhỏ]
+- Mỗi đống Xu khóa ở M1 là 121–148, ở M2 là 205–250. Sói Xám cấp 11 cho nhiều gấp rưỡi Chỉ Huy Sơn Tặc cấp 10, nên số Xu khóa có lẽ theo map hơn là theo cấp quái. [Suy luận]
+- **Đồ trên đất đáng hơn thưởng cuối trận.** Trung bình mỗi trận thắng có 63 Xu khóa nằm trên đất ở M1 và 91 ở M2. Thưởng cuối trận chỉ là Vàng, trung bình 34 (74 trận của bot TS). Vàng chỉ đổi ra Xu khóa khi đầy thanh 10.000 ([04-push](04-push.md)). Nhặt từ xa được, và trong 16–17 s đầu chỉ người làm rơi nhặt được ([K3](#k3)). Vì vậy bot nhặt ngay sau gói kết thúc trận mà không phải đi tới hòm. Bot TS làm vậy từ G2; app Rust chưa. [Đo]
+
+<a id="g2"></a>
+
+### Bot tự nhặt sau trận (G2)
+
+Bot TS ([quest-bot](../../integration/nodejs/quest-bot.md#chạy), mặc định bật, tắt bằng `--no-pickup`) nhớ mọi `s2c/1182` trong 2 s gần nhất. Khi thắng một trận, bot gửi `c2s/1188` cho mỗi món đến trong khoảng 300 ms quanh gói kết thúc trận. Các món cách nhau 200 ms. Thua thì không nhặt. Code: `pick()` trong [src/quest.ts](../../../src/quest.ts); test trong [test/quest.test.ts](../../../test/quest.test.ts).
+
+Chạy thật 31/10 với manina (cấp 21, lên 22 ở trận 4), M1, `--farm="Sơn Tặc" --fights=6`:
+
+| Trận | Kết quả | Món rơi (`s2c/1182`, cùng mili-giây với gói kết thúc) | Server trả lời `c2s/1188` sau 25–26 ms |
+|---:|---|---|---|
+| 1 | thắng | Xu khóa ×137 | `s2c/46` Xu khóa 8.357 → 8.494, `s2c/1256` "Bạn vừa nhận được 137 Xu khóa", `s2c/1183` |
+| 2 | thắng | Xu khóa ×131 | `s2c/46` → 8.625, `s2c/1256`, `s2c/1183` |
+| 3 | thắng | Áo Âu Lạc (+6 phòng thủ, +4 thể lực) | `s2c/51` (ô túi 6), `s2c/1256` "Bạn vừa nhận được Áo Âu Lạc", `s2c/1183` |
+| 4 | thắng | Xu khóa ×137 | `s2c/46` → 8.762, `s2c/1256`, `s2c/1183` |
+| 5, 6 | thắng | không rơi | |
+
+- 4/6 trận có đồ (Sơn Tặc ở G1: 75%). Bot nhặt đủ 4/4 món: 405 Xu khóa và 1 Áo Âu Lạc. Cùng 6 trận đó, Vàng thưởng cộng lại là 186. [Đo]
+- Không nhặt nhầm món nào. Một món của người khác rơi 511 ms trước gói kết thúc trận 2, ngoài khung 300 ms, nên bot để lại. Không có lần nào server trả "Không thể nhặt". [Đo]
+- Đồ mình rơi luôn đến trước gói kết thúc trong cùng lần đọc. Vì vậy gói nhặt đi ngay trong mili-giây đó, trước cả `s2c/10` và `s2c/36` của trận. [Đo]
+- Chưa thử: túi đầy; app Rust. [Chưa rõ]
 
 <a id="hiển-thị-đồ-trên-đất"></a>
 
@@ -301,6 +354,6 @@ Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS
 ## Chưa rõ
 
 - `c2s/1188`: túi đầy thì server trả gì; thời gian khoá có đổi theo loại món, hay khi người làm rơi ở trong tổ đội không.
-- Tỉ lệ rơi theo quái.
+- Tỉ lệ rơi của từng loại quái: mỗi loại mới có 7–40 trận thắng, khoảng tin cậy còn rộng ([Tỉ lệ rơi](#tỉ-lệ-rơi)). Chênh cấp có làm giảm tỉ lệ không: Cẩm nang chỉ nói quái thấp hơn quá 20 cấp thì không rơi.
 - Loại thực thể thứ ba trong `sqhz.a17` (gửi `c2s/1181`).
 - Phẩm chất có đúng là `field4` không (cần một món không phải Hiếm); trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.

@@ -404,3 +404,43 @@ test('quest bot logs the x2 EXP star and the faction at login (s2c/9 tail, P4)',
   const effects = events.find(e => e.event === 'effects');
   assert.deepEqual(effects, { kind: 'quest', event: 'effects', at: effects?.at, effects: ['ef7 x2, còn 3h40'], faction: 'Thiên Tôn' });
 });
+
+test('quest bot: picks up the own drops of a won battle with c2s/1188, one every 200 ms, not older items nor after a loss', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 9, maxLosses: 9, restMs: 60000, items: Items.load(), log: e => events.push(e) });
+  bot.api = recorder(sent);
+  const w: Record<string, { hex: string }> = fixtures.world, gold = Buffer.from(w['s2c/1182 gold'].hex, 'hex'), gear = Buffer.from(w['s2c/1182 gear'].hex, 'hex');
+  const GOLD = 'f573bf90-942b-48d1-b466-4552dfa4f7cb', GEAR = 'fdcdeddb-5213-4b53-b67b-8a82ed08815d';
+  const pickup = (uuid: string) => ({ opcode: 1188, hex: buildRequest(1188, { uuid }).toString('hex') });
+  const won = { won: true, actor: 'manina', exp: 30, coin: 20, myTurns: 9, hp: 100, mobId: 'mob61000', damage: 249 };
+  bot.onPacket(1182, gear); // a stranger's item, 5 s before the battle end
+  t.mock.timers.tick(5000);
+  bot.onPacket(1182, gold);
+  (bot as any).onBattleEnd(won);
+  assert.deepEqual(sent, [pickup(GOLD)]);
+  bot.onPacket(1182, gear); // 100 ms after the end: still the battle's
+  t.mock.timers.tick(100);
+  assert.equal(sent.length, 1);
+  t.mock.timers.tick(100);
+  assert.deepEqual(sent, [pickup(GOLD), pickup(GEAR)]);
+  // The answer may come once the next step went for a portal: that portal was not refused.
+  bot.travelling = { id: 1024, name: 'Trại Vân Sơn' };
+  bot.onPacket(1256, noticePacket('Bạn vừa nhận được 123 Xu khóa'));
+  assert.deepEqual([bot.travelling?.id, bot.refused.size], [1024, 0]);
+  bot.travelling = undefined;
+  bot.onPacket(1183, new Writer().string('M1').string(GOLD).build());
+  bot.onPacket(1256, noticePacket('Không thể nhặt vật phẩm của người khác'));
+  t.mock.timers.tick(10000);
+  bot.onPacket(1183, new Writer().string('M1').string(GEAR).build()); // its owner took it 10 s later
+  assert.deepEqual(events.filter(e => /^pick/.test(String(e.event))).map(e => [e.event, e.item ?? e.text]),
+    [['pickup', 'Xu khóa ×123'], ['pickup', 'Nhẫn Hào Kiệt (+6 sức tấn công, +10 cường lực)'], ['pickup_notice', 'Bạn vừa nhận được 123 Xu khóa'], ['picked', 'Xu khóa ×123'],
+      ['pickup_notice', 'Không thể nhặt vật phẩm của người khác']]);
+  assert.equal(bot.picked, 1);
+  t.mock.timers.tick(5000);
+  bot.onPacket(1182, gold);
+  (bot as any).onBattleEnd({ ...won, won: false, actor: 'mob61000', hp: 0 });
+  t.mock.timers.tick(1000);
+  assert.equal(sent.length, 2); // nothing falls for the loser
+  (bot as any).stop('test done');
+});
