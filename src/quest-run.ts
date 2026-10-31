@@ -1,6 +1,6 @@
 import { createWriteStream } from 'node:fs';
 import { runClient } from './client.ts';
-import { QuestBot } from './quest.ts';
+import { QuestBot, statPlan } from './quest.ts';
 import { envConnection } from './env.ts';
 import { STRATEGIES } from './battle.ts';
 
@@ -20,10 +20,12 @@ const skill = skillId ? { id: skillId, cost: skillCost || 25 } : undefined;
 // --goal=kill (default: end battles fast) or --goal=exp (collect stars, drops and gold).
 const goal = (arg('goal') ?? 'kill') as keyof typeof STRATEGIES;
 if (!STRATEGIES[goal]) throw new Error('--goal must be kill or exp');
+// --stats=auto, --stats=than or --stats=cuong:3,than:1 spends the potential points (c2s/10) by those weights.
+const stats = arg('stats') === undefined ? undefined : statPlan(arg('stats')!);
 const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, strategy: STRATEGIES[goal],
   timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
   maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', once: process.argv.includes('--once'),
-  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), log: show });
+  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, log: show });
 const result = await runClient({
   ...connection, mode: 'world', session: bot, hexBytes: trace ? 65536 : 128,
   log: e => {

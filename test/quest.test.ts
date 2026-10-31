@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { Writer } from '../src/protocol.ts';
-import { decodeEvent } from '../src/events.ts';
-import { QuestBot, stepAction } from '../src/quest.ts';
+import { Reader, Writer, characterSkills } from '../src/protocol.ts';
+import { buildRequest, decodeEvent } from '../src/events.ts';
+import { skillTable, inventory, characterExtra, questData, characterStats, POTENTIALS } from '../src/world.ts';
+import { QuestBot, stepAction, statPlan } from '../src/quest.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 
 const q: Record<string, string> = fixtures.quest;
@@ -46,6 +47,7 @@ test('stepAction: every step text of quests 3–8', () => {
     ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1, { kind: 'damage', mob: 'Thủ Lĩnh Sơn Tặc', amount: 500 }],
     ['Đạt cấp độ 8', -1, { kind: 'level', level: 8 }],
     ['Nâng điểm tiềm năng', -1, { kind: 'stat' }],
+    ['Sử dụng điểm kỹ năng', -1, { kind: 'skill' }],
     ['Báo cáo với Bà Tư Hạnh', 103, { kind: 'talk', npcId: 103 }],
     ['Thu thập 5 Da Heo', -1, { kind: 'unknown' }],
   ];
@@ -250,4 +252,132 @@ test('quest bot: --surrender-after stops after the battle even when it ends befo
     .u8(1).string('mob61000').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
   bot.onPacket(19, end);
   assert.deepEqual([bot.battle, events.at(-1)?.event, events.at(-1)?.reason], [undefined, 'stop', 'battle over without the surrender']);
+});
+
+const si: Record<string, string> = fixtures['skills-items'];
+const hex = (h: string) => Buffer.from(h, 'hex');
+const a2Response = (opcode: number) => fixtures.scenario.stages.flatMap((st: any) => st.responses ?? []).find((r: any) => r.opcode === opcode).hex as string;
+/** Quest 3 of the L1 capture with "Sử dụng điểm kỹ năng" as the current step. */
+const quest3AtSkill = () => ({ ...questData(hex(q['s2c/39 quest3'])), current: 3 });
+const quest3Reply = () => new Writer().i32(0).string('subtask 1').i32(3).string('').build();
+
+test('skill and item packets: s2c/30 tree, s2c/9 skill list, s2c/10 kind 32, s2c/1191, the bag of s2c/42 and s2c/1187, c2s/48 (E1, E2)', () => {
+  const tree = skillTable(hex(a2Response(30))).skills;
+  assert.deepEqual(tree.map(k => [k.id, k.prerequisite, k.levels.length]), [[1000, -1, 20], [1001, 1000, 20], [1002, 1001, 20], [1003, 1000, 20], [1004, 1003, 20], [1005, 1004, 20], [1006, 1000, 20], [1007, 1006, 20], [1008, 1007, 20]]);
+  assert.equal(tree[3].name, 'Liệt Hỏa Chi Kiếm');
+  assert.deepEqual(tree[3].levels[0], { level: 1, description: tree[3].levels[0].description, cost: 2, requiredLevel: 10, mana: 50 });
+  assert.deepEqual(tree[0].levels.slice(0, 5).map(l => l.requiredLevel), [2, 7, 12, 17, 22]);
+  assert.deepEqual(decodeEvent('s2c', 30, hex(a2Response(30))).opaqueBytes, 0);
+  assert.deepEqual(characterSkills(hex(fixtures.profile['s2c/9 level 21'])).slice(0, 2), [{ id: 1000, level: 1, mana: 25, flag: 255 }, { id: 1001, level: 0, mana: 0, flag: 255 }]);
+  assert.deepEqual(characterSkills(hex(fixtures.profile['s2c/9 field01 4'])).map(k => k.id), [4000, 4001, 4002, 4003, 4004, 4005, 4006, 4007, 4008]);
+  const k32 = decodeEvent('s2c', 10, hex(si['s2c/10 kind 32']));
+  assert.equal(k32.opaqueBytes, 0);
+  assert.deepEqual((k32.fields as any).skills.slice(0, 2), [{ id: 1000, level: 2 }, { id: 1001, level: 0 }]);
+  assert.deepEqual(decodeEvent('s2c', 1191, hex(si['s2c/1191'])).fields, { statPoints: 68, skillPoints: 18 });
+  const login = characterExtra(hex(si['s2c/42 login'])), after = inventory(hex(si['s2c/1187 after repair']));
+  assert.deepEqual([login.label, login.capacity, login.items.map(i => i.itemId)], ['test dong 1', 42, [0, 412, 147, 48, 306, 415, 2, 1]]);
+  // The repair used the only Búa sửa chữa (item 2, slot 6); the rest of the bag is unchanged.
+  assert.deepEqual([after.kind, after.capacity, after.items.map(i => i.itemId)], [1, 42, [0, 412, 147, 48, 306, 415, 1]]);
+  assert.deepEqual([after.items[0].quantity, after.items[0].durability, after.items[2].durability, after.items[2].stats], [4, -1, 60, [{ stat: 6, value: 7 }, { stat: 3, value: 5 }]]);
+  assert.equal(decodeEvent('s2c', 42, hex(a2Response(42))).opaqueBytes, 0);
+  assert.deepEqual(decodeEvent('c2s', 48, hex(si['c2s/48 repair hat'])).fields, { a: 0, b: 0 });
+  assert.equal(buildRequest(1191, { skillId: 1000, amount: 1 }).toString('hex'), '000003e800000001');
+});
+
+test('quest bot: "Sử dụng điểm kỹ năng" sends c2s/1191 for the first skill that can take a level, and --once stops at the reply', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, once: true, log: e => events.push(e) });
+  bot.onPacket(9, hex(fixtures.profile['s2c/9 level 21'])); // level 21, Hỏa Cầu Thuật 1, 19 skill points
+  bot.onPacket(30, hex(a2Response(30)));
+  bot.onPacket(29, new Writer().string('manina').string('M1').i32(0).build());
+  bot.quest = quest3AtSkill();
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent, [{ opcode: 1191, hex: '000003e800000001' }]);
+  assert.deepEqual(bot.upgradable().map(k => k.id), [1000, 1001, 1003, 1006]);
+  bot.onPacket(10, hex(si['s2c/10 kind 32']));
+  bot.onPacket(1191, hex(si['s2c/1191']));
+  assert.deepEqual([bot.skillLevels.get(1000), bot.skillPoints], [2, 18]);
+  bot.onPacket(34, quest3Reply());
+  clearTimeout((bot as any).wait);
+  bot.next();
+  assert.deepEqual(sent.map(s => s.opcode), [1191]);
+  assert.deepEqual([events.at(-1)?.event, events.at(-1)?.reason, events.at(-1)?.step], ['stop', 'step done', 'Sử dụng điểm kỹ năng']);
+});
+
+test('quest bot: no skill that can take a level stops without sending; a point used without a quest reply stops too', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  // A2: level 3 with Hỏa Cầu Thuật 1 and 1 point; its level 2 needs level 7, the other roots level 10.
+  const stuck = new QuestBot({ maxFights: 5, log: e => events.push(e) });
+  stuck.onPacket(9, hex(a2Response(9)));
+  stuck.onPacket(30, hex(a2Response(30)));
+  stuck.quest = quest3AtSkill();
+  stuck.onReady(recorder(sent));
+  assert.deepEqual([sent.length, events.at(-1)?.event, events.at(-1)?.reason], [0, 'stop', 'no skill can take a level now']);
+  const bot = new QuestBot({ maxFights: 5, log: e => events.push(e) });
+  bot.onPacket(9, hex(fixtures.profile['s2c/9 level 21']));
+  bot.onPacket(30, hex(a2Response(30)));
+  bot.quest = quest3AtSkill();
+  bot.onReady(recorder(sent));
+  bot.onPacket(1191, hex(si['s2c/1191']));
+  t.mock.timers.tick(8000);
+  assert.deepEqual([sent.map(s => s.opcode), events.at(-1)?.reason], [[1191], 'skill point used but the server did not advance the step']);
+  t.mock.timers.tick(1000);
+});
+
+const sp: Record<string, string> = fixtures['stat-points'];
+/** s2c/10 kind 8 as P1 got it, with `left` potential points. */
+const pointsLeft = (left: number) => new Writer().i32(8).string('manina').i32(left).i32(16).i32(0).i32(21).string('421').string('125').build();
+const statSends = (sent: { opcode: number; hex: string }[]) => sent.filter(s => s.opcode === 10).map(s => POTENTIALS[new Reader(hex(s.hex)).i32()].key);
+
+test('potential points (P1): c2s/10 takes the + button row by row, s2c/10 kind 2 lists Thân Pháp before Nội Lực; --stats', () => {
+  assert.equal(buildRequest(10, { stat: 2, amount: 1 }).toString('hex'), sp['c2s/10 than phap']);
+  const k2 = characterStats(new Reader(hex(sp['s2c/10 kind 2']))), k4 = characterStats(new Reader(hex(sp['s2c/10 kind 4']))), k8 = characterStats(new Reader(hex(sp['s2c/10 kind 8'])));
+  // Thân Pháp 10 → 11 sits in slot 1; the repaired hat counts from here: max HP 180 → 238.
+  assert.deepEqual([k2.level, k2.stats!.slice(0, 4), POTENTIALS[2].slot], [21, [32, 11, 10, 30], 1]);
+  assert.deepEqual([k4.hp, k4.maxHp, k4.extra!.slice(1, 6), k8.statPoints], [180, 238, [32, 9, 33, 22, 6], 67]);
+  assert.deepEqual([statPlan('auto'), statPlan('than'), statPlan('cuong:3,than:1'), statPlan('noi,noi:2')], ['auto', [0, 0, 1, 0], [3, 0, 1, 0], [0, 3, 0, 0]]);
+  assert.throws(() => statPlan('suc'), /--stats: "suc"/);
+  assert.throws(() => statPlan('than:0'), /--stats/);
+});
+
+test('quest bot: --stats spends the points one c2s/10 at a time by weight, each after s2c/10 kind 8, then plays the step', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, stats: [1, 0, 1, 0], log: e => events.push(e) });
+  bot.onPacket(9, hex(fixtures.profile['s2c/9 level 21']));
+  bot.onPacket(29, new Writer().string('manina').string('M1').i32(0).build());
+  bot.quest = { ...questData(hex(q['s2c/39 quest3'])), current: 5 }; // the report: no "Nâng điểm tiềm năng" ahead
+  bot.statPoints = 3;
+  bot.onReady(recorder(sent));
+  bot.next(); // a timer firing meanwhile sends nothing more
+  assert.deepEqual(statSends(sent), ['cuong']);
+  for (const left of [2, 1, 0]) { bot.onPacket(10, pointsLeft(left)); t.mock.timers.tick(250); }
+  assert.deepEqual([statSends(sent), sent.at(-1)!.opcode], [['cuong', 'than', 'cuong'], 13]);
+  assert.deepEqual(events.find(e => e.event === 'stat_points_spent')?.spent, 3);
+  t.mock.timers.tick(8000);
+});
+
+test('quest bot: --stats=auto raises the main stat of the element and keeps a point for the "Nâng điểm tiềm năng" step ahead', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, stats: 'auto', log: e => events.push(e) });
+  bot.onPacket(9, hex(fixtures.profile['s2c/9 field01 4'])); // hệ Thủy, level 2, 4 points
+  bot.onPacket(29, new Writer().string('nickthu2').string('M1').i32(0).build());
+  bot.quest = { ...questData(hex(q['s2c/39 quest3'])), current: 1 };
+  bot.onReady(recorder(sent));
+  for (const left of [3, 2, 1]) { bot.onPacket(10, pointsLeft(left)); t.mock.timers.tick(250); }
+  assert.deepEqual([statSends(sent), sent.at(-1)!.opcode], [['noi', 'noi', 'noi'], 13]);
+  bot.onPacket(34, quest3Reply()); // the NPC answers: on to "Nâng điểm tiềm năng", which takes the kept point
+  t.mock.timers.tick(1500);
+  assert.deepEqual(statSends(sent), ['noi', 'noi', 'noi', 'noi']);
+  assert.equal(events.findLast(e => e.event === 'stat_point')?.stat, 'Nội Lực');
+  // An element of no known main stat spends nothing and says so once.
+  const lost = new QuestBot({ maxFights: 5, stats: 'auto', log: e => events.push(e) }), none: typeof sent = [];
+  lost.onPacket(9, hex(fixtures.profile['s2c/9 field01 4']));
+  lost.element = 2;
+  lost.quest = { ...questData(hex(q['s2c/39 quest3'])), current: 1 };
+  lost.onReady(recorder(none));
+  assert.deepEqual([statSends(none), none[0]?.opcode, events.filter(e => e.event === 'stat_plan_unknown_element').length], [[], 13, 1]);
+  t.mock.timers.tick(10000);
 });

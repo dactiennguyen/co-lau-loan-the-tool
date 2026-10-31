@@ -6,9 +6,9 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { BASELINE, OPCODE_ENTRIES } from './config.ts';
-import { Reader, Writer, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
+import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from './protocol.ts';
 import { buildRequest } from './events.ts';
-import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete } from './world.ts';
+import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable } from './world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from './battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 import { QuestBot, stepAction } from './quest.ts';
@@ -63,6 +63,11 @@ function decoders() {
   for (const k of ['s2c/39 quest3', 's2c/39 quest4']) add('questData', q[k], questData(bytes(q[k])));
   add('questProgress', q['s2c/34 dialogue'], questProgress(bytes(q['s2c/34 dialogue'])));
   add('questComplete', q['s2c/35'], questComplete(bytes(q['s2c/35'])));
+  // The skill step (docs/app/events/12-skills-items.md): the tree of s2c/30, the skill list of the s2c/9 tail, s2c/10 kind 32.
+  add('skillTable', response(7, 30), skillTable(bytes(response(7, 30))));
+  for (const h of [a2, fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterSkills', h, characterSkills(bytes(h)));
+  const si = fixtures['skills-items'];
+  add('characterStats', si['s2c/10 kind 32'], characterStats(new Reader(bytes(si['s2c/10 kind 32']))));
   return cases;
 }
 
@@ -113,10 +118,11 @@ function atlasCases() {
 }
 
 /** Packets fed to QuestBot as the quest steps of 10-quests.md play out, with what it sent after each one. `start` is
- * onReady (the app's "Tự làm nhiệm vụ"; with `once`, its ▶ on the current step); `next` is the decision a pending timer
- * makes. Battles are left out (their counting has its own tests); timers are cleared after every step. */
+ * onReady (the app's "Tự làm nhiệm vụ"; with `once`, its ▶ on the current step; with `stats`, QuestBotOptions.stats);
+ * `next` is the decision a pending timer makes. Battles are left out (their counting has its own tests); timers are
+ * cleared after every step. */
 function questReplays() {
-  type Ev = { packet: [number, string] } | { start: true; once?: true } | { next: true };
+  type Ev = { packet: [number, string] } | { start: true; once?: true; stats?: number[] | 'auto' } | { next: true };
   const p = (opcode: number, b: Uint8Array): Ev => ({ packet: [opcode, hex(b)] });
   const at = (mapId: string) => p(29, new Writer().string('manina').string(mapId).i32(0).build());
   const quest = (id: number, title: string, current: number, progress: number, steps: [string, number, number, number][]) => {
@@ -130,6 +136,18 @@ function questReplays() {
   const quest9 = (current: number, progress: number) => quest(9, 'Thử Sức Tân Binh', current, progress,
     [['Đạt cấp độ 11', 11, 1, -1], ['Nói chuyện với Võ Quan Đinh Mộc', 141, 1, 141], ['Tiêu diệt Sói Xám', 4, 15, -1], ['Tiêu diệt Cóc Xanh', 5, 15, -1], ['Báo cáo với Võ Quan Đinh Mộc', 141, 1, 141]]);
   const m2 = WORLD[1], q = fixtures.quest, mp = fixtures['map-packets'];
+  // Two skills of the Hỏa tree with the costs of s2c/30 (levels 1–5): the root and one that needs it. The whole tree is
+  // ~23 KB; skillTable has it among the decoders.
+  const tree = new Writer().i32(2);
+  for (const [id, name, prerequisite, cost, first] of [[1000, 'Hỏa Cầu Thuật', -1, 1, 2], [1003, 'Liệt Hỏa Chi Kiếm', 1000, 2, 10]] as const) {
+    tree.i32(id).string(name).i32(prerequisite).i32(5);
+    for (let l = 1; l <= 5; l++) tree.i32(l).string('').i32(cost).i32(first + 5 * (l - 1)).i32(25 * cost);
+  }
+  const skills = p(30, tree.build());
+  const quest3 = (current: number) => quest(3, 'Những Việc Đầu Tiên', current, 0, [['Đạt cấp độ 2', 2, 1, -1], ['Nói chuyện với Hương Lão Trần Bá', 102, 1, 102],
+    ['Nâng điểm tiềm năng', 0, 1, -1], ['Sử dụng điểm kỹ năng', 0, 1, -1], ['Tiêu diệt Gà Điên', 0, 1, -1], ['Báo cáo với Hương Lão Trần Bá', 102, 1, 102]]);
+  // s2c/10 kind 8 with the potential points left (P1).
+  const pointsLeft = (left: number) => p(10, new Writer().i32(8).string('manina').i32(left).i32(16).i32(0).i32(21).string('421').string('125').build());
   const scenarios: [string, Ev[], Atlas?][] = [
     ['damage step: the boss of s2c/1177 with c2s/1178', [at('M1'), p(43, mobsPacket('M1', [['mob872600', 'Chỉ Huy Sơn Tặc', 10]])), boss(0), quest7, { start: true }]],
     ['a boss changing tiles is waited for in its map', [p(11, mapPacket('M1', 'Làng Thanh Khê', [[1015, 'Vân Sơn', 0]])), p(43, mobsPacket('M1', [])), boss(0), boss(1), quest7, { start: true }, boss(0), { next: true }]],
@@ -149,7 +167,16 @@ function questReplays() {
       quest(11, 'Rèn Luyện', 0, 0, [['Đạt cấp độ 30', 30, 1, -1]]), { start: true }]],
     ['stat step: one potential point, then the reply', [at('M1'), quest(3, 'Những Việc Đầu Tiên', 2, 0, [['Đạt cấp độ 2', 2, 1, -1], ['Nói chuyện với Hương Lão Trần Bá', 102, 1, 102], ['Nâng điểm tiềm năng', 0, 1, -1], ['Báo cáo với Hương Lão Trần Bá', 102, 1, 102]]),
       { start: true }, p(34, bytes(new Writer().i32(0).string('subtask 1').i32(3).string('').build())), { next: true }]],
-    ['a step the bot does not know stops it', [at('M1'), quest(3, 'Những Việc Đầu Tiên', 0, 0, [['Sử dụng điểm kỹ năng', 0, 1, -1]]), { start: true }]],
+    ['a step the bot does not know stops it', [at('M1'), quest(3, 'Những Việc Đầu Tiên', 0, 0, [['Thu thập 5 Da Heo', 0, 5, -1]]), { start: true }]],
+    ['skill step: a level of the first skill that can take one, then the reply', [p(9, bytes(fixtures.profile['s2c/9 level 21'])), skills, at('M1'), quest3(3),
+      { start: true, once: true }, p(10, bytes(fixtures['skills-items']['s2c/10 kind 32'])), p(1191, bytes(fixtures['skills-items']['s2c/1191'])),
+      p(34, bytes(new Writer().i32(0).string('subtask 1').i32(3).string('').build())), { next: true }]],
+    ['stats auto: the main stat of the element, one c2s/10 per s2c/10 kind 8, a point kept for the stat step ahead', [p(9, bytes(fixtures.profile['s2c/9 field01 4'])), at('M1'), quest3(1),
+      { start: true, stats: 'auto' }, pointsLeft(3), { next: true }, pointsLeft(2), { next: true }, pointsLeft(1), { next: true },
+      p(34, bytes(new Writer().i32(0).string('subtask 1').i32(3).string('').build())), { next: true }]],
+    ['stats by weight: the stat furthest behind its weight, the lower index on a tie', [pointsLeft(3), at('M1'), quest3(5), { start: true, stats: [1, 0, 1, 0] },
+      pointsLeft(2), { next: true }, pointsLeft(1), { next: true }, pointsLeft(0), { next: true }]],
+    ['skill step: no skill that can take a level stops it without sending', [p(9, bytes(response(6, 9))), skills, at('M1'), quest3(3), { start: true }]],
     ['a new quest after the report goes on with its first step', [at('M1'), p(11, mapPacket('M1', 'Làng Thanh Khê', WORLD[0][2])), p(43, mobsPacket('M1', [['mob2806', 'Heo Mọi', 7]])),
       quest(3, 'Những Việc Đầu Tiên', 0, 0, [['Báo cáo với Thành Chủ Nguyễn Khang', 129, 1, 129]]), { start: true }, p(35, bytes(q['s2c/35'])),
       p(34, bytes(new Writer().i32(0).string('subtask 1').i32(4).string('').build())), p(39, bytes(q['s2c/39 quest4'])), { next: true }]],
@@ -166,7 +193,7 @@ function questReplays() {
     const steps = events.map(e => {
       const before = sent.length;
       if ('packet' in e) bot.onPacket(e.packet[0], bytes(e.packet[1]));
-      else if ('start' in e) { bot.options.once = e.once; bot.onReady(api as any); }
+      else if ('start' in e) { bot.options.once = e.once; bot.options.stats = e.stats; bot.onReady(api as any); }
       else bot.next();
       clearTimeout((bot as any).wait);
       return { ...e, sent: sent.slice(before), stopped, current: bot.quest?.current ?? null };
@@ -185,10 +212,10 @@ function zone() {
 
 function requests() {
   const move = { from: [5, 6] as [number, number], to: [5, 7] as [number, number] }, battleUuid = '3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e';
-  const ctx: [number, Record<string, unknown>][] = [[1, {}], [1206, {}], [5, { serverId: 24 }], [9, { username: 'Manina' }], [30, {}], [42, { characterName: 'manina' }],
+  const ctx: [number, Record<string, unknown>][] = [[1, {}], [1206, {}], [5, { serverId: 24 }], [9, { username: 'Manina' }], [30, {}], [30, { element: 4 }], [42, { characterName: 'manina' }],
     [29, { characterName: 'manina' }], [11, { mapId: 'M2' }], [43, { mapId: 'M2' }], [13, { mapId: 'M1', npcId: 1015 }], [15, { mobId: 'mob61000' }],
     [1178, { mobId: 'mob89100002' }], [18, { battleUuid }], [14, { battleUuid, seq: 4 }], [19, { battleUuid, seq: 3, move }], [20, { battleUuid, seq: 7, skill: 1000 }],
-    [10, { stat: 0, amount: 1 }]];
+    [10, { stat: 0, amount: 1 }], [1191, { skillId: 1000, amount: 1 }]];
   return ctx.map(([opcode, c]) => ({ opcode, ctx: c, hex: hex(buildRequest(opcode, c as any)) }));
 }
 

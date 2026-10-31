@@ -69,12 +69,12 @@ Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắ
 | Sau maxHp | Kiểu | Nhãn | A2 (cấp 3) | 30/10 (cấp 21) | Nick thứ hai (cấp 2) | Căn cứ |
 |---:|---|---|---|---|---|---|
 | 0 | i32, i32 | `s1`, `s1Max` | 0, 100 | 0, 100 | 0, 100 | Cùng cặp với `s1/s1Max` trong bản ghi người chơi ([09](events/09-players-chat.md#player-record)) [Chưa rõ, có thể là nội lực] |
-| 8 | i32 × 10 | `stats` | 22, 10, 10, 12, 0… | 32, 10, 10, 30, 0… | 10, 20, 10, 11, 0… | Cùng 10 số của `s2c/10` kiểu 2. `stats[0]` tăng 1 mỗi lần cộng điểm: 22 → 32 sau 10 lần cộng ở L1 [Đo] |
+| 8 | i32 × 10 | `stats` | 22, 10, 10, 12, 0… | 32, 10, 10, 30, 0… | 10, 20, 10, 11, 0… | Cùng 10 số của `s2c/10` kiểu 2. Bốn ô đầu là Cường Lực, **Thân Pháp**, **Nội Lực**, Thể Lực: `stats[0]` tăng 1 mỗi lần cộng Cường Lực (22 → 32 sau 10 lần ở L1), `stats[1]` tăng 10 → 11 khi cộng Thân Pháp (P1). Thứ tự này khác thứ tự nút của `c2s/10`, xem bảng dưới [Đo] |
 | 48 | i32 × 5 | `combat` | 22, 9, 30, 20, 6 | 32, 5, 30, 20, 6 | 13, 10, 40, 60, 7 | Bằng `extra[1..5]` của `s2c/10` kiểu 4. Xem bảng dưới |
 | 68 | i32 | `exp` | 176 | 14238 | 88 | Nằm trong `levelExp` ở cả ba mẫu. A2 bằng đúng EXP của `s2c/10` trước trận B1 [Đo] |
 | 72 | i32 | `coin` | 0 | 2664 | 0 | **Vàng** (thỏi vàng ăn trong trận), không phải Xu khoá. Bảng Bản thân ngày 31/10 hiện thanh vàng "2664/10000", trong khi Xu khoá là 7.370 (khớp `s2c/46`). Cùng vai trò với `coin` của `s2c/10` kiểu 4, tức vàng thưởng trận ([12-skills-items](events/12-skills-items.md#cẩm-nang-luật-liên-quan-tới-bot)) [Đo] |
 | 76 | i32 | `field` | 10000 | 10000 | 10000 | Bằng `extra[0]` của `s2c/10` kiểu 4. Là mốc đổi vàng: Cẩm nang ghi "đủ 10.000 tự đổi thành 10.000 Xu khóa", và bảng Bản thân hiện "2664/10000" [Suy luận mạnh] |
-| 80 | i32 | `statPoints` | 6 | 68 | 4 | Điểm tiềm năng còn lại: mỗi cấp +4. 6 + 4 × 18 − 10 điểm đã cộng = 68. `s2c/10` kiểu 8 cho 10 ở cấp 4 (6 + 4) [Suy luận mạnh] |
+| 80 | i32 | `statPoints` | 6 | 68 | 4 | Điểm tiềm năng còn lại: mỗi cấp +4. 6 + 4 × 18 − 10 điểm đã cộng = 68, đúng số trên bảng Chỉ số (E2); P1 cộng 1 thì `s2c/10` kiểu 8 và bảng cùng hiện 67. `s2c/10` kiểu 8 cho 10 ở cấp 4 (6 + 4) [Đo] |
 | 84 | i32 | `skillPoints` | 1 | 19 | 1 | Bằng `fields[0]` của `s2c/10` kiểu 8 (2 ở cấp 4). Bằng cấp − 1 − số điểm đã dùng: hai mẫu của manina đã học Hỏa Cầu Thuật cấp 1 (1 điểm), nick thứ hai chưa học kỹ năng nào; khớp "mỗi cấp 1 điểm kỹ năng" của Cẩm nang. Sau E1 manina còn 16 (Hỏa Cầu Thuật lên cấp 4, [12](events/12-skills-items.md#c2s-1191)) [Đo ba mẫu] |
 | 88 | i32 × 2 | `levelExp` | 150, 300 | 13841, 15882 | 50, 150 | Mốc EXP của cấp. Cặp cấp 3 là cặp đầu của bảng mốc trong `s2c/19` [Đo] |
 | 96 | string × 2 | `labels` | "780", "125" | "355", "125" | "1662", "1510" | Như `labels` của `s2c/10` kiểu 8 [Chưa rõ] |
@@ -89,17 +89,23 @@ Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắ
 | Ô | Nhãn trong app | A2 → 30/10 | Căn cứ |
 |---:|---|---|---|
 | 0 | Tấn công | 22 → 32 | Bằng `stats[0]` (Cường lực) khi không có vũ khí cộng thêm. Tụt 40 → 32 đúng lúc vũ khí hỏng ([10-quests](events/10-quests.md#kết-quả-q3q6-hp-lên-cấp-tiến-độ-các-lỗi-đã-gặp)) [Đo giá trị; nhãn từ chuỗi "Cường lực = Tấn công"] |
-| 1 | Phòng thủ | 9 → 5 | Tụt 9 → 5 cùng lúc áo hỏng và HP tối đa tụt [Đo giá trị; nhãn là Suy luận] |
-| 2, 3, 4 | Chính xác, Né tránh, Chí mạng | 30, 20, 6 | Không đổi từ cấp 3 tới cấp 21. Nhãn theo thứ tự trong chuỗi gợi ý "Thân pháp = Phòng thủ, chính xác, né tránh, chí mạng" [Suy luận] |
+| 1 | Phòng thủ | 9 → 5 | Tụt 9 → 5 cùng lúc áo hỏng và HP tối đa tụt. P1: 5 → 9 khi chiếc nón đã sửa (+4 phòng thủ) được tính, khớp P.Thủ trên bảng [Đo] |
+| 2, 3, 4 | Chính xác, Né tránh, Chí mạng | 30, 20, 6 | Không đổi từ cấp 3 tới cấp 21. P1: +1 Thân Pháp cho 33, 22, 6, đúng các số Chính Xác, Né Tránh, Chí Mạng trên bảng Chỉ số [Đo] |
 
 Các nhãn lấy từ chuỗi giao diện trong `lib/*/libgdx-flashds.so` của APK 1.0.3 (phần Java của game được biên dịch sang native):
 - **Bảng Nhân vật:** "Tấn Công", "P.Thủ", "Chính xác", "Né Tránh", "Chí Mạng", "Sinh lực", "D.Vọng".
 - **Hộp cộng điểm:** "Cường Lực", "Thân Pháp", "Nội Lực", "Thể Lực", với gợi ý "Cường lực = Tấn công", "Thân pháp = Phòng thủ, chính xác, né tránh, chí mạng", "Nội lực = Tấn công", "Thể lực = HP".
 
-Thứ tự 4 tiềm năng trong `stats` chỉ chắc ở ô đầu:
-- `stats[0]` là Cường lực: tăng khi cộng điểm vào chỉ số 0, và bằng tấn công.
-- `stats[3]` tăng đúng 1 mỗi cấp (12 → 30). Có thể là Thể lực.
-- `stats[1]` và `stats[2]` (Thân pháp, Nội lực) đều là 10 ở cả hai mẫu, nên chưa phân biệt được ô nào là ô nào.
+Thứ tự 4 tiềm năng (P1, [12-skills-items](events/12-skills-items.md#điểm-tiềm-năng)):
+
+| Tiềm năng | Ô trong `stats` (`s2c/9`, `s2c/10` kiểu 2) | Số của `c2s/10` (nút + trên bảng, theo hàng) | Căn cứ |
+|---|---:|---:|---|
+| Cường Lực | 0 | 0 | L1 [Đo] |
+| Thân Pháp | 1 | 2 | P1: `c2s/10 (2, 1)`, rồi `stats[1]` 10 → 11 và bảng hiện Thân Pháp 11 [Đo] |
+| Nội Lực | 2 | 1 | Ô còn lại ở cả hai phía [Suy luận mạnh] |
+| Thể Lực | 3 | 3 | `stats[3]` = 10 + cấp − 1 ở cả ba mẫu, khớp "tự cộng 1 Thể Lực mỗi cấp" [Suy luận mạnh] |
+
+Nick thứ hai (hệ Thủy) có `stats` = `[10, 20, 10, 11]`, tức Thân Pháp khởi đầu 20, và `combat` có Chính xác 40, Né tránh 60 ở cấp 2, trong khi manina ở cấp 3 có 30, 20. Hộp cộng điểm của manina (hệ Hỏa) ghi dưới Nội Lực "Không cần tăng nội lực".
 
 Chưa kiểm đoạn mã đọc các ô này.
 

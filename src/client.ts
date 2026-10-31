@@ -81,7 +81,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     function step(next: string, extra: { challenge?: Uint8Array } = {}) {
       move(next);
       const opcode = FLOW.find(s => s.state === next)!.request;
-      write(opcode, buildRequest(opcode, { username, password, serverId, characterName, mapId, ...extra }));
+      write(opcode, buildRequest(opcode, { username, password, serverId, characterName, mapId, element: user.character?.field01, ...extra }));
     }
     function requestNotice() {
       if (state === 'version' && haveList && haveFlag) step('notice');

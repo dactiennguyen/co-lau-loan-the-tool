@@ -137,8 +137,8 @@ export function notification(payload: Uint8Array) {
 }
 
 /** Prefix verified with native sqi getters; later character fields remain opaque. field01 is not a count of characters:
- * it was 1 for manina and 4 for a second account, equal to flag1 both times, with the same layout after it (perhaps the
- * character's class; docs/app/user-data.md). */
+ * it was 1 for manina and 4 for a second account, equal to flag1 both times, with the same layout after it. It is the
+ * character's element: c2s/30 with it gets that element's skill tree (1 Hỏa, 4 Thủy; docs/app/user-data.md). */
 export function characterPrefix(payload: Uint8Array) {
   const r = new Reader(payload), status = r.u8(), field01 = r.u8();
   if (status !== 1) throw new ProtocolError('UNSUPPORTED_BRANCH', `Unobserved character response: status=${status}`, { status, field01 });
@@ -149,7 +149,8 @@ export function characterPrefix(payload: Uint8Array) {
 
 /** s2c/9 after the prefix: the numbers s2c/10 kinds 2, 4 and 8 send later, then where the character stands (the x, y of
  * the s2c/11 that follows). `combat` is extra[1..5] of s2c/10 kind 4: attack, defence, then three the character panel
- * probably shows as accuracy, dodge, critical. The skill list and the rest stay opaque. See docs/app/user-data.md. */
+ * probably shows as accuracy, dodge, critical. The skill list after x, y is read by characterSkills; the rest stays
+ * opaque. See docs/app/user-data.md. */
 export function characterProfile(payload: Uint8Array) {
   const prefix = characterPrefix(payload), r = new Reader(payload);
   r.take(prefix.prefixBytes);
@@ -158,6 +159,15 @@ export function characterProfile(payload: Uint8Array) {
   const statPoints = r.i32(), skillPoints = r.i32(), levelExp = ints(2), labels = [r.string(), r.string()];
   const gap = [...r.take(6)], x = r.i32(), y = r.i32();
   return { ...prefix, s1, s1Max, stats, combat, exp, coin, field, statPoints, skillPoints, levelExp, labels, gap, x, y, profileBytes: r.offset };
+}
+
+/** The skill list right after x, y in the s2c/9 tail: every skill of the character's tree with its level (0 = not
+ * learned) and the nội lực it uses. The ids are 1000 × element + 0…8: Hỏa (field01 1) 1000–1008, Thủy (field01 4)
+ * 4000–4008, the tree c2s/30 sends for that element. */
+export function characterSkills(payload: Uint8Array) {
+  const r = new Reader(payload);
+  r.take(characterProfile(payload).profileBytes);
+  return Array.from({ length: r.i32() }, () => ({ id: r.i32(), level: r.i32(), mana: r.i32(), flag: r.u8() }));
 }
 
 export function characterLocation(payload: Uint8Array) {

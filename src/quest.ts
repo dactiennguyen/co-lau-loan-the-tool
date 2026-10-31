@@ -2,12 +2,12 @@
 // fights the named mob with BattleRunner, talks to quest NPCs with c2s/13, and walks through portals (c2s/13 with the
 // portal id) when the NPC or mob of a step is in another map. What it sees of each map goes to the atlas (atlas.ts), which
 // also tells it the way to maps seen in earlier runs.
-import { Reader, Writer, characterPrefix, characterProfile, characterLocation } from './protocol.ts';
+import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills } from './protocol.ts';
 import { battleSetup, type Strategy } from './battle.ts';
 import { BattleRunner, type BattleEnd } from './battle-runner.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, type Mob, type Place, type Quest, type QuestStep } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -16,6 +16,7 @@ export type StepAction =
   | { kind: 'damage'; mob: string; amount: number } // "Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc": damage to a boss of s2c/1177, won or lost
   | { kind: 'level'; level: number }                // "Đạt cấp độ 8"
   | { kind: 'stat' }                                // "Nâng điểm tiềm năng"
+  | { kind: 'skill' }                               // "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191)
   | { kind: 'talk'; npcId: number }                 // "Nói chuyện với X", "Báo cáo với X": any other step that names an NPC
   | { kind: 'unknown' };
 
@@ -25,7 +26,21 @@ export function stepAction(step: Pick<QuestStep, 'text' | 'npcId'>): StepAction 
   if ((m = /^Gây (\d+) sát thương lên (.+)$/.exec(step.text))) return { kind: 'damage', mob: m[2], amount: Number(m[1]) };
   if ((m = /^Đạt cấp độ (\d+)$/.exec(step.text))) return { kind: 'level', level: Number(m[1]) };
   if (/^Nâng điểm tiềm năng/.test(step.text)) return { kind: 'stat' };
+  if (/^Sử dụng điểm kỹ năng/.test(step.text)) return { kind: 'skill' };
   return step.npcId >= 0 ? { kind: 'talk', npcId: step.npcId } : { kind: 'unknown' };
+}
+
+/** --stats: "auto", or stat keys of POTENTIALS with an optional weight, "than" or "cuong:3,than:1"; the weights come out
+ * by c2s/10 index. */
+export function statPlan(spec: string): number[] | 'auto' {
+  if (spec === 'auto') return 'auto';
+  const weights = POTENTIALS.map(() => 0);
+  for (const part of spec.split(',')) {
+    const [key, weight = '1'] = part.split(':'), i = POTENTIALS.findIndex(p => p.key === key.trim()), n = Number(weight);
+    if (i < 0 || !Number.isInteger(n) || n < 1) throw new Error(`--stats: "${part}" is not auto or one of ${POTENTIALS.map(p => p.key).join(', ')} with an optional :weight`);
+    weights[i] += n;
+  }
+  return weights;
 }
 export interface QuestBotOptions {
   maxFights: number; minHpRatio?: number; log: (event: Record<string, unknown>) => void;
@@ -48,6 +63,10 @@ export interface QuestBotOptions {
   /** Surrenders the first battle once own swaps reach this (surrender()), then stops when that battle is over, left or
    * played out: to try leaving live. It costs EXP ("Rời trận, mất 29 kinh nghiệm" in B3). */
   surrenderAfter?: number;
+  /** Spends the potential points (c2s/10) by these weights per c2s/10 index (Cường Lực, Nội Lực, Thân Pháp, Thể Lực), or
+   * by 'auto': the main stat of the element (MAIN_STAT). See statPlan and allot(). The "Nâng điểm tiềm năng" step takes
+   * its point the same way. Without it that step raises Cường Lực and the other points are left alone. */
+  stats?: number[] | 'auto';
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -67,6 +86,13 @@ export class QuestBot implements WorldSession {
   readonly nearby = new ZonePlayers();
   /** A talk or stat-point step is answered by s2c/34 alone. */
   awaitingReply = false;
+  /** The skill tree of s2c/30, the level of each skill (s2c/9 tail, then s2c/10 kind 32) and the skill points left (s2c/9,
+   * then s2c/1191). upgrading is the skill of the c2s/1191 waiting for its answer. */
+  skills: Skill[] = []; skillLevels = new Map<number, number>(); skillPoints?: number; upgrading?: { id: number; name: string };
+  /** Element (field01 of s2c/9) and potential stats in s2c/9 order (POTENTIALS slot). allotted counts the points --stats
+   * gave each stat in this run, spent those since the last summary; allotting is set while a c2s/10 waits for s2c/10. */
+  element?: number; potentials: number[] = []; allotted = POTENTIALS.map(() => 0); spent = 0; allotting = false;
+  private planWarned = false;
   /** With `once`: the quest id and step index played, and the step's text. */
   playing?: { id: number; at: number; text: string };
   /** After surrender(): 8 s for the server to end the battle; and s2c/11 of the map asked with c2s/40 still to answer
@@ -101,15 +127,33 @@ export class QuestBot implements WorldSession {
     }
     switch (opcode) {
       case 9: {
-        const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level;
-        const p = characterProfile(payload); this.statPoints = p.statPoints;
+        const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level; this.element = c.field01;
+        const p = characterProfile(payload); this.statPoints = p.statPoints; this.skillPoints = p.skillPoints; this.potentials = p.stats;
         this.log('character', { level: p.level, hp: `${p.hp}/${p.maxHp}`, exp: p.exp, levelExp: p.levelExp, coin: p.coin, combat: p.combat, statPoints: p.statPoints, skillPoints: p.skillPoints });
+        this.skillLevels = new Map(characterSkills(payload).map(k => [k.id, k.level]));
         break;
       }
       case 1263: case 1167: case 1170: case 1253:
         if (this.nearby.on(opcode, payload) && opcode === 1263) this.log('players', { count: this.nearby.players.size, players: this.nearby.list().map(p => `${p.name} ${p.level}`) });
         break;
       case 29: this.mapId = characterLocation(payload).mapId; break;
+      case 30:
+        this.skills = skillTable(payload).skills;
+        this.log('skill_table', { skills: this.skills.map(k => `${k.id} ${k.name} ${this.skillLevels.get(k.id) ?? 0}/${k.levels.length}`) });
+        break;
+      // Answer to c2s/1191 after s2c/10 kind 32 (E1). The quest step moves on with s2c/34 or s2c/39 as for a stat point;
+      // without either the bot stops below rather than spend another point.
+      case 1191: {
+        const r = new Reader(payload), statPoints = r.i32(), skillPoints = r.i32();
+        this.statPoints = statPoints; this.skillPoints = skillPoints;
+        this.log('skill_points', { statPoints, skillPoints, upgraded: this.upgrading && `${this.upgrading.id} ${this.upgrading.name} ${this.skillLevels.get(this.upgrading.id) ?? 0}` });
+        if (this.upgrading && this.awaitingReply) {
+          const skillId = this.upgrading.id;
+          clearTimeout(this.wait);
+          this.wait = setTimeout(() => this.stop('skill point used but the server did not advance the step', { skillId }), 8000);
+        }
+        break;
+      }
       case 11: {
         if (payload[0] !== 1) break; // flag 0 is the world map ("M99")
         const d = mapData(payload);
@@ -156,7 +200,7 @@ export class QuestBot implements WorldSession {
       }
       case 39: {
         const before = this.quest && `${this.quest.id}/${this.quest.current}`;
-        this.quest = questData(payload); this.awaitingReply = false;
+        this.quest = questData(payload); this.awaitingReply = false; this.upgrading = undefined;
         this.log('quest', this.describe());
         if (this.api && !this.battle && before !== `${this.quest.id}/${this.quest.current}`) this.later(1500);
         break;
@@ -165,7 +209,7 @@ export class QuestBot implements WorldSession {
         const p = questProgress(payload);
         this.log('quest_progress', { questId: p.questId, text: p.text.slice(0, 120) });
         // A talk step is answered by s2c/34 alone (no new s2c/39), so the step is advanced here (L1 capture).
-        if (this.awaitingReply && this.quest?.id === p.questId) { this.awaitingReply = false; this.advance('server answered'); }
+        if (this.awaitingReply && this.quest?.id === p.questId) { this.awaitingReply = false; this.upgrading = undefined; this.advance('server answered'); }
         if (this.api && !this.battle) this.later(1500);
         break;
       }
@@ -176,7 +220,10 @@ export class QuestBot implements WorldSession {
         const s = characterStats(new Reader(payload));
         if (s.level !== undefined && s.level !== this.level) { this.level = s.level; this.log('level', { level: s.level, stats: s.stats }); }
         if (s.hp !== undefined) { this.hp = s.hp; this.maxHp = s.maxHp; this.log('stats', { hp: `${this.hp}/${this.maxHp}`, exp: s.exp, levelExp: s.levelExp, coin: s.coin }); }
-        if (s.statPoints !== undefined) this.statPoints = s.statPoints;
+        if (s.stats) this.potentials = s.stats;
+        // Kind 8 comes last of the three that answer c2s/10 (P1): the next point of --stats.
+        if (s.statPoints !== undefined) { this.statPoints = s.statPoints; if (this.allotting) { this.allotting = false; this.later(250); } }
+        if (s.skills) { for (const k of s.skills) this.skillLevels.set(k.id, k.level); this.log('skills', { levels: s.skills.filter(k => k.level > 0).map(k => `${k.id} ${k.level}`) }); }
         break;
       }
       case 36:
@@ -239,9 +286,9 @@ export class QuestBot implements WorldSession {
 
   /** Decide the next action from the current quest step. */
   next() {
-    if (!this.api || this.battle) return;
+    if (!this.api || this.battle || this.allotting) return;
     const q = this.quest, step = q?.steps[q.current];
-    if (this.options.farm) return this.farm(this.options.farm);
+    if (this.options.farm) { if (!this.allot()) this.farm(this.options.farm); return; }
     // The step moves on after the NPC reply (s2c/34), a new s2c/39, or the kill count or damage reached just below. It is
     // done once the quest is past it or a new quest came after the report; a quest moving back has not been seen.
     const p = this.playing;
@@ -252,6 +299,7 @@ export class QuestBot implements WorldSession {
       this.advance(action.kind === 'kill' ? 'kill count reached' : 'damage reached');
       return this.next();
     }
+    if (action.kind !== 'stat' && this.allot()) return;
     if (this.elsewhere(action, step.text)) return;
     switch (action.kind) {
       case 'kill': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text);
@@ -261,14 +309,74 @@ export class QuestBot implements WorldSession {
         if (this.level < action.level) return this.fight(this.grindTargets(), `${step.text} (cấp ${this.level})`);
         this.wait = setTimeout(() => this.stop('level reached but the server did not advance the step', { level: this.level }), 8000);
         return;
-      case 'stat':
-        this.log('stat_point', { step: step.text, statPoints: this.statPoints });
-        return this.ask(10, buildRequest(10, { stat: 0, amount: 1 }), 'no answer to the stat point');
+      case 'stat': {
+        const weights = this.statWeights(), stat = weights ? this.nextStat(weights) : 0;
+        if (weights) this.allotted[stat]++;
+        this.log('stat_point', { step: step.text, stat: POTENTIALS[stat].name, statPoints: this.statPoints });
+        return this.ask(10, buildRequest(10, { stat, amount: 1 }), 'no answer to the stat point');
+      }
+      case 'skill': return this.upgradeSkill(step.text);
       case 'talk':
         this.log('talk', { step: step.text, mapId: this.mapId, npcId: action.npcId });
         return this.ask(13, buildRequest(13, { mapId: this.mapId, npcId: action.npcId }), 'npc did not answer', { npcId: action.npcId });
       default: return this.stop('step needs an action this bot does not know', { step: step.text });
     }
+  }
+
+  /** --stats: one c2s/10 (stat, 1), as the game's "Cộng +1" sends (P1); the s2c/10 kind 8 that answers it calls next()
+   * for the next point, so points go out between battles only. Points for the "Nâng điểm tiềm năng" steps still ahead
+   * in the quest are kept for them. True when a point was sent. */
+  private allot(): boolean {
+    const weights = this.statWeights();
+    if (!weights) {
+      if (this.options.stats && !this.planWarned) { this.planWarned = true; this.log('stat_plan_unknown_element', { element: this.element }); }
+      return false;
+    }
+    const q = this.quest, keep = q ? q.steps.slice(q.current).filter(s => stepAction(s).kind === 'stat').length : 0;
+    if ((this.statPoints ?? 0) <= keep) {
+      if (this.spent) this.log('stat_points_spent', { spent: this.spent, kept: keep, statPoints: this.statPoints, stats: Object.fromEntries(POTENTIALS.map(p => [p.name, this.potentials[p.slot]])) });
+      this.spent = 0;
+      return false;
+    }
+    const stat = this.nextStat(weights);
+    this.allotted[stat]++; this.spent++; this.allotting = true;
+    this.log('stat_allot', { stat: POTENTIALS[stat].name, statPoints: this.statPoints });
+    this.send(10, buildRequest(10, { stat, amount: 1 }));
+    this.wait = setTimeout(() => this.stop('no answer to the stat point', { stat: POTENTIALS[stat].name }), 8000);
+    return true;
+  }
+  /** The --stats weights, 'auto' read from the element; undefined without a plan or for an element of no known main stat. */
+  private statWeights() {
+    const plan = this.options.stats, main = this.element === undefined ? undefined : MAIN_STAT[this.element];
+    if (plan !== 'auto') return plan?.some(w => w > 0) ? plan : undefined;
+    return main === undefined ? undefined : POTENTIALS.map((_, i) => i === main ? 1 : 0);
+  }
+  /** The stat furthest behind its weight among the points given in this run; on a tie the lower c2s/10 index. */
+  private nextStat(weights: number[]) {
+    let best = -1;
+    weights.forEach((w, i) => { if (w > 0 && (best < 0 || (this.allotted[i] + 1) / w < (this.allotted[best] + 1) / weights[best])) best = i; });
+    return best;
+  }
+
+  /** "Sử dụng điểm kỹ năng": c2s/1191 (skill id, 1) for the first skill of the s2c/30 tree that can take a level now. For a
+   * new character that is the root skill: Hỏa Cầu Thuật 1000, or 4000 for the element of the second account. */
+  private upgradeSkill(text: string) {
+    const skill = this.upgradable()[0];
+    if (!skill) return this.stop('no skill can take a level now', { step: text, level: this.level, skillPoints: this.skillPoints, skills: this.skills.length });
+    const level = this.skillLevels.get(skill.id) ?? 0;
+    this.upgrading = { id: skill.id, name: skill.name };
+    this.log('skill_upgrade', { step: text, skillId: skill.id, name: skill.name, level: `${level} → ${level + 1}`, cost: skill.levels[level].cost, skillPoints: this.skillPoints });
+    return this.ask(1191, buildRequest(1191, { skillId: skill.id, amount: 1 }), 'no answer to the skill upgrade', { skillId: skill.id });
+  }
+
+  /** Skills of s2c/30 whose next level the character can take now (prerequisite learned, character level and skill points
+   * enough), in the order of the tree, the root first. */
+  upgradable() {
+    const level = (id: number) => this.skillLevels.get(id) ?? 0;
+    return this.skills.filter(k => {
+      const next = k.levels[level(k.id)];
+      return next !== undefined && (k.prerequisite < 0 || level(k.prerequisite) > 0) && next.requiredLevel <= this.level && next.cost <= (this.skillPoints ?? 0);
+    });
   }
 
   private fight(targets: Mob[], reason: string, opcode: 15 | 1178 = 15) {

@@ -4,6 +4,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2. Nguồ
 - **E1, E2**: điện thoại, Frida hook writer/reader và 114 hàm dựng gói `com.mh.sqlq` (bỏ các gói đăng nhập `c2s/1…8`), ADB chạm màn hình. E1 có lỗi trong agent nên chỉ ghi được gói nhận và tham số của hàm dựng; E2 ghi đủ hai chiều.
 - **C1**: Cẩm nang trong game (Chức năng → Cẩm nang), chụp từng trang.
 - **T1**: phân tích tĩnh hàm dựng gói ([bảng 125 hàm](../c2s-builders.md)).
+- **P1**: điện thoại, Frida hook writer/reader cho `c2s/10`, `s2c/10`, `s2c/1191` và hàm dựng `d50`, `e52`; ADB bấm "Cộng +1" một lần cho Thân Pháp của manina.
 - **K1**: bot TS ([quest-bot](../../integration/nodejs/quest-bot.md)) đăng nhập nick thứ hai (hệ Thủy, cấp 3, nhiệm vụ 3 ở bước "Sử dụng điểm kỹ năng"): hai lần chỉ đọc, một lần thử `c2s/30` với hệ 4, rồi `--once` làm bước kỹ năng.
 
 Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
@@ -13,7 +14,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Câu hỏi | Trả lời |
 |---|---|
 | Bước "Sử dụng điểm kỹ năng" làm bằng gói gì? | **`c2s/1191 (i32 mãKỹNăng; i32 1)`**. Server trả `s2c/10` kiểu 32 (cấp của mọi kỹ năng), `s2c/1191` (điểm tiềm năng, điểm kỹ năng còn lại) và `s2c/34` (bước sau). Bot TS đã làm được bước này với server thật (K1). Xem [Nâng cấp kỹ năng](#c2s-1191). [Đo] |
-| Bước "Nâng điểm tiềm năng"? | `c2s/10 (i32 chỉSố; i32 số)` đã biết. manina còn **68 điểm tiềm năng** chưa cộng. Xem [Điểm tiềm năng](#điểm-tiềm-năng). [Đo] |
+| Cộng điểm tiềm năng thế nào? | `c2s/10 (i32 chỉSố; i32 số)`. Số chỉ số theo nút "+" trên bảng: 0 Cường Lực, 1 Nội Lực, 2 Thân Pháp, 3 Thể Lực. Nhưng `stats` của `s2c/9` xếp Thân Pháp trước Nội Lực. manina còn **67 điểm**. Bot TS cộng hết bằng `--stats`. Xem [Điểm tiềm năng](#điểm-tiềm-năng). [Đo P1] |
 | Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
 | Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Xem [Túi đồ và trang bị](#túi-đồ). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
@@ -85,16 +86,38 @@ i32 n; n × {
 
 <a id="điểm-tiềm-năng"></a>
 
-## Điểm tiềm năng
+## Điểm tiềm năng: `c2s/10` → `s2c/10` kiểu 2, 4, 8
 
-Bảng Bản thân → Chỉ số của manina (E2): **68 điểm tiềm năng chưa cộng**. Cường Lực 32, Nội Lực 10, Thân Pháp 10, Thể Lực 30. Chỉ số: Tấn Công 32, Chính Xác 30, Sinh Lực 180, P.Thủ 5, Né Tránh 20, Chí Mạng 6%. Con số 68 khớp `statPoints` của `s2c/9` và ô đầu của `s2c/1191`. [Đo]
+Trên máy: Bản thân → tab Chỉ số → bấm "+" cạnh một tiềm năng. Bấm "+" chưa gửi gì: game mở hộp "Điểm tiềm năng: 68, Chỉ số: Thân Pháp, Hiện tại: 10" kèm một câu gợi ý và hai nút **"Cộng +1"**, **"Cộng nhiều"**. "Cộng +1" mới gửi gói.
 
-- Cộng điểm: `c2s/10 (i32 chỉSố; i32 số)` ([09-players-chat](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy)). Chỉ số 0 là Cường Lực [Đo]. Ô 3 là Thể Lực: bằng 10 + cấp − 1 ở cả ba mẫu `s2c/9` (12 ở cấp 3, 30 ở cấp 21, 11 ở cấp 2), khớp "tự cộng 1 Thể Lực mỗi cấp" [Suy luận mạnh]. Ô 1 có lẽ là Nội Lực: nick thứ hai (hệ Thủy, chỉ số chính Nội Lực) có `[10, 20, 10, 11]`, ô 1 khởi đầu 20 như ô 0 của manina (hệ Hỏa, chỉ số chính Cường Lực). Ô 2 khi đó là Thân Pháp. [Suy luận]
-- Cẩm nang (C1): mỗi lần lên cấp nhận 4 điểm tiềm năng, 1 điểm kỹ năng và tự cộng 1 Thể Lực.
-  - Chỉ số chính tăng Tấn Công: hệ Hỏa là Cường Lực, hệ Lôi là Thân Pháp, hệ Thủy là Nội Lực.
-  - Thân Pháp tăng P.Thủ, Chính Xác, Né Tránh và Chí Mạng. Thể Lực tăng Sinh Lực và lượng máu Tim hồi. Cường Lực và Nội Lực giúp Đào và Âm dương nạp nhiều hơn.
-  - Tẩy Tủy Đan trả lại toàn bộ điểm tiềm năng đã cộng; Tẩy Kinh Đan trả lại toàn bộ điểm kỹ năng.
-- Bot hiện chỉ cộng 1 điểm vào Cường Lực khi gặp bước "Nâng điểm tiềm năng". 68 điểm còn lại là lý do lớn khiến Cóc Xanh khó ([10-quests](10-quests.md#kết-quả-q18-q20)). Cộng hết là việc nên làm, nhưng chọn chỉ số nào là quyết định của người chơi. [Suy luận]
+| Gói | Bố cục | Mẫu (P1, manina cấp 21) |
+|---|---|---|
+| `c2s/10` | `i32 chỉSố; i32 số` | `00000002 00000001`: cộng 1 Thân Pháp. Hàm dựng `sqlq.d50(2, 1)`, gọi từ `com.g.c.sqa.h13` ← `sqa.c12` (nút "Cộng +1") |
+| `s2c/10` kiểu 2 | `i32 2; string tên; i32 cấp; i32 stats[10]` | `… 00000015 00000020 0000000b 0000000a 0000001e 0…`: cấp 21; Cường Lực 32, Thân Pháp **11**, Nội Lực 10, Thể Lực 30 |
+| `s2c/10` kiểu 4 | Như sau trận ([05-battle](05-battle.md#c2s-40)) | HP 180/**238**; Tấn Công 32, P.Thủ **9**, Chính Xác **33**, Né Tránh **22**, Chí Mạng 6 |
+| `s2c/10` kiểu 8 | `i32 8; string tên; i32 điểmTiềmNăng; i32 điểmKỹNăng; i32; i32; string; string` | 67 điểm tiềm năng, 16 điểm kỹ năng, rồi 0, 21 (bằng cấp, chưa rõ), "421", "125" |
+
+- Ba gói `s2c/10` đến 26–33 ms sau `c2s/10`, kiểu 8 sau cùng. Bảng Chỉ số hiện đúng các số đó: Thân Pháp 11, còn 67 điểm. [Đo]
+- **Hai thứ tự khác nhau.** `c2s/10` đánh số theo nút "+" trên bảng, đọc theo hàng: 0 Cường Lực, 1 Nội Lực, 2 Thân Pháp, 3 Thể Lực. Còn `stats` của `s2c/9` và `s2c/10` kiểu 2 xếp Cường Lực, Thân Pháp, Nội Lực, Thể Lực. Cộng Thân Pháp là `c2s/10 (2, 1)` nhưng số đổi là `stats[1]`. Đã đo: Cường Lực (L1) và Thân Pháp (P1). Nội Lực là số còn lại ở cả hai phía [Suy luận mạnh]. Thể Lực là `stats[3]`, bằng 10 + cấp − 1 ở cả ba mẫu `s2c/9` [Suy luận mạnh]. Bảng đầy đủ ở [user-data](../user-data.md#đuôi-s2c9).
+- **Chỉ số của đồ vừa sửa được tính từ lần cập nhật này**: chiếc nón sửa ở E2 (+4 phòng thủ, +58 sinh lực) giờ mới đưa HP tối đa 180 → 238 và P.Thủ 5 → 9. Một điểm Thân Pháp cho +3 Chính Xác, +2 Né Tránh. [Đo]
+- Câu gợi ý trong hộp tuỳ hệ: với manina (hệ Hỏa) Nội Lực ghi "Không cần tăng nội lực"; Thân Pháp ghi "Thân pháp = Phòng thủ, chính xác, né tránh, chí mạng". [Đo]
+- "Cộng nhiều" chưa bấm. Có lẽ nó gửi `c2s/10 (chỉSố, n)` một lần, nhưng chưa đo. [Chưa rõ]
+- P1 tốn 1 điểm, manina còn 67.
+
+Cẩm nang (C1):
+- Mỗi lần lên cấp nhận 4 điểm tiềm năng, 1 điểm kỹ năng và tự cộng 1 Thể Lực.
+- Chỉ số chính tăng Tấn Công: hệ Hỏa là Cường Lực, hệ Lôi là Thân Pháp, hệ Thủy là Nội Lực. Nick thứ hai (hệ Thủy) lại khởi đầu với Thân Pháp 20 (`stats` `[10, 20, 10, 11]`), nên chỉ số khởi đầu không phải chỉ số chính. [Đo]
+- Thân Pháp tăng P.Thủ, Chính Xác, Né Tránh và Chí Mạng. Thể Lực tăng Sinh Lực và lượng máu Tim hồi. Cường Lực và Nội Lực giúp Đào và Âm dương nạp nhiều hơn.
+- Tẩy Tủy Đan trả lại toàn bộ điểm tiềm năng đã cộng; Tẩy Kinh Đan trả lại toàn bộ điểm kỹ năng.
+
+**Bot TS**: không có `--stats` thì bot chỉ cộng 1 điểm vào Cường Lực ở bước "Nâng điểm tiềm năng". Có `--stats` thì bot cộng hết điểm theo lựa chọn ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)):
+- `--stats=auto` cộng vào chỉ số chính của hệ: Cường Lực cho Hỏa (`field01` 1), Nội Lực cho Thủy (4). Với hệ chưa biết, bot không cộng điểm nào.
+- `--stats=than` hoặc `--stats=cuong:3,than:1` chia theo tỉ lệ.
+- Bot gửi từng `c2s/10 (chỉSố, 1)` như nút "Cộng +1". Gói sau chỉ đi khi `s2c/10` kiểu 8 của gói trước đã về.
+- Bot cộng lúc vào game và giữa các trận (sau mỗi lần lên cấp), không cộng giữa trận.
+- Bot chừa đủ điểm cho các bước "Nâng điểm tiềm năng" còn lại của nhiệm vụ đang làm. Ở các bước đó, điểm cũng đi theo lựa chọn.
+
+67 điểm chưa cộng là lý do lớn khiến Cóc Xanh khó ([10-quests](10-quests.md#kết-quả-q18-q20)). Bot chưa chạy `--stats` với server thật. [Suy luận]
 
 <a id="túi-đồ"></a>
 
@@ -161,7 +184,7 @@ Trên máy: Bản thân → chạm món hỏng → "Sửa chữa" → hộp "B�
 - `c47` ghi `sqi.b(I)` (1 byte) rồi `sqi.c(I)` (i32), khớp 5 byte trên dây. [Đo]
 - Vì `a` và `b` đều bằng 0 nên chưa tách được nghĩa. Có thể `a` là nơi chứa (0 = đang mặc, như `u8` đầu của gói túi đồ) và `b` là ô. [Suy luận]
 - `sqlq.a46(int, int, int)` cũng dựng `c2s/48` với `u8; i32; i32`, có lẽ là sửa món trong túi. [Chưa rõ]
-- **Sau khi sửa, chỉ số không đổi ngay**: không có `s2c/10` hay `s2c/36`, và bảng Chỉ số vẫn hiện Sinh Lực 180, P.Thủ 5. Chưa rõ chỉ số có cập nhật sau trận hay sau khi đăng nhập lại không. [Đo; Chưa rõ]
+- **Sau khi sửa, chỉ số không đổi ngay**: không có `s2c/10` hay `s2c/36`, và bảng Chỉ số vẫn hiện Sinh Lực 180, P.Thủ 5. Chúng đổi ở lần `s2c/10` sau: lần cộng điểm P1 đưa HP tối đa lên 238 và P.Thủ lên 9 ([Điểm tiềm năng](#điểm-tiềm-năng)). [Đo]
 - Búa sửa chữa lấy ở đâu (mua ở NPC hay rơi từ quái) [Chưa rõ]. manina đã dùng chiếc búa duy nhất, vũ khí vẫn hỏng.
 
 ## Bình máu và nội lực
@@ -197,7 +220,7 @@ Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bả
 
 - Nghĩa hai trường của `c2s/48`, và biến thể `a46` (`u8; i32; i32`).
 - Gói dùng bình, nhặt đồ, nhận và trả nhiệm vụ hằng ngày, mua ở NPC.
-- Chỉ số 1 và 2 của `c2s/10` (Nội Lực, Thân Pháp); mã chỉ số 2, 3, 5, 8 của trang bị.
+- `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều"; mã chỉ số 2, 3, 5, 8 của trang bị.
 - Tên vật phẩm mã 1, 412, 415, 261.
-- Chỉ số có cập nhật sau khi sửa đồ không, và khi nào.
+- Sau sửa đồ, chỉ số có đổi trước lần `s2c/10` sau (sau trận, đăng nhập lại) không.
 - Cây kỹ năng và giá trị `field01` của hệ Lôi.

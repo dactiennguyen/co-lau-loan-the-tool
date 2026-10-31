@@ -73,8 +73,23 @@ export function characterStats(r: Reader) {
   if (kind === 2) return { kind, name, level: r.i32(), stats: ints(10) };
   if (kind === 4) return { kind, name, hp: r.i32(), maxHp: r.i32(), exp: r.i32(), levelExp: ints(2), coin: r.i32(), extra: ints(6) };
   if (kind === 8) return { kind, name, statPoints: r.i32(), fields: ints(3), labels: [r.string(), r.string()] };
+  // After c2s/1191 (E1): the level of every skill of the character's tree.
+  if (kind === 32) return { kind, name, skills: Array.from({ length: r.i32() }, () => ({ id: r.i32(), level: r.i32() })) };
   return { kind, name };
 }
+
+/** The four potential stats, by the c2s/10 index: the + buttons of the character panel row by row. `slot` is where the
+ * value sits in `stats` of s2c/9 and s2c/10 kind 2, which list Thân Pháp before Nội Lực. Measured: Cường Lực 0 (L1),
+ * Thân Pháp 2 into slot 1 (P1); Nội Lực 1 follows from the panel order, Thể Lực grows by one a level in slot 3. */
+export const POTENTIALS = [
+  { key: 'cuong', name: 'Cường Lực', slot: 0 },
+  { key: 'noi', name: 'Nội Lực', slot: 2 },
+  { key: 'than', name: 'Thân Pháp', slot: 1 },
+  { key: 'the', name: 'Thể Lực', slot: 3 },
+] as const;
+/** The stat that raises attack for each element (field01 of s2c/9), from the in-game handbook: Hỏa Cường Lực, Thủy Nội
+ * Lực. Lôi (Thân Pháp) has no known field01. */
+export const MAIN_STAT: Record<number, number> = { 1: 0, 4: 1 };
 
 /** c2s/1169, sent every ~110 ms while the character moves. */
 export function moveRequest(payload: Uint8Array) {
@@ -164,14 +179,48 @@ export class ZonePlayers {
   }
 }
 
-/** Item record of s2c/1182 and s2c/1184: 88 bytes for plain items, 104 for gear with two stats. */
-export function groundItem(r: Reader) {
-  const flag = r.u8(), itemId = r.i32(), uuid = r.string(), field0 = r.i32(), durability = r.i32(), quantity = r.i32();
+/** Item record shared by the bag (s2c/42, s2c/1187), the gear slots of s2c/9 and items on the ground (s2c/1182): slot
+ * (0xfe on the ground), durability -1 for items without one, grade 0xff for plain items, stats as (code, value) with
+ * 6 = defence and 9 = HP seen on the item popup (docs/app/events/12-skills-items.md). */
+export function itemRecord(r: Reader) {
+  const slot = r.u8(), itemId = r.i32(), uuid = r.string(), field0 = r.i32(), durability = r.i32(), quantity = r.i32();
   const field1 = r.u8(), grade = r.u8(), field2 = r.i32(), field3 = r.u8(), field4 = r.u8(), stats = [];
   for (let n = r.u8(); n > 0; n--) stats.push({ stat: r.i32(), value: r.i32() });
-  const x = r.i32(), y = r.i32(), expiresAt = Number(r.take(8).readBigInt64BE());
-  return { flag, itemId, uuid, field0, durability, quantity, field1, grade, field2, field3, field4, stats, x, y, expiresAt };
+  return { slot, itemId, uuid, field0, durability, quantity, field1, grade, field2, field3, field4, stats };
 }
+
+/** Item record of s2c/1182 and s2c/1184: 88 bytes for plain items, 104 for gear with two stats. */
+export function groundItem(r: Reader) {
+  const { slot: flag, ...item } = itemRecord(r);
+  const x = r.i32(), y = r.i32(), expiresAt = Number(r.take(8).readBigInt64BE());
+  return { flag, ...item, x, y, expiresAt };
+}
+
+/** The whole bag: s2c/1187 when it changes, and the tail of s2c/42 at login. kind is 1 in s2c/1187, 2 in s2c/42. */
+export function bag(r: Reader) {
+  const kind = r.u8(), capacity = r.i32();
+  return { kind, capacity, items: Array.from({ length: r.i32() }, () => itemRecord(r)) };
+}
+export function inventory(payload: Uint8Array) { const r = new Reader(payload); return finish(r, bag(r), 's2c/1187'); }
+
+/** s2c/42 answering c2s/42 at login: a label ("test dong 1"), two unknown ints (42, 3), then the bag. */
+export function characterExtra(payload: Uint8Array) {
+  const r = new Reader(payload), label = r.string(), fields = [r.i32(), r.i32()];
+  return finish(r, { label, fields, ...bag(r) }, 's2c/42');
+}
+
+/** s2c/30 answering c2s/30 at login: the skill tree of the character's element. Every level gives the skill points it
+ * costs, the character level it needs and the nội lực it uses (25 = one "thành"). */
+export function skillTable(payload: Uint8Array) {
+  const r = new Reader(payload), skills = [];
+  for (let n = r.i32(); n > 0; n--) {
+    const id = r.i32(), name = r.string(), prerequisite = r.i32(), levels = [];
+    for (let k = r.i32(); k > 0; k--) levels.push({ level: r.i32(), description: r.string(), cost: r.i32(), requiredLevel: r.i32(), mana: r.i32() });
+    skills.push({ id, name, prerequisite, levels });
+  }
+  return finish(r, { skills }, 's2c/30');
+}
+export type Skill = ReturnType<typeof skillTable>['skills'][number];
 
 /** s2c/1172 after the empty c2s/1172: population of every zone of the current map. */
 export function zoneList(payload: Uint8Array) {
