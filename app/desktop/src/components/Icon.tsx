@@ -105,6 +105,9 @@ const paths = {
   eyeOff: (
     <path d="M3 3l18 18M10.6 5.1Q11.3 5 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.1 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.9 0 3.5-.6 4.9-1.4M9.9 9.9a3 3 0 0 0 4.2 4.2" />
   ),
+  swap: <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16" />,
+  chevron: <path d="m6 9 6 6 6-6" />,
+  refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof paths;

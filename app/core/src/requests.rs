@@ -22,6 +22,8 @@ pub struct Ctx<'a> {
     pub amount: Option<i32>,
     /// The character's element, field01 of s2c/9 (1 Hỏa, 2 Lôi, 4 Thủy): c2s/30 asks for the skill tree of that element.
     pub element: Option<i32>,
+    /// The zone of c2s/1173, and of c2s/11 after a zone change (s2c/13 with the zone).
+    pub zone: Option<i32>,
     pub skill_id: Option<i32>,
     /// Bag or gear slot of c2s/1186, c2s/84, c2s/48; `action` 0 equip (a bag slot), 1 unequip (a gear slot); `place` is
     /// `where` of TS, 0 for the gear.
@@ -65,11 +67,13 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         42 | 29 => w
             .string(required(c.character_name, "characterName")?)
             .build(),
+        // After a zone change the app asks the map of that zone: (zone, 0) instead of (-1, -1) (B2).
         11 => w
             .string(required(c.map_id, "mapId")?)
-            .u8(0xff)
-            .i32(-1)
+            .u8(c.zone.map_or(0xff, |z| z as u8))
+            .i32(if c.zone.is_some() { 0 } else { -1 })
             .build(),
+        1173 => w.u8(required(c.zone, "zone")? as u8).build(),
         43 => w.string(required(c.map_id, "mapId")?).build(),
         13 => w
             .string(required(c.map_id, "mapId")?)

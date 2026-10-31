@@ -20,7 +20,7 @@ use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill, Turn};
 use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
 use crate::world::{
     character_stats, map_boss, map_change, map_data, map_entities, notice, quest_complete,
-    quest_data, quest_progress, Mob, Nearby, Place, Quest, ZonePlayers,
+    quest_data, quest_progress, zone_list, Mob, Nearby, Place, Quest, Zone, ZonePlayers,
 };
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
@@ -110,6 +110,18 @@ pub struct QuestRun {
     pub ended_at: Option<u64>,
 }
 
+/// A map of the atlas for "Đổi map": the level the world map asks for, and how many portals away it is.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MapChoice {
+    pub map_id: String,
+    pub name: String,
+    /// c2s/11 "M99"; None for a map the world list does not have.
+    pub level: Option<i32>,
+    /// Portals on the shortest known way: 0 for the map the character is on, None when no known way leads there.
+    pub hops: Option<u32>,
+}
+
 /// A boss of this zone and the tile (column, row) it was last seen on; `moving` between s2c/1177 field 1 and field 0.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -160,6 +172,12 @@ pub struct Snapshot {
     pub map_id: String,
     pub map_name: String,
     pub zone: i32,
+    /// The zones of the map and their players (s2c/1172) as last asked; None until asked, and again after s2c/11.
+    pub zones: Option<Vec<Zone>>,
+    /// A zone change or a trip to another map under way, as the UI says it ("Sang khu 4", "Đi tới Rìa Hồng Giang").
+    pub moving: Option<String>,
+    /// The maps of the atlas, nearest first, with the portals to take (Bot::maps); filled by snapshot().
+    pub maps: Vec<MapChoice>,
     /// Where the character stands, in server units (s2c/11; tiles of 32).
     pub x: i32,
     pub y: i32,
@@ -294,6 +312,8 @@ pub struct Bot {
     leave_until: Option<Instant>,
     /// When the battle on, or the last one, opened (s2c/22): its result line says how long it took.
     battle_started: Instant,
+    /// When the fight job or quest run started: each result line says how long it has run.
+    run_started: Instant,
     /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
     /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
     /// 8, `allot_failed` once one went unanswered, until the plan is set again.
@@ -305,6 +325,12 @@ pub struct Bot {
     plan_warned: bool,
     upgrading: Option<Upgrade>,
     item_wait: Option<ItemWait>,
+    /// The zone of c2s/1173 until s2c/43 of it (change_zone).
+    zoning: Option<i32>,
+    /// "Đổi map": the map (id, name) the bot walks to through portals (go_to), until it is there.
+    trip: Option<(String, String)>,
+    /// Until when the zone change, or the portal of the trip, waits for the server.
+    move_until: Option<Instant>,
 }
 
 impl Bot {
@@ -334,6 +360,7 @@ impl Bot {
             reload_map: false,
             leave_until: None,
             battle_started: Instant::now(),
+            run_started: Instant::now(),
             stat_plan,
             given: [0; 4],
             spent: [0; 4],
@@ -342,6 +369,9 @@ impl Bot {
             plan_warned: false,
             upgrading: None,
             item_wait: None,
+            zoning: None,
+            trip: None,
+            move_until: None,
         }
     }
 
@@ -362,6 +392,7 @@ impl Bot {
         let mut s = self.snap.clone();
         s.targets = self.targets();
         s.players = self.zone.list();
+        s.maps = self.maps();
         if let Some(b) = &self.battle {
             s.turn = self.turn_of(b);
         }
@@ -449,6 +480,7 @@ impl Bot {
             self.timer.as_ref().map(|t| t.0),
             self.battle.as_ref().and_then(|b| b.deadline()),
             self.leave_until,
+            self.move_until,
         ]
         .into_iter()
         .flatten()
@@ -488,6 +520,20 @@ impl Bot {
                 }
             }
         }
+        if self.move_until.is_some_and(|t| t <= now) {
+            (self.move_until, self.snap.moving) = (None, None);
+            if let Some(z) = self.zoning.take() {
+                out.push(Out::Log(format!(
+                    "Server không trả lời khi sang khu {z} sau 8 s"
+                )));
+            }
+            if let Some((_, name)) = self.trip.take() {
+                self.travelling = None;
+                out.push(Out::Log(format!(
+                    "Kết thúc: cổng không trả lời sau 8 s, thôi đi tới {name}"
+                )));
+            }
+        }
         if self.leave_until.is_some_and(|t| t <= now) {
             self.leave_until = None;
             if let Some(b) = self.battle.as_mut().filter(|b| b.leaving) {
@@ -517,6 +563,11 @@ impl Bot {
                 "Đang tự làm nhiệm vụ: bấm Dừng rồi mới đánh quái".into(),
             ));
         }
+        if self.moving() {
+            return out.push(Out::Log(
+                "Đang đổi chỗ: đợi tới nơi rồi mới đánh quái".into(),
+            ));
+        }
         self.snap.job = Some(Job {
             target: target.into(),
             count,
@@ -531,6 +582,7 @@ impl Bot {
             started_at: epoch_ms(),
             ended_at: None,
         });
+        self.run_started = now;
         self.waits = 0;
         self.job_seq += 1;
         out.push(Out::Log(format!("Bắt đầu: đánh {target} {count} lần")));
@@ -555,6 +607,11 @@ impl Bot {
                 "Đang đánh quái: bấm Dừng rồi mới làm nhiệm vụ".into(),
             ));
         }
+        if self.moving() {
+            return out.push(Out::Log(
+                "Đang đổi chỗ: đợi tới nơi rồi mới làm nhiệm vụ".into(),
+            ));
+        }
         let playing = step.and_then(|(id, i)| {
             let q = self
                 .snap
@@ -576,6 +633,7 @@ impl Bot {
             self.finish_quest("Đã bắt đầu lần chạy mới", out);
         }
         self.snap.quest_run = Some(self.new_run(max_losses, index, None));
+        self.run_started = now;
         (self.waits, self.hops, self.travelling, self.awaiting_reply) = (0, 0, None, false);
         self.refused.clear();
         self.job_seq += 1;
@@ -623,6 +681,11 @@ impl Bot {
         }
         if self.quest_running() {
             self.finish_quest(reason, out);
+        }
+        // A portal already taken is followed to its map; no other is taken.
+        if let Some((_, name)) = self.trip.take() {
+            self.snap.moving = None;
+            out.push(Out::Log(format!("Kết thúc: thôi đi tới {name}")));
         }
         if surrender {
             self.surrender(now, out);
@@ -710,6 +773,9 @@ impl Bot {
     fn next(&mut self, now: Instant, out: &mut Vec<Out>) {
         if self.battle.is_some() || self.allotting {
             return;
+        }
+        if self.trip.is_some() {
+            return self.trip_next(now, out);
         }
         if self.quest_running() {
             return self.quest_next(now, out);
@@ -806,6 +872,7 @@ impl Bot {
             return self.quest_battle_end(&end, boss, now, out);
         }
         let took = duration_text(now.saturating_duration_since(self.battle_started));
+        let ran = duration_text(now.saturating_duration_since(self.run_started));
         let Some(j) = &mut self.snap.job else { return };
         if end.won {
             j.wins += 1
@@ -816,14 +883,15 @@ impl Bot {
         j.exp += end.exp.unwrap_or(0) as i64;
         j.coin += end.coin.unwrap_or(0) as i64;
         out.push(Out::Log(format!(
-            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu",
+            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu; đã chạy {}",
             j.fights,
             if end.won { "thắng" } else { "thua" },
             end.my_turns,
             took,
             end.damage,
             end.exp.unwrap_or(0),
-            end.coin.unwrap_or(0)
+            end.coin.unwrap_or(0),
+            ran
         )));
         if j.done.is_some() {
             return;
@@ -955,6 +1023,7 @@ impl Bot {
                 let m = map_prefix(payload)?;
                 (s.map_id, s.map_name, s.zone, s.x, s.y) =
                     (m.map_id, m.name, m.area as i32, m.x, m.y);
+                s.zones = None;
                 s.bosses.clear();
                 self.zone.clear();
                 // NPCs and portals. A map this decoder cannot read leaves them unknown, not an empty map in the atlas;
@@ -982,7 +1051,7 @@ impl Bot {
                 // Through a portal the client asks for the mobs of the new map next (B5), and after Đầu hàng for those of
                 // the map it asked with c2s/40 (06-map-mobs). That map answers our c2s/11: it does not end the battle.
                 let reload = std::mem::take(&mut self.reload_map);
-                if self.travelling.is_some() || reload {
+                if self.travelling.is_some() || self.zoning.is_some() || reload {
                     let map_id = self.snap.map_id.clone();
                     Self::send(
                         out,
@@ -999,6 +1068,19 @@ impl Bot {
                 s.map_id = c.map_id.clone();
                 if let Some(z) = c.zone {
                     s.zone = z;
+                }
+                if let (None, Some(z)) = (&self.travelling, self.zoning) {
+                    // The answer to c2s/1173: ask the map of that zone as the app does (B2, Z1).
+                    let zone = c.zone.unwrap_or(z);
+                    Self::send(
+                        out,
+                        11,
+                        Ctx {
+                            map_id: Some(&c.map_id),
+                            zone: Some(zone),
+                            ..Ctx::default()
+                        },
+                    );
                 }
                 if let Some((id, name)) = self.travelling.clone() {
                     self.timer = None;
@@ -1030,7 +1112,16 @@ impl Bot {
                         "Đã tới {} qua cổng {via}",
                         self.snap.map_name
                     )));
+                    self.move_until = None;
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
+                }
+                if let Some(z) = self.zoning.take() {
+                    (self.move_until, self.snap.moving) = (None, None);
+                    out.push(Out::Log(format!(
+                        "Đã sang khu {z} của {}: {} con quái",
+                        self.snap.map_name,
+                        self.mobs.len()
+                    )));
                 }
             }
             1263 => {
@@ -1111,6 +1202,7 @@ impl Bot {
                     self.points_changed(now);
                 }
             }
+            1172 => self.snap.zones = Some(zone_list(payload)?.zones),
             1256 => {
                 let text = notice(payload)?;
                 out.push(Out::Log(text.clone()));
@@ -1121,7 +1213,12 @@ impl Bot {
                 if let Some((id, name)) = self.travelling.take() {
                     self.atlas.record_refusal(id, &name, &text);
                     self.refused.insert(id);
+                    self.move_until = None;
                     self.timer = Some((now + Duration::from_secs(1), Wake::Next));
+                }
+                if let Some(z) = self.zoning.take() {
+                    (self.move_until, self.snap.moving) = (None, None);
+                    out.push(Out::Log(format!("Chưa sang khu {z}")));
                 }
             }
             39 => {
@@ -1592,6 +1689,7 @@ impl Bot {
     /// not expected to fall: its damage counts won or lost, and a loss to it does not stop the run.
     fn quest_battle_end(&mut self, end: &BattleEnd, boss: bool, now: Instant, out: &mut Vec<Out>) {
         let took = duration_text(now.saturating_duration_since(self.battle_started));
+        let ran = duration_text(now.saturating_duration_since(self.run_started));
         let Some(r) = &mut self.snap.quest_run else {
             return;
         };
@@ -1604,14 +1702,15 @@ impl Bot {
         r.coin += end.coin.unwrap_or(0) as i64;
         let (losses, max_losses) = (r.losses, r.max_losses);
         out.push(Out::Log(format!(
-            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu",
+            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu; đã chạy {}",
             r.fights,
             if end.won { "thắng" } else { "thua" },
             end.my_turns,
             took,
             end.damage,
             end.exp.unwrap_or(0),
-            end.coin.unwrap_or(0)
+            end.coin.unwrap_or(0),
+            ran
         )));
         let name = self
             .mobs
@@ -1949,5 +2048,169 @@ impl Bot {
         };
         Self::send(out, opcode, ctx);
         self.item_wait = Some(ItemWait { act, name, at: now });
+    }
+}
+
+/// Khu vực and Đổi map of the Vị trí card: c2s/1172 and c2s/1173 for the zones of the map
+/// (06-map-mobs.md#đổi-khu-vực-trong-cùng-map), c2s/13 through the portals of the atlas for another map (10-quests.md#cổng).
+impl Bot {
+    /// A zone change or a trip under way.
+    fn moving(&self) -> bool {
+        self.zoning.is_some() || self.trip.is_some()
+    }
+
+    /// Why the character cannot move now: a battle, a job, a quest run, or a move under way.
+    fn busy(&self) -> Option<&'static str> {
+        if self.battle.is_some() {
+            Some("đang đánh, đợi hết trận")
+        } else if self.job_running() {
+            Some("đang tự đánh quái, bấm Dừng trước")
+        } else if self.quest_running() {
+            Some("đang tự làm nhiệm vụ, bấm Dừng trước")
+        } else if self.moving() || self.travelling.is_some() {
+            Some("đang đổi chỗ")
+        } else {
+            None
+        }
+    }
+
+    /// The maps of the atlas, nearest first, then those no known way leads to.
+    fn maps(&self) -> Vec<MapChoice> {
+        let hops = self
+            .atlas
+            .hops(&self.snap.map_id, self.snap.level, &self.refused);
+        let mut out: Vec<MapChoice> = self
+            .atlas
+            .maps
+            .iter()
+            .map(|(id, m)| MapChoice {
+                map_id: id.clone(),
+                name: m.name.clone(),
+                level: self
+                    .atlas
+                    .world
+                    .iter()
+                    .find(|w| &w.map_id == id)
+                    .map(|w| w.level),
+                hops: hops.get(id).copied(),
+            })
+            .collect();
+        out.sort_by_key(|m| m.hops.unwrap_or(u32::MAX));
+        out
+    }
+
+    /// Asks the zones of the map and their players (c2s/1172); s2c/1172 fills `zones`.
+    pub fn list_zones(&mut self, out: &mut Vec<Out>) {
+        Self::send(out, 1172, Ctx::default());
+    }
+
+    /// Moves to another zone of the map as the Khu vực panel does: c2s/1173, s2c/13 with the zone, c2s/11 of that zone,
+    /// s2c/11, c2s/43, s2c/43 (Z1). Refused, with the reason in the log and nothing sent, while busy, for the zone the
+    /// character is in, and for a zone the last list does not have or shows full. The server puts the character back in
+    /// zone 0 at the next login.
+    pub fn change_zone(&mut self, zone: i32, now: Instant, out: &mut Vec<Out>) {
+        let listed = self.snap.zones.as_ref();
+        let found = listed.and_then(|l| l.iter().find(|z| z.zone == zone));
+        let why = self.busy().map(String::from).or_else(|| {
+            if zone == self.snap.zone {
+                Some(format!("đang ở khu {zone}"))
+            } else if !(0..=255).contains(&zone) || (listed.is_some() && found.is_none()) {
+                Some(format!("không có khu {zone}"))
+            } else {
+                found
+                    .filter(|z| z.players >= z.capacity)
+                    .map(|z| format!("khu đã đầy ({}/{})", z.players, z.capacity))
+            }
+        });
+        if let Some(why) = why {
+            return out.push(Out::Log(format!("Chưa sang khu {zone}: {why}")));
+        }
+        out.push(Out::Log(format!("Sang khu {zone}")));
+        Self::send(
+            out,
+            1173,
+            Ctx {
+                zone: Some(zone),
+                ..Ctx::default()
+            },
+        );
+        self.zoning = Some(zone);
+        self.snap.moving = Some(format!("Sang khu {zone}"));
+        self.move_until = Some(now + Duration::from_secs(8));
+    }
+
+    /// "Đổi map": walks through portals (c2s/13 with the portal id, B5) to the map by the shortest way the atlas knows,
+    /// at most 6 portals, a portal the server refuses left out. Refused while busy, for the map the character is on, and
+    /// for one no known way leads to.
+    pub fn go_to(&mut self, map_id: &str, now: Instant, out: &mut Vec<Out>) {
+        let name = self
+            .atlas
+            .maps
+            .get(map_id)
+            .map_or_else(|| map_id.to_string(), |m| m.name.clone());
+        let why = self.busy().map(String::from).or_else(|| {
+            let ways = self
+                .atlas
+                .hops(&self.snap.map_id, self.snap.level, &HashSet::new());
+            if map_id == self.snap.map_id {
+                Some("đang ở map này".into())
+            } else if !ways.contains_key(map_id) {
+                Some("chưa biết đường qua cổng tới đó".into())
+            } else {
+                None
+            }
+        });
+        if let Some(why) = why {
+            return out.push(Out::Log(format!("Chưa đi tới {name}: {why}")));
+        }
+        out.push(Out::Log(format!("Bắt đầu: đi tới {name} ({map_id})")));
+        (self.trip, self.hops) = (Some((map_id.to_string(), name)), 0);
+        self.refused.clear();
+        self.trip_next(now, out);
+    }
+
+    /// The next portal of the trip, or its end: on the map, past 6 portals, or no known way left.
+    fn trip_next(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let Some((to, name)) = self.trip.clone() else {
+            return;
+        };
+        let here = self.snap.map_id.clone();
+        let portal = self.atlas.route(
+            &here,
+            &|m: &MapRecord| m.map_id == to,
+            self.snap.level,
+            &self.refused,
+        );
+        let end = if here == to {
+            Some(format!("đã tới {name}"))
+        } else if self.hops >= 6 {
+            Some(format!("qua 6 cổng vẫn chưa tới {name}"))
+        } else if portal.is_none() {
+            Some(format!("không còn đường tới {name}"))
+        } else {
+            None
+        };
+        if let Some(end) = end {
+            (self.trip, self.snap.moving, self.move_until) = (None, None, None);
+            return out.push(Out::Log(format!("Kết thúc: {end}")));
+        }
+        let portal = portal.unwrap();
+        self.hops += 1;
+        self.travelling = Some((portal.id, portal.name.clone()));
+        self.snap.moving = Some(format!("Đi tới {name}"));
+        out.push(Out::Log(format!(
+            "Qua cổng {} ({}/6)",
+            portal.name, self.hops
+        )));
+        Self::send(
+            out,
+            13,
+            Ctx {
+                map_id: Some(&here),
+                npc_id: Some(portal.id),
+                ..Ctx::default()
+            },
+        );
+        self.move_until = Some(now + Duration::from_secs(8));
     }
 }

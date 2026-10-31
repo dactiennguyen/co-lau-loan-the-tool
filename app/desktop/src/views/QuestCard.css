@@ -26,10 +26,10 @@
 .step--current .step__count { color: var(--primary); }
 
 /* One line: what the bot does on the left, the score on the right. */
-.quest__run { display: flex; align-items: baseline; gap: var(--space-3); padding: 5px 10px; background: var(--ink); font-size: 11.5px; white-space: nowrap; }
-.quest__doing { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 800; color: var(--coin); }
+.quest__run { display: flex; align-items: center; gap: var(--space-3); padding: 5px 10px; background: var(--ink); font-size: 11.5px; white-space: nowrap; }
+.quest__doing { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 800; color: var(--coin); }
 .quest__run--live .quest__doing { color: var(--s-fighting); }
-.quest__score { color: var(--fg-2); }
+.quest__score { margin-left: auto; color: var(--fg-2); }
 .quest__score .win { color: var(--s-online); }
 .quest__score .loss { color: var(--danger); }
 .quest__battle { padding: var(--space-3); background: var(--ink); }

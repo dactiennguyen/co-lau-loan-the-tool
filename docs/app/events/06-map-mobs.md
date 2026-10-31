@@ -4,6 +4,7 @@ Mốc: APK 1.0.3, bản đồ M1 "Làng Thanh Khê". Nguồn:
 - Phiên **B1** (spawn, khu 0).
 - Phiên **B2** (29/10/2026, attach vào cùng tiến trình, khu 20): hook packet như [05-battle](05-battle.md), cộng hook tại các hàm dựng gói trong `com.mh.sqlq`, và đọc object quái trong bộ nhớ bằng reflection qua JNI.
 - Phiên **S1** (30/10/2026, bot Node, không cần điện thoại): thử xin dữ liệu map khác, thử từng cổng, rồi quét mọi map vào được bằng `npm run scan` ([Bản đồ đã quét](#atlas)).
+- Phiên **Z1** (31/10/2026, bot TS `npm run zone`, manina ở M2): xem danh sách khu, đổi sang khu 4, đăng nhập lại ([Đổi khu](#đổi-khu-vực-trong-cùng-map)).
 
 Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -15,7 +16,7 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Xem được map chưa vào không? | **Không.** Server chỉ trả map đang đứng: `c2s/11` với map khác bị từ chối ("Không thể chuyển khu vực"), `c2s/43` với map khác vẫn trả quái của map đang đứng. Muốn biết NPC, cổng, quái của map nào thì phải vào map đó qua cổng. [Đo S1] |
 | Vị trí quái? | Server **không gửi** cho quái thường. Client tự đặt và cho quái đi lại. Muốn có toạ độ phải đọc trong bộ nhớ: `sqhz.J.e` chứa mọi entity. Boss thì có ô đứng trong `s2c/1177`; NPC và cổng có toạ độ trong `s2c/11`. [Đo] |
 | Di chuyển? | Client tự di chuyển trên lưới va chạm của `s2c/11` và báo vị trí bằng `c2s/1169` (x, y, trạng thái). Server nhận cả vị trí do bot Node tự gửi và lưu lại. Sang bản đồ khác: đứng ở cổng, bấm "Vào" → `c2s/13 (mapId, id cổng)` ([10-quests](10-quests.md#cổng)). [Đo] |
-| Đổi khu cùng map? | `c2s/1173 (u8 khu)` → `s2c/13 (mapId, khu)` → `c2s/11 (mapId, khu)` → `s2c/11` → `c2s/43` → `s2c/43`. [Đo] |
+| Đổi khu cùng map? | `c2s/1173 (u8 khu)` → `s2c/13 (mapId, khu)` → `c2s/11 (mapId, khu)` → `s2c/11` → `c2s/43` → `s2c/43`. Bot TS làm được (`npm run zone -- --zone=N`, Z1). Đăng nhập lại thì về khu 0. [Đo] |
 | Code nào chạy khi va chạm quái? | `com.mh.sqhz.a18(mob, bool)` → `sqhz.a17(mob, bool, int)` → `sqlq.a67(mobId, false)` → `c2s/15`. [Đo] |
 
 ## Quái của M1
@@ -225,7 +226,7 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
 
 ## Đổi khu vực trong cùng map
 
-Mở "Khu vực" (góc trên phải) ra danh sách khu kèm "Dân số N/20", trong đó thấy tới khu 25 trở lên. Mở hộp này **không** sinh gói. Nguồn số dân [Chưa rõ]; trong `.so` có log `[ZONE]: id|color|num|max`.
+Mở "Khu vực" (góc trên phải) ra danh sách khu kèm "Dân số N/20". Hộp này lấy số dân bằng `c2s/1172` → `s2c/1172` ([08-server-map-zone](08-server-map-zone.md#zone-list)); trong `.so` có log `[ZONE]: id|color|num|max`. (Ghi chép B2 từng ghi là mở hộp không sinh gói; U1 và L1 sau đó bắt được `c2s/1172`.)
 
 | Bước | Gói | Payload mẫu (khu 20) |
 |---|---|---|
@@ -237,6 +238,24 @@ Mở "Khu vực" (góc trên phải) ra danh sách khu kèm "Dân số N/20", tr
 | Quái | s2c/43 | 33 id của khu 20 |
 
 Toàn bộ chuỗi mất ~3,6 s. Hàm dựng gói (tìm qua hằng số): `sqlq.b119` → 1173, `sqlq.a63` → 11, `sqlq.e66` → 43. [Đo gói; hàm là Suy luận tĩnh]
+
+### Bot TS đổi khu (Z1)
+
+`npm run zone` đăng nhập, gửi `c2s/1172` rồi in số người của từng khu; `--zone=N` đi tiếp đúng chuỗi trên rồi in quái và người của khu mới ([src/zone-run.ts](../../../src/zone-run.ts)). Lần chạy với manina ở M2 (31/10, khoảng 12:30):
+
+| Bước | Gói | Kết quả |
+|---|---|---|
+| Danh sách khu | `s2c/1172` | M2 cũng có **100 khu**, mỗi khu tối đa 20. 26–29 người: khu 0 có 15–16, khu 5 có 4, khu 1 có 3, 91–93 khu trống |
+| Chọn khu 4 | `c2s/1173` `04` | |
+| Server nhận | `s2c/13` sau 26 ms | `000000024d32 00000001 00 04`: dạng dài như khi qua cổng (mapId, thứ tự map 1, `00`), byte cuối là **khu mới** thay cho `ff` |
+| Xin map | `c2s/11` `000000024d32 04 00000000` | `s2c/11` với `area` = 4, cùng x/y (2784, 864) |
+| Xin quái | `c2s/43` | `s2c/43` sau 83 ms tính từ `c2s/1173`: 31 con, đủ 6 loại của M2 (Kẻ Quấy Phá 20, Cua Càng 15, Cóc Xanh 13, Sói Xám 11, Sơn Tặc 9, Heo Mọi 7) |
+| Người trong khu | `s2c/1263` | Không có (khu trống không gửi gói này) |
+
+- Dạng `s2c/13` của B2 (`string mapId; i32 khu`, 10 byte) không gặp lại. Bộ giải mã đọc cả hai dạng: trong dạng dài, byte cuối khác `ff` là khu. [Đo]
+- Lần đầu script dừng ngay sau `s2c/13` (chưa đọc được dạng dài), không gửi `c2s/11`. Đăng nhập lại thì vẫn ở khu 0. [Đo]
+- Sau khi đổi khu trọn chuỗi rồi thoát, đăng nhập lại cũng về **khu 0**: server không nhớ khu giữa hai lần đăng nhập, chỉ nhớ map. [Đo]
+- App Rust làm lại cùng chuỗi (`cllt zone --zone=4`), rồi đi M2 → M1 → M2 qua cổng (`cllt goto`): qua cổng Làng Thanh Khê thì server xếp manina vào **khu 1** của M1, đăng nhập lại vẫn khu 1; về M2 thì khu 0. Có lẽ server xếp vào khu đầu tiên còn chỗ (khu 0 của M1 hay đông). [Đo; lý do là Suy luận]
 
 ## Code khi va chạm quái
 

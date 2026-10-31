@@ -179,10 +179,10 @@ pub fn map_grid(p: &[u8]) -> Result<MapGrid> {
 #[serde(rename_all = "camelCase")]
 pub struct MapChange {
     pub map_id: String,
-    /// After a zone change.
+    /// After a zone change (c2s/1173): the new zone.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zone: Option<i32>,
-    /// After a portal: index in the world map; the zone comes with the next s2c/11.
+    /// Index in the world map, in the long form; after a portal the zone comes with the next s2c/11.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub map_index: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -200,16 +200,46 @@ pub fn map_change(p: &[u8]) -> Result<MapChange> {
             extra: None,
         });
     }
+    // The last byte is 0xff after a portal and the new zone after c2s/1173 (Z1: M2, 1, 0, 4); B2 had the short form.
     let extra = [r.u8()?, r.u8()?];
     r.finish(
         MapChange {
             map_id,
-            zone: None,
+            zone: (extra[1] != 0xff).then_some(extra[1] as i32),
             map_index: Some(value),
             extra: Some(extra),
         },
         "s2c/13",
     )
+}
+
+/// One zone of s2c/1172: `load` 0, 1, 2 as the panel colours it (2 red), players of `capacity` (20).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Zone {
+    pub zone: i32,
+    pub load: i32,
+    pub players: i32,
+    pub capacity: i32,
+}
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ZoneList {
+    pub zones: Vec<Zone>,
+}
+/// s2c/1172 answering c2s/1172: the zones of the current map (100 in M1 and M2) and their players
+/// (08-server-map-zone.md#zone-list).
+pub fn zone_list(p: &[u8]) -> Result<ZoneList> {
+    let mut r = Reader::new(p);
+    let mut zones = vec![];
+    for _ in 0..r.u8()? {
+        zones.push(Zone {
+            zone: r.u8()? as i32,
+            load: r.u8()? as i32,
+            players: r.u8()? as i32,
+            capacity: r.u8()? as i32,
+        });
+    }
+    r.finish(ZoneList { zones }, "s2c/1172")
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

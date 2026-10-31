@@ -14,7 +14,7 @@ Agent hook đọc packet ở native writer/reader như các file trước. `c2s/
 | Lấy danh sách máy chủ thế nào? | App có sẵn một dòng mặc định trong `.so`. Sau khi bắt tay, server gửi lại danh sách qua `s2c/1207`. Hiện chỉ có **1 máy chủ: Thanh Khê**. | Chuỗi trong `.so`, L1 [Đo] |
 | Kết nối máy chủ thế nào? | TCP tới `play.colauloanthe.vn:1688`, bắt tay seed, trao khoá, rồi `1206`/`1207`/`1209`/`5`. Cả đăng nhập lẫn chơi đều trên **một** kết nối đó. | L1 [Đo] |
 | Có bao nhiêu map? | **25 map**, `M1`…`M25`. Bấm "Bản đồ" thì client gửi `c2s/11 "M99"` và nhận danh sách map kèm cấp yêu cầu. | L1 [Đo] |
-| Mỗi map bao nhiêu khu? | Làng Thanh Khê (`M1`) có **100 khu**, mỗi khu tối đa **20 người**. Map khác chưa đo được, vì nhân vật cấp 4 chưa mở. | `s2c/1172`, 2 lần [Đo] |
+| Mỗi map bao nhiêu khu? | Làng Thanh Khê (`M1`) và Trại Vân Sơn (`M2`) đều có **100 khu**, mỗi khu tối đa **20 người**. Các map khác chưa đo. | `s2c/1172`: M1 2 lần, M2 bằng bot TS (Z1, [06-map-mobs](06-map-mobs.md#bot-ts-đổi-khu-z1)) [Đo] |
 | Mỗi khu bao nhiêu người? | `c2s/1172` (rỗng) → `s2c/1172`: số người của từng khu trong map hiện tại. Lúc 06:08 có 33 người trên 10 khu, lúc 00:12 có 107 người trên 18 khu. | Khớp từng ô "Dân số" trên màn hình [Đo] |
 | Ai đang ở trong khu? | Vào map thì nhận `s2c/1263` với đủ người chơi khác trong khu. Chi tiết ở [09-players-chat](09-players-chat.md). | 18 người + mình = 19, đúng "Dân số 19/20" [Đo] |
 
@@ -165,6 +165,6 @@ Người chơi dồn vào khu 0 và 1, còn khoảng 80–90 khu trống.
 ## Chưa rõ
 
 - Ký tự phân cách khi `1207` có nhiều máy chủ, ý nghĩa cờ cuối, và nguồn của `serverId = 24`.
-- Số khu của các map khác `M1`; có xin được `1172` của map khác không.
+- Số khu của các map khác `M1`, `M2`; có xin được `1172` của map khác không.
 - Tên chắc chắn của `M10`, `M15`, `M16`, `M17`, và `M18`…`M24` là map gì.
 - Ngưỡng của độ đông 1 và 2 (8, 9, 14 người).

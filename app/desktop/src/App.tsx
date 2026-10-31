@@ -4,6 +4,7 @@ import { selectedAccount, useStore } from "./store";
 import { AccountDialog } from "./views/AccountDialog";
 import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
+import { PlaceDialog } from "./views/PlaceDialog";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
 import { StatPlanDialog } from "./views/StatPlanDialog";
@@ -54,6 +55,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "stats" && account) {
     return <StatPlanDialog account={account} onClose={close} />;
+  }
+  if (dialog?.kind === "place" && account) {
+    return <PlaceDialog account={account} onClose={close} />;
   }
   if (dialog?.kind === "remove" && account) {
     return (

@@ -7,6 +7,8 @@
 //   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT]
 //                                                       print gear, bag and stats; with a button, press it once (bag
 //                                                       slots for equip and use, gear slots for unequip and repair)
+//   cllt zone --account=NAME [--zone=4]                 print the zones of the map (c2s/1172); with --zone, move there
+//   cllt goto --account=NAME --map=M1                   walk through portals to that map ("Đổi map")
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
 // --account=NAME also finds the one of .env when the file lacks it.
 // Passwords are never printed.
@@ -162,8 +164,11 @@ fn main() {
         .or_else(|| slot("unequip").map(ItemAct::Unequip))
         .or_else(|| slot("use").map(ItemAct::Use))
         .or_else(|| slot("repair").map(ItemAct::Repair));
+    let zone = command == Some("zone");
+    let zone_to: Option<i32> = arg("zone").and_then(|v| v.parse().ok());
+    let goto = command == Some("goto");
     let fight = command == Some("fight") || quest;
-    let chosen: Vec<(u64, Account)> = if fight || skill || item {
+    let chosen: Vec<(u64, Account)> = if fight || skill || item || zone || goto {
         let name = arg("account").unwrap_or_else(|| all[0].username.clone());
         let env = || find_upwards(".env").and_then(|p| accounts::from_env(&p));
         all.iter()
@@ -195,6 +200,9 @@ fn main() {
     // When the item button went out, and when its answer came: gear and bag are printed a second later (s2c/10, s2c/37
     // and s2c/42 come with it), or 10 s after the button without an answer.
     let (mut pressed, mut answered): (Option<Instant>, Option<Instant>) = (None, None);
+    // `cllt zone` waits for s2c/1172 after its c2s/1172; zone and goto log out a second after their last line.
+    let mut listing = false;
+    let mut moved: Option<Instant> = None;
     while ended < chosen.len() {
         let Ok((id, event)) = rx.recv_timeout(Duration::from_millis(200)) else {
             let late = pressed.is_some_and(|t| t.elapsed() > Duration::from_secs(10));
@@ -206,6 +214,11 @@ fn main() {
                 gear_and_bag(&snaps[0]).iter().for_each(|l| println!("{l}"));
                 manager.send(0, Command::Logout);
             }
+            if moved.is_some_and(|t| t.elapsed() > Duration::from_secs(1)) {
+                moved = None;
+                println!("{}", line(&chosen[0].1, &snaps[0]));
+                manager.send(0, Command::Logout);
+            }
             if upgrading.is_some_and(|t| t.elapsed() > Duration::from_secs(10)) {
                 upgrading = None;
                 println!("Server không trả lời lần nâng cấp sau 10 s");
@@ -215,7 +228,20 @@ fn main() {
             for (i, at) in online.iter_mut().enumerate() {
                 if at.is_some_and(|t| t.elapsed() > Duration::from_millis(1500)) {
                     *at = None;
-                    if item {
+                    if zone {
+                        println!("{}", line(&chosen[i].1, &snaps[i]));
+                        listing = true;
+                        manager.send(i as u64, Command::ListZones);
+                    } else if goto {
+                        println!("{}", line(&chosen[i].1, &snaps[i]));
+                        match arg("map") {
+                            Some(map) => manager.send(i as u64, Command::GoTo(map)),
+                            None => {
+                                eprintln!("Thiếu --map=M1");
+                                manager.send(i as u64, Command::Logout)
+                            }
+                        };
+                    } else if item {
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         gear_and_bag(&snaps[i]).iter().for_each(|l| println!("{l}"));
                         match press {
@@ -286,6 +312,19 @@ fn main() {
                     upgrading = None;
                     manager.send(id, Command::Logout);
                 }
+                // The end of a zone change (Bot::change_zone) or of a trip (Bot::go_to), done or refused.
+                let over = (zone
+                    && [
+                        "Đã sang khu",
+                        "Chưa sang khu",
+                        "Server không trả lời khi sang khu",
+                    ]
+                    .iter()
+                    .any(|v| text.starts_with(v)))
+                    || (goto && (text.starts_with("Kết thúc") || text.starts_with("Chưa đi tới")));
+                if over {
+                    moved = Some(Instant::now());
+                }
                 // Bot::item echoes the button ("Mặc Áo Hào Kiệt (ô túi 3)"); the next line is its refusal, the answer
                 // ("Đã mặc …") or a notice of the server.
                 let echo = ["Mặc ", "Cởi ", "Dùng ", "Sửa "]
@@ -304,6 +343,27 @@ fn main() {
                 if fight && done {
                     println!("{}", line(&chosen[i].1, &s));
                     manager.send(id, Command::Logout);
+                }
+                if let (true, Some(zones)) = (zone && listing, &s.zones) {
+                    listing = false;
+                    let mut busy: Vec<_> = zones.iter().filter(|z| z.players > 0).collect();
+                    busy.sort_by_key(|z| -z.players);
+                    let busy: Vec<String> = busy
+                        .iter()
+                        .take(8)
+                        .map(|z| format!("khu {} {}/{}", z.zone, z.players, z.capacity))
+                        .collect();
+                    println!(
+                        "{} khu, {} người; đông nhất: {}; {} khu trống",
+                        zones.len(),
+                        zones.iter().map(|z| z.players).sum::<i32>(),
+                        busy.join(", "),
+                        zones.iter().filter(|z| z.players == 0).count()
+                    );
+                    match zone_to {
+                        Some(z) => manager.send(id, Command::ChangeZone(z)),
+                        None => manager.send(id, Command::Logout),
+                    };
                 }
                 if skill
                     && upgrade.is_some()

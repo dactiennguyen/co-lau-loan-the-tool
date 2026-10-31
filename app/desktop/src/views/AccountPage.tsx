@@ -35,7 +35,13 @@ export function AccountPage({ account }: { account: Account }) {
   const target = targets.some((t) => t.name === choice.target) ? choice.target : (targets[0]?.name ?? "");
   return (
     <div className="page">
-      <HeroCard account={account} onLogin={() => api.login(id)} onLogout={() => api.logout(id)} onRemove={() => open({ kind: "remove", id })} />
+      <HeroCard
+        account={account}
+        onLogin={() => api.login(id)}
+        onLogout={() => api.logout(id)}
+        onRemove={() => open({ kind: "remove", id })}
+        onPlace={() => open({ kind: "place", id })}
+      />
       <MetricRow character={c} />
       <div className="page__columns">
         <div className="page__stack">

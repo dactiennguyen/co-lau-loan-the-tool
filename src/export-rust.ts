@@ -9,7 +9,7 @@ import { BASELINE, OPCODE_ENTRIES } from './config.ts';
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from './protocol.ts';
 import { buildRequest } from './events.ts';
 import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable,
-  characterExtra, characterGear, inventory, currencies, gearUpdate } from './world.ts';
+  characterExtra, characterGear, inventory, currencies, gearUpdate, zoneList } from './world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from './battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 import { QuestBot, stepAction } from './quest.ts';
@@ -46,6 +46,7 @@ function decoders() {
   add('mapChange', mp['s2c/13 portal'], mapChange(bytes(mp['s2c/13 portal'])));
   const zone = new Writer().string('M1').i32(3).build();
   add('mapChange', hex(zone), mapChange(zone));
+  add('mapChange', '000000024d32000000010004', mapChange(bytes('000000024d32000000010004')));
   add('mapEntities', response(11, 43), mapEntities(bytes(response(11, 43))));
   add('mapBoss', response(11, 1177), mapBoss(bytes(response(11, 1177))));
   add('mapBoss', hex(bossGone), mapBoss(bossGone));
@@ -54,6 +55,7 @@ function decoders() {
   const w = fixtures.world;
   add('playersSnapshot', w['s2c/1263'].hex, playersSnapshot(bytes(w['s2c/1263'].hex)).players.map(p => pick(p, ['id', 'name', 'level', 'x', 'y'])));
   add('playerRecord', w['s2c/1167'].hex, pick(playerRecord(new Reader(bytes(w['s2c/1167'].hex))), ['id', 'name', 'level', 'x', 'y']));
+  add('zoneList', w['s2c/1172'].hex, zoneList(bytes(w['s2c/1172'].hex)));
   add('battleSetup', hex(setupPacket), pick(battleSetup(setupPacket), ['me', 'level', 'hp', 'maxHp', 'uuid', 'board', 'turnSeconds']));
   for (const k of ['s2c/18', 's2c/18 player first']) add('battleJoinAck', bp[k], battleJoinAck(new Reader(bytes(bp[k]))));
   for (const k of ['s2c/24 own turn', 's2c/24 mob turn']) add('turnState', bp[k], turnState(new Reader(bytes(bp[k]))));
@@ -224,6 +226,8 @@ function requests() {
     [29, { characterName: 'manina' }], [11, { mapId: 'M2' }], [43, { mapId: 'M2' }], [13, { mapId: 'M1', npcId: 1015 }], [15, { mobId: 'mob61000' }],
     [1178, { mobId: 'mob89100002' }], [18, { battleUuid }], [14, { battleUuid, seq: 4 }], [19, { battleUuid, seq: 3, move }], [20, { battleUuid, seq: 7, skill: 1000 }],
     [10, { stat: 0, amount: 1 }], [1191, { skillId: 1000, amount: 1 }],
+    // Khu vực (B2, Z1): the list, the zone picked, then the map of that zone.
+    [1172, {}], [1173, { zone: 20 }], [11, { mapId: 'M1', zone: 20 }],
     // Item actions of P4: Cởi ra the pet, Trang bị it again from bag slot 39, Sử dụng bag slot 3, Sửa chữa gear slot 2.
     [1186, { action: 1, slot: 5 }], [1186, { action: 0, slot: 39 }], [84, { slot: 3 }], [48, { slot: 2 }], [48, { where: 0, slot: 0 }]];
   return ctx.map(([opcode, c]) => ({ opcode, ctx: c, hex: hex(buildRequest(opcode, c as any)) }));

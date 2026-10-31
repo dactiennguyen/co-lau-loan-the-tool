@@ -190,6 +190,30 @@ export interface Character {
   currencies: Currencies | null;
   /** The Kỹ năng tab: the tree of s2c/30 with the levels; empty until s2c/30 came. */
   skills: Skill[];
+  /** The zones of the map and their players (s2c/1172) as last asked; null until asked, and after each map or zone. */
+  zones: Zone[] | null;
+  /** A zone change or a trip to another map under way ("Sang khu 4", "Đi tới Rìa Hồng Giang"). */
+  moving: string | null;
+  /** The maps of the atlas, nearest first, with the portals to take. */
+  maps: MapChoice[];
+}
+
+/** One zone of s2c/1172: `load` 0, 1, 2 as the game colours it (2 red), players of `capacity` (20). */
+export interface Zone {
+  zone: number;
+  load: number;
+  players: number;
+  capacity: number;
+}
+
+/** A map of the atlas for "Đổi map". */
+export interface MapChoice {
+  mapId: string;
+  name: string;
+  /** The level the world map asks for; null when the world list lacks the map. */
+  level: number | null;
+  /** Portals on the shortest known way: 0 for the map the character is on, null when no known way leads there. */
+  hops: number | null;
 }
 
 /** One level of a skill (s2c/30): skill points, character level, nội lực (25 = 1 thành). */

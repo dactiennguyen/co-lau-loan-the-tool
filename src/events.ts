@@ -48,14 +48,14 @@ event('c2s', 42, 'character_extra_request', 'world', 'Đã nhận skills_data', 
 event('s2c', 42, 'character_extra', 'world', 'Trả character_extra_request', 'c2s/29', 'string label ("test dong 1"); i32 42; i32 3; túi đồ: u8 2; i32 capacity; i32 n; n * item record (như s2c/1187)', 'Đọc hết 608 byte (E1): 8 món khớp túi trên máy; i32 42, i32 3 sau label chưa rõ');
 event('c2s', 29, 'location_request', 'world', 'Đã nhận character_extra', 's2c/29', 'string characterName');
 event('s2c', 29, 'character_location', 'world', 'Trả location_request', 'c2s/11', 'string characterName; string mapId; i32 field');
-event('c2s', 11, 'map_request', 'world', 'Đã có mapId; mapId "M99" khi mở Bản đồ thế giới', 's2c/11', 'string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1');
+event('c2s', 11, 'map_request', 'world', 'Đã có mapId; mapId "M99" khi mở Bản đồ thế giới', 's2c/11', 'string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1. Sau đổi khu: u8 khu; i32 0 (B2)');
 event('s2c', 11, 'map_data', 'world', 'Trả map_request', 'c2s/43', 'flag 1: u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; bytes lớp 2; bytes lớp 3; i32 ×3; i32 n; n * {i32 id; string tên; u8 loại (0 cổng, 2 NPC); i32 x,y,w,h; u8; i32 p,q}; i32 ×3. flag 0 ("M99"): string "M99"; i32 n; n * {i32 index; string mapId; 17 byte 0; u8 locked; 8 byte 0}; i32 n; n * {i32 index; i32 levelRequired}', 'Getter/offset đã đo; x/y và kích thước lưới là suy luận; nhánh M99 đọc hết 1132 byte, cấp yêu cầu khớp nhãn Lv. trên bản đồ; danh sách NPC/cổng đọc hết byte M1, M2 (B5)');
 event('c2s', 43, 'entities_request', 'world', 'Đã nhận map_data', 's2c/43 và snapshot 1263', 'string mapId');
 event('s2c', 43, 'entities_data', 'world', 'Trả entities_request', 'Đồng bộ push thế giới; không gửi ACK nguyên gói', 'string mapId; u8 field; tới hết payload: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}', 'Đọc hết byte: M1 khu 0 (1398 byte), khu 1 (bot Q2); ý nghĩa field, a..d chưa chốt; không có toạ độ quái');
 
 event('c2s', 1169, 'player_move', 'world', 'Nhân vật đang chạy/nhảy/rơi; ~110 ms một gói', 'Server phát lại trong s2c/1262', 'i32 x; i32 y; i32 state; u8 flags[5]', 'Đo bằng thao tác joystick: state 0 đứng, 1 chạy, 5 lên, 6 rơi, 7 chạm đất; flags[2] trái, flags[3] phải');
 event('c2s', 1173, 'change_zone', 'world', 'Chọn khu trong bảng Khu vực', 's2c/13 rồi c2s/11, c2s/43 của khu mới', 'u8 zone', 'Đo B2: khu 20');
-event('s2c', 13, 'zone_changed', 'world', 'Trả change_zone (c2s/1173), hoặc c2s/13 với id cổng', 'c2s/11 với mapId, khu mới', 'Đổi khu: string mapId; i32 zone. Qua cổng: string mapId; i32 thứ tự map trong bản đồ thế giới (M1 0, M2 1, M25 24); u8 0; u8 0xff', 'Đo B2 (đổi khu); qua cổng B5, Q16, S1: số sau mapId luôn khớp thứ tự map');
+event('s2c', 13, 'zone_changed', 'world', 'Trả change_zone (c2s/1173), hoặc c2s/13 với id cổng', 'c2s/11 với mapId, khu mới', 'Qua cổng: string mapId; i32 thứ tự map trong bản đồ thế giới (M1 0, M2 1, M25 24); u8 0; u8 0xff. Đổi khu: như qua cổng nhưng byte cuối là khu mới (Z1); bản B2: string mapId; i32 khu', 'Đo B2 (đổi khu, dạng ngắn), Z1 (bot TS sang khu 4 của M2, 26 ms: 000000024d32 00000001 00 04); qua cổng B5, Q16, S1: số sau mapId luôn khớp thứ tự map');
 event('c2s', 1172, 'zone_list_request', 'world', 'Mở bảng chọn khu', 's2c/1172', 'Rỗng');
 event('s2c', 1172, 'zone_list', 'world', 'Trả zone_list_request', 'Người chơi chọn khu: c2s/1173', 'u8 n; n * {u8 zone; u8 load; u8 players; u8 capacity}', 'Đo: khớp từng ô "Dân số" trên màn hình; load 0/1/2 theo số người');
 event('c2s', 13, 'npc_talk', 'world', 'Nói chuyện với NPC của bước nhiệm vụ, hoặc bấm Vào ở một cổng (id cổng trong s2c/11)', 'NPC: s2c/34 (lời thoại), trả nhiệm vụ: s2c/35, 39. Cổng: s2c/13 với map mới', 'string mapId; i32 npcId', 'Đo: npcId lấy từ bước nhiệm vụ trong s2c/39; bot Node gửi và server chấp nhận. Cổng 1015 (M1 → M2) đo B5');
@@ -168,7 +168,8 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     // The app sends the element of s2c/9 (sqlq.e49(1) for manina, Hỏa); with 4 the server sends the Thủy tree 4000–4008.
     case 30: return w.u8(ctx.element ?? 1).build();
     case 42: case 29: return w.string(required(ctx.characterName, 'characterName')).build();
-    case 11: return w.string(required(ctx.mapId, 'mapId')).u8(-1).i32(-1).build();
+    // After a zone change (s2c/13 with the zone) the app asks the map of that zone: (zone, 0) instead of (-1, -1) (B2).
+    case 11: return w.string(required(ctx.mapId, 'mapId')).u8(ctx.zone ?? -1).i32(ctx.zone === undefined ? -1 : 0).build();
     case 43: return w.string(required(ctx.mapId, 'mapId')).build();
     case 13: return w.string(required(ctx.mapId, 'mapId')).i32(required(ctx.npcId, 'npcId')).build();
     case 10: return w.i32(required(ctx.stat, 'stat')).i32(required(ctx.amount, 'amount')).build();

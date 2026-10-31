@@ -14,7 +14,9 @@ export type Dialog =
   /** Dừng while a battle is on: play it out or surrender. */
   | { kind: "stop"; id: number }
   /** How potential points are spent on their own. */
-  | { kind: "stats"; id: number };
+  | { kind: "stats"; id: number }
+  /** Đổi khu / map of the Vị trí card. */
+  | { kind: "place"; id: number };
 
 export interface Store extends Accounts {
   /** Why accounts.json could not be read; the app then never writes it. */
@@ -28,6 +30,8 @@ export interface Store extends Accounts {
   log: { id: number | null; lines: LogLine[] };
   /** Oldest first; none for what the `state` reply already shows. */
   toasts: ToastItem[];
+  /** The HP of the battle on is shown under the job and quest run summaries (Chi tiết); kept in localStorage. */
+  battleDetails: boolean;
 
   /** The `state` reply, with the updates that came while it was on its way. */
   loaded: (s: AppState, early: AccountsUpdate[]) => void;
@@ -38,7 +42,10 @@ export interface Store extends Accounts {
   open: (dialog: Dialog) => void;
   close: () => void;
   dismiss: (toast: number) => void;
+  toggleBattleDetails: () => void;
 }
+
+const DETAILS = "battleDetails";
 
 export const useStore = create<Store>()((set) => ({
   rev: 0,
@@ -50,6 +57,7 @@ export const useStore = create<Store>()((set) => ({
   dialog: null,
   log: { id: null, lines: [] },
   toasts: [],
+  battleDetails: localStorage.getItem(DETAILS) === "1",
 
   loaded: (s, early) => set({ ...early.reduce(merge, accountsOf(s)), accountsError: s.accountsError, ready: true }),
   updated: (u) =>
@@ -64,6 +72,11 @@ export const useStore = create<Store>()((set) => ({
   open: (dialog) => set({ dialog }),
   close: () => set({ dialog: null }),
   dismiss: (toast) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== toast) })),
+  toggleBattleDetails: () =>
+    set((s) => {
+      localStorage.setItem(DETAILS, s.battleDetails ? "0" : "1");
+      return { battleDetails: !s.battleDetails };
+    }),
 }));
 
 const NO_LINES: LogLine[] = [];

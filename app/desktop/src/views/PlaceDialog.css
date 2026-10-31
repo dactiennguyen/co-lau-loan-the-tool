@@ -1,0 +1,47 @@
+/* Đổi khu / map: the zones of the map as the game's Khu vực panel (number, players of 20, red when crowded), scrolling
+   within the dialog; then one row per map with the portals to take. */
+.dialog.place { width: 520px; }
+.place__why { color: var(--fg); }
+.place__sec { display: grid; gap: var(--space-2); min-width: 0; }
+.place__head { display: flex; align-items: center; gap: var(--space-2); }
+.place__head h3 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.place__sum { margin-left: auto; font-size: 11px; color: var(--fg-3); }
+.place__head .btn { margin-left: auto; }
+.place__head .place__sum + .btn { margin-left: 0; }
+
+.place__zones {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 2px;
+}
+.place__zone {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 4px 0 3px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.place__zone b { font-size: 12px; color: var(--fg); }
+.place__zone small { font-size: 9px; font-variant-numeric: tabular-nums; }
+.place__zone--l1 small { color: var(--coin); }
+.place__zone--l2 small { color: var(--danger); }
+.place__zone:hover:not(:disabled) { border-color: var(--primary); }
+.place__zone:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.place__zone:disabled { cursor: default; opacity: 0.55; }
+.place__zone--here,
+.place__zone--here:disabled { opacity: 1; border-color: var(--primary); background: var(--bg-2); }
+.place__wait, .place__hint { margin: 0; font-size: 11px; color: var(--fg-3); }
+
+.place__maps { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.place__maps li { display: flex; align-items: center; gap: var(--space-3); padding: 6px 8px; background: var(--ink); }
+.place__maps li.place__map--here { outline: 1px solid var(--primary); outline-offset: -1px; }
+.place__name { display: grid; gap: 1px; min-width: 0; margin-right: auto; }
+.place__name b { font-size: 13px; color: var(--fg); }
+.place__name small { font-size: 11px; color: var(--fg-3); }
+.place__way { font-size: 11px; color: var(--fg-2); white-space: nowrap; }

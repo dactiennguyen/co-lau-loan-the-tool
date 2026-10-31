@@ -45,7 +45,9 @@ export function mapGrid(payload: Uint8Array) {
 export function mapChange(payload: Uint8Array) {
   const r = new Reader(payload), mapId = r.string(), value = r.i32();
   if (r.offset === r.data.length) return finish(r, { mapId, zone: value }, 's2c/13');
-  return finish(r, { mapId, mapIndex: value, extra: [r.u8(), r.u8()] }, 's2c/13');
+  // The last byte is 0xff after a portal and the new zone after c2s/1173 (Z1: M2, 1, 0, 4); B2 had the short form above.
+  const extra = [r.u8(), r.u8()];
+  return finish(r, { mapId, mapIndex: value, extra, ...(extra[1] !== 0xff && { zone: extra[1] }) }, 's2c/13');
 }
 
 /** s2c/1177: a boss of the map. field 0 (after s2c/43, and when it moves): a mob record as in s2c/43, then u8 1 and the

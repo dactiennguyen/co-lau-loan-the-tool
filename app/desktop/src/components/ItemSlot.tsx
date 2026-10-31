@@ -1,10 +1,8 @@
 import { itemIcon } from "../itemIcons";
 import type { Item } from "../types";
+import { ELEMENT_ICON } from "./ElementTag";
 import { Icon, type IconName } from "./Icon";
 import "./ItemSlot.css";
-
-/** Icon of an item's element: 1 Hỏa, 2 Lôi, 4 Thủy (the item popup draws a flame and a bolt). */
-export const ELEMENT_ICON: Record<number, IconName> = { 1: "flame", 2: "bolt", 4: "drop" };
 
 interface Props {
   item: Item | null;

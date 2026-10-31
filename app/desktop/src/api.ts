@@ -34,6 +34,12 @@ export interface Api {
   upgradeSkill(id: number, skill: number): Promise<void>;
   /** A button of the item detail: wear or use the item of a bag slot, take off or repair the one of a gear slot. */
   itemAction(id: number, action: ItemAction, slot: number): Promise<void>;
+  /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
+  listZones(id: number): Promise<void>;
+  /** Another zone of the map (c2s/1173); the log tells how it went. */
+  changeZone(id: number, zone: number): Promise<void>;
+  /** Another map, through the portals of the atlas; the log tells how it went. */
+  goToMap(id: number, mapId: string): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -64,6 +70,9 @@ const tauri: Api = {
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
   itemAction: (id, action, slot) => invoke("item_action", { id, action, slot }),
+  listZones: (id) => invoke("list_zones", { id }),
+  changeZone: (id, zone) => invoke("change_zone", { id, zone }),
+  goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
@@ -98,6 +107,9 @@ const preview: Api = {
   addStat: nothing,
   upgradeSkill: nothing,
   itemAction: nothing,
+  listZones: nothing,
+  changeZone: nothing,
+  goToMap: nothing,
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),

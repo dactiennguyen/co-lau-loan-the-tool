@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { Icon, type IconName } from "../components/Icon";
-import { ELEMENT_ICON, ItemSlot } from "../components/ItemSlot";
+import { ElementTag } from "../components/ElementTag";
+import type { IconName } from "../components/Icon";
+import { ItemSlot } from "../components/ItemSlot";
 import { num } from "../format";
 import type { Account, Item, ItemAction } from "../types";
 import { ItemDetail } from "./ItemDetail";
@@ -23,8 +24,6 @@ const GEAR: Record<number, { label: string; icon: IconName }> = {
 };
 const LEFT = [0, 1, 6, 7];
 const RIGHT = [2, 3, 4, 5];
-/** Character elements (field01 of s2c/9) and item elements number alike. */
-const ELEMENTS: Record<number, string> = { 1: "Hỏa", 2: "Lôi", 4: "Thủy" };
 type Key = `gear-${number}` | `bag-${number}`;
 /** Item types of data/items.json a bag item is used by (Sử dụng): Bình 20, which the server refuses outside a battle
  * (P4), Tăng Kinh Nghiệm 23, Tẩy điểm 24, Trứng 29. Gear is 0–7. */
@@ -180,11 +179,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
             <Avatar name={account.username} size={44} />
             <b>{c.name}</b>
             <span className="px">LV {c.level}</span>
-            {c.element != null && ELEMENTS[c.element] && (
-              <span className={`inv__el el el--${c.element}`}>
-                {ELEMENT_ICON[c.element] && <Icon name={ELEMENT_ICON[c.element]} size={11} />} Hệ {ELEMENTS[c.element]}
-              </span>
-            )}
+            <ElementTag element={c.element} />
           </div>
           <div className="inv__col">{RIGHT.map(gearSlot)}</div>
         </section>

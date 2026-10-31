@@ -3,10 +3,12 @@ import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Chip } from "../components/Chip";
+import { DetailsToggle } from "../components/DetailsToggle";
 import { Elapsed } from "../components/Elapsed";
 import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
+import { useStore } from "../store";
 import type { Account } from "../types";
 import { BattlePanel } from "./BattlePanel";
 import "./FightCard.css";
@@ -25,7 +27,8 @@ interface Props {
   onStop: () => void;
 }
 
-/** The fight job: a mob or boss of the zone, how many battles, how many losses to allow; start, stop, progress. */
+/** The fight job: a mob or boss of the zone, how many battles, how many losses to allow; start, stop, progress, and the
+ * HP of the battle on under Chi tiết. */
 export function FightCard({ account, choice, onChoice, onStart, onStop }: Props) {
   const c = account.character;
   const targets = c?.targets ?? [];
@@ -34,6 +37,8 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
   // One task at a time: a quest run is stopped first (Bot::fight refuses too).
   const questing = !!c?.questRun && c.questRun.done == null;
   const battle = c?.battle;
+  const details = useStore((s) => s.battleDetails);
+  const toggle = useStore((s) => s.toggleBattleDetails);
   const set = (patch: Partial<FightChoice>) => onChoice({ ...choice, ...patch });
   return (
     <Card title="Tự đánh" icon="sword" tone="var(--accent)" subtitle="Quái và boss ở khu đang đứng" className="fight">
@@ -95,6 +100,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             <span className="job__title">
               {job.target}: trận <span className="px">{job.fights}/{job.count}</span>
             </span>
+            {battle && <DetailsToggle open={details} onToggle={toggle} controls="fight-battle" />}
             <span className="job__score">
               <b className="win">{job.wins} thắng</b> · <b className="loss">{job.losses} thua</b> · +{num(job.exp)} EXP · +{num(job.coin)} xu ·{" "}
               <Elapsed from={job.startedAt} to={job.endedAt} />
@@ -102,13 +108,17 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           </div>
           <Bar value={job.fights / Math.max(1, job.count)} />
           {job.done && <div className="job__done">{job.done}</div>}
-          {battle && <BattlePanel battle={battle} />}
+          {battle && details && <BattlePanel battle={battle} id="fight-battle" />}
         </div>
       )}
       {/* A battle with no fight job here: a quest run's, also one played out after Dừng. */}
       {!job && battle && (
         <div className="job">
-          <BattlePanel battle={battle} />
+          <div className="job__head">
+            <span className="job__title">Đang đánh {battle.mobName}</span>
+            <DetailsToggle open={details} onToggle={toggle} controls="fight-battle" />
+          </div>
+          {details && <BattlePanel battle={battle} id="fight-battle" />}
         </div>
       )}
     </Card>

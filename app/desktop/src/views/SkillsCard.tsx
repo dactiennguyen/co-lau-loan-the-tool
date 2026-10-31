@@ -1,15 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
 import { Icon } from "../components/Icon";
-import { ELEMENT_ICON } from "../components/ItemSlot";
 import { num } from "../format";
 import { skillIcon, TREE } from "../skillIcons";
 import type { Account, Skill, SkillLevel } from "../types";
 import "./SkillsCard.css";
 
-/** Character elements (field01 of s2c/9). */
-const ELEMENTS: Record<number, string> = { 1: "Hỏa", 2: "Lôi", 4: "Thủy" };
 /** Nội lực of one "thành" (12-skills-items.md#bảng-kỹ-năng). */
 const THANH = 25;
 /** A Nâng cấp the server has not answered in this long is let go, and the button comes back. */
@@ -65,7 +63,7 @@ export function SkillsCard({ account, onUpgrade }: { account: Account; onUpgrade
   const skills = c.skills;
   const shown = skills.find((k) => k.id === picked) ?? skills.find((k) => !k.blockers.length) ?? skills[0];
   const learned = skills.filter((k) => k.level > 0).length;
-  const element = c.element != null ? ELEMENTS[c.element] : undefined;
+  const element = c.element != null ? ELEMENT_NAME[c.element] : undefined;
   const waiting = !!sent && skills.find((k) => k.id === sent.id)?.level === sent.level;
   return (
     <Card

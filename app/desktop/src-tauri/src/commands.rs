@@ -121,6 +121,24 @@ pub fn item_action(shared: State<Shared>, id: u64, action: String, slot: u8) -> 
     Ok(())
 }
 
+/// Đổi khu / map: asks the zones of the map and their players again (c2s/1172).
+#[tauri::command]
+pub fn list_zones(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::ListZones));
+}
+
+/// Đổi khu / map: another zone of the map (c2s/1173, Bot::change_zone).
+#[tauri::command]
+pub fn change_zone(shared: State<Shared>, id: u64, zone: i32) {
+    shared.with(|app| app.send(id, Command::ChangeZone(zone)));
+}
+
+/// Đổi khu / map: another map, through the portals of the atlas (Bot::go_to).
+#[tauri::command]
+pub fn go_to_map(shared: State<Shared>, id: u64, map_id: String) {
+    shared.with(|app| app.send(id, Command::GoTo(map_id)));
+}
+
 /// The proxy part of the add and edit form. An empty password with a username keeps the saved one when editing.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

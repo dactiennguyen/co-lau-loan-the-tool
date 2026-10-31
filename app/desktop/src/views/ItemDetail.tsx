@@ -1,5 +1,5 @@
 import { Icon } from "../components/Icon";
-import { ELEMENT_ICON } from "../components/ItemSlot";
+import { ELEMENT_ICON } from "../components/ElementTag";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
 import type { ReactNode } from "react";

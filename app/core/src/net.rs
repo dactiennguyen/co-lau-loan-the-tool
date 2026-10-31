@@ -44,6 +44,12 @@ pub enum Command {
     UpgradeSkill(i32),
     /// A button of the item detail: wear, take off, use, repair (Bot::item).
     Item(ItemAct),
+    /// The zones of the map and their players (Bot::list_zones).
+    ListZones,
+    /// Another zone of the map (Bot::change_zone).
+    ChangeZone(i32),
+    /// Another map, through the portals of the atlas (Bot::go_to).
+    GoTo(String),
     Logout,
 }
 
@@ -304,6 +310,9 @@ async fn session(
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),
                     Some(Command::Item(act)) => bot.item(act, now, &mut out),
+                    Some(Command::ListZones) => bot.list_zones(&mut out),
+                    Some(Command::ChangeZone(zone)) => bot.change_zone(zone, now, &mut out),
+                    Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, &mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),

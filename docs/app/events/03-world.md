@@ -382,7 +382,7 @@ Nguồn: A2: packet đọc từ native reader, record 154.
 | Nhãn phân tích | map_request |
 | Xuất hiện khi | Đã có mapId; mapId "M99" khi mở Bản đồ thế giới |
 | Sau đó | s2c/11 |
-| Bố cục payload | string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1 |
+| Bố cục payload | string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1. Sau đổi khu: u8 khu; i32 0 (B2) |
 | Độ chắc chắn | Đã đo kiểu/byte; tên field chưa rõ được giữ trung tính |
 | Độ dài payload mẫu | 11 byte |
 

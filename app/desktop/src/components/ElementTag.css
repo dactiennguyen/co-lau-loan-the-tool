@@ -1,0 +1,7 @@
+/* The colour of an element, for any text or icon that carries `el el--N`. */
+.el { color: var(--el); }
+.el--1 { --el: var(--hp); }
+.el--2 { --el: var(--piece-star); }
+.el--4 { --el: var(--exp); }
+
+.eltag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; }

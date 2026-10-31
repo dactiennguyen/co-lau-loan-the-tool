@@ -1,6 +1,6 @@
 // The Rust core against the TypeScript side: vectors.json is written by `npm run export:rust` from test/fixtures.ts and
 // what the TS decoders, request builders, battle replay and bestMove compute (src/export-rust.ts).
-use cllt_core::atlas::{Atlas, MapRecord};
+use cllt_core::atlas::{find_upwards, Atlas, MapRecord};
 use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
@@ -140,6 +140,7 @@ fn decoders_read_what_the_ts_decoders_read() {
             "mapData" => serde_json::to_value(world::map_data(&p).unwrap()),
             "mapGrid" => serde_json::to_value(world::map_grid(&p).unwrap()),
             "mapChange" => serde_json::to_value(world::map_change(&p).unwrap()),
+            "zoneList" => serde_json::to_value(world::zone_list(&p).unwrap()),
             "mapEntities" => serde_json::to_value(world::map_entities(&p).unwrap()),
             "mapBoss" => serde_json::to_value(world::map_boss(&p).unwrap()),
             "notice" => serde_json::to_value(world::notice(&p).unwrap()),
@@ -475,6 +476,7 @@ fn requests_match_build_request() {
             slot: i("slot"),
             action: i("action"),
             place: i("where"),
+            zone: i("zone"),
             ..Ctx::default()
         };
         let op = r["opcode"].as_i64().unwrap() as i32;
@@ -1050,15 +1052,17 @@ fn the_snapshot_keeps_the_result_that_ended_a_battle_until_the_next_one_opens() 
 }
 
 #[test]
-fn a_battle_line_says_how_long_it_took_and_the_job_when_it_ended() {
+fn a_battle_line_says_how_long_it_took_and_the_job_so_far_and_when_it_ended() {
     assert_eq!(duration_text(Duration::from_secs(45)), "45 giây");
     assert_eq!(duration_text(Duration::from_secs(65)), "1 phút 05 giây");
     assert_eq!(duration_text(Duration::from_secs(3723)), "1 giờ 02 phút");
     let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    // The job starts, its battle opens 10 s later and ends 65 s after that.
     bot.fight("Cóc Xanh", 5, 1, now, &mut out);
-    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.on_packet(22, &setup, now + Duration::from_secs(10), &mut out)
+        .unwrap();
     out.clear();
-    bot.on_packet(19, &lost_battle(), now + Duration::from_secs(65), &mut out)
+    bot.on_packet(19, &lost_battle(), now + Duration::from_secs(75), &mut out)
         .unwrap();
     let logs: Vec<&str> = out
         .iter()
@@ -1068,9 +1072,9 @@ fn a_battle_line_says_how_long_it_took_and_the_job_when_it_ended() {
         })
         .collect();
     assert!(
-        logs.iter()
-            .any(|t| t.starts_with("Trận 1: thua, ")
-                && t.contains(" lượt trong 1 phút 05 giây, gây ")),
+        logs.iter().any(|t| t.starts_with("Trận 1: thua, ")
+            && t.contains(" lượt trong 1 phút 05 giây, gây ")
+            && t.ends_with("; đã chạy 1 phút 15 giây")),
         "{logs:?}"
     );
     assert!(
@@ -1717,4 +1721,182 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
     assert!(!bot.snapshot().battle.unwrap().leaving);
     bot.on_packet(1214, &[], now, &mut out).unwrap();
     assert!(bot.snapshot().battle.is_none());
+}
+
+fn logged(out: &[Out], text: &str) -> bool {
+    out.iter()
+        .any(|o| matches!(o, Out::Log(t) if t.starts_with(text)))
+}
+fn sent(out: &[Out], op: i32) -> Option<String> {
+    out.iter().find_map(|o| match o {
+        Out::Send(o, p) if *o == op => Some(tohex(p)),
+        _ => None,
+    })
+}
+/// The head of s2c/11 for `map_id` in `zone`; its NPCs and portals do not read, which leaves the atlas as it is.
+fn map_head(map_id: &str, name: &str, zone: u8) -> Vec<u8> {
+    Writer::new()
+        .u8(1)
+        .string(map_id)
+        .string(name)
+        .u8(zone)
+        .i32(2784)
+        .i32(864)
+        .build()
+}
+fn mobs_of(map_id: &str) -> Vec<u8> {
+    Writer::new()
+        .string(map_id)
+        .u8(3)
+        .string("mob61000")
+        .string("Cóc Xanh")
+        .i32(13)
+        .u8(0)
+        .i32(6)
+        .i32(1)
+        .u8(0)
+        .build()
+}
+
+#[test]
+fn khu_vuc_lists_the_zones_and_c2s_1173_follows_s2c_13_to_the_map_and_mobs_of_that_zone() {
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    out.clear();
+    bot.list_zones(&mut out);
+    assert_eq!(sent(&out, 1172).as_deref(), Some(""));
+    // Zone 0 with 16 of 20 (where the character is), 4 empty, 5 full.
+    let zones = Writer::new()
+        .u8(3)
+        .u8(0)
+        .u8(2)
+        .u8(16)
+        .u8(20)
+        .u8(4)
+        .u8(0)
+        .u8(0)
+        .u8(20)
+        .u8(5)
+        .u8(2)
+        .u8(20)
+        .u8(20)
+        .build();
+    bot.on_packet(1172, &zones, now, &mut out).unwrap();
+    assert_eq!(bot.snapshot().zones.map(|z| z.len()), Some(3));
+    for (zone, why) in [
+        (0, "đang ở khu 0"),
+        (7, "không có khu 7"),
+        (5, "khu đã đầy (20/20)"),
+    ] {
+        out.clear();
+        bot.change_zone(zone, now, &mut out);
+        assert!(
+            logged(&out, &format!("Chưa sang khu {zone}: {why}")),
+            "{out:?}"
+        );
+        assert_eq!(sends(&out, 1173), 0);
+    }
+    out.clear();
+    bot.change_zone(4, now, &mut out);
+    assert_eq!(sent(&out, 1173).as_deref(), Some("04"));
+    assert_eq!(bot.snapshot().moving.as_deref(), Some("Sang khu 4"));
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    assert!(logged(&out, "Đang đổi chỗ: đợi tới nơi rồi mới đánh quái"));
+    // Z1: s2c/13 in the long form with the zone last, then c2s/11 of zone 4 as the phone asked it in B2.
+    out.clear();
+    bot.on_packet(13, &hex("000000024d32000000010004"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 11).as_deref(), Some("000000024d320400000000"));
+    out.clear();
+    bot.on_packet(11, &map_head("M2", "Trại Vân Sơn", 4), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 43).as_deref(), Some("000000024d32"));
+    assert_eq!(bot.snapshot().zones, None);
+    out.clear();
+    bot.on_packet(43, &mobs_of("M2"), now, &mut out).unwrap();
+    assert!(logged(&out, "Đã sang khu 4 của Trại Vân Sơn: 1 con quái"));
+    let s = bot.snapshot();
+    assert_eq!((s.zone, s.moving, bot.deadline()), (4, None, None));
+    // Unanswered, the change is let go after 8 s.
+    out.clear();
+    bot.change_zone(0, now, &mut out);
+    bot.on_timer(now + Duration::from_secs(8), &mut out);
+    assert!(logged(&out, "Server không trả lời khi sang khu 0 sau 8 s"));
+    assert_eq!(bot.snapshot().moving, None);
+}
+
+#[test]
+fn doi_map_walks_the_portals_of_the_atlas_and_ends_on_the_map_or_when_no_way_is_left() {
+    let atlas = Atlas::load(&find_upwards("data/maps.json").expect("data/maps.json"));
+    let (mut bot, mut out, now) = (
+        Bot::new(BotOptions::default(), Arc::new(atlas)),
+        vec![],
+        Instant::now(),
+    );
+    bot.on_packet(
+        29,
+        &Writer::new().string("manina").string("M2").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    let hops = |bot: &Bot, id: &str| {
+        bot.snapshot()
+            .maps
+            .into_iter()
+            .find(|m| m.map_id == id)
+            .and_then(|m| m.hops)
+    };
+    // From M2: M1 and M25 one portal away; Cửu Phong only behind Hồng Giang, which the atlas has no way through.
+    assert_eq!(
+        ["M2", "M1", "M25", "M10"].map(|id| hops(&bot, id)),
+        [Some(0), Some(1), Some(1), None]
+    );
+    bot.go_to("M2", now, &mut out);
+    assert!(logged(&out, "Chưa đi tới Trại Vân Sơn: đang ở map này"));
+    bot.go_to("M10", now, &mut out);
+    assert!(logged(
+        &out,
+        "Chưa đi tới Cửu Phong: chưa biết đường qua cổng tới đó"
+    ));
+    out.clear();
+    bot.go_to("M1", now, &mut out);
+    // c2s/13 (M2, portal 1014 Làng Thanh Khê), then the map the portal led to.
+    let portal = Writer::new().string("M2").i32(1014).build();
+    assert_eq!(sent(&out, 13), Some(tohex(&portal)));
+    assert_eq!(
+        bot.snapshot().moving.as_deref(),
+        Some("Đi tới Làng Thanh Khê")
+    );
+    let through = Writer::new().string("M1").i32(0).u8(0).u8(0xff).build();
+    out.clear();
+    bot.on_packet(13, &through, now, &mut out).unwrap();
+    assert_eq!(sent(&out, 11).as_deref(), Some("000000024d31ffffffffff"));
+    bot.on_packet(11, &map_head("M1", "Làng Thanh Khê", 0), now, &mut out)
+        .unwrap();
+    bot.on_packet(43, &mobs_of("M1"), now, &mut out).unwrap();
+    assert!(logged(
+        &out,
+        "Đã tới Làng Thanh Khê qua cổng Làng Thanh Khê"
+    ));
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert!(logged(&out, "Kết thúc: đã tới Làng Thanh Khê"), "{out:?}");
+    assert_eq!(bot.snapshot().moving, None);
+    // M25 is two portals away (Vân Sơn, then Rìa Hồng Giang); the server refuses the first one.
+    out.clear();
+    bot.go_to("M25", now, &mut out);
+    let portal = Writer::new().string("M1").i32(1015).build();
+    assert_eq!(sent(&out, 13), Some(tohex(&portal)));
+    let refusal = Writer::new()
+        .u8(1)
+        .string("Bạn cần hoàn thành nhiệm vụ trước khi tới đây")
+        .build();
+    bot.on_packet(1256, &refusal, now, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert!(
+        logged(&out, "Kết thúc: không còn đường tới Rìa Hồng Giang"),
+        "{out:?}"
+    );
+    assert_eq!((bot.snapshot().moving, bot.deadline()), (None, None));
 }

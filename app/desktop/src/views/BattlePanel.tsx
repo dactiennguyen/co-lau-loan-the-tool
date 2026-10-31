@@ -5,10 +5,10 @@ import "./BattlePanel.css";
 
 /** The battle on: own HP against the mob's ("?" until a hit shows it), and own moves so far. In the fight job and in a
  * quest run's fights alike. */
-export function BattlePanel({ battle }: { battle: Battle }) {
+export function BattlePanel({ battle, id }: { battle: Battle; id?: string }) {
   const mobKnown = battle.mobHp != null && !!battle.mobMaxHp;
   return (
-    <div className="battle">
+    <div className="battle" id={id}>
       <div className="battle__side">
         <span>Bạn</span>
         <b className="px">

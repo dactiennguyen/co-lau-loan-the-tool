@@ -3,14 +3,14 @@
 use crate::app::{App, Entry};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Snapshot, Target};
+use cllt_core::bot::{BattleView, BossTile, Job, MapChoice, QuestRun, Snapshot, Target};
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
 use cllt_core::skills::SkillDef;
-use cllt_core::world::{Nearby, Quest, QuestStep};
+use cllt_core::world::{Nearby, Quest, QuestStep, Zone};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -130,6 +130,34 @@ fn skills(element: &str, levels: &[(i32, i32)]) -> (Arc<Vec<SkillDef>>, BTreeMap
     (Arc::new(tree), have)
 }
 
+/// 100 zones of 20, with `players` in those listed; load as the game colours it (Z1: 16 is red).
+fn zones(players: &[(i32, i32)]) -> Vec<Zone> {
+    (0..100)
+        .map(|zone| {
+            let n = players.iter().find(|p| p.0 == zone).map_or(0, |p| p.1);
+            Zone {
+                zone,
+                load: match n {
+                    0..8 => 0,
+                    8..15 => 1,
+                    _ => 2,
+                },
+                players: n,
+                capacity: 20,
+            }
+        })
+        .collect()
+}
+
+fn map(id: &str, name: &str, level: i32, hops: Option<u32>) -> MapChoice {
+    MapChoice {
+        map_id: id.into(),
+        name: name.into(),
+        level: Some(level),
+        hops,
+    }
+}
+
 fn main_character() -> Snapshot {
     // Hỏa Cầu Thuật level 1, as at that login.
     let (skills, skill_levels) = skills("1", &[(1000, 1)]);
@@ -168,6 +196,23 @@ fn main_character() -> Snapshot {
         map_id: "M2".into(),
         map_name: "Trại Vân Sơn".into(),
         zone: 1,
+        // Khu vực of M2 as Z1 saw it, and the maps of data/maps.json from there.
+        zones: Some(zones(&[
+            (0, 16),
+            (1, 3),
+            (2, 1),
+            (3, 1),
+            (5, 4),
+            (6, 1),
+            (16, 1),
+            (23, 1),
+        ])),
+        maps: vec![
+            map("M2", "Trại Vân Sơn", 10, Some(0)),
+            map("M1", "Làng Thanh Khê", 0, Some(1)),
+            map("M25", "Rìa Hồng Giang", 20, Some(1)),
+            map("M10", "Cửu Phong", 30, None),
+        ],
         x: 2784,
         y: 864,
         bosses: vec![
@@ -306,7 +351,7 @@ pub fn entries() -> Vec<Entry> {
             Some(final_turn(43, vec![(0, 4), (5, 1)], 41, 0, 118)),
         ),
         (
-            "Trận 1: thắng, 22 lượt, gây 249 sát thương, +142 EXP, +18 xu",
+            "Trận 1: thắng, 22 lượt trong 41 giây, gây 249 sát thương, +142 EXP, +18 xu; đã chạy 48 giây",
             None,
         ),
         ("Đã diệt 13/15", None),
@@ -315,7 +360,7 @@ pub fn entries() -> Vec<Entry> {
             Some(final_turn(37, vec![(0, 3), (3, 3)], 35, 15, 151)),
         ),
         (
-            "Trận 2: thắng, 19 lượt, gây 249 sát thương, +142 EXP, +18 xu",
+            "Trận 2: thắng, 19 lượt trong 35 giây, gây 249 sát thương, +142 EXP, +18 xu; đã chạy 1 phút 30 giây",
             None,
         ),
         ("Đã diệt 14/15", None),

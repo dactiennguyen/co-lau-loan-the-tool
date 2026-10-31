@@ -38,7 +38,3 @@ button.slot:hover { border-color: var(--line-strong); background: var(--bg-2); }
 .slot__wear span { display: block; height: 100%; background: var(--good); }
 .slot--broken .slot__wear { background: var(--hp); }
 
-.el { color: var(--el); }
-.el--1 { --el: var(--hp); }
-.el--2 { --el: var(--piece-star); }
-.el--4 { --el: var(--exp); }

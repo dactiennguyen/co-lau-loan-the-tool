@@ -225,6 +225,25 @@ impl Atlas {
                 .collect()
         })
     }
+    /// Every map of the atlas the character can reach from `from` through portals, with the number of portals on the
+    /// shortest known way (0 for `from`).
+    pub fn hops(&self, from: &str, level: i32, skip: &HashSet<i32>) -> HashMap<String, u32> {
+        let mut out = HashMap::from([(from.to_string(), 0)]);
+        let mut queue = VecDeque::from([from.to_string()]);
+        while let Some(map_id) = queue.pop_front() {
+            let n = out[&map_id];
+            for p in self.portals_of(&map_id, level, skip) {
+                let Some(to) = self.destination(p.id, &p.name, &map_id) else {
+                    continue;
+                };
+                if self.maps.contains_key(&to) && !out.contains_key(&to) {
+                    out.insert(to.clone(), n + 1);
+                    queue.push_back(to);
+                }
+            }
+        }
+        out
+    }
     /// First portal on the shortest known way from `from` to another map where `wanted` holds.
     pub fn route(
         &self,

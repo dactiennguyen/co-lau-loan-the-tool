@@ -1,14 +1,14 @@
 // What the web UI (ui/) is told about each account: built from its session snapshot, sent as JSON with the "accounts"
 // event and the `state` command. Field names are camelCase on the JavaScript side.
 use crate::app::Entry;
-use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Target};
+use cllt_core::bot::{BattleView, BossTile, Job, MapChoice, QuestRun, Target};
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
 use cllt_core::skills::{skill_tree, Prerequisite, SkillBox, SkillLevel};
-use cllt_core::world::{Nearby, Quest};
+use cllt_core::world::{Nearby, Quest, Zone};
 use serde::Serialize;
 
 /// Colour of a log line in the UI (LogLine.tone).
@@ -156,6 +156,12 @@ pub struct CharacterView<'a> {
     pub currencies: Option<&'a Currencies>,
     /// The Kỹ năng tab: the tree of s2c/30 with the character's levels; empty until s2c/30 came.
     pub skills: Vec<SkillView<'a>>,
+    /// The zones of the map and their players (s2c/1172) as last asked; None until asked.
+    pub zones: Option<&'a [Zone]>,
+    /// A zone change or a trip to another map under way ("Sang khu 4").
+    pub moving: Option<&'a str>,
+    /// The maps of the atlas, nearest first, with the portals to take.
+    pub maps: &'a [MapChoice],
 }
 
 /// One skill of the Kỹ năng tab (skills::skill_tree): its box on the tree background, the level the character has, the
@@ -336,6 +342,9 @@ pub fn account(e: &Entry) -> AccountView<'_> {
                 blockers: n.blockers,
             })
             .collect(),
+            zones: s.zones.as_deref(),
+            moving: s.moving.as_deref(),
+            maps: &s.maps,
         }),
     }
 }

@@ -3,10 +3,12 @@ import type { QuestStepRef } from "../api";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { DetailsToggle } from "../components/DetailsToggle";
 import { Elapsed } from "../components/Elapsed";
 import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
+import { useStore } from "../store";
 import type { Account, Quest } from "../types";
 import { BattlePanel } from "./BattlePanel";
 import "./QuestCard.css";
@@ -35,6 +37,8 @@ function steps(q: Quest) {
  */
 export function QuestCard({ account, onStart, onStop }: Props) {
   const c = account.character;
+  const details = useStore((s) => s.battleDetails);
+  const toggle = useStore((s) => s.toggleBattleDetails);
   const q = c?.quest;
   const run = c?.questRun;
   const running = !!run && run.done == null;
@@ -111,16 +115,23 @@ export function QuestCard({ account, onStart, onStop }: Props) {
       {run && (
         <div className={`quest__run${running ? " quest__run--live" : ""}`} role="status">
           <span className="quest__doing">{running ? run.doing || "Đang chọn việc…" : run.done}</span>
+          {c?.battle && <DetailsToggle open={details} onToggle={toggle} controls="quest-battle" />}
           <span className="quest__score">
             <b className="win">{run.wins} thắng</b> · <b className="loss">{run.losses} thua</b> · +{num(run.exp)} EXP · +{num(run.coin)} xu
             {run.completed > 0 && <> · xong {run.completed} nhiệm vụ</>} · <Elapsed from={run.startedAt} to={run.endedAt} />
           </span>
         </div>
       )}
-      {/* The battle on, as the fight job shows it: a step's fights ("Đánh bại Kẻ Gây Rối"), one played out after Dừng,
-          or the fight job's. */}
-      {c?.battle && (
-        <div className="quest__battle">
+      {/* The battle on, as the fight job shows it, under Chi tiết: a step's fights ("Đánh bại Kẻ Gây Rối"), one played out
+          after Dừng, or the fight job's (then with a row of its own). */}
+      {c?.battle && !run && (
+        <div className="quest__run quest__run--live" role="status">
+          <span className="quest__doing">Đang đánh {c.battle.mobName}</span>
+          <DetailsToggle open={details} onToggle={toggle} controls="quest-battle" />
+        </div>
+      )}
+      {c?.battle && details && (
+        <div className="quest__battle" id="quest-battle">
           <BattlePanel battle={c.battle} />
         </div>
       )}
