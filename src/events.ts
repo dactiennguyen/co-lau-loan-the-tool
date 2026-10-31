@@ -2,7 +2,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
-  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, bagSlot, npcMenu, shopList } from './world.ts';
+  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, shopList } from './world.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from './battle.ts';
 
 export type Direction = 'c2s' | 's2c';
@@ -96,7 +96,7 @@ event('s2c', 20, 'skill_result', 'battle', 'Trả battle_step_request khi quái 
 event('s2c', 21, 'timed_attack', 'battle', 'Trận tính giờ: quái đánh theo đồng hồ ~25–31 s, không cần đổi viên', 'Người chơi đi tiếp; end 1: trận kết thúc', 'i32 seq; i32 0; i32 0; rồi như s2c/19 từ u8 m (units, flags, actor, end, phần thưởng)', 'Đọc hết byte (Q6–Q8): Sơn Tặc đánh 46 mỗi lần; lần thứ ba end 1 (thua)');
 event('c2s', 1178, 'challenge_boss', 'battle', 'Nhân vật va vào boss của s2c/1177 (sqhz.a18 → sqlq.b121(mobId, false))', 's2c/22 sau ~2,8 s, rồi trận như c2s/15', 'string mobId; i32 flag=0', 'Đo B4 1 lần (Thủ Lĩnh Sơn Tặc mob86100201); boss bỏ qua c2s/15');
 event('c2s', 40, 'battle_leave', 'battle', 'Đầu hàng (nút Đầu hàng → OK), cùng lúc với c2s/11', 's2c/11, s2c/10, s2c/1214 rồi c2s/43', 'string battleUuid', 'Đo B2 4 lần; kết thúc bình thường không có gói này');
-event('s2c', 36, 'durability', 'battle', 'Cùng lúc kết quả cuối trận, và sau đầu hàng', 'Không', 'i32 8; i32 0; 8 byte (B1) hoặc 12 byte (từ Q2). Byte 8 và i32 ở offset 11 giảm dần qua các trận, ff là ô trống', 'Đo giá trị qua 60 trận; vai trò độ bền trang bị là suy luận (về 0 thì HP tối đa và sát thương tụt)');
+event('s2c', 36, 'durability', 'battle', 'Cùng lúc kết quả cuối trận, và sau đầu hàng', 'Không', 'i32 n (8 ô trang bị); n * {u8 0xff: ô trống | u8 ô; i32 độBền}', 'Đọc hết byte: B1 16 byte (nón 49), G2 24 byte (ô 0, 1, 2: 55, 60, 0); về 0 thì món hỏng (HP tối đa và sát thương tụt)');
 event('s2c', 1214, 'battle_end_1214', 'battle', 'Cuối trận, sau đầu hàng hoặc huỷ trận', 'Không', 'Rỗng', 'Đo; vai trò chưa rõ');
 
 const pushes: [number, string, string, string, string?][] = [
@@ -286,7 +286,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 10: fields = characterStats(r); break;
       case 1201: fields = { progress: r.i32() }; break;
       case 1256: fields = notice(payload); r.take(payload.length); break;
-      case 36: case 1214: case 1200: break;
+      case 36: fields = gearDurability(payload); r.take(payload.length); break;
+      case 1214: case 1200: break;
       case 1187: fields = inventory(payload); r.take(payload.length); break;
       case 1191: fields = { statPoints: r.i32(), skillPoints: r.i32() }; break;
       case 48: fields = { where: r.u8(), slot: r.i32() }; break;

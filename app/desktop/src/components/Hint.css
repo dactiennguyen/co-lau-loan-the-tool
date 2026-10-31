@@ -1,0 +1,44 @@
+/* A square "?" in the pixel frame, quieter than the text beside it until pointed at. */
+.hint {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  clip-path: var(--notch-sm);
+  background: var(--card-2);
+  color: var(--fg-3);
+  font: 400 11px/1 var(--font-pixel);
+  cursor: help;
+  box-shadow: var(--bevel-sm);
+}
+.hint:hover,
+.hint.is-open { background: var(--line); color: var(--fg); }
+.hint:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+/* The bubble, in <body> at a fixed place under the "?" (above it with .is-up); it shows in two steps, as the rest of the
+   app moves. Hidden, it stays in the page for aria-describedby. */
+.hint__bubble {
+  position: fixed;
+  z-index: 60;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: 300px;
+  padding: 8px 10px;
+  background: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--line-strong), 3px 3px 0 rgb(0 0 0 / 0.35);
+  color: var(--fg-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.hint__bubble.is-up { transform: translateY(-100%); }
+.hint__bubble.is-open { visibility: visible; opacity: 1; pointer-events: auto; transition: opacity 120ms steps(2, jump-none); }
+@media (prefers-reduced-motion: reduce) {
+  .hint__bubble.is-open { transition: none; }
+}

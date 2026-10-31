@@ -11,10 +11,18 @@ export const POTENTIALS = [
 ] as const;
 
 const BY_INDEX = ["Cường lực", "Nội lực", "Thân pháp", "Thể lực"];
-const ELEMENTS: Record<number, string> = { 1: "Hỏa", 4: "Thủy" };
+const ELEMENTS: Record<number, string> = { 1: "Hỏa", 2: "Lôi", 4: "Thủy" };
+/** The c2s/10 index of the stat that raises attack, by element (field01): Hỏa Cường lực, Thủy Nội lực, Lôi Thân pháp. */
+const MAIN: [element: number, stat: number][] = [
+  [1, 0],
+  [4, 1],
+  [2, 2],
+];
 
-/** The c2s/10 index of the stat that raises attack for an element (field01): Hỏa Cường lực, Thủy Nội lực. */
-export const mainStat = (element: number | null | undefined) => (element === 1 ? 0 : element === 4 ? 1 : null);
+export const mainStat = (element: number | null | undefined) => MAIN.find(([e]) => e === element)?.[1] ?? null;
+
+/** "Hỏa → Cường lực, Thủy → Nội lực, Lôi → Thân pháp", for the choice of "auto". */
+export const MAIN_TEXT = MAIN.map(([element, stat]) => `${ELEMENTS[element]} → ${BY_INDEX[stat]}`).join(", ");
 
 /** Where "auto" puts the points: "hệ Hỏa: Cường lực", or why it cannot tell. */
 export function autoText(element: number | null | undefined) {

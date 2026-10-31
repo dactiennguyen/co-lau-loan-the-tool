@@ -8,6 +8,7 @@ import type {
   AppState,
   BattleSource,
   BattleStats,
+  FightSettings,
   ItemAction,
   LogKind,
   LogLine,
@@ -42,6 +43,8 @@ export interface Api {
   /** Saves how potential points are spent on their own (null: not at all); the session spends what it can at once.
    * Rejects with a message to show. */
   setStats(id: number, plan: StatPlan | null): Promise<void>;
+  /** Saves the Cài đặt đánh of the account; its session follows it from the next battle. Rejects with a message to show. */
+  setFight(id: number, settings: FightSettings): Promise<void>;
   /** "Cộng +1" on the potential of that c2s/10 index. */
   addStat(id: number, stat: number): Promise<void>;
   /** Nâng cấp: one level of that skill (c2s/1191). */
@@ -101,6 +104,7 @@ const tauri: Api = {
   quest: (id, maxLosses, step) => invoke("quest", { id, maxLosses, step: step ?? null }),
   stop: (id, surrender) => invoke("stop", { id, surrender: surrender ?? false }),
   setStats: (id, plan) => invoke("set_stats", { id, plan }),
+  setFight: (id, settings) => invoke("set_fight", { id, settings }),
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
   itemAction: (id, action, slot) => invoke("item_action", { id, action, slot }),
@@ -150,6 +154,7 @@ const preview: Api = {
   quest: nothing,
   stop: nothing,
   setStats: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
+  setFight: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   addStat: nothing,
   upgradeSkill: nothing,
   itemAction: nothing,

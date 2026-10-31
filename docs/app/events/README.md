@@ -108,7 +108,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/21 | timed_attack | battle | [Trận tính giờ](05-battle.md#trận-tính-giờ) |
 | c2s/1178 | challenge_boss | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-1178) |
 | c2s/40 | battle_leave | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
-| s2c/36 | durability | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
+| s2c/36 | durability | battle | [Bố cục 8 ô trang bị](05-battle.md#s2c-36) |
 | s2c/1214 | battle_end_1214 | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
 | s2c/1259 | config_1259 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1259) |
 | s2c/1265 | faction | push | [Byte lúc đăng nhập](04-push.md#s2c-1265), [bảng Sứ quân](11-panels.md) |

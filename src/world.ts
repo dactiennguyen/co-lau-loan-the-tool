@@ -89,9 +89,9 @@ export const POTENTIALS = [
   { key: 'than', name: 'Thân Pháp', slot: 1 },
   { key: 'the', name: 'Thể Lực', slot: 3 },
 ] as const;
-/** The stat that raises attack for each element (field01 of s2c/9), from the in-game handbook: Hỏa Cường Lực, Thủy Nội
- * Lực. Lôi (Thân Pháp) has no known field01. */
-export const MAIN_STAT: Record<number, number> = { 1: 0, 4: 1 };
+/** The stat that raises attack for each element (field01 of s2c/9), from the in-game handbook: Hỏa Cường Lực, Lôi Thân
+ * Pháp, Thủy Nội Lực. Lôi's 2 is the c2s/30 that answers its skill tree; no Lôi character has been read yet. */
+export const MAIN_STAT: Record<number, number> = { 1: 0, 2: 2, 4: 1 };
 
 /** c2s/1169, sent every ~110 ms while the character moves. */
 export function moveRequest(payload: Uint8Array) {
@@ -151,6 +151,15 @@ export function gearUpdate(payload: Uint8Array) {
   const r = new Reader(payload), field = r.i32(), flag = r.u8(), name = r.string();
   const gear = Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
   return finish(r, { field, flag, name, gear }, 's2c/37');
+}
+
+/** s2c/36 at the end of every battle, and after Đầu hàng: the durability of the 8 gear slots, in the order of s2c/9 and
+ * s2c/37. Each slot is u8 0xff when empty, else u8 slot; i32 durability. B1 `00000008 00 00000031 ff×7` is the hat alone
+ * at 49; G2 (24 bytes) the hat at 55, the armour at 60 and the broken weapon of slot 2 at 0 (05-battle.md#s2c-36). */
+export function gearDurability(payload: Uint8Array) {
+  const r = new Reader(payload);
+  const slots = Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : { slot: r.u8(), durability: r.i32() });
+  return finish(r, { slots }, 's2c/36');
 }
 
 /** s2c/51 after a pickup that goes to the bag (c2s/1188): the bag slot that now holds the item. The client does not get

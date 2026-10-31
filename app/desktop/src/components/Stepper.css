@@ -1,6 +1,6 @@
 .stepper {
   display: inline-grid;
-  grid-template-columns: 26px 36px 26px;
+  grid-template-columns: 26px 40px 26px;
   align-items: center;
   height: 30px;
   padding: 0;
@@ -20,4 +20,18 @@
 .stepper button:not(:disabled):hover { background: var(--line); }
 .stepper button:disabled { opacity: 0.35; cursor: default; }
 .stepper button:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.stepper output { text-align: center; font: 400 13px/1 var(--font-pixel); color: var(--primary); }
+/* The number, typed in: a well in the plate that lights up while it has the focus. */
+.stepper input {
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font: 400 13px/1 var(--font-pixel);
+  color: var(--primary);
+  cursor: text;
+}
+.stepper input:hover { background: var(--bg-2); }
+.stepper input:focus { outline: none; background: var(--bg-2); box-shadow: inset 0 0 0 2px var(--ring); }
+.stepper input::selection { background: var(--primary); color: var(--ink); }

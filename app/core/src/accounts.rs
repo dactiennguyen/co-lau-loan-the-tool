@@ -1,5 +1,6 @@
 //! accounts.json: the accounts the app logs in with. Local only (app/.gitignore); passwords are never logged, and the UI
 //! gets them only when the edit form asks (account_secrets of the desktop app).
+use crate::bot::FightSettings;
 use crate::potentials::StatPlan;
 use crate::proxy::Proxy;
 use crate::runner::Skill;
@@ -21,6 +22,9 @@ pub struct Account {
     /// How potential points are spent on their own (Bot::set_stats); set from the Chỉ số card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stats: Option<StatPlan>,
+    /// Cài đặt đánh: Tự sửa đồ (Bot::set_fight); set from the Cài đặt tab.
+    #[serde(default, skip_serializing_if = "FightSettings::is_default")]
+    pub fight: FightSettings,
     /// The proxy the session connects through while `enabled`; set in the add and edit form, which tests it first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy: Option<Proxy>,
@@ -89,6 +93,7 @@ pub fn from_env(path: &Path) -> Option<Account> {
             .unwrap_or_else(default_server),
         skill: None,
         stats: None,
+        fight: FightSettings::default(),
         proxy: None,
     })
 }
@@ -109,6 +114,7 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
+            fight: FightSettings { repair: true },
             proxy: Some(crate::proxy::Proxy {
                 enabled: false,
                 kind: crate::proxy::ProxyKind::Http,

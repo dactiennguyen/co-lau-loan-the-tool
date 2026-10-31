@@ -88,6 +88,7 @@ pub fn run() {
             commands::quest,
             commands::stop,
             commands::set_stats,
+            commands::set_fight,
             commands::add_stat,
             commands::upgrade_skill,
             commands::item_action,

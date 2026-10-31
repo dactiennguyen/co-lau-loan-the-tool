@@ -112,6 +112,14 @@ const paths = {
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
   cart: <path d="M3 4h2l2.2 10.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L19.5 8H6.2M9 20h.01M17 20h.01" />,
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" />
+    </>
+  ),
+  hammer: <path d="M12 6l4-4 6 6-4 4zM15 9 4 20l-1.5-1.5L13.5 7.5" />,
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof paths;

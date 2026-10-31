@@ -1,7 +1,9 @@
 // Headless counterpart of the desktop app, for checks against the live server:
 //   cllt status                                       log in every account, print its status, log out
-//   cllt fight --account=NAME --target="X" --count=N [--max-losses=1]
-//   cllt quest --account=NAME [--max-losses=1]          "Tự làm nhiệm vụ" until it stops, then log out
+//   cllt fight --account=NAME --target="X" --count=N [--max-losses=1] [--auto-repair]
+//   cllt quest --account=NAME [--max-losses=1] [--auto-repair]
+//                                                       "Tự làm nhiệm vụ" until it stops, then log out; --auto-repair
+//                                                       turns on Tự sửa đồ for the run (uses the hammers of the bag)
 //   cllt skill --account=NAME [--id=1001]               print the skill tree; with --id, Nâng cấp that skill once
 //                                                       (c2s/1191, spends skill points), print the tree again
 //   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT]
@@ -222,8 +224,12 @@ fn main() {
         eprintln!("Không có tài khoản tên đó");
         std::process::exit(2);
     }
+    // Tự sửa đồ for this run, as when ticked in the Cài đặt tab; accounts.json is left as it is.
+    let auto_repair = args.iter().any(|a| a == "--auto-repair");
     for (id, a) in &chosen {
-        manager.login(*id, a.clone());
+        let mut a = a.clone();
+        a.fight.repair |= auto_repair && fight;
+        manager.login(*id, a);
     }
     let mut snaps: Vec<Snapshot> = vec![Snapshot::default(); chosen.len()];
     let mut online: Vec<Option<Instant>> = vec![None; chosen.len()];

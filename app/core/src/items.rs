@@ -143,6 +143,19 @@ pub fn gear_update(p: &[u8]) -> Result<GearUpdate> {
     )
 }
 
+/// s2c/36 at the end of every battle, and after Đầu hàng: the durability of the 8 gear slots in the order of s2c/9, None
+/// for an empty slot (0xff), else after the slot byte (gearDurability of src/world.ts, 05-battle.md#s2c-36).
+pub fn gear_durability(p: &[u8]) -> Result<Vec<Option<i32>>> {
+    let mut r = Reader::new(p);
+    let slots = (0..r.i32()?.max(0))
+        .map(|_| match r.u8()? {
+            0xff => Ok(None),
+            _ => r.i32().map(Some),
+        })
+        .collect::<Result<_>>()?;
+    r.finish(slots, "s2c/36")
+}
+
 /// s2c/46 after s2c/9 and whenever money changes: Xu, Xu khoá and Lượng as on the Bản thân panel. Vàng is `coin` of
 /// s2c/9 and s2c/10 kind 4.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]

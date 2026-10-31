@@ -4,7 +4,7 @@
 use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
-use cllt_core::bot::{LogKind, Snapshot};
+use cllt_core::bot::{FightSettings, LogKind, Snapshot};
 use cllt_core::net::{Command, ConnState, Event, Manager};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::Proxy;
@@ -190,6 +190,7 @@ impl Shared {
                 },
                 skill: old.skill,
                 stats: old.stats,
+                fight: old.fight,
                 proxy: keep_password(old.proxy.as_ref(), edit.proxy),
                 ..edit
             };
@@ -212,16 +213,31 @@ impl Shared {
 
     /// Saves how the account spends potential points on its own (None: not at all) and tells its session, if it has one.
     pub async fn set_stats(&self, id: u64, plan: Option<StatPlan>) -> Result<(), String> {
+        self.change(id, |a| a.stats = plan, Command::Stats(plan))
+            .await
+    }
+
+    /// Saves the Cài đặt đánh of the account and tells its session, if it has one.
+    pub async fn set_fight(&self, id: u64, settings: FightSettings) -> Result<(), String> {
+        self.change(id, |a| a.fight = settings, Command::FightSettings(settings))
+            .await
+    }
+
+    /// Changes a setting of the account once accounts.json holds the change, then passes `command` to its session.
+    async fn change(
+        &self,
+        id: u64,
+        set: impl FnOnce(&mut Account),
+        command: Command,
+    ) -> Result<(), String> {
         let _turn = self.saving.lock().await;
         let (path, list, account) = self.with(|app| {
-            let old = &app
+            let mut account = app
                 .entry(id)
                 .ok_or("Nick này không còn trong danh sách")?
-                .account;
-            let account = Account {
-                stats: plan,
-                ..old.clone()
-            };
+                .account
+                .clone();
+            set(&mut account);
             let (path, list) = app.saved(Some(id), Some(&account))?;
             Ok::<_, String>((path, list, account))
         })?;
@@ -232,7 +248,7 @@ impl Shared {
                 app.touch(id, false);
             }
             if app.running(id) {
-                app.send(id, Command::Stats(plan));
+                app.send(id, command);
             }
         });
         Ok(())
@@ -603,6 +619,7 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
+            fight: Default::default(),
             proxy: None,
         }
     }
@@ -781,6 +798,11 @@ mod tests {
         // The same account twice would log itself out.
         assert!(block_on(shared.add(account("A"))).is_err());
 
+        // Tự sửa đồ is saved on its own, and the edit form (which does not send it) keeps it.
+        let repair = FightSettings { repair: true };
+        block_on(shared.set_fight(id, repair)).unwrap();
+        assert_eq!(accounts::load(&path).unwrap()[0].fight, repair);
+
         // An empty password keeps the saved one.
         let edit = Account {
             label: "Nick chính".into(),
@@ -793,9 +815,10 @@ mod tests {
             (
                 saved.username.as_str(),
                 saved.label.as_str(),
-                saved.password.as_str()
+                saved.password.as_str(),
+                saved.fight
             ),
-            ("a2", "Nick chính", "x")
+            ("a2", "Nick chính", "x", repair)
         );
         assert_eq!(
             shared.with(|app| app.entries[0].account.username.clone()),

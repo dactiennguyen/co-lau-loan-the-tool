@@ -4,7 +4,7 @@ import { Button } from "../components/Button";
 import { Dialog } from "../components/Dialog";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
-import { autoText, mainStat, POTENTIALS } from "../potentials";
+import { autoText, MAIN_TEXT, mainStat, POTENTIALS } from "../potentials";
 import type { Account, StatPlan } from "../types";
 import "./StatPlanDialog.css";
 
@@ -54,7 +54,7 @@ export function StatPlanDialog({ account, onClose }: Props) {
     >
       <div className="plan-opts" role="radiogroup" aria-label="Cách tự cộng">
         {option("off", "Tắt", 'Chỉ cộng khi bấm + ở từng chỉ số. Bước "Nâng điểm tiềm năng" cộng vào Cường lực.')}
-        {option("auto", "Theo hệ", `Dồn hết vào chỉ số tăng tấn công (${autoText(c?.element)}).`)}
+        {option("auto", "Theo hệ", `Dồn hết vào chỉ số tăng tấn công: ${MAIN_TEXT}. Nick này ${autoText(c?.element)}.`)}
         {option("weights", "Tỉ lệ", "Chia điểm theo tỉ lệ dưới đây, chỉ số đang thiếu so với tỉ lệ được cộng trước.")}
       </div>
       {mode === "weights" && (

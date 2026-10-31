@@ -6,7 +6,7 @@ use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleSource, ItemAct, LogKind};
+use cllt_core::bot::{BattleSource, FightSettings, ItemAct, LogKind};
 use cllt_core::net::Command;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -94,6 +94,16 @@ pub async fn set_stats(
     plan: Option<StatPlan>,
 ) -> Result<(), String> {
     shared.set_stats(id, plan).await
+}
+
+/// Cài đặt đánh of the account: {"repair": true} for Tự sửa đồ. Saved to accounts.json; the error is shown in a toast.
+#[tauri::command]
+pub async fn set_fight(
+    shared: State<'_, Shared>,
+    id: u64,
+    settings: FightSettings,
+) -> Result<(), String> {
+    shared.set_fight(id, settings).await
 }
 
 /// "Cộng +1" on one potential, by c2s/10 index: 0 Cường lực, 1 Nội lực, 2 Thân pháp, 3 Thể lực.
@@ -304,6 +314,7 @@ fn form(
         server_id,
         skill: None,
         stats: None,
+        fight: Default::default(),
         proxy: proxy.map(ProxyForm::proxy).transpose()?.flatten(),
     })
 }

@@ -384,7 +384,7 @@ test('quest bot: --stats=auto raises the main stat of the element and keeps a po
   // An element of no known main stat spends nothing and says so once.
   const lost = new QuestBot({ maxFights: 5, stats: 'auto', log: e => events.push(e) }), none: typeof sent = [];
   lost.onPacket(9, hex(fixtures.profile['s2c/9 field01 4']));
-  lost.element = 2;
+  lost.element = 3; // no element has 3 (1 Hỏa, 2 Lôi, 4 Thủy)
   lost.quest = { ...questData(hex(q['s2c/39 quest3'])), current: 1 };
   lost.onReady(recorder(none));
   assert.deepEqual([statSends(none), none[0]?.opcode, events.filter(e => e.event === 'stat_plan_unknown_element').length], [[], 13, 1]);

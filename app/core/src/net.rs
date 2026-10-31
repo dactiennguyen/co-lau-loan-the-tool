@@ -3,7 +3,7 @@
 //! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
 use crate::atlas::Atlas;
-use crate::bot::{BattleRecord, Bot, BotOptions, ItemAct, LogKind, Out, Snapshot};
+use crate::bot::{BattleRecord, Bot, BotOptions, FightSettings, ItemAct, LogKind, Out, Snapshot};
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
 use crate::protocol::{
@@ -38,6 +38,8 @@ pub enum Command {
     },
     /// How potential points are spent on their own, None for not at all (Bot::set_stats).
     Stats(Option<StatPlan>),
+    /// Cài đặt đánh (Bot::set_fight).
+    FightSettings(FightSettings),
     /// "Cộng +1" on the potential of that c2s/10 index (Bot::add_stat).
     AddStat(usize),
     /// Nâng cấp on the skill of that id (Bot::upgrade_skill).
@@ -178,6 +180,7 @@ async fn session(
     let options = BotOptions {
         skill: account.skill,
         stats: account.stats,
+        fight: account.fight,
         ..BotOptions::default()
     };
     let mut bot = Bot::new(options, atlas);
@@ -316,6 +319,7 @@ async fn session(
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
+                    Some(Command::FightSettings(settings)) => bot.set_fight(settings, &mut out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),
                     Some(Command::Item(act)) => bot.item(act, now, &mut out),
@@ -689,6 +693,7 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
+            fight: Default::default(),
             proxy,
         };
         let emit: Emit = Arc::new(move |e| sink.lock().unwrap().push(e));

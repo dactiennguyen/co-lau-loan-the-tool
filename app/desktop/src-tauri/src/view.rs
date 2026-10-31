@@ -2,7 +2,9 @@
 // event and the `state` command. Field names are camelCase on the JavaScript side.
 use crate::app::Entry;
 use crate::store::StoredLog;
-use cllt_core::bot::{BattleView, BossTile, Job, LogKind, MapChoice, QuestRun, Target};
+use cllt_core::bot::{
+    BattleView, BossTile, FightSettings, Job, LogKind, MapChoice, QuestRun, Target,
+};
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
@@ -111,6 +113,8 @@ pub struct AccountView<'a> {
     pub since: &'a str,
     /// How potential points are spent on their own (accounts.json).
     pub stat_plan: Option<StatPlan>,
+    /// Cài đặt đánh (accounts.json).
+    pub fight_settings: FightSettings,
     /// The proxy saved for the account, on or off.
     pub proxy: Option<ProxyView<'a>>,
     /// What the session knows about the character; None until it is in the game.
@@ -366,6 +370,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
         },
         since: &e.since,
         stat_plan: e.account.stats,
+        fight_settings: e.account.fight,
         proxy: e.account.proxy.as_ref().map(ProxyView::of),
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,

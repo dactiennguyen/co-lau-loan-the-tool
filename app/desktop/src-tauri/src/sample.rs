@@ -28,6 +28,7 @@ fn account(label: &str, username: &str) -> Account {
         server_id: 24,
         skill: None,
         stats: None,
+        fight: Default::default(),
         proxy: None,
     }
 }

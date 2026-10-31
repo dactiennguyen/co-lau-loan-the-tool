@@ -397,6 +397,8 @@ export interface Account {
   since: string;
   /** How potential points are spent on their own (accounts.json); null for not at all. */
   statPlan: StatPlan | null;
+  /** Cài đặt đánh (accounts.json). */
+  fightSettings: FightSettings;
   /** The proxy saved for the account, on or off; null when none. */
   proxy: ProxyInfo | null;
   /** Null until the session is in the game. */
@@ -420,6 +422,12 @@ export interface ProxyInfo {
 /** StatPlan of cllt-core's potentials.rs: the main stat of the element, or weights by c2s/10 index (Cường lực, Nội lực,
  * Thân pháp, Thể lực). */
 export type StatPlan = "auto" | { weights: [number, number, number, number] };
+
+/** FightSettings of cllt-core's bot.rs: what the bot does on its own between the battles of a fight job or quest run. */
+export interface FightSettings {
+  /** Tự sửa đồ: a worn item at durability 0 is repaired with a Búa Sửa Chữa of the bag; none is ever bought for it. */
+  repair: boolean;
+}
 
 export interface AppState {
   /** Count of changes the reply was read at; an update with a count not above it is older. */

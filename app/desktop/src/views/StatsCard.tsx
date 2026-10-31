@@ -24,14 +24,16 @@ interface Props {
   onPlan: () => void;
 }
 
-/** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8), a + on each, and
- * how the bot spends them on its own; then the skill points left. */
+/** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8) and a + on each;
+ * the gear before Tiềm năng opens how the bot spends them on its own, lit while it does. The skill points are on the Kỹ
+ * năng tab. */
 export function StatsCard({ account, onAdd, onPlan }: Props) {
   const c = account.character;
   // A point goes out between battles only, as Bot::add_stat requires.
   const canAdd = account.status >= 2 && account.status <= 3 && (c?.statPoints ?? 0) > 0 && !c?.battle;
   // Bars against the strongest of the five, so they show the build rather than a scale the game does not give.
   const top = Math.max(1, ...(c?.combat ?? []));
+  const plan = `Tự cộng điểm: ${planText(account.statPlan, c?.element)}`;
   return (
     <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? "Chiến đấu và tiềm năng" : "Đăng nhập để xem chỉ số"}>
       <ul className="combat">
@@ -49,14 +51,20 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
         ))}
       </ul>
       <div className="potentials__head">
-        <span className="potentials__title">
-          <Icon name="gem" size={13} />
-          Tiềm năng
-        </span>
+        <Button
+          kind="ghost"
+          small
+          icon="settings"
+          className={`potentials__plan${account.statPlan ? " is-on" : ""}`}
+          aria-label={plan}
+          aria-haspopup="dialog"
+          onClick={onPlan}
+        />
+        <span className="potentials__title">Tiềm năng</span>
         <span className="potentials__left">
           {c?.statPoints != null ? (
             <>
-              <b className="px">{num(c.statPoints)}</b> điểm chưa cộng
+              <b className="px">{num(c.statPoints)}</b> điểm
             </>
           ) : (
             "—"
@@ -80,18 +88,6 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
           </div>
         ))}
       </div>
-      <div className="potentials__plan">
-        <span className="potentials__plan-label">Tự cộng</span>
-        <span className={`potentials__plan-value${account.statPlan ? " is-on" : ""}`}>{planText(account.statPlan, c?.element)}</span>
-        <Button kind="ghost" small icon="pencil" onClick={onPlan}>
-          Đổi
-        </Button>
-      </div>
-      {c?.skillPoints != null && (
-        <p className="potentials__skills">
-          <b className="px">{num(c.skillPoints)}</b> điểm kỹ năng chưa dùng
-        </p>
-      )}
     </Card>
   );
 }

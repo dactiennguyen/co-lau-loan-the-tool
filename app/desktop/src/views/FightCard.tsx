@@ -2,7 +2,6 @@ import { Badge } from "../components/Badge";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { Chip } from "../components/Chip";
 import { DetailsToggle } from "../components/DetailsToggle";
 import { Elapsed } from "../components/Elapsed";
 import { Icon } from "../components/Icon";
@@ -27,8 +26,8 @@ interface Props {
   onStop: () => void;
 }
 
-/** The fight job: a mob or boss of the zone, how many battles, how many losses to allow; start, stop, progress, and the
- * HP of the battle on under Chi tiết. */
+/** The fight job: a mob or boss of the zone, how many battles, how many losses to allow (typed in or stepped); start,
+ * stop, progress, and the HP of the battle on under Chi tiết. */
 export function FightCard({ account, choice, onChoice, onStart, onStop }: Props) {
   const c = account.character;
   const targets = c?.targets ?? [];
@@ -70,13 +69,6 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
         <div className="fight__row">
           <span className="fight__label">Số trận</span>
           <Stepper label="số trận" value={choice.count} onChange={(count) => set({ count })} />
-        </div>
-        <div className="fight__chips">
-          {[5, 10, 20, 50].map((n) => (
-            <Chip key={n} active={choice.count === n} onClick={() => set({ count: n })}>
-              {n}
-            </Chip>
-          ))}
         </div>
         <div className="fight__row">
           <span className="fight__label">Thua tối đa</span>

@@ -5,7 +5,8 @@ use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
 use cllt_core::bot::{
-    duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, ItemAct, LogKind, Out,
+    duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, FightSettings,
+    ItemAct, LogKind, Out,
 };
 use cllt_core::potentials::StatPlan;
 use cllt_core::protocol::*;
@@ -2140,4 +2141,179 @@ fn the_shop_opens_on_m1_and_buys_a_line_the_money_pays_for() {
     bot.on_packet(13, &hex("000000024d32000000010000"), now, &mut out)
         .unwrap();
     assert_eq!(bot.snapshot().shop, None);
+}
+
+#[test]
+fn s2c_36_reads_the_durability_of_the_8_gear_slots_as_gear_durability_does() {
+    // B1 (the hat alone at 49), G2 (hat, armour, broken weapon) and Q2's 20 bytes (05-battle.md#s2c-36).
+    let b1 = items::gear_durability(&hex("000000080000000031ffffffffffffff")).unwrap();
+    assert_eq!(b1, [Some(49), None, None, None, None, None, None, None]);
+    let g2 = items::gear_durability(&hex(concat!(
+        "00000008",
+        "0000000037",
+        "010000003c",
+        "0200000000",
+        "ffffffffff"
+    )))
+    .unwrap();
+    assert_eq!(
+        g2,
+        [Some(55), Some(60), Some(0), None, None, None, None, None]
+    );
+    let q2 = items::gear_durability(&hex("000000080000000027ff0200000032ffffffffff")).unwrap();
+    assert_eq!(q2, [Some(39), None, Some(50), None, None, None, None, None]);
+    assert!(items::gear_durability(&hex("000000080000000031ffffffffff")).is_err());
+}
+
+/// The gear of s2c/9 (Nón Âu Lạc and Rìu Âu Lạc both at 0/60) and the bag of s2c/42 (one Búa Sửa Chữa), from the
+/// vectors, on the Cóc Xanh bot.
+fn broken_gear_bot(fight: FightSettings) -> (Bot, Vec<Out>, Instant, Vec<u8>) {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str| {
+        hex(cases.iter().find(|c| c["fn"] == f).unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.set_fight(fight, &mut out);
+    bot.on_packet(9, &hex_of("characterGear"), now, &mut out)
+        .unwrap();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    (bot, out, now, setup)
+}
+
+#[test]
+fn tu_sua_do_repairs_broken_gear_with_the_hammers_of_the_bag_before_the_next_battle() {
+    // Off: the job challenges at once, broken gear or not.
+    let (mut bot, mut out, now, _) = broken_gear_bot(FightSettings::default());
+    out.clear();
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    assert_eq!((sends(&out, 48), sends(&out, 15)), (0, 1), "{out:?}");
+    // On, but Sửa was just pressed by hand: that answer is awaited, the job does not send a second repair.
+    let (mut bot, mut out, now, _) = broken_gear_bot(FightSettings { repair: true });
+    bot.item(ItemAct::Repair(2), now, &mut out);
+    out.clear();
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    assert_eq!((sends(&out, 48), sends(&out, 15)), (0, 1), "{out:?}");
+
+    let (mut bot, mut out, now, setup) = broken_gear_bot(FightSettings { repair: true });
+    assert!(logged(&out, "Bật tự sửa đồ"), "{out:?}");
+    out.clear();
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    // The hat first (c2s/48 00 00000000, as on the phone), with the one hammer; no challenge yet.
+    assert!(
+        logged(
+            &out,
+            "Tự sửa Nón Âu Lạc (độ bền 0/60, ô trang bị 0); còn 0 búa sau lần này"
+        ),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 48).as_deref(), Some("0000000000"));
+    assert_eq!(sends(&out, 15), 0);
+    assert_eq!(bot.deadline(), Some(now + Duration::from_secs(5)));
+    // The hand buttons wait for it as for one of theirs.
+    out.clear();
+    bot.item(ItemAct::Repair(2), now, &mut out);
+    assert_eq!(sends(&out, 48), 0);
+    // s2c/1187 (the hammer gone), then s2c/48: repaired, and the job goes on half a second later.
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let bag = hex(
+        cases.iter().find(|c| c["fn"] == "inventory").unwrap()["hex"]
+            .as_str()
+            .unwrap(),
+    );
+    bot.on_packet(1187, &bag, now, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(48, &hex("0000000000"), now, &mut out)
+        .unwrap();
+    assert!(logged(&out, "Đã sửa Nón Âu Lạc"), "{out:?}");
+    assert_eq!(
+        bot.snapshot().gear[0].as_ref().map(|i| i.durability),
+        Some(60)
+    );
+    let at = bot.deadline().unwrap();
+    assert_eq!(at, now + Duration::from_millis(500));
+    // The weapon is broken too, and no hammer is left: said once, and the battle goes ahead.
+    out.clear();
+    bot.on_timer(at, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Rìu Âu Lạc đang hỏng (độ bền 0/60) nhưng túi hết Búa Sửa Chữa: đánh tiếp với món hỏng"
+        ),
+        "{out:?}"
+    );
+    assert_eq!((sends(&out, 48), sends(&out, 15)), (0, 1));
+    bot.on_packet(22, &setup, at, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(19, &won_battle(), at, &mut out).unwrap();
+    // s2c/36 after the battle: the hat worn down to 0 this time, the weapon still at 0.
+    bot.on_packet(
+        36,
+        &hex("000000080000000000ff0200000000ffffffffff"),
+        at,
+        &mut out,
+    )
+    .unwrap();
+    assert!(logged(&out, "Nón Âu Lạc đã hỏng (độ bền 0/60)"), "{out:?}");
+    assert!(!logged(&out, "Rìu Âu Lạc đã hỏng"));
+    let gear = bot.snapshot().gear;
+    assert_eq!(
+        (
+            gear[0].as_ref().map(|i| i.durability),
+            gear[2].as_ref().map(|i| i.durability)
+        ),
+        (Some(0), Some(0))
+    );
+
+    // A new job with a hammer again: the server refuses the hat ("Không thể thực hiện"), the weapon goes unanswered;
+    // each is left for the rest of the run and the job goes on.
+    bot.on_packet(
+        42,
+        &hex(
+            cases.iter().find(|c| c["fn"] == "characterExtra").unwrap()["hex"]
+                .as_str()
+                .unwrap(),
+        ),
+        at,
+        &mut out,
+    )
+    .unwrap();
+    let mut t = at + Duration::from_secs(10);
+    out.clear();
+    bot.fight("Cóc Xanh", 1, 1, t, &mut out);
+    assert_eq!(sent(&out, 48).as_deref(), Some("0000000000"));
+    out.clear();
+    let refused = Writer::new().u8(1).string("Không thể thực hiện").build();
+    bot.on_packet(1256, &refused, t, &mut out).unwrap();
+    assert!(
+        logged(
+            &out,
+            "Không sửa được Nón Âu Lạc: Không thể thực hiện; đánh tiếp với món hỏng"
+        ),
+        "{out:?}"
+    );
+    t = bot.deadline().unwrap();
+    out.clear();
+    bot.on_timer(t, &mut out);
+    assert_eq!(sent(&out, 48).as_deref(), Some("0000000002"), "{out:?}");
+    t = bot.deadline().unwrap();
+    out.clear();
+    bot.on_timer(t, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Server không trả lời khi sửa Rìu Âu Lạc sau 5 s; đánh tiếp với món hỏng"
+        ),
+        "{out:?}"
+    );
+    assert_eq!((sends(&out, 48), sends(&out, 15)), (0, 1));
+
+    // Turned off from the UI.
+    out.clear();
+    bot.set_fight(FightSettings::default(), &mut out);
+    assert!(logged(&out, "Tắt tự sửa đồ"));
 }

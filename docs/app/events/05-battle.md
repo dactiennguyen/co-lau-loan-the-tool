@@ -416,10 +416,32 @@ Cùng một mili giây, server gửi thêm:
 | Gói | Payload | Ghi chú |
 |---|---|---|
 | s2c/10 | 62 byte, cùng bố cục như trên | HP lại `130/130` |
-| s2c/36 | `00000008 00000000 31 ffffffffffffff` (16 byte) | Độ bền trang bị: byte `31` = 49 giảm dần qua các trận sau ([10-quests](10-quests.md#kết-quả-q3-q4)) [Suy luận] |
+| s2c/36 | `00000008 00000000 31 ffffffffffffff` (16 byte) | Độ bền 8 ô trang bị: ô 0 còn 49, các ô khác trống ([bố cục](#s2c-36)) |
 | s2c/1214 | rỗng | Cũng có sau lần huỷ trận Gà Điên [Đo]; vai trò [Chưa rõ] |
 
 Sau ~5 s, client gửi c2s/11 `"M1"` rồi c2s/43 và nhận lại map, danh sách quái và người chơi như lúc mới vào bản đồ. Nhân vật xuất hiện lại tại vị trí đã chạm quái (x=1735, y=672 trong s2c/11).
+
+<a id="s2c-36"></a>
+
+### s2c/36: độ bền 8 ô trang bị
+
+Bố cục giống danh sách trang bị cuối `s2c/9` và `s2c/37`: mỗi ô là `ff` khi trống, còn không thì là một bản ghi, ở đây chỉ có số ô và độ bền.
+
+```text
+i32 n (8); n × { u8 0xff (ô trống) | u8 ô; i32 độBền }
+```
+
+| Mẫu | Byte | Đọc |
+|---|---|---|
+| B1, thắng Gà Điên | `00000008 00 00000031 ff ff ff ff ff ff ff` (16) | Ô 0 (Nón Âu Lạc) độ bền 49; 7 ô trống |
+| Sau Đầu hàng ([07-auto-battle](07-auto-battle.md#các-gói-mới-thấy-trong-bot)) | `00000008 00 0000002f ff ff ff ff ff ff ff` (16) | Ô 0 độ bền 47 |
+| Q2 ([10-quests](10-quests.md#kết-quả-q3-q4)) | 20 byte | Ô 0 39 → 34 (byte 8), ô 2 (Rìu Âu Lạc) 50 → 12 (i32 ở offset 11) |
+| G2 ([bot tự nhặt đồ](13-drops-items.md#g2)), manina cấp 22, 6 trận Sơn Tặc (31/10) | `00000008 00 00000037 01 0000003c 02 00000000 ff ff ff ff ff` (24) | Ô 0 Nón Âu Lạc 55, ô 1 Áo Hào Kiệt 60, ô 2 Rìu Âu Lạc 0 (đang hỏng) |
+
+- Cả 4 mẫu đọc vừa hết byte theo bố cục trên. Ô có món khớp trang bị của manina trong `s2c/9`. Độ bền về 0 ở cùng trận HP tối đa và sát thương tụt. [Đo]
+- Byte trước độ bền là số ô (`00`, `01`, `02` ở G2), như byte ô của bản ghi vật phẩm. [Đo]
+- G2: cả 6 gói giống hệt nhau, độ bền không giảm qua 6 trận thắng. Gói đến 1 ms sau kết quả cuối trận, ngay sau `s2c/10` kiểu 4. Vậy không phải trận nào cũng làm mòn đồ; quy luật mòn chưa rõ (Q2 giảm gần như mỗi trận). [Đo; quy luật Chưa rõ]
+- Bot TS đọc gói bằng `gearDurability` (src/world.ts). App Rust cập nhật độ bền trên tab Túi đồ sau mỗi trận, và dựa vào đó để tự sửa đồ ([Tự sửa đồ](../../integration/rust/README.md#tự-sửa-đồ)).
 
 ## Push trên bản đồ: đính chính
 

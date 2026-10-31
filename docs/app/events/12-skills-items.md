@@ -266,7 +266,7 @@ Cẩm nang (C1):
 - Tẩy Tủy Đan trả lại toàn bộ điểm tiềm năng đã cộng; Tẩy Kinh Đan trả lại toàn bộ điểm kỹ năng.
 
 **Bot TS**: không có `--stats` thì bot chỉ cộng 1 điểm vào Cường Lực ở bước "Nâng điểm tiềm năng". Có `--stats` thì bot cộng hết điểm theo lựa chọn ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)):
-- `--stats=auto` cộng vào chỉ số chính của hệ: Cường Lực cho Hỏa (`field01` 1), Nội Lực cho Thủy (4). Với hệ chưa biết, bot không cộng điểm nào.
+- `--stats=auto` cộng vào chỉ số chính của hệ: Cường Lực cho Hỏa (`field01` 1), Thân Pháp cho Lôi (2), Nội Lực cho Thủy (4). Số 2 của Lôi là số `c2s/30` trả cây Lôi, chưa đọc từ nhân vật Lôi nào. Với số hệ khác, bot không cộng điểm nào.
 - `--stats=than` hoặc `--stats=cuong:3,than:1` chia theo tỉ lệ.
 - Bot gửi từng `c2s/10 (chỉSố, 1)` như nút "Cộng +1". Gói sau chỉ đi khi `s2c/10` kiểu 8 của gói trước đã về.
 - Bot cộng lúc vào game và giữa các trận (sau mỗi lần lên cấp), không cộng giữa trận.

@@ -13,10 +13,12 @@ pub const POTENTIALS: [(&str, usize); 4] = [
 ];
 
 /// The stat that raises attack for an element (field01 of s2c/9), by c2s/10 index, from the in-game handbook: Hỏa
-/// Cường Lực, Thủy Nội Lực. Lôi (Thân Pháp) has no known field01.
+/// Cường Lực, Lôi Thân Pháp, Thủy Nội Lực (MAIN_STAT of src/world.ts). Lôi's 2 is the c2s/30 that answers its skill
+/// tree; no Lôi character has been read yet.
 pub fn main_stat(element: i32) -> Option<usize> {
     match element {
         1 => Some(0),
+        2 => Some(2),
         4 => Some(1),
         _ => None,
     }
@@ -59,8 +61,10 @@ mod tests {
 
     #[test]
     fn auto_raises_the_main_stat_and_weights_take_turns() {
+        assert_eq!(StatPlan::Auto.weights(Some(1)), Some([1, 0, 0, 0]));
+        assert_eq!(StatPlan::Auto.weights(Some(2)), Some([0, 0, 1, 0]));
         assert_eq!(StatPlan::Auto.weights(Some(4)), Some([0, 1, 0, 0]));
-        assert_eq!(StatPlan::Auto.weights(Some(2)), None);
+        assert_eq!(StatPlan::Auto.weights(Some(3)), None);
         assert_eq!(StatPlan::Weights([0; 4]).weights(Some(1)), None);
         let w = [1, 0, 1, 0];
         let mut given = [0; 4];

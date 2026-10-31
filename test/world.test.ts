@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/events.ts';
-import { mapGrid, mapData, ZonePlayers } from '../src/world.ts';
+import { mapGrid, mapData, gearDurability, ZonePlayers } from '../src/world.ts';
 import { mapPrefix } from '../src/protocol.ts';
 
 const w: Record<string, { opcode: number; at: number; hex: string }> = fixtures.world;
@@ -134,4 +134,19 @@ test('portal and boss requests: c2s/13 with a portal id, s2c/13 with the new map
   assert.deepEqual(decodeMap('c2s/1178'), { mobId: 'mob86100201', flag: 0 });
   assert.equal(buildRequest(1178, { mobId: 'mob86100201' }).toString('hex'), mp['c2s/1178']);
   assert.deepEqual(decodeMap('s2c/1201 boss damage'), { progress: 363 });
+});
+
+test('s2c/36 is the durability of the 8 gear slots: ff for an empty slot, else the slot byte and an i32 (B1, Đầu hàng, Q2, G2)', () => {
+  const read = (hex: string) => gearDurability(Buffer.from(hex.replace(/ /g, ''), 'hex')).slots;
+  // B1 after the win over Gà Điên, and after an Đầu hàng (07-auto-battle): the hat alone, 49 then 47.
+  assert.deepEqual(read('00000008 00000000 31 ffffffffffffff'), [{ slot: 0, durability: 49 }, null, null, null, null, null, null, null]);
+  assert.equal(read('00000008 00000000 2f ffffffffffffff')[0]?.durability, 47);
+  // G2 (6 battles of manina at level 22, all the same): the slot byte is the slot; the weapon is broken.
+  assert.deepEqual(read('00000008 00 00000037 01 0000003c 02 00000000 ffffffffff'), [{ slot: 0, durability: 55 }, { slot: 1, durability: 60 }, { slot: 2, durability: 0 }, null, null, null, null, null]);
+  // Q2 measured 20 bytes with byte 8 at 39 and the i32 at offset 11 at 50: the hat, and the weapon of slot 2.
+  const q2 = read('00000008 00 00000027 ff 02 00000032 ffffffffff');
+  assert.deepEqual(q2.map(s => s?.durability ?? null), [39, null, 50, null, null, null, null, null]);
+  const d = decodeEvent('s2c', 36, Buffer.from('0000000800000000' + '31ffffffffffffff', 'hex'));
+  assert.equal(d.opaqueBytes, 0);
+  assert.throws(() => read('00000008 00000000 31 ffffffffff'), /length/);
 });

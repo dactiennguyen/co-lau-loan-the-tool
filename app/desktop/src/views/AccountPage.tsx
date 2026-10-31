@@ -5,6 +5,7 @@ import { selectedLog, useStore } from "../store";
 import type { Account } from "../types";
 import { FightCard, type FightChoice } from "./FightCard";
 import { BattleStatsCard } from "./BattleStatsCard";
+import { FightSettingsCard } from "./FightSettingsCard";
 import { HeroCard } from "./HeroCard";
 import { InventoryCard } from "./InventoryCard";
 import { LogCard } from "./LogCard";
@@ -15,7 +16,7 @@ import { SkillsCard } from "./SkillsCard";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
-type Task = "quest" | "fight" | "bag" | "skills" | "stats";
+type Task = "quest" | "fight" | "settings" | "bag" | "skills" | "stats";
 
 /**
  * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and fight
@@ -58,6 +59,7 @@ export function AccountPage({ account }: { account: Account }) {
             tabs={[
               { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
               { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
+              { key: "settings", label: "Cài đặt", icon: "settings" },
               { key: "bag", label: "Túi đồ", icon: "gem" },
               { key: "skills", label: "Kỹ năng", icon: "bolt" },
               { key: "stats", label: "Thống kê", icon: "chart" },
@@ -72,6 +74,8 @@ export function AccountPage({ account }: { account: Account }) {
               <SkillsCard account={account} onUpgrade={(skill) => api.upgradeSkill(id, skill)} />
             ) : task === "stats" ? (
               <BattleStatsCard account={account} />
+            ) : task === "settings" ? (
+              <FightSettingsCard account={account} />
             ) : (
               <FightCard
                 account={account}
