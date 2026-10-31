@@ -1,0 +1,555 @@
+//! What one logged-in account knows and does: the character, map, mobs and current quest from the world packets, and
+//! one of two jobs. A fight job ("đánh X N lần") follows QuestBot --farm of src/quest.ts: c2s/15 for a mob, c2s/1178 for
+//! a boss of s2c/1177, 8 s for s2c/22, 6 × 5 s of waiting while a boss changes tiles, 3 s of rest between battles, and
+//! losses (except to a boss) up to `max_losses`. A quest run ("Tự làm nhiệm vụ") is QuestBot itself: it plays the steps
+//! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals
+//! when the NPC or mob of a step is in another map. Without I/O, like BattleRunner.
+use crate::atlas::{Atlas, MapRecord, Portal};
+use crate::battle::{battle_setup, Strategy};
+use crate::items::{
+    bag_slot, book, character_extra, character_gear, currencies, gear_durability, gear_update,
+    ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
+};
+use crate::potentials::{next_stat, StatPlan, POTENTIALS};
+use crate::protocol::{
+    character_location, character_prefix, character_profile, map_prefix, Reader, Writer,
+};
+use crate::quest::{step_action, StepAction};
+use crate::requests::{build, Ctx};
+use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill, Turn};
+use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
+use crate::world::{
+    character_stats, map_boss, map_change, map_data, map_entities, notice, npc_menu,
+    quest_complete, quest_data, quest_progress, shop_list, zone_list, Mob, Nearby, Place, Quest,
+    ShopList, Zone, ZonePlayers,
+};
+use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+mod fight;
+mod items;
+mod packets;
+mod quest;
+mod shop;
+mod stats;
+mod travel;
+mod types;
+pub use types::*;
+
+/// Wall-clock ms since 1970, for the start and end of a job or quest run.
+fn epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64)
+}
+
+/// "45 giây", "3 phút 05 giây", "1 giờ 02 phút".
+pub fn duration_text(d: Duration) -> String {
+    let s = d.as_secs();
+    match s {
+        0..60 => format!("{s} giây"),
+        60..3600 => format!("{} phút {:02} giây", s / 60, s % 60),
+        _ => format!("{} giờ {:02} phút", s / 3600, s / 60 % 60),
+    }
+}
+
+/// A challenge (c2s/15, c2s/1178) not answered by s2c/22 yet: the mob, and the job or quest run that sent it.
+struct Challenge {
+    mob_id: String,
+    seq: u32,
+    at: Instant,
+}
+/// A challenge left unanswered this long is taken as refused: no battle opens that late.
+const CHALLENGE_KEPT: Duration = Duration::from_secs(60);
+
+/// A button of the item detail (12-skills-items.md#c2s-1186): Trang bị the item of a bag slot, Cởi ra the one of a gear
+/// slot, Sử dụng a bag slot, Sửa chữa a gear slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ItemAct {
+    Equip(u8),
+    Unequip(u8),
+    Use(u8),
+    Repair(u8),
+}
+/// Item of the Búa Sửa Chữa that each repair takes.
+const HAMMER: i32 = 2;
+/// The type of Hoàn Linh Dược and Kim Đan Dược: the server refuses them outside a battle (P4).
+const POTION: u8 = 20;
+/// How long Tự sửa đồ waits for s2c/48 before the run goes on without the repair (the answer took 40 ms in E2).
+const REPAIR_WAIT: Duration = Duration::from_secs(5);
+/// Tự nhặt đồ (13-drops-items.md#g2): items fallen in the map are kept DROPS_KEPT; those within LOOT of the end of a won
+/// battle, before it or after, are its own drops. One c2s/1188 every PICK_GAP; a s2c/1256 within PICK_ANSWER of the last
+/// one is its answer.
+const DROPS_KEPT: Duration = Duration::from_secs(2);
+const LOOT: Duration = Duration::from_millis(300);
+const PICK_GAP: Duration = Duration::from_millis(200);
+const PICK_ANSWER: Duration = Duration::from_secs(2);
+
+/// Lái Buôn (NPC 106 of M1) and the line of his menu that opens the Dược phẩm shop (12-skills-items.md#c2s-1190). The
+/// server answers c2s/13 to him from anywhere on M1, and "Không thể thực hiện" from another map (B1).
+const SELLER: (&str, i32) = ("M1", 106);
+const SELLER_MENU: &str = "Dược phẩm";
+/// How long a step of the shop waits for the server.
+const SHOP_WAIT: Duration = Duration::from_secs(8);
+/// Most items one c2s/1190 asks for.
+pub const MAX_BUY: i32 = 99;
+
+/// Where the shop stands: c2s/13 waits for s2c/57, c2s/57 for s2c/1190, c2s/1190 for the notice of the purchase.
+#[derive(Debug, Clone)]
+enum Shopping {
+    Talk,
+    Menu,
+    Buy {
+        name: String,
+        quantity: i32,
+        cost: String,
+    },
+}
+
+/// An item action waiting for its answer (s2c/1186, s2c/48, or a notice), and the item's name for the log.
+struct ItemWait {
+    act: ItemAct,
+    name: String,
+    at: Instant,
+}
+
+/// A c2s/1191 waiting for s2c/1191: the skill, when it went out, and whether the quest step "Sử dụng điểm kỹ năng" sent
+/// it (Nâng cấp in the UI does too).
+struct Upgrade {
+    id: i32,
+    name: String,
+    at: Instant,
+    step: bool,
+}
+
+enum Wake {
+    Next,
+    ChallengeTimeout,
+    /// A talk, stat point or portal the server did not answer in 8 s, or a level step it did not advance: the quest run
+    /// stops with this reason.
+    Silence(&'static str),
+    /// A point of the stat plan the server did not answer in 8 s.
+    StatSilence,
+}
+
+pub struct Bot {
+    pub snap: Snapshot,
+    mobs: Vec<Mob>,
+    /// Ids of the bosses of s2c/1177.
+    bosses: HashSet<String>,
+    /// Bosses of s2c/1177 by map (name, level), kept while they change tiles, as recordBoss keeps them in the TS atlas.
+    seen_bosses: Vec<(String, String, i32)>,
+    zone: ZonePlayers,
+    /// data/maps.json and what this session has seen since.
+    atlas: Atlas,
+    options: BotOptions,
+    battle: Option<BattleRunner>,
+    target: Option<Mob>,
+    waits: u32,
+    timer: Option<(Instant, Wake)>,
+    /// Job each challenge and battle belongs to, so a battle of a replaced job is not counted in the new one.
+    job_seq: u32,
+    /// Unanswered challenges, oldest first. One that timed out or was sent before Stop stays: its battle may open late.
+    challenges: Vec<Challenge>,
+    battle_seq: u32,
+    /// The portal of the quest run's c2s/13 until s2c/43 of the new map; `hops` counts portals taken for the current
+    /// step; `refused` holds the portals the server refused in this run.
+    travelling: Option<(i32, String)>,
+    hops: u32,
+    refused: HashSet<i32>,
+    /// A talk or stat-point step is answered by s2c/34 alone.
+    awaiting_reply: bool,
+    /// The step of a run that plays one: quest id, step index, its text (`playing` of QuestBot with `once`).
+    playing: Option<(i32, i32, String)>,
+    /// Quest runs started in this session (QuestRun::id).
+    runs: u32,
+    /// The map asked with c2s/40 (c2s/11) still to answer with c2s/43 when it comes, as the game does after Đầu hàng.
+    reload_map: bool,
+    /// Until when a surrender waits for s2c/1214 or s2c/36 before the battle is played on. Its own deadline, so a job
+    /// started or stopped meanwhile cannot clear it.
+    leave_until: Option<Instant>,
+    /// When the battle on, or the last one, opened (s2c/22): its result line says how long it took.
+    battle_started: Instant,
+    /// When the fight job or quest run started: each result line says how long it has run.
+    run_started: Instant,
+    /// The battle on, for its BattleRecord: when it opened (ms since 1970), what it is played for, the HP it opened with.
+    battle_at: u64,
+    battle_source: BattleSource,
+    battle_hp: i32,
+    /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
+    /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
+    /// 8, `allot_failed` once one went unanswered, until the plan is set again.
+    stat_plan: Option<StatPlan>,
+    given: [u32; 4],
+    spent: [u32; 4],
+    allotting: bool,
+    allot_failed: bool,
+    plan_warned: bool,
+    upgrading: Option<Upgrade>,
+    item_wait: Option<ItemWait>,
+    /// The zone of c2s/1173 until s2c/43 of it (change_zone).
+    zoning: Option<i32>,
+    /// "Đổi map": the map (id, name) the bot walks to through portals (go_to), until it is there.
+    trip: Option<(String, String)>,
+    /// Until when the zone change, or the portal of the trip, waits for the server.
+    move_until: Option<Instant>,
+    /// The step of the shop waiting for the server, and until when.
+    shopping: Option<(Shopping, Instant)>,
+    fight: FightSettings,
+    /// The gear slot and item name of the repair auto_repair sent, until s2c/48 or a notice answers it. `repair_failed`
+    /// holds the slots the server did not repair in this run, `repair_warned` whether the run said it has no hammer.
+    repairing: Option<(u8, String)>,
+    repair_failed: HashSet<u8>,
+    repair_warned: bool,
+    /// Tự nhặt đồ: the items fallen in the last DROPS_KEPT (uuid, name, when); until when a won battle's drops are still
+    /// coming; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
+    /// when the last c2s/1188 went.
+    drops: Vec<(String, String, Instant)>,
+    loot_until: Option<Instant>,
+    to_pick: VecDeque<(String, String)>,
+    pick_at: Option<Instant>,
+    asked: HashSet<String>,
+    picked_at: Option<Instant>,
+}
+
+impl Bot {
+    pub fn new(options: BotOptions, atlas: Arc<Atlas>) -> Self {
+        let (stat_plan, fight) = (options.stats, options.fight);
+        Self {
+            snap: Snapshot::default(),
+            mobs: vec![],
+            bosses: HashSet::new(),
+            seen_bosses: vec![],
+            zone: ZonePlayers::default(),
+            atlas: (*atlas).clone(),
+            options,
+            battle: None,
+            target: None,
+            waits: 0,
+            timer: None,
+            job_seq: 0,
+            challenges: vec![],
+            battle_seq: 0,
+            travelling: None,
+            hops: 0,
+            refused: HashSet::new(),
+            awaiting_reply: false,
+            playing: None,
+            runs: 0,
+            reload_map: false,
+            leave_until: None,
+            battle_started: Instant::now(),
+            run_started: Instant::now(),
+            battle_at: 0,
+            battle_source: BattleSource::Other,
+            battle_hp: 0,
+            stat_plan,
+            given: [0; 4],
+            spent: [0; 4],
+            allotting: false,
+            allot_failed: false,
+            plan_warned: false,
+            upgrading: None,
+            item_wait: None,
+            zoning: None,
+            trip: None,
+            move_until: None,
+            shopping: None,
+            fight,
+            repairing: None,
+            repair_failed: HashSet::new(),
+            repair_warned: false,
+            drops: vec![],
+            loot_until: None,
+            to_pick: VecDeque::new(),
+            pick_at: None,
+            asked: HashSet::new(),
+            picked_at: None,
+        }
+    }
+
+    pub fn atlas(&self) -> &Atlas {
+        &self.atlas
+    }
+    fn job_running(&self) -> bool {
+        self.snap.job.as_ref().is_some_and(|j| j.done.is_none())
+    }
+    fn quest_running(&self) -> bool {
+        self.snap
+            .quest_run
+            .as_ref()
+            .is_some_and(|r| r.done.is_none())
+    }
+
+    pub fn snapshot(&self) -> Snapshot {
+        let mut s = self.snap.clone();
+        s.targets = self.targets();
+        s.players = self.zone.list();
+        s.maps = self.maps();
+        if let Some(b) = &self.battle {
+            s.turn = self.turn_of(b);
+        }
+        s.battle = self.battle.as_ref().map(|b| BattleView {
+            mob_id: b.mob_id.clone(),
+            mob_name: self.mob_name(&b.mob_id),
+            hp: b.me.hp,
+            max_hp: b.me.max_hp,
+            mob_hp: Some(b.mob.hp).filter(|v| v.is_finite()),
+            mob_max_hp: Some(b.mob.max_hp).filter(|v| v.is_finite()),
+            turns: b.turns,
+            timed: b.timed,
+            leaving: b.leaving,
+        });
+        s
+    }
+
+    /// The battle against `mob_id` that just ended, for the history (Out::Battle). A boss that changed tiles is not in
+    /// the zone list any more: its name and level come from the atlas, which keeps its id by zone.
+    fn record(
+        &self,
+        mob_id: &str,
+        result: BattleResult,
+        turns: u32,
+        damage: i32,
+        exp: i32,
+        coin: i32,
+    ) -> Box<BattleRecord> {
+        let known = self
+            .mobs
+            .iter()
+            .find(|m| m.id == mob_id)
+            .map(|m| (m.name.clone(), m.level))
+            .or_else(|| {
+                self.atlas
+                    .bosses(&self.snap.map_id)
+                    .iter()
+                    .find(|b| b.ids.values().any(|i| i == mob_id))
+                    .map(|b| (b.name.clone(), b.level))
+            });
+        let (mob_name, mob_level) = known.unwrap_or_else(|| (mob_id.to_string(), 0));
+        Box::new(BattleRecord {
+            character: self.snap.name.clone(),
+            level: self.snap.level,
+            started_at: self.battle_at,
+            ended_at: epoch_ms(),
+            map_id: self.snap.map_id.clone(),
+            map_name: self.snap.map_name.clone(),
+            zone: self.snap.zone,
+            mob_id: mob_id.to_string(),
+            boss: self.bosses.contains(mob_id) || self.is_boss(&mob_name),
+            mob_name,
+            mob_level,
+            source: self.battle_source,
+            result,
+            turns,
+            damage,
+            hp_before: self.battle_hp,
+            hp_after: self.snap.hp,
+            max_hp: self.snap.max_hp,
+            exp,
+            coin,
+        })
+    }
+
+    fn mob_name(&self, id: &str) -> String {
+        self.mobs
+            .iter()
+            .find(|m| m.id == id)
+            .map_or_else(|| id.to_string(), |m| m.name.clone())
+    }
+
+    /// The last result of `b`, with the mob's name.
+    fn turn_of(&self, b: &BattleRunner) -> Option<Turn> {
+        let foe = self.mob_name(&b.mob_id);
+        b.last.clone().map(|t| Turn { foe, ..t })
+    }
+
+    /// Bosses of the current map: seen in this session, or in data/maps.json.
+    fn map_bosses(&self) -> Vec<(String, i32)> {
+        let map = &self.snap.map_id;
+        let mut out: Vec<(String, i32)> = self
+            .seen_bosses
+            .iter()
+            .filter(|b| &b.0 == map)
+            .map(|b| (b.1.clone(), b.2))
+            .collect();
+        for k in self.atlas.bosses(map) {
+            if !out.iter().any(|b| b.0 == k.name) {
+                out.push((k.name.clone(), k.level));
+            }
+        }
+        out
+    }
+
+    /// Mob kinds of this zone, plus the bosses of this map changing tiles; bosses first, then the strongest.
+    pub fn targets(&self) -> Vec<Target> {
+        let mut out: Vec<Target> = vec![];
+        for m in &self.mobs {
+            if !out.iter().any(|t| t.name == m.name) {
+                out.push(Target {
+                    name: m.name.clone(),
+                    level: m.level,
+                    boss: self.bosses.contains(&m.id),
+                    here: true,
+                });
+            }
+        }
+        for (name, level) in self.map_bosses() {
+            match out.iter_mut().find(|t| t.name == name) {
+                Some(t) => t.boss = true,
+                None => out.push(Target {
+                    name,
+                    level,
+                    boss: true,
+                    here: false,
+                }),
+            }
+        }
+        out.sort_by(|a, b| b.boss.cmp(&a.boss).then(b.level.cmp(&a.level)));
+        out
+    }
+
+    fn is_boss(&self, name: &str) -> bool {
+        self.mobs
+            .iter()
+            .any(|m| m.name == name && self.bosses.contains(&m.id))
+            || self.map_bosses().iter().any(|b| b.0 == name)
+    }
+
+    pub fn deadline(&self) -> Option<Instant> {
+        [
+            self.timer.as_ref().map(|t| t.0),
+            self.battle.as_ref().and_then(|b| b.deadline()),
+            self.leave_until,
+            self.move_until,
+            self.shopping.as_ref().map(|s| s.1),
+            self.pick_at,
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+    }
+
+    pub fn on_timer(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if let Some(b) = &mut self.battle {
+            if b.deadline().is_some_and(|d| d <= now) {
+                let mut acts = vec![];
+                b.on_timer(now, &mut acts);
+                self.apply(acts, now, out);
+            }
+        }
+        if self.timer.as_ref().is_some_and(|t| t.0 <= now) {
+            match self.timer.take().unwrap().1 {
+                Wake::Next => self.next(now, out),
+                Wake::ChallengeTimeout => {
+                    if self.battle.is_none() {
+                        out.push(Out::Log(
+                            LogKind::Battle,
+                            format!(
+                                "Server không mở trận với {} sau 8 s",
+                                self.target.as_ref().map_or("?", |m| &m.name)
+                            ),
+                        ));
+                        self.next(now, out);
+                    }
+                }
+                Wake::Silence(reason) => self.finish_quest(reason, out),
+                Wake::StatSilence => {
+                    (self.allotting, self.allot_failed) = (false, true);
+                    let reason = "Server không trả lời khi cộng điểm tiềm năng";
+                    out.push(Out::Log(
+                        LogKind::Character,
+                        format!("{reason}; thôi tự cộng điểm"),
+                    ));
+                    if self.quest_running() {
+                        self.finish_quest(reason, out);
+                    } else if self.job_running() {
+                        self.finish(reason, out);
+                    }
+                }
+            }
+        }
+        if self.pick_at.is_some_and(|t| t <= now) {
+            self.pick_next(now, out);
+        }
+        if self.shopping.as_ref().is_some_and(|s| s.1 <= now) {
+            self.shopping = None;
+            out.push(Out::Log(
+                LogKind::Item,
+                format!("Lái Buôn không trả lời sau {} s", SHOP_WAIT.as_secs()),
+            ));
+        }
+        if self.move_until.is_some_and(|t| t <= now) {
+            (self.move_until, self.snap.moving) = (None, None);
+            if let Some(z) = self.zoning.take() {
+                out.push(Out::Log(
+                    LogKind::Travel,
+                    format!("Server không trả lời khi sang khu {z} sau 8 s"),
+                ));
+            }
+            if let Some((_, name)) = self.trip.take() {
+                self.travelling = None;
+                out.push(Out::Log(
+                    LogKind::Travel,
+                    format!("Kết thúc: cổng không trả lời sau 8 s, thôi đi tới {name}"),
+                ));
+            }
+        }
+        if self.leave_until.is_some_and(|t| t <= now) {
+            self.leave_until = None;
+            if let Some(b) = self.battle.as_mut().filter(|b| b.leaving) {
+                let mut acts = vec![];
+                b.resume(now, &mut acts);
+                out.push(Out::Log(
+                    LogKind::Battle,
+                    "Server chưa nhận đầu hàng sau 8 s; đánh tiếp trận".into(),
+                ));
+                self.apply(acts, now, out);
+            }
+        }
+    }
+
+    /// Ends the job or quest run. A battle in progress is played out, or with `surrender` left as the game's Đầu hàng
+    /// does, which costs EXP ("Rời trận, mất 29 kinh nghiệm" in B3); a battle played out after an earlier Stop can be
+    /// left this way too.
+    pub fn stop(&mut self, surrender: bool, now: Instant, out: &mut Vec<Out>) {
+        let reason = match (&self.battle, surrender) {
+            (Some(_), true) => "Đã dừng và đầu hàng trận đang đánh",
+            (Some(_), false) => "Đã dừng; trận đang đánh vẫn tiếp tục tới hết",
+            (None, _) => "Đã dừng",
+        };
+        if self.job_running() {
+            self.timer = None;
+            self.finish(reason, out);
+        }
+        if self.quest_running() {
+            self.finish_quest(reason, out);
+        }
+        // A portal already taken is followed to its map; no other is taken.
+        if let Some((_, name)) = self.trip.take() {
+            self.snap.moving = None;
+            out.push(Out::Log(
+                LogKind::Travel,
+                format!("Kết thúc: thôi đi tới {name}"),
+            ));
+        }
+        if surrender {
+            self.surrender(now, out);
+        }
+    }
+
+    fn send(out: &mut Vec<Out>, opcode: i32, ctx: Ctx) {
+        out.push(Out::Send(opcode, build(opcode, &ctx).expect("request")));
+    }
+
+    fn apply(&mut self, acts: Vec<Act>, now: Instant, out: &mut Vec<Out>) {
+        for a in acts {
+            match a {
+                Act::Send(op, p) => out.push(Out::Send(op, p)),
+                Act::Log(text) => out.push(Out::Log(LogKind::Battle, text)),
+                Act::End(end) => self.on_battle_end(end, now, out),
+            }
+        }
+    }
+}

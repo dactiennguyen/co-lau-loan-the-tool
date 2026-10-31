@@ -1,0 +1,256 @@
+//! Túi đồ: the item buttons, Tự sửa đồ, Tự nhặt đồ and the wear of the gear.
+use super::*;
+
+/// Item actions of the Túi đồ tab (12-skills-items.md#c2s-1186): c2s/1186 to wear or take off, c2s/84 to use, c2s/48 to
+/// repair. The server answers with s2c/37 and s2c/42 (gear and bag), s2c/1186, s2c/48, or a notice.
+impl Bot {
+    /// One button of the item detail. Refused, with the reason in the log and nothing sent, in a battle, while the last
+    /// action waits for its answer (5 s), or when the item cannot take it: a potion outside a battle, a repair without
+    /// a hammer, an item taken off into a full bag.
+    pub fn item(&mut self, act: ItemAct, now: Instant, out: &mut Vec<Out>) {
+        let (slot, worn) = match act {
+            ItemAct::Equip(s) | ItemAct::Use(s) => (s, false),
+            ItemAct::Unequip(s) | ItemAct::Repair(s) => (s, true),
+        };
+        let bag = self.snap.bag.as_ref();
+        let item = match worn {
+            true => self.snap.gear.get(slot as usize).and_then(Option::as_ref),
+            false => bag.and_then(|b| b.items.iter().find(|i| i.slot == slot)),
+        };
+        let place = match worn {
+            true => format!("ô trang bị {slot}"),
+            false => format!("ô túi {}", slot as u32 + 1),
+        };
+        let Some(item) = item else {
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Không có món nào ở {place}"),
+            ));
+        };
+        let def = book().get(item.item_id);
+        let name = def.map_or_else(|| format!("#{}", item.item_id), |d| d.name.clone());
+        let kind = def.map(|d| d.kind);
+        let most = def.map_or(0, |d| d.durability);
+        let pending = self
+            .item_wait
+            .as_ref()
+            .is_some_and(|w| now < w.at + Duration::from_secs(5));
+        let full = bag.is_some_and(|b| b.items.len() as i32 >= b.capacity);
+        let hammer = bag.is_some_and(|b| b.items.iter().any(|i| i.item_id == HAMMER));
+        let refused = if self.battle.is_some() {
+            Some("đang đánh, đợi hết trận")
+        } else if pending {
+            Some("đang đợi server trả lời lần trước")
+        } else {
+            match act {
+                ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị"),
+                ItemAct::Unequip(_) if full => Some("túi đồ đã đầy"),
+                ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận"),
+                ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc"),
+                ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền"),
+                ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy"),
+                ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi"),
+                _ => None,
+            }
+        };
+        let verb = match act {
+            ItemAct::Equip(_) => "Mặc",
+            ItemAct::Unequip(_) => "Cởi",
+            ItemAct::Use(_) => "Dùng",
+            ItemAct::Repair(_) => "Sửa",
+        };
+        if let Some(why) = refused {
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Chưa {} {name}: {why}", verb.to_lowercase()),
+            ));
+        }
+        out.push(Out::Log(LogKind::Item, format!("{verb} {name} ({place})")));
+        let ctx = match act {
+            ItemAct::Equip(_) | ItemAct::Unequip(_) => Ctx {
+                action: Some(matches!(act, ItemAct::Unequip(_)) as i32),
+                slot: Some(slot as i32),
+                ..Ctx::default()
+            },
+            ItemAct::Use(_) | ItemAct::Repair(_) => Ctx {
+                slot: Some(slot as i32),
+                place: Some(0),
+                ..Ctx::default()
+            },
+        };
+        let opcode = match act {
+            ItemAct::Equip(_) | ItemAct::Unequip(_) => 1186,
+            ItemAct::Use(_) => 84,
+            ItemAct::Repair(_) => 48,
+        };
+        Self::send(out, opcode, ctx);
+        self.item_wait = Some(ItemWait { act, name, at: now });
+    }
+
+    /// Cài đặt đánh, from the UI (accounts.json keeps it). It counts from the next battle of a run.
+    pub fn set_fight(&mut self, settings: FightSettings, out: &mut Vec<Out>) {
+        if settings == self.fight {
+            return;
+        }
+        if settings.repair != self.fight.repair {
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.repair {
+                    true => "Bật tự sửa đồ: món đang mặc bị hỏng sẽ được sửa bằng búa trong túi trước trận sau",
+                    false => "Tắt tự sửa đồ",
+                }
+                .into(),
+            ));
+            (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
+        }
+        if settings.pickup != self.fight.pickup {
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.pickup {
+                    true => "Bật tự nhặt đồ: đồ của mình rơi sau mỗi trận thắng sẽ được nhặt",
+                    false => "Tắt tự nhặt đồ",
+                }
+                .into(),
+            ));
+        }
+        self.fight = settings;
+    }
+
+    /// Tự nhặt đồ, at the end of a won battle (13-drops-items.md#g2): its own drops came just before the end, in the same
+    /// read, and a few may come just after, so every item fallen within LOOT of it, before or after, is picked up with
+    /// c2s/1188 from where the character stands; the server does not check the distance. A stranger's item in that window
+    /// is refused for its first 16 s ("Không thể nhặt vật phẩm của người khác"), which costs nothing.
+    pub(super) fn loot(&mut self, now: Instant, out: &mut Vec<Out>) {
+        self.loot_until = Some(now + LOOT);
+        self.asked.clear();
+        let own: Vec<(String, String)> = self
+            .drops
+            .iter()
+            .filter(|d| now.saturating_duration_since(d.2) <= LOOT)
+            .map(|d| (d.0.clone(), d.1.clone()))
+            .collect();
+        for (uuid, name) in own {
+            self.pick(uuid, name, now, out);
+        }
+    }
+    /// Queues an item for c2s/1188, once; one goes out every PICK_GAP.
+    pub(super) fn pick(&mut self, uuid: String, name: String, now: Instant, out: &mut Vec<Out>) {
+        if self.asked.contains(&uuid) || self.to_pick.iter().any(|p| p.0 == uuid) {
+            return;
+        }
+        self.to_pick.push_back((uuid, name));
+        if self.pick_at.is_none() {
+            self.pick_next(now, out);
+        }
+    }
+    pub(super) fn pick_next(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let Some((uuid, _)) = self.to_pick.pop_front() else {
+            self.pick_at = None;
+            return;
+        };
+        Self::send(
+            out,
+            1188,
+            Ctx {
+                uuid: Some(&uuid),
+                ..Ctx::default()
+            },
+        );
+        self.asked.insert(uuid);
+        (self.picked_at, self.pick_at) = (Some(now), Some(now + PICK_GAP));
+    }
+
+    /// s2c/36 after a battle: the durability of each worn item. One that just reached 0 is said in the log, as it adds
+    /// nothing until it is repaired (10-quests.md#kết-quả-q3-q4).
+    pub(super) fn wear(&mut self, slots: &[Option<i32>], out: &mut Vec<Out>) {
+        for (slot, durability) in slots.iter().enumerate() {
+            let (Some(d), Some(Some(item))) = (*durability, self.snap.gear.get_mut(slot)) else {
+                continue;
+            };
+            if d == 0 && item.durability > 0 {
+                let def = book().get(item.item_id);
+                let name = def.map_or_else(|| format!("#{}", item.item_id), |d| d.name.clone());
+                let most = def.map_or(0, |d| d.durability);
+                out.push(Out::Log(
+                    LogKind::Item,
+                    format!("{name} đã hỏng (độ bền 0/{most})"),
+                ));
+            }
+            item.durability = d;
+        }
+    }
+
+    /// Tự sửa đồ (FightSettings::repair), from next() between the battles of a fight job or quest run: the first worn
+    /// item at durability 0 is repaired with a Búa Sửa Chữa of the bag (c2s/48), and the run goes on once s2c/48 answers,
+    /// or REPAIR_WAIT later. An item the server did not repair is left for the rest of the run; without a hammer the run
+    /// goes on with the item broken, said once per run. Nothing goes out while a button of the Túi đồ tab waits for its
+    /// answer: that one may be the same repair. True while the repair waits for its answer.
+    pub(super) fn auto_repair(&mut self, now: Instant, out: &mut Vec<Out>) -> bool {
+        if let Some((slot, name)) = self.repairing.take() {
+            self.repair_failed.insert(slot);
+            out.push(Out::Log(
+                LogKind::Item,
+                format!(
+                    "Server không trả lời khi sửa {name} sau {} s; đánh tiếp với món hỏng",
+                    REPAIR_WAIT.as_secs()
+                ),
+            ));
+        }
+        if self
+            .item_wait
+            .as_ref()
+            .is_some_and(|w| now < w.at + Duration::from_secs(5))
+        {
+            return false;
+        }
+        let broken = self.snap.gear.iter().enumerate().find_map(|(slot, g)| {
+            let item = g.as_ref()?;
+            let def = book().get(item.item_id)?;
+            (item.durability == 0
+                && def.durability > 0
+                && !self.repair_failed.contains(&(slot as u8)))
+            .then(|| (slot as u8, def.name.clone(), def.durability))
+        });
+        let Some((slot, name, most)) = broken.filter(|_| self.fight.repair) else {
+            return false;
+        };
+        let hammers: i32 = self.snap.bag.as_ref().map_or(0, |b| {
+            b.items
+                .iter()
+                .filter(|i| i.item_id == HAMMER)
+                .map(|i| i.quantity.max(1))
+                .sum()
+        });
+        if hammers == 0 {
+            if !self.repair_warned {
+                self.repair_warned = true;
+                out.push(Out::Log(
+                    LogKind::Item,
+                    format!("{name} đang hỏng (độ bền 0/{most}) nhưng túi hết Búa Sửa Chữa: đánh tiếp với món hỏng"),
+                ));
+            }
+            return false;
+        }
+        out.push(Out::Log(
+            LogKind::Item,
+            format!(
+                "Tự sửa {name} (độ bền 0/{most}, ô trang bị {slot}); còn {} búa sau lần này",
+                hammers - 1
+            ),
+        ));
+        let ctx = Ctx {
+            slot: Some(slot as i32),
+            place: Some(0),
+            ..Ctx::default()
+        };
+        Self::send(out, 48, ctx);
+        self.item_wait = Some(ItemWait {
+            act: ItemAct::Repair(slot),
+            name: name.clone(),
+            at: now,
+        });
+        self.repairing = Some((slot, name));
+        self.timer = Some((now + REPAIR_WAIT, Wake::Next));
+        true
+    }
+}
