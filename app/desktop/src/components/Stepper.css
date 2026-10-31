@@ -1,6 +1,6 @@
 .stepper {
   display: inline-grid;
-  grid-template-columns: 26px 40px 26px;
+  grid-template-columns: 26px auto 26px;
   align-items: center;
   height: 30px;
   padding: 0;
@@ -20,9 +20,9 @@
 .stepper button:not(:disabled):hover { background: var(--line); }
 .stepper button:disabled { opacity: 0.35; cursor: default; }
 .stepper button:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-/* The number, typed in: a well in the plate that lights up while it has the focus. */
+/* The number, typed in: a well in the plate that lights up while it has the focus; at least 56px wide, more with a long
+   number (Stepper sets the width). */
 .stepper input {
-  width: 100%;
   height: 26px;
   padding: 0;
   border: 0;

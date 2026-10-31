@@ -59,7 +59,7 @@ pub fn fight(shared: State<Shared>, id: u64, target: String, count: u32, max_los
         let command = Command::Fight {
             target,
             count: count.clamp(1, 999),
-            max_losses: max_losses.clamp(1, 99),
+            max_losses: max_losses.max(1),
         };
         app.send(id, command);
     });
@@ -72,7 +72,7 @@ pub fn fight(shared: State<Shared>, id: u64, target: String, count: u32, max_los
 pub fn quest(shared: State<Shared>, id: u64, max_losses: u32, step: Option<(i32, i32)>) {
     shared.with(|app| {
         let command = Command::Quest {
-            max_losses: max_losses.clamp(1, 99),
+            max_losses: max_losses.max(1),
             step,
         };
         app.send(id, command);

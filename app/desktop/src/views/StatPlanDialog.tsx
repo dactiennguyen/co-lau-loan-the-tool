@@ -44,6 +44,7 @@ export function StatPlanDialog({ account, onClose }: Props) {
   );
   return (
     <Dialog
+      className="plan"
       title="Tự cộng điểm tiềm năng"
       subtitle={account.label}
       onClose={onClose}
@@ -62,7 +63,7 @@ export function StatPlanDialog({ account, onClose }: Props) {
           {POTENTIALS.map((p) => (
             <li key={p.index}>
               <span>{p.name}</span>
-              <Stepper label={`tỉ lệ ${p.name}`} min={0} max={9} value={weights[p.index]} onChange={(w) => setWeight(p.index, w)} />
+              <Stepper label={`tỉ lệ ${p.name}`} min={0} value={weights[p.index]} onChange={(w) => setWeight(p.index, w)} />
             </li>
           ))}
         </ul>

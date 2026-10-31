@@ -17,6 +17,8 @@
 .plan-opt__body b { font-size: 12.5px; color: var(--fg); }
 .plan-opt__body span { font-size: 11px; line-height: 1.45; color: var(--fg-2); }
 
+/* Wide enough for each name on one line beside the wider number field of a Stepper. */
+.dialog.plan { width: 440px; }
 .plan-weights { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
 .plan-weights li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.plan-weights li > span { font-size: 12px; font-weight: 600; color: var(--fg-2); }
+.plan-weights li > span { font-size: 12px; font-weight: 600; color: var(--fg-2); white-space: nowrap; }

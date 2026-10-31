@@ -68,11 +68,11 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
       <div className="fight__controls">
         <div className="fight__row">
           <span className="fight__label">Số trận</span>
-          <Stepper label="số trận" value={choice.count} onChange={(count) => set({ count })} />
+          <Stepper label="số trận" max={999} value={choice.count} onChange={(count) => set({ count })} />
         </div>
         <div className="fight__row">
           <span className="fight__label">Thua tối đa</span>
-          <Stepper label="số trận thua" max={99} value={choice.losses} onChange={(losses) => set({ losses })} />
+          <Stepper label="số trận thua" value={choice.losses} onChange={(losses) => set({ losses })} />
         </div>
         <div className="fight__buttons">
           <Button kind="primary" icon="play" disabled={account.status !== 2 || !choice.target || questing} onClick={onStart}>

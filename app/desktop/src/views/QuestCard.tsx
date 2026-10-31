@@ -152,7 +152,7 @@ export function QuestCard({ account, onStart, onStop }: Props) {
         </Button>
         <span className="quest__losses">
           <span>Thua tối đa</span>
-          <Stepper label="số trận thua" max={99} value={losses} onChange={setLosses} />
+          <Stepper label="số trận thua" value={losses} onChange={setLosses} />
         </span>
       </div>
       {fighting && <p className="quest__hint quest__hint--busy">Đang đánh quái: bấm Dừng ở tab Đánh quái rồi mới làm nhiệm vụ.</p>}
