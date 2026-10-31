@@ -117,7 +117,7 @@ impl Bot {
             q.steps
                 .iter()
                 .skip(q.current.max(0) as usize)
-                .filter(|s| matches!(step_action(&s.text, s.npc_id), StepAction::Stat))
+                .filter(|s| matches!(step_action(&s.text, s.npc_id, s.param), StepAction::Stat))
                 .count() as i32
         });
         let left = self.snap.stat_points.unwrap_or(0);

@@ -99,10 +99,10 @@ function decoders() {
 
 /** stepAction on the step texts of quests 3–9, and ones the bot does not know. */
 function stepActions() {
-  const steps: [string, number][] = [['Tiêu diệt Heo Mọi', -1], ['Tiêu diệt 1 Sói Xám', -1], ['Đánh bại Kẻ Gây Rối', -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1],
+  const steps: [string, number, number?][] = [['Tiêu diệt Heo Mọi', -1], ['Tiêu diệt 1 Sói Xám', -1], ['Đánh bại Kẻ Gây Rối', -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1],
     ['Đạt cấp độ 8', -1], ['Nâng điểm tiềm năng', -1], ['Báo cáo với Bà Tư Hạnh', 103], ['Bàn bạc với Thành Chủ Nguyễn Khang', 129], ['Gặp Trại Chủ Phạm Hùng', 127],
-    ['Sử dụng điểm kỹ năng', -1], ['Thu thập 5 Da Heo', -1]];
-  return steps.map(([text, npcId]) => ({ text, npcId, action: stepAction({ text, npcId }) }));
+    ['Sử dụng điểm kỹ năng', -1], ['Trinh sát Thành Hồng Giang', -1, 3], ['Trinh sát Thành Hồng Giang', 162, 3], ['Trinh sát Thành ', -1, 3], ['Thu thập 5 Da Heo', -1]];
+  return steps.map(([text, npcId, param = 0]) => ({ text, npcId, param, action: stepAction({ text, npcId, param }) }));
 }
 
 /** Three maps of the live scan S1 (M1 ↔ M2 ↔ M25) with every kind of portal answer; `seen` (the day) is left out. */
@@ -194,6 +194,15 @@ function questReplays() {
     ['stat step: one potential point, then the reply', [at('M1'), quest(3, 'Những Việc Đầu Tiên', 2, 0, [['Đạt cấp độ 2', 2, 1, -1], ['Nói chuyện với Hương Lão Trần Bá', 102, 1, 102], ['Nâng điểm tiềm năng', 0, 1, -1], ['Báo cáo với Hương Lão Trần Bá', 102, 1, 102]]),
       { start: true }, p(34, new Writer().i32(0).string('subtask 1').i32(3).string('').build()), { next: true }]],
     ['a step the bot does not know stops it', [at('M1'), quest(3, 'Những Việc Đầu Tiên', 0, 0, [['Thu thập 5 Da Heo', 0, 5, -1]]), { start: true }]],
+    // Quest 14 "Trinh sát Thành Hồng Giang" (N5): into M4 through the portal Hồng Giang, the s2c/34 as it enters moves the
+    // step, then the report goes back through 1024.
+    ['visit step: into the map through the portal named after it, moved on by s2c/34, then back for the report', [p(11, mapPacket('M25', 'Rìa Hồng Giang', WORLD[2][2])), p(43, mobsPacket('M25', [])),
+      p(39, bytes(q['s2c/39 quest14'])), { start: true }, p(13, bytes(q['s2c/13 M4'])), p(11, mapPacket('M4', 'Hồng Giang', [[3, 'Bản đồ', 0], [1024, 'Rìa Hồng Giang', 0], [121, 'Tướng Xích Vũ', 2]])),
+      p(43, mobsPacket('M4', [])), p(34, bytes(q['s2c/34 scout'])), { next: true }]],
+    ['visit step from two maps away: first to the map that has the portal', [p(11, mapPacket('M2', m2[1], m2[2])), p(43, mobsPacket('M2', [])), p(39, bytes(q['s2c/39 quest14'])), { start: true }], scanAtlas()],
+    ['visit step: a refused portal stops it', [p(11, mapPacket('M25', 'Rìa Hồng Giang', WORLD[2][2])), p(39, bytes(q['s2c/39 quest14'])), { start: true },
+      p(1256, noticePacket('Bạn cần hoàn thành nhiệm vụ trước khi tới đây')), { next: true }]],
+    ['visit step: already in the map with no s2c/34 stops it', [p(11, mapPacket('M4', 'Hồng Giang', [[1024, 'Rìa Hồng Giang', 0]])), p(39, bytes(q['s2c/39 quest14'])), { start: true }]],
     ['skill step: a level of the first skill that can take one, then the reply', [p(9, bytes(fixtures.profile['s2c/9 level 21'])), skills, at('M1'), quest3(3),
       { start: true, once: true }, p(10, bytes(fixtures['skills-items']['s2c/10 kind 32'])), p(1191, bytes(fixtures['skills-items']['s2c/1191'])),
       p(34, new Writer().i32(0).string('subtask 1').i32(3).string('').build()), { next: true }]],

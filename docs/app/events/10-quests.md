@@ -6,6 +6,7 @@ Mốc: APK 1.0.3, ngày 30/10/2026, nhân vật `manina`. Nguồn ([các phiên 
 - **B3–B5**: app trên điện thoại với hook Frida, chỉ để bắt gói bot chưa biết: B3 đi tìm boss (không thấy), B4 gói đánh boss, B5 gói qua cổng.
 - **S1**: bot Node thử từng cổng và quét mọi map vào được (`npm run scan`, [06-map-mobs](06-map-mobs.md#atlas)).
 - **N1–N4**: bước "Tỷ thí với Võ Quan Đinh Mộc" (nhiệm vụ 12) với nick `wangpt` cấp 25, ngày 31/10: hộp thoại trên điện thoại có hook Frida (N1), lời mời `s2c/1180` bắt bằng bot TS (N2), gói thách đấu `c2s/1181` trên điện thoại (N3), bot TS tự đánh và thắng (N4). [Bước Tỷ thí](#tỷ-thí).
+- **N5**: bước "Trinh sát Thành Hồng Giang" (nhiệm vụ 14) với `wangpt` cấp 26, ngày 31/10: bot TS qua cổng Hồng Giang (1016) từ M25, rồi báo cáo với Tướng Quân Lê Viễn. [Bước Trinh sát](#trinh-sát).
 
 Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/battle/battle.ts](../../../src/battle/battle.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -20,6 +21,7 @@ Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/b
 | Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`. HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
 | Sang map khác thế nào? | `c2s/13 (mapId hiện tại, id cổng)`, cùng opcode với nói chuyện NPC. Id cổng lấy ở cuối `s2c/11`. Cổng chưa mở thì server trả `s2c/1256` "Bạn phải đạt cấp N mới vào được X" hoặc "Bạn cần hoàn thành nhiệm vụ trước khi tới đây". Ở cấp 19 chỉ vào được M1, M2, M25. Xem [Đi qua cổng](#cổng) và [Bản đồ đã quét](06-map-mobs.md#atlas). [Đo] |
 | Bước "Tỷ thí với X" làm sao? | Vẫn là `c2s/13 (mapId, npcId)` như nói chuyện, nhưng server không trả `s2c/34` mà trả hộp thoại **`s2c/57`** "Cậu đã sẵn sàng chiến đấu chưa." (0 "Đồng ý", 1 "Từ chối"). Đồng ý là `c2s/57 (0, mapId, npcId)`; server trả **`s2c/1180`** với quái riêng của trận (`mob880`, Võ Quan cấp 20), client thách đấu nó bằng **`c2s/1181 (mobId, 0, npcId)`**, rồi server mở trận. Thắng thì `s2c/34` đưa nhiệm vụ sang bước sau. Bot TS và app Rust làm đủ chuỗi này; bot TS đã thắng Võ Quan ở N4. Xem [Bước Tỷ thí](#tỷ-thí). [Đo N1–N4] |
+| Bước "Trinh sát Thành X" làm sao? | Chỉ cần **vào map X**. Bước này không có NPC (`npcId` -1); `thamSố` là thứ tự map trong bản đồ thế giới (3 là M4 "Hồng Giang"). Qua cổng Hồng Giang (1016) từ M25 thì ngay khi vào map server gửi `s2c/34` "Quan sát doanh trại địch…" và nhiệm vụ sang bước sau. Bot TS (N5) và app Rust (manina2) đã làm thật bước này. Xem [Bước Trinh sát](#trinh-sát). [Đo N5] |
 | Bot còn thiếu gì? | Bước "Sử dụng điểm kỹ năng" bot TS đã làm được (`c2s/1191`, K1); app Rust cũng đã port ([App Rust](../../integration/rust/features.md#kỹ-năng)). Sửa đồ là `c2s/48` và tốn 1 Búa sửa chữa; manina đã dùng chiếc búa duy nhất cho chiếc nón, vũ khí vẫn hỏng. Hồi máu bằng Hoàn Linh Dược (30% sinh lực) chỉ được trong trận, bằng `c2s/44` (+36 HP ở P5, [12](12-skills-items.md#c2s-44)); ngoài trận server từ chối `c2s/84`. Bình và Búa sửa chữa mua ở Lái Buôn bằng Xu hoặc Xu khóa ([12](12-skills-items.md#c2s-1190)). manina còn 67 điểm tiềm năng và 16 điểm kỹ năng chưa dùng; bot TS cộng điểm tiềm năng bằng `--stats` (chưa chạy thật). Bot chưa nhặt đồ rơi. Gói nhặt `c2s/1188 (uuid)` đã bắt được trên máy (P3), nhưng bot chưa gửi thử ([13-drops-items](13-drops-items.md#c2s-1188)). Xem [12-skills-items](12-skills-items.md). [Đo] |
 | Còn event nào chưa ghi? | Đã ghi 112 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **106 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
 
@@ -45,6 +47,7 @@ Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/b
 | "Gây N sát thương lên X" (nhiệm vụ 7) | | N (500) | -1 | Thách đấu boss X của `s2c/1177`, cộng dồn sát thương. Server chưa nhận ([bước boss](#boss)) |
 | "Nâng điểm tiềm năng" | 0 | 1 | -1 | Bot gửi `c2s/10 (0, 1)` (Cường Lực), hoặc chỉ số mà `--stats` chọn ([12-skills-items](12-skills-items.md#điểm-tiềm-năng)). Chưa gặp bước này khi chạy thật |
 | "Tỷ thí với X" (nhiệm vụ 12) | 87 | 1 | id NPC | `c2s/13` → hộp thoại `s2c/57` → `c2s/57 (0, mapId, npcId)` "Đồng ý" → `s2c/1180` (quái của trận) → `c2s/1181 (mobId, 0, npcId)` → trận → `s2c/34` sang bước sau ([Bước Tỷ thí](#tỷ-thí)) |
+| "Trinh sát Thành X" (nhiệm vụ 14) | thứ tự map (3 = M4) | 1 | -1 | Đi tới map `M{thamSố + 1}` qua cổng tên X, hoặc qua cổng từng dẫn tới map đó; `s2c/34` lúc vào map đưa bước sang ([Bước Trinh sát](#trinh-sát)) |
 | "Sử dụng điểm kỹ năng" | 0 | 1 | -1 | `c2s/1191 (mãKỹNăng, 1)` cho kỹ năng đầu tiên của cây `s2c/30` lên được một cấp. Server trả `s2c/10` kiểu 32, `s2c/1191`, `s2c/34` ([12-skills-items](12-skills-items.md#c2s-1191)) [Đo K1: nick thứ hai học Băng Tiễn Thuật 4000] |
 
 ```text
@@ -85,6 +88,9 @@ Khi trả nhiệm vụ 4 (Q2), các gói đến trong 2 ms: `s2c/1187` (vật ph
 | 10 "Nguy Cơ Bên Bờ Suối" | 142 Dân Phu Vân Sơn (M2) | Đạt cấp 14 → hỏi thăm Dân Phu → diệt Cua Càng → nói chuyện với Dân Phu | manina đang ở bước "Hỏi thăm Dân Phu Vân Sơn" (R3) |
 | 11 "Truy Quét Đại Ác Bá" | 141 Võ Quan Đinh Mộc (M2) | … → đánh bại 20 Kẻ Quấy Phá (cấp 20) → báo cáo với Võ Quan | 1050 kinh nghiệm, 1050 Xu khoá (wangpt, app Rust ngày 31/10; hai bước đầu không có trong log) |
 | 12 "Kiếm Thử Anh Hùng" | 127 Trại Chủ Phạm Hùng, 141 Võ Quan Đinh Mộc (M2) | Đạt cấp 18 → gặp Trại Chủ → **tỷ thí với Võ Quan** (hộp thoại rồi trận, [Bước Tỷ thí](#tỷ-thí)) → báo cáo với Trại Chủ | wangpt (cấp 25): bot TS thắng Võ Quan ở N4, nhiệm vụ sang bước báo cáo |
+| 13 "Loạn Động Vân Sơn" | 127 Trại Chủ Phạm Hùng (M2) | … → gây 600 sát thương lên Hào Trưởng phía Bắc → gây 600 sát thương lên Hào Trưởng phía Nam → báo cáo với Trại Chủ | 3190 kinh nghiệm, 2900 Xu khóa (wangpt, manina2, app Rust ngày 31/10; các bước đầu không có trong log) |
+| 14 "Trinh Sát Hồng Giang" | 162 Tướng Quân Lê Viễn (M25) | Gặp Tướng Quân (đường đi: Vân Sơn - Rìa Hồng Giang) → **trinh sát Thành Hồng Giang** (vào M4, [Bước Trinh sát](#trinh-sát)) → báo cáo với Tướng Quân | 1200 kinh nghiệm, 1220 Xu khóa (wangpt bằng bot TS ở N5; manina2 bằng app Rust) |
+| 15 "Giao Tranh Bìa Rừng" | 162 Tướng Quân Lê Viễn (M25) | Đạt cấp 24 → diệt 10 Chim Điên → diệt Hỏa Hầu → báo cáo với Tướng Quân | Chim Điên cấp 25 ở M4 Hồng Giang. wangpt và manina2 đang ở bước này (app Rust, 31/10) |
 | 23 "Đột Kích Lạc Cốc" | 162 Tướng Quân Lê Viễn (M25) | Đến vùng đất Lạc Cốc → đạt cấp 43 → diệt Heo Tím → diệt Báo Đốm → báo cáo với Tướng Quân Lê Viễn | symap (Tiheo1, cấp 42) đang ở bước "Đạt cấp độ 43" (R3) |
 
 Mọi NPC của nhiệm vụ 3–7 đều ở M1 và `c2s/13` với mapId `"M1"` luôn được nhận. Từ nhiệm vụ 8, NPC và quái ở M2 "Trại Vân Sơn": phải [đi qua cổng](#cổng). Bước "Bàn bạc với X" làm như "Nói chuyện với X". Bước "Gây N sát thương lên X" nhắm vào boss của map; boss đến qua `s2c/1177` ngay sau `s2c/43`, mã đổi theo khu (`mob86100001` ở khu 0, `mob86100101` ở khu 1).
@@ -141,6 +147,43 @@ Trên điện thoại (N3) không ai đánh: quái đi 10 nước trong 5 phút 
 Nhật ký của app có thêm hai dòng: "Võ Quan Đinh Mộc: Cậu đã sẵn sàng chiến đấu chưa. → Đồng ý" (Nhiệm vụ) và "Trận 1: tỷ thí với Võ Quan Đinh Mộc cấp 20 (mob880)" (Trận). Log của bot TS có `npc_menu`, `duel`, `duel_invite`, rồi `challenge` với `opcode: 1181`.
 
 **Còn chưa rõ:** thua Võ Quan có mất EXP không (N4 thắng); nghĩa của hai trường cuối của `s2c/1180`; app Rust chưa chạy thật bước này (bot TS đã chạy ở N4).
+
+<a id="trinh-sát"></a>
+
+### Bước Trinh sát: vào map là xong
+
+Bước 2 của nhiệm vụ 14 "Trinh Sát Hồng Giang" là "Trinh sát Thành Hồng Giang". Trong `s2c/39` bước này là `stt 1; thamSố 3; cần 1; npcId -1`. Bước không có NPC, và 3 không phải loại quái: nó trùng với thứ tự của M4 "Hồng Giang" mà `s2c/13` gửi khi vào map (M1 0, M2 1, M4 3, M25 24, [06-map-mobs](06-map-mobs.md#atlas)). [Đo N5; `thamSố` là thứ tự map là Suy luận từ một bước]
+
+**Vì sao app báo "Bot chưa biết làm bước".** App đọc loại bước từ chữ của bước. Trước bản này app chỉ biết bước đạt cấp, nói chuyện, diệt quái, gây sát thương lên boss, cộng điểm tiềm năng, dùng điểm kỹ năng và Tỷ thí. Một bước không có NPC mà chữ không khớp loại nào thì app dừng ngay. Ngày 31/10, wangpt (20:56) và manina2 (20:57) đều dừng ở đây, ngay sau khi gặp Tướng Quân. [Đo]
+
+**Chuỗi gói (N5).** wangpt cấp 26 đứng ở M25 sau bước "Gặp Tướng Quân Lê Viễn":
+
+| Bước | Gói | Ghi chú |
+|---|---|---|
+| Qua cổng Hồng Giang | `c2s/13` = `000000034d3235 000003f8` ("M25", 1016) | Ở S1 cổng này trả "Bạn cần hoàn thành nhiệm vụ trước khi tới đây". Lần này server nhận |
+| Server chuyển map, sau 26 ms | `s2c/13` = `000000024d34 00000003 00ff` ("M4", thứ tự 3) | |
+| Xin map, xin quái | `c2s/11` "M4", `c2s/43` "M4" | `s2c/11` "Hồng Giang": NPC 143 Tiên phong Hồng Giang, 131 Lính Hồng Giang (hai NPC), 121 Tướng Xích Vũ, 144 Phó Tướng Hồng Giang; cổng 1020 Cửu Phong, 1024 Rìa Hồng Giang, 1017 Tân Trạch, 1018 Nguyệt Đàm. `s2c/43` có 32 quái; boss Tướng Xích Vũ cấp 35 (`mob93100004`) |
+| Server, 31 ms sau `c2s/43` | `s2c/1177` (boss), `s2c/1184` (đồ trên đất), `s2c/1200` (rỗng), rồi **`s2c/34`** (nhiệm vụ 14): "Quan sát doanh trại địch.\nGhi nhớ vị trí canh gác, kho lương và đường tiếp tế.\nĐừng để bị phát hiện." | Không có `s2c/39`. `s2c/34` đưa bước sang "Báo cáo với Tướng Quân Lê Viễn", như sau lời NPC |
+| Báo cáo | Bot về M25 qua cổng 1024, rồi `c2s/13 ("M25", 162)` | `s2c/35`: 1200 kinh nghiệm, 1220 Xu khóa; sau đó là `s2c/34` và `s2c/39` của nhiệm vụ 15 |
+
+Chưa rõ server gửi `s2c/34` khi nhận `c2s/11` hay khi nhận `c2s/43`, vì bot gửi cả hai như client. [Đo N5]
+
+**Bot làm thế nào.** Bot TS dùng `visit()` trong [src/bot/quest.ts](../../../src/bot/quest.ts); app Rust dùng `visit()` trong [app/core/src/bot/quest.rs](../../../app/core/src/bot/quest.rs).
+1. Bước có chữ "Trinh sát X" hay "Trinh sát Thành X" và không có NPC là bước đi tới map `M{thamSố + 1}` (ở đây là M4).
+2. Nếu map đang đứng có cổng tên X, hay có cổng từng dẫn tới map đó, bot qua cổng ấy và chờ server trả lời như ở bước nói chuyện. Nếu không, bot đi theo đường đã biết trong bản đồ tới một map có cổng như vậy. Từ M2, bot qua cổng Rìa Hồng Giang trước.
+3. `s2c/34` đưa bước sang. Có ba trường hợp bot dừng:
+   - Tới map rồi mà 2 s sau bước vẫn chưa sang: "Đã ở Hồng Giang mà server chưa sang bước "Trinh sát Thành Hồng Giang"".
+   - Cổng từ chối (`s2c/1256`): "Không vào được Hồng Giang: cổng Hồng Giang (1016) từ chối".
+   - Không biết đường: "Không biết đường tới Hồng Giang".
+
+Lời từ chối cũ của cổng 1016 trong `data/maps.json` (S1) không chặn bot. Bot chỉ bỏ qua cổng đòi cấp cao hơn cấp mình, hoặc cổng đã từ chối trong lần chạy này.
+
+**Còn chưa rõ:**
+- `thamSố` có luôn là thứ tự map ở mọi bước Trinh sát không (mới thấy một bước).
+- Bước "Đến vùng đất Lạc Cốc" của nhiệm vụ 23 có cùng loại không. Bot chưa nhận chữ này.
+- Nếu đã đứng sẵn trong map của bước thì có phải ra rồi vào lại không.
+
+**App Rust chạy thật (31/10, 21:23, manina2).** manina2 đứng ở M2 khi app mở. App qua cổng Rìa Hồng Giang sang M25, rồi qua cổng Hồng Giang sang M4. Vào M4 thì có `s2c/34` "Quan sát doanh trại địch…", và bước sang báo cáo. App về M25 báo cáo với Tướng Quân; nhiệm vụ 14 xong 8 s sau khi bắt đầu (1200 kinh nghiệm, 1220 Xu khóa). Sau đó app tự sang bước "Tiêu diệt Chim Điên" của nhiệm vụ 15 ở M4. [Đo]
 
 ## Bot làm nhiệm vụ bằng TypeScript
 
@@ -234,7 +277,7 @@ Thời gian và tốc độ tính từ lần thách đấu đầu tới lúc tr�
 - Cổng là một bản ghi loại 0 trong danh sách cuối `s2c/11`, cùng chỗ với NPC (loại 2). Bố cục đã đọc hết byte: `i32 id; string tên; u8 loại; i32 x, y, w, h; u8; i32 p, q` ([03-world](03-world.md#s2c-11)). Tên cổng là tên map đích: "Vân Sơn" → "Trại Vân Sơn". [Đo]
 - Cách tìm ra (B5): bot Node đi bộ tới cổng (4960, 656), server không tự chuyển map. Mở app thì nhân vật đứng ở cổng, app hiện nút **"Vào"**; bấm thì client gửi `sqlq.b65` → `c2s/13`. [Đo]
 - Bot TS (Q15, Q16) gửi `c2s/13` với id NPC trong M2 thì được nhận. [Đo]
-- Cổng chưa mở: server trả `s2c/1256`. Cổng "Lạc Cốc" (1013) ở Q15 có trả "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", nhưng bot lúc đó chưa đọc gói này nên ghi là "không trả lời". Cổng "Hồng Giang" (1016, từ M25) trả "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" (S1). Bot nay ghi lời từ chối vào [data/maps.json](../../../data/maps.json) và chọn cổng khác. [Đo]
+- Cổng chưa mở: server trả `s2c/1256`. Cổng "Lạc Cốc" (1013) ở Q15 có trả "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", nhưng bot lúc đó chưa đọc gói này nên ghi là "không trả lời". Cổng "Hồng Giang" (1016, từ M25) trả "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" (S1). Cổng này mở muộn nhất là khi nhiệm vụ 14 tới bước "Trinh sát Thành Hồng Giang" (N5). Bot nay ghi lời từ chối vào [data/maps.json](../../../data/maps.json) và chọn cổng khác. [Đo]
 - Vị trí và map được server lưu: lần đăng nhập sau vào thẳng M2. [Đo]
 
 
@@ -296,7 +339,7 @@ Trận boss (B4, Thủ Lĩnh Sơn Tặc cấp 11, manina cấp 17 với 2 món �
 ## Chưa rõ
 
 - `c2s/1178` có cần đứng gần boss không (B4 đứng sát boss).
-- Cổng Hồng Giang (1016) cần xong nhiệm vụ nào.
+- Cổng Hồng Giang (1016) mở từ nhiệm vụ nào. Ở S1 (nhiệm vụ 9) cổng từ chối; ở N5 (nhiệm vụ 14, bước 2) cổng cho vào.
 - Phần cộng cố định của công thức EXP phụ thuộc gì. Hồi máu ngoài thua trận: dùng Hoàn Linh Dược trong trận bằng `c2s/44` ([12](12-skills-items.md#c2s-44)).
 - Món nào ứng với từng ô của `s2c/36`; có giới hạn số trận mỗi ngày không. Gói sửa đồ đã biết (`c2s/48`); Búa sửa chữa mua ở Lái Buôn ([12](12-skills-items.md#c2s-1190)).
 - Gói nhận và trả nhiệm vụ hằng ngày. Cẩm nang nói nhận ở Hương Lão Trần Bá (NPC 102), tối đa 3 lần một ngày ([12](12-skills-items.md#cẩm-nang-luật-liên-quan-tới-bot)). Nhiệm vụ Bảo Điển khi có mùa.

@@ -22,6 +22,13 @@ pub enum StepAction {
     Stat,
     /// "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191).
     Skill,
+    /// "Trinh sát Thành Hồng Giang" (param 3): walk into map M4, the param + 1; the s2c/34 as it is entered moves the step
+    /// on (N5).
+    Visit {
+        place: String,
+        #[serde(rename = "mapId")]
+        map_id: String,
+    },
     /// "Nói chuyện với X", "Báo cáo với X": any other step that names an NPC.
     Talk {
         #[serde(rename = "npcId")]
@@ -56,7 +63,7 @@ fn number(text: &str) -> Option<i32> {
         .flatten()
 }
 
-pub fn step_action(text: &str, npc_id: i32) -> StepAction {
+pub fn step_action(text: &str, npc_id: i32, param: i32) -> StepAction {
     for verb in ["Tiêu diệt ", "Đánh bại "] {
         if let Some(rest) = text.strip_prefix(verb).filter(|r| !r.is_empty()) {
             return StepAction::Kill {
@@ -83,6 +90,18 @@ pub fn step_action(text: &str, npc_id: i32) -> StepAction {
     }
     if text.starts_with("Sử dụng điểm kỹ năng") {
         return StepAction::Skill;
+    }
+    if let Some(rest) = text.strip_prefix("Trinh sát ") {
+        let place = rest
+            .strip_prefix("Thành ")
+            .filter(|p| !p.is_empty())
+            .unwrap_or(rest);
+        if !place.is_empty() && npc_id < 0 && param >= 0 {
+            return StepAction::Visit {
+                place: place.into(),
+                map_id: format!("M{}", param + 1),
+            };
+        }
     }
     if npc_id >= 0 {
         StepAction::Talk { npc_id }

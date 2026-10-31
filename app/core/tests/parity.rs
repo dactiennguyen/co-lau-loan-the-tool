@@ -1421,7 +1421,11 @@ fn a_map_that_does_not_read_stops_the_quest_run_and_leaves_the_atlas_alone() {
 fn step_actions_read_what_step_action_reads() {
     for c in v()["stepActions"].as_array().unwrap() {
         let text = c["text"].as_str().unwrap();
-        let got = step_action(text, c["npcId"].as_i64().unwrap() as i32);
+        let got = step_action(
+            text,
+            c["npcId"].as_i64().unwrap() as i32,
+            c["param"].as_i64().unwrap() as i32,
+        );
         assert_eq!(serde_json::to_value(got).unwrap(), c["action"], "{text}");
     }
 }

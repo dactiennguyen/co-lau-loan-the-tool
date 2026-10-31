@@ -2922,56 +2922,85 @@
   {
    "text": "Tiêu diệt Heo Mọi",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "kill", "mob": "Heo Mọi" }
   },
   {
    "text": "Tiêu diệt 1 Sói Xám",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "kill", "mob": "Sói Xám" }
   },
   {
    "text": "Đánh bại Kẻ Gây Rối",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "kill", "mob": "Kẻ Gây Rối" }
   },
   {
    "text": "Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "damage", "mob": "Thủ Lĩnh Sơn Tặc", "amount": 500 }
   },
   {
    "text": "Đạt cấp độ 8",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "level", "level": 8 }
   },
   {
    "text": "Nâng điểm tiềm năng",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "stat" }
   },
   {
    "text": "Báo cáo với Bà Tư Hạnh",
    "npcId": 103,
+   "param": 0,
    "action": { "kind": "talk", "npcId": 103 }
   },
   {
    "text": "Bàn bạc với Thành Chủ Nguyễn Khang",
    "npcId": 129,
+   "param": 0,
    "action": { "kind": "talk", "npcId": 129 }
   },
   {
    "text": "Gặp Trại Chủ Phạm Hùng",
    "npcId": 127,
+   "param": 0,
    "action": { "kind": "talk", "npcId": 127 }
   },
   {
    "text": "Sử dụng điểm kỹ năng",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "skill" }
+  },
+  {
+   "text": "Trinh sát Thành Hồng Giang",
+   "npcId": -1,
+   "param": 3,
+   "action": { "kind": "visit", "place": "Hồng Giang", "mapId": "M4" }
+  },
+  {
+   "text": "Trinh sát Thành Hồng Giang",
+   "npcId": 162,
+   "param": 3,
+   "action": { "kind": "talk", "npcId": 162 }
+  },
+  {
+   "text": "Trinh sát Thành ",
+   "npcId": -1,
+   "param": 3,
+   "action": { "kind": "visit", "place": "Thành ", "mapId": "M4" }
   },
   {
    "text": "Thu thập 5 Da Heo",
    "npcId": -1,
+   "param": 0,
    "action": { "kind": "unknown" }
   }
  ],
@@ -3705,6 +3734,264 @@
      "sent": [],
      "stopped": true,
      "current": 0
+    }
+   ],
+   "portals": {}
+  },
+  {
+   "name": "visit step: into the map through the portal named after it, moved on by s2c/34, then back for the report",
+   "atlas": null,
+   "steps": [
+    {
+     "packet": [ 11, "01000000034d32350000001152c3ac612048e1bb936e67204769616e6700000000400000014000000000000000010000000100000000000000000000000000000001000000000000000000000003000003f80000000c48e1bb936e67204769616e670000000000000000000000002000000020000000000000000000000003f70000000956c3a26e2053c6a16e0000000000000000000000002000000020000000000000000000000000a20000001954c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e0200000000000000000000002000000020000000000000000000000000000000000000000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 43, "000000034d323503" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "0000000e000000175472696e682053c3a1742048e1bb936e67204769616e67000000b154c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e206e68e1baad6e20c491c6b0e1bba3632074696e2062c3a16f2076e1bb81206e68e1bbaf6e67206269e1babf6e20c491e1bb996e672074e1baa1692048e1bb936e67204769616e672e204e67c6b0c6a16920c491c6b0e1bba363206769616f206e6869e1bb876d2076e1bba520c49169207472c6b0e1bb9b6320c491e1bb8320c49169e1bb8175207472612074c3ac6e682068c3ac6e682e000000046d61696e000000010000000000000003000000000000004e47e1bab7702054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e2028c491c6b0e1bb9d6e6720c491693a2056c3a26e2053c6a16e202d2052c3ac612048e1bb936e67204769616e6729000000a200000001000000a2000000010000001e5472696e682073c3a174205468c3a06e682048e1bb936e67204769616e670000000300000001ffffffff000000020000002942c3a16f2063c3a16f2076e1bb9b692054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e000000a200000001000000a2" ],
+     "sent": [],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "start": true,
+     "sent": [
+      [ 13, "000000034d3235000003f8" ]
+     ],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "packet": [ 13, "000000024d340000000300ff" ],
+     "sent": [
+      [ 11, "000000024d34ffffffffff" ]
+     ],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "packet": [ 11, "01000000024d340000000c48e1bb936e67204769616e6700000000400000014000000000000000010000000100000000000000000000000000000001000000000000000000000003000000030000000b42e1baa36e20c491e1bb930000000000000000000000002000000020000000000000000000000004000000001152c3ac612048e1bb936e67204769616e670000000000000000000000002000000020000000000000000000000000790000001254c6b0e1bb9b6e672058c3ad63682056c5a90200000000000000000000002000000020000000000000000000000000000000000000000000" ],
+     "sent": [
+      [ 43, "000000024d34" ]
+     ],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "packet": [ 43, "000000024d3403" ],
+     "sent": [],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "packet": [ 34, "00000000000000097375627461736b20310000000e000000865175616e2073c3a17420646f616e68207472e1baa16920c491e1bb8b63682e0a476869206e68e1bb9b2076e1bb8b207472c3ad2063616e682067c3a1632c206b686f206cc6b0c6a16e672076c3a020c491c6b0e1bb9d6e67207469e1babf702074e1babf2e0ac490e1bbab6e6720c491e1bb832062e1bb8b207068c3a174206869e1bb876e2e" ],
+     "sent": [],
+     "stopped": false,
+     "current": 2
+    },
+    {
+     "next": true,
+     "sent": [
+      [ 13, "000000024d3400000400" ]
+     ],
+     "stopped": false,
+     "current": 2
+    }
+   ],
+   "portals": {
+    "1016": { "name": "Hồng Giang", "mapId": "M4" }
+   }
+  },
+  {
+   "name": "visit step from two maps away: first to the map that has the portal",
+   "atlas": {
+    "world": [],
+    "maps": {
+     "M1": {
+      "mapId": "M1",
+      "name": "Làng Thanh Khê",
+      "places": [
+       { "id": 0, "name": "Bản đồ", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1010, "name": "Cổ Phong", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1013, "name": "Lạc Cốc", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1015, "name": "Vân Sơn", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 129, "name": "Thành Chủ Nguyễn Khang", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 103, "name": "Bà Tư Hạnh", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [
+       {
+        "name": "Gà Điên",
+        "level": 1,
+        "ids": {
+         "0": [ "mob18" ]
+        }
+       },
+       {
+        "name": "Heo Mọi",
+        "level": 7,
+        "ids": {
+         "0": [ "mob2806" ]
+        }
+       }
+      ],
+      "bosses": []
+     },
+     "M2": {
+      "mapId": "M2",
+      "name": "Trại Vân Sơn",
+      "places": [
+       { "id": 1, "name": "Bản đồ", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1013, "name": "Lạc Cốc", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1014, "name": "Làng Thanh Khê", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1024, "name": "Rìa Hồng Giang", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 127, "name": "Trại Chủ Phạm Hùng", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 141, "name": "Võ Quan Đinh Mộc", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [
+       {
+        "name": "Kẻ Quấy Phá",
+        "level": 20,
+        "ids": {
+         "0": [ "mob80" ]
+        }
+       },
+       {
+        "name": "Cóc Xanh",
+        "level": 13,
+        "ids": {
+         "0": [ "mob61000" ]
+        }
+       }
+      ],
+      "bosses": []
+     },
+     "M25": {
+      "mapId": "M25",
+      "name": "Rìa Hồng Giang",
+      "places": [
+       { "id": 1016, "name": "Hồng Giang", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1015, "name": "Vân Sơn", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 162, "name": "Tướng Quân Lê Viễn", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [],
+      "bosses": []
+     }
+    },
+    "portals": {
+     "1010": { "name": "Cổ Phong", "level": 130 },
+     "1013": { "name": "Lạc Cốc", "level": 40 },
+     "1014": { "name": "Làng Thanh Khê", "mapId": "M1" },
+     "1015": { "name": "Vân Sơn", "mapId": "M2" },
+     "1016": { "name": "Hồng Giang", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+     "1024": { "name": "Rìa Hồng Giang", "mapId": "M25" }
+    }
+   },
+   "steps": [
+    {
+     "packet": [ 11, "01000000024d32000000105472e1baa1692056c3a26e2053c6a16e00000000400000014000000000000000010000000100000000000000000000000000000001000000000000000000000006000000010000000b42e1baa36e20c491e1bb930000000000000000000000002000000020000000000000000000000003f50000000b4ce1baa1632043e1bb91630000000000000000000000002000000020000000000000000000000003f6000000104cc3a06e67205468616e68204b68c3aa0000000000000000000000002000000020000000000000000000000004000000001152c3ac612048e1bb936e67204769616e6700000000000000000000000020000000200000000000000000000000007f000000195472e1baa169204368e1bba7205068e1baa16d2048c3b96e6702000000000000000000000020000000200000000000000000000000008d0000001456c3b5205175616e20c490696e68204de1bb99630200000000000000000000002000000020000000000000000000000000000000000000000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 43, "000000024d3203" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "0000000e000000175472696e682053c3a1742048e1bb936e67204769616e67000000b154c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e206e68e1baad6e20c491c6b0e1bba3632074696e2062c3a16f2076e1bb81206e68e1bbaf6e67206269e1babf6e20c491e1bb996e672074e1baa1692048e1bb936e67204769616e672e204e67c6b0c6a16920c491c6b0e1bba363206769616f206e6869e1bb876d2076e1bba520c49169207472c6b0e1bb9b6320c491e1bb8320c49169e1bb8175207472612074c3ac6e682068c3ac6e682e000000046d61696e000000010000000000000003000000000000004e47e1bab7702054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e2028c491c6b0e1bb9d6e6720c491693a2056c3a26e2053c6a16e202d2052c3ac612048e1bb936e67204769616e6729000000a200000001000000a2000000010000001e5472696e682073c3a174205468c3a06e682048e1bb936e67204769616e670000000300000001ffffffff000000020000002942c3a16f2063c3a16f2076e1bb9b692054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e000000a200000001000000a2" ],
+     "sent": [],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "start": true,
+     "sent": [
+      [ 13, "000000024d3200000400" ]
+     ],
+     "stopped": false,
+     "current": 1
+    }
+   ],
+   "portals": {
+    "1010": { "name": "Cổ Phong", "level": 130 },
+    "1013": { "name": "Lạc Cốc", "level": 40 },
+    "1014": { "name": "Làng Thanh Khê", "mapId": "M1" },
+    "1015": { "name": "Vân Sơn", "mapId": "M2" },
+    "1016": { "name": "Hồng Giang", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+    "1024": { "name": "Rìa Hồng Giang", "mapId": "M25" }
+   }
+  },
+  {
+   "name": "visit step: a refused portal stops it",
+   "atlas": null,
+   "steps": [
+    {
+     "packet": [ 11, "01000000034d32350000001152c3ac612048e1bb936e67204769616e6700000000400000014000000000000000010000000100000000000000000000000000000001000000000000000000000003000003f80000000c48e1bb936e67204769616e670000000000000000000000002000000020000000000000000000000003f70000000956c3a26e2053c6a16e0000000000000000000000002000000020000000000000000000000000a20000001954c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e0200000000000000000000002000000020000000000000000000000000000000000000000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "0000000e000000175472696e682053c3a1742048e1bb936e67204769616e67000000b154c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e206e68e1baad6e20c491c6b0e1bba3632074696e2062c3a16f2076e1bb81206e68e1bbaf6e67206269e1babf6e20c491e1bb996e672074e1baa1692048e1bb936e67204769616e672e204e67c6b0c6a16920c491c6b0e1bba363206769616f206e6869e1bb876d2076e1bba520c49169207472c6b0e1bb9b6320c491e1bb8320c49169e1bb8175207472612074c3ac6e682068c3ac6e682e000000046d61696e000000010000000000000003000000000000004e47e1bab7702054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e2028c491c6b0e1bb9d6e6720c491693a2056c3a26e2053c6a16e202d2052c3ac612048e1bb936e67204769616e6729000000a200000001000000a2000000010000001e5472696e682073c3a174205468c3a06e682048e1bb936e67204769616e670000000300000001ffffffff000000020000002942c3a16f2063c3a16f2076e1bb9b692054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e000000a200000001000000a2" ],
+     "sent": [],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "start": true,
+     "sent": [
+      [ 13, "000000034d3235000003f8" ]
+     ],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "packet": [ 1256, "010000003e42e1baa16e2063e1baa76e20686fc3a06e207468c3a06e68206e6869e1bb876d2076e1bba5207472c6b0e1bb9b63206b68692074e1bb9b6920c491c3a279" ],
+     "sent": [],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "next": true,
+     "sent": [],
+     "stopped": true,
+     "current": 1
+    }
+   ],
+   "portals": {
+    "1016": { "name": "Hồng Giang", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" }
+   }
+  },
+  {
+   "name": "visit step: already in the map with no s2c/34 stops it",
+   "atlas": null,
+   "steps": [
+    {
+     "packet": [ 11, "01000000024d340000000c48e1bb936e67204769616e6700000000400000014000000000000000010000000100000000000000000000000000000001000000000000000000000001000004000000001152c3ac612048e1bb936e67204769616e670000000000000000000000002000000020000000000000000000000000000000000000000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "0000000e000000175472696e682053c3a1742048e1bb936e67204769616e67000000b154c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e206e68e1baad6e20c491c6b0e1bba3632074696e2062c3a16f2076e1bb81206e68e1bbaf6e67206269e1babf6e20c491e1bb996e672074e1baa1692048e1bb936e67204769616e672e204e67c6b0c6a16920c491c6b0e1bba363206769616f206e6869e1bb876d2076e1bba520c49169207472c6b0e1bb9b6320c491e1bb8320c49169e1bb8175207472612074c3ac6e682068c3ac6e682e000000046d61696e000000010000000000000003000000000000004e47e1bab7702054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e2028c491c6b0e1bb9d6e6720c491693a2056c3a26e2053c6a16e202d2052c3ac612048e1bb936e67204769616e6729000000a200000001000000a2000000010000001e5472696e682073c3a174205468c3a06e682048e1bb936e67204769616e670000000300000001ffffffff000000020000002942c3a16f2063c3a16f2076e1bb9b692054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e000000a200000001000000a2" ],
+     "sent": [],
+     "stopped": false,
+     "current": 1
+    },
+    {
+     "start": true,
+     "sent": [],
+     "stopped": true,
+     "current": 1
     }
    ],
    "portals": {}

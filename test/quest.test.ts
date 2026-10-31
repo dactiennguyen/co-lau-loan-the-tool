@@ -44,8 +44,8 @@ test('ranking s2c/1254: tab list, top 100 with the own rank, faction tab', () =>
   assert.deepEqual([factions.rows.map((r: any) => r.name), factions.own.rank], [['Thiên Tôn', 'WATER7', 'CỜ LAU', 'ALIBABA'], -1]);
 });
 
-test('stepAction: every step text of quests 3–8', () => {
-  const steps: [string, number, unknown][] = [
+test('stepAction: every step text of quests 3–8, and the scout step of quest 14', () => {
+  const steps: [string, number, unknown, number?][] = [
     ['Tiêu diệt Heo Mọi', -1, { kind: 'kill', mob: 'Heo Mọi' }],
     ['Tiêu diệt 1 Sói Xám', -1, { kind: 'kill', mob: 'Sói Xám' }],
     ['Đánh bại Kẻ Gây Rối', -1, { kind: 'kill', mob: 'Kẻ Gây Rối' }],
@@ -54,9 +54,10 @@ test('stepAction: every step text of quests 3–8', () => {
     ['Nâng điểm tiềm năng', -1, { kind: 'stat' }],
     ['Sử dụng điểm kỹ năng', -1, { kind: 'skill' }],
     ['Báo cáo với Bà Tư Hạnh', 103, { kind: 'talk', npcId: 103 }],
+    ['Trinh sát Thành Hồng Giang', -1, { kind: 'visit', place: 'Hồng Giang', mapId: 'M4' }, 3],
     ['Thu thập 5 Da Heo', -1, { kind: 'unknown' }],
   ];
-  for (const [text, npcId, action] of steps) assert.deepEqual(stepAction({ text, npcId }), action, text);
+  for (const [text, npcId, action, param = 0] of steps) assert.deepEqual(stepAction({ text, npcId, param }), action, text);
 });
 
 test('quest bot: a damage step challenges the boss of s2c/1177 with c2s/1178, not c2s/15', () => {
@@ -543,4 +544,59 @@ test('quest bot: a dialog without Đồng ý stops without answering; so does a 
   again.bot.onPacket(57, Buffer.from(q['s2c/57 duel'], 'hex'));
   assert.deepEqual(again.sent.map(s => s.opcode), [13]);
   assert.deepEqual([again.events.at(-1)?.event, again.events.at(-1)?.reason], ['stop', '3 duels and the step did not move']);
+});
+
+const M25_PLACES: [number, string, number][] = [[1016, 'Hồng Giang', 0], [1015, 'Vân Sơn', 0], [162, 'Tướng Quân Lê Viễn', 2]];
+/** wangpt on quest 14 at "Trinh sát Thành Hồng Giang" (N5), in `mapId` with those places. */
+const scoutBot = (mapId: string, name: string, places: [number, string, number][], events: Record<string, unknown>[] = []) => {
+  const bot = new QuestBot({ maxFights: 1, log: e => events.push(e) });
+  bot.onPacket(29, new Writer().string('wangpt').string(mapId).i32(0).build());
+  bot.onPacket(11, mapPacket(mapId, name, places));
+  bot.onPacket(43, new Writer().string(mapId).u8(3).build());
+  bot.onPacket(39, hex(q['s2c/39 quest14']));
+  return bot;
+};
+
+test('quest 14 (N5): "Trinh sát Thành Hồng Giang" walks into M4 through the portal Hồng Giang, and the s2c/34 as it enters moves the step on', () => {
+  const sent: { opcode: number; hex: string }[] = [];
+  const bot = scoutBot('M25', 'Rìa Hồng Giang', M25_PLACES);
+  assert.deepEqual(bot.quest!.steps.map(s => [s.text, s.param, s.npcId]), [['Gặp Tướng Quân Lê Viễn (đường đi: Vân Sơn - Rìa Hồng Giang)', 162, 162], ['Trinh sát Thành Hồng Giang', 3, -1], ['Báo cáo với Tướng Quân Lê Viễn', 162, 162]]);
+  assert.deepEqual(stepAction(bot.quest!.steps[bot.quest!.current]), { kind: 'visit', place: 'Hồng Giang', mapId: 'M4' });
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: q['c2s/13 portal 1016'] });
+  bot.onPacket(13, hex(q['s2c/13 M4']));
+  assert.deepEqual(sent.at(-1), { opcode: 11, hex: new Writer().string('M4').u8(-1).i32(-1).build().toString('hex') });
+  bot.onPacket(11, mapPacket('M4', 'Hồng Giang', [[3, 'Bản đồ', 0], [1024, 'Rìa Hồng Giang', 0], [121, 'Tướng Xích Vũ', 2]]));
+  bot.onPacket(43, new Writer().string('M4').u8(3).build());
+  bot.onPacket(34, hex(q['s2c/34 scout']));
+  assert.equal(bot.quest!.current, 2);
+  assert.deepEqual(bot.atlas.portals[1016], { name: 'Hồng Giang', mapId: 'M4' });
+  clearTimeout((bot as any).wait);
+  bot.next(); // the report to NPC 162: back to M25
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M4').i32(1024).build().toString('hex') });
+  (bot as any).stop('test done');
+});
+
+test('quest bot: a visit step goes first to the map that has the portal; it stops at a refused portal, or in the map with no s2c/34', () => {
+  let sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const far = scoutBot('M2', 'Trại Vân Sơn', [[1013, 'Lạc Cốc', 0], [1024, 'Rìa Hồng Giang', 0], [127, 'Trại Chủ Phạm Hùng', 2]]);
+  far.onPacket(11, mapPacket('M25', 'Rìa Hồng Giang', M25_PLACES));
+  far.onPacket(11, mapPacket('M2', 'Trại Vân Sơn', [[1013, 'Lạc Cốc', 0], [1024, 'Rìa Hồng Giang', 0], [127, 'Trại Chủ Phạm Hùng', 2]]));
+  far.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M2').i32(1024).build().toString('hex') });
+  assert.equal((far as any).awaitingReply, false, 'only the portal into the map waits for s2c/34');
+  (far as any).stop('test done');
+
+  sent = [];
+  const refused = scoutBot('M25', 'Rìa Hồng Giang', M25_PLACES, events);
+  refused.onReady(recorder(sent));
+  refused.onPacket(1256, noticePacket('Bạn cần hoàn thành nhiệm vụ trước khi tới đây'));
+  clearTimeout((refused as any).wait);
+  refused.next();
+  assert.deepEqual([sent.length, events.at(-1)?.event, events.at(-1)?.reason, events.at(-1)?.portal], [1, 'stop', 'portal refused', 1016]);
+
+  sent = []; events = [];
+  const there = scoutBot('M4', 'Hồng Giang', [[1024, 'Rìa Hồng Giang', 0]], events);
+  there.onReady(recorder(sent));
+  assert.deepEqual([sent.length, events.at(-1)?.event, events.at(-1)?.reason], [0, 'stop', 'in the map of the step but the server did not advance it']);
 });

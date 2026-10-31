@@ -89,7 +89,7 @@ Tên lấy bằng cách khớp nhãn "Lv." trên màn hình bản đồ với b�
 | M1 | 0 | Làng Thanh Khê | Thủ Lĩnh Sơn Tặc | Tên từ `s2c/11` [Đo] |
 | M2 | 10 | Vân Sơn ("Trại Vân Sơn") | Hào Trưởng phía Bắc, Hào Trưởng phía Nam | Lv. duy nhất [Đo] |
 | M3 | 130 | Cổ Phong | Vệ Xích | [Đo] |
-| M4 | 20 | Hồng Giang | Tướng Xích Vũ | Lv.20 có cả M25. Cổng "Hồng Giang" (1016) ở M25 đòi xong nhiệm vụ (S1) [Suy luận] |
+| M4 | 20 | Hồng Giang | Tướng Xích Vũ | Lv.20 có cả M25. Cổng "Hồng Giang" (1016) ở M25 đòi xong nhiệm vụ (S1). Đến nhiệm vụ 14 thì vào được: `s2c/13` báo `"M4"`, thứ tự 3; 32 quái; boss Tướng Xích Vũ cấp 35 ([N5](10-quests.md#trinh-sát)) [Đo] |
 | M5 | 40 | Lạc Cốc | Tướng Hùng Liệt | [Đo] |
 | M6 | 110 | Tân Trạch | Lôi Tướng | [Đo] |
 | M7 | 100 | Nguyệt Đàm | Thạch Khôi | [Đo] |

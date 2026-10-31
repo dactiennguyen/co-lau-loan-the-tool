@@ -168,7 +168,7 @@ impl Bot {
         let Some(step) = q.steps.get(q.current.max(0) as usize).cloned() else {
             return self.finish_quest("Không còn bước nhiệm vụ nào để làm", out);
         };
-        let action = step_action(&step.text, step.npc_id);
+        let action = step_action(&step.text, step.npc_id, step.param);
         let reached = match &action {
             StepAction::Kill { .. } => q.progress >= step.required,
             StepAction::Damage { amount, .. } => q.progress >= *amount,
@@ -258,6 +258,9 @@ impl Bot {
                     ..Ctx::default()
                 };
                 self.ask(13, ctx, "NPC không trả lời", now, out)
+            }
+            StepAction::Visit { place, map_id } => {
+                self.visit(&q, &step.text, &place, &map_id, now, out)
             }
             StepAction::Unknown => {
                 let reason = format!("Bot chưa biết làm bước \"{}\"", step.text);
@@ -441,9 +444,22 @@ impl Bot {
                     .map(|p| (*p).clone())
             })
             .or_else(|| fresh.first().map(|p| (*p).clone()));
-        let Some(portal) = portal.filter(|_| self.hops < 6) else {
+        portal.is_some_and(|p| self.through(p, reason, now, out))
+    }
+
+    /// c2s/13 with the id of a portal of this map; s2c/13 or the refusal s2c/1256 must answer within 8 s. At most 6 for a
+    /// step.
+    pub(super) fn through(
+        &mut self,
+        portal: Place,
+        reason: &str,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) -> bool {
+        if self.hops >= 6 {
             return false;
-        };
+        }
+        let map_id = self.snap.map_id.clone();
         self.hops += 1;
         self.travelling = Some((portal.id, portal.name.clone()));
         self.doing(format!("Qua cổng {}", portal.name));
@@ -468,6 +484,47 @@ impl Bot {
             Wake::Silence("Cổng không trả lời"),
         ));
         true
+    }
+
+    /// "Trinh sát Thành Hồng Giang": walks into the map of the step (M4 for param 3) through the portal named after it
+    /// ("Hồng Giang" in M25) or one that led there before, else towards a map that has such a portal. The s2c/34 that comes
+    /// as that map is entered moves the step on (N5), so the last portal waits for a reply as a talk does. ← visit() of
+    /// quest.ts.
+    pub(super) fn visit(
+        &mut self,
+        q: &Quest,
+        text: &str,
+        place: &str,
+        map_id: &str,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        if self.snap.map_id == map_id {
+            let reason = format!("Đã ở {place} mà server chưa sang bước \"{text}\"");
+            return self.finish_quest(&reason, out);
+        }
+        let led: HashSet<i32> = (self.atlas.portals.iter())
+            .filter(|(_, p)| p.map_id.as_deref() == Some(map_id))
+            .filter_map(|(id, _)| id.parse().ok())
+            .collect();
+        let door = |p: &Place| p.kind == 0 && (p.name == place || led.contains(&p.id));
+        let here = self.snap.places.iter().find(|p| door(p)).cloned();
+        if let Some(p) = here.as_ref().filter(|p| self.refused.contains(&p.id)) {
+            let reason = format!("Không vào được {place}: cổng {} ({}) từ chối", p.name, p.id);
+            return self.finish_quest(&reason, out);
+        }
+        let direct = here.is_some();
+        let gone = match here {
+            Some(p) => self.through(p, text, now, out),
+            None => {
+                let wanted = |m: &MapRecord| m.map_id == map_id || m.places.iter().any(door);
+                self.travel(q, text, &wanted, now, out)
+            }
+        };
+        if !gone {
+            return self.finish_quest(&format!("Không biết đường tới {place}"), out);
+        }
+        self.awaiting_reply = direct;
     }
 
     /// Mobs to fight while waiting for a level: the strongest kind not above own level that is not a boss.
@@ -568,7 +625,7 @@ impl Bot {
             .map(|m| m.name.clone());
         if let Some(q) = &mut self.snap.quest {
             if let Some(step) = q.steps.get(q.current.max(0) as usize) {
-                let action = step_action(&step.text, step.npc_id);
+                let action = step_action(&step.text, step.npc_id, step.param);
                 if action.mob().is_some() && action.mob() == name.as_deref() {
                     match action {
                         StepAction::Damage { amount, .. } => {

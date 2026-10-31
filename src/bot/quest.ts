@@ -21,16 +21,18 @@ export type StepAction =
   | { kind: 'level'; level: number }                // "Đạt cấp độ 8"
   | { kind: 'stat' }                                // "Nâng điểm tiềm năng"
   | { kind: 'skill' }                               // "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191)
+  | { kind: 'visit'; place: string; mapId: string } // "Trinh sát Thành Hồng Giang" (param 3): walk into map M4, the param + 1 (N5)
   | { kind: 'talk'; npcId: number }                 // "Nói chuyện với X", "Báo cáo với X": any other step that names an NPC
   | { kind: 'unknown' };
 
-export function stepAction(step: Pick<QuestStep, 'text' | 'npcId'>): StepAction {
+export function stepAction(step: Pick<QuestStep, 'text' | 'npcId' | 'param'>): StepAction {
   let m: RegExpExecArray | null;
   if ((m = /^(?:Tiêu diệt|Đánh bại) (?:\d+ )?(.+)$/.exec(step.text))) return { kind: 'kill', mob: m[1] };
   if ((m = /^Gây (\d+) sát thương lên (.+)$/.exec(step.text))) return { kind: 'damage', mob: m[2], amount: Number(m[1]) };
   if ((m = /^Đạt cấp độ (\d+)$/.exec(step.text))) return { kind: 'level', level: Number(m[1]) };
   if (/^Nâng điểm tiềm năng/.test(step.text)) return { kind: 'stat' };
   if (/^Sử dụng điểm kỹ năng/.test(step.text)) return { kind: 'skill' };
+  if ((m = /^Trinh sát (?:Thành )?(.+)$/.exec(step.text)) && step.npcId < 0 && step.param >= 0) return { kind: 'visit', place: m[1], mapId: `M${step.param + 1}` };
   return step.npcId >= 0 ? { kind: 'talk', npcId: step.npcId } : { kind: 'unknown' };
 }
 
@@ -464,6 +466,7 @@ export class QuestBot implements WorldSession {
         return this.ask(10, buildRequest(10, { stat, amount: 1 }), 'no answer to the stat point');
       }
       case 'skill': return this.upgradeSkill(step.text);
+      case 'visit': return this.visit(action, step.text);
       case 'talk':
         this.log('talk', { step: step.text, mapId: this.mapId, npcId: action.npcId });
         return this.ask(13, buildRequest(13, { mapId: this.mapId, npcId: action.npcId }), 'npc did not answer', { npcId: action.npcId });
@@ -571,12 +574,33 @@ export class QuestBot implements WorldSession {
     const q = this.quest!, text = `${q.title} ${q.description} ${q.steps[q.current]?.text ?? ''}`;
     const fresh = portalsOf(this.atlas, this.mapId, this.level, this.refused).filter(p => !destination(this.atlas, p, this.mapId));
     const portal = route(this.atlas, this.mapId, wanted, this.level, this.refused) ?? fresh.find(p => text.includes(p.name)) ?? fresh[0];
-    if (!portal || this.hops >= 6) return false;
+    return !!portal && this.through(portal, reason);
+  }
+
+  /** c2s/13 with the id of a portal of this map; s2c/13 or the refusal s2c/1256 must answer within 8 s. At most 6 for a step. */
+  private through(portal: Pick<Place, 'id' | 'name'>, reason: string) {
+    if (this.hops >= 6) return false;
     this.hops++; this.travelling = { id: portal.id, name: portal.name };
     this.log('travel', { reason, from: this.mapId, portal: portal.id, name: portal.name, hop: this.hops });
     this.send(13, buildRequest(13, { mapId: this.mapId, npcId: portal.id }));
     this.wait = setTimeout(() => this.stop('portal did not answer', { portal: portal.id }), 8000);
     return true;
+  }
+
+  /** "Trinh sát Thành Hồng Giang": walks into the map of the step (M4 for param 3) through the portal named after it
+   * ("Hồng Giang" in M25) or one that led there before, else towards a map that has such a portal. The s2c/34 that comes
+   * as that map is entered moves the step on (N5), so the last portal waits for a reply as a talk does. */
+  private visit(action: { place: string; mapId: string }, text: string) {
+    if (this.mapId === action.mapId) return this.stop('in the map of the step but the server did not advance it', { step: text, mapId: this.mapId });
+    const led = new Set(Object.entries(this.atlas.portals).filter(([, p]) => p.mapId === action.mapId).map(([id]) => Number(id)));
+    const isDoor = (p: Pick<Place, 'id' | 'name' | 'type'>) => p.type === 0 && (p.name === action.place || led.has(p.id));
+    const door = this.places.find(isDoor);
+    if (door && this.refused.has(door.id)) return this.stop('portal refused', { step: text, portal: door.id });
+    if (door ? this.through(door, text) : this.travel(text, m => m.mapId === action.mapId || m.places.some(isDoor))) {
+      if (door) this.awaitingReply = true;
+      return;
+    }
+    this.stop('no known way to the map of the step', { step: text, mapId: action.mapId });
   }
 
   /** Mobs to fight while waiting for a level: the named kind, or the strongest kind not above own level that is not a

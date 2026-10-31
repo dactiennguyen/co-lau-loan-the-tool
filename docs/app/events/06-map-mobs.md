@@ -88,8 +88,8 @@ Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#q
 | `c2s/11 "M1"` khi đang ở M2 | `s2c/1256` "Không thể chuyển khu vực", không có `s2c/11` | Chỉ xin được map đang đứng. Vị trí lưu vẫn là M2. [Đo] |
 | `c2s/43 "M1"` khi đang ở M2 | `s2c/43` của M2 | Server bỏ qua mapId. [Đo] |
 | `c2s/13` cổng chưa đủ cấp | `s2c/1256` "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" | Khoá theo cấp. Trước đây bot ghi nhầm là "cổng không trả lời" vì chưa đọc gói này (Q15). [Đo] |
-| `c2s/13` cổng Hồng Giang từ M25 | `s2c/1256` "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" | Khoá theo nhiệm vụ, nhiệm vụ nào thì [Chưa rõ]. [Đo] |
-| `c2s/13` cổng vào được | `s2c/13 (mapId, thứ tự map, 0, 0xff)` | Số sau mapId là thứ tự map trong bản đồ thế giới (M1 0, M2 1, M25 24), không phải khu. Khu là byte `area` của `s2c/11` sau đó, khớp với mã quái. [Đo] |
+| `c2s/13` cổng Hồng Giang từ M25 | `s2c/1256` "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" | Khoá theo nhiệm vụ. Ở S1 (nhiệm vụ 9) cổng từ chối; ngày 31/10, wangpt ở bước "Trinh sát Thành Hồng Giang" của nhiệm vụ 14 thì vào được M4 ([N5](10-quests.md#trinh-sát)). Mốc mở chính xác [Chưa rõ]. [Đo] |
+| `c2s/13` cổng vào được | `s2c/13 (mapId, thứ tự map, 0, 0xff)` | Số sau mapId là thứ tự map trong bản đồ thế giới (M1 0, M2 1, M4 3, M25 24), không phải khu. Khu là byte `area` của `s2c/11` sau đó, khớp với mã quái. [Đo] |
 | Gửi `c2s/13` từ xa cổng | Được nhận | Không cần đứng ở cổng: bot gửi từ chỗ đăng nhập. [Đo] |
 
 Id cổng là id của **map đích**, giống nhau ở mọi map: 1013 là Lạc Cốc ở cả M1 và M2, 1015 là Vân Sơn ở cả M1 và M25. [Đo]
@@ -100,7 +100,7 @@ Id cổng là id của **map đích**, giống nhau ở mọi map: 1013 là Lạ
 | 1013 | Lạc Cốc | Cần cấp 40 |
 | 1014 | Làng Thanh Khê | → M1 |
 | 1015 | Vân Sơn | → M2 |
-| 1016 | Hồng Giang | Cần xong nhiệm vụ |
+| 1016 | Hồng Giang | Cần xong nhiệm vụ; ở nhiệm vụ 14 thì → M4 ([N5](10-quests.md#trinh-sát)) |
 | 1017 | Tân Trạch | Cần cấp 110 |
 | 1024 | Rìa Hồng Giang | → M25 (bản đồ thế giới ghi cấp 20, nhưng cấp 19 vẫn vào được) |
 
@@ -113,6 +113,7 @@ Toạ độ là góc trên-trái của ô, đơn vị server (ô 32). Cổng "B�
 | M1 Làng Thanh Khê | 102 Hương Lão Trần Bá (336, 576); 103 Bà Tư Hạnh (700, 608); 104 Ngọc Nga (915, 544); 106 Lái Buôn (576, 416); 111 Vệ Binh Lê Dũng (1167, 672); 129 Thành Chủ Nguyễn Khang (1472, 416); 161 Pháp sư (712, 512) | 1010 Cổ Phong (34, 336); 1013 Lạc Cốc (4960, 336); 1015 Vân Sơn (4960, 656) |
 | M2 Trại Vân Sơn | 127 Trại Chủ Phạm Hùng (1600, 800); 141 Võ Quan Đinh Mộc (1730, 800); 142 Dân Phu Vân Sơn (1830, 736) | 1013 Lạc Cốc (32, 624); 1014 Làng Thanh Khê (32, 464); 1017 Tân Trạch (2848, 304); 1024 Rìa Hồng Giang (2848, 880) |
 | M25 Rìa Hồng Giang | 162 Tướng Quân Lê Viễn (960, 352) | 1015 Vân Sơn (32, 400); 1016 Hồng Giang (1504, 624) |
+| M4 Hồng Giang (N5, chưa ghi toạ độ) | 143 Tiên phong Hồng Giang; 131 Lính Hồng Giang (hai NPC); 121 Tướng Xích Vũ; 144 Phó Tướng Hồng Giang | 3 Bản đồ; 1020 Cửu Phong; 1024 Rìa Hồng Giang; 1017 Tân Trạch; 1018 Nguyệt Đàm |
 
 ### Quái và boss của M2
 
