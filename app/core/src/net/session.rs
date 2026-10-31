@@ -234,6 +234,8 @@ pub(super) async fn session(
                     None | Some(Command::Logout) => return Ok(()),
                     // Sent once to every session, so kept even before the game is ready.
                     Some(Command::Record(on)) => bot.set_record(on, &mut out),
+                    // Closing the dialog of a nick not in the game is nothing to say.
+                    Some(Command::ShopClosed) => bot.shop_closed(now, &mut out),
                     Some(_) if step != Step::Ready => out.push(Out::Log(LogKind::Connection, NOT_READY.into())),
                     Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
@@ -247,6 +249,7 @@ pub(super) async fn session(
                     Some(Command::ListZones) => bot.list_zones(&mut out),
                     Some(Command::ChangeZone(zone)) => bot.change_zone(zone, now, &mut out),
                     Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, &mut out),
+                    Some(Command::ShopTrip { back }) => bot.go_to_shop(back, now, &mut out),
                     Some(Command::OpenShop) => bot.open_shop(now, &mut out),
                     Some(Command::Buy { shop_id, quantity }) => bot.buy(shop_id, quantity, now, &mut out),
                 }

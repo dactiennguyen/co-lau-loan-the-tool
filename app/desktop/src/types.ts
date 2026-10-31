@@ -309,6 +309,8 @@ export interface Character {
   zones: Zone[] | null;
   /** A zone change or a trip to another map under way ("Sang khu 4", "Đi tới Rìa Hồng Giang"). */
   moving: string | null;
+  /** Where the bot walks back to once the Cửa hàng is closed ("Hồng Giang khu 3"), after "Mua xong quay về chỗ cũ". */
+  backTo: string | null;
   /** The maps of the atlas, nearest first, with the portals to take. */
   maps: MapChoice[];
   /** The Dược phẩm shop of Lái Buôn (s2c/1190) once opened; null again off M1. */

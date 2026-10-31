@@ -98,6 +98,8 @@ pub fn run() {
             commands::list_zones,
             commands::change_zone,
             commands::go_to_map,
+            commands::shop_trip,
+            commands::shop_closed,
             commands::open_shop,
             commands::buy,
             commands::log_history,

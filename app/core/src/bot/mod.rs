@@ -115,6 +115,16 @@ const SELLER_MENU: &str = "Dược phẩm";
 /// How long a step of the shop waits for the server.
 const SHOP_WAIT: Duration = Duration::from_secs(8);
 
+/// Mua xong quay về chỗ cũ: the map (id, name) and zone the trip to Lái Buôn started from (go_to_shop), and whether
+/// the Cửa hàng dialog was closed since (shop_closed), after which the bot walks back there (walk_back).
+#[derive(Debug, Clone)]
+struct ShopBack {
+    map_id: String,
+    name: String,
+    zone: i32,
+    closed: bool,
+}
+
 /// Where the shop stands: c2s/13 waits for s2c/57, c2s/57 for s2c/1190, c2s/1190 for the notice of the purchase.
 #[derive(Debug, Clone)]
 enum Shopping {
@@ -220,6 +230,10 @@ pub struct Bot {
     zoning: Option<i32>,
     /// "Đổi map": the map (id, name) the bot walks to through portals (go_to), until it is there.
     trip: Option<(String, String)>,
+    /// The zone to change to once the trip ends on its map: the zone the trip to the shop started from (walk_back).
+    zone_after: Option<i32>,
+    /// Where to walk back to after the shop (go_to_shop, walk_back).
+    shop_back: Option<ShopBack>,
     /// Until when the zone change, or the portal of the trip, waits for the server.
     move_until: Option<Instant>,
     /// The step of the shop waiting for the server, and until when.
@@ -287,6 +301,8 @@ impl Bot {
             item_wait: None,
             zoning: None,
             trip: None,
+            zone_after: None,
+            shop_back: None,
             move_until: None,
             shopping: None,
             fight,
@@ -322,6 +338,10 @@ impl Bot {
         s.targets = self.targets();
         s.players = self.zone.list();
         s.maps = self.maps();
+        s.back_to = self
+            .shop_back
+            .as_ref()
+            .map(|b| format!("{} khu {}", b.name, b.zone));
         if let Some(b) = &self.battle {
             s.turn = self.turn_of(b);
         }
@@ -534,7 +554,7 @@ impl Bot {
                 ));
             }
             if let Some((_, name)) = self.trip.take() {
-                self.travelling = None;
+                (self.travelling, self.zone_after) = (None, None);
                 out.push(Out::Log(
                     LogKind::Travel,
                     format!("Kết thúc: cổng không trả lời sau 8 s, thôi đi tới {name}"),
@@ -553,6 +573,7 @@ impl Bot {
                 self.apply(acts, now, out);
             }
         }
+        self.walk_back(now, out);
     }
 
     /// Ends the job or quest run. A battle in progress is played out, or with `surrender` left as the game's Đầu hàng
@@ -573,7 +594,7 @@ impl Bot {
         }
         // A portal already taken is followed to its map; no other is taken.
         if let Some((_, name)) = self.trip.take() {
-            self.snap.moving = None;
+            (self.snap.moving, self.zone_after) = (None, None);
             out.push(Out::Log(
                 LogKind::Travel,
                 format!("Kết thúc: thôi đi tới {name}"),

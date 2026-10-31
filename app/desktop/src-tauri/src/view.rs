@@ -201,6 +201,8 @@ pub struct CharacterView<'a> {
     pub zones: Option<&'a [Zone]>,
     /// A zone change or a trip to another map under way ("Sang khu 4").
     pub moving: Option<&'a str>,
+    /// Where the bot walks back to once the Cửa hàng is closed ("Hồng Giang khu 3").
+    pub back_to: Option<&'a str>,
     /// The maps of the atlas, nearest first, with the portals to take.
     pub maps: &'a [MapChoice],
     /// The Dược phẩm shop of Lái Buôn as s2c/1190 last listed it; None until opened, and again once off M1.
@@ -436,6 +438,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             zones: s.zones.as_deref(),
             shop: s.shop.as_ref().map(ShopView::of),
             moving: s.moving.as_deref(),
+            back_to: s.back_to.as_deref(),
             maps: &s.maps,
         }),
     }

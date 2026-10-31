@@ -2250,6 +2250,101 @@ fn doi_map_walks_the_portals_of_the_atlas_and_ends_on_the_map_or_when_no_way_is_
     assert_eq!((bot.snapshot().moving, bot.deadline()), (None, None));
 }
 
+#[test]
+fn mua_xong_quay_ve_cho_cu_walks_back_to_the_map_and_zone_the_shop_trip_started_from() {
+    let atlas = Atlas::load(&find_upwards("data/maps.json").expect("data/maps.json"));
+    let (mut bot, mut out, now) = (
+        Bot::new(BotOptions::default(), Arc::new(atlas)),
+        vec![],
+        Instant::now(),
+    );
+    // Through a portal and its map: s2c/13, the head of s2c/11 in `zone`, s2c/43, then the timer that ends the trip.
+    let arrive = |bot: &mut Bot, out: &mut Vec<Out>, map_id: &str, name: &str, zone: u8| {
+        let through = Writer::new().string(map_id).i32(0).u8(0).u8(0xff).build();
+        bot.on_packet(13, &through, now, out).unwrap();
+        bot.on_packet(11, &map_head(map_id, name, zone), now, out)
+            .unwrap();
+        bot.on_packet(43, &mobs_of(map_id), now, out).unwrap();
+        bot.on_timer(bot.deadline().unwrap(), out);
+    };
+    bot.on_packet(11, &map_head("M2", "Trại Vân Sơn", 3), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.go_to_shop(true, now, &mut out);
+    assert!(
+        logged(&out, "Mua xong sẽ quay về Trại Vân Sơn khu 3"),
+        "{out:?}"
+    );
+    let portal = Writer::new().string("M2").i32(1014).build();
+    assert_eq!(sent(&out, 13), Some(tohex(&portal)));
+    assert_eq!(
+        bot.snapshot().back_to.as_deref(),
+        Some("Trại Vân Sơn khu 3")
+    );
+    out.clear();
+    arrive(&mut bot, &mut out, "M1", "Làng Thanh Khê", 0);
+    assert!(logged(&out, "Kết thúc: đã tới Làng Thanh Khê"), "{out:?}");
+    // Still shopping: nothing until the dialog is closed.
+    assert_eq!(sent(&out, 13), None);
+    out.clear();
+    bot.shop_closed(now, &mut out);
+    assert!(
+        logged(&out, "Quay về Trại Vân Sơn khu 3 sau khi mua"),
+        "{out:?}"
+    );
+    let portal = Writer::new().string("M1").i32(1015).build();
+    assert_eq!(sent(&out, 13), Some(tohex(&portal)));
+    assert_eq!(bot.snapshot().back_to, None);
+    // On M2 again, in zone 0 as a portal puts it: c2s/1173 back to zone 3, as the Khu vực panel does.
+    out.clear();
+    arrive(&mut bot, &mut out, "M2", "Trại Vân Sơn", 0);
+    assert!(logged(&out, "Kết thúc: đã tới Trại Vân Sơn"), "{out:?}");
+    assert_eq!(sent(&out, 1173).as_deref(), Some("03"));
+    assert_eq!(bot.snapshot().moving.as_deref(), Some("Sang khu 3"));
+
+    // Closed while the trip to the shop is under way: the bot goes back once it got there.
+    let (mut bot, mut out) = (
+        Bot::new(
+            BotOptions::default(),
+            Arc::new(Atlas::load(&find_upwards("data/maps.json").unwrap())),
+        ),
+        vec![],
+    );
+    bot.on_packet(11, &map_head("M2", "Trại Vân Sơn", 0), now, &mut out)
+        .unwrap();
+    bot.go_to_shop(true, now, &mut out);
+    out.clear();
+    bot.shop_closed(now, &mut out);
+    assert!(out.is_empty(), "{out:?}");
+    arrive(&mut bot, &mut out, "M1", "Làng Thanh Khê", 0);
+    assert!(
+        logged(&out, "Quay về Trại Vân Sơn khu 0 sau khi mua"),
+        "{out:?}"
+    );
+    out.clear();
+    arrive(&mut bot, &mut out, "M2", "Trại Vân Sơn", 0);
+    assert!(logged(&out, "Kết thúc: đã tới Trại Vân Sơn"), "{out:?}");
+    assert_eq!(sent(&out, 1173), None, "already in its zone");
+
+    // With the box off nothing is kept, and closing the dialog sends nothing.
+    let (mut bot, mut out) = (
+        Bot::new(
+            BotOptions::default(),
+            Arc::new(Atlas::load(&find_upwards("data/maps.json").unwrap())),
+        ),
+        vec![],
+    );
+    bot.on_packet(11, &map_head("M2", "Trại Vân Sơn", 0), now, &mut out)
+        .unwrap();
+    bot.go_to_shop(false, now, &mut out);
+    assert!(!logged(&out, "Mua xong sẽ quay về"), "{out:?}");
+    arrive(&mut bot, &mut out, "M1", "Làng Thanh Khê", 0);
+    out.clear();
+    bot.shop_closed(now, &mut out);
+    assert!(out.is_empty(), "{out:?}");
+    assert_eq!(bot.snapshot().back_to, None);
+}
+
 fn records(out: &[Out]) -> Vec<BattleRecord> {
     out.iter()
         .filter_map(|o| match o {

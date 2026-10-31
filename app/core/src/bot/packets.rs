@@ -641,6 +641,7 @@ impl Bot {
             22 => self.on_setup(payload, now, out)?,
             _ => {}
         }
+        self.walk_back(now, out);
         Ok(())
     }
 }

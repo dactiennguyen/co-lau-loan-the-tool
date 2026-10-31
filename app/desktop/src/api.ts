@@ -63,6 +63,10 @@ export interface Api {
   changeZone(id: number, zone: number): Promise<void>;
   /** Another map, through the portals of the atlas; the log tells how it went. */
   goToMap(id: number, mapId: string): Promise<void>;
+  /** Cửa hàng: "Đi tới Làng Thanh Khê"; with `back` the bot walks back to where it started once the dialog closes. */
+  shopTrip(id: number, back: boolean): Promise<void>;
+  /** Cửa hàng: the dialog closed; after a trip with `back` the bot walks back. */
+  shopClosed(id: number): Promise<void>;
   /** Cửa hàng: opens the Dược phẩm shop of Lái Buôn (on M1); the account's `shop` then lists it. */
   openShop(id: number): Promise<void>;
   /** Mua: `quantity` of the shop line `shopId`; the log tells how it went. */
@@ -128,6 +132,8 @@ const tauri: Api = {
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
+  shopTrip: (id, back) => invoke("shop_trip", { id, back }),
+  shopClosed: (id) => invoke("shop_closed", { id }),
   openShop: (id) => invoke("open_shop", { id }),
   buy: (id, shopId, quantity) => invoke("buy", { id, shopId, quantity }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
@@ -183,6 +189,8 @@ const preview: Api = {
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,
+  shopTrip: nothing,
+  shopClosed: nothing,
   openShop: nothing,
   buy: nothing,
   logHistory: async () => [],

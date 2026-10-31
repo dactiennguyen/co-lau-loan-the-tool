@@ -4,6 +4,67 @@ use super::*;
 /// The Dược phẩm shop of Lái Buôn (12-skills-items.md#c2s-1190): c2s/13 to him, c2s/57 for Dược phẩm, and s2c/1190 lists
 /// it; c2s/1190 buys a line, and the server answers with a notice, then the bag (s2c/42) and the money (s2c/46).
 impl Bot {
+    /// "Đi tới Làng Thanh Khê" of the Cửa hàng: Đổi map to M1. With `back` ("Mua xong quay về chỗ cũ") it keeps the map
+    /// and zone it starts from, to walk back there once the dialog is closed (shop_closed). Nothing is kept without
+    /// `back`, or when the trip is refused (busy, already on M1, no known way).
+    pub fn go_to_shop(&mut self, back: bool, now: Instant, out: &mut Vec<Out>) {
+        let from = ShopBack {
+            map_id: self.snap.map_id.clone(),
+            name: self.snap.map_name.clone(),
+            zone: self.snap.zone,
+            closed: false,
+        };
+        self.shop_back = None;
+        self.go_to(SELLER.0, now, out);
+        if back && self.trip.is_some() {
+            let line = format!("Mua xong sẽ quay về {} khu {}", from.name, from.zone);
+            out.push(Out::Log(LogKind::Travel, line));
+            self.shop_back = Some(from);
+        }
+    }
+
+    /// The Cửa hàng dialog was closed, however (Đóng, ✕, Esc): after a trip to the shop with "Mua xong quay về chỗ cũ",
+    /// the bot walks back as soon as nothing waits (walk_back).
+    pub fn shop_closed(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if let Some(b) = &mut self.shop_back {
+            b.closed = true;
+        }
+        self.walk_back(now, out);
+    }
+
+    /// Mua xong quay về chỗ cũ: once the dialog is closed and nothing waits for the server (the trip to the shop, a step
+    /// of the shop such as a purchase, a portal, a zone change, a battle), Đổi map back to the map the trip started
+    /// from, then the zone it was in (trip_next). Let go, with the reason in the log, once a job or quest run started.
+    /// Called after every packet and timer.
+    pub(super) fn walk_back(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if !self.shop_back.as_ref().is_some_and(|b| b.closed)
+            || self.trip.is_some()
+            || self.travelling.is_some()
+            || self.zoning.is_some()
+            || self.shopping.is_some()
+            || self.battle.is_some()
+        {
+            return;
+        }
+        let Some(b) = self.shop_back.take() else {
+            return;
+        };
+        if let Some(why) = self.busy() {
+            let line = format!("Không quay về {} khu {}: {why}", b.name, b.zone);
+            return out.push(Out::Log(LogKind::Travel, line));
+        }
+        let line = format!("Quay về {} khu {} sau khi mua", b.name, b.zone);
+        out.push(Out::Log(LogKind::Travel, line));
+        if self.snap.map_id != b.map_id {
+            self.go_to(&b.map_id, now, out);
+            if self.trip.is_some() {
+                self.zone_after = Some(b.zone);
+            }
+        } else if self.snap.zone != b.zone {
+            self.change_zone(b.zone, now, out);
+        }
+    }
+
     /// Why the shop cannot be used now: busy, a step of it waiting, or away from M1.
     pub(super) fn shop_refusal(&self) -> Option<String> {
         self.busy().map(String::from).or_else(|| {

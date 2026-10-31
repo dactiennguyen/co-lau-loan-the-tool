@@ -443,6 +443,9 @@ pub struct Snapshot {
     pub zones: Option<Vec<Zone>>,
     /// A zone change or a trip to another map under way, as the UI says it ("Sang khu 4", "Đi tới Rìa Hồng Giang").
     pub moving: Option<String>,
+    /// Where the bot walks back to once the Cửa hàng is closed ("Hồng Giang khu 3"; Bot::go_to_shop); filled by
+    /// snapshot().
+    pub back_to: Option<String>,
     /// The maps of the atlas, nearest first, with the portals to take (Bot::maps); filled by snapshot().
     pub maps: Vec<MapChoice>,
     /// Where the character stands, in server units (s2c/11; tiles of 32).

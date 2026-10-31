@@ -59,6 +59,13 @@ pub enum Command {
     ChangeZone(i32),
     /// Another map, through the portals of the atlas (Bot::go_to).
     GoTo(String),
+    /// "Đi tới Làng Thanh Khê" of the Cửa hàng; with `back`, walk back where it started once the dialog closes
+    /// (Bot::go_to_shop).
+    ShopTrip {
+        back: bool,
+    },
+    /// The Cửa hàng dialog closed (Bot::shop_closed).
+    ShopClosed,
     /// The Dược phẩm shop of Lái Buôn (Bot::open_shop).
     OpenShop,
     /// Buys a line of that shop: its shop id and how many (Bot::buy).

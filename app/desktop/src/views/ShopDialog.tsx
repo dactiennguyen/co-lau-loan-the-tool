@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
 import { Dialog } from "../components/Dialog";
+import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
@@ -14,6 +15,22 @@ const SELLER_MAP = "M1";
 const MONEY = ["Xu", "Xu khóa"] as const;
 /** The lines Bot::buy and the server leave in the log for a purchase. */
 const RESULT = /^(Đã mua|Chưa mua|Lái Buôn không trả lời)/;
+/** "Mua xong quay về chỗ cũ" is on until turned off, then kept off on this machine. */
+const BACK = "shop.back";
+function backKept() {
+  try {
+    return localStorage.getItem(BACK) !== "0";
+  } catch {
+    return true;
+  }
+}
+function keepBack(on: boolean) {
+  try {
+    localStorage.setItem(BACK, on ? "1" : "0");
+  } catch {
+    // Not kept: the box is on again next time.
+  }
+}
 
 interface Props {
   account: Account;
@@ -54,6 +71,14 @@ export function ShopDialog({ account, item, onClose }: Props) {
     }
   }, [account.id, here, why]);
 
+  // "Mua xong quay về chỗ cũ": the trip keeps where it started (Bot::go_to_shop); closing the dialog, however it closes,
+  // sends the bot back there (Bot::shop_closed).
+  const [back, setBack] = useState(backKept);
+  const close = () => {
+    api.shopClosed(account.id);
+    onClose();
+  };
+
   const [picked, setPicked] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   // The item asked for, in Xu khóa when it pays (Xu trades at the Chợ trời, Xu khóa does not), else in Xu.
@@ -89,7 +114,7 @@ export function ShopDialog({ account, item, onClose }: Props) {
       title="Cửa hàng Lái Buôn"
       subtitle={`${account.label} · Dược phẩm, Làng Thanh Khê (M1)`}
       className="shop"
-      onClose={onClose}
+      onClose={close}
       onSubmit={(e) => {
         e.preventDefault();
         buy();
@@ -104,11 +129,23 @@ export function ShopDialog({ account, item, onClose }: Props) {
       {c && !here && !c.moving && (
         <div className="shop__away">
           <p>
-            Lái Buôn đứng ở Làng Thanh Khê, server chỉ mở cửa hàng khi nhân vật ở map đó. {account.label} đang ở {c.mapName}.
+            Lái Buôn đứng ở Làng Thanh Khê, server chỉ mở cửa hàng khi nhân vật ở map đó. {account.label} đang ở {c.mapName}:
+            bấm <b>Đi tới Làng Thanh Khê</b>, tới nơi thì danh sách món hiện ra.
           </p>
-          <Button kind="tonal" small icon="swap" disabled={!!why} onClick={() => api.goToMap(account.id, SELLER_MAP)}>
-            Đi tới Làng Thanh Khê
-          </Button>
+          <label className="shop__back">
+            <input
+              type="checkbox"
+              checked={back}
+              onChange={(e) => {
+                setBack(e.target.checked);
+                keepBack(e.target.checked);
+              }}
+            />
+            <span className="shop__back-box" aria-hidden="true">
+              <Icon name="check" size={11} />
+            </span>
+            Mua xong quay về chỗ cũ ({c.mapName} khu {c.zone})
+          </label>
         </div>
       )}
       {c && here && !shop && (
@@ -165,13 +202,26 @@ export function ShopDialog({ account, item, onClose }: Props) {
           {result.text}
         </p>
       )}
+      {c?.backTo && (
+        <p className="shop__back-note" role="status">
+          Mua xong bấm Quay lại để {account.label} về {c.backTo}; đóng hộp bằng ✕ hay Esc cũng về.
+        </p>
+      )}
       <footer>
-        <Button kind="ghost" onClick={onClose}>
-          Đóng
+        {/* After a trip with "Mua xong quay về chỗ cũ", closing walks back (Bot::shop_closed): the button says so. */}
+        <Button kind="ghost" icon={c?.backTo ? "swap" : undefined} onClick={close}>
+          {c?.backTo ? `Quay lại ${c.backTo}` : "Đóng"}
         </Button>
-        <Button kind="primary" type="submit" icon="cart" disabled={!line || short || !!why || waiting}>
-          {waiting ? "Đang mua…" : "Mua"}
-        </Button>
+        {/* Two steps away from M1: this button walks there first, then the list shows and it buys. */}
+        {c && !here ? (
+          <Button kind="primary" icon="swap" disabled={!!why} onClick={() => api.shopTrip(account.id, back)}>
+            {c.moving ? "Đang đi…" : "Đi tới Làng Thanh Khê"}
+          </Button>
+        ) : (
+          <Button kind="primary" type="submit" icon="cart" disabled={!line || short || !!why || waiting}>
+            {waiting ? "Đang mua…" : "Mua"}
+          </Button>
+        )}
       </footer>
     </Dialog>
   );

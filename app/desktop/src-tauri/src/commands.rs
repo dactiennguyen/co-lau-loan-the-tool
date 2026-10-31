@@ -165,6 +165,20 @@ pub fn go_to_map(shared: State<Shared>, id: u64, map_id: String) {
     shared.with(|app| app.send(id, Command::GoTo(map_id)));
 }
 
+/// Cửa hàng: "Đi tới Làng Thanh Khê"; with `back` ("Mua xong quay về chỗ cũ") the bot walks back to where it started
+/// once the dialog closes (Bot::go_to_shop).
+#[tauri::command]
+pub fn shop_trip(shared: State<Shared>, id: u64, back: bool) {
+    shared.with(|app| app.send(id, Command::ShopTrip { back }));
+}
+
+/// Cửa hàng: the dialog closed, however; after a trip with "Mua xong quay về chỗ cũ" the bot walks back
+/// (Bot::shop_closed).
+#[tauri::command]
+pub fn shop_closed(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::ShopClosed));
+}
+
 /// Cửa hàng: opens the Dược phẩm shop of Lái Buôn (on M1); the account's `shop` then lists it.
 #[tauri::command]
 pub fn open_shop(shared: State<Shared>, id: u64) {

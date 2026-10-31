@@ -123,7 +123,7 @@ impl Bot {
             LogKind::Travel,
             format!("Bắt đầu: đi tới {name} ({map_id})"),
         ));
-        (self.trip, self.hops) = (Some((map_id.to_string(), name)), 0);
+        (self.trip, self.hops, self.zone_after) = (Some((map_id.to_string(), name)), 0, None);
         self.refused.clear();
         self.trip_next(now, out);
     }
@@ -151,7 +151,13 @@ impl Bot {
         };
         if let Some(end) = end {
             (self.trip, self.snap.moving, self.move_until) = (None, None, None);
-            return out.push(Out::Log(LogKind::Travel, format!("Kết thúc: {end}")));
+            out.push(Out::Log(LogKind::Travel, format!("Kết thúc: {end}")));
+            // Back from the shop: the zone it started from, as the Khu vực panel would.
+            let zone = self.zone_after.take();
+            if let Some(z) = zone.filter(|&z| here == to && z != self.snap.zone) {
+                self.change_zone(z, now, out);
+            }
+            return;
         }
         let portal = portal.unwrap();
         self.hops += 1;
