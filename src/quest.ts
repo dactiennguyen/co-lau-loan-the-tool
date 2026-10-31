@@ -377,7 +377,7 @@ export class QuestBot implements WorldSession {
   }
 
   /** Decide the next action from the current quest step. */
-  next() {
+  next(): void {
     if (!this.api || this.battle || this.allotting) return;
     const q = this.quest, step = q?.steps[q.current];
     if (this.options.farm) { if (!this.allot()) this.farm(this.options.farm); return; }

@@ -1,6 +1,7 @@
 // cllt.db beside accounts.json: every log line and every battle, by account username (lower case), for the filters of
 // the Nhật ký card and the Thống kê tab (docs/integration/rust/README.md#nhật-ký-và-thống-kê). One connection behind a
-// mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk.
+// mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk. PRAGMA user_version is the number of
+// MIGRATIONS applied; a change of the tables is a new entry at the end, never an edit of an old one.
 use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind};
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, Row};
@@ -8,11 +9,16 @@ use serde::Serialize;
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 
-/// Log lines older than this many days are deleted when the app starts; battles are kept.
+/// Log lines and battles older than this many days are deleted when the app starts (Store::prune).
 pub const LOG_DAYS: u64 = 30;
+pub const BATTLE_DAYS: u64 = 90;
 pub const DAY_MS: u64 = 86_400_000;
 
-const SCHEMA: &str = "
+/// The tables, version by version: MIGRATIONS[i] takes a database from user_version i to i + 1. The first one is the
+/// schema of 0.4.0 and before, all IF NOT EXISTS, so a cllt.db of those versions (user_version 0, tables there) goes
+/// through it unchanged.
+const MIGRATIONS: &[&str] = &[
+    "
 CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY,
     username TEXT NOT NULL,
@@ -49,7 +55,10 @@ CREATE TABLE IF NOT EXISTS battles (
     coin INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS battles_by_account ON battles (username, ended_at);
-";
+",
+    // For the BATTLE_DAYS cut of prune.
+    "CREATE INDEX IF NOT EXISTS battles_by_time ON battles (ended_at);",
+];
 
 /// A log line as cllt.db keeps it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -191,10 +200,10 @@ impl Store {
     pub fn memory() -> rusqlite::Result<Self> {
         Self::init(Connection::open_in_memory()?)
     }
-    fn init(db: Connection) -> rusqlite::Result<Self> {
+    fn init(mut db: Connection) -> rusqlite::Result<Self> {
         db.pragma_update_and_check(None, "journal_mode", "WAL", |_| Ok(()))?;
         db.pragma_update(None, "synchronous", "NORMAL")?;
-        db.execute_batch(SCHEMA)?;
+        migrate(&mut db)?;
         Ok(Self { db: Mutex::new(db) })
     }
     fn db(&self) -> MutexGuard<'_, Connection> {
@@ -346,12 +355,43 @@ impl Store {
         })
     }
 
-    /// Deletes the log lines older than LOG_DAYS before `now`; the number deleted.
-    pub fn prune(&self, now: u64) -> rusqlite::Result<usize> {
-        let cut = now.saturating_sub(LOG_DAYS * DAY_MS) as i64;
-        self.db()
-            .execute("DELETE FROM logs WHERE at < ?1", params![cut])
+    /// Deletes the log lines older than LOG_DAYS and the battles that ended more than BATTLE_DAYS before `now`; the
+    /// numbers deleted.
+    pub fn prune(&self, now: u64) -> rusqlite::Result<(usize, usize)> {
+        let cut = |days: u64| now.saturating_sub(days * DAY_MS) as i64;
+        let db = self.db();
+        let logs = db.execute("DELETE FROM logs WHERE at < ?1", params![cut(LOG_DAYS)])?;
+        let battles = db.execute(
+            "DELETE FROM battles WHERE ended_at < ?1",
+            params![cut(BATTLE_DAYS)],
+        )?;
+        Ok((logs, battles))
     }
+}
+
+/// Brings the tables up to the last of MIGRATIONS, each step in its own transaction with the user_version it reaches. A
+/// database from a newer app (a user_version past them) is not opened, so this one cannot spoil it: the app then runs
+/// without history.
+fn migrate(db: &mut Connection) -> rusqlite::Result<()> {
+    let at = db
+        .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))?
+        .max(0) as usize;
+    if at > MIGRATIONS.len() {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
+            Some(format!(
+                "cllt.db của bản app mới hơn (phiên bản {at}, bản này đọc tới {})",
+                MIGRATIONS.len()
+            )),
+        ));
+    }
+    for (i, step) in MIGRATIONS.iter().enumerate().skip(at) {
+        let tx = db.transaction()?;
+        tx.execute_batch(step)?;
+        tx.pragma_update(None, "user_version", (i + 1) as i64)?;
+        tx.commit()?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -507,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn prune_drops_log_lines_older_than_the_kept_days() {
+    fn prune_drops_log_lines_and_battles_older_than_the_kept_days() {
         let s = Store::memory().unwrap();
         let now = 1_793_400_000_000;
         s.add_log(
@@ -520,7 +560,16 @@ mod tests {
         .unwrap();
         s.add_log("manina2", now - DAY_MS, LogKind::Battle, 0, "mới")
             .unwrap();
-        assert_eq!(s.prune(now).unwrap(), 1);
+        // A battle past BATTLE_DAYS goes; one past LOG_DAYS only stays, as the 30 ngày of Thống kê needs it.
+        for (mob, days) in [("Cóc Xanh", BATTLE_DAYS + 1), ("Heo Mọi", LOG_DAYS + 1)] {
+            let ended = now - days * DAY_MS;
+            s.add_battle(
+                "manina2",
+                &record(mob, 13, BattleResult::Won, BattleSource::Fight, ended),
+            )
+            .unwrap();
+        }
+        assert_eq!(s.prune(now).unwrap(), (1, 1));
         let left: Vec<_> = s
             .logs("manina2", None, &[], None, 10)
             .unwrap()
@@ -528,5 +577,71 @@ mod tests {
             .map(|l| l.text)
             .collect();
         assert_eq!(left, ["mới"]);
+        let all = BattleFilter {
+            username: "manina2",
+            since: None,
+            source: None,
+        };
+        let kept: Vec<_> = s
+            .battles(all, None, 10)
+            .unwrap()
+            .into_iter()
+            .map(|b| b.record.mob_name)
+            .collect();
+        assert_eq!(kept, ["Heo Mọi"]);
+    }
+
+    fn version(db: &Connection) -> usize {
+        db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
+            .unwrap() as usize
+    }
+
+    #[test]
+    fn a_new_database_is_at_the_last_migration() {
+        let s = Store::memory().unwrap();
+        assert_eq!(version(&s.db()), MIGRATIONS.len());
+    }
+
+    #[test]
+    fn a_database_of_0_4_0_keeps_its_rows_through_the_migrations() {
+        // cllt.db as 0.4.0 left it: the tables of the first migration, user_version 0.
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(MIGRATIONS[0]).unwrap();
+        db.execute(
+            "INSERT INTO logs (username, at, kind, tone, text) VALUES ('manina2', 1, 'battle', 0, 'Trận 1: thắng')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(version(&db), 0);
+        let s = Store::init(db).unwrap();
+        assert_eq!(version(&s.db()), MIGRATIONS.len());
+        let texts: Vec<_> = s
+            .logs("manina2", None, &[], None, 10)
+            .unwrap()
+            .into_iter()
+            .map(|l| l.text)
+            .collect();
+        assert_eq!(texts, ["Trận 1: thắng"]);
+        let index: i64 = s
+            .db()
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'battles_by_time'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(index, 1);
+        // Opened again, nothing more to do.
+        let again = Store::init(s.db.into_inner().unwrap()).unwrap();
+        assert_eq!(version(&again.db()), MIGRATIONS.len());
+    }
+
+    #[test]
+    fn a_database_of_a_newer_app_is_not_opened() {
+        let db = Connection::open_in_memory().unwrap();
+        db.pragma_update(None, "user_version", MIGRATIONS.len() as i64 + 1)
+            .unwrap();
+        let e = Store::init(db).err().unwrap().to_string();
+        assert!(e.contains("bản app mới hơn"), "{e}");
     }
 }

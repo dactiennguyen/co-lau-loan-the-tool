@@ -61,7 +61,7 @@ pub fn run() {
                 match store::Store::open(&paths::db(&accounts)) {
                     Ok(store) => {
                         if let Err(e) = store.prune(app::epoch_ms()) {
-                            eprintln!("cllt.db: không xoá được nhật ký cũ: {e}");
+                            eprintln!("cllt.db: không xoá được nhật ký và trận cũ: {e}");
                         }
                         app.set_store(std::sync::Arc::new(store));
                         app.load_history();

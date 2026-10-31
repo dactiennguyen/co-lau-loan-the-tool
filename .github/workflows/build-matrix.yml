@@ -42,8 +42,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      # Decoders, bots and docs links; test/rust-export.test.ts fails when app/core was not re-exported after a TS change.
+      # TypeScript itself and the Node types, for the type-check.
+      - name: npm ci
+        run: npm ci
+
+      # tsc --noEmit over src/ and test/, then decoders, bots and docs links; test/rust-export.test.ts fails when app/core
+      # was not re-exported after a TS change.
       - name: npm test
         run: npm test
 

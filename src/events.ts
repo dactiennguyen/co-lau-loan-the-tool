@@ -291,7 +291,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1187: fields = inventory(payload); r.take(payload.length); break;
       case 1191: fields = { statPoints: r.i32(), skillPoints: r.i32() }; break;
       case 48: fields = { where: r.u8(), slot: r.i32() }; break;
-      case 39: fields = questData(payload); r.take(payload.length); break;
+      case 39: fields = { ...questData(payload) }; r.take(payload.length); break;
       case 34: fields = questProgress(payload); r.take(payload.length); break;
       case 35: fields = questComplete(payload); r.take(payload.length); break;
       case 1254: fields = ranking(payload); r.take(payload.length); break;

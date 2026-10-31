@@ -121,7 +121,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
       if (state === 'proxy') fail('PROXY_CLOSED', 'Proxy closed the connection before the tunnel opened', { proxy: proxyLabel(proxy!) });
       else fail('SERVER_CLOSED', 'Server closed connection before the requested result');
     });
-    socket.on('data', chunk => {
+    socket.on('data', (chunk: Buffer) => {
       if (done) return;
       try {
         if (tunnel && !tunnel.open) {
@@ -147,7 +147,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
           try { decoded = decodeEvent('s2c', packet.opcode, packet.payload); }
           catch (error) {
             if (!ready && spec?.phase !== 'push') throw error;
-            emit('schema_warning', { code: 'PUSH_SCHEMA', opcode: packet.opcode, name: spec.name, reason: (error as Error).message });
+            emit('schema_warning', { code: 'PUSH_SCHEMA', opcode: packet.opcode, name: spec?.name, reason: (error as Error).message });
           }
           emit(packet.opcode === undefined ? `s2c/encoded:${packet.encodedOpcode}` : `s2c/${packet.opcode}`, {
             kind: 'receive', direction: 's2c', opcode: packet.opcode ?? null, encodedOpcode: packet.encodedOpcode,

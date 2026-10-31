@@ -2,9 +2,12 @@
   "name": "colauloanthe-protocol-notes",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.6" },
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
-    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test": "npm run typecheck && node --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p .",
     "start": "node --experimental-strip-types src/connect.ts",
     "connect": "node --experimental-strip-types src/connect.ts",
     "login": "node --experimental-strip-types src/connect.ts --login",
@@ -20,5 +23,9 @@
     "check:apk": "node --experimental-strip-types src/check-apk.ts",
     "check:capture": "node --experimental-strip-types src/check-capture.ts",
     "export:rust": "node --experimental-strip-types src/export-rust.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~6.0.3"
   }
 }

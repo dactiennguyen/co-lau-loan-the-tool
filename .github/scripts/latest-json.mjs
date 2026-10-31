@@ -33,6 +33,7 @@ export function releaseNotes(body) {
  *   notes: string, date: string }} release
  */
 export function latestJson({ files, signature, version, repo, tag, notes, date }) {
+  /** @type {Record<string, { signature: string, url: string }>} */
   const platforms = {};
   const missing = [];
   for (const [suffix, targets] of PLATFORMS) {
