@@ -1,8 +1,10 @@
 import { Bar } from "../components/Bar";
+import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Icon, type IconName } from "../components/Icon";
 import { num } from "../format";
-import type { Character } from "../types";
+import { planText, POTENTIALS } from "../potentials";
+import type { Account } from "../types";
 import "./StatsCard.css";
 
 // Labels of the game's character panel, in the order of `combat` and `stats`; both measured against the panel by the
@@ -14,11 +16,20 @@ const COMBAT: { label: string; icon: IconName; tone: string }[] = [
   { label: "Né tránh", icon: "wind", tone: "var(--c-dodge)" },
   { label: "Chí mạng", icon: "flame", tone: "var(--c-critical)" },
 ];
-const POTENTIALS = ["Cường lực", "Thân pháp", "Nội lực", "Thể lực"];
+interface Props {
+  account: Account;
+  /** "Cộng +1" on the potential of that c2s/10 index. */
+  onAdd: (stat: number) => void;
+  /** Opens the choice of how points are spent on their own. */
+  onPlan: () => void;
+}
 
-/** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8) and the skill
- * points left. Spending them is not in the app yet (c2s/10 is known for Cường lực only, docs/app/events/12-skills-items.md). */
-export function StatsCard({ character: c }: { character: Character | null }) {
+/** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8), a + on each, and
+ * how the bot spends them on its own; then the skill points left. */
+export function StatsCard({ account, onAdd, onPlan }: Props) {
+  const c = account.character;
+  // A point goes out between battles only, as Bot::add_stat requires.
+  const canAdd = account.status >= 2 && account.status <= 3 && (c?.statPoints ?? 0) > 0 && !c?.battle;
   // Bars against the strongest of the five, so they show the build rather than a scale the game does not give.
   const top = Math.max(1, ...(c?.combat ?? []));
   return (
@@ -53,12 +64,28 @@ export function StatsCard({ character: c }: { character: Character | null }) {
         </span>
       </div>
       <div className="potentials">
-        {POTENTIALS.map((label, i) => (
-          <div key={label} className="potential">
+        {POTENTIALS.map((p, i) => (
+          <div key={p.name} className="potential">
             <span className="potential__value px">{num(c?.stats[i])}</span>
-            <span className="potential__label">{label}</span>
+            <span className="potential__label">{p.name}</span>
+            <Button
+              kind="tonal"
+              small
+              icon="plus"
+              className="potential__add"
+              aria-label={`Cộng 1 điểm vào ${p.name}`}
+              disabled={!canAdd}
+              onClick={() => onAdd(p.index)}
+            />
           </div>
         ))}
+      </div>
+      <div className="potentials__plan">
+        <span className="potentials__plan-label">Tự cộng</span>
+        <span className={`potentials__plan-value${account.statPlan ? " is-on" : ""}`}>{planText(account.statPlan, c?.element)}</span>
+        <Button kind="ghost" small icon="pencil" onClick={onPlan}>
+          Đổi
+        </Button>
       </div>
       {c?.skillPoints != null && (
         <p className="potentials__skills">

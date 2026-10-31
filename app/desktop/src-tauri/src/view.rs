@@ -3,6 +3,7 @@
 use crate::app::Entry;
 use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Target};
 use cllt_core::net::ConnState;
+use cllt_core::potentials::StatPlan;
 use cllt_core::runner::Turn;
 use cllt_core::world::{Nearby, Quest};
 use serde::Serialize;
@@ -75,6 +76,8 @@ pub struct AccountView<'a> {
     pub error: &'a str,
     /// Time of day the session entered the game.
     pub since: &'a str,
+    /// How potential points are spent on their own (accounts.json).
+    pub stat_plan: Option<StatPlan>,
     /// What the session knows about the character; None until it is in the game.
     pub character: Option<CharacterView<'a>>,
 }
@@ -95,6 +98,8 @@ pub struct CharacterView<'a> {
     pub combat: Option<[i32; 5]>,
     pub stat_points: Option<i32>,
     pub skill_points: Option<i32>,
+    /// field01 of s2c/9: 1 Hỏa, 4 Thủy.
+    pub element: Option<i32>,
     pub map_id: &'a str,
     pub map_name: &'a str,
     pub zone: i32,
@@ -145,6 +150,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             _ => "",
         },
         since: &e.since,
+        stat_plan: e.account.stats,
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,
             level: s.level,
@@ -157,6 +163,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             combat: s.combat,
             stat_points: s.stat_points,
             skill_points: s.skill_points,
+            element: s.element,
             map_id: &s.map_id,
             map_name: &s.map_name,
             zone: s.zone,

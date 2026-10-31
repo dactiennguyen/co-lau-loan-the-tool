@@ -70,6 +70,8 @@ pub fn run() {
             commands::fight,
             commands::quest,
             commands::stop,
+            commands::set_stats,
+            commands::add_stat,
             commands::add_account,
             commands::update_account,
             commands::remove_account,

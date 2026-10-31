@@ -37,7 +37,7 @@ export function AccountPage({ account }: { account: Account }) {
       <MetricRow character={c} />
       <div className="page__columns">
         <div className="page__stack">
-          <StatsCard character={c} />
+          <StatsCard account={account} onAdd={(stat) => api.addStat(id, stat)} onPlan={() => open({ kind: "stats", id })} />
           <PlayersCard character={c} />
         </div>
         <div className="page__stack page__stack--tasks">

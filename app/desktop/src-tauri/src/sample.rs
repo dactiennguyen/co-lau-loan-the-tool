@@ -5,6 +5,7 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{BattleView, BossTile, QuestRun, Snapshot, Target};
 use cllt_core::net::ConnState;
+use cllt_core::potentials::StatPlan;
 use cllt_core::runner::Turn;
 use cllt_core::world::{Nearby, Quest, QuestStep};
 use serde_json::json;
@@ -17,6 +18,7 @@ fn account(label: &str, username: &str) -> Account {
         password: String::new(),
         server_id: 24,
         skill: None,
+        stats: None,
     }
 }
 
@@ -79,6 +81,7 @@ fn main_character() -> Snapshot {
         coin: Some(2664),
         stats: vec![32, 10, 10, 30, 0, 0, 0, 0, 0, 0],
         combat: Some([32, 5, 30, 20, 6]),
+        element: Some(1),
         stat_points: Some(68),
         skill_points: Some(19),
         map_id: "M2".into(),
@@ -183,6 +186,7 @@ fn final_turn(n: u32, eaten: Vec<(i16, u32)>, damage: i32, s2: i32, hp: i32) -> 
 
 pub fn entries() -> Vec<Entry> {
     let mut main = Entry::new(0, account("Nick chính", "manina"));
+    main.account.stats = Some(StatPlan::Weights([3, 0, 1, 0]));
     (main.state, main.snap, main.since) = (ConnState::Online, main_character(), "17:40".into());
     let lines = [
         ("Đã vào game", None),
@@ -220,6 +224,7 @@ pub fn entries() -> Vec<Entry> {
     }
 
     let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"));
+    second.account.stats = Some(StatPlan::Auto);
     second.state = ConnState::Online;
     second.since = "17:42".into();
     second.snap = Snapshot {
@@ -232,6 +237,7 @@ pub fn entries() -> Vec<Entry> {
         coin: Some(860),
         stats: vec![26, 10, 10, 24, 0, 0, 0, 0, 0, 0],
         combat: Some([26, 9, 30, 20, 6]),
+        element: Some(4),
         stat_points: Some(46),
         skill_points: Some(13),
         map_id: "M1".into(),

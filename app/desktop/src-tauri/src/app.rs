@@ -5,6 +5,7 @@ use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
 use cllt_core::bot::Snapshot;
 use cllt_core::net::{Command, ConnState, Event, Manager};
+use cllt_core::potentials::StatPlan;
 use serde::Serialize;
 use std::collections::{BTreeSet, VecDeque};
 use std::path::PathBuf;
@@ -162,6 +163,7 @@ impl Shared {
                     edit.password
                 },
                 skill: old.skill,
+                stats: old.stats,
                 ..edit
             };
             app.unique(&account, Some(id))?;
@@ -173,6 +175,34 @@ impl Shared {
             if let Some(e) = app.entry_mut(id) {
                 e.account = account;
                 app.touch(id, false);
+            }
+        });
+        Ok(())
+    }
+
+    /// Saves how the account spends potential points on its own (None: not at all) and tells its session, if it has one.
+    pub async fn set_stats(&self, id: u64, plan: Option<StatPlan>) -> Result<(), String> {
+        let _turn = self.saving.lock().await;
+        let (path, list, account) = self.with(|app| {
+            let old = &app
+                .entry(id)
+                .ok_or("Nick này không còn trong danh sách")?
+                .account;
+            let account = Account {
+                stats: plan,
+                ..old.clone()
+            };
+            let (path, list) = app.saved(Some(id), Some(&account))?;
+            Ok::<_, String>((path, list, account))
+        })?;
+        write(path, list).await?;
+        self.with(|app| {
+            if let Some(e) = app.entry_mut(id) {
+                e.account = account;
+                app.touch(id, false);
+            }
+            if app.running(id) {
+                app.send(id, Command::Stats(plan));
             }
         });
         Ok(())
@@ -457,6 +487,7 @@ mod tests {
             password: "x".into(),
             server_id: 24,
             skill: None,
+            stats: None,
         }
     }
 

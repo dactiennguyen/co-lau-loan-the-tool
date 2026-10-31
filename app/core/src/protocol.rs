@@ -322,6 +322,10 @@ pub fn character_profile(p: &[u8]) -> Result<Profile> {
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Character {
+    /// The element: 1 Hỏa (manina), 4 Thủy (the second account); its skills are 1000 × element + 0…8. Not in the TS
+    /// vectors of characterPrefix.
+    #[serde(skip)]
+    pub field01: u8,
     pub name: String,
     pub numeric_id: i32,
     pub display_name: String,
@@ -334,9 +338,9 @@ pub fn character_prefix(p: &[u8]) -> Result<Character> {
 }
 fn prefix(r: &mut Reader) -> Result<Character> {
     let status = r.u8()?;
-    // field01 is no count of characters: 1 for manina, 4 for a second account, equal to flag1 both times, the same
-    // layout after it (characterPrefix of src/protocol.ts).
-    r.u8()?;
+    // field01 is no count of characters but the element: 1 for manina, 4 for a second account, equal to flag1 both
+    // times, the same layout after it (characterPrefix of src/protocol.ts).
+    let field01 = r.u8()?;
     if status != 1 {
         return err(
             "UNSUPPORTED_BRANCH",
@@ -346,6 +350,7 @@ fn prefix(r: &mut Reader) -> Result<Character> {
     let (name, numeric_id, display_name) = (r.string()?, r.i32()?, r.string()?);
     r.take(2)?;
     Ok(Character {
+        field01,
         name,
         numeric_id,
         display_name,

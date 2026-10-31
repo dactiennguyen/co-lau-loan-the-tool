@@ -12,7 +12,9 @@ export type Dialog =
   | { kind: "edit"; id: number }
   | { kind: "remove"; id: number }
   /** Dừng while a battle is on: play it out or surrender. */
-  | { kind: "stop"; id: number };
+  | { kind: "stop"; id: number }
+  /** How potential points are spent on their own. */
+  | { kind: "stats"; id: number };
 
 export interface Store extends Accounts {
   /** Why accounts.json could not be read; the app then never writes it. */

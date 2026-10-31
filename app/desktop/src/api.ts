@@ -2,7 +2,7 @@
 // shows public/sample.json, written by `npm run sample`, and the commands do nothing: enough to work on the design.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AccountForm, AccountsUpdate, AppState, LogLine } from "./types";
+import type { AccountForm, AccountsUpdate, AppState, LogLine, StatPlan } from "./types";
 
 export interface LogEvent {
   id: number;
@@ -25,6 +25,11 @@ export interface Api {
   quest(id: number, maxLosses: number, step?: QuestStepRef): Promise<void>;
   /** Dừng; with `surrender`, a battle in progress is left as the game's Đầu hàng does instead of played out. */
   stop(id: number, surrender?: boolean): Promise<void>;
+  /** Saves how potential points are spent on their own (null: not at all); the session spends what it can at once.
+   * Rejects with a message to show. */
+  setStats(id: number, plan: StatPlan | null): Promise<void>;
+  /** "Cộng +1" on the potential of that c2s/10 index. */
+  addStat(id: number, stat: number): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -46,6 +51,8 @@ const tauri: Api = {
   fight: (id, target, count, maxLosses) => invoke("fight", { id, target, count, maxLosses }),
   quest: (id, maxLosses, step) => invoke("quest", { id, maxLosses, step: step ?? null }),
   stop: (id, surrender) => invoke("stop", { id, surrender: surrender ?? false }),
+  setStats: (id, plan) => invoke("set_stats", { id, plan }),
+  addStat: (id, stat) => invoke("add_stat", { id, stat }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
@@ -74,6 +81,8 @@ const preview: Api = {
   fight: nothing,
   quest: nothing,
   stop: nothing,
+  setStats: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
+  addStat: nothing,
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),

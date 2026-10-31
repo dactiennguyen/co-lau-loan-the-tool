@@ -29,6 +29,8 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
   const targets = c?.targets ?? [];
   const job = c?.job;
   const running = !!job && job.done == null;
+  // One task at a time: a quest run is stopped first (Bot::fight refuses too).
+  const questing = !!c?.questRun && c.questRun.done == null;
   const battle = c?.battle;
   const set = (patch: Partial<FightChoice>) => onChoice({ ...choice, ...patch });
   return (
@@ -74,13 +76,14 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           <Stepper label="số trận thua" max={99} value={choice.losses} onChange={(losses) => set({ losses })} />
         </div>
         <div className="fight__buttons">
-          <Button kind="primary" icon="play" disabled={account.status !== 2 || !choice.target} onClick={onStart}>
+          <Button kind="primary" icon="play" disabled={account.status !== 2 || !choice.target || questing} onClick={onStart}>
             Bắt đầu
           </Button>
           <Button kind="danger" icon="stop" disabled={!running && !battle} onClick={onStop}>
             Dừng
           </Button>
         </div>
+        {questing && <p className="fight__busy">Đang tự làm nhiệm vụ: bấm Dừng ở tab Nhiệm vụ rồi mới đánh quái.</p>}
       </div>
       </div>
 

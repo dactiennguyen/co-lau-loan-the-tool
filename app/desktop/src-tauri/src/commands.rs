@@ -5,6 +5,7 @@ use crate::app::Shared;
 use crate::view::LogLine;
 use cllt_core::accounts::Account;
 use cllt_core::net::Command;
+use cllt_core::potentials::StatPlan;
 use serde_json::{json, Value};
 use tauri::State;
 
@@ -79,6 +80,23 @@ pub fn stop(shared: State<Shared>, id: u64, surrender: bool) {
     shared.with(|app| app.send(id, Command::Stop { surrender }));
 }
 
+/// How the account spends potential points on its own: null for not at all, "auto" (the main stat of its element) or
+/// {"weights": [Cường lực, Nội lực, Thân pháp, Thể lực]}. Saved to accounts.json; the error is shown in a toast.
+#[tauri::command]
+pub async fn set_stats(
+    shared: State<'_, Shared>,
+    id: u64,
+    plan: Option<StatPlan>,
+) -> Result<(), String> {
+    shared.set_stats(id, plan).await
+}
+
+/// "Cộng +1" on one potential, by c2s/10 index: 0 Cường lực, 1 Nội lực, 2 Thân pháp, 3 Thể lực.
+#[tauri::command]
+pub fn add_stat(shared: State<Shared>, id: u64, stat: usize) {
+    shared.with(|app| app.send(id, Command::AddStat(stat)));
+}
+
 /// The account of the add and edit form; `password` may be empty only when editing (it then stays as it was).
 fn form(
     username: String,
@@ -100,6 +118,7 @@ fn form(
         password,
         server_id,
         skill: None,
+        stats: None,
     })
 }
 

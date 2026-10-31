@@ -4,6 +4,7 @@ use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::bot::{Bot, BotOptions, Out, Snapshot};
 use crate::opcodes::{HOST, PORT};
+use crate::potentials::StatPlan;
 use crate::protocol::{
     character_location, character_prefix, handshake, map_prefix, session_key, Protocol, Reader,
 };
@@ -33,6 +34,10 @@ pub enum Command {
     Stop {
         surrender: bool,
     },
+    /// How potential points are spent on their own, None for not at all (Bot::set_stats).
+    Stats(Option<StatPlan>),
+    /// "Cộng +1" on the potential of that c2s/10 index (Bot::add_stat).
+    AddStat(usize),
     Logout,
 }
 
@@ -146,6 +151,7 @@ async fn session(
     let mut proto = Protocol::default();
     let options = BotOptions {
         skill: account.skill,
+        stats: account.stats,
         ..BotOptions::default()
     };
     let mut bot = Bot::new(options, atlas);
@@ -253,6 +259,7 @@ async fn session(
                             if entities && snapshot {
                                 step = Step::Ready;
                                 emit(Event::State(ConnState::Online));
+                                bot.on_ready(std::time::Instant::now(), &mut out);
                             }
                         }
                         _ => {}
@@ -271,6 +278,8 @@ async fn session(
                     Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
+                    Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
+                    Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),
@@ -501,6 +510,7 @@ mod tests {
             password: "abc".into(),
             server_id: 24,
             skill: None,
+            stats: None,
         };
         let emit: Emit = Arc::new(move |e| sink.lock().unwrap().push(e));
         let task = tokio::spawn(run_at(

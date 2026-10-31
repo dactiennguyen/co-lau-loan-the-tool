@@ -5,6 +5,7 @@ use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
 use cllt_core::bot::{Bot, BotOptions, Out};
+use cllt_core::potentials::StatPlan;
 use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
 use cllt_core::requests::{build, Ctx};
@@ -989,8 +990,20 @@ fn atlas_finds_the_way_atlas_ts_finds() {
 
 #[test]
 fn quest_run_sends_what_quest_bot_sends() {
-    for s in v()["questReplays"].as_array().unwrap() {
+    // Every replay runs, and the names of those that failed come at the end: one not ported yet hides no other.
+    let (all, mut failed) = (v(), vec![]);
+    for s in all["questReplays"].as_array().unwrap() {
         let name = s["name"].as_str().unwrap();
+        let replay = std::panic::catch_unwind(|| quest_replay(s, name));
+        if replay.is_err() {
+            failed.push(name);
+        }
+    }
+    assert!(failed.is_empty(), "replays that failed: {failed:?}");
+}
+
+fn quest_replay(s: &Value, name: &str) {
+    {
         let atlas = match &s["atlas"] {
             Value::Null => Atlas::default(),
             a => serde_json::from_value(a.clone()).unwrap(),
@@ -1004,6 +1017,17 @@ fn quest_run_sends_what_quest_bot_sends() {
                 bot.on_packet(op, &hex(p[1].as_str().unwrap()), now, &mut out)
                     .unwrap();
             } else if step["start"] == true {
+                // `stats` in TS: QuestBotOptions.stats, the stat plan of the run.
+                let plan = match &step["stats"] {
+                    Value::String(s) if s == "auto" => Some(StatPlan::Auto),
+                    Value::Array(w) => Some(StatPlan::Weights(std::array::from_fn(|i| {
+                        w[i].as_u64().unwrap() as u32
+                    }))),
+                    _ => None,
+                };
+                if plan.is_some() {
+                    bot.set_stats(plan, now, &mut out);
+                }
                 // `once` in TS: ▶ on the step current at the start.
                 let only = (step["once"] == true).then(|| {
                     let q = bot.snap.quest.as_ref().unwrap();
@@ -1183,13 +1207,119 @@ fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
     let run = bot.snap.quest_run.clone().unwrap();
     assert_eq!((run.losses, run.done.as_deref()), (1, Some("Thua 1 trận")));
     assert_eq!(bot.deadline(), None);
-    // A fight job replaces a quest run, and Stop ends a new run before it sends anything else.
+    // One task at a time: a fight job is refused while a quest run goes on, and the other way round.
     bot.quest(2, None, now, &mut out);
+    out.clear();
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     assert_eq!(
-        bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
-        Some("Đã chuyển sang việc đánh quái")
+        out,
+        [Out::Log(
+            "Đang tự làm nhiệm vụ: bấm Dừng rồi mới đánh quái".into()
+        )]
     );
+    assert_eq!(bot.snap.quest_run.as_ref().unwrap().done, None);
+    assert_eq!(bot.snap.job, None);
+    bot.stop(false, now, &mut out);
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    out.clear();
+    bot.quest(2, None, now, &mut out);
+    assert_eq!(
+        out,
+        [Out::Log(
+            "Đang đánh quái: bấm Dừng rồi mới làm nhiệm vụ".into()
+        )]
+    );
+    assert_eq!(bot.snap.job.as_ref().unwrap().done, None);
+    assert_eq!(
+        bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
+        Some("Đã dừng")
+    );
+}
+
+/// s2c/10 kind 8 with the potential points left (P1).
+fn points_left(left: i32) -> Vec<u8> {
+    Writer::new()
+        .i32(8)
+        .string("manina")
+        .i32(left)
+        .i32(16)
+        .i32(0)
+        .i32(21)
+        .string("421")
+        .string("125")
+        .build()
+}
+
+fn stat_point(stat: i32) -> Out {
+    Out::Send(10, Writer::new().i32(stat).i32(1).build())
+}
+
+#[test]
+fn the_stat_plan_spends_points_while_idle_and_between_battles_and_plus_one_waits_for_the_battle() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(10, &points_left(3), now, &mut out).unwrap();
+    out.clear();
+    // "Cộng +1" without a plan: that point only.
+    bot.add_stat(3, &mut out);
+    assert_eq!(out.last(), Some(&stat_point(3)));
+    bot.on_packet(10, &points_left(2), now, &mut out).unwrap();
+    assert_eq!(bot.deadline(), None);
+    // A plan set while nothing runs spends at once, one point per answer.
+    out.clear();
+    bot.set_stats(Some(StatPlan::Weights([0, 0, 1, 0])), now, &mut out);
+    assert_eq!(out.last(), Some(&stat_point(2)));
+    bot.on_packet(10, &points_left(1), now, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!(out.last(), Some(&stat_point(2)));
+    bot.on_packet(10, &points_left(0), now, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!(
+        out,
+        [Out::Log(
+            "Đã tự cộng điểm tiềm năng: Thân pháp +2; còn 0".into()
+        )]
+    );
+    // Points of a level up during a fight job wait for the battle to end, and so does "Cộng +1".
+    bot.fight("Cóc Xanh", 2, 1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    out.clear();
+    bot.add_stat(0, &mut out);
+    assert_eq!(
+        out,
+        [Out::Log(
+            "Chưa cộng Cường lực: đang đánh, đợi hết trận".into()
+        )]
+    );
+    bot.on_packet(10, &points_left(4), now, &mut out).unwrap();
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    out.clear();
+    let rest = bot.deadline().unwrap();
+    bot.on_timer(rest, &mut out);
+    assert_eq!(out.last(), Some(&stat_point(2)));
+    // A point the server does not answer ends the plan's spending and the job.
+    let silence = bot.deadline().unwrap();
+    assert_eq!(silence, rest + Duration::from_secs(8));
+    bot.on_timer(silence, &mut out);
+    assert_eq!(
+        bot.snap.job.as_ref().unwrap().done.as_deref(),
+        Some("Server không trả lời khi cộng điểm tiềm năng")
+    );
+    bot.on_packet(10, &points_left(4), now, &mut out).unwrap();
+    assert_eq!(bot.deadline(), None);
+}
+
+#[test]
+fn auto_needs_the_element_and_the_stat_step_follows_the_plan() {
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.on_packet(10, &points_left(2), now, &mut out).unwrap();
+    out.clear();
+    bot.set_stats(Some(StatPlan::Auto), now, &mut out);
+    assert!(out.contains(&Out::Log(
+        "Chưa biết chỉ số chính của hệ này: không tự cộng điểm tiềm năng".into()
+    )));
+    assert!(!out.iter().any(|o| matches!(o, Out::Send(..))));
 }
 
 #[test]

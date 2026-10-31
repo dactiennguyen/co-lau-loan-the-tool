@@ -6,6 +6,7 @@ import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
+import { StatPlanDialog } from "./views/StatPlanDialog";
 import { StopDialog } from "./views/StopDialog";
 import { Toaster } from "./views/Toaster";
 import "./App.css";
@@ -50,6 +51,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "stop" && account) {
     return <StopDialog account={account} onClose={close} />;
+  }
+  if (dialog?.kind === "stats" && account) {
+    return <StatPlanDialog account={account} onClose={close} />;
   }
   if (dialog?.kind === "remove" && account) {
     return (

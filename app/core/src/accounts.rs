@@ -1,4 +1,5 @@
 //! accounts.json: the accounts the app logs in with. Local only (app/.gitignore); passwords are never logged or shown.
+use crate::potentials::StatPlan;
 use crate::runner::Skill;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -15,6 +16,9 @@ pub struct Account {
     /// Skill cast in battle once nội lực reaches its cost.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skill: Option<Skill>,
+    /// How potential points are spent on their own (Bot::set_stats); set from the Chỉ số card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stats: Option<StatPlan>,
 }
 fn default_server() -> i32 {
     crate::opcodes::SERVER_ID
@@ -78,6 +82,7 @@ pub fn from_env(path: &Path) -> Option<Account> {
             .and_then(|v| v.parse().ok())
             .unwrap_or_else(default_server),
         skill: None,
+        stats: None,
     })
 }
 
@@ -96,6 +101,7 @@ mod tests {
             password: "secret".into(),
             server_id: 24,
             skill: None,
+            stats: None,
         };
         save(&path, std::slice::from_ref(&account)).unwrap();
         assert_eq!(load(&path).unwrap(), vec![account]);

@@ -6,6 +6,7 @@
 //! or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
 use crate::battle::{battle_setup, Strategy};
+use crate::potentials::{next_stat, StatPlan, POTENTIALS};
 use crate::protocol::{
     character_location, character_prefix, character_profile, map_prefix, Reader, Writer,
 };
@@ -32,6 +33,8 @@ pub struct BotOptions {
     pub strategy: Strategy,
     pub timed_move: Duration,
     pub rest: Duration,
+    /// How potential points are spent on their own (Bot::set_stats).
+    pub stats: Option<StatPlan>,
 }
 impl Default for BotOptions {
     fn default() -> Self {
@@ -40,6 +43,7 @@ impl Default for BotOptions {
             strategy: Strategy::kill(),
             timed_move: Duration::from_millis(1000),
             rest: Duration::from_secs(3),
+            stats: None,
         }
     }
 }
@@ -137,6 +141,8 @@ pub struct Snapshot {
     pub stats: Vec<i32>,
     /// Attack, defence, then probably accuracy, dodge, critical (s2c/9, extra[1..5] of s2c/10 kind 4).
     pub combat: Option<[i32; 5]>,
+    /// The element, field01 of s2c/9: 1 Hỏa, 4 Thủy (potentials::main_stat).
+    pub element: Option<i32>,
     /// Points left to spend (s2c/9, s2c/10 kind 8).
     pub stat_points: Option<i32>,
     pub skill_points: Option<i32>,
@@ -178,6 +184,8 @@ enum Wake {
     /// A talk, stat point or portal the server did not answer in 8 s, or a level step it did not advance: the quest run
     /// stops with this reason.
     Silence(&'static str),
+    /// A point of the stat plan the server did not answer in 8 s.
+    StatSilence,
 }
 
 pub struct Bot {
@@ -216,10 +224,20 @@ pub struct Bot {
     /// Until when a surrender waits for s2c/1214 or s2c/36 before the battle is played on. Its own deadline, so a job
     /// started or stopped meanwhile cannot clear it.
     leave_until: Option<Instant>,
+    /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
+    /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
+    /// 8, `allot_failed` once one went unanswered, until the plan is set again.
+    stat_plan: Option<StatPlan>,
+    given: [u32; 4],
+    spent: [u32; 4],
+    allotting: bool,
+    allot_failed: bool,
+    plan_warned: bool,
 }
 
 impl Bot {
     pub fn new(options: BotOptions, atlas: Arc<Atlas>) -> Self {
+        let stat_plan = options.stats;
         Self {
             snap: Snapshot::default(),
             mobs: vec![],
@@ -243,6 +261,12 @@ impl Bot {
             runs: 0,
             reload_map: false,
             leave_until: None,
+            stat_plan,
+            given: [0; 4],
+            spent: [0; 4],
+            allotting: false,
+            allot_failed: false,
+            plan_warned: false,
         }
     }
 
@@ -377,6 +401,16 @@ impl Bot {
                     }
                 }
                 Wake::Silence(reason) => self.finish_quest(reason, out),
+                Wake::StatSilence => {
+                    (self.allotting, self.allot_failed) = (false, true);
+                    let reason = "Server không trả lời khi cộng điểm tiềm năng";
+                    out.push(Out::Log(format!("{reason}; thôi tự cộng điểm")));
+                    if self.quest_running() {
+                        self.finish_quest(reason, out);
+                    } else if self.job_running() {
+                        self.finish(reason, out);
+                    }
+                }
             }
         }
         if self.leave_until.is_some_and(|t| t <= now) {
@@ -402,8 +436,11 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) {
+        // One task at a time: the quest run has to be stopped first (and the other way round in quest()).
         if self.quest_running() {
-            self.finish_quest("Đã chuyển sang việc đánh quái", out);
+            return out.push(Out::Log(
+                "Đang tự làm nhiệm vụ: bấm Dừng rồi mới đánh quái".into(),
+            ));
         }
         self.snap.job = Some(Job {
             target: target.into(),
@@ -425,7 +462,7 @@ impl Bot {
             self.next(now, out);
         }
     }
-    /// Starts "Tự làm nhiệm vụ" on the current quest, replacing a fight job or quest run as `fight` replaces one. With
+    /// Starts "Tự làm nhiệm vụ" on the current quest, replacing a quest run; refused while a fight job runs. With
     /// `step` = (quest id, step index), ▶ on a step, it plays only that step and ends once the quest moves past it. A step
     /// that is not the current one of that quest, as when the UI was a moment behind, is refused without sending anything:
     /// with nothing running, by a run that has already ended, for the UI to show.
@@ -436,6 +473,11 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) {
+        if self.job_running() {
+            return out.push(Out::Log(
+                "Đang đánh quái: bấm Dừng rồi mới làm nhiệm vụ".into(),
+            ));
+        }
         let playing = step.and_then(|(id, i)| {
             let q = self
                 .snap
@@ -448,13 +490,10 @@ impl Bot {
         if let (Some(i), None) = (index, &playing) {
             let reason = "Bước đó không còn là bước đang làm";
             out.push(Out::Log(format!("Không làm bước {}: {reason}", i + 1)));
-            if !self.quest_running() && !self.job_running() {
+            if !self.quest_running() {
                 self.snap.quest_run = Some(self.new_run(max_losses, index, Some(reason.into())));
             }
             return;
-        }
-        if self.job_running() {
-            self.finish("Đã chuyển sang tự làm nhiệm vụ", out);
         }
         if self.quest_running() {
             self.finish_quest("Đã bắt đầu lần chạy mới", out);
@@ -579,11 +618,15 @@ impl Bot {
     }
 
     fn next(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if self.battle.is_some() {
+        if self.battle.is_some() || self.allotting {
             return;
         }
         if self.quest_running() {
             return self.quest_next(now, out);
+        }
+        // Between the battles of a job, or with nothing to do, the stat plan spends the points there are first.
+        if self.allot(now, out) {
+            return;
         }
         let Some(job) = self.snap.job.clone().filter(|j| j.done.is_none()) else {
             return;
@@ -725,6 +768,7 @@ impl Bot {
             9 => {
                 let c = character_prefix(payload)?;
                 (s.name, s.level, s.hp, s.max_hp) = (c.name, c.level, c.hp, c.max_hp);
+                s.element = Some(c.field01 as i32);
                 // The tail layout comes from two captures; without it EXP and stats wait for s2c/10.
                 match character_profile(payload) {
                     Ok(p) => {
@@ -892,6 +936,7 @@ impl Bot {
                 if st.stat_points.is_some() {
                     s.stat_points = st.stat_points;
                     s.skill_points = st.fields.as_ref().and_then(|f| f.first().copied());
+                    self.points_changed(now);
                 }
             }
             1256 => {
@@ -1111,6 +1156,9 @@ impl Bot {
             self.advance(&format!("Xong \"{}\"", step.text), out);
             return self.quest_next(now, out);
         }
+        if !matches!(action, StepAction::Stat) && self.allot(now, out) {
+            return;
+        }
         if self.elsewhere(&action, &q, &step.text, now, out) {
             return;
         }
@@ -1148,11 +1196,21 @@ impl Bot {
                     Wake::Silence("Đã đủ cấp nhưng server chưa sang bước sau"),
                 ));
             }
+            // By the stat plan when there is one, else into Cường lực.
             StepAction::Stat => {
-                self.doing("Cộng 1 điểm tiềm năng vào Cường lực".into());
-                out.push(Out::Log("Cộng 1 điểm tiềm năng vào Cường lực".into()));
+                let stat = match self.plan_weights() {
+                    Some(w) => {
+                        let s = next_stat(&w, &self.given);
+                        self.given[s] += 1;
+                        s
+                    }
+                    None => 0,
+                };
+                let text = format!("Cộng 1 điểm tiềm năng vào {}", POTENTIALS[stat].0);
+                self.doing(text.clone());
+                out.push(Out::Log(text));
                 let ctx = Ctx {
-                    stat: Some(0),
+                    stat: Some(stat as i32),
                     amount: Some(1),
                     ..Ctx::default()
                 };
@@ -1413,5 +1471,147 @@ impl Bot {
             return self.finish_quest(&format!("Thua {losses} trận"), out);
         }
         self.timer = Some((now + self.options.rest, Wake::Next));
+    }
+}
+
+/// Potential points: the stat plan (--stats of QuestBot) and "Cộng +1" on one stat.
+impl Bot {
+    /// The game has let the character in (net.rs): the stat plan spends what points there are.
+    pub fn on_ready(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if self.stat_plan.is_some() && self.idle() {
+            self.next(now, out);
+        }
+    }
+
+    /// Sets how potential points are spent on their own, None for not at all. With nothing running they go out now; a
+    /// job or quest run spends them between battles.
+    pub fn set_stats(&mut self, plan: Option<StatPlan>, now: Instant, out: &mut Vec<Out>) {
+        (self.stat_plan, self.given, self.spent) = (plan, [0; 4], [0; 4]);
+        (self.allot_failed, self.plan_warned) = (false, false);
+        out.push(Out::Log(match plan {
+            None => "Thôi tự cộng điểm tiềm năng".into(),
+            Some(StatPlan::Auto) => "Tự cộng điểm tiềm năng vào chỉ số chính của hệ".into(),
+            Some(StatPlan::Weights(w)) => format!(
+                "Tự cộng điểm tiềm năng theo tỉ lệ {}",
+                Self::by_stat(&w, ", ", |n| format!(" {n}"))
+            ),
+        }));
+        if self.idle() {
+            self.next(now, out);
+        }
+    }
+
+    /// "Cộng +1" on the stat of c2s/10 index `stat`: one point now. Not in a battle, nor while the plan waits for an
+    /// answer.
+    pub fn add_stat(&mut self, stat: usize, out: &mut Vec<Out>) {
+        let Some(&(name, _)) = POTENTIALS.get(stat) else {
+            return;
+        };
+        let refused = if self.battle.is_some() {
+            Some("đang đánh, đợi hết trận")
+        } else if self.allotting {
+            Some("bot đang tự cộng điểm")
+        } else if self.snap.stat_points.unwrap_or(0) <= 0 {
+            Some("hết điểm tiềm năng")
+        } else {
+            None
+        };
+        if let Some(why) = refused {
+            return out.push(Out::Log(format!("Chưa cộng {name}: {why}")));
+        }
+        out.push(Out::Log(format!("Cộng 1 điểm tiềm năng vào {name}")));
+        let ctx = Ctx {
+            stat: Some(stat as i32),
+            amount: Some(1),
+            ..Ctx::default()
+        };
+        Self::send(out, 10, ctx);
+    }
+
+    /// No battle, job, quest run or timer: what `next` would do is the stat plan only.
+    fn idle(&self) -> bool {
+        self.battle.is_none()
+            && self.timer.is_none()
+            && !self.job_running()
+            && !self.quest_running()
+    }
+
+    fn plan_weights(&self) -> Option<[u32; 4]> {
+        self.stat_plan?.weights(self.snap.element)
+    }
+
+    /// `values` by c2s/10 index as "Cường lực 3, Thân pháp 1", leaving out the zeros.
+    fn by_stat(values: &[u32; 4], sep: &str, show: impl Fn(u32) -> String) -> String {
+        let parts: Vec<String> = (0..4)
+            .filter(|&i| values[i] > 0)
+            .map(|i| format!("{}{}", POTENTIALS[i].0, show(values[i])))
+            .collect();
+        parts.join(sep)
+    }
+
+    /// s2c/10 kind 8, the points left. It comes last of the three that answer c2s/10 (P1), so a point of the plan goes
+    /// on to the next in 250 ms; points that came with a level while nothing runs go out the same way.
+    fn points_changed(&mut self, now: Instant) {
+        if self.allotting {
+            self.allotting = false;
+            self.timer = Some((now + Duration::from_millis(250), Wake::Next));
+        } else if self.stat_plan.is_some() && !self.allot_failed && self.idle() {
+            self.timer = Some((now + Duration::from_millis(250), Wake::Next));
+        }
+    }
+
+    /// One point of the stat plan (allot of QuestBot): c2s/10 (stat, 1), the next once s2c/10 kind 8 answers it, so
+    /// points go out between battles only. Points for the "Nâng điểm tiềm năng" steps still ahead in the quest are kept
+    /// for them. True when a point was sent.
+    fn allot(&mut self, now: Instant, out: &mut Vec<Out>) -> bool {
+        if self.allot_failed {
+            return false;
+        }
+        let Some(weights) = self.plan_weights() else {
+            if self.stat_plan.is_some() && !self.plan_warned {
+                self.plan_warned = true;
+                out.push(Out::Log(
+                    "Chưa biết chỉ số chính của hệ này: không tự cộng điểm tiềm năng".into(),
+                ));
+            }
+            return false;
+        };
+        let keep = self.snap.quest.as_ref().map_or(0, |q| {
+            q.steps
+                .iter()
+                .skip(q.current.max(0) as usize)
+                .filter(|s| matches!(step_action(&s.text, s.npc_id), StepAction::Stat))
+                .count() as i32
+        });
+        let left = self.snap.stat_points.unwrap_or(0);
+        if left <= keep {
+            if self.spent.iter().any(|&n| n > 0) {
+                let kept = match keep {
+                    0 => String::new(),
+                    n => format!(", chừa {n} cho bước \"Nâng điểm tiềm năng\""),
+                };
+                out.push(Out::Log(format!(
+                    "Đã tự cộng điểm tiềm năng: {}; còn {left}{kept}",
+                    Self::by_stat(&self.spent, ", ", |n| format!(" +{n}"))
+                )));
+                self.spent = [0; 4];
+            }
+            return false;
+        }
+        if self.spent.iter().all(|&n| n == 0) {
+            out.push(Out::Log(format!("Tự cộng {} điểm tiềm năng", left - keep)));
+        }
+        let stat = next_stat(&weights, &self.given);
+        self.given[stat] += 1;
+        self.spent[stat] += 1;
+        self.allotting = true;
+        let ctx = Ctx {
+            stat: Some(stat as i32),
+            amount: Some(1),
+            ..Ctx::default()
+        };
+        Self::send(out, 10, ctx);
+        self.timer = Some((now + Duration::from_secs(8), Wake::StatSilence));
+        true
     }
 }

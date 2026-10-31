@@ -208,7 +208,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | Thanh bên | Logo, số nick và số nick đang trong game, "Thêm nick". Mỗi nick là một thẻ: avatar màu theo tên và chấm trạng thái, tên, cấp, map và khu (hoặc lời báo lỗi), chip trạng thái, thanh HP, số người trong khu, nút đăng nhập/thoát riêng. **Chuột phải** (hoặc phím Menu, Shift+F10) mở menu của nick: Đăng nhập, Đăng xuất hoặc Huỷ đăng nhập tuỳ trạng thái; Sửa nick; Xoá nick (chỉ khi đã thoát, có hỏi lại). Dưới cùng: "Đăng nhập tất cả", thoát tất cả |
 | Thẻ nhân vật | Tên, cấp, trạng thái (Ngoại tuyến / Đang kết nối / Trực tuyến / Đang đánh / Làm nhiệm vụ / Lỗi), giờ vào game. **Vị trí** dạng chữ: tên map, mã map, khu, x/y. **Xung quanh**: số người khác trong khu. Nút Đăng nhập/Đăng xuất, Xoá nick (có hỏi lại) |
 | 3 ô | HP; kinh nghiệm (EXP / mốc cấp, %, còn bao nhiêu lên cấp); xu |
-| Chỉ số | Tấn công, Phòng thủ, Chính xác, Né tránh, Chí mạng; số điểm tiềm năng chưa cộng, 4 tiềm năng Cường lực, Thân pháp, Nội lực, Thể lực (thứ tự đo ở P1, [user-data](../../app/user-data.md#đuôi-s2c9)), rồi số điểm kỹ năng chưa dùng. Chưa cộng điểm được từ app: `c2s/10` mới đo mã của Cường lực (0) và Thân pháp (2), còn Nội lực (1) và Thể lực (3) là suy luận ([12-skills-items](../../app/events/12-skills-items.md#điểm-tiềm-năng)) |
+| Chỉ số | Tấn công, Phòng thủ, Chính xác, Né tránh, Chí mạng; số điểm tiềm năng chưa cộng, 4 tiềm năng Cường lực, Thân pháp, Nội lực, Thể lực (thứ tự đo ở P1, [user-data](../../app/user-data.md#đuôi-s2c9)), mỗi tiềm năng có nút **+** cộng 1 điểm (`c2s/10 (chỉ số, 1)` như nút "Cộng +1" của game; khoá khi đang đánh hay hết điểm); dòng **Tự cộng** (Tắt / Theo hệ / Tỉ lệ) với nút Đổi mở hộp chọn, xem [Tự cộng điểm tiềm năng](#tự-cộng-điểm-tiềm-năng); rồi số điểm kỹ năng chưa dùng |
 | Xung quanh | Người chơi khác trong khu, cấp cao xếp trước. Cấp cao hơn mình tô đỏ, bằng tô vàng, thấp hơn tô xanh. Khi `s2c/1263` có bản ghi người chơi chưa đọc được, số người hiện `?` thay vì một con số sai |
 | Tab Nhiệm vụ | Tên và số nhiệm vụ chính, bước đang làm trên tổng số bước. Từng bước: xong (ô xanh có dấu tích, số con đủ như 15/15), đang làm (ô vàng, viền vàng, thanh tiến độ khi bước cần nhiều con hoặc nhiều sát thương), chưa làm (ô trống). Cuối dòng của mỗi bước chưa xong có nút ▶: vàng ở bước đang làm, mờ ở các bước sau vì server chỉ tính bước đang làm. Khi bước đang chạy, ▶ của nó thành ■ để dừng. Dòng việc bot đang làm, thắng/thua, EXP/xu, số nhiệm vụ đã xong; lý do dừng khi đã dừng. Tự làm nhiệm vụ, Dừng, số trận thua cho phép (dùng cho cả ▶). Cảnh báo cộng điểm tiềm năng chỉ hiện khi nhiệm vụ còn bước đó. Danh sách bước tự cuộn tới bước đang làm khi cửa sổ thấp |
 | Tab Đánh quái | Quái và boss của khu, boss xếp trước, có huy hiệu BOSS; số trận (ô − + và nút nhanh 5/10/20/50); số trận thua cho phép; Bắt đầu, Dừng; tiến độ, thắng/thua, EXP/xu đã nhận; HP hai bên trong trận |
@@ -262,14 +262,14 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 | "Tiêu diệt X", "Đánh bại X" | `c2s/15` lần lượt từng con tên X. Mỗi trận thắng tính 1, rồi số của server (`s2c/1201`) thay số tự đếm |
 | "Gây N sát thương lên X" | Boss X (`s2c/1177`) bằng `c2s/1178`; thắng hay thua đều cộng sát thương; thua boss không làm bot dừng |
 | "Đạt cấp độ N" | Chưa đủ cấp: đánh loại quái mạnh nhất không quá cấp mình, không chọn boss |
-| "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào Cường lực |
+| "Nâng điểm tiềm năng" | `c2s/10 (chỉ số, 1)`: 1 điểm theo [Tự cộng](#tự-cộng-điểm-tiềm-năng), Tắt thì vào Cường lực |
 | NPC hoặc quái ở map khác | Qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Cổng đầu tiên trên đường ngắn nhất theo `data/maps.json` cộng những gì phiên đã thấy, nếu không thì cổng tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 cổng một bước. Cổng bị từ chối (`s2c/1256`) bị bỏ qua |
 | Quái của bước có ở map này nhưng chưa thấy (boss đang đổi chỗ) | Đợi 5 s, tối đa 6 lần |
 | Bước khác (vd. "Sử dụng điểm kỹ năng") | Dừng, ghi rõ bước nào. Bot TS đã làm được bước này (`c2s/1191`, [12-skills-items](../../app/events/12-skills-items.md#c2s-1191)); app Rust chưa port. `vectors.json` đã có phần cần cho việc port: `skillTable`, `characterSkills`, `characterStats` kiểu 32, `c2s/1191` và `c2s/30` theo hệ, kịch bản "skill step". Bốn test parity sẽ đỏ cho tới khi port xong |
 
 - **Trả nhiệm vụ:** server gửi `s2c/35` (phần thưởng, ghi vào nhật ký), rồi `s2c/39` của nhiệm vụ mới; bot làm tiếp nhiệm vụ mới.
 - **Dừng khi:** bấm Dừng (đang có trận thì chọn đánh nốt hay đầu hàng, xem [Dừng giữa trận](#dừng-giữa-trận)), thua đủ số trận cho phép (không tính trận thua boss), gặp bước chưa biết, không còn quái của bước ở khu, NPC hay cổng không trả lời trong 8 s, đã đủ cấp mà server không sang bước sau, hoặc không đọc được NPC và cổng của map vừa tới (`s2c/11`; khi đó bản đồ trong atlas giữ nguyên, không bị ghi thành map rỗng).
-- **Chuyển việc:** bắt đầu đánh quái thì việc làm nhiệm vụ dừng, và ngược lại.
+- **Mỗi lúc một việc:** đang tự làm nhiệm vụ thì không bắt đầu đánh quái được, và ngược lại: nút Bắt đầu (hay Tự làm nhiệm vụ, ▶) mờ đi kèm một dòng nhắc bấm Dừng ở tab kia trước, và `Bot::fight` / `Bot::quest` cũng từ chối, chỉ ghi log.
 - **Bản đồ:** mỗi phiên chép `data/maps.json` lúc mở app, rồi ghi thêm map, quái, boss, cổng đã qua hay bị từ chối vào bản chép đó. App không ghi lại file; `npm run scan` và bot TS mới ghi.
 
 ### Làm một bước
@@ -277,6 +277,23 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 Nút ▶ trên một bước gửi `Command::Quest { step: Some((id nhiệm vụ, i)) }`, port từ `QuestBot` với `--once` ([Bot làm nhiệm vụ](../nodejs/quest-bot.md#chạy)). Bot làm bước `i` như bảng trên. Khi nhiệm vụ đã qua bước đó, hoặc có nhiệm vụ mới sau khi báo cáo, bot dừng với "Xong bước \"…\"" (`QuestRun.stepDone`). Nhiệm vụ qua bước khi NPC trả lời, có `s2c/39` mới, hoặc đủ số con hay đủ sát thương. Bước đủ số con từ trước thì dừng luôn, không gửi gói nào. Bot không đi tiếp sang bước sau. Nếu nhiệm vụ lùi về bước trước (chưa từng thấy) thì bot dừng với "Nhiệm vụ không còn ở bước \"…\"", không tính là xong. Các lý do dừng khác vẫn như trên.
 
 Server chỉ tính tiến độ cho bước đang làm, nên chỉ ▶ của bước đó bấm được. Nếu UI chậm một nhịp và gửi một bước không còn là bước đang làm của nhiệm vụ đó, hoặc bước của một nhiệm vụ đã trả, bot từ chối ("Bước đó không còn là bước đang làm") và không gửi gói nào. Bắt đầu một lần chạy khi lần trước chưa xong thì lần trước kết thúc với "Đã bắt đầu lần chạy mới". Mỗi lần chạy có `QuestRun.id` riêng, nhờ đó UI biết một lần chạy mới bắt đầu hay vừa kết thúc để hiện toast. Nick rời game giữa chừng (thoát, mất kết nối, lỗi) cũng có toast "Bot dừng: …".
+
+### Tự cộng điểm tiềm năng
+
+Port `--stats` của bot TS ([12-skills-items](../../app/events/12-skills-items.md#điểm-tiềm-năng)). Chọn ở khung Chỉ số → Đổi, lưu theo nick trong `accounts.json` (`"stats": "auto"` hoặc `{"weights": [Cường lực, Nội lực, Thân pháp, Thể lực]}`), gửi cho phiên bằng `Command::Stats`.
+
+| Chọn | Bot làm gì |
+|---|---|
+| Tắt | Không tự cộng. Bước "Nâng điểm tiềm năng" cộng vào Cường lực |
+| Theo hệ | Dồn vào chỉ số chính của hệ (`field01` của `s2c/9`): Hỏa Cường lực, Thủy Nội lực. Hệ khác thì không cộng và ghi log một lần |
+| Tỉ lệ | Mỗi điểm vào chỉ số đang thiếu nhiều nhất so với tỉ lệ (tính trên số điểm đã cộng từ lúc chọn), bằng nhau thì chỉ số có mã `c2s/10` nhỏ hơn |
+
+- **Gửi:** từng `c2s/10 (chỉ số, 1)`; điểm sau đi 250 ms sau khi `s2c/10` kiểu 8 của điểm trước về. Log ghi một dòng lúc bắt đầu và một dòng tổng kết theo từng chỉ số.
+- **Khi nào:** lúc vào game, ngay khi chọn (nếu nick đang rảnh), khi có điểm mới lúc rảnh (lên cấp), và giữa các trận khi đang đánh quái hay làm nhiệm vụ; không bao giờ trong trận.
+- **Chừa điểm:** giữ đủ điểm cho các bước "Nâng điểm tiềm năng" còn lại của nhiệm vụ đang làm; ở các bước đó điểm cũng theo lựa chọn.
+- **Server im 8 s:** thôi tự cộng tới khi chọn lại; việc đang chạy dừng với lý do đó.
+- Hộp chọn chỉ gửi khi bấm Lưu, vì điểm đi ngay và không lấy lại được (trừ Tẩy Tủy Đan).
+- `vectors.json` có hai kịch bản TS "stats auto" và "stats by weight": bản Rust gửi đúng từng gói. Mã của Nội lực (1) và Thể lực (3) vẫn là suy luận; **chưa cộng thử với server thật**.
 
 ### Dừng giữa trận
 
@@ -302,7 +319,7 @@ Cách khác để bỏ trận mà không mất EXP là Đăng xuất: trận d�
 | `bestMove` | 55 thế cờ, đổi HP, nội lực, sức mạnh và chiến lược: cùng nước, cùng điểm tới bit cuối |
 | Trận, bot | Vào trận → lượt quái → nước của mình → kết thúc; học thông số; boss `c2s/1178`, đợi boss đổi chỗ; dừng khi thua đủ. Trận mở muộn: tính cho việc đã gửi thách đấu chứ không cho việc mới; sau Dừng vẫn đánh hết; `s2c/22` không do app mở hay đến khi đang đánh thì bỏ qua. Map đọc hỏng thì dừng tự làm nhiệm vụ và không ghi map rỗng vào atlas |
 | Bước nhiệm vụ, đường qua cổng | `stepAction` của 11 câu bước; `route`, `destination`, `portalsOf` trên bản đồ 3 map (M1, M2, M25) với cả ba kiểu trả lời của cổng: cùng kết quả bản TS |
-| Bot nhiệm vụ | 14 kịch bản TS chạy `QuestBot` với gói thật hoặc dựng theo bố cục: nói chuyện → `s2c/34` → đánh; boss; đợi boss đổi chỗ; qua cổng tên nhiệm vụ nhắc tới; cổng bị từ chối; đường đã biết qua 2 map; đủ số con thì sang bước báo cáo; cày cấp không chọn boss; cộng điểm tiềm năng; bước lạ thì dừng; trả nhiệm vụ rồi làm nhiệm vụ mới; một bước (`--once`): NPC trả lời thì dừng trước bước đánh quái; một bước đã đủ số con thì dừng trước bước báo cáo. Bản Rust gửi đúng từng gói sau mỗi bước, và bảng cổng cuối cùng giống hệt. Thêm 3 test Rust: thắng một trận Cóc Xanh thì tiến độ 14 → 15 rồi sang báo cáo; thua thì không tính và dừng; ▶ trên Cóc Xanh 14/15 thắng một trận thì dừng ở "Xong bước", còn ▶ trên bước đã qua thì bị từ chối, không gửi gói nào |
+| Bot nhiệm vụ | 18 kịch bản TS chạy `QuestBot` với gói thật hoặc dựng theo bố cục, bản Rust qua 17 (chưa port bước kỹ năng; test chạy hết các kịch bản rồi mới báo cái nào hỏng): nói chuyện → `s2c/34` → đánh; boss; đợi boss đổi chỗ; qua cổng tên nhiệm vụ nhắc tới; cổng bị từ chối; đường đã biết qua 2 map; đủ số con thì sang bước báo cáo; cày cấp không chọn boss; cộng điểm tiềm năng; tự cộng theo hệ (chừa 1 điểm cho bước còn lại) và theo tỉ lệ; bước lạ thì dừng; trả nhiệm vụ rồi làm nhiệm vụ mới; một bước (`--once`): NPC trả lời thì dừng trước bước đánh quái; một bước đã đủ số con thì dừng trước bước báo cáo. Bản Rust gửi đúng từng gói sau mỗi bước, và bảng cổng cuối cùng giống hệt. Thêm 3 test Rust: thắng một trận Cóc Xanh thì tiến độ 14 → 15 rồi sang báo cáo; thua thì không tính và dừng; ▶ trên Cóc Xanh 14/15 thắng một trận thì dừng ở "Xong bước", còn ▶ trên bước đã qua thì bị từ chối, không gửi gói nào. Test tự cộng của app: chọn khi rảnh thì cộng ngay; điểm lên cấp giữa việc đánh quái đợi hết trận, nút + cũng vậy; server im 8 s thì thôi cộng và dừng việc; Theo hệ khi chưa biết hệ thì không gửi gì. Đang làm nhiệm vụ thì đánh quái bị từ chối, và ngược lại |
 | Lưới bản đồ | `mapGrid` của M2 (35 × 90 ô, lớp hình và lớp va chạm) giống bản TS từng byte |
 | Server thật (30/10/2026) | Bot TS đăng nhập chỉ đọc: đuôi `s2c/9` cho EXP 14238 trong mốc 13841–15882, xu 2664, x/y trùng `s2c/11`; `s2c/1263` có 8 người, không có mình. `cllt status`: manina cấp 21, HP 180/180, M2 khu 0, 8 mục tiêu (2 boss). `cllt fight --target="Heo Mọi" --count=1`: thắng sau 21 lượt, gây 234 sát thương, +92 EXP, +12 xu, HP tối đa của Heo Mọi học được là 146 |
 | Đăng nhập, server giả | 5 test trong `net.rs` chạy phiên thật với một server TCP cục bộ trả lời từng bước đăng nhập: đủ gói thì Trực tuyến; `s2c/11` hay `s2c/43` hỏng thì Lỗi có ghi opcode; `s2c/1263` hỏng thì vẫn Trực tuyến với `players_unread`; Đăng xuất khi đang chờ seed hoặc khi server im ở bước bản đồ thì phiên dừng ngay, không đợi hết giờ 8 s. Đã thử bỏ việc đọc `s2c/11` và đường Đăng xuất lúc chờ seed: 2 test tương ứng báo lỗi |
@@ -322,7 +339,6 @@ Cách khác để bỏ trận mà không mất EXP là Đăng xuất: trận d�
 - **Nhiệm vụ:**
   - Bot dừng ở bước "Sử dụng điểm kỹ năng". Bot TS đã làm được bước này, phía Rust chưa port.
   - `requests.rs` vẫn ghi `c2s/30` là 1, nên nhân vật hệ Thủy nhận nhầm cây Hỏa. Phải gửi `field01` của `s2c/9`, như client TS.
-  - Điểm tiềm năng luôn cộng vào Cường lực. Bot TS có `--stats` để cộng hết điểm theo hệ hoặc theo tỉ lệ; `vectors.json` có hai kịch bản "stats …" cho việc port.
   - Server chưa gửi nhiệm vụ phụ hay hằng ngày. Nhiệm vụ hằng ngày phải tự nhận ở Hương Lão Trần Bá (Cẩm nang), gói chưa bắt.
   - HP chỉ hồi đầy sau một trận thua; bot chưa dùng Hoàn Linh Dược (gói chưa biết) và chưa sửa đồ.
 - **Chưa port:** app không mua bán, không chat, không tự đổi map ngoài lúc làm nhiệm vụ. Quét map và ghi `data/maps.json` vẫn chỉ có bên TS.

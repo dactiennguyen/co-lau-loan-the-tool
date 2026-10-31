@@ -147,6 +147,8 @@ export type Combat = [number, number, number, number, number];
 
 export interface Character {
   name: string;
+  /** field01 of s2c/9: 1 Hỏa, 4 Thủy. */
+  element: number | null;
   level: number;
   hp: number;
   maxHp: number;
@@ -188,9 +190,15 @@ export interface Account {
   error: string;
   /** Time of day the session entered the game. */
   since: string;
+  /** How potential points are spent on their own (accounts.json); null for not at all. */
+  statPlan: StatPlan | null;
   /** Null until the session is in the game. */
   character: Character | null;
 }
+
+/** StatPlan of cllt-core's potentials.rs: the main stat of the element, or weights by c2s/10 index (Cường lực, Nội lực,
+ * Thân pháp, Thể lực). */
+export type StatPlan = "auto" | { weights: [number, number, number, number] };
 
 export interface AppState {
   /** Count of changes the reply was read at; an update with a count not above it is older. */

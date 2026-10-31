@@ -39,10 +39,11 @@ export function QuestCard({ account, onStart, onStop }: Props) {
   // The step whose ▶ turned into a stop button.
   const playing = running ? run.step : null;
   const [losses, setLosses] = useState(1);
-  // Online and idle, as for a fight job; Stop first to switch.
-  const idle = account.status === 2;
+  // Online and no fight job: one task at a time, so the job is stopped first (Bot::quest refuses too).
+  const fighting = !!c?.job && c.job.done == null;
+  const idle = account.status === 2 && !fighting;
   const stepList = q ? steps(q) : [];
-  // The one step that spends something the player chose: a potential point (it goes to Cường lực).
+  // The one step that spends something the player chose: a potential point (by the stat plan, else into Cường lực).
   const spendsPoint = stepList.some((s) => s.state !== "done" && s.text.startsWith("Nâng điểm tiềm năng"));
   // Keeps the step being played in view, with the one before it, when the list is shorter than the quest.
   const list = useRef<HTMLOListElement>(null);
@@ -134,7 +135,12 @@ export function QuestCard({ account, onStart, onStop }: Props) {
           <Stepper label="số trận thua" max={99} value={losses} onChange={setLosses} />
         </span>
       </div>
-      {spendsPoint && <p className="quest__hint">Bước "Nâng điểm tiềm năng" sẽ cộng 1 điểm vào Cường lực.</p>}
+      {fighting && <p className="quest__hint quest__hint--busy">Đang đánh quái: bấm Dừng ở tab Đánh quái rồi mới làm nhiệm vụ.</p>}
+      {spendsPoint && (
+        <p className="quest__hint">
+          Bước "Nâng điểm tiềm năng" sẽ cộng 1 điểm {account.statPlan ? "theo Tự cộng ở khung Chỉ số" : "vào Cường lực"}.
+        </p>
+      )}
     </Card>
   );
 }
