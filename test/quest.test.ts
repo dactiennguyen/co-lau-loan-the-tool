@@ -394,11 +394,13 @@ test('quest bot: --stats=auto raises the main stat of the element and keeps a po
 test('quest bot logs Xu, Xu khóa and Lượng of s2c/46 (P3, after a pickup)', () => {
   const events: Record<string, any>[] = [];
   new QuestBot({ maxFights: 1, log: e => events.push(e) }).onPacket(46, Buffer.from('0000000975706461746520587500000000004ab2a80000000000539fdc0000000000002185', 'hex'));
-  assert.deepEqual(events.find(e => e.event === 'currency'), { kind: 'quest', event: 'currency', at: events[0].at, xu: 4895400, xuKhoa: 5480412, luong: 8581 });
+  const currency = events.find(e => e.event === 'currency');
+  assert.deepEqual(currency, { kind: 'quest', event: 'currency', at: currency?.at, xu: 4895400, xuKhoa: 5480412, luong: 8581 });
 });
 
 test('quest bot logs the x2 EXP star and the faction at login (s2c/9 tail, P4)', () => {
   const events: Record<string, any>[] = [];
   new QuestBot({ maxFights: 1, log: e => events.push(e) }).onPacket(9, Buffer.from(fixtures.equip['s2c/9 symap'], 'hex'));
-  assert.deepEqual(events.find(e => e.event === 'effects'), { kind: 'quest', event: 'effects', at: events[0].at, effects: ['ef7 x2, còn 3h40'], faction: 'Thiên Tôn' });
+  const effects = events.find(e => e.event === 'effects');
+  assert.deepEqual(effects, { kind: 'quest', event: 'effects', at: effects?.at, effects: ['ef7 x2, còn 3h40'], faction: 'Thiên Tôn' });
 });
