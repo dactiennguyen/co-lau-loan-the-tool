@@ -6,6 +6,7 @@ import { Icon } from "../components/Icon";
 import { Pill } from "../components/Pill";
 import { isConnected } from "../format";
 import type { Account } from "../types";
+import { BoostTag } from "./BoostTag";
 import "./HeroCard.css";
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
   onPlace: () => void;
 }
 
-/** The selected account: who (name, level, element, status) and where (map, zone, coordinates as text, and the icon
+/** The selected account: who (name, level, element, timed effects such as x2 EXP, status) and where (map, zone, coordinates as text, and the icon
  * button after the map name that moves to another zone or map). Its money is in the tiles under it (MetricRow), the other players of the zone in their
  * card. */
 export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace }: Props) {
@@ -32,6 +33,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace }: P
             <h1>{c?.name ?? a.label}</h1>
             {c && <Badge>LV {c.level}</Badge>}
             {c && <ElementTag element={c.element} />}
+            {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}
             {a.proxy?.enabled && (
               <span className="hero__proxy" title={`Kết nối qua proxy ${a.proxy.label}`}>
                 <Icon name="shield" size={11} /> Proxy

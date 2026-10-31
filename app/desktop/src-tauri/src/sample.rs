@@ -5,7 +5,7 @@ use crate::store::{BattleFilter, Store};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BattleRecord, BattleResult, BattleSource, BattleView, BossTile, Job, LogKind, MapChoice,
+    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, Job, LogKind, MapChoice,
     Picked, PickupRecord, QuestRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
@@ -298,6 +298,12 @@ fn main_character() -> Snapshot {
         }),
         skills,
         skill_levels,
+        // The x2 EXP star of symap's capture (P4), with the time it had left.
+        boosts: vec![Boost {
+            key: "ef7".into(),
+            rate: 200_000,
+            until: ago(0) + 13_257_567,
+        }],
         ..Snapshot::default()
     }
 }

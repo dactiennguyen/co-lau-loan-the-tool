@@ -160,6 +160,7 @@ fn decoders_read_what_the_ts_decoders_read() {
             "characterExtra" => serde_json::to_value(items::character_extra(&p).unwrap()),
             "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
             "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
+            "characterTail" => serde_json::to_value(items::character_tail(&p).unwrap()),
             "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
             "gearUpdate" => serde_json::to_value(items::gear_update(&p).unwrap()),
             "groundItemAdd" => {
@@ -441,7 +442,8 @@ fn the_snapshot_holds_the_skills_and_nang_cap_sends_c2s_1191_when_it_can() {
     assert_eq!(sent(&out), [(1191, "000003e900000001".to_string())]);
 }
 
-/// The bag, gear and money cases on their own, so they report even while a decoder elsewhere in the list is missing.
+/// The bag, gear, money and s2c/9 tail cases on their own, so they report even while a decoder elsewhere in the list is
+/// missing.
 #[test]
 fn bag_gear_and_money_read_what_the_ts_decoders_read() {
     let all = v();
@@ -455,6 +457,7 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
             "characterExtra" => serde_json::to_value(items::character_extra(&p).unwrap()),
             "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
             "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
+            "characterTail" => serde_json::to_value(items::character_tail(&p).unwrap()),
             "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
             "gearUpdate" => serde_json::to_value(items::gear_update(&p).unwrap()),
             _ => continue,
@@ -463,7 +466,46 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
         seen += 1;
     }
-    assert_eq!(seen, 7);
+    assert_eq!(seen, 9);
+}
+
+/// The x2 EXP of Tăng Kinh Nghiệm comes in the s2c/9 tail with the time it has left: the snapshot keeps when it ends and
+/// the log says it at login. manina has none.
+#[test]
+fn the_x2_exp_of_the_s2c_9_tail_ends_when_its_time_runs_out() {
+    let all = v();
+    let tails: Vec<Vec<u8>> = all["decoders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["fn"] == "characterTail")
+        .map(|c| hex(c["hex"].as_str().unwrap()))
+        .collect();
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    let before = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    bot.on_packet(9, &tails[0], now, &mut out).unwrap();
+    let boosts = bot.snapshot().boosts;
+    assert_eq!(boosts.len(), 1);
+    let b = &boosts[0];
+    assert_eq!(
+        (b.key.as_str(), b.rate, b.label()),
+        ("ef7", 200_000, "x2 EXP".into())
+    );
+    // 13257567 ms left (P4) from the moment it came.
+    assert!(
+        (before + 13_257_567..before + 13_257_567 + 5_000).contains(&b.until),
+        "{}",
+        b.until
+    );
+    assert!(logged(&out, "Đang có x2 EXP, còn 3 giờ 40 phút"), "{out:?}");
+    out.clear();
+    bot.on_packet(9, &tails[1], now, &mut out).unwrap();
+    assert!(bot.snapshot().boosts.is_empty());
+    assert!(!logged(&out, "Đang có"), "{out:?}");
 }
 
 #[test]

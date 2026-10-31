@@ -3,7 +3,7 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BattleView, BossTile, FightSettings, Job, LogKind, MapChoice, Picked, QuestRun, Target,
+    BattleView, Boost, BossTile, FightSettings, Job, LogKind, MapChoice, Picked, QuestRun, Target,
 };
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
@@ -187,6 +187,8 @@ pub struct CharacterView<'a> {
     pub quest: Option<&'a Quest>,
     pub quest_run: Option<&'a QuestRun>,
     pub battle: Option<&'a BattleView>,
+    /// Timed effects at login, such as x2 EXP, each with its end.
+    pub boosts: &'a [Boost],
     /// The 8 gear slots (s2c/9 at login), None where empty; empty until then.
     pub gear: Vec<Option<ItemView>>,
     /// The bag (s2c/42, s2c/1187); None until it came.
@@ -403,6 +405,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             quest: s.quest.as_ref(),
             quest_run: s.quest_run.as_ref(),
             battle: s.battle.as_ref(),
+            boosts: &s.boosts,
             gear: s
                 .gear
                 .iter()

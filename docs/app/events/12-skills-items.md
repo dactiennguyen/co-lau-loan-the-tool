@@ -690,6 +690,7 @@ i32; string tên sứ quân; u8; u8
 - Tỉ lệ tính theo 1/100000: 200000 là ×2. Quái trong `s2c/22` cũng có một số 100000 ở chỗ tương ứng. [Suy luận]
 - Hiệu ứng đến từ vật phẩm **Tăng Kinh Nghiệm (mã 7)**. Mô tả trong bảng vật phẩm: "Tăng x2 kinh nghiệm trong 24 giờ kể từ lúc dùng, tính cả khi không đăng nhập. Dùng thêm khi còn hiệu lực thì cộng dồn thời gian." Khoá `ef7` có lẽ là "hiệu ứng của món 7". [Suy luận mạnh]
 - Vậy không phải mặc định cho mọi nick: chỉ nick đã dùng món này mới có, và giờ vẫn trôi khi thoát game. [Đo 3 nick; giờ trôi theo mô tả]
+- App desktop đọc đuôi này bằng `items::character_tail` (port của `characterTail`) và hiện huy hiệu "x2 EXP" có giờ còn lại ở thẻ nhân vật ([x2 EXP](../../integration/rust/features.md#x2-exp)). Chưa biết gói báo hiệu ứng khi dùng Tăng Kinh Nghiệm giữa phiên. [Chưa rõ]
 - Bảng VIP (`com.g.m.sqfo`) có quyền lợi `EXP_BONUS_PERCENT` ("EXP + x%") và `GOLD_BONUS_PERCENT` ("Vàng + x%"). Đó là cộng EXP theo cấp VIP, khác ngôi sao này. [Đo tĩnh]
 
 <a id="cường-hoá"></a>

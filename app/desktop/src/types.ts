@@ -254,6 +254,16 @@ export interface QuestRun {
 /** Attack, defence, accuracy, dodge, critical (the last three labels are inferred: docs/app/user-data.md). */
 export type Combat = [number, number, number, number, number];
 
+/** A timed effect at login (Boost of cllt-core, the s2c/9 tail): "ef7" at rate 200000 is the x2 EXP of Tăng Kinh
+ * Nghiệm. */
+export interface Boost {
+  key: string;
+  /** In 1/100000: 200000 doubles the EXP. */
+  rate: number;
+  /** When it ends, in ms since 1970, offline or not. */
+  until: number;
+}
+
 export interface Character {
   name: string;
   /** field01 of s2c/9: 1 Hỏa, 4 Thủy. */
@@ -285,6 +295,8 @@ export interface Character {
   quest: Quest | null;
   questRun: QuestRun | null;
   battle: Battle | null;
+  /** Timed effects at login, such as x2 EXP; no packet is known yet to update them in the session. */
+  boosts: Boost[];
   /** The 8 gear slots, null where empty; empty until s2c/9 came. */
   gear: (Item | null)[];
   /** The bag; null until s2c/42 came. */

@@ -3,6 +3,7 @@
 //! game's item table of data/items.json (src/protocol/items.ts), built into the binary, for names, icons and stat texts.
 use crate::protocol::{character_profile_end, Reader, Result};
 use crate::skills::skill_list;
+use crate::world::appearance;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -106,6 +107,59 @@ pub fn character_gear(p: &[u8]) -> Result<Vec<Option<ItemRecord>>> {
     skill_list(&mut r)?;
     gear_slots(&mut r)
 }
+/// A timed effect of the s2c/9 tail. "ef7" at rate 200000 is the x2 EXP star of the item Tăng Kinh Nghiệm (7), the rate
+/// in 1/100000; `remaining_ms` runs down offline too (12-skills-items.md#x2-exp).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Effect {
+    pub key: String,
+    pub rate: i32,
+    pub field: i32,
+    pub remaining_ms: i32,
+}
+
+/// What follows the 8 gear slots of s2c/9 (characterTail of src/protocol/world.ts): an int (1 for symap, 0 for manina),
+/// the appearance block, the timed effects, then the faction ("sứ quân") as in a player record.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CharacterTail {
+    pub field: i32,
+    pub appearance_bytes: usize,
+    pub effects: Vec<Effect>,
+    pub faction_field: i32,
+    pub faction: String,
+    pub faction_flags: [u8; 2],
+}
+pub fn character_tail(p: &[u8]) -> Result<CharacterTail> {
+    let mut r = Reader::new(p);
+    r.take(character_profile_end(p)?)?;
+    skill_list(&mut r)?;
+    gear_slots(&mut r)?;
+    let field = r.i32()?;
+    let appearance_bytes = appearance(&mut r)?;
+    let effects = (0..r.i32()?.max(0))
+        .map(|_| {
+            Ok(Effect {
+                key: r.string()?,
+                rate: r.i32()?,
+                field: r.i32()?,
+                remaining_ms: r.i32()?,
+            })
+        })
+        .collect::<Result<_>>()?;
+    let (faction_field, faction) = (r.i32()?, r.string()?);
+    let faction_flags = [r.u8()?, r.u8()?];
+    let tail = CharacterTail {
+        field,
+        appearance_bytes,
+        effects,
+        faction_field,
+        faction,
+        faction_flags,
+    };
+    r.finish(tail, "s2c/9")
+}
+
 /// `i32 n; n × (u8 0xff for an empty slot | item record)`, at the end of s2c/9 and in s2c/37.
 fn gear_slots(r: &mut Reader) -> Result<Vec<Option<ItemRecord>>> {
     (0..r.i32()?.max(0))

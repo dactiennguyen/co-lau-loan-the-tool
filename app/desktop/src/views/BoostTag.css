@@ -1,0 +1,15 @@
+/* A timed effect beside the element tag of the hero card: in the colour of EXP, its time left in pixel digits. */
+.boost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--exp);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--exp);
+  white-space: nowrap;
+}
+.boost time { font-size: 10px; font-weight: 600; color: var(--fg-2); }

@@ -554,7 +554,23 @@ pub fn player_record(r: &mut Reader) -> Result<Player> {
     r.take(16)?; // hp, max hp, s1, s1 max
     r.u16()?;
     let (x, y) = (r.i32()?, r.i32()?);
-    r.take(24 + 12)?; // gear[6]; three ints of the appearance block
+    r.take(24)?; // gear[6]
+    appearance(r)?;
+    r.i32()?;
+    r.string()?; // faction ("sứ quân")
+    r.take(2)?;
+    Ok(Player {
+        id,
+        name,
+        level,
+        x,
+        y,
+    })
+}
+/// The appearance block of a player record and of the s2c/9 tail, read past as in src/protocol/world.ts; its length.
+pub(crate) fn appearance(r: &mut Reader) -> Result<usize> {
+    let start = r.offset;
+    r.take(12)?; // three ints
     r.u8()?;
     r.bytes()?;
     r.i32()?;
@@ -573,17 +589,9 @@ pub fn player_record(r: &mut Reader) -> Result<Player> {
         r.i32()?;
         r.bytes()?;
     }
-    r.i32()?;
-    r.string()?; // faction ("sứ quân")
-    r.take(2)?;
-    Ok(Player {
-        id,
-        name,
-        level,
-        x,
-        y,
-    })
+    Ok(r.offset - start)
 }
+
 /// s2c/1212, also appended to every s2c/1263 entry: effects, read past.
 fn player_status(r: &mut Reader) -> Result<()> {
     r.i32()?;

@@ -85,7 +85,7 @@ Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắ
 | sau đó | i32 | | | | | symap 1, manina 0 [Chưa rõ] |
 | sau đó | | | | | | Khối ngoại hình, cùng bố cục với bản ghi người chơi (mốc 99000, bảng màu ARGB) ([09](events/09-players-chat.md#player-record)) [Đo] |
 | sau đó | | | | | | Hiệu ứng có hạn giờ: `i32 n; n × {string khoá; i32 tỉLệ; i32; i32 msCònLại}`. symap (P4): `"ef7"` tỉ lệ 200000, tức ngôi sao **x2 EXP** của vật phẩm Tăng Kinh Nghiệm; manina, nick thứ hai: n = 0 ([12-skills-items](events/12-skills-items.md#x2-exp)) [Đo] |
-| sau đó | i32; string; u8; u8 | | | | | Sứ quân: symap `2`, "Thiên Tôn" (chữ trên đầu nhân vật), `01 00`; manina chuỗi rỗng. Giải mã cả đuôi: `characterTail` trong [src/protocol/world.ts](../../src/protocol/world.ts), hết byte [Đo] |
+| sau đó | i32; string; u8; u8 | | | | | Sứ quân: symap `2`, "Thiên Tôn" (chữ trên đầu nhân vật), `01 00`; manina chuỗi rỗng. Giải mã cả đuôi: `characterTail` trong [src/protocol/world.ts](../../src/protocol/world.ts), hết byte; bản Rust `character_tail` trong [app/core/src/items.rs](../../app/core/src/items.rs) [Đo] |
 
 `combat` là các chỉ số chiến đấu:
 

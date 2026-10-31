@@ -9,7 +9,7 @@ import { BASELINE, OPCODE_ENTRIES } from '../protocol/config.ts';
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from '../protocol/protocol.ts';
 import { buildRequest, decodeEvent } from '../protocol/events.ts';
 import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable,
-  characterExtra, characterGear, inventory, currencies, gearUpdate, zoneList } from '../protocol/world.ts';
+  characterExtra, characterGear, characterTail, inventory, currencies, gearUpdate, zoneList } from '../protocol/world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from '../battle/battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from '../bot/atlas.ts';
 import { QuestBot, stepAction } from '../bot/quest.ts';
@@ -70,6 +70,8 @@ function decoders() {
   add('characterExtra', si0['s2c/42 login'], characterExtra(bytes(si0['s2c/42 login'])));
   add('inventory', si0['s2c/1187 after repair'], inventory(bytes(si0['s2c/1187 after repair'])));
   for (const h of [fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterGear', h, characterGear(bytes(h)));
+  // The tail of s2c/9: symap's x2 EXP star "ef7" and faction (P4), and manina with no effect.
+  for (const h of [fixtures.equip['s2c/9 symap'], fixtures.profile['s2c/9 level 21']] as string[]) add('characterTail', h, characterTail(bytes(h)));
   add('currencies', fixtures.currencies['s2c/46 E1'], currencies(bytes(fixtures.currencies['s2c/46 E1'])));
   // The gear after Cởi ra and Trang bị on the phone (P4, 12-skills-items.md#c2s-1186).
   for (const k of ['s2c/37 unequip pet', 's2c/37 equip pet']) add('gearUpdate', fixtures.equip[k], gearUpdate(bytes(fixtures.equip[k])));

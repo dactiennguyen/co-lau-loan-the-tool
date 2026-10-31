@@ -385,6 +385,26 @@ pub struct BattleView {
     pub leaving: bool,
 }
 
+/// A timed effect on the character, from the s2c/9 tail: "ef7" at rate 200000 is the x2 EXP of Tăng Kinh Nghiệm. It ends
+/// at `until` (ms since 1970), offline or not.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Boost {
+    pub key: String,
+    /// In 1/100000: 200000 doubles the EXP.
+    pub rate: i32,
+    pub until: u64,
+}
+impl Boost {
+    /// "x2 EXP" for the effect of Tăng Kinh Nghiệm; the key for an effect not known yet.
+    pub fn label(&self) -> String {
+        match self.key.as_str() {
+            "ef7" => format!("x{} EXP", self.rate as f64 / 100_000.0),
+            key => format!("hiệu ứng {key}"),
+        }
+    }
+}
+
 /// Everything the UI shows for one account.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Snapshot {
@@ -444,4 +464,6 @@ pub struct Snapshot {
     pub skill_levels: BTreeMap<i32, i32>,
     /// The Dược phẩm shop of Lái Buôn as s2c/1190 last listed it (open_shop), until the character leaves M1.
     pub shop: Option<ShopList>,
+    /// Timed effects at login (the s2c/9 tail), such as x2 EXP; no packet is known yet to update them in the session.
+    pub boosts: Vec<Boost>,
 }

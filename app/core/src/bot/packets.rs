@@ -56,6 +56,33 @@ impl Bot {
                         format!("Không đọc được kỹ năng trong s2c/9: {e}"),
                     )),
                 }
+                // Timed effects, such as the x2 EXP of Tăng Kinh Nghiệm, with the time they have left.
+                match character_tail(payload) {
+                    Ok(t) => {
+                        let at = epoch_ms();
+                        s.boosts = t
+                            .effects
+                            .iter()
+                            .filter(|e| e.remaining_ms > 0)
+                            .map(|e| Boost {
+                                key: e.key.clone(),
+                                rate: e.rate,
+                                until: at + e.remaining_ms as u64,
+                            })
+                            .collect();
+                        for b in &s.boosts {
+                            let left = duration_text(Duration::from_millis(b.until - at));
+                            out.push(Out::Log(
+                                LogKind::Character,
+                                format!("Đang có {}, còn {left}", b.label()),
+                            ));
+                        }
+                    }
+                    Err(e) => out.push(Out::Log(
+                        LogKind::Character,
+                        format!("Không đọc được hiệu ứng trong s2c/9: {e}"),
+                    )),
+                }
             }
             30 => match skill_table(payload) {
                 Ok(t) => s.skills = Arc::new(t.skills),
