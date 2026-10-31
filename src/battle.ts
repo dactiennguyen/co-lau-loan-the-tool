@@ -47,6 +47,10 @@ function blast(b: Board, cells: Set<number>) {
   return cells;
 }
 
+/** The cells a skill that destroys `removed` clears before the board falls: those cells and the 3×3 blast of every
+ * Kiếm lửa among them. */
+export const blastCells = (b: Board, removed: readonly number[]) => blast(b, new Set(removed));
+
 /** Gravity, then fill holes from `refill` (or UNKNOWN when it runs out). Returns how many refill pieces were used. */
 function collapse(b: Board, refill: readonly number[] | null, start: number): number {
   for (let c = 0; c < N; c++) {
@@ -101,15 +105,54 @@ export const fighter = (hp: number, maxHp: number, f: Partial<Fighter> = {}): Fi
 /** A mob before anything is known of it: HP unknown, Sói Xám and Cóc Xanh averaged. */
 export const unknownMob = (): Fighter => fighter(Infinity, Infinity, { sword: 8, heart: 6, yinyang: 3, peach: 5, skillCost: 30, skillDamage: 40 });
 
-/** extraTurn: worth of keeping the turn; reply: share of the opponent's best answer subtracted (0 in a timed battle,
- * where the mob does not move pieces); bonus: worth of own EXP and coin pieces (goal `exp`). */
-export interface Strategy { extraTurn: number; reply: number; bonus: Partial<Record<number, number>> }
-/** `kill` ends battles soonest; `exp` also collects drops, stars and gold on the way. Tuned in the simulator of
- * 07-auto-battle.md: extraTurn 10 and reply 1 won most battles against weak, real-like and greedy mobs. */
-export const STRATEGIES: Record<'kill' | 'exp', Strategy> = {
+/** extraTurn: worth of keeping the turn; reply: share of the opponent's answer subtracted (0 in a timed battle, where
+ * the mob does not move pieces); bonus: worth of own EXP and coin pieces (goal `exp`).
+ * mobModel `best` (Q20): the mob answers with the move worth most to it. `odds`: the mob plays as MOB_AI says it does
+ * and the answer is what it is worth on average. lookahead: a move that keeps the turn is worth this share of the best
+ * move after it, in place of the flat extraTurn. */
+export interface Strategy { extraTurn: number; reply: number; bonus: Partial<Record<number, number>>; mobModel?: 'best' | 'odds'; lookahead?: number }
+/** `kill` ends battles soonest; `exp` also collects drops, stars and gold on the way. `win` and `farm` are the same goals
+ * with the mob as it really plays (MOB_AI) and a look at the move after an extra turn. In the simulator of
+ * 07-auto-battle.md#thuật-toán-v2 (manina 174 HP against Cóc Xanh, HP carried from battle to battle, 12 hours) `win`
+ * won 61.1 battles an hour against 55.5 for `kill`, and `farm` made 7728 EXP an hour against 5806. The Rust bot
+ * (app/core) still plays `kill`/`exp` (the Q20 search); export-rust checks those two. */
+export const STRATEGIES: Record<'kill' | 'exp' | 'win' | 'farm', Strategy> = {
   kill: { extraTurn: 10, reply: 1, bonus: {} },
   exp: { extraTurn: 10, reply: 1, bonus: { 4: 2, 5: 4, 0x46: 1 } },
+  win: { extraTurn: 10, reply: 1, bonus: {}, mobModel: 'odds', lookahead: 1 },
+  farm: { extraTurn: 10, reply: 1, bonus: { 4: 2, 5: 4, 0x46: 1 }, mobModel: 'odds', lookahead: 1 },
 };
+
+/** How the server's mob picks its swap, fitted on 1011 mob swaps of the bot traces (07-auto-battle.md#cách-quái-chọn-nước):
+ * P(move) ∝ exp(Σ weight × feature) over its legal moves. Features: pieces of each kind in the first wave, pieces of the
+ * later waves already known, whether the move keeps the turn, whether it is the first legal move of a scan by rows from
+ * the top, columns from the left, down before right. The mob wants hearts, swords, yin-yang and peaches, ignores drops,
+ * stars and gold, and likes an extra turn and the first move it finds. With the nội lực for its skill it casts half the
+ * time (57 of 114 turns). */
+export const MOB_AI = { piece: { 0: 0.379, 1: 0.412, 2: 0.255, 3: 0.163, 4: -0.068, 5: -0.054, 0x46: -0.028 } as Record<number, number>,
+  cascade: -0.014, extraTurn: 1.485, firstFound: 1.024, cast: 0.5 };
+
+/** The mob's legal moves on `b` with the share of the time it plays each (MOB_AI), and what each clears on the known
+ * cells. */
+export function mobMoveOdds(b: Board) {
+  const out: { move: Move; p: number; outcome: Outcome }[] = [];
+  let total = 0;
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const [dr, dc] of [[1, 0], [0, 1]]) {
+    const r2 = r + dr, c2 = c + dc; if (r2 >= N || c2 >= N) continue;
+    const i = r * N + c, j = r2 * N + c2;
+    if (b[i] < 0 || b[j] < 0 || kind(b[i]) === kind(b[j])) continue;
+    const move: Move = { from: [r, c], to: [r2, c2] }, t = b.slice(); swap(t, move);
+    const first = findRuns(t).cells; if (!first.size) continue;
+    let x = out.length ? 0 : MOB_AI.firstFound;
+    for (const k of first) x += MOB_AI.piece[kind(t[k])] ?? 0;
+    const outcome = settle(t, null), cleared = Object.values(outcome.cleared).reduce((a, n) => a + n, 0);
+    x += (cleared - first.size) * MOB_AI.cascade + (outcome.extraTurn ? MOB_AI.extraTurn : 0);
+    const p = Math.exp(x); total += p;
+    out.push({ move, p, outcome });
+  }
+  for (const m of out) m.p /= total;
+  return out;
+}
 
 const swordDamage = (o: Outcome, f: Fighter) => (o.cleared[0] ?? 0) * f.sword * (f.s2 >= 100 ? 2 : 1);
 /** HP swing of an outcome for `actor` against `target`: damage (doubled at full power), healing up to the max, yin-yang
@@ -125,23 +168,67 @@ export function moveValue(o: Outcome, actor: Fighter, target: Fighter, s: Strate
   return v;
 }
 
-/** Two plies on the known pieces: own value of each move, minus `reply` × the mob's best answer on the board it leaves,
- * valued with own HP after the heal and the mob's HP after the hit. A move that keeps the turn is not answered. */
+/** Two plies on the known pieces: own value of each move, minus `reply` × the mob's answer on the board it leaves (its
+ * best move, or its average one under MOB_AI), valued with own HP after the heal and the mob's HP after the hit. A move
+ * that keeps the turn is not answered; with `lookahead` it is worth that share of the best own move after it instead of
+ * the flat extraTurn. */
 export function bestMove(b: Board, me: Fighter = fighter(100, 100), mob: Fighter = unknownMob(), s: Strategy = STRATEGIES.kill) {
+  const own = s.lookahead ? { ...s, extraTurn: 0 } : s;
   let best: { move: Move; score: number; outcome: Outcome } | null = null;
   for (const m of legalMoves(b)) {
     const t = b.slice(); swap(t, m);
     const o = settle(t, null);
-    let score = moveValue(o, me, mob, s, s.bonus);
-    if (score < 1e4 && !o.extraTurn && s.reply) {
+    let score = moveValue(o, me, mob, own, s.bonus);
+    if (score < 1e4) {
       const meAfter = { ...me, hp: Math.min(me.maxHp, me.hp + (o.cleared[1] ?? 0) * me.heart) }, mobAfter = { ...mob, hp: mob.hp - swordDamage(o, me) };
-      let reply = 0;
-      for (const r of legalMoves(t)) { const u = t.slice(); swap(u, r); reply = Math.max(reply, moveValue(settle(u, null), mobAfter, meAfter, s)); }
-      score -= s.reply * reply;
+      if (o.extraTurn && s.lookahead) {
+        let next = 0;
+        for (const m2 of legalMoves(t)) { const u = t.slice(); swap(u, m2); next = Math.max(next, moveValue(settle(u, null), meAfter, mobAfter, own, s.bonus)); }
+        score += s.lookahead * next;
+      } else if (!o.extraTurn && s.reply) score -= s.reply * answerValue(t, mobAfter, meAfter, s);
     }
     if (!best || score > best.score) best = { move: m, score, outcome: o };
   }
   return best;
+}
+
+/** What the mob's answer on `t` (its turn) is worth to it: its best move (mobModel `best`), or the average under MOB_AI,
+ * with its skill in place of a swap half the time once it has the nội lực (`odds`). */
+export function answerValue(t: Board, mob: Fighter, me: Fighter, s: Strategy) {
+  let v = 0;
+  if (s.mobModel !== 'odds') {
+    for (const r of legalMoves(t)) { const u = t.slice(); swap(u, r); v = Math.max(v, moveValue(settle(u, null), mob, me, s)); }
+    return v;
+  }
+  for (const a of mobMoveOdds(t)) v += a.p * moveValue(a.outcome, mob, me, s);
+  if (mob.skillCost && mob.s1 >= mob.skillCost) v = MOB_AI.cast * (mob.skillDamage >= me.hp ? 1e4 : mob.skillDamage) + (1 - MOB_AI.cast) * v;
+  return v;
+}
+
+/** Whether to cast the own skill now rather than play `swapScore` (bestMove's best, null without a legal swap). Used for
+ * the one skill of BattleIo.skill; with the learnt skills bestAction of battle-actions.ts decides instead. The skill
+ * deals W × (3 + swords it destroys) + K, its sword part doubled at full power (07-auto-battle.md#công-thức-sát-thương):
+ * on average `skillDamage` (+ 4 swords at full power), at least 3 swords (K is lost about one cast in seven). Cast when the
+ * least damage kills, when the average damage less the mob's answer on the board as it stands beats the swap, or when
+ * nội lực piles up to twice the cost. */
+export function castSkill(b: Board, me: Fighter, mob: Fighter, s: Strategy, swapScore: number | null) {
+  if (!me.skillCost || me.s1 < me.skillCost) return false;
+  const full = me.s2 >= 100, least = 3 * me.sword * (full ? 2 : 1), damage = me.skillDamage + (full ? 4 * me.sword : 0);
+  if (least >= mob.hp || swapScore === null || me.s1 >= 2 * me.skillCost) return true;
+  const score = damage >= mob.hp ? 0.85e4 : damage - s.reply * answerValue(b, { ...mob, hp: mob.hp - damage }, me, s);
+  return score >= swapScore;
+}
+
+/** The mob block of s2c/22, found by its length-prefixed id: `string id; string name; u8 u8 u8; i32 level; i32; u8;
+ * i32 hp; i32 maxHp` (07-auto-battle.md#s2c22-641-byte). Undefined when the id is not in the packet. */
+export function mobBlock(payload: Uint8Array, mobId: string) {
+  const id = Buffer.from(mobId), p = Buffer.from(payload);
+  for (let i = p.indexOf(id); i >= 4; i = p.indexOf(id, i + 1)) {
+    if (p.readInt32BE(i - 4) !== id.length) continue;
+    const r = new Reader(p.subarray(i - 4)); r.string();
+    const name = r.string(); r.u8(); r.u8(); r.u8(); const level = r.i32(); r.i32(); r.u8();
+    return { name, level, hp: r.i32(), maxHp: r.i32() };
+  }
 }
 
 /** s2c/22: the player block, the mob block, then `string battleUuid; i32 64; u8[64] board; u8 turnSeconds; u8`.
@@ -176,10 +263,20 @@ export function battleResult(r: Reader, opcode: 19 | 20) {
   if (opcode === 19) move = { from: [r.i32() - 2, r.i32() - 2], to: [r.i32() - 2, r.i32() - 2] };
   else { skill = r.i32(); r.i32(); targets = cellList(); cells = cellList(); }
   r.i32(); const refill = [...r.take(r.i32())];
-  // u8 1 + i32 64 + 64 bytes when the server reshuffled the board after the move (no move left).
-  const newBoard = r.u8() === 1 ? [...r.take(r.i32())] : undefined;
-  r.take(3);
+  // u8 1 + i32 64 + 64 bytes when the server reshuffled the board after the move (no move left), then 3 bytes. A result
+  // without refill (Hàn Lưu Thánh Thủy 4001 heals and destroys nothing, A1) has neither, like s2c/44.
+  const newBoard = refill.length && r.u8() === 1 ? [...r.take(r.i32())] : undefined;
+  if (refill.length) r.take(3);
   return { seq, move, skill, targets, cells, refill, newBoard, ...resultTail(r) };
+}
+
+/** s2c/44 after c2s/44 (an item of the bag used in battle, P5): like s2c/19 without the reshuffle flag and the 3 bytes
+ * before the units; the unit line carries the new HP. */
+export function battleItemResult(r: Reader) {
+  const seq = r.i32(); r.i32(); r.i32();
+  const a = r.i32(), slot = r.i32(); r.i32();
+  const refill = [...r.take(r.i32())];
+  return { seq, a, slot, refill, ...resultTail(r) };
 }
 
 /** s2c/21: in a timed battle the mob hits on its ~30 s timer, without a board move; same tail as s2c/19 (Q6–Q9). */

@@ -249,7 +249,7 @@ test('quest bot: a surrender not taken in 8 s plays the turn passed over meanwhi
 
 test('quest bot: --surrender-after stops after the battle even when it ends before the surrender is taken', () => {
   const { bot, events } = surrendering();
-  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0)).u8(0).u8(0).u8(0).u8(0)
+  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0))
     .u8(1).string('mob61000').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
   bot.onPacket(19, end);
   assert.deepEqual([bot.battle, events.at(-1)?.event, events.at(-1)?.reason], [undefined, 'stop', 'battle over without the surrender']);

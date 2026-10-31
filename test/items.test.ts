@@ -121,7 +121,28 @@ test('K3 (bot TS, Tiheo2 at M1): far pickup to the bag (s2c/51), refusals, and V
   assert.deepEqual(decodeEvent('s2c', 1256, refusal('Không thể nhặt vật phẩm của người khác')).fields, { field: 1, text: 'Không thể nhặt vật phẩm của người khác' });
   // Vứt bỏ: com.g.c.sqbz.run1 calls sqlq.b45(2, slot); the server answers s2c/83 (slot, 0) and the item is gone.
   assert.equal(buildRequest(1186, { action: 2, slot: 4 }).toString('hex'), '0200000004');
-  assert.deepEqual(decodeEvent('s2c', 83, Buffer.from('0000000400000000', 'hex')).fields, { slot: 4, value: 0 });
+  assert.deepEqual(decodeEvent('s2c', 83, Buffer.from('0000000400000000', 'hex')).fields, { slot: 4, left: 0 });
+});
+
+test('P5 on the phone (Tiheo2): Lái Buôn menu, the shop, buying for Xu khóa, and a potion used in battle (c2s/44)', () => {
+  // c2s/13 (M1, 106) → s2c/57 menu; Dược phẩm → c2s/57 (1, M1, 106) → s2c/1190 shop.
+  const menu = decodeEvent('s2c', 57, Buffer.from('000000030000000a4cc3a169204275c3b46e00000030e1bb9e206368e1bb972074612063c3b32072e1baa574206e6869e1bb8175206dc3b36e20c491e1bb932074e1bb91742e000000000856c5a9206b68c3ad010000000e44c6b0e1bba363207068e1baa96d020000001643e1bbad612068c3a06e67205b4cc6b0e1bba36e675d', 'hex')).fields as any;
+  assert.deepEqual([menu.npc, menu.text, menu.options.map((o: any) => `${o.option} ${o.label}`)], ['Lái Buôn', 'Ở chỗ ta có rất nhiều món đồ tốt.', ['0 Vũ khí', '1 Dược phẩm', '2 Cửa hàng [Lượng]']]);
+  assert.equal(buildRequest(57, { option: 1, mapId: 'M1', npcId: 106 }).toString('hex'), '01000000024d310000006a');
+  const shop = decodeEvent('s2c', 1190, Buffer.from('060000000c56e1baad74205068e1baa96d000000080000000000000000000000006dffffffff0000000101ff000000000000000000000000000100000001000000006dffffffff0000000101ff0000000000000000000000000002000000020000000049ffffffff0000000101ff0000000000000000000000000004000000000100000078ffffffff0000000100ff0000000000000000000000000005000000010100000078ffffffff0000000100ff0000000000000000000000000006000000020100000050ffffffff0000000100ff000000000000000000000000019f000000100000000fa0ffffffff0000000101ff00000000000000000000000001e70000001500000001f4ffffffff0000000101ff00000000000000000000', 'hex')).fields as any;
+  assert.deepEqual([shop.kind, shop.title], [6, 'Vật Phẩm']);
+  assert.deepEqual(shop.items.map((i: any) => `${i.shopId}: ${items.get(i.itemId)?.name} ${i.price} ${i.currency ? 'Xu khóa' : 'Xu'}`), ['0: Hoàn Linh Dược 109 Xu', '1: Kim Đan Dược 109 Xu',
+    '2: Búa Sửa Chữa 73 Xu', '4: Hoàn Linh Dược 120 Xu khóa', '5: Kim Đan Dược 120 Xu khóa', '6: Búa Sửa Chữa 80 Xu khóa', '415: Bình Huyết Linh (Rỗng) 4000 Xu', '487: Băng Tâm 500 Xu']);
+  // Mua: shop slot 0 is paid in Xu (Tiheo2 has none), slot 4 in Xu khóa.
+  assert.deepEqual([buildRequest(1190, { shopId: 0 }), buildRequest(1190, { shopId: 4, quantity: 1 })].map(b => b.toString('hex')), ['000000000000000001', '000000000400000001']);
+  assert.deepEqual(decodeEvent('s2c', 1256, Buffer.from('01000000234b68c3b46e6720c491e1bba720587520c491e1bb83207468e1bbb163206869e1bb876e', 'hex')).fields, { field: 1, text: 'Không đủ Xu để thực hiện' });
+  assert.deepEqual(decodeEvent('s2c', 1256, Buffer.from('010000003242e1baa16e2076e1bbab61206d7561207468c3a06e682063c3b46e6721203120486fc3a06e204c696e682044c6b0e1bba363', 'hex')).fields, { field: 1, text: 'Bạn vừa mua thành công! 1 Hoàn Linh Dược' });
+  assert.equal((decodeEvent('s2c', 46, Buffer.from('0000000975706461746520587500000000000000000000000000000d600000000000000000', 'hex')).fields as any).xuKhoa, 3424);
+  // In a timed battle with Sơn Tặc: Túi đồ → Hoàn Linh Dược (bag slot 4); HP 31 → 67, the slot is left empty (s2c/83).
+  const uuid = 'f88a4c00-bcb7-49bf-8a30-93e3dbbff9ca';
+  assert.equal(buildRequest(44, { battleUuid: uuid, slot: 4 }).toString('hex'), '0000002466383861346330302d626362372d343962662d386133302d3933653364626266663963610000000000000004');
+  const used = decodeEvent('s2c', 44, Buffer.from('0000000100000000fafab599000000000000000400000000000000000100000008547475616e616e68ffffffff0000000043ffffffffffffffff0000000100000008547475616e616e6800', 'hex')).fields as any;
+  assert.deepEqual([used.slot, used.units.map((u: any) => `${u.name} ${u.hp}`), used.end], [4, ['Ttuananh 67'], false]);
 });
 
 test('tail of s2c/9: the x2 EXP star (item 7, rate 200000, time left) and the faction; none for manina', () => {

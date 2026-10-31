@@ -2,8 +2,9 @@
 // s2c/22 setup → c2s/18 join → s2c/18 → c2s/14 seq 0 → { s2c/19|20 result; s2c/24 turn → c2s/19 own swap | c2s/14 mob step }
 // until a result carries end=1.
 import { Reader } from './protocol.ts';
-import { EMPTY, UNKNOWN, swap, settle, findRuns, bestMove, battleSetup, battleJoinAck, battleResult, timeoutResult, turnState, fighter, unknownMob,
-  STRATEGIES, type Board, type Fighter, type Outcome, type Strategy } from './battle.ts';
+import { EMPTY, UNKNOWN, swap, settle, findRuns, bestMove, castSkill, battleSetup, battleJoinAck, battleResult, battleItemResult, timeoutResult, turnState, fighter, unknownMob,
+  STRATEGIES, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
+import { bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from './battle-actions.ts';
 import { buildRequest } from './events.ts';
 
 export interface BattleEnd { won: boolean; actor: string; exp?: number; coin?: number; myTurns: number; hp: number; mobId: string; damage: number }
@@ -11,24 +12,50 @@ export interface BattleIo {
   send(opcode: number, payload: Uint8Array): void;
   log(event: string, fields?: Record<string, unknown>): void;
   onEnd(end: BattleEnd): void;
-  /** Own skill to cast (c2s/20) once own stat1 (nội lực) reaches `cost`; without an answer in 3 s the turn falls back to a swap. */
+  /** Own skill to cast (c2s/20) once own stat1 (nội lực) reaches `cost`, when castSkill says so; without an answer in 3 s the
+   * turn falls back to a swap. Only without `skills`. */
   skill?: { id: number; cost: number };
+  /** The learnt skills (learntSkills of battle-actions.ts): with it every own turn is chosen by bestAction among the
+   * swaps, these skills and `potions`. */
+  skills?: SkillEffect[];
+  /** Potions of the bag for bestAction; the runner counts down what it uses. */
+  potions?: Potion[];
+  /** What one potion costs in HP (ActionOptions.potionCost; default Infinity: none is used). */
+  potionCost?: number;
+  /** Own Tấn công and level (s2c/9): damage per sword before the first hit, unless memory has it. */
+  stats?: { attack: number; level: number };
   /** Move search settings (default STRATEGIES.kill). */
   strategy?: Strategy;
   /** Pause between own swaps in a timed battle (default 1000 ms). */
   timedMoveMs?: number;
+  /** The mob block of s2c/22 (mobBlock): its HP is known from the first move instead of after its first hit. */
+  mob?: { name: string; hp: number; maxHp: number };
+  /** Running sums of what was learnt, kept by the session from battle to battle: keys `me.<value>` and `<mob name>.<value>`. */
+  memory?: Map<string, [number, number]>;
+  /** An own action in place of the search's on this turn: a skill by id (c2s/20), the bag slot of an item (c2s/44, P5),
+   * or the best swap without any skill. Test plans use it; without an answer in 3 s the turn falls back to a swap. */
+  choose?(runner: BattleRunner, seq: number): { skill: number } | { item: number } | { swap: true } | undefined;
 }
 
 type Piece = 'sword' | 'heart' | 'yinyang' | 'peach' | 'skillDamage' | 'skillCost';
 type Unit = ReturnType<typeof battleResult>['units'][number];
 
-/** Tracks the board and both sides from the server's results and answers every turn: bestMove on own turns, a step
- * request on the mob's. What a piece does for each side is learnt during the battle (learn). */
+/** Tracks the board and both sides from the server's results and answers every turn: bestAction over the swaps, the
+ * learnt skills and the potions when io.skills is given (else bestMove, or the one skill by castSkill) on own turns, a
+ * step request on the mob's. What a piece does for each side is learnt as the battle goes (learn), on top
+ * of what earlier battles taught (io.memory). Priors are the measured values of 07-auto-battle.md: 2 nội lực per own
+ * yin-yang (manina at levels 8–20), skills at 25 nội lực for every side seen, a mob skill of 4 swords + 11. */
 export class BattleRunner {
   uuid: string; name: string; mobId: string; board: Board; me: Fighter; mob = unknownMob(); turns = 0;
   skillsCast = 0; skillRefused = false; damage = 0;
+  /** Skills that got no answer in this battle, and the own turns left of each buff cast. */
+  private refused = new Set<number>(); private buffs: Partial<Record<'attack' | 'defense' | 'dodge', number>> = {};
+  private potions: Potion[];
   /** Running sums behind each learnt value: [total, pieces], seeded with the default as `prior` pieces. */
-  private seen = new Map<string, [number, number]>();
+  private seen: Map<string, [number, number]>;
+  /** Memory key of the mob's values: its name in s2c/22, else its id. Own damage per sword depends on the mob too (Tiheo2:
+   * 8 against Sơn Tặc, 7.33 against Chỉ Huy Sơn Tặc, A1), so it is kept as `me>mobKey.sword`. */
+  private mobKey: string;
   /** s2c/18 timed 1 (Sơn Tặc, Q6–Q9): no turns; the mob hits on a ~30 s timer (s2c/21) and the player may swap any time. */
   timed = false;
   /** Set by leave() until the session sees the battle end or gives up on it (resume): no move is sent, a result still
@@ -44,7 +71,18 @@ export class BattleRunner {
   private turnWait?: ReturnType<typeof setTimeout>;
   constructor(setup: ReturnType<typeof battleSetup>, mobId: string, io: BattleIo) {
     this.uuid = setup.uuid; this.name = setup.me; this.mobId = mobId; this.board = setup.board;
-    this.me = fighter(setup.hp, setup.maxHp, { skillCost: io.skill?.cost ?? 0 });
+    this.me = fighter(setup.hp, setup.maxHp, { skillCost: io.skill?.cost ?? 0, yinyang: 2 });
+    if (io.stats) this.me.sword = swordPrior(io.stats.attack, io.stats.level);
+    this.potions = (io.potions ?? []).map(p => ({ ...p }));
+    this.mob = { ...unknownMob(), skillCost: 25, skillDamage: 4 * 8 + 11 };
+    if (io.mob) { this.mob.hp = io.mob.hp; this.mob.maxHp = io.mob.maxHp; }
+    this.mobKey = io.mob?.name ?? mobId;
+    this.seen = io.memory ?? new Map();
+    for (const [id, [sum, n]] of this.seen) {
+      const who = id.slice(0, id.lastIndexOf('.')), key = id.slice(id.lastIndexOf('.') + 1) as Piece;
+      const f = who === 'me' || who === `me>${this.mobKey}` ? this.me : who === this.mobKey ? this.mob : undefined;
+      if (f && (who !== 'me' || key !== 'sword')) f[key] = sum / n;
+    }
     this.io = io;
   }
 
@@ -83,35 +121,86 @@ export class BattleRunner {
       }
       case 19: case 20: this.onResult(battleResult(new Reader(payload), opcode)); return true;
       case 21: this.io.log('timed_attack', {}); this.onResult(timeoutResult(new Reader(payload))); return true;
+      case 44: {
+        const x = battleItemResult(new Reader(payload)), p = this.potions.find(q => q.slot === x.slot);
+        if (p) p.quantity--;
+        this.io.log('item_used', { seq: x.seq, slot: x.slot, left: p?.quantity });
+        this.onResult({ ...x, cells: [] });
+        return true;
+      }
       default: return false;
     }
   }
 
   private step(seq: number) { this.io.send(14, buildRequest(14, { battleUuid: this.uuid, seq })); }
 
-  private myMove(seq: number) {
-    const skill = this.io.skill;
-    if (skill && !this.skillRefused && this.me.s1 >= skill.cost) {
-      this.io.log('skill_try', { seq, skill: skill.id, stat1: this.me.s1 });
-      this.io.send(20, buildRequest(20, { battleUuid: this.uuid, seq, skill: skill.id }));
-      this.skillWait = setTimeout(() => { this.skillRefused = true; this.io.log('skill_no_answer', { seq, skill: skill.id, stat1: this.me.s1 }); this.swapMove(seq); }, 3000);
-      return;
-    }
-    this.swapMove(seq);
+  /** The search settings: in a timed battle the mob hits on a timer and never moves pieces, so there is nothing to answer
+   * and no turn to keep. */
+  private strategy(): Strategy {
+    const s = this.io.strategy ?? STRATEGIES.kill;
+    return this.timed ? { ...s, reply: 0, extraTurn: 0, lookahead: 0 } : s;
   }
 
-  private swapMove(seq: number) {
-    // In a timed battle the mob hits on a timer and never moves pieces: nothing to answer.
-    const s = this.io.strategy ?? STRATEGIES.kill, pick = bestMove(this.board, this.me, this.mob, this.timed ? { ...s, reply: 0 } : s);
+  private myMove(seq: number) {
+    if (this.io.skills) return this.chooseAction(seq);
+    const skill = this.io.skill, s = this.strategy(), pick = bestMove(this.board, this.me, this.mob, s), forced = this.io.choose?.(this, seq);
+    if (forced && 'item' in forced) return this.useItem(seq, forced.item, pick);
+    const id = forced && 'skill' in forced ? forced.skill
+      : forced && 'swap' in forced ? undefined
+      : skill && !this.skillRefused && castSkill(this.board, this.me, this.mob, s, pick?.score ?? null) ? skill.id : undefined;
+    if (id !== undefined) return this.castOwn(seq, id, pick);
+    this.swapMove(seq, pick);
+  }
+
+  /** bestAction over the swaps, the skills the nội lực pays for and the potions; a test plan (io.choose) may override it. */
+  private chooseAction(seq: number) {
+    const s = this.strategy(), skills = this.io.skills!.filter(e => !this.refused.has(e.id));
+    for (const k of Object.keys(this.buffs) as (keyof typeof this.buffs)[]) this.buffs[k] = Math.max(0, (this.buffs[k] ?? 0) - 1);
+    Object.assign(this.me, skillWorth(this.me.sword, skills));
+    const { best, all } = bestAction(this.board, this.me, this.mob, s, { skills, potions: this.potions, potionCost: this.io.potionCost, buffs: this.buffs });
+    const swap = all.find(a => a.action.kind === 'swap'), pick = swap?.action.kind === 'swap' ? { move: swap.action.move, score: swap.score } : null;
+    // Only turns where a skill could be cast or something else than a swap was picked: why it cast, healed or did not.
+    if (all.some(a => a.action.kind === 'skill') || (best && best.action.kind !== 'swap')) this.io.log('choice', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, mobHp: this.mob.hp, scores: all.slice(0, 4).map(a => [a.label, Math.round(a.score)]) });
+    const forced = this.io.choose?.(this, seq);
+    if (forced && 'item' in forced) return this.useItem(seq, forced.item, pick);
+    if (forced && 'skill' in forced) return this.castOwn(seq, forced.skill, pick);
+    const a = forced ? swap?.action : best?.action;
+    if (a?.kind === 'skill') return this.castOwn(seq, a.id, pick);
+    if (a?.kind === 'item') return this.useItem(seq, a.slot, pick);
+    this.swapMove(seq, pick);
+  }
+
+  /** Without an answer in 3 s the turn falls back to the swap. */
+  private waitAnswer(seq: number, what: Record<string, unknown>, pick: { move: Move; score: number } | null, refused?: () => void) {
+    this.skillWait = setTimeout(() => { refused?.(); this.io.log('action_no_answer', { seq, ...what, stat1: this.me.s1 }); this.swapMove(seq, pick); }, 3000);
+  }
+  private castOwn(seq: number, id: number, pick: { move: Move; score: number } | null) {
+    this.io.log('skill_try', { seq, skill: id, stat1: this.me.s1, hp: this.me.hp });
+    this.io.send(20, buildRequest(20, { battleUuid: this.uuid, seq, skill: id }));
+    this.waitAnswer(seq, { skill: id }, pick, () => { this.refused.add(id); if (id === this.io.skill?.id) this.skillRefused = true; });
+  }
+  private useItem(seq: number, slot: number, pick: { move: Move; score: number } | null) {
+    this.io.log('item_try', { seq, slot, hp: this.me.hp, stat1: this.me.s1 });
+    this.io.send(44, buildRequest(44, { battleUuid: this.uuid, slot }));
+    // Not tried again in this battle: the slot is taken as empty.
+    this.waitAnswer(seq, { item: slot }, pick, () => { for (const p of this.potions) if (p.slot === slot) p.quantity = 0; });
+  }
+
+  private swapMove(seq: number, pick: { move: Move } | null) {
     if (!pick) { this.io.log('no_legal_move', { seq }); return; }
     this.turns++;
     this.io.send(19, buildRequest(19, { battleUuid: this.uuid, seq, move: pick.move }));
   }
 
-  private onResult(x: ReturnType<typeof battleResult> | ReturnType<typeof timeoutResult>) {
+  private onResult(x: ReturnType<typeof battleResult> | ReturnType<typeof timeoutResult> | (ReturnType<typeof battleItemResult> & { cells: number[] })) {
     clearTimeout(this.skillWait); clearTimeout(this.turnWait);
     const skill = 'skill' in x && x.skill !== undefined;
-    if (skill && x.actor === this.name) { this.skillsCast++; this.io.log('skill_cast', { seq: x.seq, skill: x.skill, targets: x.targets, cells: x.cells.length }); }
+    if (skill && x.actor === this.name) {
+      this.skillsCast++;
+      const e = this.io.skills?.find(k => k.id === x.skill);
+      if (e?.buff) this.buffs[e.buff.stat] = Math.ceil(e.buff.turns / 2);
+      this.io.log('skill_cast', { seq: x.seq, skill: x.skill, targets: x.targets, cells: x.cells.length });
+    }
     if ('move' in x && x.move) swap(this.board, x.move);
     const o = settle(this.board, x.refill, x.cells);
     if (o.refillUsed !== x.refill.length || this.board.some(v => v === EMPTY || v === UNKNOWN) || findRuns(this.board).cells.size) this.io.log('board_desync', { seq: x.seq });
@@ -145,9 +234,9 @@ export class BattleRunner {
 
   /** What the actor's pieces did in this result, read before its unit updates the state: damage per sword (dodges
    * included, doubled hits left out), HP per heart (unless capped at the max), stat1 per yin-yang, stat2 per peach, and
-   * the damage and stat1 of a skill. */
+   * the damage of a skill (its cost stays at the 25 nội lực every side was seen paying). */
   private learnFrom(f: Fighter, u: Unit, o: Outcome, skill: boolean) {
-    if (skill) { if (u.damage >= 0) this.learn(f, 'skillDamage', u.damage); if (f === this.mob) this.learn(f, 'skillCost', f.s1); return; }
+    if (skill) { if (u.damage >= 0) this.learn(f, 'skillDamage', u.damage); return; }
     const n = (piece: number) => o.cleared[piece] ?? 0;
     if (n(0) && u.damage >= 0 && f.s2 < 100) this.learn(f, 'sword', u.damage, n(0));
     if (n(1) && u.hp >= 0 && u.hp < f.maxHp && Number.isFinite(f.hp)) this.learn(f, 'heart', u.hp - f.hp, n(1));
@@ -155,7 +244,8 @@ export class BattleRunner {
     if (n(3) && u.s2 >= 0 && u.s2 < 100 && f.s2 < 100) this.learn(f, 'peach', u.s2 - f.s2, n(3));
   }
   private learn(f: Fighter, key: Piece, total: number, pieces = 1) {
-    const id = `${f === this.me ? 'me' : 'mob'}.${key}`, prior = key.startsWith('skill') ? 1 : 6;
+    const who = f === this.me ? (key === 'sword' ? `me>${this.mobKey}` : 'me') : this.mobKey;
+    const id = `${who}.${key}`, prior = key.startsWith('skill') ? 1 : 6;
     const [sum, n] = this.seen.get(id) ?? [f[key] * prior, prior];
     this.seen.set(id, [sum + total, n + pieces]); f[key] = (sum + total) / (n + pieces);
   }

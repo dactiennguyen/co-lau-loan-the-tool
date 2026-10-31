@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 102 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/events.ts](../../../src/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 113 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 108 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/events.ts](../../../src/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 110 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -30,7 +30,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | Di chuyển của mình, người chơi khác, chat Thế giới, vật phẩm rơi | [09-players-chat](09-players-chat.md) |
 | Nhiệm vụ (`39`, `13`, `34`, `35`) và kết quả bot làm nhiệm vụ | [10-quests](10-quests.md) |
 | Bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân | [11-panels](11-panels.md) |
-| Kỹ năng (`1191`, bảng `30`), điểm tiềm năng, túi đồ (`42`, `1187`), mặc và cởi (`1186`, `37`), dùng (`84`), sửa đồ (`48`), x2 EXP (đuôi `9`), luật trong Cẩm nang | [12-skills-items](12-skills-items.md) |
+| Kỹ năng (`1191`, bảng `30`), điểm tiềm năng, túi đồ (`42`, `1187`), mặc, cởi, vứt (`1186`, `37`, `83`), dùng (`84`, trong trận `44`), mua ở Lái Buôn (`57`, `1190`), sửa đồ (`48`), x2 EXP (đuôi `9`), luật trong Cẩm nang | [12-skills-items](12-skills-items.md) |
 | Đồ rơi, nhặt đồ (`1188`), bảng vật phẩm và mã chỉ số của game | [13-drops-items](13-drops-items.md) |
 | Mọi gói client gửi được: hàm dựng, opcode, kiểu từng trường | [c2s-builders](../c2s-builders.md) |
 
@@ -78,6 +78,12 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/48 | repair_item | world | [Sửa đồ](12-skills-items.md#c2s-48) |
 | c2s/1186 | equip_item | world | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | c2s/84 | use_item | world | [Dùng vật phẩm](12-skills-items.md#c2s-84) |
+| s2c/57 | npc_menu | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| c2s/57 | npc_menu_choice | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| s2c/1190 | shop_list | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| c2s/1190 | shop_buy | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| c2s/44 | battle_use_item | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
+| s2c/44 | battle_item_result | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | c2s/1215 | mail_request | world | [Các bảng chức năng](11-panels.md) |
 | s2c/1215 | mail_list | world | [Các bảng chức năng](11-panels.md) |
 | c2s/1196 | friends_request | world | [Các bảng chức năng](11-panels.md) |
@@ -117,7 +123,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/37 | gear_update | push | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | s2c/1186 | equip_result | push | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | s2c/51 | bag_slot_add | push | [Nhặt vào túi (K3)](13-drops-items.md#k3) |
-| s2c/83 | bag_slot_removed | push | [Vứt bỏ](12-skills-items.md#vứt-bỏ) |
+| s2c/83 | bag_slot_count | push | [Vứt bỏ](12-skills-items.md#vứt-bỏ), [dùng trong trận](12-skills-items.md#c2s-44) |
 | s2c/1256 | notice_1256 | push | [Thua trận mất EXP](10-quests.md#kết-quả-q3-q4), [cổng chưa mở](06-map-mobs.md#atlas), [nhặt đồ](13-drops-items.md#p3), [nhặt không được](13-drops-items.md#k3) |
 | s2c/1201 | step_progress | push | [Lên cấp trong bot](10-quests.md#kết-quả-q3-q4) |
 | s2c/1200 | signal_1200 | push | [Gói mới thấy trong bot](07-auto-battle.md#các-gói-mới-thấy-trong-bot) |

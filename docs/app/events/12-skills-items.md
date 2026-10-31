@@ -10,6 +10,8 @@ Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2; từ P
 - **R1**: `npm run bag` đọc túi và trang bị bằng bot TS ([Cách lấy](#cách-lấy-túi-đồ)).
 - **P4**: điện thoại với Tiheo1, Frida gắn trước khi đăng nhập; cởi và mặc lại thú cưng, sửa Chiến Đao, bấm Sử dụng ở bình máu; đọc đuôi `s2c/9` của 3 nick ([Mặc và cởi đồ](#c2s-1186), [x2 EXP](#x2-exp)).
 - **K3**: bot TS với Tiheo2 (nhân vật Ttuananh, hệ Thủy cấp 15, M1): vứt viên Đá cấp 2 nhặt được từ đất ([Vứt bỏ](#vứt-bỏ)); phần nhặt đồ ở [13](13-drops-items.md#k3).
+- **P5**: điện thoại với Tiheo2, Frida ghi mọi gói: tới Lái Buôn (M1, đổi sang khu 2 vì khu 0 đông người che NPC), mở Dược phẩm, mua 1 Hoàn Linh Dược bằng Xu khóa, rồi dùng nó trong trận với Sơn Tặc ([Mua ở Lái Buôn](#c2s-1190), [Dùng trong trận](#c2s-44)).
+- **B1**: bot TS với manina (cấp 21, ngày 31/10), `npm run buy`: mở cửa hàng Lái Buôn từ M2 rồi từ M1, mua 1 Búa Sửa Chữa bằng 80 Xu khóa ([Mua bằng bot TS](#mua-bằng-bot)).
 
 Bộ giải mã: [src/world.ts](../../../src/world.ts) (`skillTable`, `characterTail`, `gearUpdate`), [src/skills.ts](../../../src/skills.ts), [src/items.ts](../../../src/items.ts); hàm dựng gói ở [src/events.ts](../../../src/events.ts). Test: [test/skills.test.ts](../../../test/skills.test.ts), [test/items.test.ts](../../../test/items.test.ts), [test/quest.test.ts](../../../test/quest.test.ts).
 
@@ -27,7 +29,8 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Mặc, cởi, vứt đồ bằng gói gì? | **`c2s/1186 (u8 action; i32 ô)`**: 0 mặc món ở ô túi, 1 cởi món ở ô trang bị, 2 vứt bỏ món ở ô túi. Mặc, cởi: server trả `s2c/10` kiểu 4 (chỉ số mới), `s2c/37` (8 ô trang bị), `s2c/42` (cả túi) và `s2c/1186` (P4, 2 lần). Vứt: `s2c/83 (ô; 0)`, món bị huỷ (K3). Xem [Mặc và cởi đồ](#c2s-1186), [Vứt bỏ](#vứt-bỏ). [Đo] |
 | Ngôi sao xanh "x2" ở góc trái là gì? | Nhân đôi EXP thắng trận của vật phẩm **Tăng Kinh Nghiệm (mã 7)**, 24 giờ, trôi cả lúc offline. Không phải mặc định: server gửi nó trong đuôi `s2c/9` (`"ef7"`, tỉ lệ 200000, ms còn lại), chỉ nick đã dùng món mới có. Xem [x2 EXP](#x2-exp). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
-| Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, dùng trong trận bằng nút Túi đồ. Ngoài trận nút Sử dụng gửi `c2s/84 (i32 ô túi)` nhưng server từ chối bình: "Vật phẩm không thể sử dụng!" ([Dùng vật phẩm](#c2s-84), P4). Gói dùng bình trong trận [Chưa rõ]. Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
+| Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, chỉ dùng được **trong trận**: nút Túi đồ → chạm bình gửi **`c2s/44 (uuidTrận; 0; ô túi)`**, P5 đo hồi +36 (31 → 67 trên 145) ([Dùng trong trận](#c2s-44)). Ngoài trận nút Sử dụng gửi `c2s/84 (i32 ô túi)` nhưng server từ chối bình: "Vật phẩm không thể sử dụng!" ([Dùng vật phẩm](#c2s-84), P4). Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
+| Mua đồ ở NPC thế nào? | Lái Buôn (NPC 106, M1): `c2s/13 (M1, 106)` → `s2c/57` (hộp thoại 3 dòng) → `c2s/57 (1, M1, 106)` chọn Dược phẩm → `s2c/1190` (8 món, mỗi món có mã ô cửa hàng, giá và loại tiền) → **`c2s/1190 (0; ô cửa hàng; số lượng)`**. Server trả câu báo `s2c/1256`, rồi cả túi (`s2c/42`, món mới ở ô trống đầu tiên) và tiền (`s2c/46`). Bình máu bán hai giá: 109 Xu (ô 0) hoặc 120 Xu khóa (ô 4); Búa Sửa Chữa 73 Xu hoặc 80 Xu khóa. Bot gửi thẳng được, không cần đứng gần NPC, nhưng **phải đang ở M1**: từ map khác server trả "Không thể thực hiện". Xem [Mua ở Lái Buôn](#c2s-1190). [Đo P5, B1] |
 | Nhiệm vụ hằng ngày lấy ở đâu? | Gặp Hương Lão Trần Bá (NPC 102, M1) → "Nhiệm vụ hằng ngày" → "Nhận nhiệm vụ". Tối đa 3 nhiệm vụ một ngày, làm từng cái một (C1). Gói chưa bắt. |
 
 <a id="c2s-1191"></a>
@@ -122,7 +125,8 @@ Cây Thủy:
 - Kỹ năng gốc của cả ba hệ đều gây 11 sát thương ở cấp 1 và 168 ở cấp 20, chỉ khác cách phá quân: Hỏa và Thủy phá vùng 2×2, Lôi phá ngẫu nhiên vài quân. Đúng như đã thấy khi quái dùng 2000 và 4000 trong trận ([05-battle](05-battle.md#s2c-20)). [Đo]
 - Hiệu ứng khác hẳn nhau: Lôi có tăng phòng thủ (2001), tăng né tránh (2002), giảm phòng thủ địch (2004), phá hàng ngang (2006). Thủy có hồi 11–30% sinh lực (4001), triệt tiêu năng lượng địch (4002). Hỏa có biến quân thành kiếm lửa (1001), tăng tấn công (1002). [Đo]
 - **Hệ Lôi là 2.** Game có ba tấm icon kỹ năng `skill1`, `skill2`, `skill4`: tấm 2 toàn tia sét, tấm 1 lửa, tấm 4 băng ([Tab Kỹ năng](#tab-kỹ-năng)). Byte hệ của vật phẩm cũng đánh số như vậy (2 Lôi). Quái hệ Lôi (Sói Xám, Chỉ Huy Sơn Tặc) mang kỹ năng 2000–2008 trong `s2c/22` và dùng 2000 trong trận ([05-battle](05-battle.md#kỹ-năng-trong-trận)). `c2s/30 (2)` trả cây Lôi: 2000 Xích Lôi Công … 2008 Liên Hoàn Lôi Cầu (bảng dưới). [Đo]
-- **Gợi ý cho bot**: Liệt Hỏa Chi Kiếm (1003) gây 45 sát thương, gấp 4 lần Hỏa Cầu Thuật cấp 1, với giá 2 thành nội lực. Nó học được từ cấp 10 bằng 2 điểm. [Suy luận]
+- **Gợi ý cho bot** (mô phỏng A2, [07-auto-battle](07-auto-battle.md#chọn-hành-động)): nâng kỹ năng gốc trước. Nó cho nhiều sát thương nhất trên mỗi điểm nội lực: Hỏa Cầu Thuật cấp 4 của manina gây khoảng 78 cho 25 nội lực, trong khi Liệt Hỏa Chi Kiếm (1003, 45 sát thương, 50 nội lực) chỉ khoảng 75 cho 50. Bot dùng kỹ năng gốc ngay khi có lợi, nên kỹ năng 50 nội lực hiếm khi đến lượt. Với Tiheo2: Băng Tiễn Thuật cấp 4 cho thêm khoảng 13% trận thắng mỗi giờ; Hàn Lưu Thánh Thủy cấp 2, Băng Đao Kích, Tuyết Sơn Áp Đỉnh gần như không đổi gì. [Mô phỏng]
+- Bot đọc hiệu ứng của mọi cấp (540 mô tả, 14 dạng câu) bằng `skillEffect` trong [src/battle-actions.ts](../../../src/battle-actions.ts) để chọn kỹ năng trong trận. [Đo: test đọc hết data/skills.json]
 
 <a id="tab-kỹ-năng"></a>
 
@@ -425,7 +429,7 @@ Trên máy: Bản thân → chạm món hỏng → "Sửa chữa" → hộp "B�
 - P4: Chiến Đao +8 của symap từ 0/60 lên 60/60, Búa Sửa Chữa 5 → 4. "Bộ cùng hệ" lên 3/4 → 4/4, vì món hỏng không tính vào bộ. [Đo]
 - `sqlq.a46(int, int, int)` cũng dựng `c2s/48` với `u8; i32; i32`, có lẽ là sửa món trong túi. [Chưa rõ]
 - **Sau khi sửa, chỉ số không đổi ngay**: không có `s2c/10` hay `s2c/36`, và bảng Chỉ số vẫn hiện Sinh Lực 180, P.Thủ 5. Chúng đổi ở lần `s2c/10` sau: lần cộng điểm P1 đưa HP tối đa lên 238 và P.Thủ lên 9 ([Điểm tiềm năng](#điểm-tiềm-năng)). [Đo]
-- Búa sửa chữa lấy ở đâu (mua ở NPC hay rơi từ quái) [Chưa rõ]. manina đã dùng chiếc búa duy nhất, vũ khí vẫn hỏng.
+- Búa sửa chữa mua ở Lái Buôn: 73 Xu (ô 2) hoặc 80 Xu khóa (ô 6) ([Mua ở Lái Buôn](#c2s-1190)). [Đo P5] manina đã dùng chiếc búa duy nhất, vũ khí vẫn hỏng.
 
 <a id="c2s-1186"></a>
 
@@ -483,7 +487,149 @@ K3 (bot TS, Tiheo2, 31/10): vứt viên Đá cấp 2 ở ô túi 4 (viên nhặt
 c2s/84 = i32 ô túi      (sqlq.i79, gọi từ com.g.f.sqe.a2 ← com.g.c.sqce.g1)
 ```
 
-P4: bấm **Sử dụng** ở Hoàn Linh Dược (ô túi 3, popup ghi "Bơm 30% sinh lực") gửi `00000003`. Server trả `s2c/1256` "**Vật phẩm không thể sử dụng!**", số bình không đổi. Vậy ngoài trận không dùng được bình máu, dù popup vẫn có nút. Món nào dùng được ngoài trận (Tăng Kinh Nghiệm, trứng, rương) thì chưa thử. [Đo 1 lần]
+P4: bấm **Sử dụng** ở Hoàn Linh Dược (ô túi 3, popup ghi "Bơm 30% sinh lực") gửi `00000003`. Server trả `s2c/1256` "**Vật phẩm không thể sử dụng!**", số bình không đổi. Vậy ngoài trận không dùng được bình máu, dù popup vẫn có nút. Món nào dùng được ngoài trận (Tăng Kinh Nghiệm, trứng, rương) thì chưa thử. [Đo 1 lần] Trong trận, bình dùng gói khác: `c2s/44` ([dưới](#c2s-44)).
+
+<a id="c2s-1190"></a>
+
+## Mua ở Lái Buôn: `c2s/57` → `s2c/1190` → `c2s/1190`
+
+P5 (Tiheo2, M1, 31/10), Frida ghi mọi gói hai chiều và tham số hàm dựng. Mua thử 2 lần: ô giá Xu (thiếu Xu, không mua được) và ô giá Xu khóa (mua được 1 Hoàn Linh Dược).
+
+<a id="cách-mua"></a>
+
+### Mua trên máy
+
+1. Đi tới Lái Buôn (NPC 106, M1, (576, 416)). NPC đứng trên một bục cao: giữ cần điều khiển chéo lên khi chạm mép bục để nhảy lên.
+2. Chạm NPC để chọn (tên hiện ở góc trên trái), rồi bấm nút hành động (thanh kiếm). Chạm biểu tượng trên đầu NPC không mở gì. Nếu khu đông người đứng che NPC thì chạm không trúng: đổi sang khu vắng (P5 sang khu 2, 0/20 người).
+3. Hộp thoại "Ở chỗ ta có rất nhiều món đồ tốt." có ba nút: Vũ khí, **Dược phẩm**, Cửa hàng [Lượng]. Chọn Dược phẩm.
+4. Bảng "Vật Phẩm" hiện 8 món. Chạm một món để xem tên, yêu cầu cấp, công dụng và giá; icon cạnh giá cho biết loại tiền (đồng xu xám là Xu, đồng có khoá là Xu khóa). Dưới bảng là số Xu, Xu khóa, Lượng đang có.
+5. Bấm **Mua**: hộp "Mua Hoàn Linh Dược" cho chỉnh số lượng (− / +) và hiện tổng tiền. Bấm Mua lần nữa để gửi.
+6. Kết quả hiện thành dòng chữ giữa bảng: "Bạn vừa mua thành công! 1 Hoàn Linh Dược", hoặc "Không đủ Xu để thực hiện". Số tiền dưới bảng đổi ngay.
+
+<a id="luồng-gói-mua"></a>
+
+### Luồng gói
+
+```text
+C→S 13    "M1", 106                 nói chuyện với Lái Buôn (như NPC nhiệm vụ)
+S→C 57    hộp thoại, 3 dòng          +30 ms
+C→S 57    1, "M1", 106              chọn dòng 1: Dược phẩm
+S→C 1190  bảng "Vật Phẩm", 8 món     +34 ms
+C→S 1190  0, ô 4, số lượng 1        Mua (ô 4 = Hoàn Linh Dược giá Xu khóa)
+S→C 1256  1, "Bạn vừa mua thành công! 1 Hoàn Linh Dược"     +28 ms
+S→C 42    cả túi, bình ở ô 4                                 +46 ms
+S→C 46    Xu 0, Xu khóa 3424, Lượng 0                        +52 ms
+```
+
+Không có gói nào khi mở hay đóng bảng, chạm một món, hay chỉnh số lượng: chỉ ba gói gửi đi ở trên. [Đo]
+
+<a id="bố-cục-gói-mua"></a>
+
+### Bố cục từng gói
+
+**`c2s/13`** = `string mapId; i32 npcId`. Cùng gói nói chuyện với NPC của bước nhiệm vụ ([10-quests](10-quests.md#c2s-13)). P5: `000000024d31 0000006a` ("M1", 106).
+
+**`s2c/57`** (hộp thoại NPC, 129 byte, đọc hết):
+
+| Trường | Kiểu | P5 |
+|---|---|---|
+| n | i32 | 3 |
+| Tên NPC | string | "Lái Buôn" |
+| Lời NPC | string | "Ở chỗ ta có rất nhiều món đồ tốt." |
+| n × {mã dòng; nhãn} | u8; string | 0 "Vũ khí", 1 "Dược phẩm", 2 "Cửa hàng [Lượng]" |
+
+**`c2s/57`** = `u8 mãDòng; string mapId; i32 npcId`, hàm dựng `sqlq.a103(option, mapId, npcId)`. P5: `01 000000024d31 0000006a`.
+
+**`s2c/1190`** (bảng cửa hàng, 285 byte, đọc hết) = `u8 6; string "Vật Phẩm"; i32 8;` rồi 8 món, mỗi món 33 byte:
+
+| Trường | Kiểu | Ô 4 ở P5 | Ghi chú |
+|---|---|---|---|
+| Ô cửa hàng | i32 | 4 | Số gửi lên trong `c2s/1190`. **Không phải mã vật phẩm** |
+| Mã vật phẩm | i32 | 0 (Hoàn Linh Dược) | Tên, mô tả, icon tra ở [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) |
+| Loại tiền | u8 | 1 | 0 Xu, 1 Xu khóa |
+| Giá một món | i32 | 120 | |
+| Độ bền | i32 | -1 | -1 = không có |
+| Số lượng | i32 | 1 | |
+| (cờ) | u8 | 0 | 1 ở mọi món giá Xu, 0 ở món giá Xu khóa. Món mua về có `field1` 0 trong túi, nên có lẽ đây là cờ khoá của món [Suy luận] |
+| Hệ | u8 | 0xff | Không có hệ |
+| | 10 byte | 0 | Chưa rõ |
+
+**`c2s/1190`** = `u8 0; i32 ôCửaHàng; i32 sốLượng`, hàm dựng `sqlq.h87(ô, sốLượng)`. P5: `00 00000004 00000001` (mua được), `00 00000000 00000001` (ô 0, thiếu Xu). Byte đầu luôn 0 ở hai lần đo. [Đo; nghĩa byte đầu Chưa rõ]
+
+<a id="sau-khi-mua"></a>
+
+### Cập nhật sau khi mua
+
+| Gói | Cập nhật gì | Chi tiết |
+|---|---|---|
+| `s2c/1256` | Dòng chữ giữa màn hình | `u8 1; string`. "Bạn vừa mua thành công! 1 Hoàn Linh Dược"; thiếu tiền thì "Không đủ Xu để thực hiện" |
+| `s2c/42` | **Cả túi đồ** | Cùng gói lúc đăng nhập (`string "test dong 1"; i32 42; i32 3;` rồi cả túi, [Túi đồ](#túi-đồ)). Món mới vào **ô trống đầu tiên**: ở P5 là ô 4, ô vừa trống sau khi vứt viên Đá ở K3. Không có `s2c/1187` hay `s2c/51` |
+| `s2c/46` | **Cả ba loại tiền** | `"update Xu"; i64 Xu; i64 Xu khóa; i64 Lượng` = 0, 3424, 0. Xu khóa giảm đúng 120 × 1 |
+
+- Mua không được (thiếu tiền) thì chỉ có `s2c/1256`: túi và tiền không đổi, không có `s2c/42`, `s2c/46`. [Đo]
+- Số tiền dưới bảng và túi đổi sau khi `s2c/42`, `s2c/46` đến, nên có lẽ client chờ server rồi vẽ lại chứ không tự trừ. Vậy app chỉ cần xử lý hai gói này như lúc đăng nhập. [Suy luận]
+- App Rust đã đọc `s2c/42`, `s2c/1187` và `s2c/46` giữa phiên ([App Rust](../../integration/rust/README.md#túi-đồ-và-trang-bị)), nên tab Túi đồ và số tiền tự đổi sau khi mua. Bot TS đọc `s2c/46` và `s2c/1187` giữa phiên nhưng chưa đọc lại `s2c/42`, cũng chưa đọc `s2c/51` (nhặt vào túi) và `s2c/83` (số còn lại trong ô). [Đo trong code]
+
+<a id="mua-bằng-bot"></a>
+
+### Mua bằng bot TS
+
+Các hàm dựng đã có trong [src/events.ts](../../../src/events.ts):
+
+```ts
+buildRequest(13, { mapId: 'M1', npcId: 106 })                 // nói chuyện với Lái Buôn
+buildRequest(57, { option: 1, mapId: 'M1', npcId: 106 })      // chọn Dược phẩm
+buildRequest(1190, { shopId: 4, quantity: 1 })                // mua 1 Hoàn Linh Dược giá Xu khóa
+```
+
+- Chọn ô theo `s2c/1190`, không theo mã vật phẩm: tìm món có `itemId` cần mua và `currency` muốn trả, rồi gửi `shopId` của nó. Bộ giải mã: `npcMenu`, `shopList` trong [src/world.ts](../../../src/world.ts).
+- Kiểm tiền trước khi gửi: `giá × số lượng` phải ≤ Xu hoặc Xu khóa của `s2c/46` gần nhất.
+- Lệnh [src/buy-run.ts](../../../src/buy-run.ts): `npm run buy [-- --item=2] [--pay=khoa|xu] [--qty=1] [--buy]`. Lệnh đăng nhập, mở Dược phẩm, in bảng, chọn ô có `itemId` và loại tiền muốn trả, kiểm tiền, rồi chỉ gửi `c2s/1190` khi có `--buy`. Không có `--buy` thì chỉ mở cửa hàng, không tốn gì.
+- **B1** (31/10, manina cấp 21, 500 Xu, 8.517 Xu khóa, không có búa):
+  - Đứng ở **M2**: `c2s/13 ("M1", 106)` → `s2c/1256` "Không thể thực hiện" sau 27 ms, không có `s2c/57`. **Phải đang ở M1** mới mở được Lái Buôn. [Đo]
+  - Sang M1 (`cllt goto --map=M1`, server xếp khu 1), đứng ở chỗ đăng nhập, xa NPC: `s2c/57` sau 26 ms, `s2c/1190` sau 26 ms, đủ 8 món đúng giá và đúng ô như P5. Khoảng cách tới NPC không quan trọng. [Đo]
+  - `c2s/1190` gửi thẳng từ bot TS: `00 00000006 00000001` → `s2c/1256` "Bạn vừa mua thành công! 1 Búa Sửa Chữa" sau 26 ms, rồi `s2c/42` (túi có Búa Sửa Chữa ×1) và `s2c/46` (Xu khóa 8.517 → 8.437). Byte đầu 0 như P5. [Đo]
+  - App Rust (`cllt buy --account=manina2 --confirm`) mua thêm 1 búa: "Bạn vừa mua thành công! 1 Búa Sửa Chữa", Xu khóa 8.437 → 8.357. Búa mới **cộng dồn vào ô đã có búa** (ô túi 3: Búa Sửa Chữa ×2), không sang ô trống. [Đo]
+
+<a id="bảng-giá-lái-buôn"></a>
+
+### Bảng giá Dược phẩm (P5)
+
+| Ô | Món | Giá |
+|---:|---|---|
+| 0 | Hoàn Linh Dược | 109 Xu |
+| 1 | Kim Đan Dược | 109 Xu |
+| 2 | Búa Sửa Chữa | 73 Xu |
+| 4 | Hoàn Linh Dược | 120 Xu khóa |
+| 5 | Kim Đan Dược | 120 Xu khóa |
+| 6 | Búa Sửa Chữa | 80 Xu khóa |
+| 415 | Bình Huyết Linh (Rỗng) | 4000 Xu |
+| 487 | Băng Tâm | 500 Xu |
+
+- Cùng một món bán hai lần: ô giá Xu và ô giá Xu khóa (đắt hơn ~10%). Trên máy, ô giá Xu khóa có icon kèm hình khoá. Ô 3 không có trong danh sách. [Đo]
+- Hai dòng Vũ khí và Cửa hàng [Lượng] bán gì, byte đầu `u8 0` của `c2s/1190` nghĩa là gì, mua nhiều hơn 1 món một lần: chưa thử. [Chưa rõ]
+
+<a id="c2s-44"></a>
+
+## Dùng vật phẩm trong trận: `c2s/44` → `s2c/83`, `s2c/44`
+
+P5, trận tính giờ với Sơn Tặc cấp 9. Trận bắt đầu khi nhân vật chạm Sơn Tặc trên bản đồ: app tự gửi `c2s/15 ("mob42017", 0)`. Bàn cờ không nhận lệnh chạm từ ADB, nhưng nút Túi đồ ở cột trái thì nhận. Túi đồ trong trận chỉ hiện món dùng được (Hoàn Linh Dược "Bơm 30% sinh lực"); chạm món là dùng luôn, không có nút xác nhận. [Đo]
+
+| ms | Gói | Byte | Nghĩa |
+|---:|---|---|---|
+| 0 | `c2s/44` | `string uuidTrận; i32 0; i32 4` | Dùng món ở ô túi 4. Hàm dựng `sqlq.g76(ô, 0)` ghi số 0 trước, như `c2s/20` ghi `seq` trước mã kỹ năng |
+| 28 | `s2c/83` | `00000004 00000000` | Ô 4 còn 0 món (cùng gói với Vứt bỏ) |
+| 31 | `s2c/44` | 75 byte: `seq 1; 0; seed; i32 0; i32 4; i32 0; i32 0 quân rơi; u8 1 bên; "Ttuananh" sát thương -1, HP 67; cờ; "Ttuananh"; end 0` | Kết quả trong trận. Như `s2c/19` nhưng không có byte xếp lại bàn và 3 byte trước danh sách. Bộ giải mã: `battleItemResult` trong [src/battle.ts](../../../src/battle.ts) |
+
+- **HP 31 → 67, tức +36.** Mô tả ghi "Bơm 30% sinh lực", mà 30% của 145 là 43,5; +36 chỉ bằng 24,8%. Có thể tính theo HP gốc chứ không theo HP tối đa, hoặc mô tả làm tròn. Mới đo 1 lần. [Đo; lý do Chưa rõ]
+- **A1 (31/10), trận theo lượt, bot gửi `c2s/44` qua cầu nối trong game:**
+  - Hoàn Linh Dược lại cho +36 ở HP tối đa 145 (24 → 60), tức khoảng 25%.
+  - Kim Đan Dược cho nội lực +25 mỗi viên (0 → 25 → 50), 4 lần.
+  - Dùng bình là **mất lượt**: sau `s2c/44` là nước của quái.
+
+  Xem [07-auto-battle](07-auto-battle.md#đo-trên-máy-a1). [Đo]
+- Trước đó Sơn Tặc đánh 3 lần theo đồng hồ (`s2c/21` mỗi ~31 s), mỗi lần 38: 145 → 107 → 69 → 31. Thoát trận bằng Đầu hàng (`c2s/11` rồi `c2s/40`): `s2c/1256` "Rời trận, mất 25 kinh nghiệm". [Đo]
+- `c2s/47` (đoán trước đây) không phải gói dùng món: nó do bộ xử lý chạm bàn cờ gửi ([Chưa rõ](#chưa-rõ)). [Đo tĩnh]
 
 <a id="x2-exp"></a>
 
@@ -518,11 +664,11 @@ i32; string tên sứ quân; u8; u8
 ## Bình máu và nội lực
 
 Cẩm nang (C1):
-- Hoàn Linh Dược hồi 30% sinh lực tối đa; Kim Đan Dược hồi 25% nội lực (1 thành).
+- Hoàn Linh Dược hồi 30% sinh lực tối đa; Kim Đan Dược hồi 25% nội lực (1 thành). Đo ở A1: Kim Đan đúng +25; Hoàn Linh Dược chỉ +36 trên 145 (khoảng 25%).
 - Trong trận, bấm nút Túi đồ ở cột trái bàn cờ. Mỗi lượt dùng được 1 món, kể cả khi đấu với người chơi. Bình mua ở NPC Lái Buôn.
 - Ngoài trận, chạm bình trong túi sẽ có nút "Sử dụng" và "Vứt bỏ".
 
-P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, server trả "Vật phẩm không thể sử dụng!" và số bình không đổi ([Dùng vật phẩm](#c2s-84)). Vậy dù Cẩm nang nói vậy, ngoài trận không hồi máu bằng bình được. [Đo] `c2s/1186` từng được đoán là dùng vật phẩm, nhưng đó là mặc và cởi đồ ([Mặc và cởi đồ](#c2s-1186)). Gói dùng bình trong trận chưa bắt. `c2s/47` có lẽ không phải (xem [Chưa rõ](#chưa-rõ)); nhiều khả năng vẫn là `c2s/84`. [Chưa rõ]
+P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, server trả "Vật phẩm không thể sử dụng!" và số bình không đổi ([Dùng vật phẩm](#c2s-84)). Vậy dù Cẩm nang nói vậy, ngoài trận không hồi máu bằng bình được. [Đo] `c2s/1186` từng được đoán là dùng vật phẩm, nhưng đó là mặc và cởi đồ ([Mặc và cởi đồ](#c2s-1186)). Trong trận là gói khác: `c2s/44 (uuidTrận; 0; ô túi)`, hồi +36 ở P5 ([Dùng trong trận](#c2s-44)). [Đo]
 
 ## Cẩm nang: luật liên quan tới bot
 
@@ -547,8 +693,9 @@ P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, s
 ## Chưa rõ
 
 - Biến thể `a46` của `c2s/48` (`u8; i32; i32`), có lẽ sửa món trong túi.
-- Gói dùng vật phẩm trong trận. Không có món tiêu hao nào để thử (Tiheo2 không có bình). Đọc tĩnh: `c2s/47` chỉ do `sqlm.g28(a, b)` gửi, ghi `string uuidTrận; i32 sqlm.o; i32 a; i32 b` (`b78` ghi tham số 3 trước, như `c2s/20` ghi `seq` trước), và `g28` được gọi từ bộ xử lý chạm bàn cờ `sqij` qua `sqlm.f(II)`. Vậy `c2s/47` có lẽ là một thao tác lên ô bàn cờ, không phải dùng món trong túi; dùng bình trong trận nhiều khả năng vẫn là `c2s/84` từ popup vật phẩm. [Đo tĩnh; nghĩa Suy luận]
-- Món nào dùng được ngoài trận bằng `c2s/84`; nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã bắt trên máy (P3), bot chưa gửi thử ([13](13-drops-items.md#p3)).
+- `c2s/47`: chỉ do `sqlm.g28(a, b)` gửi, ghi `string uuidTrận; i32 sqlm.o; i32 a; i32 b` (`b78` ghi tham số 3 trước, như `c2s/20` ghi `seq` trước), và `g28` được gọi từ bộ xử lý chạm bàn cờ `sqij` qua `sqlm.f(II)`. Có lẽ là một thao tác lên ô bàn cờ; không phải dùng món, vì dùng món là `c2s/44` (P5). [Đo tĩnh; nghĩa Suy luận]
+- Hoàn Linh Dược hồi +36 thay vì 30% của 145; Kim Đan Dược hồi bao nhiêu nội lực trong trận.
+- Món nào dùng được ngoài trận bằng `c2s/84`; nhận và trả nhiệm vụ hằng ngày; dòng Vũ khí và Cửa hàng [Lượng] của Lái Buôn. Gói nhặt đồ `c2s/1188` đã bắt trên máy (P3), bot chưa gửi thử ([13](13-drops-items.md#p3)).
 - `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều".
 - Sau sửa đồ, chỉ số có đổi trước lần `s2c/10` sau (sau trận, đăng nhập lại) không.
 - `field01` của một nhân vật hệ Lôi (đoán là 2). Cây kỹ năng Lôi đã có ([Bảng kỹ năng](#bảng-kỹ-năng)).

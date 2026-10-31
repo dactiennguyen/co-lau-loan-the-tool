@@ -3,13 +3,14 @@
 // portal id) when the NPC or mob of a step is in another map. What it sees of each map goes to the atlas (atlas.ts), which
 // also tells it the way to maps seen in earlier runs.
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills } from './protocol.ts';
-import { battleSetup, type Strategy } from './battle.ts';
+import { battleSetup, mobBlock, type Strategy } from './battle.ts';
 import { BattleRunner, type BattleEnd } from './battle-runner.ts';
+import { learntSkills, POTIONS } from './battle-actions.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
 import { ITEM_ELEMENTS, type Items } from './items.ts';
 import { skillTree } from './skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -48,8 +49,13 @@ export interface QuestBotOptions {
   maxFights: number; minHpRatio?: number; log: (event: Record<string, unknown>) => void;
   /** Mob name to fight while a "Đạt cấp độ N" step waits for the level; default: the strongest kind not above own level. */
   grind?: string;
-  /** Own skill to cast in battle, see BattleIo.skill. */
+  /** Own skill to cast in battle, see BattleIo.skill. With the skill table it limits `skills` to this one. */
   skill?: { id: number; cost: number };
+  /** Skills bestAction may cast (battle-actions.ts): every learnt skill ('auto', the default), none ('none', swaps only),
+   * or these ids. */
+  skills?: 'auto' | 'none' | number[];
+  /** What one potion of the bag costs in HP for bestAction (BattleIo.potionCost); default Infinity: none is used. */
+  potionCost?: number;
   /** Move search of every battle, see STRATEGIES in battle.ts. */
   strategy?: Strategy;
   /** Pause between own swaps in a timed battle, and before the next challenge (defaults 1000 and 3000 ms). */
@@ -76,6 +82,8 @@ export interface QuestBotOptions {
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
 export class QuestBot implements WorldSession {
   api?: SessionApi; quest?: Quest; mapId = ''; zone = 0; mobs: Mob[] = []; places: Place[] = []; battle?: BattleRunner; target?: Mob;
+  /** What the battles of this session taught about each side (BattleIo.memory). */
+  battleMemory = new Map<string, [number, number]>();
   /** Ids of the bosses of s2c/1177 (challenged with c2s/1178). */
   bosses = new Set<string>();
   /** Maps seen in this run and in earlier ones. */
@@ -86,6 +94,8 @@ export class QuestBot implements WorldSession {
   /** Waits for a moving boss before the current challenge. */
   waits = 0;
   fights = 0; wins = 0; losses = 0; hp = 0; maxHp = 0; level = 0; statPoints?: number; challenged = 0; battleStart = 0;
+  /** Tấn công (combat[0] of s2c/9) and the bag (s2c/42 at login, s2c/1187 after a change, s2c/83 for one slot). */
+  attack?: number; bag: { slot: number; itemId: number; quantity: number }[] = [];
   /** Other players of the zone (s2c/1263, 1167, 1170, 1253). */
   readonly nearby = new ZonePlayers();
   /** A talk or stat-point step is answered by s2c/34 alone. */
@@ -132,7 +142,7 @@ export class QuestBot implements WorldSession {
     switch (opcode) {
       case 9: {
         const c = characterPrefix(payload); this.hp = c.hp; this.maxHp = c.maxHp; this.level = c.level; this.element = c.field01;
-        const p = characterProfile(payload); this.statPoints = p.statPoints; this.skillPoints = p.skillPoints; this.potentials = p.stats;
+        const p = characterProfile(payload); this.statPoints = p.statPoints; this.skillPoints = p.skillPoints; this.potentials = p.stats; this.attack = p.combat[0];
         this.log('character', { level: p.level, hp: `${p.hp}/${p.maxHp}`, exp: p.exp, levelExp: p.levelExp, coin: p.coin, combat: p.combat, statPoints: p.statPoints, skillPoints: p.skillPoints });
         this.skillLevels = new Map(characterSkills(payload).map(k => [k.id, k.level]));
         try {
@@ -232,6 +242,8 @@ export class QuestBot implements WorldSession {
         const s = characterStats(new Reader(payload));
         if (s.level !== undefined && s.level !== this.level) { this.level = s.level; this.log('level', { level: s.level, stats: s.stats }); }
         if (s.hp !== undefined) { this.hp = s.hp; this.maxHp = s.maxHp; this.log('stats', { hp: `${this.hp}/${this.maxHp}`, exp: s.exp, levelExp: s.levelExp, coin: s.coin }); }
+        // extra[1..5] of kind 4 are the combat stats of s2c/9 (user-data.md): Tấn công follows the gear worn.
+        if (s.extra) this.attack = s.extra[1];
         if (s.stats) this.potentials = s.stats;
         // Kind 8 comes last of the three that answer c2s/10 (P1): the next point of --stats.
         if (s.statPoints !== undefined) { this.statPoints = s.statPoints; if (this.allotting) { this.allotting = false; this.later(250); } }
@@ -257,7 +269,16 @@ export class QuestBot implements WorldSession {
         // The whole bag after it changed: a quest reward, a repair, an item picked up.
         let bag: ReturnType<typeof inventory> | undefined;
         try { bag = inventory(payload); } catch { this.log('inventory', { payloadHex: payload.toString('hex') }); break; }
+        this.bag = bag.items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity }));
         this.log('inventory', { capacity: bag.capacity, items: bag.items.map(i => this.options.items?.describe(i) ?? `#${i.itemId} ×${i.quantity}`) });
+        break;
+      }
+      case 42: try { this.bag = characterExtra(payload).items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity })); } catch { /* the bag log of s2c/1187 covers it */ } break;
+      // One bag slot after an item was used or thrown away: i32 slot; i32 quantity left (12-skills-items.md#c2s-44).
+      case 83: {
+        const r = new Reader(payload), slot = r.i32(), quantity = r.i32(), item = this.bag.find(i => i.slot === slot);
+        if (item) item.quantity = quantity;
+        this.bag = this.bag.filter(i => i.quantity > 0);
         break;
       }
       case 22: this.onSetup(payload); break;
@@ -466,10 +487,23 @@ export class QuestBot implements WorldSession {
     clearTimeout(this.wait);
     // The mob block of s2c/22 starts with the length-prefixed mob id; a late setup may answer an earlier challenge.
     const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id ?? this.target?.id ?? '?';
+    const mob = mobBlock(payload, mobId);
     this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp;
-    this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
-    this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log: (event, fields) => this.log(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, strategy: this.options.strategy, timedMoveMs: this.options.timedMoveMs });
+    this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, mob: mob && `${mob.name} ${mob.hp}/${mob.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
+    const skills = this.battleSkills(), potions = this.bag.filter(i => POTIONS[i.itemId] && i.quantity > 0);
+    if (skills) this.log('battle_skills', { skills: skills.map(k => `${k.id} ${k.name} ${k.level}: ${k.kind}, ${k.cost} nội lực`), potions: potions.map(p => `${POTIONS[p.itemId].name} ×${p.quantity}`), potionCost: this.options.potionCost });
+    this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log: (event, fields) => this.log(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, strategy: this.options.strategy, timedMoveMs: this.options.timedMoveMs,
+      mob, memory: this.battleMemory, skills, potions, potionCost: this.options.potionCost, stats: this.attack === undefined ? undefined : { attack: this.attack, level: this.level } });
     this.battle.start();
+  }
+
+  /** The skills of options.skills among the learnt ones of the s2c/30 table; undefined without the table (BattleIo.skill
+   * then plays as before). */
+  private battleSkills() {
+    const want = this.options.skills ?? 'auto';
+    if (!this.skills.length || want === 'none') return want === 'none' ? [] : undefined;
+    const learnt = learntSkills(this.skills, this.skillLevels), only = this.options.skill ? [this.options.skill.id] : want === 'auto' ? undefined : want;
+    return only ? learnt.filter(k => only.includes(k.id)) : learnt;
   }
 
   private onBattleEnd(end: BattleEnd) {

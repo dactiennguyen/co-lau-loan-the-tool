@@ -22,6 +22,11 @@ Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bướ
 | Có những kiểu trận nào? | **Theo lượt** (`s2c/18` byte 4 = 0: quái đi trước, mỗi lượt có `s2c/24`) và **tính giờ** (= 1, Sơn Tặc: người chơi đi liên tục, quái đánh mỗi ~30 s qua `s2c/21`). | [05-battle](05-battle.md#trận-tính-giờ) [Đo Q6–Q12] |
 | Người chơi dùng kỹ năng được không? | **Được**: `c2s/20 (uuid, seq, skillId)`, Hỏa Cầu Thuật gây 62. | [05-battle](05-battle.md#c2s-20) [Đo Q9] |
 | Cách nhanh nhất? | Trận tính giờ, 0,5 s/nước, dùng kỹ năng: ~500 EXP/phút. | [10-quests](10-quests.md#đánh-nhanh-hay-ăn-sao) [Đo] |
+| Sát thương tính thế nào? | Nước thường: `W × số kiếm ăn được`, gấp đôi khi thanh sức mạnh đầy. Kỹ năng: `W × (3 + số kiếm nó phá) + K`. `W` là sát thương một viên kiếm của bên đánh với bên bị đánh. | [Công thức sát thương](#công-thức-sát-thương) [Đo, 128 lần dùng kỹ năng] |
+| Quái chọn nước thế nào? | Không chọn nước tốt nhất. Nó bốc thăm, nghiêng về nước ăn tim, kiếm, âm dương, nước được thêm lượt và nước nó gặp đầu tiên khi quét bàn. Có đủ nội lực thì một nửa số lượt nó dùng kỹ năng. | [Cách quái chọn nước](#cách-quái-chọn-nước) [Đo, 1011 nước] |
+| Bot đánh bằng thuật toán nào? | `--goal=win` (thắng nhiều nhất) hoặc `--goal=farm` (nhiều EXP nhất), thuật toán v2. Trên mô phỏng đã khớp trận thật, v2 thắng thêm 10% số trận mỗi giờ và `farm` thêm 33% EXP mỗi giờ so với cách cũ. | [Thuật toán v2](#thuật-toán-v2) [Mô phỏng] |
+| Bot có tự dùng kỹ năng, hồi máu, bình không? | **Có** (v3). Mỗi lượt bot so nước đổi chỗ, từng kỹ năng đã học đủ nội lực, và bình nếu được phép, tính hết ra HP. Hiệu ứng đọc từ mô tả kỹ năng trong `s2c/30` (cả 540 mô tả). Nội lực tiêu đi bị trừ đúng giá trị của nó, nên kỹ năng chỉ được dùng khi lượt này có lợi hơn để dành. Trên mô phỏng v3 thắng thêm 1,1–1,4 trận mỗi giờ so với v2. Chạy thật thắng 13/13 trận. | [Chọn hành động](#chọn-hành-động) [Mô phỏng; Đo A2] |
+| Nên cộng điểm kỹ năng nào? | Kỹ năng gốc (Băng Tiễn, Hỏa Cầu) trước: nó cho nhiều sát thương nhất trên mỗi điểm nội lực. Tiheo2 nâng Băng Tiễn lên cấp 4 thì thắng thêm khoảng 13% trận mỗi giờ với quái khó. Hồi 11–12% máu gần như không được dùng. | [Kỹ năng và điểm kỹ năng](#chọn-hành-động) [Mô phỏng] |
 
 ## Online hay offline
 
@@ -140,6 +145,114 @@ Phần cộng 26–30 có thể phụ thuộc cấp quái và cấp mình [Chưa
 
 Ăn ≥4 viên bất kỳ loại nào, hoặc hai hàng 3 cùng loại cắt nhau, được thêm lượt.
 
+<a id="công-thức-sát-thương"></a>
+
+## Công thức sát thương
+
+Rút ra bằng cách phát lại 3041 nước của mọi trace bot (Q3–Q20 và trận Sơn Tặc mA của manina ngày 31/10), bàn khớp server ở mọi nước. Script ở scratchpad `formula/replay.ts` và `formula/fit.js`.
+
+```text
+Nước thường:  W × (số kiếm ăn được, mọi đợt của chuỗi) × 2 nếu sức mạnh = 100 trước nước đó
+Kỹ năng:      W × (3 + S) × 2 nếu sức mạnh = 100  +  K
+              S = số kiếm trong các ô kỹ năng phá (cả vùng nổ của Kiếm lửa) và trong chuỗi rơi sau đó
+              K = số "gây … sát thương" trong mô tả kỹ năng (Hỏa Cầu Thuật cấp 1: 11), không nhân đôi
+```
+
+- `W` là sát thương một viên kiếm, riêng cho từng cặp bên đánh – bên bị đánh. Lấy giá trị thường gặp nhất của đòn 3 kiếm chia 3. [Đo]
+  - manina đánh Sơn Tặc: đòn 3 kiếm = 26 + ⌊cấp/2⌋.
+  - manina cấp 21, Tấn công 32: 36, tức `W = 12`. Hỏa Cầu Thuật gây 83 = 12 × 6 + 11.
+- `W` của quái đánh manina: Cóc Xanh 12, Kẻ Gây Rối 5,67, Sói Xám 4,33, Chỉ Huy Sơn Tặc 4–4,33. [Đo]
+- 128 lần dùng kỹ năng (Hỏa Cầu Thuật của manina, kỹ năng 2000 và 4000 của quái) xếp như sau. Sai số cho phép là 2. [Đo]
+  - 105 lần khớp đúng công thức.
+  - 17 lần thiếu đúng `K`, khoảng 1/7. 13 trong 17 lần này kỹ năng phá đúng 1 kiếm. Vì `W ≈ K ≈ 11`, chưa phân biệt được "mất K" với "viên kiếm đó không được tính".
+  - 3 lần chí mạng ×1,5.
+  - 3 lần lệch, chưa giải thích được.
+- Nước thường: 8,7% số nước có kiếm gây 0 (né). Khoảng 4% số nước chí mạng ×1,5. [Đo]
+- Dùng kỹ năng là hết lượt, như một nước đi. Lượt chỉ được giữ khi chuỗi rơi sau kỹ năng có đoạn ≥4: 3 trong 29 lần của manina. Cả manina lẫn 5 loại quái đều tốn đúng 25 nội lực mỗi lần. [Đo]
+- Nội lực mỗi viên âm dương: manina 2,08 ở mọi cấp từ 8 tới 20 (1,92–2,22 theo từng lượt chạy). Cóc Xanh 3,51, Sói Xám 2,74. [Đo]
+- Viên âm dương bị **kỹ năng phá** cho người dùng nhiều hơn viên ăn theo hàng. Nội lực manina mất khi dùng Hỏa Cầu Thuật, theo số âm dương trong các ô bị phá:
+
+| Âm dương bị phá | Nội lực mất | Số lần |
+|---:|---:|---:|
+| 0 | 25 | 17 |
+| 1 | 19 (được lại 6) | 28 |
+| 2 | 14 (được lại 11) | 10 |
+| 3 | 8 (được lại 17) | 2 |
+
+  Một hàng 3 âm dương rơi theo chuỗi chỉ cho 6. Quái cũng vậy: Cóc Xanh được lại 8–10 cho 1 viên bị phá. Hệ quả: kỹ năng phá nhiều ô còn hồi nội lực, nên thuật toán phải tính phần này. [Đo]
+- `W` theo chỉ số: trong mọi trace, Tấn công của manina luôn là 32, từ cấp 8 tới cấp 21. `W` chỉ đổi theo cấp, ví dụ đòn 3 kiếm đánh Sơn Tặc = 26 + ⌊cấp/2⌋. Vì vậy chưa tách được phần do Tấn công. Cần ít nhất một trận với Tấn công khác: nhân vật khác (Tiheo2), hoặc mặc đồ cộng Tấn công. Trace P3/P4 của symap không có trận nào. [Đo]
+- Chưa rõ: `W` đổi theo Tấn công / Phòng thủ thế nào, và `K` ở kỹ năng cấp 2, 3 (mô tả ghi 19, …). [Chưa rõ]
+
+<a id="đo-trên-máy-a1"></a>
+
+## Đo trên máy với Tiheo2 (A1, 31/10)
+
+Tiheo2 (Ttuananh, hệ Thủy) cấp 15 → 16, đăng nhập sẵn trên điện thoại. Chỉ số theo `s2c/10` kiểu 4: Tấn công 23, P.Thủ 16, Chính xác 64, Né tránh 96, Chí mạng 9. manina: 32, 5–9, 30, 20, 6.
+
+Cách làm:
+- Bàn cờ không nhận chạm ADB, nên trận do cầu nối trong game đánh, như run4. Cầu nối có ba phần: agent Frida gọi hàm dựng gói của chính game (`a67`, `y104`, `h73`, `a74`, `f75`, `g76`, `e52`…), host Python, và brain Node chạy `BattleRunner` của [src/battle-runner.ts](../../../src/battle-runner.ts) với chiến lược `win`.
+- Mỗi gói BattleRunner dựng được đổi thành lời gọi hàm dựng tương ứng. Gói game gửi đi được so với gói BattleRunner dựng: không lệch lần nào.
+- Đã làm: nâng Hàn Lưu Thánh Thủy (4001) cấp 1 và Băng Tiễn Thuật (4000) lên cấp 2, tốn 3 điểm kỹ năng. Mua 4 Kim Đan và 2 Hoàn Linh Dược, tốn 720 Xu khóa.
+- 7 trận do bot đánh, thắng cả 7: Heo Mọi, 3 Sơn Tặc, Kẻ Gây Rối, Chỉ Huy Sơn Tặc. 3 lần đầu hàng, sau khi brain lỗi hoặc game tự mở trận.
+- Log và script ở `captures/a1-2026-10-31/` (không commit).
+
+| Câu hỏi | Kết quả | Căn cứ |
+|---|---|---|
+| Kim Đan Dược ("Bơm 25% công lực") | Nội lực **+25** (0 → 25 → 50), tức 25% của 100. | 4 lần, a5 và a15 [Đo] |
+| Dùng bình trong trận có mất lượt không? | **Có.** Sau `s2c/44` là nước của quái. | 5 lần [Đo] |
+| Hoàn Linh Dược ("Bơm 30% sinh lực") | **+36** khi HP tối đa 145 (24 → 60), giống P5 (31 → 67). Tức khoảng 25% (⌊36,25⌋), không phải 30%. Chưa đo được ở HP tối đa khác. | 2 lần [Đo] |
+| Hàn Lưu Thánh Thủy cấp 1 ("Phục hồi 11% sinh lực") | **+⌊11% × HP tối đa⌋**: +15 khi tối đa 145 (19 → 34), +16 khi tối đa 150 (113 → 129). Tốn 50 nội lực, **mất lượt**. | 2 lần [Đo] |
+| Băng Tiễn Thuật cấp 2 | **51 = 8 × (3 + 1) + 19**: `K = 19` đúng như mô tả cấp 2, `W = 8`. | a8 seq 31 [Đo] |
+| Viên bị kỹ năng phá có tác dụng không? | Có, và mạnh hơn viên ăn theo hàng: mỗi **tim bị phá hồi 10** (3 tim +30, 2 tim +20), bằng cả một hàng 3 tim (+10); 1 âm dương bị phá cho +7 nội lực. | a8 [Đo] |
+| Tấn công đổi sát thương bao nhiêu? | Đòn 3 kiếm ở cấp 16: Tiheo2 (Tấn công 23) gây **24** với Sơn Tặc, Heo Mọi, Kẻ Gây Rối, và 22 với Chỉ Huy Sơn Tặc. manina (Tấn công 32) gây 34 với Sơn Tặc. Chênh 9 Tấn công cho chênh 10 sát thương. Công thức thử `3 kiếm ≈ Tấn công + ⌊cấp/2⌋ − 6` khớp mọi số của manina với Sơn Tặc nhưng dư 1 với Tiheo2, nên mới là [Suy luận]. | 34 đòn [Đo] |
+| Chính xác / Né tránh | Tiheo2 (Chính xác 64) bị né 0/42 nước có kiếm; manina (Chính xác 30) bị né 7,1% (37/523). Quái đánh trúng manina (Né tránh 20) 84,8%, trúng Tiheo2 (Né tránh 96) 9/11 lần. | [Đo, mẫu Tiheo2 nhỏ] |
+| Chí mạng | Tiheo2 (Chí mạng 9): 1/20 đòn 3 kiếm với Sơn Tặc gây 36 = 24 × 1,5. | [Đo] |
+| Game có tự đánh khi hết giờ lượt không? | **Không.** Hết khoảng 33,5 s thì server gửi `s2c/24 playerTurn = 0`, game chỉ tự gửi `c2s/14` để xin nước quái. | a10 [Đo] |
+| Kết quả không có viên rơi (kỹ năng hồi máu) | `s2c/20` không có byte xếp lại bàn và 3 byte theo sau, như `s2c/44`. `battleResult` đã sửa. | a5 [Đo] |
+| Đầu hàng mất bao nhiêu? | 25 EXP ở cấp 15, 27 ở cấp 16. HP giữ nguyên. | [Đo] |
+| Mở NPC từ xa | `c2s/13 ("M1", 106)` và `c2s/57` của Lái Buôn được trả lời khi đứng xa NPC. Hai lần ngay sau khi đầu hàng bằng nút trong trận thì server im lặng; thắng một trận xong lại được. Gói mua `c2s/1190` thì gọi `h87` (static) không tạo gói, nên phải chạm ADB trên cửa sổ cửa hàng. | [Đo; lý do Chưa rõ] |
+
+Bài học khi chạy cầu nối:
+- Lấy đối tượng `sqlq` chỉ từ hàm dựng gắn với đối tượng (`a115` được gọi liên tục, hoặc mở danh sách khu); hàm static như `a1` trả về class.
+- Không đẩy cần điều khiển gần quái: nhân vật chạm quái thì game tự mở trận mà brain không có bàn đầu.
+- Không `kill` host khi agent còn gắn vào luồng vẽ: game bị tắt một lần như vậy, phải đăng nhập lại (máy nhớ mật khẩu).
+- Brain đọc lại log của lần chạy trước (`RESUME`) để đánh tiếp một trận bỏ dở: trận Heo Mọi a7 → a8 đánh tiếp từ seq 12, bàn khớp.
+
+<a id="cách-quái-chọn-nước"></a>
+
+## Cách quái chọn nước
+
+Dữ liệu là 1011 nước đổi chỗ của quái, trên bàn đã dựng lại đúng từng ô, lấy từ cùng các trace (Sói Xám 359, Cóc Xanh 419, Kẻ Gây Rối 175, Chỉ Huy Sơn Tặc 58). Script ở scratchpad `formula/mobai.ts`, `mobhyp.ts`, `mobfit.ts`.
+
+- Quái **không** đi nước tốt nhất. Chỉ 10% nước của nó ăn kiếm. [Đo]
+- 42% số nước trùng với nước hợp lệ đầu tiên khi quét bàn theo hàng từ trên xuống, trong hàng từ trái sang, thử ô dưới trước ô bên phải. Thứ tự quét này khớp nhiều nhất trong 64 thứ tự đã thử. [Đo]
+- Mô hình khớp nhất là bốc thăm có trọng số: mỗi nước hợp lệ được chọn với xác suất tỉ lệ với `exp(Σ trọng số × đặc trưng)`. Trọng số fit bằng maximum likelihood:
+
+| Đặc trưng | Trọng số |
+|---|---:|
+| Mỗi viên tim trong đợt đầu | 0,41 |
+| Mỗi viên kiếm | 0,38 |
+| Mỗi viên âm dương | 0,26 |
+| Mỗi viên đào | 0,16 |
+| Mỗi viên giọt / sao / vàng | −0,07 / −0,05 / −0,03 |
+| Mỗi viên của các đợt sau đã biết | −0,01 |
+| Nước được thêm lượt | 1,49 |
+| Nước đầu tiên khi quét | 1,02 |
+
+So sánh các mô hình bằng log-likelihood trên 1011 nước:
+
+| Mô hình | log-likelihood |
+|---|---:|
+| Chọn đều mọi nước | −1716 |
+| 27% nước có hàng dài nhất, còn lại chọn đều | −1579 |
+| Bốc thăm có trọng số (bảng trên) | **−1485** |
+
+- Quái nghiêng về viên có ích cho trận (tim, kiếm, âm dương, đào). Nó gần như bỏ qua giọt, sao, vàng, vì các viên này chỉ cho người chơi EXP và Xu. [Suy luận]
+- Kỹ năng: khi nội lực ≥ 25, quái dùng kỹ năng ở 57 trong 114 lượt. Nó cũng có lúc đổi chỗ dù đủ nội lực, ví dụ Sói Xám q16 trận 1: hai lượt liền với nội lực 32. [Đo]
+- Viên rơi xuống (16 919 viên): mỗi loại 14,1–14,8%, riêng kiếm 12,9% cộng Kiếm lửa (mã 10) 1,4%, tức 1/10 số kiếm là Kiếm lửa. Bàn đầu trận không có Kiếm lửa. [Đo]
+
+<a id="thuật-toán-của-bot"></a>
+
 ## Thuật toán của bot
 
 Xem `bestMove` và `moveValue` trong [src/battle.ts](../../../src/battle.ts); `BattleRunner` ([src/battle-runner.ts](../../../src/battle-runner.ts)) giữ trạng thái hai bên và tự học thông số trong trận.
@@ -188,9 +301,198 @@ Mô phỏng dùng đúng `legalMoves`/`settle` của bot, viên rơi ngẫu nhi�
 
 Đã thử thêm: trừ 0,5 hoặc 0,7 nước đáp trả, thêm lượt +20 hoặc +35; trừ đủ 1 nước đáp trả với thêm lượt +10 tốt nhất ở cả ba kiểu quái. Trận thật trước khi đổi: Cóc Xanh 3 thắng / 8 trận (Q17–Q19). [Đo trên mô phỏng; trận thật ở [10-quests](10-quests.md#kết-quả-q18-q20)]
 
-Hướng cải thiện:
-- Tính giá trị của viên đặc biệt (Kiếm lửa nổ 3×3).
-- Đọc HP tối đa của quái ngay từ `s2c/22` thay vì đợi đòn đầu.
+Bảng trên dùng mô hình quái cũ (chọn nước ăn nhiều nhất 40–100% số lượt). Mô hình đo được ở [Cách quái chọn nước](#cách-quái-chọn-nước) thay cho nó, xem phần dưới.
+
+<a id="thuật-toán-v2"></a>
+
+### Thuật toán v2 (31/10)
+
+Chọn bằng `--goal=win` (thắng nhiều trận nhất) hoặc `--goal=farm` (thêm thưởng cho giọt 2, sao 4, vàng 1 như `exp`). `kill` và `exp` giữ nguyên cách Q20, vì bot Rust trong `app/core` vẫn chơi theo cách đó và `export:rust` kiểm hai chiến lược này. Code ở `bestMove`, `answerValue`, `castSkill`, `mobMoveOdds` trong [src/battle.ts](../../../src/battle.ts).
+
+| Phần | Q20 (`kill`, `exp`) | v2 (`win`, `farm`) |
+|---|---|---|
+| Nước đáp trả của quái | Nước có giá trị nhất với quái | Giá trị trung bình theo xác suất của [mô hình quái](#cách-quái-chọn-nước). Đủ nội lực thì một nửa là kỹ năng |
+| Nước được thêm lượt | +10 | Cộng giá trị nước tốt nhất của mình ngay sau đó, trên phần bàn đã biết |
+| Dùng kỹ năng | Ngay khi nội lực đủ | `castSkill` (mọi chiến lược): dùng khi sát thương thấp nhất (3 kiếm) đã giết được quái; khi nội lực gấp đôi giá; hoặc khi sát thương trung bình trừ nước đáp trả của quái lớn hơn điểm nước đổi chỗ tốt nhất. Sức mạnh đầy thì kỹ năng được tính gấp đôi phần kiếm. Từ v3, chỉ dùng khi bot không có bảng kỹ năng ([Chọn hành động](#chọn-hành-động)) |
+| HP quái | Biết sau đòn đầu của nó | Đọc từ khối quái của `s2c/22` (`mobBlock`), mọi chiến lược |
+| Thông số học được | Học lại từ đầu mỗi trận | Nhớ suốt phiên theo tên quái (`BattleIo.memory`); giá trị ban đầu theo số đo: âm dương 2 nội lực/viên (trước là 1,2), kỹ năng quái 25 nội lực (trước là 30) và 4 kiếm + 11 sát thương (trước là 40) |
+
+**Mô phỏng.** Script ở scratchpad `formula/sim.ts`, `policies.ts`, `run-src.ts`. Mô phỏng chạy đúng `legalMoves`/`settle`/`bestMove` của bot, cùng các số đo ở trên:
+- công thức sát thương, né và chí mạng;
+- viên rơi xuống như đã đo;
+- quái theo mô hình bốc thăm.
+
+HP **mang sang trận sau** và chỉ hồi đầy sau một trận thua, như [Q19 đo](10-quests.md#kết-quả-q18-q20). Mỗi giờ tính 1 s một nước của mỗi bên cộng 6 s mỗi trận. EXP mỗi trận thắng là `2 × (2 × sao + giọt) + 28`, mỗi trận thua −36.
+
+Đối chiếu với trận thật trước khi so các cách chơi:
+- Cóc Xanh, mỗi nước:
+
+| Mỗi nước | Mô phỏng | Thật |
+|---|---:|---:|
+| Kiếm bot ăn | 0,98 | 1,03 |
+| Tim bot ăn | 0,71 | 0,73 |
+| Kiếm quái ăn | 0,42 | 0,42 |
+| Tim quái ăn | 0,74 | 0,64 |
+| Âm dương quái ăn | 0,50 | 0,67 |
+
+- Số lần quái dùng kỹ năng mỗi trận: 0,94 trên mô phỏng, 1,04 thật.
+- Cách cũ thắng 70,1% trên mô phỏng, Q20 thật thắng 67% (10/15).
+
+Mỗi ô dưới đây là 12 giờ đánh Cóc Xanh liên tục, cùng các ván cho mọi cách chơi:
+
+| manina | Cách chơi | Thắng/giờ | Thua/giờ | EXP/giờ | Tỉ lệ thắng |
+|---|---|---:|---:|---:|---:|
+| 174 HP (Q20) | Q20 (`kill`, kỹ năng ngay khi đủ) | 55,5 | 23,7 | 5806 | 70,1% |
+| | `kill` + `castSkill` | 55,5 | 23,8 | 5840 | 70,0% |
+| | **`win`** | **61,1** | **19,2** | 6677 | **76,1%** |
+| | **`farm`** | 60,2 | 21,8 | **7728** | 73,4% |
+| 238 HP (31/10) | Q20 | 59,3 | 16,4 | 6717 | 78,3% |
+| | **`win`** | 63,9 | **13,8** | 7270 | **82,2%** |
+| | **`farm`** | **64,2** | 14,7 | **8659** | 81,4% |
+
+Đánh Sói Xám (6 giờ, mọi cách đều thắng 100%): Q20 74,2 trận/giờ, 8867 EXP/giờ; bản thử của `farm` 77,8 trận/giờ, 10 979 EXP/giờ.
+
+Đã thử thêm trên mô phỏng nhưng không có lợi:
+- Tính giá tim gấp 1,5 hoặc 2 lần vì HP mang sang trận sau: thắng ít hơn.
+- Thêm lượt tính bằng 0,5; 1,2 hoặc 1,5 lần nước sau: không hơn 1 lần.
+- Tính nước sau rồi trừ thêm nước đáp trả của quái: kém hơn, 57,7 thắng/giờ.
+- Thử 6 bộ viên rơi ngẫu nhiên cho mỗi nước thay vì coi ô chưa rơi là không biết: không hơn.
+- Giữ kỹ năng tới khi sức mạnh đầy: không hơn.
+- Thưởng giọt/sao gấp đôi `farm`: thêm 4% EXP nhưng thua nhiều hơn 16%.
+
+[Mô phỏng]. Chưa chạy trận thật với v2.
+
+Hướng cải thiện tiếp theo:
+- Tính giá trị của Kiếm lửa còn nằm trên bàn (nổ 3×3).
+- Thua chủ yếu vì vào trận với HP thấp. Khi HP thấp có thể đánh quái yếu như Sói Xám trước (quái này gây ~70 HP mỗi trận, trong khi bot hồi được tim), hoặc dùng bình. Bình đã làm ở [Chọn hành động](#chọn-hành-động).
+
+<a id="chọn-hành-động"></a>
+
+### Chọn hành động: kỹ năng, hồi máu, bình (v3, 31/10)
+
+Mỗi lượt bot so ba loại hành động trên cùng một thang điểm, tính bằng HP:
+- nước đổi chỗ tốt nhất (`bestMove` của v2);
+- từng kỹ năng đã học mà nội lực đủ trả;
+- từng bình trong túi.
+
+Code ở `bestAction` trong [src/battle-actions.ts](../../../src/battle-actions.ts). `BattleRunner` dùng nó khi biết danh sách kỹ năng. `QuestBot` tự lấy danh sách này từ bảng kỹ năng và túi đồ. Tham số dòng lệnh: `--skills` (mặc định `auto`) và `--potions` ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)). Không có bảng kỹ năng thì bot chơi như v2 với `--skill`. Test: [test/battle-actions.test.ts](../../../test/battle-actions.test.ts).
+
+**Bot biết gì trước trận:**
+
+| Dữ liệu | Lấy từ | Dùng làm gì |
+|---|---|---|
+| Kỹ năng đã học và cấp | đuôi `s2c/9`, `s2c/10` kiểu 32 | Danh sách hành động |
+| Mô tả và nội lực từng cấp | `s2c/30` ([12](12-skills-items.md#bảng-kỹ-năng)) | Hiệu ứng (bảng dưới) và giá |
+| Túi đồ | `s2c/42` lúc vào game, `s2c/1187` khi túi đổi, `s2c/83` cho một ô | Bình nào còn, ở ô nào (`c2s/44`) |
+| Tấn công và cấp | `combat[0]` của `s2c/9` | `W` trước đòn kiếm đầu tiên: (Tấn công + ⌊cấp/2⌋ − 6) / 3. manina 12 (đo 12), Tiheo2 8,33 (đo 8) |
+| HP quái | khối quái của `s2c/22` | Biết lúc nào kỹ năng có thể kết liễu |
+| `W`, tim, âm dương của từng loại quái | học trong trận, nhớ suốt phiên theo tên quái | Như v2 |
+| `W` của mình với từng loại quái | học trong trận, nhớ riêng theo tên quái (`me>tên.sword`) | Tiheo2 gây 8 với Sơn Tặc nhưng 7,33 với Chỉ Huy Sơn Tặc (A1), nên không dùng chung một số |
+
+**Đọc hiệu ứng từ mô tả.** Cả 540 mô tả của 3 cây kỹ năng (9 kỹ năng × 20 cấp × 3 hệ) đều thuộc 14 dạng câu, và `skillEffect` đọc được hết. Giá trị của từng dạng:
+
+| Mô tả | Bot tính | Căn cứ |
+|---|---|---|
+| "Tấn công và gây K sát thương" (kèm phá vùng, phá ngẫu nhiên, phá hàng ngang hoặc dọc) | `W × (3 + số kiếm bị phá và rơi) × 2 nếu sức mạnh đầy + K × 6/7`. Nếu có thể kết liễu thì tính 10 000 nhân xác suất kết liễu | [Đo] ở kỹ năng gốc (1000, 2000, 4000). Kỹ năng không phá ô (4003 Băng Đao Kích…) dùng cùng công thức với số kiếm bằng 0 [Suy luận] |
+| "Phục hồi P% sinh lực" | ⌊P × HP tối đa⌋, không quá phần HP đang thiếu | [Đo] 4001 cấp 1 ở A1 |
+| "… có P% cơ hội hấp thu N sinh lực" | P × N | [Suy luận] |
+| "… có P% cơ hội làm đối phương bị giảm N lực phòng thủ trong T lượt" | P × N/3 × 1 kiếm mỗi lượt × T/2 | [Suy luận] |
+| "Tăng N lực tấn công trong T lượt. Được đi tiếp" | N/3 × 1 kiếm mỗi lượt × T/2, cộng nước đổi chỗ tốt nhất ngay sau đó | [Suy luận]: 9 Tấn công ≈ 3 sát thương cho đòn 3 kiếm, theo A1 |
+| "Tăng N lực phòng thủ … trong T lượt" | N/3 × 0,42 kiếm của quái mỗi lượt × T/2 | [Suy luận] |
+| "Tăng N né tránh …" | 0 | [Suy luận từ Đo]: Tiheo2 (Né tránh 96) vẫn bị trúng 9/11 lần, manina (20) bị trúng 85% |
+| "Triệt tiêu P% năng lượng của kẻ thù" | P × nội lực quái × giá trị nội lực của quái, và quái bớt nội lực ngay | [Suy luận]: coi "năng lượng" là nội lực |
+| "Biến từ a đến b quân cờ thành kiếm lửa, và có P% cơ hội đi tiếp" | Đặt Kiếm lửa vào các ô ngẫu nhiên, cho rơi như sau một nước đổi chỗ, P% được đi tiếp | [Suy luận]: chưa thấy trong trận |
+| Hoàn Linh Dược / Kim Đan Dược | ⌊25% HP tối đa⌋ / +25 nội lực. Dùng bình mất lượt | [Đo A1] |
+
+Những viên kỹ năng phá được tính gấp 3 với tim, âm dương và đào. Những viên rơi thành hàng sau đó tính như thường ([Đo A1](#đo-trên-máy-a1)).
+
+**Cách chấm điểm kỹ năng:**
+- Kỹ năng phá ô được thử với 16 cách đặt vùng ngẫu nhiên. Cách đặt cố định theo bàn cờ, nên cùng một bàn luôn cho cùng điểm.
+- Với mỗi cách đặt, bot phá các ô, cho rơi phần đã biết, rồi tính sát thương, máu hồi và nội lực nhận lại. Sau đó trừ nước đáp trả trung bình của quái trên bàn còn lại ([mô hình quái](#cách-quái-chọn-nước)).
+- Kỹ năng hoặc bình làm rơi một hàng từ 4 viên trở lên, hoặc kỹ năng ghi "được đi tiếp", thì không bị trừ nước đáp trả.
+- **Nội lực tiêu đi bị trừ đúng bằng giá trị của nó** (`SPEND = 1`). Giá trị một điểm nội lực = sát thương trung bình của kỹ năng đánh tốt nhất ÷ nội lực của nó. Kỹ năng để dành tới lượt sau vẫn gây đúng sát thương đó, nên bot chỉ dùng ngay khi lượt này cho thêm cái gì đó:
+  - có cơ hội kết liễu;
+  - phá được viên có lợi;
+  - nước đổi chỗ hiện có kém.
+- Hai trường hợp không trừ giá nội lực:
+  - thanh nội lực đầy tới mức không còn chỗ cho thêm một lần kỹ năng rẻ nhất (nội lực + giá rẻ nhất > 100), vì phần âm dương ăn thêm sẽ mất. Ngưỡng này chung cho mọi kỹ năng, để kỹ năng đắt (hồi máu 50) không được miễn trừ khi kỹ năng rẻ (25) vẫn bị trừ;
+  - trận tính giờ, vì quái không đi nước nào, nên mỗi lượt chỉ cần gây nhiều sát thương nhất.
+- Bình bị trừ thêm giá `--potions=HP`. Mặc định không dùng bình. Với `300`, bot chỉ dùng bình khi nước sau của quái có thể kết thúc trận. Ở trận tính giờ bot chưa dùng bình, vì đòn theo đồng hồ của quái chưa được tính vào điểm. Server không trả lời một bình thì trong trận đó bot coi ô ấy đã hết.
+- Buff còn hiệu lực thì không dùng lại.
+
+**Mô phỏng** (`formula/sim2.ts`, `run2.ts` trong `captures/a2-2026-10-31/`). Mô phỏng v2 được thêm:
+- mọi kỹ năng theo mô tả;
+- viên bị phá tính gấp 3;
+- hồi máu theo % HP;
+- bình;
+- tỉ lệ đánh hụt riêng cho từng bên: manina hụt 8,7%; Tiheo2 2%; quái đánh Tiheo2 hụt 15%.
+
+Các trận của Tiheo2 dùng HP và `W` đo ở A1. Riêng `W` của Cóc Xanh khi đánh Tiheo2 chưa đo được (đánh manina, P.Thủ 5–9, là 12; Tiheo2 có P.Thủ 16), nên tạm lấy 10. Mỗi ô là trung bình 2 × 24 giờ đánh liên tục, cùng các ván cho mọi cách chơi:
+
+| Nhân vật, quái | Cách chơi | Thắng/giờ | Thua/giờ | EXP/giờ | Tỉ lệ thắng |
+|---|---|---:|---:|---:|---:|
+| manina 174 HP, Hỏa Cầu Thuật cấp 1 (như Q20), Cóc Xanh | v2 (`castSkill`) | 57,6 | 21,9 | 6131 | 72,4% |
+| | **v3** | **58,9** | **21,0** | **6261** | **73,7%** |
+| manina hiện tại: Hỏa Cầu Thuật cấp 4, Hỏa Kiếm Thuật cấp 1; Cóc Xanh | v2 | 63,5 | 20,5 | 6463 | 75,6% |
+| | **v3** | **64,6** | **20,1** | **6580** | **76,3%** |
+| Tiheo2 cấp 16 (4000 cấp 2, 4001 cấp 1), Cóc Xanh | v2 | 40,9 | 28,9 | 4854 | 58,6% |
+| | **v3** | **42,3** | **27,5** | **5050** | **60,6%** |
+| Tiheo2, Kẻ Gây Rối (24 giờ) | v2 / v3 | 74,7 / 75,7 | 0 / 0,1 | 8956 / 8980 | ~100% |
+| Tiheo2, Sơn Tặc tính giờ (24 giờ) | v2 / v3 | 102,2 / 102,1 | 0 | 14 754 / 14 744 | 100% |
+
+Các mức trừ giá nội lực đã thử, cùng 2 × 24 giờ:
+
+| Trừ | manina Q20, thắng/giờ | Tiheo2 / Cóc Xanh, thắng/giờ |
+|---:|---:|---:|
+| 0 | 57,3 | 39,8 |
+| 0,5 | 57,8 | 40,6 |
+| 0,75 | 58,1 | 41,8 |
+| **1** | **58,9** | **42,3** |
+| 1,5 | 56,0 | 31,8 (dùng hồi máu 22 lần/giờ thay cho Băng Tiễn) |
+| 2 | 53,8 | 26,8 |
+
+Không trừ thì v3 kém v2 khoảng 1 trận mỗi giờ. So từng lượt cho thấy lý do: v3 dùng kỹ năng ở những lượt v2 đổi chỗ (31 trên 43 lượt khác nhau, trong 4041 lượt). Đã thử thêm nhưng không hơn:
+- tính nước đáp trả của quái trên bàn trước khi dùng kỹ năng thay vì bàn sau đó;
+- luật "đủ nội lực cho 2 lần thì dùng" của `castSkill`;
+- thử 32 cách đặt vùng thay cho 16.
+
+[Mô phỏng]
+
+**Kỹ năng và điểm kỹ năng.** Cùng mô phỏng cho Tiheo2 đánh Cóc Xanh, 2 × 24 giờ:
+
+| Kỹ năng | Điểm kỹ năng | Thắng/giờ | Thua/giờ | EXP/giờ | Kỹ năng mới được dùng |
+|---|---:|---:|---:|---:|---|
+| Như hiện tại (4000 cấp 2, 4001 cấp 1) | | 42,3 | 27,5 | 5050 | |
+| Bỏ Hàn Lưu Thánh Thủy (24 giờ) | | 41,8 | 27,6 | 5043 | |
+| Băng Tiễn Thuật cấp 3 (`K` = 27, cần cấp 12) | 1 | 45,5 | 26,6 | 5322 | |
+| **Băng Tiễn Thuật cấp 4 (`K` = 35, cần cấp 17)** | 2 | **48,0** | **25,7** | **5517** | |
+| Hàn Lưu Thánh Thủy cấp 2 (12%) | 2 | 42,3 | 27,5 | 5050 | 0 lần/giờ |
+| Thêm Băng Đao Kích 4003 cấp 1 (45, 50 nội lực) | 2 | 42,3 | 27,4 | 5056 | 0,2 lần/giờ |
+| Thêm Tuyết Sơn Áp Đỉnh 4006 cấp 1 (57 + vùng 3×3, 50 nội lực) | 2 | 42,4 | 27,5 | 5064 | 0,9 lần/giờ |
+
+- Băng Tiễn Thuật cho nhiều sát thương nhất trên mỗi điểm nội lực. Ở cấp 2 nó gây khoảng 48 cho 25 nội lực. Băng Đao Kích chỉ được khoảng 63 cho 50, Tuyết Sơn Áp Đỉnh khoảng 83 cho 50. Bot dùng Băng Tiễn ngay khi có lợi, nên hiếm khi để dành được 50 nội lực. [Mô phỏng]
+- Hàn Lưu Thánh Thủy cấp thấp gần như không bao giờ được dùng. 16 HP cho 50 nội lực ít hơn hẳn 2 lần Băng Tiễn. Bot chỉ dùng nó khi kỹ năng của quái có thể giết mình và hồi máu đủ đưa HP qua ngưỡng đó. [Mô phỏng]
+- Với manina, Hỏa Kiếm Thuật chỉ được dùng 0,2–0,3 lần mỗi giờ. Hiệu ứng của nó là đoán ([Suy luận]); cần một trận thật có dùng nó để biết đúng.
+
+**Bình.** Với `--potions=300` (300 hay 1000 cho kết quả như nhau):
+
+| Nhân vật | Thắng/giờ | Thua/giờ | EXP/giờ | Bình mỗi giờ |
+|---|---:|---:|---:|---|
+| manina hiện tại | 64,6 → 66,1 | 20,1 → 17,6 | 6580 → 6877 | 11,3 Hoàn Linh Dược, 1,0 Kim Đan |
+| Tiheo2 / Cóc Xanh | 42,3 → 44,1 | 27,5 → 23,8 | 5050 → 5508 | 18,6 Hoàn Linh Dược, 1,1 Kim Đan |
+
+Mỗi giờ tốn khoảng 1500–2400 Xu khóa (120 mỗi bình) để thua ít hơn 2,5–3,7 trận. Vì vậy mặc định bot không dùng bình. [Mô phỏng]
+
+**Chạy thật (A2, 31/10).** Tiheo2 đánh qua cầu nối trong game như A1, brain chạy `BattleRunner` với `SKILLS=4000:2,4001:1` và bình giá 300. Log ở `captures/a2-2026-10-31/phone/` (không commit).
+- **b1** (trừ giá nội lực bằng 0, bản đầu): thắng 7/7 (2 Kẻ Gây Rối, Chỉ Huy Sơn Tặc, 3 Sơn Tặc, Heo Mọi), 940 EXP. Tiheo2 lên cấp 17.
+- **b2** (bản cuối, trừ giá 1): thắng 6/6 (Chỉ Huy Sơn Tặc, Kẻ Gây Rối, 4 Sơn Tặc), 844 EXP. Tiheo2 lên cấp 18, xong bước "Đánh bại Sơn Tặc (10/10)".
+- Cả hai lượt không có `board_desync`, `tx_mismatch` hay `action_no_answer`. Mỗi gói BattleRunner dựng đều khớp gói game gửi. HP không xuống dưới 120, nên hồi máu và bình không cần dùng.
+- Dòng `choice` cho biết vì sao bot dùng hoặc giữ kỹ năng. Chỉ Huy Sơn Tặc ở b2: lượt 21–26 giữ Băng Tiễn (đổi chỗ 13–51 điểm, kỹ năng −7 đến 7), rồi dùng ở lượt 28 khi HP quái còn 65 (kỹ năng 9110, vì có thể kết liễu). Ở trận tính giờ Sơn Tặc, bot dùng ngay khi đủ nội lực (kỹ năng 59, đổi chỗ 14). [Đo]
+
+**Kết luận cho người chơi:**
+- Tiheo2 (cấp 18; sau A1 còn 10 điểm kỹ năng) nên dùng **2 điểm nâng Băng Tiễn Thuật lên cấp 4**. Trên mô phỏng với quái khó, bot thắng thêm khoảng 13% trận mỗi giờ. Cấp 5 cần cấp nhân vật 22.
+- Chưa nên tốn điểm cho Hàn Lưu Thánh Thủy cấp 2, Băng Đao Kích hay Tuyết Sơn Áp Đỉnh khi Băng Tiễn còn nâng được.
+- Bình chỉ đáng dùng khi một trận thua đáng giá hơn khoảng 5–6 bình.
 
 ## Cách bot gửi gói
 
@@ -372,8 +674,11 @@ Khi thua (B1), 16 byte sau `end` đều là 0. Đối chiếu s2c/10 trước v�
 
 ## Chưa biết
 
-- Giá nội lực của kỹ năng ngoài Hỏa Cầu Thuật khi dùng trong trận (bảng `s2c/30` ghi 50–100, chưa dùng thử).
+- Giá nội lực của kỹ năng ngoài kỹ năng gốc: Hàn Lưu Thánh Thủy tốn đúng 50 như bảng `s2c/30` (A1). Các kỹ năng 75–100 chưa ai dùng.
+- Hiệu ứng thật của các kỹ năng chưa thấy trong trận: buff tấn công, phòng thủ, né tránh; hút máu; giảm phòng thủ; "triệt tiêu năng lượng"; Hỏa Kiếm Thuật biến quân thành Kiếm lửa. Bot đang tính theo các giả định ở [Chọn hành động](#chọn-hành-động).
+- Sát thương của kỹ năng không phá ô (Liệt Hỏa Chi Kiếm, Băng Đao Kích…): có phần `W × 3` như kỹ năng gốc không.
+- `W` của Cóc Xanh khi đánh Tiheo2 (P.Thủ 16); mô phỏng đang lấy 10.
 - Mã viên đặc biệt khác `10`.
-- Công thức sát thương.
+- `W` đổi theo Tấn công / Phòng thủ / cấp thế nào; `K` của kỹ năng cấp 2, 3 ([Công thức sát thương](#công-thức-sát-thương)).
 - Quái có biến mất hoặc hồi sinh phía server sau khi bị giết không.
 - Có giới hạn tần suất thách đấu không.

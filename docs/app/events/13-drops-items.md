@@ -105,7 +105,7 @@ Hai ứng viên cũ không phải gói nhặt:
 
 - **Đồ người khác bị khoá khoảng 16–17 s** cho người làm rơi, sau đó ai cũng nhặt được. Nhiều món biến mất lúc 10–14 s tuổi (`s2c/1183`): chính chủ nhặt trong lúc còn khoá. [Đo]
 - **Không cần đứng gần.** Server không kiểm khoảng cách: nhặt được từ 1430 px và từ đầu kia bản đồ. Game trên máy bắt đi tới hòm trước khi hiện nút Nhặt, nhưng đó là luật của client. [Đo]
-- `s2c/1256` có field 0 khi nhặt được và 1 khi bị từ chối. [Đo]
+- `s2c/1256` có field 0 với "Bạn vừa nhận được…" và 1 với hai câu từ chối. Field 1 không có nghĩa là lỗi: "Bạn vừa mua thành công!…" cũng là 1 ([P5](12-skills-items.md#c2s-1190)); có lẽ 1 là câu hiện giữa màn hình. [Đo]
 - **`s2c/51`** (opcode trước đó chưa từng thấy): `i32 -1; i32 0; u8 1; bản ghi vật phẩm` của ô túi vừa nhận món. 3 mẫu đọc hết byte: Áo Chiến ô 5, Đá cấp 2 ô 6, Rìu Âu Lạc ô 7. Món nhặt sau vào ô trống kế tiếp; Đá cấp 2 có `xếpChồng` 1 nên viên thứ hai vào ô riêng. Bộ giải mã: `bagSlot` trong [src/world.ts](../../../src/world.ts). [Đo]
 - Áo Chiến mất 844 ms mới có trả lời, các lần khác 25–30 ms. [Đo]
 

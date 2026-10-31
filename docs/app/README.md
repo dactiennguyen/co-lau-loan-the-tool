@@ -7,7 +7,7 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | APK/DEX/native, version, kiến trúc và package liên quan | [Artifact và binary](artifact.md) |
 | Đã dùng công cụ gì, lần theo hàm nào, thu byte/field như thế nào; các phiên bắt gói A1, B1, L1, Q2… | [Phương pháp điều tra](investigation.md) |
 | TCP, seed, header, encoded opcode, key và XOR | [Giao thức nhị phân](protocol.md) |
-| 102 gói gửi/nhận, khi nào xuất hiện, body và bước tiếp | [Luồng và event](events/README.md) |
+| 108 gói gửi/nhận, khi nào xuất hiện, body và bước tiếp | [Luồng và event](events/README.md) |
 | Đánh quái: bàn cờ 8×8, các gói trong trận, phần thưởng | [Đánh quái](events/05-battle.md) |
 | Quái của map, toạ độ, di chuyển, đổi khu, code va chạm | [Bản đồ và quái](events/06-map-mobs.md) |
 | Đánh quái online hay offline, luật rơi/lấp, thuật toán bot, dữ liệu mẫu trận thắng | [Đánh quái tự động](events/07-auto-battle.md) |
@@ -15,9 +15,9 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Di chuyển của mình, vị trí/vào/ra/trang bị/HP của người khác, chat Thế giới, vật phẩm rơi | [Người chơi và chat](events/09-players-chat.md) |
 | Nhiệm vụ, chuỗi nhiệm vụ đã thấy, kết quả bot TS tự làm nhiệm vụ | [Nhiệm vụ](events/10-quests.md) |
 | Các bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân | [Bảng chức năng](events/11-panels.md) |
-| Kỹ năng và tab Kỹ năng, điểm tiềm năng, túi đồ, mặc, cởi, sửa, dùng đồ, ngôi sao x2 EXP, luật trong Cẩm nang | [Kỹ năng và vật phẩm](events/12-skills-items.md) |
+| Kỹ năng và tab Kỹ năng, điểm tiềm năng, túi đồ, mặc, cởi, sửa, dùng đồ, mua ở Lái Buôn, dùng bình trong trận, ngôi sao x2 EXP, luật trong Cẩm nang | [Kỹ năng và vật phẩm](events/12-skills-items.md) |
 | Đồ rơi, nhặt đồ, tên của 646 vật phẩm và 17 mã chỉ số, giải mã icon (dữ liệu game trên máy) | [Đồ rơi và vật phẩm](events/13-drops-items.md) |
-| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 113 opcode chưa thấy | [Opcode map](opcode-map.md) |
+| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 110 opcode chưa thấy | [Opcode map](opcode-map.md) |
 | Mọi gói client gửi được: hàm dựng native, opcode, kiểu từng trường | [Hàm dựng gói](c2s-builders.md) |
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |

@@ -365,7 +365,7 @@ Kỹ năng 1000 (Q4):
 | Bố cục payload | `string battleUuid; i32 seq; i32 skillId` |
 | Cách tìm | Quét hằng số opcode trong các hàm dựng gói `com.mh.sqlq`: `a67` → 15, `y104` → 18, `h73` → 14, `a74` → 19, `s77` → 40, và **`f75(int, int)` → 20**. Disassembly cho thấy `a74` ghi tham số cuối (`seq`) trước rồi tới các tham số theo thứ tự, khớp bố cục `c2s/19` đã biết; `f75` cũng ghi tham số thứ hai trước tham số thứ nhất. [Suy luận tĩnh] |
 | Kết quả | Q9: server trả `s2c/20` với `actor = "manina"`, kỹ năng 1000 Hỏa Cầu Thuật: **62 sát thương** (2 mục tiêu, 7–8 ô), **122** khi thanh sức mạnh đầy, so với 31 cho 3 kiếm. Server tự chọn ô mục tiêu. Nhân vật có kỹ năng này ở cấp 1 (`s2c/9`: `000003e8 00000001 00000019 ff`) [Đo] |
-| Nội lực | Hỏa Cầu Thuật tốn **25** (1 thành), theo `nộiLực` của `s2c/30` và chi tiết trên máy ([12](12-skills-items.md#bảng-kỹ-năng)). Bot dùng khi `stat1 ≥ 25`. Trong 71 lần ở trace bot (30–31/10), nội lực trước khi dùng là 25–39, và giảm nhiều nhất 25 (giảm ít hơn khi ô bị phá có viên âm dương). [Đo] |
+| Nội lực | Hỏa Cầu Thuật tốn **25** (1 thành), theo `nộiLực` của `s2c/30` và chi tiết trên máy ([12](12-skills-items.md#bảng-kỹ-năng)). Từ 31/10 bot chọn mọi kỹ năng đã học bằng `bestAction`, so với nước đổi chỗ và bình ([07-auto-battle](07-auto-battle.md#chọn-hành-động)); `castSkill` chỉ còn dùng khi không có bảng kỹ năng. Hàn Lưu Thánh Thủy 4001 tốn đúng 50 (A1). Trong 71 lần ở trace bot (30–31/10), nội lực trước khi dùng là 25–39, và giảm nhiều nhất 25 (giảm ít hơn khi ô bị phá có viên âm dương). [Đo] |
 
 <a id="trận-tính-giờ"></a>
 

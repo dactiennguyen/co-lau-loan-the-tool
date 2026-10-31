@@ -160,6 +160,25 @@ export function bagSlot(payload: Uint8Array) {
   return finish(r, { a, b, flag, item }, 's2c/51');
 }
 
+/** s2c/57 after c2s/13 to an NPC with a menu (Lái Buôn, P5): its name, its line, and the choices; c2s/57 picks one. */
+export function npcMenu(payload: Uint8Array) {
+  const r = new Reader(payload), n = r.i32(), npc = r.string(), text = r.string();
+  const options = Array.from({ length: Math.max(0, n) }, () => ({ option: r.u8(), label: r.string() }));
+  return finish(r, { npc, text, options }, 's2c/57');
+}
+
+/** s2c/1190 after c2s/57 opens a shop (Dược phẩm of Lái Buôn, P5). shopId is what c2s/1190 buys, not the item id: the same
+ * item can be sold twice, for Xu (currency 0) and for Xu khóa (currency 1). */
+export function shopList(payload: Uint8Array) {
+  const r = new Reader(payload), kind = r.u8(), title = r.string(), items = [];
+  for (let n = r.i32(); n > 0; n--) {
+    const shopId = r.i32(), itemId = r.i32(), currency = r.u8(), price = r.i32(), durability = r.i32(), quantity = r.i32(), flag = r.u8(), element = r.u8();
+    r.take(10);
+    items.push({ shopId, itemId, currency, price, durability, quantity, flag, element });
+  }
+  return finish(r, { kind, title, items }, 's2c/1190');
+}
+
 /** s2c/1212, also appended to every s2c/1263 entry. Mode 2 carries a list; the 11-byte form a single entry. */
 export function playerStatus(r: Reader) {
   const id = r.i32(), mode = r.u8(), effects = [];

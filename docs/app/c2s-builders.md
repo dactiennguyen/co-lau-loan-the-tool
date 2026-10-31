@@ -61,7 +61,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 41 | l97 | (int) | i32 |  |
 | 42 | b43 | (Object) | string | có |
 | 43 | e66 | (Object) | string | có |
-| 44 | g76 | (int, int) | string (trường e); i32; i32 |  |
+| 44 | g76 | (int, int) | string (trường e); i32; i32 | có |
 | 47 | b78 | (int, int, int) | string (trường e); i32; i32; i32 |  |
 | 48 | a46 | (int, int, int) | u8; i32; i32 | có |
 | 48 | c47 | (int, int) | u8; i32 | có |
@@ -76,7 +76,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 55 | v93 | () | u8; string (trường f) |  |
 | 55 | w94 | () | u8; string (trường f) |  |
 | 56 | u86 | () | u8 |  |
-| 57 | a103 | (int, Object, int) | u8; string; i32 |  |
+| 57 | a103 | (int, Object, int) | u8; string; i32 | có |
 | 58 | p113 | (Object) | string |  |
 | 59 | Z174 | () | u8 … |  |
 | 84 | i79 | (int) | i32 | có |
@@ -103,7 +103,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1186 | b45 | (int, int) | u8; i32 | có |
 | 1188 | c44 | (Object) | string | có |
 | 1189 | j123 | (int, int) | u8; i32 |  |
-| 1190 | h87 | static (int, int) | u8; i32; i32 |  |
+| 1190 | h87 | static (int, int) | u8; i32; i32 | có |
 | 1191 | e52 | (int, int) | i32; i32 | có |
 | 1192 | m144 | (int, int) | u8; i32; i32 |  |
 | 1193 | k124 | (int, int) | i32; u8 |  |
@@ -156,7 +156,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1268 | n55 | static () | u8 |  |
 
 Ghi chú:
-- Kỹ năng và vật phẩm dùng các gói `1191` (nâng kỹ năng), `30` (cây kỹ năng theo hệ), `1186` (mặc, cởi), `84` (dùng), `48` (sửa) ([12-skills-items](events/12-skills-items.md)); đo trên máy ở K1, P4.
+- Kỹ năng và vật phẩm dùng các gói `1191` (nâng kỹ năng), `30` (cây kỹ năng theo hệ), `1186` (mặc, cởi), `84` (dùng), `48` (sửa), `44` (dùng trong trận), `57` và `1190` (mua ở NPC) ([12-skills-items](events/12-skills-items.md)); đo trên máy ở K1, P4, P5.
 - Đồ thị gọi JNI (T2) gán thêm nghĩa cho ba gói lúc đó chưa thấy trên dây ([13-drops-items](events/13-drops-items.md#c2s-1188)) [Đo tĩnh]:
   - `1188` (`c44`) là nhặt đồ trên đất (`string uuid`), gửi từ nút "Nhặt" của lớp bản đồ. P3 đã bắt được trên máy ([13-drops-items](events/13-drops-items.md#p3)).
   - `1174` (`q120`) gửi chữ người chơi gõ trong một hộp nhập.

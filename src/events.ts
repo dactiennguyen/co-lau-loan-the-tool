@@ -2,8 +2,8 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
-  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, bagSlot } from './world.ts';
-import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, type Move } from './battle.ts';
+  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, bagSlot, npcMenu, shopList } from './world.ts';
+import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from './battle.ts';
 
 export type Direction = 'c2s' | 's2c';
 export type Phase = 'boot' | 'login' | 'world' | 'battle' | 'push';
@@ -65,6 +65,12 @@ event('c2s', 1188, 'pickup_item', 'world', 'Chạm hòm đồ trên đất rồi
 event('c2s', 48, 'repair_item', 'world', 'Sửa chữa ở chi tiết trang bị rồi OK (sqh.run1 ← sqaj.a5 → sqlq.c47)', 's2c/1187 rồi s2c/48', 'u8 where (0: ô trang bị); i32 slot', 'Đo E2 (nón, 00 00000000) và P4 (vũ khí, 00 00000002); mỗi lần tốn 1 Búa sửa chữa');
 event('c2s', 1186, 'equip_item', 'world', 'Trang bị (món trong túi) hoặc Cởi ra (món đang mặc) ở chi tiết vật phẩm (sqe.a2, sqf.run1 → sqlq.b45); Vứt bỏ rồi đồng ý (sqbz.run1 → sqlq.b45)', 'Mặc, cởi: s2c/10 kiểu 4, s2c/37 (8 ô trang bị), s2c/42 (cả túi), s2c/1186, s2c/1166 và s2c/1212 cho cả khu. Vứt bỏ: s2c/83', 'u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị, 2: vứt bỏ món ở ô túi); i32 slot', 'Đo P4: cởi thú cưng 01 00000005, mặc lại 00 00000027 (ô 39 của túi). Vứt bỏ: action 2 đọc tĩnh ở sqbz.run1, đo K3 02 00000004, server trả s2c/83');
 event('c2s', 84, 'use_item', 'world', 'Sử dụng ở chi tiết vật phẩm trong túi (sqe.a2 → sqlq.i79)', 's2c/1256 "Vật phẩm không thể sử dụng!" với Hoàn Linh Dược ngoài trận', 'i32 slot (ô túi)', 'Đo P4 1 lần: 00000003 (Hoàn Linh Dược), server từ chối');
+event('s2c', 57, 'npc_menu', 'world', 'Sau c2s/13 với NPC có hộp thoại chọn (Lái Buôn)', 'Người chơi chọn một dòng: c2s/57', 'i32 n; string npcName; string text; n * {u8 option; string label}', 'Đọc hết 129 byte (P5): Lái Buôn "Ở chỗ ta có rất nhiều món đồ tốt.", 3 dòng 0 Vũ khí, 1 Dược phẩm, 2 Cửa hàng [Lượng]');
+event('c2s', 57, 'npc_menu_choice', 'world', 'Chọn một dòng trong hộp thoại NPC (sqlq.a103(option, mapId, npcId))', 's2c/1190 (cửa hàng) khi chọn Dược phẩm', 'u8 option; string mapId; i32 npcId', 'Đo P5 1 lần: 01 "M1" 106 (Dược phẩm của Lái Buôn)');
+event('s2c', 1190, 'shop_list', 'world', 'Sau c2s/57 chọn một cửa hàng', 'Mua: c2s/1190', 'u8 kind; string title; i32 n; n * {i32 shopId; i32 itemId; u8 currency (0 Xu, 1 Xu khóa); i32 price; i32 durability; i32 quantity; u8; u8 element; 10 byte 0}', 'Đọc hết 285 byte (P5): kind 6 "Vật Phẩm", 8 món; Hoàn Linh Dược ở ô 0 (109 Xu) và ô 4 (120 Xu khóa)');
+event('c2s', 1190, 'shop_buy', 'world', 'Bấm Mua rồi xác nhận số lượng trong cửa hàng NPC (sqlq.h87(shopId, quantity))', 'Được: s2c/1256 "Bạn vừa mua thành công! 1 Hoàn Linh Dược", s2c/42 (cả túi), s2c/46 (tiền). Thiếu tiền: s2c/1256 "Không đủ Xu để thực hiện"', 'u8 0; i32 shopId (của s2c/1190); i32 quantity', 'Đo P5 2 lần: ô 0 trả bằng Xu (thiếu Xu), ô 4 trả 120 Xu khóa (mua được, Xu khóa 3544 → 3424)');
+event('c2s', 44, 'battle_use_item', 'battle', 'Trong trận: nút Túi đồ rồi chạm món (sqlq.g76(slot, 0))', 's2c/83 (số còn lại trong ô), s2c/44 (HP mới)', 'string battleUuid; i32 0; i32 bagSlot', 'Đo P5 1 lần trong trận tính giờ với Sơn Tặc: Hoàn Linh Dược ở ô 4, HP 31 → 67');
+event('s2c', 44, 'battle_item_result', 'battle', 'Sau c2s/44', 'Trận đi tiếp', 'i32 seq; i32 0; u32 seed; i32 0; i32 bagSlot; i32; i32 n; u8[n] refill; u8 m; m * {string name; i32 damage; u8; i32 hp; i32; i32}; u8 flags[4]; string actor; u8 end', 'Đọc hết 75 byte (P5): Ttuananh hp 67 sau Hoàn Linh Dược');
 event('c2s', 1215, 'mail_request', 'world', 'Mở Hòm thư', 's2c/1215', 'Rỗng');
 event('s2c', 1215, 'mail_list', 'world', 'Trả mail_request', 'Không', 'i32 n; bản ghi thư chưa thấy (n = 0)', 'Đo 1 lần, hòm thư trống');
 event('c2s', 1196, 'friends_request', 'world', 'Mở Bạn bè', 's2c/1196', 'Rỗng');
@@ -107,8 +113,8 @@ const pushes: [number, string, string, string, string?][] = [
   [37, 'gear_update', 'Sau c2s/1186 (mặc hoặc cởi đồ)', 'i32 0; u8 0x40; string name; i32 8; 8 * (u8 0xff | item record)', 'Đọc hết byte 2 mẫu (P4): 350 byte khi cởi thú cưng, 423 khi mặc lại'],
   [1186, 'equip_result', 'Sau c2s/1186, sau s2c/42', 'i32 action (lặp lại action của c2s/1186)', 'Đo P4: 1 khi cởi, 0 khi mặc'],
   [51, 'bag_slot_add', 'Nhặt được món vào túi (sau c2s/1188); không có s2c/1187 lúc này', 'i32 -1; i32 0; u8 1; item record (ô túi vừa nhận món)', 'Đo K3 3 lần, đọc hết byte: Áo Chiến ô 5, Đá cấp 2 ô 6, Rìu Âu Lạc ô 7'],
-  [83, 'bag_slot_removed', 'Sau c2s/1186 action 2 (Vứt bỏ)', 'i32 slot; i32 0 (có lẽ số còn lại trong ô)', 'Đo K3 1 lần: 00000004 00000000 khi vứt Đá cấp 2 ở ô 4; đăng nhập lại thì ô 4 trống, không có s2c/1182'],
-  [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác; nhặt được hay không nhặt được đồ (P3, K3)', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực", "Bạn vừa nhận được 474 Xu khóa", "Không thể nhặt vật phẩm của người khác")', 'Đọc hết byte 5 mẫu (Q6, Q15, S1, P3) và K3; field 0 khi nhặt được, 1 khi bị từ chối (K3)'],
+  [83, 'bag_slot_count', 'Sau c2s/1186 action 2 (Vứt bỏ); sau c2s/44 (dùng món trong trận)', 'i32 slot; i32 số còn lại trong ô (0: ô trống)', 'Đo K3 (vứt Đá cấp 2 ở ô 4) và P5 (dùng bình duy nhất ở ô 4): cả hai 00000004 00000000; đăng nhập lại thì ô 4 trống'],
+  [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác; nhặt được hay không nhặt được đồ (P3, K3)', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực", "Bạn vừa nhận được 474 Xu khóa", "Không thể nhặt vật phẩm của người khác")', 'Đọc hết byte 5 mẫu (Q6, Q15, S1, P3), K3, P5. field 1 ở câu hiện giữa màn hình ("Không thể nhặt…", "Không đủ Xu…", "Bạn vừa mua thành công!…"), 0 ở "Bạn vừa nhận được…" và "Rời trận, mất 25 kinh nghiệm"'],
   [1201, 'step_progress', 'Sau mỗi trận được tính cho bước nhiệm vụ đang làm', 'i32 progress: số con đã diệt, hoặc tổng sát thương lên boss', 'Đo: Q2–Q9 tăng 1 sau mỗi trận thắng (1…9); B4 363 = sát thương lên boss sau trận thua'],
   [1200, 'signal_1200', 'Ngay sau s2c/19 end 1, và sau s2c/35 khi trả nhiệm vụ', 'Rỗng', 'Đo; vai trò chưa rõ'],
   [39, 'quest_data', 'Sau s2c/9 và khi nhận nhiệm vụ mới', 'i32 questId; string title; string description; string type; i32 current; i32 progress; i32 n; n * {i32 index; string text; i32 param; i32 required; i32 npcId}', 'Đọc hết byte 3 mẫu; current khớp bước tô xanh trên bảng Nhiệm vụ'],
@@ -151,6 +157,8 @@ export interface RequestContext {
   slot?: number; action?: number; where?: number;
   /** The character's element, field01 of s2c/9 (1 Hỏa, 4 Thủy): c2s/30 asks for the skill tree of that element. */
   element?: number;
+  /** c2s/57: the choice of s2c/57; c2s/1190: shopId of s2c/1190 and how many. */
+  option?: number; shopId?: number; quantity?: number;
 }
 function required<T>(value: T | undefined, name: string): T {
   if (value === undefined) throw new Error(`Missing request field: ${name}`);
@@ -182,6 +190,11 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 1186: return w.u8(required(ctx.action, 'action')).i32(required(ctx.slot, 'slot')).build();
     case 84: return w.i32(required(ctx.slot, 'slot')).build();
     case 48: return w.u8(ctx.where ?? 0).i32(required(ctx.slot, 'slot')).build();
+    // Lái Buôn (P5): a line of the NPC menu sqlq.a103(option, mapId, npcId), then Mua sqlq.h87(shopId, quantity).
+    case 57: return w.u8(required(ctx.option, 'option')).string(required(ctx.mapId, 'mapId')).i32(required(ctx.npcId, 'npcId')).build();
+    case 1190: return w.u8(0).i32(required(ctx.shopId, 'shopId')).i32(ctx.quantity ?? 1).build();
+    // Túi đồ in battle (P5): sqlq.g76(slot, 0) writes the 0 first, like c2s/20 writes seq before the skill.
+    case 44: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(0).i32(required(ctx.slot, 'slot')).build();
     case 15: return w.string(required(ctx.mobId, 'mobId')).u8(0).build();
     case 1178: return w.string(required(ctx.mobId, 'mobId')).i32(0).build();
     case 18: case 40: return w.string(required(ctx.battleUuid, 'battleUuid')).build();
@@ -214,6 +227,9 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1188: fields = { uuid: r.string() }; break;
       case 1186: fields = { action: r.u8(), slot: r.i32() }; break;
       case 84: fields = { slot: r.i32() }; break;
+      case 57: fields = { option: r.u8(), mapId: r.string(), npcId: r.i32() }; break;
+      case 1190: fields = { kind: r.u8(), shopId: r.i32(), quantity: r.i32() }; break;
+      case 44: fields = { battleUuid: r.string(), a: r.i32(), slot: r.i32() }; break;
       case 48: fields = { where: r.u8(), slot: r.i32() }; break;
       case 1254: fields = payload.length > 1 ? { tab: r.u8(), field: r.u8() } : { tab: r.u8() }; break;
       case 1265: fields = { command: r.u8() }; break;
@@ -256,7 +272,10 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 37: fields = gearUpdate(payload); r.take(payload.length); break;
       case 1186: fields = { action: r.i32() }; break;
       case 51: fields = bagSlot(payload); r.take(payload.length); break;
-      case 83: fields = { slot: r.i32(), value: r.i32() }; break;
+      case 83: fields = { slot: r.i32(), left: r.i32() }; break;
+      case 57: fields = npcMenu(payload); r.take(payload.length); break;
+      case 1190: fields = shopList(payload); r.take(payload.length); break;
+      case 44: fields = battleItemResult(r); break;
       case 43: fields = mapEntities(payload); r.take(payload.length); break;
       case 13: fields = mapChange(payload); r.take(payload.length); break;
       case 22: fields = battleSetup(payload); r.take(Number(fields.knownBytes)); break;

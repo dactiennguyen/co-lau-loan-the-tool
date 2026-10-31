@@ -15,15 +15,23 @@ const quiet = new Set(['s2c/1263', 's2c/30', 's2c/1262', 's2c/1253', 's2c/1', 'c
   'c2s/15', 'c2s/1178', 's2c/22', 'c2s/18', 's2c/18', 's2c/24', 'c2s/14', 'c2s/19', 's2c/19', 's2c/20', 's2c/10', 's2c/36', 's2c/1214', 's2c/1205', 's2c/1261', 's2c/46', 's2c/1187', 's2c/1201', 's2c/1177', 's2c/13', 'c2s/13', 's2c/11', 'c2s/11', 's2c/43', 'c2s/43']);
 const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 
-// --skill=1000:25 casts skill 1000 whenever own nội lực reaches 25.
+// Every own turn is chosen among the swaps, the learnt skills (s2c/30 and their levels) and the potions of the bag by
+// bestAction (07-auto-battle.md#chọn-hành-động). --skills=none plays swaps only, --skills=4000,4001 only those skills;
+// --skill=1000:25 is the older form for one skill. --potions=<HP> lets it use a potion when that beats every other action
+// by this much HP (300: only when the mob could end the battle; default none).
 const [skillId, skillCost] = (arg('skill') ?? '').split(':').map(Number);
 const skill = skillId ? { id: skillId, cost: skillCost || 25 } : undefined;
-// --goal=kill (default: end battles fast) or --goal=exp (collect stars, drops and gold).
+const skillsArg = arg('skills'), skills = skillsArg === undefined || skillsArg === 'auto' ? 'auto' as const : skillsArg === 'none' ? 'none' as const : skillsArg.split(',').map(Number);
+if (Array.isArray(skills) && skills.some(id => !Number.isInteger(id))) throw new Error('--skills must be auto, none or skill ids like 4000,4001');
+const potionCost = arg('potions') === undefined ? undefined : Number(arg('potions'));
+if (potionCost !== undefined && !(potionCost >= 0)) throw new Error('--potions must be a number of HP, such as 300');
+// --goal=kill (default: end battles fast) or --goal=exp (collect stars, drops and gold), the Q20 search; --goal=win and
+// --goal=farm are the same goals with the mob as it really plays and a look past an extra turn (07-auto-battle.md#thuật-toán-v2).
 const goal = (arg('goal') ?? 'kill') as keyof typeof STRATEGIES;
-if (!STRATEGIES[goal]) throw new Error('--goal must be kill or exp');
+if (!STRATEGIES[goal]) throw new Error('--goal must be kill, exp, win or farm');
 // --stats=auto, --stats=than or --stats=cuong:3,than:1 spends the potential points (c2s/10) by those weights.
 const stats = arg('stats') === undefined ? undefined : statPlan(arg('stats')!);
-const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, strategy: STRATEGIES[goal],
+const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, skills, potionCost, strategy: STRATEGIES[goal],
   timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
   maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', once: process.argv.includes('--once'),
   surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, items: Items.load(), log: show });

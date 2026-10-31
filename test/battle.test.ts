@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, type Move } from '../src/battle.ts';
+import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, type Move } from '../src/battle.ts';
 import { Writer } from '../src/protocol.ts';
 import { buildRequest, decodeEvent } from '../src/events.ts';
 import { BattleRunner, type BattleEnd } from '../src/battle-runner.ts';
@@ -84,7 +84,26 @@ test('battle runner learns what a piece does for the mob: damage per sword, and 
   assert.equal(runner.mob.sword, (8 * 6 + 33) / 9); // prior 8 as six pieces, then three swords for 33
   runner.mob.s1 = 30;
   learn(runner.mob, unit(59), { cleared: {}, waves: 0, extraTurn: false, refillUsed: 0 }, true);
-  assert.deepEqual([runner.mob.skillDamage, runner.mob.skillCost], [(40 + 59) / 2, 30]);
+  // Prior: 4 swords of the unknown mob + 11; the cost stays at the 25 every side paid.
+  assert.deepEqual([runner.mob.skillDamage, runner.mob.skillCost], [(43 + 59) / 2, 25]);
+});
+
+test('battle runner: the mob\'s HP from s2c/22, and what one battle learnt is where the next one starts', () => {
+  const setup = { me: 'manina', level: 21, hp: 238, maxHp: 238, uuid: 'u', board: battles[0].board.slice(), turnSeconds: 30, knownBytes: 0 };
+  const memory = new Map<string, [number, number]>(), io = { send: () => {}, log: () => {}, onEnd: () => {}, memory, mob: { name: 'Cóc Xanh', hp: 249, maxHp: 249 } };
+  const first = new BattleRunner(setup, 'mob61000', io);
+  assert.deepEqual([first.mob.hp, first.mob.maxHp, first.me.yinyang], [249, 249, 2]);
+  (first as any).learnFrom(first.mob, { name: 'mob61000', damage: 33, b: 0, hp: -1, s1: -1, s2: -1 }, { cleared: { 0: 3 }, waves: 1, extraTurn: false, refillUsed: 0 }, false);
+  const next = new BattleRunner(setup, 'mob61001', io);
+  assert.deepEqual([next.mob.sword, [...memory.keys()]], [(8 * 6 + 33) / 9, ['Cóc Xanh.sword']]);
+  assert.equal(new BattleRunner(setup, 'mob42100', { ...io, mob: { name: 'Sói Xám', hp: 220, maxHp: 220 } }).mob.sword, 8, 'another kind of mob starts from the prior');
+});
+
+test('mobBlock: the mob part of s2c/22 found by its id (layout of 07-auto-battle.md#s2c22-641-byte)', () => {
+  const p = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(1).i32(21).i32(0).u8(0).i32(150).i32(238)
+    .i32(0).i32(100).i32(0).i32(100).string('mob61000x').string('mob61000').string('Cóc Xanh').u8(1).u8(0).u8(4).i32(13).i32(100000).u8(0).i32(249).i32(249).build();
+  assert.deepEqual(mobBlock(p, 'mob61000'), { name: 'Cóc Xanh', level: 13, hp: 249, maxHp: 249 });
+  assert.equal(mobBlock(p, 'mob42100'), undefined);
 });
 
 const packets: Record<string, string> = fixtures['battle-packets'];
@@ -179,9 +198,75 @@ test('battle runner: joins, steps for the mob, plays a legal move on its own tur
   runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex'));
   const swapSent = decodeEvent('c2s', 19, sent.at(-1)![1]).fields as any;
   assert.ok(legalMoves(board).some(m => String([m.from, m.to]) === String([swapSent.from, swapSent.to])));
-  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0)).u8(0).u8(0).u8(0).u8(0)
+  const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0))
     .u8(1).string('mob872604').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
   assert.equal(runner.onPacket(19, end), true);
   assert.deepEqual(ends, [{ won: true, actor: 'manina', exp: 8, coin: 4, myTurns: 1, hp: 130, mobId: 'mob872604', damage: 0 }]);
   assert.equal(runner.onPacket(1262, Buffer.alloc(0)), false);
+});
+
+// Two moves on a board of unknown cells: three drops at the top (found first) and three swords lower down.
+const twoMoves = () => {
+  const b = Array<number>(N * N).fill(UNKNOWN), at = (r: number, c: number, v: number) => { b[r * N + c] = v; };
+  at(0, 0, 4); at(0, 1, 4); at(0, 2, 2); at(1, 2, 4);   // (0,2)↔(1,2): three drops in row 0
+  at(5, 0, 0); at(5, 1, 0); at(5, 2, 1); at(6, 2, 0);   // (5,2)↔(6,2): three swords in row 5
+  return b;
+};
+
+test('mobMoveOdds: the mob plays swords over drops, though the drops are the first move it finds', () => {
+  const [drops, swords] = mobMoveOdds(twoMoves());
+  assert.deepEqual([drops.move, swords.move], [{ from: [0, 2], to: [1, 2] }, { from: [5, 2], to: [6, 2] }]);
+  assert.deepEqual([drops.outcome.cleared, swords.outcome.cleared], [{ 4: 3 }, { 0: 3 }]);
+  const odds = Math.exp(3 * MOB_AI.piece[0] - (MOB_AI.firstFound + 3 * MOB_AI.piece[4]));
+  assert.ok(Math.abs(swords.p / drops.p - odds) < 1e-9 && Math.abs(drops.p + swords.p - 1) < 1e-9);
+});
+
+test('answerValue: the best answer (Q20) or the average one, with the skill half the time once the mob has the nội lực', () => {
+  const b = twoMoves(), me = fighter(174, 174), mob = fighter(249, 249, { sword: 12 });
+  const [, swords] = mobMoveOdds(b);
+  assert.equal(answerValue(b, mob, me, STRATEGIES.kill), 36);
+  assert.ok(Math.abs(answerValue(b, mob, me, STRATEGIES.win) - swords.p * 36) < 1e-9);
+  const ready = { ...mob, s1: 25, skillCost: 25, skillDamage: 59 };
+  assert.ok(Math.abs(answerValue(b, ready, me, STRATEGIES.win) - (MOB_AI.cast * 59 + (1 - MOB_AI.cast) * swords.p * 36)) < 1e-9);
+});
+
+test('bestMove win: four hearts at full HP are worth the three swords the extra turn then plays; kill sees only 10 for it', () => {
+  const b = Array<number>(N * N).fill(UNKNOWN), at = (r: number, c: number, v: number) => { b[r * N + c] = v; };
+  at(0, 0, 1); at(0, 1, 1); at(0, 2, 2); at(1, 2, 1); at(0, 3, 1);   // (0,2)↔(1,2): four hearts in row 0, extra turn
+  at(5, 0, 0); at(5, 1, 0); at(5, 2, 1); at(6, 2, 0);                // (5,2)↔(6,2): three swords in row 5
+  const hearts = { from: [0, 2], to: [1, 2] }, swords = { from: [5, 2], to: [6, 2] };
+  const pick = (s: typeof STRATEGIES.kill) => { const p = bestMove(b, fighter(174, 174), fighter(249, 249), s)!; return [p.move, p.score]; };
+  // Swords: 30 damage; the fall drops the hearts a row, where the mob's only answer is three hearts, 16.5 HP back.
+  assert.deepEqual(pick(STRATEGIES.kill), [swords, 30 - 16.5]);
+  assert.deepEqual(pick(STRATEGIES.win), [hearts, 30]);
+});
+
+test('castSkill: never short of nội lực; always when its least damage kills or nội lực doubles the cost; else against the swap', () => {
+  const b = twoMoves(), mob = fighter(249, 249), me = (s1: number, s2 = 0) => fighter(174, 174, { s1, s2, sword: 12, skillCost: 25, skillDamage: 59 });
+  assert.equal(castSkill(b, me(24), fighter(1, 249), STRATEGIES.win, 0), false);
+  assert.equal(castSkill(b, me(25), fighter(36, 249), STRATEGIES.win, 1e4), true);   // 3 swords × 12 kill: cast
+  assert.equal(castSkill(b, me(50), mob, STRATEGIES.win, 80), true);
+  const answer = answerValue(b, { ...mob, hp: 249 - 59 }, me(25), STRATEGIES.win);
+  assert.equal(castSkill(b, me(25), mob, STRATEGIES.win, 59 - answer), true);
+  assert.equal(castSkill(b, me(25), mob, STRATEGIES.win, 59 - answer + 0.1), false);
+  assert.equal(castSkill(b, me(25, 100), mob, STRATEGIES.win, 59 - answer + 0.1), true, 'a full power bar doubles the skill');
+  assert.equal(castSkill(b, me(25), mob, STRATEGIES.win, null), true, 'no swap left');
+});
+
+test('battle runner: a test plan uses a bag item on its turn (c2s/44), and the s2c/44 of P5 sets the HP', () => {
+  const sent: [number, Buffer][] = [];
+  const runner = new BattleRunner({ me: 'Ttuananh', level: 15, hp: 31, maxHp: 145, uuid: 'f88a4c00-bcb7-49bf-8a30-93e3dbbff9ca', board: battles[0].board.slice(), turnSeconds: 30, knownBytes: 0 }, 'mob42017',
+    { send: (op, p) => sent.push([op, Buffer.from(p)]), log: () => {}, onEnd: () => {}, choose: (r) => r.me.hp < 50 ? { item: 4 } : undefined });
+  runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex'));
+  assert.deepEqual([sent.at(-1)![0], decodeEvent('c2s', 44, sent.at(-1)![1]).fields], [44, { battleUuid: 'f88a4c00-bcb7-49bf-8a30-93e3dbbff9ca', a: 0, slot: 4 }]);
+  runner.onPacket(44, Buffer.from('0000000100000000fafab599000000000000000400000000000000000100000008547475616e616e68ffffffff0000000043ffffffffffffffff0000000100000008547475616e616e6800', 'hex'));
+  assert.equal(runner.me.hp, 67);
+  runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex'));
+  assert.equal(sent.at(-1)![0], 19, 'HP is back over 50: a swap');
+});
+
+test('s2c/20 of a skill that destroys nothing (Hàn Lưu Thánh Thủy 4001, A1): no refill, no reshuffle byte; HP 19 → 34', () => {
+  const heal = decodeEvent('s2c', 20, Buffer.from('0000000700000000c85e76ba00000fa100000000000000000000000000000000000000000100000008547475616e616e68ffffffff000000002200000000ffffffff0000000100000008547475616e616e6800', 'hex'));
+  const f = heal.fields as any;
+  assert.deepEqual([f.skill, f.cells, f.refill, f.units.map((u: any) => [u.name, u.hp, u.s1]), f.actor, f.end, heal.opaqueBytes], [4001, [], [], [['Ttuananh', 34, 0]], 'Ttuananh', false, 0]);
 });
