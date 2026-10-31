@@ -5,6 +5,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#n
 - **S2**: `npm run scan` có `CLLT_TRACE`, đi M2, M1, M25 bằng cổng (không đi bộ, không đánh).
 - **K2**: bot TS đánh một trận Cóc Xanh với manina ở M2.
 - **P2**: Frida trên điện thoại (ghi mọi gói, hook 114 hàm dựng), thử bắt gói nhặt đồ. Chưa bắt được, xem [Nhặt đồ](#nhặt-đồ).
+- **T3**: đọc tĩnh hàm nạp asset và lớp AES, rồi giải mã thật 246 icon; xem [Giải mã asset](#giải-mã-asset).
 - **T2**: đọc tĩnh `libgdx-flashds.so`, dựng đồ thị gọi JNI của cả thư viện: hàm nào gọi phương thức Java nào. Từ đó tìm ra gói nhặt đồ, xem [Nhặt đồ](#nhặt-đồ).
 - Thêm các gói vật phẩm trên đất của E1, E2 ([12-skills-items](12-skills-items.md)).
 
@@ -19,7 +20,8 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Nhặt đồ người khác được không? | Bản ghi đồ trên đất không có trường chủ, và chưa thấy client kiểm tra chủ trước khi hỏi "Nhặt". Vậy server quyết; luật chưa đo. [Đo tĩnh; luật Chưa rõ] |
 | Đồ gì rơi? | 106 món đã thấy, gần hết ở M2: Xu khóa (mã 41) 54 đống, mỗi đống 124–250; Đá cấp 1–3 (411–413) 28 viên; Trứng Gà (3) 7 quả; 12 món trang bị cấp 1 (nón, áo, nhẫn, vũ khí), mỗi món 2 chỉ số. M1: 4 đống Xu khóa, 1 Đá cấp 2. M25 không có quái. Xem [Đồ đã thấy](#đồ-đã-thấy). [Đo] |
 | Mã 41 là gì? | **Xu khóa**. Trước đây đoán là tiền ([09](09-players-chat.md#ground-items)). Cẩm nang: "Kiếm Xu khóa: nhặt Xu khóa quái rơi". [Đo] |
-| Tên vật phẩm lấy ở đâu? | Không có trong APK, cũng không có gói nào khi mở popup vật phẩm. Game tải bảng `it1` về máy: 646 món (407 món "Ngừng dùng"), mỗi món có tên, mô tả, loại, cấp mặc, hệ, độ bền, số xếp chồng. Xem [Bảng vật phẩm](#bảng-vật-phẩm). [Đo] |
+| Tên vật phẩm lấy ở đâu? | Không có trong APK, cũng không có gói nào khi mở popup vật phẩm. Game tải bảng `it1` về máy: 646 món (407 món "Ngừng dùng"), mỗi món có tên, mô tả, loại, cấp mặc, hệ, độ bền, số xếp chồng. Repo có bản sao ở `data/items.json`. Xem [Bảng vật phẩm](#bảng-vật-phẩm). [Đo] |
+| Icon vật phẩm ở đâu? | `files/dyncache/offline-a2/i<icon>.dat` trên máy, mã hoá AES-128 sau khi đảo 63 byte đầu. Đã giải mã cả 246 icon (PNG 96 × 96) và đổi sang WebP ở `data/icons/`. Xem [Giải mã asset](#giải-mã-asset). [Đo] |
 | Mã chỉ số của trang bị? | Bảng `it0`: 1 cường lực, 2 nội lực, 3 thân pháp, 4 thể lực, 5 sức tấn công, 6 phòng thủ, 7 né tránh, 8 % chí mạng, 9 sinh lực… Xem [Mã chỉ số](#mã-chỉ-số). [Đo] |
 
 <a id="nhặt-đồ"></a>
@@ -107,25 +109,26 @@ Bố cục ba gói và bản ghi vật phẩm ở [09-players-chat](09-players-c
 
 106 món khác uuid, gộp từ S2, K2, P2, E1, E2. Tên lấy từ [bảng vật phẩm](#bảng-vật-phẩm).
 
-| Map | Mã | Món | Số lần | Số lượng | Phẩm | Chỉ số (mẫu) |
+| Map | Mã | Món | Số lần | Số lượng | Hệ | Chỉ số (mẫu) |
 |---|---:|---|---:|---|---|---|
 | M2 | 41 | Xu khóa | 54 | 124–250 | | |
 | M2 | 413 | Đá cấp 3 | 13 | 1 | | |
 | M2 | 412 | Đá cấp 2 | 12 | 1 | | |
 | M2 | 3 | Trứng Gà | 7 | 1 | | |
 | M2 | 411 | Đá cấp 1 | 3 | 1 | | |
-| M2 | 502, 509 | Áo Âu Lạc | 3 | 1 | 1, 2, 4 | 6: 5, 2: 6 |
-| M2 | 217 | Áo Hào Kiệt | 2 | 1 | 2, 4 | 6: 6, 1: 5 |
-| M2 | 312 | Nhẫn Hào Kiệt | 2 | 1 | 1, 2 | 5: 9, 8: 1 |
-| M2 | 273 | Ngư Tinh Kiếm | 2 | 1 | 4 | 5: 7, 3: 7 |
-| M2 | 318 | Nhẫn Âu Lạc | 1 | 1 | 1 | 5: 7, 2: 14 |
-| M2 | 54 | Nón Âu Lạc | 1 | 1 | 1 | 6: 4, 9: 52 |
-| M2 | 99 | Khăn Vòng | 1 | 1 | 1 | 6: 5, 9: 71 |
+| M2 | 502, 509 | Áo Âu Lạc | 3 | 1 | Hỏa, Lôi, Thủy | 6: 5, 2: 6 |
+| M2 | 217 | Áo Hào Kiệt | 2 | 1 | Lôi, Thủy | 6: 6, 1: 5 |
+| M2 | 312 | Nhẫn Hào Kiệt | 2 | 1 | Hỏa, Lôi | 5: 9, 8: 1 |
+| M2 | 273 | Ngư Tinh Kiếm | 2 | 1 | Thủy | 5: 7, 3: 7 |
+| M2 | 318 | Nhẫn Âu Lạc | 1 | 1 | Hỏa | 5: 7, 2: 14 |
+| M2 | 54 | Nón Âu Lạc | 1 | 1 | Hỏa | 6: 4, 9: 52 |
+| M2 | 99 | Khăn Vòng | 1 | 1 | Hỏa | 6: 5, 9: 71 |
 | M1 | 41 | Xu khóa | 4 | 126–143 | | |
 | M1 | 412 | Đá cấp 2 | 1 | 1 | | |
 
 - **Trang bị rơi** đều là món cấp mặc 1, độ bền 60, đủ các hệ. Mỗi món có đúng 2 chỉ số. Chỉ số đầu theo ô: nón và áo là 6 (phòng thủ), nhẫn và vũ khí là 5 (sức tấn công). Chỉ số sau thay đổi: 1–4 (tiềm năng), 8 (% chí mạng) hoặc 9 (sinh lực). [Đo]
-- **Phẩm**: 2 là "Hiếm" (popup Nón Âu Lạc, E1). Bốn tên phẩm trong `.so` đứng cạnh nhau: "Hiếm", "Thường", "Quý", "Sử Thi". Phẩm 1 có lẽ là Thường. Phẩm 4 là Quý hay Sử Thi thì chưa rõ. Vật phẩm không phải trang bị có phẩm `0xff`. [Suy luận]
+- **Hệ**: byte trước đây ghi là "phẩm" chính là hệ của món. Popup ngày 31/10: 1 có ngọn lửa (Hỏa), 2 có tia sét (Lôi). 4 là Thủy theo cách đánh số hệ nhân vật ([12](12-skills-items.md#bản-ghi-vật-phẩm)). Vật phẩm không phải trang bị có `0xff`. Cùng một món rơi ra với nhiều hệ khác nhau (Áo Âu Lạc có cả ba hệ). [Đo 1, 2; Suy luận 4]
+- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm". Bốn tên phẩm trong `.so` đứng cạnh nhau: "Hiếm", "Thường", "Quý", "Sử Thi". Chưa biết trường nào mang phẩm chất. [Chưa rõ]
 - M2 có quái cấp 7–20 ([atlas](06-map-mobs.md#atlas)). Chưa biết món nào rơi từ quái nào. [Chưa rõ]
 
 <a id="bảng-vật-phẩm"></a>
@@ -136,7 +139,7 @@ File `files/dyncache/it1` (73195 byte) của app, đọc bằng root. Bố cục
 
 ```text
 i32 n; n × {
-  i32 mã; string tên; string môTả; u8 loại; i32 biểuTượng; i32 hìnhẢnh; i32 hệ;
+  i32 mã; string tên; string môTả; u8 loại; i32 biểuTượng; i32 hìnhẢnh; i32 hệ (chưa rõ);
   u8 cấpMặc; u8 giớiTính; i32 xếpChồng; u8 e; i32 độBềnTốiĐa; i32 g
 }
 ```
@@ -144,9 +147,9 @@ i32 n; n × {
 | Trường | Giá trị | Nghĩa |
 |---|---|---|
 | `loại` | Xem bảng dưới | Ô trang bị hoặc nhóm vật phẩm [Đo theo tên] |
-| `biểuTượng` | 0, 1, 2… | Ảnh nhỏ, có lẽ là `offline-a2/i<số>.dat` [Suy luận] |
-| `hìnhẢnh` | 90200… (nón), 70100… (áo), 80000… (vũ khí), 130000 (cánh), 9300 (thú cưng); -1 nếu không có | Hình trên người. Trùng tên các file `m90900.dat`, `pet_9300.pet` trong `dyncache` [Suy luận mạnh] |
-| `hệ` | Byte cao `0x01`, `0x02`, `0x04`, `0x07`; 0 với vật phẩm thường | 1 Lôi (popup "Nón Âu Lạc hệ Lôi"), 2 Thủy ("Băng Kiếm", "Thanh Lam Đao"), 4 Hỏa ("Liệt Hỏa Đao", "Hỏa Phủ"), 7 mọi hệ. Khác số hệ `field01` của nhân vật (1 Hỏa, 4 Thủy) [Suy luận] |
+| `biểuTượng` | 0–244 (226 giá trị) | Icon: file `offline-a2/i<số>.dat`. Máy có đủ `i0.dat`–`i245.dat`, mọi giá trị đều có file. Giải mã ra icon đúng món: `i0` là bình máu của Hoàn Linh Dược. [Đo] |
+| `hìnhẢnh` | 90200… (nón), 70100… (áo), 80000… (vũ khí), 130000 (cánh), 9300 (thú cưng); -1 nếu không có | Hình trên người: file `<số>.dat`, `m<số>.dat` hoặc `pet_<số>.pet` trong `offline-a2`. 103/104 giá trị của món còn dùng có file; giá trị 8 thì không. `90200.dat` (Nón Lá) giải mã ra sprite sheet của chiếc nón. [Đo] |
+| `hệ` (`elementBits` trong `data/items.json`) | Byte cao `0x01`, `0x02`, `0x04`, `0x07`; 0 với vật phẩm thường | **Không phải hệ của món.** Nón Âu Lạc (54) có 1 ở đây mà chiếc manina đang mặc là Lôi. Hệ thật nằm ở byte `hệ` của bản ghi vật phẩm ([12](12-skills-items.md#bản-ghi-vật-phẩm)). Trước đây đoán 1 Lôi, 2 Thủy, 4 Hỏa, nhưng tên món không khớp: hệ 1 có cả "Lôi Kiếm" lẫn "Hỏa Kiếm". [Chưa rõ] |
 | `cấpMặc` | 1, 21, 51, 101 (trang bị); 1 (khác) | Khớp các bậc cấp mặc trong Cẩm nang [Đo] |
 | `giớiTính` | 0, 1 ở nón và áo; 2 ở loại khác | Một tên có hai mã, ví dụ Áo Âu Lạc 502 (0) và 509 (1). Có lẽ là nam và nữ [Suy luận] |
 | `xếpChồng` | 1 (trang bị), 4, 999 | Số lượng tối đa trong một ô [Suy luận] |
@@ -173,7 +176,32 @@ i32 n; n × {
 
 - Tổng 646 món, 407 món tên "Ngừng dùng". [Đo]
 - Mô tả của trang bị để trống: chỉ số nằm ở từng món (bản ghi vật phẩm), không ở bảng. [Đo]
-- Bảng chỉ đọc trên máy, chưa có trong repo. Các tên ở đây khớp popup trên máy (Nón Âu Lạc, Hoàn Linh Dược, Búa Sửa Chữa) và phần thưởng nhiệm vụ trong `s2c/35` ("1 Áo Hào Kiệt", "1 Nón Lá"). [Đo]
+- Id liền nhau từ 0 tới 645, không trùng. Còn dùng 239 món. [Đo]
+- Asset nằm trên máy, trong `files/dyncache/offline-a2/` (1305 file, 148 MB): 985 `.dat`, 189 `.fx`, 126 `.meta`, 3 `.pet`. APK không có icon vật phẩm. File `.dat` đã mã hoá, xem [Giải mã asset](#giải-mã-asset). [Đo]
+- Bảng có trong repo: [data/items.json](../../../data/items.json), cùng 17 mẫu chỉ số và byte phiên bản `itv`. Icon WebP nằm ở [data/icons/](../../../data/icons/). Cả hai dựng lại bằng `npm run items` ([Cách lấy lại dữ liệu](#cách-lấy-lại-dữ-liệu)). Các tên khớp popup trên máy (Nón Âu Lạc, Hoàn Linh Dược, Búa Sửa Chữa) và phần thưởng nhiệm vụ trong `s2c/35` ("1 Áo Hào Kiệt", "1 Nón Lá"). [Đo]
+
+<a id="giải-mã-asset"></a>
+
+### Giải mã asset (`offline-a2/*.dat`)
+
+```text
+file = AES-128-ECB(PKCS#7)(asset), rồi đảo ngược 63 byte đầu
+asset = AES-128-ECB-decrypt(đảo ngược 63 byte đầu của file), khoá a84cdae8d8757c5b29e158cdcef70efd
+```
+
+Đọc tĩnh (T3) [Đo tĩnh]:
+- Hàm nạp `com.tlgdx.twelvelord.sqo.b6(path)` đọc byte của file. Đường dẫn `offline/…` lấy từ kho tải về, đường khác lấy từ APK.
+- Rồi `sqo.a(byte[], 63)` (ngen `a8`) đảo ngược 63 byte đầu tại chỗ.
+- Rồi `com.e.sqa.b(byte[])` giải mã AES/ECB/PKCS5Padding. Không có provider thì dùng bản AES tự viết `com.tlgdx.twelvelord.sqn` (Nk 4, Nr 10).
+- Khoá 16 byte do hàm khởi tạo tĩnh của `com.e.sqa` ghi từng byte bằng `bastore`.
+
+Đã kiểm bằng cách giải mã thật [Đo]:
+- 246/246 file `i<số>.dat` ra PNG. `i0.dat` là icon 96 × 96 RGBA của Hoàn Linh Dược.
+- `90200.dat` là sprite sheet 2048 × 162 của Nón Lá: các góc nhìn và khung hình của chiếc nón trên người nhân vật.
+
+Trước bước đảo, các icon trùng nhau từ byte 31 tới byte 62. Sau khi đảo, đoạn đó thành hai khối AES đầu, là phần đầu PNG giống nhau ở mọi icon.
+
+Icon xuất ra WebP, mặc định chất lượng 90 với alpha nguyên vẹn: 246 icon từ 4,37 MB PNG còn 0,80 MB. `--lossless` giữ đúng từng điểm ảnh, mỗi icon khoảng 12 KB thay vì 3,3 KB. [Đo]
 
 <a id="mã-chỉ-số"></a>
 
@@ -196,11 +224,24 @@ Mã 0 có mẫu rỗng. Mã 6 và 9 khớp popup Nón Âu Lạc ("+4 phòng th�
 
 ## Cách lấy lại dữ liệu
 
-`adb shell su` chép các file trong `/data/data/com.lotasoft.colauloanthe/files/dyncache/` sang `/data/local/tmp`, rồi `adb pull`. Không dùng `adb exec-out su -c cat`: đường đó đổi mỗi byte `0a` thành `0d 0a`, làm `it1` dài thêm 29 byte và lệch bản ghi. Khi app cập nhật bảng, `itv` (hiện `0x12`) có lẽ đổi theo. [Đo]
+```bash
+npm run items -- --adb=192.168.2.3:5555        # điện thoại đã root, không cần mở game
+npm run items -- --from=<thư mục có it0, it1, itv, offline-a2/>
+```
+
+Lệnh này ([src/items-run.ts](../../../src/items-run.ts)) làm hai việc:
+- Ghi lại `data/items.json`.
+- Giải mã `offline-a2/i*.dat` thành PNG, rồi đổi sang WebP trong `data/icons/` bằng `cwebp`. `--png=<thư mục>` giữ thêm các PNG.
+
+`--adb` dùng `su` chép các file trong `/data/data/com.lotasoft.colauloanthe/files/dyncache/` sang `/data/local/tmp`, `adb pull` về, rồi xoá bản chép trên máy. Không dùng `adb exec-out su -c cat`: đường đó đổi mỗi byte `0a` thành `0d 0a`, làm `it1` dài thêm 29 byte và lệch bản ghi. Khi game cập nhật bảng, `itv` (hiện 18) có lẽ đổi theo. [Đo]
+
+Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS dùng tên đồ ở hai chỗ:
+- `npm run quest` ghi túi đồ mỗi khi đổi (`s2c/1187`, sự kiện `inventory`).
+- `npm run scan` ghi đồ đang nằm trên đất của từng map (`s2c/1184`, sự kiện `ground_items`).
 
 ## Chưa rõ
 
 - `c2s/1188` chưa gửi thử: server trả gì khi nhặt được hoặc không được; có bắt đứng gần hòm không.
 - Ai được nhặt món người khác làm rơi, sau bao lâu; tỉ lệ rơi theo quái.
 - Loại thực thể thứ ba trong `sqhz.a17` (gửi `c2s/1181`).
-- Phẩm 4 là Quý hay Sử Thi; trường `e`, `g` của bảng vật phẩm.
+- Phẩm chất nằm ở trường nào; trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.

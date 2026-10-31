@@ -91,7 +91,7 @@ test('world chat s2c/1205: sender id, name, text (server masks banned words)', (
 test('ground items: 1182 adds (plain 88 B, gear 104 B), 1184 lists, 1183 removes by uuid; items expire after 600 s', () => {
   const gold = decode('s2c/1182 gold'), gear = decode('s2c/1182 gear');
   assert.deepEqual([gold.itemId, gold.quantity, gold.durability, gold.stats.length], [41, 123, -1, 0]);
-  assert.deepEqual([gear.itemId, gear.durability, gear.grade, gear.stats], [312, 60, 2, [{ stat: 5, value: 6 }, { stat: 1, value: 10 }]]);
+  assert.deepEqual([gear.itemId, gear.durability, gear.element, gear.stats], [312, 60, 2, [{ stat: 5, value: 6 }, { stat: 1, value: 10 }]]);
   assert.equal(Math.round((gold.expiresAt - w['s2c/1182 gold'].at) / 1000), 601);
   assert.equal(gear.x - gold.x, 64); // one drop, spread 32 units apart
   const { items } = decode('s2c/1184');

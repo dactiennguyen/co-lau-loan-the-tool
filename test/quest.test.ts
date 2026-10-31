@@ -5,6 +5,7 @@ import { Reader, Writer, characterSkills } from '../src/protocol.ts';
 import { buildRequest, decodeEvent } from '../src/events.ts';
 import { skillTable, inventory, characterExtra, questData, characterStats, POTENTIALS } from '../src/world.ts';
 import { QuestBot, stepAction, statPlan } from '../src/quest.ts';
+import { Items } from '../src/items.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 
 const q: Record<string, string> = fixtures.quest;
@@ -282,6 +283,13 @@ test('skill and item packets: s2c/30 tree, s2c/9 skill list, s2c/10 kind 32, s2c
   assert.equal(decodeEvent('s2c', 42, hex(a2Response(42))).opaqueBytes, 0);
   assert.deepEqual(decodeEvent('c2s', 48, hex(si['c2s/48 repair hat'])).fields, { a: 0, b: 0 });
   assert.equal(buildRequest(1191, { skillId: 1000, amount: 1 }).toString('hex'), '000003e800000001');
+});
+
+test('quest bot logs the bag by item name when it changes (s2c/1187 after the repair, E2)', () => {
+  const events: Record<string, any>[] = [];
+  new QuestBot({ maxFights: 1, items: Items.load(), log: e => events.push(e) }).onPacket(1187, hex(si['s2c/1187 after repair']));
+  assert.deepEqual(events.find(e => e.event === 'inventory')?.items, ['Hoàn Linh Dược ×4', 'Đá cấp 2', 'Áo Hào Kiệt (+7 phòng thủ, +5 thân pháp)',
+    'Nón Lá (+5 phòng thủ, +66 sinh lực)', 'Nhẫn Trơn (+9 sức tấn công, +1% chí mạng)', 'Đá cấp 5', 'Kim Đan Dược']);
 });
 
 test('quest bot: "Sử dụng điểm kỹ năng" sends c2s/1191 for the first skill that can take a level, and --once stops at the reply', () => {

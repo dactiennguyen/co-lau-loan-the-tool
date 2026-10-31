@@ -7,7 +7,8 @@
 import { Writer } from './protocol.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, worldMap, type Place } from './world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, worldMap, groundItems, type Place } from './world.ts';
+import type { Items } from './items.ts';
 import { type Atlas, recordWorld, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf } from './atlas.ts';
 
 export interface MapScanOptions {
@@ -16,6 +17,8 @@ export interface MapScanOptions {
   save?: () => void;
   /** Wait after s2c/43 for the bosses (s2c/1177), and for an answer to each request (defaults 1500 and 6000 ms). */
   settleMs?: number; answerMs?: number;
+  /** Item names for the ground items of each map (s2c/1184); map-scan-run loads data/items.json. */
+  items?: Items;
 }
 type Answer = { opcode: number; payload: Buffer } | undefined;
 
@@ -48,6 +51,12 @@ export class MapScanner implements WorldSession {
       }
       case 43: { const d = mapEntities(payload); recordMobs(atlas, d.mapId, this.zone, d.mobs); break; }
       case 1177: { const b = mapBoss(payload); if ('mob' in b) recordBoss(atlas, b.mapId, this.zone, b.mob, b.tile); break; }
+      // Items lying on the ground, sent on entering each map (docs/app/events/13-drops-items.md).
+      case 1184: {
+        const g = groundItems(payload);
+        if (g.items.length) this.log('ground_items', { mapId: g.mapId, zone: this.zone, items: g.items.map(i => `${this.options.items?.describe(i) ?? `#${i.itemId} ×${i.quantity}`} @${i.x},${i.y}`) });
+        break;
+      }
     }
   }
 

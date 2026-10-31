@@ -651,7 +651,7 @@ Nguồn: A1: packet đọc từ native reader, record 175.
         "durability": 60,
         "quantity": 1,
         "field1": 0,
-        "grade": 2,
+        "element": 2,
         "field2": 0,
         "field3": 0,
         "field4": 1,
@@ -688,7 +688,7 @@ Nguồn: A1: packet đọc từ native reader, record 175.
 | Nhãn phân tích | ground_item_add |
 | Xuất hiện khi | Có vật phẩm rơi xuống đất |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | string mapId; item record: u8 0xfe; i32 itemId; string uuid; i32; i32 durability; i32 quantity; u8; u8 grade; i32; u8; u8; u8 n; n * {i32 stat; i32 value}; i32 x; i32 y; i64 expiresAt |
+| Bố cục payload | string mapId; item record: u8 0xfe; i32 itemId; string uuid; i32; i32 durability; i32 quantity; u8; u8 element; i32; u8; u8; u8 n; n * {i32 stat; i32 value}; i32 x; i32 y; i64 expiresAt |
 | Độ chắc chắn | Đọc hết byte; rơi theo nhóm cách 32 đơn vị, hạn 600 s; tên "vật phẩm rơi" là suy luận |
 | Độ dài payload mẫu | 88 byte |
 
@@ -717,7 +717,7 @@ Nguồn: A1: packet đọc từ native reader, record 189.
     "durability": -1,
     "quantity": 133,
     "field1": 0,
-    "grade": 255,
+    "element": 255,
     "field2": 0,
     "field3": 0,
     "field4": 0,

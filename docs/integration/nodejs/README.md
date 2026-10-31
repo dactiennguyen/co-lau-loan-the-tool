@@ -91,12 +91,14 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [world.ts](../../../src/world.ts) | Đọc gói thế giới: quái của map, khu, người chơi, chat, vật phẩm, chỉ số, nhiệm vụ, xếp hạng |
 | [battle.ts](../../../src/battle.ts), [battle-runner.ts](../../../src/battle-runner.ts) | Mô hình bàn 8×8 và gói trận; chạy một trận không giao diện |
 | [quest.ts](../../../src/quest.ts), [quest-run.ts](../../../src/quest-run.ts) | Bot làm nhiệm vụ và lệnh `npm run quest` |
+| [items.ts](../../../src/items.ts), [items-run.ts](../../../src/items-run.ts) | Bảng vật phẩm (`data/items.json`), tên đồ cho bot, giải mã icon; lệnh `npm run items` ([13-drops-items](../../app/events/13-drops-items.md#cách-lấy-lại-dữ-liệu)) |
+| [bag-run.ts](../../../src/bag-run.ts) | Lệnh `npm run bag`: đăng nhập, in trang bị đang mặc và túi đồ theo tên, rồi ngắt; chỉ đọc ([cách lấy túi đồ](../../app/events/12-skills-items.md#cách-lấy-túi-đồ)) |
 | [atlas.ts](../../../src/atlas.ts), [map-scan.ts](../../../src/map-scan.ts), [map-scan-run.ts](../../../src/map-scan-run.ts) | Bản đồ đã biết (`data/maps.json`) và lệnh `npm run scan` ([quét map](quest-bot.md#quét-map)) |
 | [config.ts](../../../src/config.ts) | Baseline build, host/client info và opcode map |
 | [check-apk.ts](../../../src/check-apk.ts) | So build APK/DEX/native bằng Node.js |
 | [check-capture.ts](../../../src/check-capture.ts) | So log/capture, opcode, schema và bước đang thiếu |
 
-Code live không import `test/` và không đọc JSON cấu hình/dữ liệu mẫu. File dữ liệu duy nhất là [data/maps.json](../../../data/maps.json): bot và lệnh quét tự ghi vào đó những gì server đã gửi về từng map. Mapping opcode, host, version và build identity là hằng TypeScript trong [src/config.ts](../../../src/config.ts). Bản copy chỉ có `src/` đã đăng nhập server thật và nhận đủ user/map; xem [live-check](live-check.md). Dữ liệu regression chỉ còn một module `test/fixtures.ts`.
+Code live không import `test/` và không đọc JSON cấu hình/dữ liệu mẫu. Có hai file dữ liệu. [data/maps.json](../../../data/maps.json): bot và lệnh quét tự ghi vào đó những gì server đã gửi về từng map. [data/items.json](../../../data/items.json): bảng vật phẩm chép từ file của game trên máy, dựng lại bằng `npm run items`. Mapping opcode, host, version và build identity là hằng TypeScript trong [src/config.ts](../../../src/config.ts). Bản copy chỉ có `src/` đã đăng nhập server thật và nhận đủ user/map; xem [live-check](live-check.md). Dữ liệu regression chỉ còn một module `test/fixtures.ts`.
 
 Các option của `runClient()` gồm host/port/serverId, username/password, mode, callback log và timeout. Mặc định API chọn bootstrap, timeout mỗi bước 8000 ms, tổng 30000 ms, heartbeat 2000 ms, settle 0 ms. CLI tự chọn mode theo credential như trên; `responseTimeoutMs`, `overallTimeoutMs`, `heartbeatMs`, `settleMs` là option API.
 

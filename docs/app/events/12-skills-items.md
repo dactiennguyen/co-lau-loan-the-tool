@@ -16,7 +16,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Bước "Sử dụng điểm kỹ năng" làm bằng gói gì? | **`c2s/1191 (i32 mãKỹNăng; i32 1)`**. Server trả `s2c/10` kiểu 32 (cấp của mọi kỹ năng), `s2c/1191` (điểm tiềm năng, điểm kỹ năng còn lại) và `s2c/34` (bước sau). Bot TS đã làm được bước này với server thật (K1). Xem [Nâng cấp kỹ năng](#c2s-1191). [Đo] |
 | Cộng điểm tiềm năng thế nào? | `c2s/10 (i32 chỉSố; i32 số)`. Số chỉ số theo nút "+" trên bảng: 0 Cường Lực, 1 Nội Lực, 2 Thân Pháp, 3 Thể Lực. Nhưng `stats` của `s2c/9` xếp Thân Pháp trước Nội Lực. manina còn **67 điểm**. Bot TS cộng hết bằng `--stats`. Xem [Điểm tiềm năng](#điểm-tiềm-năng). [Đo P1] |
 | Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
-| Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Xem [Túi đồ và trang bị](#túi-đồ). [Đo] |
+| Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Mở túi trong game không gửi gói nào. `npm run bag` đăng nhập và in cả hai. Xem [Túi đồ và trang bị](#túi-đồ) và [Cách lấy](#cách-lấy-túi-đồ). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
 | Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, dùng trong trận bằng nút Túi đồ hoặc ngoài trận bằng nút Sử dụng. Gói dùng bình [Chưa rõ]. Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
 | Nhiệm vụ hằng ngày lấy ở đâu? | Gặp Hương Lão Trần Bá (NPC 102, M1) → "Nhiệm vụ hằng ngày" → "Nhận nhiệm vụ". Tối đa 3 nhiệm vụ một ngày, làm từng cái một (C1). Gói chưa bắt. |
@@ -131,43 +131,130 @@ Túi đồ, ô trang bị và vật phẩm rơi trên đất ([09-players-chat](
 
 ```text
 u8 ô (0xfe: trên đất); i32 mãVậtPhẩm; string uuid; i32 field0; i32 độBền (-1: không có độ bền); i32 sốLượng;
-u8 field1; u8 phẩm (0xff ở vật phẩm thường); i32 field2; u8 field3; u8 field4; u8 n; n × {i32 chỉSố; i32 giáTrị}
+u8 field1; u8 hệ (1 Hỏa, 2 Lôi, 4 Thủy; 0xff ở vật phẩm thường); i32 field2; u8 field3; u8 field4; u8 n; n × {i32 chỉSố; i32 giáTrị}
 ```
 
-Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. `field0`, `field2`, `field3` bằng 0 ở mọi mẫu, có thể là cấp cường hoá. `field4` bằng 1 ở mọi trang bị. [Đo giá trị; vai trò Chưa rõ]
+Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0`, `field2`, `field3` bằng 0 ở mọi mẫu, có thể là cấp cường hoá. `field4` bằng 1 ở mọi trang bị. [Đo giá trị; vai trò Chưa rõ]
 
 | Gói | Khi nào | Bố cục | Mẫu |
 |---|---|---|---|
 | `s2c/42` | Trả `c2s/42 (string tênNhânVật)` lúc đăng nhập | `string "test dong 1"; i32 42; i32 3; u8 2; i32 sứcChứa; i32 n; n × bản ghi` | 608/608 byte, 8 món, sức chứa 42 |
 | `s2c/1187` | Mỗi khi túi đổi: sửa đồ (E2), trả nhiệm vụ (L1, Q2) | `u8 1; i32 sứcChứa; i32 n; n × bản ghi` (cả túi) | 519/519 byte, 7 món sau khi sửa |
-| Đuôi `s2c/9` | Lúc đăng nhập | `i32 8; 8 × (u8 0xff: ô trống \| bản ghi)` | Ô 0 nón, ô 2 vũ khí, 6 ô trống |
+| Đuôi `s2c/9` | Lúc đăng nhập | Sau danh sách kỹ năng: `i32 8; 8 × (u8 0xff: ô trống \| bản ghi)`, byte `ô` của bản ghi bằng số ô | Ô 0 nón, ô 2 vũ khí, 6 ô trống ([Ô trang bị](#ô-trang-bị)) |
 
 - Sức chứa 42 khớp túi 50 ô trên máy có 8 ô khoá. Trước đây [09](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) đọc `0000002a` của `s2c/1187` là "mã 42", nhưng đó là sức chứa. [Đo]
 - `i32 42; i32 3` sau chuỗi "test dong 1" của `s2c/42` chưa rõ nghĩa. [Chưa rõ]
 
-### Đồ của manina (E1, E2)
+### Đồ của manina (E1, E2; popup ngày 31/10)
 
-| Ô | Mã | Món | Số lượng | Độ bền | Phẩm | Chỉ số | Căn cứ |
+| Ô | Mã | Món | Số lượng | Độ bền | Hệ | Chỉ số | Căn cứ |
 |---|---:|---|---:|---:|---:|---|---|
 | Túi 0 | 0 | Hoàn Linh Dược | 4 | | | | Popup: "Bơm 30% sinh lực" [Đo] |
 | Túi 1 | 412 | Đá cấp 2 | 1 | | | | [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) [Đo] |
-| Túi 2 | 147 | Áo Hào Kiệt | 1 | 60 | 1 | 6: 7; 3: 5 | Thưởng nhiệm vụ 3; bảng vật phẩm [Đo] |
-| Túi 3 | 48 | Nón Lá | 1 | 60 | 1 | 6: 5; 9: 66 | Thưởng nhiệm vụ 3; bảng vật phẩm [Đo] |
-| Túi 4 | 306 | Nhẫn Trơn | 1 | 60 | 1 | 5: 9; 8: 1 | Thưởng nhiệm vụ 4; bảng vật phẩm [Đo] |
+| Túi 2 | 147 | Áo Hào Kiệt | 1 | 60 | 1 Hỏa | 6: 7; 3: 5 | Thưởng nhiệm vụ 3. Popup: ngọn lửa, Hiếm, "Độ bền 60/60, +7 phòng thủ, +5 thân pháp", nút Trang bị và Vứt bỏ [Đo] |
+| Túi 3 | 48 | Nón Lá | 1 | 60 | 1 Hỏa | 6: 5; 9: 66 | Thưởng nhiệm vụ 3; bảng vật phẩm [Đo] |
+| Túi 4 | 306 | Nhẫn Trơn | 1 | 60 | 1 Hỏa | 5: 9; 8: 1 | Thưởng nhiệm vụ 4; bảng vật phẩm [Đo] |
 | Túi 5 | 415 | Đá cấp 5 | 1 | | | | Viên màu cam; [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) [Đo] |
 | Túi 6 | 2 | Búa sửa chữa | 1 | | | | Mất khỏi túi sau khi sửa [Đo] |
 | Túi 7 | 1 | Kim Đan Dược | 1 | | | | Bình xanh; [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm) [Đo] |
-| Trang bị 0 | 54 | Nón Âu Lạc (hệ Lôi, Hiếm) | 1 | 0 → đã sửa | 2 | 6: 4; 9: 58 | Popup: "Độ bền 0/60, +4 phòng thủ, +58 sinh lực" [Đo] |
-| Trang bị 2 | 261 | Rìu Âu Lạc (hệ Lôi) | 1 | 0 | 1 | 5: 8; 2: 10 | Vẫn hỏng; tên và hệ theo bảng vật phẩm [Đo] |
+| Trang bị 0 | 54 | Nón Âu Lạc | 1 | 0 → 60 (sửa ở E2) → 55 | 2 Lôi | 6: 4; 9: 58 | Popup: tia sét, Hiếm, "Độ bền 55/60, +4 phòng thủ, +58 sinh lực", "Bộ cùng hệ (0/4)", nút Cởi ra và Sửa chữa [Đo] |
+| Trang bị 2 | 261 | Rìu Âu Lạc | 1 | 0 | 1 Hỏa | 5: 8; 2: 10 | Popup: ngọn lửa, Hiếm, "Độ bền 0/60", "Cần 1 búa để sửa chữa". Vẫn hỏng, nên chỉ số không tính [Đo] |
 
 - **Mã chỉ số** theo bảng `it0` của game ([mã chỉ số](13-drops-items.md#mã-chỉ-số)): 2 nội lực, 3 thân pháp, 5 sức tấn công, 6 phòng thủ, 8 % chí mạng, 9 sinh lực. Mã 6 và 9 khớp popup Nón Âu Lạc. [Đo]
-- **Phẩm**: 2 là "Hiếm" (popup), 1 có lẽ là "Thường". Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi ([13](13-drops-items.md#đồ-đã-thấy)). [Suy luận]
+- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm", dù byte hệ là 1 hay 2. Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi. Phẩm chất nằm ở trường nào thì chưa rõ, có thể là `field4` (bằng 1 ở mọi trang bị). [Chưa rõ]
+- **Đang mặc** (bảng Bản thân, 31/10): ô 0 Nón Âu Lạc (đang bật "Ẩn Nón" nên nón không hiện trên người), ô 2 Rìu Âu Lạc (hỏng). Áo Hào Kiệt, Nón Lá, Nhẫn Trơn còn trong túi, chưa mặc. Dưới bảng: Xu 500, Xu khóa 7.370, Lượng 0; thanh Vàng 2708/10000. Mỗi món trong túi có hình ổ khoá nhỏ (món đã khoá). [Đo]
 - Hai trang bị hỏng từ Q6 ([10-quests](10-quests.md#kết-quả-q3-q4)) chính là chiếc nón (mã 54) và vũ khí (mã 261), cả hai độ bền 0 trong `s2c/9`. [Đo]
+
+<a id="ô-trang-bị"></a>
+
+### Ô trang bị
+
+Bảng **Bản thân → Trang bị** (31/10) có 8 ô quanh nhân vật:
+
+| Cột trái, từ trên | Cột phải, từ trên |
+|---|---|
+| Nón (ô 0, đang có Nón Âu Lạc) | Vũ khí (ô 2, đang có Rìu Âu Lạc) |
+| Áo (hình bộ giáp) | Nhẫn (hình chiếc nhẫn) |
+| Hình đầu người | Cánh (hình đôi cánh) |
+| Huy hiệu ngôi sao (danh hiệu?) | Thú cưng (hình con vật) |
+
+- Hai ô đo được là 0 (nón) và 2 (vũ khí), đúng bằng `loại` của bảng vật phẩm (0 nón, 2 vũ khí). Có lẽ số ô = `loại`: 1 áo, 3 nhẫn, 4 cánh, 5 huyết châu hay thú cưng, 7 danh hiệu. Ô 6 (hình đầu người) không có loại nào trong `it1`. [Đo ô 0, 2; còn lại Suy luận]
+- Ô "Ẩn Nón" dưới nhân vật chỉ ẩn nón khi vẽ, món vẫn mặc. [Đo]
+
+<a id="hiển-thị-vật-phẩm"></a>
+
+### Hiển thị một món
+
+Theo popup trên máy, một món gồm:
+
+| Phần | Lấy từ |
+|---|---|
+| Icon | `data/icons/i<icon>.webp`, `icon` theo `mãVậtPhẩm` trong [bảng vật phẩm](13-drops-items.md#bảng-vật-phẩm). Khung màu nằm sẵn trong ảnh |
+| Số lượng ở góc icon | `sốLượng` của bản ghi. Máy vẽ số cho món xếp chồng được (`xếpChồng` > 1), kể cả khi chỉ có 1 (Kim Đan Dược "1"). Trang bị không có số |
+| Biểu tượng hệ, tên | Byte `hệ` (ngọn lửa 1, tia sét 2), `tên` trong bảng |
+| Phẩm chất | Chưa rõ trường (mọi trang bị đã xem: Hiếm) |
+| Yêu cầu cấp | `cấpMặc` trong bảng |
+| Độ bền | `độBền` của bản ghi / `độBềnTốiĐa` trong bảng, ví dụ 55/60. Màu đỏ khi bằng 0 |
+| Chỉ số | Từng `{chỉSố; giáTrị}` theo mẫu `it0`, ví dụ `+ 4 phòng thủ` |
+| Bộ cùng hệ (n/4) | Số món cùng hệ đang mặc. Cẩm nang: đủ 4 món cùng hệ thì +8% tấn công và +8% sinh lực |
+| Nút | Món đang mặc: Cởi ra, Sửa chữa. Món trong túi: Trang bị, Vứt bỏ |
+
+Bot TS ghi dạng chữ ([src/items.ts](../../../src/items.ts)):
+- Túi đồ: `"Hoàn Linh Dược ×4"`, `"Nón Lá (+5 phòng thủ, +66 sinh lực)"`, trong sự kiện `inventory`. Bản chữ chỉ ghi ×n khi số lượng lớn hơn 1.
+- Trang bị đang mặc: `"0: Nón Âu Lạc (+4 phòng thủ, +58 sinh lực), hệ Lôi, độ bền 55/60"`, trong sự kiện `gear` lúc đăng nhập.
 
 Cẩm nang về trang bị (C1):
 - Nón, Áo, Vũ khí, Nhẫn chia bậc theo cấp mặc (1, 21, 51, 101, 151, 201). Cường hoá ở NPC Pháp Sư: bậc 1 tới +4, bậc 21 tới +8.
 - Độ bền giảm khi đánh và bị đánh (trừ đấu với người chơi). Hết độ bền thì món mất tác dụng, cần Sửa chữa.
 - Đúng hệ nhân vật thì chỉ số của món được +5%. Đủ 4 món cùng hệ thì được thêm +8% tấn công và +8% sinh lực.
+
+<a id="cách-lấy-túi-đồ"></a>
+
+### Cách lấy túi đồ và trang bị
+
+Không có gói nào để hỏi túi đồ. Server tự gửi, và chỉ gửi vào hai lúc:
+- **Lúc đăng nhập**: đuôi `s2c/9` có 8 ô trang bị, `s2c/42` có cả túi.
+- **Khi túi đổi** (nhận thưởng, sửa đồ, nhặt đồ): `s2c/1187` gửi lại cả túi.
+
+Mở túi hay bảng Bản thân trong game không gửi gói nào, vì máy chỉ vẽ lại dữ liệu đã có. [Đo E1, E2]
+
+Muốn đọc túi đồ thì phải có mặt lúc đăng nhập, hoặc đợi túi đổi. Có ba cách:
+
+**1. Bot TS, không cần điện thoại.** Lệnh này đăng nhập, in đồ rồi ngắt. Ngoài các gói đăng nhập, nó không gửi gì.
+
+```bash
+npm run bag
+```
+
+```text
+{"event":"character","name":"manina","level":21}
+{"event":"gear","gear":["0: Nón Âu Lạc (+4 phòng thủ, +58 sinh lực), hệ Lôi, độ bền 55/60","1: trống","2: Rìu Âu Lạc (+8 sức tấn công, +10 nội lực), hệ Hỏa, độ bền 0/60","3: trống",…]}
+{"event":"bag","capacity":42,"items":["0: Hoàn Linh Dược ×4","1: Đá cấp 2","2: Áo Hào Kiệt (+7 phòng thủ, +5 thân pháp), hệ Hỏa, độ bền 60/60",…]}
+```
+
+- Tài khoản lấy từ `CLLT_USERNAME` và `CLLT_PASSWORD` trong `.env`.
+- **Phải thoát game trên điện thoại trước.** Nếu nick đang online ở máy khác, server trả `s2c/0` và từ chối đăng nhập.
+- Code: [src/bag-run.ts](../../../src/bag-run.ts).
+- `npm run quest` cũng ghi các sự kiện `gear` và `inventory` khi chạy ([quest-bot](../../integration/nodejs/quest-bot.md)).
+- Chạy thật ngày 31/10 sau khi tắt game trên máy: ra đúng đồ trên máy. Búa sửa chữa đã hết, nên ô 6 của túi trống. [Đo]
+
+**2. Trên Android, bắt gói lúc game đăng nhập.** Cách này dùng khi muốn xem chính gói của app, như phiên E1:
+1. Mở game, dừng ở màn đăng nhập.
+2. Frida attach vào `com.lotasoft.colauloanthe`, hook native reader (cách hook ở [Điều tra lại](../reinvestigation.md#3-thu-lại-từ-boot-tới-thế-giới)).
+3. Bấm đăng nhập. Ghi payload của `s2c/9` và `s2c/42`, sau đó là mọi `s2c/1187`.
+4. Đọc payload bằng `characterGear` (đuôi `s2c/9`), `characterExtra` (`s2c/42`) và `inventory` (`s2c/1187`) trong [src/world.ts](../../../src/world.ts). Đổi mã ra tên bằng `Items` trong [src/items.ts](../../../src/items.ts).
+
+Nếu attach khi đã vào game thì đã lỡ `s2c/9` và `s2c/42`. Lúc đó chỉ còn bắt được `s2c/1187` khi túi đổi. [Đo]
+
+**3. Xem tay trên điện thoại.** Mở Bản thân → Trang bị để xem 8 ô, rồi chạm từng món để mở popup (tên, hệ, độ bền, chỉ số). Chỉ chạm vào món để xem, đừng bấm nút trong popup. Nút Sửa chữa gửi `c2s/48` và tốn búa. Các nút Trang bị, Cởi ra, Vứt bỏ hẳn cũng gửi gói và làm đổi đồ, nhưng chưa đo.
+
+**Tên đồ và icon** cũng lấy từ Android, từ file của game trên máy đã root (không cần mở game):
+
+```bash
+npm run items -- --adb=192.168.2.3:5555
+```
+
+Lệnh này ghi lại `data/items.json` và `data/icons/` ([13-drops-items](13-drops-items.md#cách-lấy-lại-dữ-liệu)).
 
 <a id="c2s-48"></a>
 

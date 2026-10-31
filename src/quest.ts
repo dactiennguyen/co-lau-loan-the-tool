@@ -7,7 +7,8 @@ import { battleSetup, type Strategy } from './battle.ts';
 import { BattleRunner, type BattleEnd } from './battle-runner.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
+import { ITEM_ELEMENTS, type Items } from './items.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterGear, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -67,6 +68,8 @@ export interface QuestBotOptions {
    * by 'auto': the main stat of the element (MAIN_STAT). See statPlan and allot(). The "Nâng điểm tiềm năng" step takes
    * its point the same way. Without it that step raises Cường Lực and the other points are left alone. */
   stats?: number[] | 'auto';
+  /** Item names for the bag log (s2c/1187); quest-run loads data/items.json. Without it items show as #id. */
+  items?: Items;
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -131,6 +134,11 @@ export class QuestBot implements WorldSession {
         const p = characterProfile(payload); this.statPoints = p.statPoints; this.skillPoints = p.skillPoints; this.potentials = p.stats;
         this.log('character', { level: p.level, hp: `${p.hp}/${p.maxHp}`, exp: p.exp, levelExp: p.levelExp, coin: p.coin, combat: p.combat, statPoints: p.statPoints, skillPoints: p.skillPoints });
         this.skillLevels = new Map(characterSkills(payload).map(k => [k.id, k.level]));
+        try {
+          const items = this.options.items, max = (id: number) => items?.get(id)?.durability;
+          const gear = characterGear(payload).flatMap(g => g ? [`${g.slot}: ${items?.describe(g) ?? `#${g.itemId}`}, hệ ${ITEM_ELEMENTS[g.element] ?? g.element}, độ bền ${g.durability}${max(g.itemId) ? `/${max(g.itemId)}` : ''}`] : []);
+          this.log('gear', { gear });
+        } catch (error) { this.log('parse_error', { opcode, part: 'gear', reason: (error as Error).message }); }
         break;
       }
       case 1263: case 1167: case 1170: case 1253:
@@ -235,7 +243,13 @@ export class QuestBot implements WorldSession {
       // Empty, at the end of a battle and after c2s/40 (05-battle).
       case 1214: if (this.battle?.surrendered) this.left(1214); break;
       case 46: this.log('currency', { payloadHex: payload.toString('hex') }); break;
-      case 1187: this.log('inventory_item', { payloadHex: payload.toString('hex') }); break;
+      case 1187: {
+        // The whole bag after it changed: a quest reward, a repair, an item picked up.
+        let bag: ReturnType<typeof inventory> | undefined;
+        try { bag = inventory(payload); } catch { this.log('inventory', { payloadHex: payload.toString('hex') }); break; }
+        this.log('inventory', { capacity: bag.capacity, items: bag.items.map(i => this.options.items?.describe(i) ?? `#${i.itemId} ×${i.quantity}`) });
+        break;
+      }
       case 22: this.onSetup(payload); break;
       case 0: case 5: this.log('server_text', { opcode, text: payload.toString('utf8').replace(/[\x00-\x1f]/g, ' ').trim().slice(0, 160) }); break;
     }

@@ -3,6 +3,7 @@ import { runClient } from './client.ts';
 import { MapScanner } from './map-scan.ts';
 import { loadAtlas, saveAtlas } from './atlas.ts';
 import { envConnection } from './env.ts';
+import { Items } from './items.ts';
 
 // Logs in directly (CLLT_USERNAME/CLLT_PASSWORD from .env), visits every map the character may enter and updates the
 // atlas (default data/maps.json, --atlas=path). The account must not be online on another device.
@@ -11,7 +12,7 @@ const path = arg('atlas') ?? 'data/maps.json', atlas = loadAtlas(path);
 const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 // CLLT_TRACE=<file> keeps every client log with full packet hex, as for quest-run (ground items of each map: s2c/1184).
 const trace = process.env.CLLT_TRACE ? createWriteStream(process.env.CLLT_TRACE) : undefined;
-const scanner = new MapScanner({ atlas, log: show, save: () => saveAtlas(path, atlas) });
+const scanner = new MapScanner({ atlas, log: show, save: () => saveAtlas(path, atlas), items: Items.load() });
 const result = await runClient({ ...envConnection(), mode: 'world', session: scanner, hexBytes: trace ? 65536 : 128,
   log: e => { trace?.write(JSON.stringify(e) + '\n'); if (e.event === 'failed') show(e); } });
 await scanner.finished;

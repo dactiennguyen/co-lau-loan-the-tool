@@ -1,7 +1,7 @@
 import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof,
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem,
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
   zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra } from './world.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, type Move } from './battle.ts';
 
@@ -98,7 +98,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
   [46, 'currency_notice', 'Sau s2c/9', 'Prefix string update Xu; opaque tail'],
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau); sau c2s/1191 (kiểu 32)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]. Kind 32: i32 n; n * {i32 skillId; i32 level}', 'Đọc hết byte 4 kiểu (L1, Q2, E1, P1); EXP và tiền khớp phần thưởng trận; stats[0] tăng 1 mỗi điểm Cường Lực, stats[1] mỗi điểm Thân Pháp, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, chính xác, né tránh, chí mạng: khớp bảng ở P1), fields[0] là điểm kỹ năng (16 ở P1, khớp bảng), extra[0], labels chưa rõ; kiểu 32 tăng cấp Hỏa Cầu Thuật 1 → 4'],
-  [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ', 'u8 1; i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 grade; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
+  [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ', 'u8 1; i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 element; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
   [1191, 'skill_points', 'Sau c2s/1191', 'i32 statPoints; i32 skillPoints', 'Đo E1 3 lần: 68 và 18, 17, 16, khớp bảng Chỉ số và Kỹ năng'],
   [48, 'repair_ack', 'Sau c2s/48 và s2c/1187', 'u8; i32 (giống c2s/48)', 'Đo E2 1 lần'],
   [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực")', 'Đọc hết byte 4 mẫu (Q6, Q15, S1)'],
@@ -115,7 +115,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1262, 'player_positions', 'Mỗi 100 ms khi có người đổi vị trí', 'u16 tickMs=100; u16 n; n * {i32 id; i32 x; i32 y; u8 state; u8 flags; u16 field14}', 'Đo: bản ghi id của mình lặp đúng x/y/state của c2s/1169; flags = bitmask flags[0..3] của 1169; field14 chưa rõ'],
   [1253, 'player_hp', 'Người chơi khác đổi HP/cấp/trang bị', 'i32 id; i32 level; i32 hp; i32 maxHp; u8 field', 'Đo: maxHp giảm theo từng món tháo ở s2c/1166, cấp tăng khi lên cấp'],
   [1184, 'ground_items', 'Vào map: vật phẩm đang nằm trên đất', 'string mapId; i32 n; n * item record (như s2c/1182)', 'Đọc hết byte; vai trò vật phẩm rơi là suy luận'],
-  [1182, 'ground_item_add', 'Có vật phẩm rơi xuống đất', 'string mapId; item record: u8 0xfe; i32 itemId; string uuid; i32; i32 durability; i32 quantity; u8; u8 grade; i32; u8; u8; u8 n; n * {i32 stat; i32 value}; i32 x; i32 y; i64 expiresAt', 'Đọc hết byte; rơi theo nhóm cách 32 đơn vị, hạn 600 s; tên "vật phẩm rơi" là suy luận'],
+  [1182, 'ground_item_add', 'Có vật phẩm rơi xuống đất', 'string mapId; item record: u8 0xfe; i32 itemId; string uuid; i32; i32 durability; i32 quantity; u8; u8 element; i32; u8; u8; u8 n; n * {i32 stat; i32 value}; i32 x; i32 y; i64 expiresAt', 'Đọc hết byte; rơi theo nhóm cách 32 đơn vị, hạn 600 s; tên "vật phẩm rơi" là suy luận'],
   [1183, 'ground_item_remove', 'Vật phẩm bị nhặt hoặc hết hạn', 'string mapId; string uuid', 'uuid khớp s2c/1182 trước đó'],
   [1170, 'player_leave', 'Người chơi rời khu; cặp 1170→1167 cùng mili giây là xuất hiện lại', 'i32 id'],
   [1167, 'player_enter', 'Người chơi vào khu hoặc xuất hiện lại', 'player record: u8 kind; string name; i32 id; string displayName; u8; u8; i32 level,hp,maxHp,s1,s1Max; u16; i32 x,y; i32 gear[6]; appearance; i32; string faction; u8; u8', 'Đọc hết byte 60 mẫu; khối appearance (bảng màu) chưa đặt tên'],
@@ -256,7 +256,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 46: fields = { label: r.string() }; break;
       case 1177: fields = mapBoss(payload); r.take(payload.length); break;
       case 1182: fields = { mapId: r.string(), ...groundItem(r) }; break;
-      case 1184: { const mapId = r.string(), items = []; for (let n = r.i32(); n > 0; n--) items.push(groundItem(r)); fields = { mapId, items }; break; }
+      case 1184: fields = groundItems(payload); r.take(payload.length); break;
       case 1183: fields = { mapId: r.string(), uuid: r.string() }; break;
       case 1170: fields = { id: r.i32() }; break;
       case 1166: fields = { id: r.i32(), gear: Array.from({ length: 6 }, () => r.i32()) }; break;

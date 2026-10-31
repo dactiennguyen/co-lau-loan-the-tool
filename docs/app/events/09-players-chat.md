@@ -258,7 +258,7 @@ Bản ghi vật phẩm:
 
 ```text
 u8 0xfe; i32 mãĐồ; string uuid; i32 0; i32 độBền; i32 sốLượng;
-u8 0; u8 phẩm; i32 0; u8 0; u8; u8 n; n × {i32 chỉSố; i32 giáTrị};
+u8 0; u8 hệ; i32 0; u8 0; u8; u8 n; n × {i32 chỉSố; i32 giáTrị};
 i32 x; i32 y; i64 hếtHạn (ms, epoch)
 ```
 
@@ -267,7 +267,7 @@ i32 x; i32 y; i64 hếtHạn (ms, epoch)
                   0000056f 00000280 000001a189f49227          số lượng 123, x=1391 y=640
 104 byte, mã 312: … fe 00000138 00000024 "fdcdeddb-…" 00000000 0000003c 00000001 00 02 00000000 00 01 02
                   00000005 00000006 00000001 0000000a 000005af 00000280 000001a189f49227
-                                                              độ bền 60, phẩm 2, chỉ số (5:6) (1:10), x=1455
+                                                              độ bền 60, hệ 2, chỉ số (5:6) (1:10), x=1455
 ```
 
 Vì sao là vật phẩm rơi:
@@ -276,6 +276,7 @@ Vì sao là vật phẩm rơi:
 - Rơi theo nhóm cùng lúc, cách nhau đúng 32 đơn vị, ví dụ mã 41 + 412 + 312 ở x = 1391, 1423, 1455. [Đo]
 - Thường bị xoá bằng `1183` sau 7–20 s; vài cái nằm tới 212 s. [Đo]
 - `.so` có chuỗi "Nhặt". Bản ghi cùng khuôn với vật phẩm trong túi ở `s2c/1187`. [Đo]
+- Byte `hệ`: 1 Hỏa, 2 Lôi, 4 Thủy, 0xff ở vật phẩm thường ([12](12-skills-items.md#bản-ghi-vật-phẩm)). [Đo 1, 2]
 - Tên theo bảng vật phẩm của game ([13-drops-items](13-drops-items.md#bảng-vật-phẩm)): mã `41` là Xu khóa, `411`–`413` là Đá cấp 1–3, các mã 104 byte là trang bị cấp 1. [Đo]
 
 ## Gói khác thấy trong L1 (người chơi tự bấm trên máy)

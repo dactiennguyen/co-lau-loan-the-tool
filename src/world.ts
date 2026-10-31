@@ -1,7 +1,7 @@
 // World-state packets: map mobs, zones, world map, other players, chat, ground items, own movement, character stats,
 // quests, ranking (docs/app/events/05-battle.md, 08-server-map-zone.md, 09-players-chat.md, 10-quests.md, 11-panels.md).
 // Each layout reads every captured payload to its last byte, except where a comment says otherwise.
-import { Reader, ProtocolError, mapPrefix } from './protocol.ts';
+import { Reader, ProtocolError, mapPrefix, characterProfile } from './protocol.ts';
 
 const u16 = (r: Reader) => r.take(2).readUInt16BE();
 const finish = <T>(r: Reader, value: T, what: string): T => {
@@ -180,13 +180,13 @@ export class ZonePlayers {
 }
 
 /** Item record shared by the bag (s2c/42, s2c/1187), the gear slots of s2c/9 and items on the ground (s2c/1182): slot
- * (0xfe on the ground), durability -1 for items without one, grade 0xff for plain items, stats as (code, value) with
- * 6 = defence and 9 = HP seen on the item popup (docs/app/events/12-skills-items.md). */
+ * (0xfe on the ground), durability -1 for items without one, element of this item (1 Hỏa, 2 Lôi, 4 Thủy as the item
+ * popup draws it; 0xff for plain items), stats as (code, value) with the templates of it0 (12-skills-items.md#túi-đồ). */
 export function itemRecord(r: Reader) {
   const slot = r.u8(), itemId = r.i32(), uuid = r.string(), field0 = r.i32(), durability = r.i32(), quantity = r.i32();
-  const field1 = r.u8(), grade = r.u8(), field2 = r.i32(), field3 = r.u8(), field4 = r.u8(), stats = [];
+  const field1 = r.u8(), element = r.u8(), field2 = r.i32(), field3 = r.u8(), field4 = r.u8(), stats = [];
   for (let n = r.u8(); n > 0; n--) stats.push({ stat: r.i32(), value: r.i32() });
-  return { slot, itemId, uuid, field0, durability, quantity, field1, grade, field2, field3, field4, stats };
+  return { slot, itemId, uuid, field0, durability, quantity, field1, element, field2, field3, field4, stats };
 }
 
 /** Item record of s2c/1182 and s2c/1184: 88 bytes for plain items, 104 for gear with two stats. */
@@ -194,6 +194,22 @@ export function groundItem(r: Reader) {
   const { slot: flag, ...item } = itemRecord(r);
   const x = r.i32(), y = r.i32(), expiresAt = Number(r.take(8).readBigInt64BE());
   return { flag, ...item, x, y, expiresAt };
+}
+
+/** The 8 gear slots after the skill list of s2c/9: u8 0xff for an empty slot, else an item record whose slot byte is
+ * the slot index. Seen: 0 the hat, 2 the weapon; slot = item type of it1 is a guess (12-skills-items.md#ô-trang-bị). */
+export function characterGear(payload: Uint8Array) {
+  const r = new Reader(payload);
+  r.take(characterProfile(payload).profileBytes);
+  for (let n = r.i32(); n > 0; n--) r.take(13); // skills: i32 id; i32 level; i32 mana; u8 flag
+  return Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
+}
+
+/** s2c/1184 right after s2c/43 on entering a map or zone: every item lying on the ground there. */
+export function groundItems(payload: Uint8Array) {
+  const r = new Reader(payload), mapId = r.string(), items = [];
+  for (let n = r.i32(); n > 0; n--) items.push(groundItem(r));
+  return finish(r, { mapId, items }, 's2c/1184');
 }
 
 /** The whole bag: s2c/1187 when it changes, and the tail of s2c/42 at login. kind is 1 in s2c/1187, 2 in s2c/42. */

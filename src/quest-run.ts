@@ -3,6 +3,7 @@ import { runClient } from './client.ts';
 import { QuestBot, statPlan } from './quest.ts';
 import { envConnection } from './env.ts';
 import { STRATEGIES } from './battle.ts';
+import { Items } from './items.ts';
 
 // Logs in directly (CLLT_USERNAME/CLLT_PASSWORD from .env) and plays the current main quest.
 // The account must not be online on another device: the server then answers s2c/0 and refuses the login.
@@ -25,7 +26,7 @@ const stats = arg('stats') === undefined ? undefined : statPlan(arg('stats')!);
 const bot = new QuestBot({ maxFights: Number(arg('fights') ?? 3), minHpRatio: Number(arg('min-hp') ?? 0), grind: arg('grind'), skill, strategy: STRATEGIES[goal],
   timedMoveMs: Number(arg('move-ms') ?? 1000), restMs: Number(arg('rest-ms') ?? 3000), farm: arg('farm'),
   maxLosses: Number(arg('max-losses') ?? 1), atlas: arg('atlas') ?? 'data/maps.json', once: process.argv.includes('--once'),
-  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, log: show });
+  surrenderAfter: arg('surrender-after') === undefined ? undefined : Number(arg('surrender-after')), stats, items: Items.load(), log: show });
 const result = await runClient({
   ...connection, mode: 'world', session: bot, hexBytes: trace ? 65536 : 128,
   log: e => {
