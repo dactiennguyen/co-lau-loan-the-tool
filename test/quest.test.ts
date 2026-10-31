@@ -5,7 +5,6 @@ import { Reader, Writer, characterSkills } from '../src/protocol/protocol.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { skillTable, inventory, characterExtra, questData, characterStats, POTENTIALS } from '../src/protocol/world.ts';
 import { QuestBot, stepAction, statPlan } from '../src/bot/quest.ts';
-import { duelMobId } from '../src/battle/battle.ts';
 import { Items } from '../src/protocol/items.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -482,8 +481,7 @@ test('quest bot: picks up the own drops of a won battle with c2s/1188, one every
   (bot as any).stop('test done');
 });
 
-/** s2c/22 of a duel with Võ Quan Đinh Mộc as cocXanhSetup builds it, the NPC's block under `id` (its real id is not known
- * yet: N1 did not take the duel). */
+/** s2c/22 of a duel with Võ Quan Đinh Mộc as cocXanhSetup builds it, the NPC's block under `id` (mob880 in N3). */
 const duelSetup = (id: string) => {
   const setup = new Writer().u8(1).u8(0).string('wangpt').string('wangpt').u8(0).u8(0).u8(2).i32(25).i32(0).u8(0).i32(184).i32(184)
     .string(id).string('Võ Quan Đinh Mộc').u8(1).u8(0).u8(1).i32(25).i32(100000).u8(0).i32(400).i32(400).string(UUID).i32(64).bytes(Buffer.alloc(0)).build();
@@ -505,28 +503,25 @@ test('quest 12 (N1): s2c/39 has the duel step as a talk step, s2c/57 is its dial
   assert.deepEqual(stepAction(quest.steps[2]), { kind: 'talk', npcId: 141 });
   assert.deepEqual(decode(57, 's2c/57 duel'), { npc: 'Võ Quan Đinh Mộc', text: 'Cậu đã sẵn sàng chiến đấu chưa.', options: [{ option: 0, label: 'Đồng ý' }, { option: 1, label: 'Từ chối' }] });
   assert.equal(buildRequest(57, { option: 1, mapId: 'M2', npcId: 141 }).toString('hex'), q['c2s/57 decline']);
+  // After Đồng ý (N2, N3): the duel's mob, then the game's challenge of it.
+  assert.deepEqual(decode(1180, 's2c/1180 duel'), { mapId: 'M2', npcId: 141, mob: { id: 'mob880', name: 'Võ Quan Đinh Mộc', level: 20, a: 0, b: 6, c: 1, d: 0 }, a: 2, b: 0 });
+  assert.equal(buildRequest(1181, { mobId: 'mob880', npcId: 141 }).toString('hex'), q['c2s/1181 duel']);
 });
 
-test('duelMobId: the id before the NPC name in s2c/22, else the first mob<digits> with a block, else undefined', () => {
-  assert.equal(duelMobId(duelSetup('vq141'), 'Võ Quan Đinh Mộc'), 'vq141');
-  assert.equal(duelMobId(duelSetup('mob8700001'), 'Võ Quan Đinh Mộc'), 'mob8700001');
-  assert.equal(duelMobId(cocXanhSetup(), 'Võ Quan Đinh Mộc'), 'mob61000');
-  assert.equal(duelMobId(duelSetup('vq141'), 'Trại Chủ Phạm Hùng'), undefined);
-  // 00000009 also reads as a 9-byte string ending at the name: the shorter one is the id.
-  assert.equal(duelMobId(new Writer().i32(9).string('vq141').string('Võ Quan Đinh Mộc').build(), 'Võ Quan Đinh Mộc'), 'vq141');
-});
-
-test('quest bot: a talk step answered by a dialog says Đồng ý (c2s/57), plays the duel as its battle, and moves on at s2c/34', () => {
+test('quest bot: a talk step answered by a dialog says Đồng ý (c2s/57), challenges the mob of s2c/1180 with c2s/1181, plays the duel, and moves on at s2c/34', () => {
   const { bot, sent, events } = duelBot();
   bot.onReady(recorder(sent));
   assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M2').i32(141).build().toString('hex') });
   bot.onPacket(57, Buffer.from(q['s2c/57 duel'], 'hex'));
   assert.deepEqual(sent.at(-1), { opcode: 57, hex: buildRequest(57, { option: 0, mapId: 'M2', npcId: 141 }).toString('hex') });
-  assert.deepEqual([bot.fights, bot.duels, bot.awaitingReply], [1, 1, true]);
-  bot.onPacket(22, duelSetup('vq141'));
+  assert.deepEqual([bot.fights, bot.duels, bot.awaitingReply], [0, 1, true]);
+  bot.onPacket(1180, Buffer.from(q['s2c/1180 duel'], 'hex'));
+  assert.deepEqual(sent.at(-1), { opcode: 1181, hex: q['c2s/1181 duel'] });
+  assert.deepEqual([bot.fights, bot.target?.id], [1, 'mob880']);
+  bot.onPacket(22, duelSetup('mob880'));
   const setup = events.find(e => e.event === 'battle_setup')!;
-  assert.deepEqual([setup.mobId, setup.mob, !!bot.battle], ['vq141', 'Võ Quan Đinh Mộc 400/400', true]);
-  (bot as any).onBattleEnd({ won: true, actor: 'wangpt', exp: 0, coin: 0, myTurns: 20, hp: 90, mobId: 'vq141', damage: 400 });
+  assert.deepEqual([setup.mobId, setup.mob, !!bot.battle], ['mob880', 'Võ Quan Đinh Mộc 400/400', true]);
+  (bot as any).onBattleEnd({ won: true, actor: 'wangpt', exp: 0, coin: 0, myTurns: 20, hp: 90, mobId: 'mob880', damage: 400 });
   assert.equal(bot.quest!.current, 2); // the server's s2c/34 moves the step, not the battle
   bot.onPacket(34, new Writer().i32(0).string('subtask 1').i32(12).string('Khá lắm!').build());
   assert.deepEqual([bot.quest!.current, bot.duels, bot.awaitingReply], [3, 0, false]);

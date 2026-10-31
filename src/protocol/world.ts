@@ -176,6 +176,14 @@ export function npcMenu(payload: Uint8Array) {
   return finish(r, { npc, text, options }, 's2c/57');
 }
 
+/** s2c/1180 after Đồng ý (c2s/57) in a duel's dialog (N2, N3: "Tỷ thí với Võ Quan Đinh Mộc"): the NPC's map and id, the
+ * mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record as in s2c/43), then `u8 a; i32 b` (2 and
+ * 1, 1, 0 in N2; 2 and 0 in N3). The game challenges that mob at once with c2s/1181 (N3). */
+export function duelInvite(payload: Uint8Array) {
+  const r = new Reader(payload), mapId = r.string(), npcId = r.i32(), mob = mobRecord(r);
+  return finish(r, { mapId, npcId, mob, a: r.u8(), b: r.i32() }, 's2c/1180');
+}
+
 /** s2c/1190 after c2s/57 opens a shop (Dược phẩm of Lái Buôn, P5). shopId is what c2s/1190 buys, not the item id: the same
  * item can be sold twice, for Xu (currency 0) and for Xu khóa (currency 1). */
 export function shopList(payload: Uint8Array) {

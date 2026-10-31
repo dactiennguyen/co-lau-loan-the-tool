@@ -395,6 +395,34 @@ pub struct NpcMenu {
     pub text: String,
     pub options: Vec<(u8, String)>,
 }
+/// s2c/1180 after Đồng ý (c2s/57) in a duel's dialog (N2, N3: "Tỷ thí với Võ Quan Đinh Mộc"): the NPC's map and id, the
+/// mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record as in s2c/43), then `u8 a; i32 b`. The
+/// game challenges that mob at once with c2s/1181 (N3). ← duelInvite of src/protocol/world.ts.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuelInvite {
+    pub map_id: String,
+    pub npc_id: i32,
+    pub mob: Mob,
+    pub a: u8,
+    pub b: i32,
+}
+pub fn duel_invite(p: &[u8]) -> Result<DuelInvite> {
+    let mut r = Reader::new(p);
+    let (map_id, npc_id) = (r.string()?, r.i32()?);
+    let mob = mob_record(&mut r)?;
+    let (a, b) = (r.u8()?, r.i32()?);
+    r.finish(
+        DuelInvite {
+            map_id,
+            npc_id,
+            mob,
+            a,
+            b,
+        },
+        "s2c/1180",
+    )
+}
 pub fn npc_menu(p: &[u8]) -> Result<NpcMenu> {
     let mut r = Reader::new(p);
     let n = r.i32()?;

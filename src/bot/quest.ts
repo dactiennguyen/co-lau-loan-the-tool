@@ -3,14 +3,14 @@
 // portal id) when the NPC or mob of a step is in another map. What it sees of each map goes to the atlas (atlas.ts), which
 // also tells it the way to maps seen in earlier runs.
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills } from '../protocol/protocol.ts';
-import { battleSetup, duelMobId, mobBlock, type Strategy } from '../battle/battle.ts';
+import { battleSetup, mobBlock, type Strategy } from '../battle/battle.ts';
 import { BattleRunner, type BattleEnd } from '../battle/battle-runner.ts';
 import { learntSkills, POTIONS } from '../battle/battle-actions.ts';
 import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
 import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
@@ -282,6 +282,7 @@ export class QuestBot implements WorldSession {
         break;
       }
       case 57: this.dialog(payload); break;
+      case 1180: this.invite(payload); break;
       // The server's count for the current step, right after each battle that counts (kills, or total boss damage).
       case 1201: { const progress = new Reader(payload).i32(); if (this.quest) this.quest.progress = progress; this.log('step_progress', { progress }); break; }
       case 35: { const c = questComplete(payload); this.log('quest_complete', { questId: c.questId, title: c.title, rewards: c.rewards }); break; }
@@ -356,8 +357,8 @@ export class QuestBot implements WorldSession {
     this.wait = setTimeout(() => this.stop(silence, fields), 8000);
   }
   /** s2c/57 to a talk step's c2s/13: the NPC asks instead of answering with s2c/34. "Tỷ thí với Võ Quan Đinh Mộc" asks
-   * "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý and 1 Từ chối (N1); Đồng ý (c2s/57) opens a battle with the NPC, played
-   * as the step's own, and the s2c/34 after a won one moves the step on. A dialog without Đồng ý stops the bot. */
+   * "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý and 1 Từ chối (N1); Đồng ý (c2s/57) is answered by s2c/1180, the mob of
+   * the duel (invite). A dialog without Đồng ý stops the bot. */
   private dialog(payload: Buffer) {
     const menu = npcMenu(payload), q = this.quest, step = q?.steps[q.current];
     this.log('npc_menu', { npc: menu.npc, text: menu.text, options: menu.options.map(o => `${o.option} ${o.label}`) });
@@ -369,12 +370,25 @@ export class QuestBot implements WorldSession {
     if (this.fights >= this.options.maxFights) return this.stop('fight limit reached');
     if (this.maxHp && this.hp < this.maxHp * (this.options.minHpRatio ?? 0)) return this.stop('hp too low to fight', { hp: this.hp });
     clearTimeout(this.wait);
-    this.duels++; this.fights++; this.challenged = Date.now();
-    // No mob was challenged: onSetup finds the NPC's id in the battle by its name (duelMobId).
-    this.target = { id: `npc${step.npcId}`, name: menu.npc, level: 0, a: 0, b: 0, c: 0, d: 0 };
-    this.log('duel', { npc: menu.npc, npcId: step.npcId, option: yes.option, fight: this.fights });
+    this.duels++;
+    this.log('duel', { npc: menu.npc, npcId: step.npcId, option: yes.option, duels: this.duels });
     this.send(57, buildRequest(57, { option: yes.option, mapId: this.mapId, npcId: step.npcId }));
-    this.wait = setTimeout(() => { if (!this.battle) { this.log('duel_no_answer', { npc: menu.npc }); this.next(); } }, 8000);
+    this.wait = setTimeout(() => this.stop('no duel after Đồng ý', { npc: menu.npc }), 8000);
+  }
+
+  /** s2c/1180 after Đồng ý: the mob of the duel (mob880 "Võ Quan Đinh Mộc" cấp 20, N2). Challenged at once with c2s/1181
+   * (mobId, 0, npcId) as the game does (N3), and fought as the step's battle; the s2c/34 after a won one moves the step on.
+   * A battle that does not open in 8 s sends the bot back to the NPC, as a challenge does. */
+  private invite(payload: Buffer) {
+    const d = duelInvite(payload), step = this.quest?.steps[this.quest.current];
+    this.log('duel_invite', { npcId: d.npcId, mobId: d.mob.id, name: d.mob.name, level: d.mob.level });
+    if (!this.awaitingReply || !step || step.npcId !== d.npcId) return;
+    clearTimeout(this.wait);
+    const mob = this.target = d.mob;
+    this.fights++; this.challenged = Date.now();
+    this.log('challenge', { reason: step.text, opcode: 1181, mobId: mob.id, name: mob.name, level: mob.level, fight: this.fights });
+    this.send(1181, buildRequest(1181, { mobId: mob.id, npcId: d.npcId }));
+    this.wait = setTimeout(() => { if (!this.battle) { this.log('challenge_no_answer', { mobId: mob.id }); this.next(); } }, 8000);
   }
 
   private stop(reason: string, fields: Record<string, unknown> = {}) {
@@ -575,9 +589,7 @@ export class QuestBot implements WorldSession {
   private onSetup(payload: Buffer) {
     clearTimeout(this.wait);
     // The mob block of s2c/22 starts with the length-prefixed mob id; a late setup may answer an earlier challenge.
-    const duel = this.target?.id.startsWith('npc') ? this.target : undefined;
-    const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id
-      ?? (duel && (duelMobId(payload, duel.name) ?? duel.id)) ?? this.target?.id ?? '?';
+    const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id ?? this.target?.id ?? '?';
     const mob = mobBlock(payload, mobId);
     this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp;
     this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, mob: mob && `${mob.name} ${mob.hp}/${mob.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });

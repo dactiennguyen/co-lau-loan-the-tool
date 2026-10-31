@@ -118,6 +118,11 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),
         1188 => w.string(required(c.uuid, "uuid")?).build(),
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),
+        1181 => w
+            .string(required(c.mob_id, "mobId")?)
+            .i32(0)
+            .i32(required(c.npc_id, "npcId")?)
+            .build(),
         18 | 40 => w.string(required(c.battle_uuid, "battleUuid")?).build(),
         14 => w
             .string(required(c.battle_uuid, "battleUuid")?)

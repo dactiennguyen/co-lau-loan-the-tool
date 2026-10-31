@@ -234,20 +234,6 @@ export function mobBlock(payload: Uint8Array, mobId: string) {
   }
 }
 
-/** The mob id of a duel's s2c/22, opened by Đồng ý to an NPC (c2s/57) rather than by a challenge (N1, "Tỷ thí với Võ Quan
- * Đinh Mộc"): the length-prefixed id just before the NPC's name, as a mob block starts `string id; string name` (the
- * shortest that ends there, so 4 earlier bytes that happen to read as a longer length are not taken), else the first
- * `mob<digits>` id that has a block. Undefined when neither is in the packet. */
-export function duelMobId(payload: Uint8Array, name: string) {
-  const p = Buffer.from(payload), strings: { at: number; end: number; text: string }[] = [];
-  for (let i = 0; i + 4 <= p.length; i++) {
-    const n = p.readInt32BE(i);
-    if (n > 0 && n <= 64 && i + 4 + n <= p.length) strings.push({ at: i, end: i + 4 + n, text: p.subarray(i + 4, i + 4 + n).toString('utf8') });
-  }
-  const named = strings.find(s => s.text === name), id = named && strings.findLast(s => s.end === named.at);
-  return id?.text ?? strings.find(s => /^mob\d+$/.test(s.text) && mobBlock(p, s.text))?.text;
-}
-
 /** s2c/22: the player block, the mob block, then `string battleUuid; i32 64; u8[64] board; u8 turnSeconds; u8`.
  * Only the head of the player block and the tail are read; `knownBytes` counts them. */
 export function battleSetup(payload: Uint8Array) {

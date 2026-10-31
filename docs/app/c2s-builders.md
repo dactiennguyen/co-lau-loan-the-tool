@@ -99,7 +99,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1173 | b119 | (byte) | u8 | có |
 | 1174 | q120 | (Object) | string |  |
 | 1178 | b121 | (Object, boolean) | string; i32 | có |
-| 1181 | a122 | (Object, int, boolean) | string; i32; i32 |  |
+| 1181 | a122 | (Object, int, boolean) | string; i32; i32 | Thách đấu quái tỷ thí của `s2c/1180`: `string mobId; i32 0; i32 npcId`, client tự gửi từ hàm chạm `sqhz.a17` ([10](events/10-quests.md#s2c-1180), N3) |
 | 1186 | b45 | (int, int) | u8; i32 | có |
 | 1188 | c44 | (Object) | string | có |
 | 1189 | j123 | (int, int) | u8; i32 |  |
@@ -160,7 +160,7 @@ Ghi chú:
 - Đồ thị gọi JNI (T2) gán thêm nghĩa cho ba gói lúc đó chưa thấy trên dây ([13-drops-items](events/13-drops-items.md#c2s-1188)) [Đo tĩnh]:
   - `1188` (`c44`) là nhặt đồ trên đất (`string uuid`), gửi từ nút "Nhặt" của lớp bản đồ. P3 đã bắt được trên máy ([13-drops-items](events/13-drops-items.md#p3)).
   - `1174` (`q120`) gửi chữ người chơi gõ trong một hộp nhập.
-  - `1181` (`a122`) là gói chạm vào một loại thực thể bản đồ, cùng chỗ với `c2s/15` và `c2s/1178`.
+  - `1181` (`a122`) là gói chạm vào một loại thực thể bản đồ, cùng chỗ với `c2s/15` và `c2s/1178`. N3 đã bắt được trên máy: đó là thách đấu quái tỷ thí của `s2c/1180` ([10-quests](events/10-quests.md#s2c-1180)).
 - Lời gọi hàm dựng đi qua JNI: method ID nằm trong mảng `cmethods` của lớp gọi, được tạo lần đầu bằng `GetMethodID`. Không có lệnh `BL` trực tiếp. Muốn biết ai gọi hàm dựng nào thì phải ghép call site với khối `GetMethodID` đã điền ô đó (T2).
 - `c2s/1265` (Sứ quân) có trên dây nhưng không có hàm dựng trong `sqlq`: được dựng ở lớp khác. [Đo]
 - Opcode của bảng mã mà không có hàm nào ở đây có thể là gói chỉ chạy chiều server → client, hoặc được dựng ngoài `sqlq`. [Suy luận]

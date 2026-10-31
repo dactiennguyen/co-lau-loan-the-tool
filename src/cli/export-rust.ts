@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { BASELINE, OPCODE_ENTRIES } from '../protocol/config.ts';
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from '../protocol/protocol.ts';
 import { buildRequest, decodeEvent } from '../protocol/events.ts';
-import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable,
+import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, duelInvite, skillTable,
   characterExtra, characterGear, characterTail, inventory, currencies, gearUpdate, zoneList } from '../protocol/world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from '../battle/battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from '../bot/atlas.ts';
@@ -70,6 +70,8 @@ function decoders() {
   for (const k of ['s2c/39 quest3', 's2c/39 quest4']) add('questData', q[k], questData(bytes(q[k])));
   add('questProgress', q['s2c/34 dialogue'], questProgress(bytes(q['s2c/34 dialogue'])));
   add('questComplete', q['s2c/35'], questComplete(bytes(q['s2c/35'])));
+  // The mob of the duel of quest 12, after Đồng ý (N3, 10-quests.md#s2c-1180).
+  add('duelInvite', q['s2c/1180 duel'], duelInvite(bytes(q['s2c/1180 duel'])));
   // Bag, gear and money (12-skills-items.md#túi-đồ, 04-push.md#s2c-46), ahead of the skill cases the Rust side lacks yet.
   add('characterExtra', si0['s2c/42 login'], characterExtra(bytes(si0['s2c/42 login'])));
   add('inventory', si0['s2c/1187 after repair'], inventory(bytes(si0['s2c/1187 after repair'])));
@@ -247,7 +249,9 @@ function requests() {
     // Vứt bỏ the Đá cấp 2 of bag slot 4 (K3), Sắp xếp (I1).
     [1186, { action: 2, slot: 4 }], [1257, {}],
     // Nhặt the Xu khóa of 's2c/1182 gold' (G2).
-    [1188, { uuid: 'f573bf90-942b-48d1-b466-4552dfa4f7cb' }]];
+    [1188, { uuid: 'f573bf90-942b-48d1-b466-4552dfa4f7cb' }],
+    // Đồng ý in Võ Quan Đinh Mộc's dialog, then the game's challenge of the duel's mob (N1, N3).
+    [57, { option: 0, mapId: 'M2', npcId: 141 }], [1181, { mobId: 'mob880', npcId: 141 }]];
   return ctx.map(([opcode, c]) => ({ opcode, ctx: c, hex: hex(buildRequest(opcode, c as any)) }));
 }
 

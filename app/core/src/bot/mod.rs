@@ -5,7 +5,7 @@
 //! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals
 //! when the NPC or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
-use crate::battle::{battle_setup, duel_mob_id, mob_block, Strategy};
+use crate::battle::{battle_setup, mob_block, Strategy};
 use crate::battle_record::{BattleData, Recorder};
 use crate::items::{
     bag_slot, book, character_extra, character_gear, character_tail, currencies, gear_durability,
@@ -22,9 +22,9 @@ pub use crate::runner_v3::Algorithm;
 use crate::runner_v3::{Memory, Runner};
 use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
 use crate::world::{
-    character_stats, map_boss, map_change, map_data, map_entities, notice, npc_menu,
-    quest_complete, quest_data, quest_progress, shop_list, zone_list, Mob, Nearby, NpcMenu, Place,
-    Quest, ShopList, Zone, ZonePlayers,
+    character_stats, duel_invite, map_boss, map_change, map_data, map_entities, notice, npc_menu,
+    quest_complete, quest_data, quest_progress, shop_list, zone_list, DuelInvite, Mob, Nearby,
+    NpcMenu, Place, Quest, ShopList, Zone, ZonePlayers,
 };
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -364,7 +364,7 @@ impl Bot {
                     .find(|b| b.ids.values().any(|i| i == mob_id))
                     .map(|b| (b.name.clone(), b.level))
             })
-            // A duel's NPC is in no mob list: duel_setup gave the target its id.
+            // The mob of a duel (s2c/1180) is in no mob list: it is the target.
             .or_else(|| {
                 self.target
                     .as_ref()
@@ -400,6 +400,8 @@ impl Bot {
         self.mobs
             .iter()
             .find(|m| m.id == id)
+            // The mob of a duel (s2c/1180) is in no mob list: it is the target, as in `record`.
+            .or_else(|| self.target.as_ref().filter(|t| t.id == id))
             .map_or_else(|| id.to_string(), |m| m.name.clone())
     }
 

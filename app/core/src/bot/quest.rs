@@ -1,8 +1,6 @@
 //! Tự làm nhiệm vụ: the quest run, its steps and the trips between maps it takes.
 use super::*;
 
-/// The challenge of a duel holds `npc<id>` until its s2c/22 tells the NPC's id in the battle (duel_setup).
-const DUEL_ID: &str = "npc";
 /// The line of a duel's dialog that takes it (N1: 0 "Đồng ý", 1 "Từ chối").
 const DUEL_YES: &str = "Đồng ý";
 
@@ -283,9 +281,9 @@ impl Bot {
     }
 
     /// s2c/57 to a talk step's c2s/13: the NPC asks instead of answering with s2c/34. "Tỷ thí với Võ Quan Đinh Mộc" asks
-    /// "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý and 1 Từ chối (N1); Đồng ý (c2s/57) opens a battle with the NPC,
-    /// played as the step's own (a challenge of `npc<id>` until its s2c/22), and the s2c/34 after a won one moves the step
-    /// on. A dialog without Đồng ý ends the run, and so does a fourth duel for the same step. ← dialog() of quest.ts.
+    /// "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý and 1 Từ chối (N1); Đồng ý (c2s/57) is answered by s2c/1180, the mob
+    /// of the duel (duel). A dialog without Đồng ý ends the run, and so does a fourth duel for the same step, or no s2c/1180
+    /// within 8 s. ← dialog() of quest.ts.
     pub(super) fn npc_dialog(&mut self, menu: NpcMenu, now: Instant, out: &mut Vec<Out>) {
         let step = self
             .snap
@@ -309,22 +307,11 @@ impl Bot {
             let reason = format!("Đã tỷ thí với {} 3 lần mà bước vẫn chưa sang", menu.npc);
             return self.finish_quest(&reason, out);
         }
-        let Some(r) = &mut self.snap.quest_run else {
-            return;
-        };
         self.duels += 1;
-        r.fights += 1;
-        r.doing = step.text.clone();
+        self.doing(step.text.clone());
         out.push(Out::Log(
             LogKind::Quest,
             format!("{}: {} → {DUEL_YES}", menu.npc, menu.text),
-        ));
-        out.push(Out::Log(
-            LogKind::Battle,
-            format!(
-                "Trận {}: tỷ thí với {} (NPC {})",
-                r.fights, menu.npc, step.npc_id
-            ),
         ));
         let map_id = self.snap.map_id.clone();
         let ctx = Ctx {
@@ -334,35 +321,44 @@ impl Bot {
             ..Ctx::default()
         };
         Self::send(out, 57, ctx);
-        let npc = Mob {
-            id: format!("{DUEL_ID}{}", step.npc_id),
-            name: menu.npc,
-            level: 0,
-            a: 0,
-            b: 0,
-            c: 0,
-            d: 0,
-        };
-        self.challenged(npc, now);
+        self.timer = Some((
+            now + Duration::from_secs(8),
+            Wake::Silence("Server không gửi trận tỷ thí sau Đồng ý"),
+        ));
     }
 
-    /// s2c/22 of a duel: the challenge of `npc<id>` takes the NPC's id in the battle (duel_mob_id) and its level, so the
-    /// runner follows the NPC's HP and the battle's record names it.
-    pub(super) fn duel_setup(&mut self, payload: &[u8]) {
-        let Some(c) = self
-            .challenges
-            .last_mut()
-            .filter(|c| c.mob_id.starts_with(DUEL_ID))
-        else {
+    /// s2c/1180 after Đồng ý: the mob of the duel (mob880 "Võ Quan Đinh Mộc" cấp 20, N2), for the NPC of the current step.
+    /// Challenged at once with c2s/1181 (mobId, 0, npcId) as the game does (N3), and fought as the step's battle; the s2c/34
+    /// that comes with the end of a won one moves the step on (N4). ← invite() of quest.ts.
+    pub(super) fn duel(&mut self, invite: DuelInvite, now: Instant, out: &mut Vec<Out>) {
+        let npc = self
+            .snap
+            .quest
+            .as_ref()
+            .and_then(|q| q.steps.get(q.current.max(0) as usize))
+            .map(|s| s.npc_id);
+        if npc != Some(invite.npc_id) {
             return;
-        };
-        let Some(t) = self.target.as_mut().filter(|t| t.id == c.mob_id) else {
-            return;
-        };
-        if let Some(id) = duel_mob_id(payload, &t.name) {
-            t.level = mob_block(payload, &id).map_or(0, |b| b.level);
-            (c.mob_id, t.id) = (id.clone(), id);
         }
+        let Some(r) = &mut self.snap.quest_run else {
+            return;
+        };
+        r.fights += 1;
+        let mob = invite.mob;
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "Trận {}: tỷ thí với {} cấp {} ({})",
+                r.fights, mob.name, mob.level, mob.id
+            ),
+        ));
+        let ctx = Ctx {
+            mob_id: Some(&mob.id),
+            npc_id: Some(invite.npc_id),
+            ..Ctx::default()
+        };
+        Self::send(out, 1181, ctx);
+        self.challenged(mob, now);
     }
 
     /// True when the mob or NPC of the step is not in this map and the bot waits for it or travels.

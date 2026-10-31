@@ -5,7 +5,7 @@ Mốc: APK 1.0.3, ngày 30/10/2026, nhân vật `manina`. Nguồn ([các phiên 
 - **Q1–Q20**: bot Node [src/bot/quest.ts](../../../src/bot/quest.ts) tự đăng nhập không cần điện thoại và làm nhiệm vụ. Q1 dừng sau 33 s vì gặp gói chưa biết; Q2 làm xong nhiệm vụ 4; Q3–Q9 nhiệm vụ 5, 6 và một phần nhiệm vụ 7; Q10, Q13 thử boss; Q11, Q12 đo tốc độ; Q14–Q17 nhiệm vụ 7 (báo cáo), 8 và 9; Q18–Q20 Cóc Xanh của nhiệm vụ 9, đo hồi máu và thử cách chấm nước mới.
 - **B3–B5**: app trên điện thoại với hook Frida, chỉ để bắt gói bot chưa biết: B3 đi tìm boss (không thấy), B4 gói đánh boss, B5 gói qua cổng.
 - **S1**: bot Node thử từng cổng và quét mọi map vào được (`npm run scan`, [06-map-mobs](06-map-mobs.md#atlas)).
-- **N1**: app trên điện thoại với hook Frida, nick `wangpt` cấp 25, ngày 31/10: hộp thoại của bước "Tỷ thí với Võ Quan Đinh Mộc" (nhiệm vụ 12), [Bước Tỷ thí](#tỷ-thí).
+- **N1–N4**: bước "Tỷ thí với Võ Quan Đinh Mộc" (nhiệm vụ 12) với nick `wangpt` cấp 25, ngày 31/10: hộp thoại trên điện thoại có hook Frida (N1), lời mời `s2c/1180` bắt bằng bot TS (N2), gói thách đấu `c2s/1181` trên điện thoại (N3), bot TS tự đánh và thắng (N4). [Bước Tỷ thí](#tỷ-thí).
 
 Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/battle/battle.ts](../../../src/battle/battle.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -19,9 +19,9 @@ Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/b
 | Đánh quái nhanh nhất thế nào? | Trận tính giờ (Sơn Tặc), 0,5 s/nước, dùng Hỏa Cầu Thuật: ~15 s/trận, **~500 EXP/phút**, gấp ~3 lần đánh theo lượt. EXP = 2 × (2 × sao + giọt nước) + phần cộng theo quái; xu = 2 × vàng. Xem [Đánh nhanh hay ăn sao](#đánh-nhanh-hay-ăn-sao). [Đo] |
 | Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`. HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
 | Sang map khác thế nào? | `c2s/13 (mapId hiện tại, id cổng)`, cùng opcode với nói chuyện NPC. Id cổng lấy ở cuối `s2c/11`. Cổng chưa mở thì server trả `s2c/1256` "Bạn phải đạt cấp N mới vào được X" hoặc "Bạn cần hoàn thành nhiệm vụ trước khi tới đây". Ở cấp 19 chỉ vào được M1, M2, M25. Xem [Đi qua cổng](#cổng) và [Bản đồ đã quét](06-map-mobs.md#atlas). [Đo] |
-| Bước "Tỷ thí với X" làm sao? | Vẫn là `c2s/13 (mapId, npcId)` như nói chuyện, nhưng server không trả `s2c/34` mà trả hộp thoại **`s2c/57`** "Cậu đã sẵn sàng chiến đấu chưa." với 0 "Đồng ý", 1 "Từ chối". Đồng ý là **`c2s/57 (0, mapId, npcId)`** và mở trận với NPC. Bot TS và app Rust tự chọn Đồng ý rồi đánh trận đó. Xem [Bước Tỷ thí](#tỷ-thí). [Đo hộp thoại N1; trận Chưa rõ] |
+| Bước "Tỷ thí với X" làm sao? | Vẫn là `c2s/13 (mapId, npcId)` như nói chuyện, nhưng server không trả `s2c/34` mà trả hộp thoại **`s2c/57`** "Cậu đã sẵn sàng chiến đấu chưa." (0 "Đồng ý", 1 "Từ chối"). Đồng ý là `c2s/57 (0, mapId, npcId)`; server trả **`s2c/1180`** với quái riêng của trận (`mob880`, Võ Quan cấp 20), client thách đấu nó bằng **`c2s/1181 (mobId, 0, npcId)`**, rồi server mở trận. Thắng thì `s2c/34` đưa nhiệm vụ sang bước sau. Bot TS và app Rust làm đủ chuỗi này; bot TS đã thắng Võ Quan ở N4. Xem [Bước Tỷ thí](#tỷ-thí). [Đo N1–N4] |
 | Bot còn thiếu gì? | Bước "Sử dụng điểm kỹ năng" bot TS đã làm được (`c2s/1191`, K1); app Rust cũng đã port ([App Rust](../../integration/rust/features.md#kỹ-năng)). Sửa đồ là `c2s/48` và tốn 1 Búa sửa chữa; manina đã dùng chiếc búa duy nhất cho chiếc nón, vũ khí vẫn hỏng. Hồi máu bằng Hoàn Linh Dược (30% sinh lực) chỉ được trong trận, bằng `c2s/44` (+36 HP ở P5, [12](12-skills-items.md#c2s-44)); ngoài trận server từ chối `c2s/84`. Bình và Búa sửa chữa mua ở Lái Buôn bằng Xu hoặc Xu khóa ([12](12-skills-items.md#c2s-1190)). manina còn 67 điểm tiềm năng và 16 điểm kỹ năng chưa dùng; bot TS cộng điểm tiềm năng bằng `--stats` (chưa chạy thật). Bot chưa nhặt đồ rơi. Gói nhặt `c2s/1188 (uuid)` đã bắt được trên máy (P3), nhưng bot chưa gửi thử ([13-drops-items](13-drops-items.md#c2s-1188)). Xem [12-skills-items](12-skills-items.md). [Đo] |
-| Còn event nào chưa ghi? | Đã ghi 110 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **108 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
+| Còn event nào chưa ghi? | Đã ghi 112 gói theo cặp hướng/opcode ([danh sách](README.md#danh-sách-gói)). Bảng mã của app có 188 opcode, trong đó **106 opcode chưa từng thấy trên dây** ([opcode-map](../opcode-map.md#unseen)). [Đo] |
 
 ## Gói nhiệm vụ
 
@@ -44,7 +44,7 @@ Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/b
 | "Tiêu diệt X", "Đánh bại X" | loại quái (Gà Điên 0, Heo Mọi 1) | số con (1, 10, 10) | -1 | Đánh trận với quái tên X, đếm số trận thắng |
 | "Gây N sát thương lên X" (nhiệm vụ 7) | | N (500) | -1 | Thách đấu boss X của `s2c/1177`, cộng dồn sát thương. Server chưa nhận ([bước boss](#boss)) |
 | "Nâng điểm tiềm năng" | 0 | 1 | -1 | Bot gửi `c2s/10 (0, 1)` (Cường Lực), hoặc chỉ số mà `--stats` chọn ([12-skills-items](12-skills-items.md#điểm-tiềm-năng)). Chưa gặp bước này khi chạy thật |
-| "Tỷ thí với X" (nhiệm vụ 12) | 87 | 1 | id NPC | `c2s/13` → hộp thoại `s2c/57` → `c2s/57 (0, mapId, npcId)` "Đồng ý" → trận với NPC → `s2c/34` sang bước sau ([Bước Tỷ thí](#tỷ-thí)) |
+| "Tỷ thí với X" (nhiệm vụ 12) | 87 | 1 | id NPC | `c2s/13` → hộp thoại `s2c/57` → `c2s/57 (0, mapId, npcId)` "Đồng ý" → `s2c/1180` (quái của trận) → `c2s/1181 (mobId, 0, npcId)` → trận → `s2c/34` sang bước sau ([Bước Tỷ thí](#tỷ-thí)) |
 | "Sử dụng điểm kỹ năng" | 0 | 1 | -1 | `c2s/1191 (mãKỹNăng, 1)` cho kỹ năng đầu tiên của cây `s2c/30` lên được một cấp. Server trả `s2c/10` kiểu 32, `s2c/1191`, `s2c/34` ([12-skills-items](12-skills-items.md#c2s-1191)) [Đo K1: nick thứ hai học Băng Tiễn Thuật 4000] |
 
 ```text
@@ -84,7 +84,7 @@ Khi trả nhiệm vụ 4 (Q2), các gói đến trong 2 ms: `s2c/1187` (vật ph
 | 9 "Thử Sức Tân Binh" | 141 Võ Quan Đinh Mộc (M2) | Đạt cấp 11 → nói chuyện với Võ Quan → diệt 15 Sói Xám (cấp 11) → diệt 15 Cóc Xanh (cấp 13) → báo cáo | 797 kinh nghiệm, 910 Xu khoá (R3: bot báo cáo ngày 31/10) |
 | 10 "Nguy Cơ Bên Bờ Suối" | 142 Dân Phu Vân Sơn (M2) | Đạt cấp 14 → hỏi thăm Dân Phu → diệt Cua Càng → nói chuyện với Dân Phu | manina đang ở bước "Hỏi thăm Dân Phu Vân Sơn" (R3) |
 | 11 "Truy Quét Đại Ác Bá" | 141 Võ Quan Đinh Mộc (M2) | … → đánh bại 20 Kẻ Quấy Phá (cấp 20) → báo cáo với Võ Quan | 1050 kinh nghiệm, 1050 Xu khoá (wangpt, app Rust ngày 31/10; hai bước đầu không có trong log) |
-| 12 "Kiếm Thử Anh Hùng" | 127 Trại Chủ Phạm Hùng, 141 Võ Quan Đinh Mộc (M2) | Đạt cấp 18 → gặp Trại Chủ → **tỷ thí với Võ Quan** (hộp thoại rồi trận, [Bước Tỷ thí](#tỷ-thí)) → báo cáo với Trại Chủ | wangpt (cấp 25) đang ở bước tỷ thí (N1) |
+| 12 "Kiếm Thử Anh Hùng" | 127 Trại Chủ Phạm Hùng, 141 Võ Quan Đinh Mộc (M2) | Đạt cấp 18 → gặp Trại Chủ → **tỷ thí với Võ Quan** (hộp thoại rồi trận, [Bước Tỷ thí](#tỷ-thí)) → báo cáo với Trại Chủ | wangpt (cấp 25): bot TS thắng Võ Quan ở N4, nhiệm vụ sang bước báo cáo |
 | 23 "Đột Kích Lạc Cốc" | 162 Tướng Quân Lê Viễn (M25) | Đến vùng đất Lạc Cốc → đạt cấp 43 → diệt Heo Tím → diệt Báo Đốm → báo cáo với Tướng Quân Lê Viễn | symap (Tiheo1, cấp 42) đang ở bước "Đạt cấp độ 43" (R3) |
 
 Mọi NPC của nhiệm vụ 3–7 đều ở M1 và `c2s/13` với mapId `"M1"` luôn được nhận. Từ nhiệm vụ 8, NPC và quái ở M2 "Trại Vân Sơn": phải [đi qua cổng](#cổng). Bước "Bàn bạc với X" làm như "Nói chuyện với X". Bước "Gây N sát thương lên X" nhắm vào boss của map; boss đến qua `s2c/1177` ngay sau `s2c/43`, mã đổi theo khu (`mob86100001` ở khu 0, `mob86100101` ở khu 1).
@@ -104,24 +104,43 @@ Bước 3 của nhiệm vụ 12 "Kiếm Thử Anh Hùng" là "Tỷ thí với V�
 | Chạm biểu tượng trên đầu Võ Quan | `c2s/13` = `000000024d32 0000008d` ("M2", 141) | Đúng gói bot vẫn gửi. Nút hành động (thanh kiếm) chỉ gửi `c2s/1169` (toạ độ 1677, 800), không mở hộp thoại |
 | Server trả lời sau 34 ms | `s2c/57`, 107 byte, đọc hết: `n = 2`; "Võ Quan Đinh Mộc"; "Cậu đã sẵn sàng chiến đấu chưa."; `00` "Đồng ý"; `01` "Từ chối" | Cùng bố cục với hộp thoại Lái Buôn ([12](12-skills-items.md#c2s-1190)) |
 | Bấm Từ chối | `c2s/57` = `01 000000024d32 0000008d` (1, "M2", 141), hàm dựng `sqlq.a103` | Server trả `s2c/1111` rỗng sau 31 ms, hộp thoại đóng |
-| Bấm Đồng ý | `c2s/57 (0, "M2", 141)`, theo mã dòng | **Chưa bấm**: bàn cờ trên máy không nhận lệnh ADB, và HP còn 37/184 nên gần như chắc thua [Suy luận] |
+| Bấm Đồng ý | `c2s/57` = `00 000000024d32 0000008d` (0, "M2", 141) | Server không mở trận ngay mà gửi `s2c/1180`; xem [Đồng ý → `s2c/1180` → `c2s/1181`](#s2c-1180) (N3) |
 
 **Vì sao app báo "NPC không trả lời".** Bot coi mọi bước có `npcId` là bước nói chuyện: gửi `c2s/13` rồi chỉ chờ `s2c/34`. Server có trả lời, nhưng bằng `s2c/57`, nên 8 s sau bot dừng. Nhật ký của wangpt ngày 31/10 (19:10–19:25) có 5 lần như vậy, không lần nào có trận hay dòng "Thua trận". [Đo]
 
-**Bot làm bước này thế nào** (bot TS: `QuestBot.dialog` trong [src/bot/quest.ts](../../../src/bot/quest.ts); app Rust: `npc_dialog`, `duel_setup` trong `app/core/src/bot/quest.rs`):
+<a id="s2c-1180"></a>
+
+**Đồng ý → `s2c/1180` → `c2s/1181` → trận.** Đồng ý không mở trận ngay. Lần đầu app chạy thật bước này (31/10, 20:25), app gửi `c2s/57 (0, "M2", 141)` ba lần, không lần nào có `s2c/22` hay lời server, rồi dừng vì đã tỷ thí 3 lần. Bắt gói bằng bot TS (N2) rồi trên điện thoại (N3) thì thấy:
+
+| Bước | Gói | Ghi chú |
+|---|---|---|
+| Đồng ý | `c2s/57` = `00 000000024d32 0000008d` | |
+| Server, sau 24–27 ms | **`s2c/1180`**, 63 byte, đọc hết (khối dưới) | Lời mời tỷ thí: một "con quái" riêng, `mob880` cấp 20 mang tên Võ Quan |
+| Client, sau 8 ms | **`c2s/1181`** = `000000066d6f62383830 00000000 0000008d` ("mob880", 0, 141) | Client tự gửi, người chơi không chạm gì: nhận `s2c/1180` là game gọi hàm chạm `sqhz.a17`, hàm này dựng gói bằng `sqlq.a122(mobId, npcId, false)` (N3) |
+| Server, sau 2,1–2,7 s | `s2c/22` mở trận, 729 byte | Khối quái: `mob880` "Võ Quan Đinh Mộc", hệ Hỏa (1), cấp 20, HP 526/526; 30 s mỗi lượt |
+
+```text
+000000024d32 0000008d                      "M2", NPC 141
+000000066d6f62383830                       "mob880"
+0000001456c3b5205175616e20c490696e68204de1bb9963   "Võ Quan Đinh Mộc"
+00000014 00 00000006 00000001 00           cấp 20; u8 0; i32 6; i32 1; u8 0 (như bản ghi quái của s2c/43)
+02 00000001                                u8 2; i32 1 (N2 lần 1 và 2), 0 (N2 lần 3, N3)
+```
+
+**Trận (N4).** Bot TS tự đánh, wangpt cấp 25 vào trận với 110/184 HP. Bot thắng sau 13 lượt của mình trong 31 s, gây 624 sát thương, dùng 2 lần kỹ năng, còn 68 HP; được +168 EXP, +18 xu. Cùng một mili giây lúc trận kết thúc, server gửi `s2c/1200` (rỗng), `s2c/34` (nhiệm vụ 12, "Khá lắm!\nRất ít người mới có thể ép ta tới mức này."), `s2c/10` (EXP 24 234 → 24 402), `s2c/36` (độ bền) và `s2c/1214`. Không có `s2c/1201` hay `s2c/39`. `s2c/34` đưa nhiệm vụ sang bước "Báo cáo với Trại Chủ Phạm Hùng", như ở bước nói chuyện. [Đo N4]
+
+Trên điện thoại (N3) không ai đánh: quái đi 10 nước trong 5 phút mà HP vẫn 147/184. Tắt game giữa trận (`am force-stop`) thì ở lần đăng nhập sau EXP vẫn là 24 234, tức không mất EXP, còn HP là 110/184. [Đo N3, N4]
+
+**Bot làm bước này thế nào** (bot TS: `QuestBot.dialog` và `QuestBot.invite` trong [src/bot/quest.ts](../../../src/bot/quest.ts); app Rust: `npc_dialog` và `duel` trong `app/core/src/bot/quest.rs`):
 
 1. Gửi `c2s/13 (mapId, npcId)` như mọi bước nói chuyện.
-2. Nếu `s2c/57` đến lúc đang chờ lời NPC, bot tìm dòng có nhãn "Đồng ý" rồi gửi `c2s/57 (mãDòng, mapId, npcId)`, và chờ trận 8 s như một lần thách đấu. Hộp thoại không có dòng "Đồng ý" thì bot dừng, ghi lại câu hỏi cùng các dòng (app: "Võ Quan Đinh Mộc hỏi "…" (…): bot chưa biết chọn dòng nào").
-3. `s2c/22` mở trận. Trận này không do `c2s/15` mở nên bot chưa biết mã của NPC trong trận. Khối quái của `s2c/22` bắt đầu bằng `string mã; string tên`, nên bot lấy chuỗi đứng ngay trước tên NPC; không thấy tên thì lấy mã `mob<số>` đầu tiên có khối quái (`duelMobId` ở [src/battle/battle.ts](../../../src/battle/battle.ts), `duel_mob_id` ở `app/core/src/battle.rs`). Trận tính vào lần chạy nhiệm vụ như mọi trận khác. Thua thì tính vào số trận thua cho phép.
-4. Bước chỉ sang khi server gửi `s2c/34`, như bước nói chuyện, chứ không phải khi bot thắng trận. Nếu trận không mở trong 8 s, bot nói chuyện lại. Sau 3 lần tỷ thí mà bước vẫn chưa sang, bot dừng.
+2. Nếu `s2c/57` đến lúc đang chờ lời NPC, bot tìm dòng có nhãn "Đồng ý" rồi gửi `c2s/57 (mãDòng, mapId, npcId)`. Hộp thoại không có dòng "Đồng ý" thì bot dừng, ghi lại câu hỏi cùng các dòng (app: "Võ Quan Đinh Mộc hỏi "…" (…): bot chưa biết chọn dòng nào"). 8 s không có `s2c/1180` thì bot dừng ("Server không gửi trận tỷ thí sau Đồng ý").
+3. Khi `s2c/1180` đến cho NPC của bước, bot gửi ngay `c2s/1181 (mobId, 0, npcId)` như game, rồi chờ trận 8 s như một lần thách đấu. `mob880` không có trong `s2c/43`, nên bản ghi trận lấy tên và cấp từ `s2c/1180`.
+4. Trận tính vào lần chạy nhiệm vụ như mọi trận khác; thua thì tính vào số trận thua cho phép. Bước chỉ sang khi có `s2c/34`, không phải khi bot thắng. Nếu trận không mở trong 8 s, bot nói chuyện lại; sau 3 lần tỷ thí mà bước vẫn chưa sang, bot dừng.
 
-Nhật ký của app có thêm hai dòng: "Võ Quan Đinh Mộc: Cậu đã sẵn sàng chiến đấu chưa. → Đồng ý" (Nhiệm vụ) và "Trận 1: tỷ thí với Võ Quan Đinh Mộc (NPC 141)" (Trận). Log của bot TS có `npc_menu`, `duel`, `duel_no_answer`.
+Nhật ký của app có thêm hai dòng: "Võ Quan Đinh Mộc: Cậu đã sẵn sàng chiến đấu chưa. → Đồng ý" (Nhiệm vụ) và "Trận 1: tỷ thí với Võ Quan Đinh Mộc cấp 20 (mob880)" (Trận). Log của bot TS có `npc_menu`, `duel`, `duel_invite`, rồi `challenge` với `opcode: 1181`.
 
-**Chưa rõ, sẽ biết ở lần chạy thật đầu tiên:**
-- Mã và cấp của Võ Quan trong `s2c/22`, và tên trong khối quái có đúng "Võ Quan Đinh Mộc" không.
-- Thắng xong server gửi `s2c/34`, `s2c/1201` hay `s2c/39`.
-- Thua có mất EXP không, và có tỷ thí lại được ngay không.
-- HP vào trận là HP trên bản đồ hay được hồi đầy. App Rust chưa tự hồi máu trước trận, mà wangpt đang có 37/184 HP.
+**Còn chưa rõ:** thua Võ Quan có mất EXP không (N4 thắng); nghĩa của hai trường cuối của `s2c/1180`; app Rust chưa chạy thật bước này (bot TS đã chạy ở N4).
 
 ## Bot làm nhiệm vụ bằng TypeScript
 

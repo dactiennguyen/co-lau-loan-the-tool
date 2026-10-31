@@ -469,6 +469,13 @@ impl Bot {
                     self.npc_dialog(menu, now, out);
                 }
             }
+            // The mob of a duel, after Đồng ý in its dialog (npc_dialog).
+            1180 => {
+                let invite = duel_invite(payload)?;
+                if self.awaiting_reply && self.quest_running() {
+                    self.duel(invite, now, out);
+                }
+            }
             1190 => {
                 let shop = shop_list(payload)?;
                 if matches!(self.shopping, Some((Shopping::Menu, _))) {
@@ -631,10 +638,7 @@ impl Bot {
             1214 => {
                 self.left(1214, now, out);
             }
-            22 => {
-                self.duel_setup(payload);
-                self.on_setup(payload, now, out)?
-            }
+            22 => self.on_setup(payload, now, out)?,
             _ => {}
         }
         Ok(())

@@ -755,37 +755,6 @@ pub fn mob_block(p: &[u8], mob_id: &str) -> Option<MobBlock> {
     None
 }
 
-/// duelMobId of battle.ts: the mob id of a duel's s2c/22, opened by Đồng ý to an NPC (c2s/57) rather than by a challenge
-/// (N1, "Tỷ thí với Võ Quan Đinh Mộc"): the length-prefixed id just before the NPC's name, as a mob block starts `string
-/// id; string name` (the shortest that ends there, so 4 earlier bytes that happen to read as a longer length are not
-/// taken), else the first `mob<digits>` id that has a block. None when neither is in the packet.
-pub fn duel_mob_id(p: &[u8], name: &str) -> Option<String> {
-    let strings: Vec<(usize, usize, String)> = (0..p.len().saturating_sub(3))
-        .filter_map(|i| {
-            let n = i32::from_be_bytes(p[i..i + 4].try_into().ok()?);
-            let end = i + 4 + usize::try_from(n).ok().filter(|n| (1..=64).contains(n))?;
-            Some((
-                i,
-                end,
-                String::from_utf8_lossy(p.get(i + 4..end)?).into_owned(),
-            ))
-        })
-        .collect();
-    let named = strings.iter().find(|s| s.2 == name);
-    let mob = |s: &str| {
-        s.strip_prefix("mob")
-            .is_some_and(|d| !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit()))
-    };
-    named
-        .and_then(|n| strings.iter().rev().find(|s| s.1 == n.0))
-        .or_else(|| {
-            strings
-                .iter()
-                .find(|s| mob(&s.2) && mob_block(p, &s.2).is_some())
-        })
-        .map(|s| s.2.clone())
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Setup {
