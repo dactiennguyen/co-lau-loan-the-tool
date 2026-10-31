@@ -10,7 +10,7 @@ use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
 use cllt_core::requests::{build, Ctx};
 use cllt_core::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Turn};
-use cllt_core::world;
+use cllt_core::{items, world};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -153,11 +153,107 @@ fn decoders_read_what_the_ts_decoders_read() {
             "questData" => serde_json::to_value(world::quest_data(&p).unwrap()),
             "questProgress" => serde_json::to_value(world::quest_progress(&p).unwrap()),
             "questComplete" => serde_json::to_value(world::quest_complete(&p).unwrap()),
+            "characterExtra" => serde_json::to_value(items::character_extra(&p).unwrap()),
+            "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
+            "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
+            "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
             other => panic!("no Rust decoder for {other}"),
         }
         .unwrap();
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
     }
+}
+
+/// The bag, gear and money cases on their own, so they report even while a decoder elsewhere in the list is missing.
+#[test]
+fn bag_gear_and_money_read_what_the_ts_decoders_read() {
+    let all = v();
+    let mut seen = 0;
+    for case in all["decoders"].as_array().unwrap() {
+        let (f, p) = (
+            case["fn"].as_str().unwrap(),
+            hex(case["hex"].as_str().unwrap()),
+        );
+        let got = match f {
+            "characterExtra" => serde_json::to_value(items::character_extra(&p).unwrap()),
+            "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
+            "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
+            "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
+            _ => continue,
+        }
+        .unwrap();
+        assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
+        seen += 1;
+    }
+    assert_eq!(seen, 5);
+}
+
+#[test]
+fn the_snapshot_holds_the_gear_of_s2c_9_the_bag_and_the_money() {
+    let all = v();
+    let hex_of = |f: &str| {
+        let case = all["decoders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["fn"] == f);
+        hex(case.unwrap()["hex"].as_str().unwrap())
+    };
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    assert!(bot.snapshot().gear.is_empty() && bot.snapshot().bag.is_none());
+    bot.on_packet(9, &hex_of("characterGear"), now, &mut out)
+        .unwrap();
+    let gear: Vec<_> = bot
+        .snapshot()
+        .gear
+        .iter()
+        .map(|g| g.as_ref().map(|i| (i.item_id, i.element, i.durability)))
+        .collect();
+    // Nón Âu Lạc (Lôi) and Rìu Âu Lạc (Hỏa), both worn out at that login.
+    assert_eq!(
+        gear,
+        [
+            Some((54, 2, 0)),
+            None,
+            Some((261, 1, 0)),
+            None,
+            None,
+            None,
+            None,
+            None
+        ]
+    );
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    let ids = |bot: &Bot| {
+        bot.snapshot().bag.map(|b| {
+            (
+                b.capacity,
+                b.items.iter().map(|i| i.item_id).collect::<Vec<_>>(),
+            )
+        })
+    };
+    assert_eq!(ids(&bot), Some((42, vec![0, 412, 147, 48, 306, 415, 2, 1])));
+    // After the repair the hammer (2) is gone.
+    bot.on_packet(1187, &hex_of("inventory"), now, &mut out)
+        .unwrap();
+    assert_eq!(ids(&bot), Some((42, vec![0, 412, 147, 48, 306, 415, 1])));
+    bot.on_packet(46, &hex_of("currencies"), now, &mut out)
+        .unwrap();
+    let money = bot
+        .snapshot()
+        .currencies
+        .map(|c| (c.xu, c.xu_khoa, c.luong));
+    assert_eq!(money, Some((500, 7370, 0)));
+    // A bag that does not read is logged, and the one shown stays.
+    assert!(out.is_empty());
+    bot.on_packet(1187, &[1], now, &mut out).unwrap();
+    assert_eq!(ids(&bot), Some((42, vec![0, 412, 147, 48, 306, 415, 1])));
+    assert!(
+        matches!(&out[..], [Out::Log(l)] if l.contains("s2c/1187")),
+        "{out:?}"
+    );
 }
 
 #[test]

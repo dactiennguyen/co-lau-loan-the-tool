@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { BASELINE, OPCODE_ENTRIES } from './config.ts';
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from './protocol.ts';
 import { buildRequest } from './events.ts';
-import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable } from './world.ts';
+import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable,
+  characterExtra, characterGear, inventory, currencies } from './world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from './battle.ts';
 import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 import { QuestBot, stepAction } from './quest.ts';
@@ -59,10 +60,15 @@ function decoders() {
   for (const k of ['s2c/19 extra turn', 's2c/19 reshuffled']) add('battleResult19', bp[k], battleResult(new Reader(bytes(bp[k])), 19));
   for (const k of ['s2c/20', 's2c/20 skill 1000', 's2c/20 skill on a special']) add('battleResult20', bp[k], battleResult(new Reader(bytes(bp[k])), 20));
   add('timeoutResult', bp['s2c/21'], timeoutResult(new Reader(bytes(bp['s2c/21']))));
-  const q = fixtures.quest;
+  const q = fixtures.quest, si0 = fixtures['skills-items'];
   for (const k of ['s2c/39 quest3', 's2c/39 quest4']) add('questData', q[k], questData(bytes(q[k])));
   add('questProgress', q['s2c/34 dialogue'], questProgress(bytes(q['s2c/34 dialogue'])));
   add('questComplete', q['s2c/35'], questComplete(bytes(q['s2c/35'])));
+  // Bag, gear and money (12-skills-items.md#túi-đồ, 04-push.md#s2c-46), ahead of the skill cases the Rust side lacks yet.
+  add('characterExtra', si0['s2c/42 login'], characterExtra(bytes(si0['s2c/42 login'])));
+  add('inventory', si0['s2c/1187 after repair'], inventory(bytes(si0['s2c/1187 after repair'])));
+  for (const h of [fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterGear', h, characterGear(bytes(h)));
+  add('currencies', fixtures.currencies['s2c/46 E1'], currencies(bytes(fixtures.currencies['s2c/46 E1'])));
   // The skill step (docs/app/events/12-skills-items.md): the tree of s2c/30, the skill list of the s2c/9 tail, s2c/10 kind 32.
   add('skillTable', response(7, 30), skillTable(bytes(response(7, 30))));
   for (const h of [a2, fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterSkills', h, characterSkills(bytes(h)));

@@ -17,7 +17,13 @@ export function PlayersCard({ character: c }: { character: Character | null }) {
       icon="users"
       tone="var(--points)"
       subtitle={c ? `${c.mapName} · Khu ${c.zone}` : "Đăng nhập để xem ai cùng khu"}
-      aside={c && <span className="count px">{c.playersKnown ? players.length : "?"}</span>}
+      aside={
+        c && (
+          <span className="count px" title={c.playersKnown ? `${players.length + 1} người trong khu, tính cả bạn` : "Chưa đọc được danh sách (s2c/1263)"}>
+            {c.playersKnown ? players.length : "?"}
+          </span>
+        )
+      }
       className="players-card"
     >
       {c && !c.playersKnown && (

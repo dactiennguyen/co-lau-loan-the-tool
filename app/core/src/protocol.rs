@@ -287,8 +287,16 @@ pub struct Profile {
     pub y: i32,
 }
 pub fn character_profile(p: &[u8]) -> Result<Profile> {
+    profile(&mut Reader::new(p))
+}
+/// Where the skill list of the s2c/9 tail starts, right after x, y (profileBytes of src/protocol.ts).
+pub fn character_profile_end(p: &[u8]) -> Result<usize> {
     let mut r = Reader::new(p);
-    let c = prefix(&mut r)?;
+    profile(&mut r)?;
+    Ok(r.offset)
+}
+fn profile(r: &mut Reader) -> Result<Profile> {
+    let c = prefix(r)?;
     let mut ints = |n: usize| (0..n).map(|_| r.i32()).collect::<Result<Vec<i32>>>();
     let (s1, s1_max) = (ints(1)?[0], ints(1)?[0]);
     let stats = ints(10)?;

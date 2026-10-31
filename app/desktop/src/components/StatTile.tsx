@@ -3,7 +3,7 @@ import { Bar } from "./Bar";
 import { Icon, type IconName } from "./Icon";
 import "./StatTile.css";
 
-interface Props {
+interface StatProps {
   label: string;
   value: ReactNode;
   caption?: ReactNode;
@@ -14,19 +14,32 @@ interface Props {
   progress?: number;
 }
 
-/** One headline figure: icon tile, label, value, caption, and a bar. */
-export function StatTile({ label, value, caption, icon, fill, progress }: Props) {
+/** The icon tile and label heading a figure; `aside` goes at the right end. */
+export function StatTop({ label, icon, fill, aside }: { label: string; icon: IconName; fill: string; aside?: ReactNode }) {
   return (
-    <div className="tile">
-      <div className="tile__top">
-        <span className="tile__icon" style={{ background: fill }}>
-          <Icon name={icon} size={15} />
-        </span>
-        <span className="tile__label">{label}</span>
-      </div>
-      <div className="tile__value">{value}</div>
-      <div className="tile__caption">{caption ?? " "}</div>
-      {progress !== undefined && <Bar value={progress} fill={fill} />}
+    <div className="stat__top">
+      <span className="stat__icon" style={{ background: fill }}>
+        <Icon name={icon} size={15} />
+      </span>
+      <span className="stat__label">{label}</span>
+      {aside && <span className="stat__aside">{aside}</span>}
     </div>
   );
+}
+
+/** One headline figure: icon tile, label, value, caption, and a bar. */
+export function Stat({ label, value, caption, icon, fill, progress }: StatProps) {
+  return (
+    <div className="stat">
+      <StatTop label={label} icon={icon} fill={fill} />
+      <div className="stat__value">{value}</div>
+      <div className="stat__caption">{caption ?? " "}</div>
+      {progress !== undefined && <Bar value={progress} fill={fill} label={label} />}
+    </div>
+  );
+}
+
+/** The notched frame of one or more figures side by side, a dashed line between them. */
+export function StatTile({ children }: { children: ReactNode }) {
+  return <div className="tile">{children}</div>;
 }

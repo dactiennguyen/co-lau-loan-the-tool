@@ -28,5 +28,7 @@ export default defineConfig(() => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+    // The item icons stay in data/icons of the repository (itemIcons.ts); the build copies them into dist.
+    fs: { allow: [".", "../../data/icons"] },
   },
 }));

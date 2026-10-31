@@ -6,6 +6,9 @@
 //! or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
 use crate::battle::{battle_setup, Strategy};
+use crate::items::{
+    character_extra, character_gear, currencies, inventory, Bag, Currencies, ItemRecord,
+};
 use crate::potentials::{next_stat, StatPlan, POTENTIALS};
 use crate::protocol::{
     character_location, character_prefix, character_profile, map_prefix, Reader, Writer,
@@ -173,6 +176,12 @@ pub struct Snapshot {
     pub battle: Option<BattleView>,
     /// The latest result of the battle on, or of the battle just over until the next one opens.
     pub turn: Option<Turn>,
+    /// The 8 gear slots of s2c/9 at login, None where empty; no other packet is known to change them.
+    pub gear: Vec<Option<ItemRecord>>,
+    /// The bag: s2c/42 at login, then every s2c/1187.
+    pub bag: Option<Bag>,
+    /// Xu, Xu khoá, Lượng (s2c/46 at login and when they change).
+    pub currencies: Option<Currencies>,
 }
 
 /// Wall-clock ms since 1970, for the start and end of a job or quest run.
@@ -824,7 +833,26 @@ impl Bot {
                     }
                     Err(e) => out.push(Out::Log(format!("Không đọc được phần sau của s2c/9: {e}"))),
                 }
+                match character_gear(payload) {
+                    Ok(g) => s.gear = g,
+                    Err(e) => out.push(Out::Log(format!(
+                        "Không đọc được trang bị trong s2c/9: {e}"
+                    ))),
+                }
             }
+            // The bag and the money are shown, never acted on: one that does not read is logged and left as it was.
+            42 => match character_extra(payload) {
+                Ok(x) => s.bag = Some(x.bag),
+                Err(e) => out.push(Out::Log(format!("Không đọc được túi đồ (s2c/42): {e}"))),
+            },
+            1187 => match inventory(payload) {
+                Ok(b) => s.bag = Some(b),
+                Err(e) => out.push(Out::Log(format!("Không đọc được túi đồ (s2c/1187): {e}"))),
+            },
+            46 => match currencies(payload) {
+                Ok(c) => s.currencies = Some(c),
+                Err(e) => out.push(Out::Log(format!("Không đọc được tiền (s2c/46): {e}"))),
+            },
             29 => s.map_id = character_location(payload)?.map_id,
             11 if payload.first() == Some(&1) => {
                 let m = map_prefix(payload)?;

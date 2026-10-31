@@ -160,6 +160,7 @@ export interface Character {
   maxHp: number;
   exp: number | null;
   levelExp: [number, number] | null;
+  /** Vàng: the gold bar of the Bản thân panel (gold pieces won in battles), turned into Xu khoá at 10.000. */
   coin: number | null;
   /** Potential stats; [0] is Cường lực. */
   stats: number[];
@@ -181,6 +182,48 @@ export interface Character {
   quest: Quest | null;
   questRun: QuestRun | null;
   battle: Battle | null;
+  /** The 8 gear slots, null where empty; empty until s2c/9 came. */
+  gear: (Item | null)[];
+  /** The bag; null until s2c/42 came. */
+  bag: BagContents | null;
+  /** Xu, Xu khoá, Lượng (s2c/46). */
+  currencies: Currencies | null;
+}
+
+/** ItemView of view.rs: an item of the bag or a gear slot, named from data/items.json. */
+export interface Item {
+  /** Its slot in the bag, or the gear slot. */
+  slot: number;
+  id: number;
+  name: string;
+  /** data/icons/i<icon>.webp; null when the table lacks the item. */
+  icon: number | null;
+  /** 0 hat, 1 armour, 2 weapon, 3 ring, 4 wings… and its name. */
+  kind: number | null;
+  kindName: string | null;
+  desc: string;
+  /** 1 Hỏa, 2 Lôi, 4 Thủy; null for plain items. */
+  element: number | null;
+  elementName: string | null;
+  quantity: number;
+  /** Stacks in a slot: the quantity is drawn, even 1. */
+  stacks: boolean;
+  /** Now and most, for items that wear out. */
+  durability: [number, number] | null;
+  /** Level to wear it, for gear. */
+  level: number | null;
+  stats: string[];
+}
+
+export interface BagContents {
+  capacity: number;
+  items: Item[];
+}
+
+export interface Currencies {
+  xu: number;
+  xuKhoa: number;
+  luong: number;
 }
 
 export interface Account {

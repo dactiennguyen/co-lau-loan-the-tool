@@ -1,0 +1,38 @@
+/* Túi đồ: the gear (two columns of slots around the character) beside the bag grid, then the shown item. Narrow cards
+   put the bag under the gear. */
+.inv .card__body { display: grid; align-content: start; gap: var(--space-3); container-type: inline-size; overflow: auto; }
+.inv__none { margin: 0; font-size: 12px; color: var(--fg-3); }
+
+.inv__read {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.inv__body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.inv__gear { display: grid; grid-template-columns: auto minmax(96px, auto) auto; gap: 8px; }
+.inv__gear .slot { --size: 46px; }
+.inv__col { display: grid; gap: 5px; align-content: start; }
+.inv__me {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: var(--bg-2);
+  text-align: center;
+}
+.inv__me b { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--fg); }
+.inv__me .px { font-size: 11px; color: var(--primary); }
+.inv__el { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; }
+.inv__grid { display: grid; grid-template-columns: repeat(auto-fill, 44px); gap: 4px; }
+
+@container (max-width: 560px) {
+  .inv__body { grid-template-columns: minmax(0, 1fr); }
+  .inv__gear { justify-content: start; }
+}

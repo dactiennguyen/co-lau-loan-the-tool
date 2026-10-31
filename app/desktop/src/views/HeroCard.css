@@ -1,7 +1,7 @@
 .hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(180px, 1.25fr) minmax(0, 1fr) minmax(0, 0.8fr) auto;
+  grid-template-columns: minmax(180px, 1.25fr) minmax(0, 1.8fr) auto;
   align-items: center;
   gap: var(--space-5);
   padding: 10px var(--space-5);
@@ -66,20 +66,4 @@
 }
 .hero__big small { font-size: 12px; font-weight: 600; color: var(--fg-2); }
 .hero__sub { font-size: 11px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.hero__people .hero__big .px { font-size: 16px; color: var(--s-fighting); }
-.hero__placeholder { grid-column: span 2; }
 .hero__actions { display: flex; gap: var(--space-2); }
-
-/* Narrow windows: who and the buttons on top, where and who else below. */
-@media (max-width: 1120px) {
-  .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-    grid-template-areas: "who who actions" "where people people";
-    row-gap: var(--space-3);
-  }
-  .hero__who { grid-area: who; }
-  .hero__actions { grid-area: actions; }
-  .hero__where { grid-area: where; padding-left: 0; border-left: 0; }
-  .hero__people { grid-area: people; }
-  .hero__placeholder { grid-column: auto; }
-}

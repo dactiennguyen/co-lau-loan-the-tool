@@ -2,6 +2,7 @@
 // event and the `state` command. Field names are camelCase on the JavaScript side.
 use crate::app::Entry;
 use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Target};
+use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -146,6 +147,82 @@ pub struct CharacterView<'a> {
     pub quest: Option<&'a Quest>,
     pub quest_run: Option<&'a QuestRun>,
     pub battle: Option<&'a BattleView>,
+    /// The 8 gear slots (s2c/9 at login), None where empty; empty until then.
+    pub gear: Vec<Option<ItemView>>,
+    /// The bag (s2c/42, s2c/1187); None until it came.
+    pub bag: Option<BagView>,
+    /// Xu, Xu khoá, Lượng (s2c/46). Vàng is `coin`.
+    pub currencies: Option<&'a Currencies>,
+}
+
+/// One item as the UI draws it: its record in the bag or a gear slot, named from data/items.json (items::book). An
+/// item the table lacks keeps its id as name and has no icon.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemView {
+    pub slot: u8,
+    pub id: i32,
+    pub name: String,
+    /// data/icons/i<icon>.webp
+    pub icon: Option<i32>,
+    /// Type of the table: 0 hat, 1 armour, 2 weapon, 3 ring … (13-drops-items.md#bảng-vật-phẩm), and its name.
+    pub kind: Option<u8>,
+    pub kind_name: Option<&'static str>,
+    pub desc: &'static str,
+    /// 1 Hỏa, 2 Lôi, 4 Thủy, with its name; None for plain items.
+    pub element: Option<u8>,
+    pub element_name: Option<&'static str>,
+    pub quantity: i32,
+    /// Stacks in a slot (Hoàn Linh Dược ×4): the game draws the quantity of those, even 1.
+    pub stacks: bool,
+    /// Now and most, for items that wear out.
+    pub durability: Option<[i32; 2]>,
+    /// Level to wear it, for gear.
+    pub level: Option<u8>,
+    /// "+4 phòng thủ", "+58 sinh lực"
+    pub stats: Vec<String>,
+}
+impl ItemView {
+    pub fn of(i: &ItemRecord) -> Self {
+        let b = book();
+        let def = b.get(i.item_id);
+        let element = (i.element != 0xff).then_some(i.element);
+        ItemView {
+            slot: i.slot,
+            id: i.item_id,
+            name: def.map_or_else(|| format!("#{}", i.item_id), |d| d.name.clone()),
+            icon: def.map(|d| d.icon).filter(|&n| n >= 0),
+            kind: def.map(|d| d.kind),
+            kind_name: def.and_then(|d| b.type_name(d.kind)),
+            desc: def.map_or("", |d| d.desc.as_str()),
+            element,
+            element_name: element.and_then(|e| b.element_name(e)),
+            quantity: i.quantity,
+            stacks: def.is_some_and(|d| d.stack > 1),
+            durability: (i.durability >= 0).then(|| {
+                [
+                    i.durability,
+                    def.map_or(0, |d| d.durability).max(i.durability),
+                ]
+            }),
+            level: def.filter(|d| d.kind <= 4).map(|d| d.level),
+            stats: i.stats.iter().map(|s| b.stat(s)).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct BagView {
+    pub capacity: i32,
+    pub items: Vec<ItemView>,
+}
+impl BagView {
+    fn of(b: &Bag) -> Self {
+        Self {
+            capacity: b.capacity,
+            items: b.items.iter().map(ItemView::of).collect(),
+        }
+    }
 }
 
 fn status(e: &Entry) -> (u8, &'static str) {
@@ -208,13 +285,91 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             quest: s.quest.as_ref(),
             quest_run: s.quest_run.as_ref(),
             battle: s.battle.as_ref(),
+            gear: s
+                .gear
+                .iter()
+                .map(|g| g.as_ref().map(ItemView::of))
+                .collect(),
+            bag: s.bag.as_ref().map(BagView::of),
+            currencies: s.currencies.as_ref(),
         }),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::LogTone;
+    use super::{ItemView, LogTone};
+    use cllt_core::items::{ItemRecord, ItemStat};
+
+    fn record(
+        item_id: i32,
+        durability: i32,
+        quantity: i32,
+        element: u8,
+        stats: &[(i32, i32)],
+    ) -> ItemRecord {
+        ItemRecord {
+            slot: 0,
+            item_id,
+            uuid: String::new(),
+            field0: 0,
+            durability,
+            quantity,
+            field1: 0,
+            element,
+            field2: 0,
+            field3: 0,
+            field4: 1,
+            stats: stats
+                .iter()
+                .map(|&(stat, value)| ItemStat { stat, value })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn an_item_is_named_from_the_table_with_its_icon_element_durability_and_stats() {
+        let hat = ItemView::of(&record(54, 55, 1, 2, &[(6, 4), (9, 58)]));
+        assert_eq!(
+            (
+                hat.name.as_str(),
+                hat.icon,
+                hat.kind_name,
+                hat.element_name,
+                hat.durability,
+                hat.level,
+                hat.stacks
+            ),
+            (
+                "Nón Âu Lạc",
+                Some(48),
+                Some("Nón"),
+                Some("Lôi"),
+                Some([55, 60]),
+                Some(1),
+                false
+            )
+        );
+        assert_eq!(hat.stats, ["+4 phòng thủ", "+58 sinh lực"]);
+        let potion = ItemView::of(&record(0, -1, 4, 0xff, &[]));
+        assert_eq!(
+            (
+                potion.name.as_str(),
+                potion.element,
+                potion.durability,
+                potion.level,
+                potion.stacks,
+                potion.quantity
+            ),
+            ("Hoàn Linh Dược", None, None, None, true, 4)
+        );
+        assert_eq!(potion.desc, "Bơm 30% sinh lực");
+        let unknown = ItemView::of(&record(9999, -1, 1, 0xff, &[(6, 1)]));
+        assert_eq!(
+            (unknown.name.as_str(), unknown.icon, unknown.kind),
+            ("#9999", None, None)
+        );
+    }
 
     #[test]
     fn log_tone_follows_the_bot_lines() {

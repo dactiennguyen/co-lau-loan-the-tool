@@ -14,7 +14,8 @@ interface Props {
   onRemove: () => void;
 }
 
-/** The selected account: who (name, level, status), where (map, zone, coordinates as text), how many others are there. */
+/** The selected account: who (name, level, status) and where (map, zone, coordinates as text). Its money is in the tiles
+ * under it (MetricRow), the other players of the zone in their card. */
 export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
   const c = a.character;
   const connected = isConnected(a.status);
@@ -61,23 +62,6 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove }: Props) {
             <span className="hero__sub">
               {c.mapId} · Khu {c.zone} · x {c.x} · y {c.y}
             </span>
-          </div>
-          <div className="hero__block hero__people">
-            <span className="hero__label">
-              <Icon name="users" size={12} /> Xung quanh
-            </span>
-            <span className="hero__big">
-              <span className="px">{c.playersKnown ? c.players.length : "?"}</span> <small>người</small>
-            </span>
-            {c.playersKnown ? (
-              <span className="hero__sub" title="Tính cả bạn">
-                {c.players.length + 1} người trong khu
-              </span>
-            ) : (
-              <span className="hero__sub" title="s2c/1263 có bản ghi người chơi chưa đọc được">
-                Chưa đọc được danh sách
-              </span>
-            )}
           </div>
         </>
       ) : (

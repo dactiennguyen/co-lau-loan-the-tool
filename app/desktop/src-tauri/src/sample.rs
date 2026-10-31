@@ -4,6 +4,7 @@ use crate::app::{App, Entry};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Snapshot, Target};
+use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -63,6 +64,56 @@ fn quest(
             })
             .collect(),
     }
+}
+
+/// An item record as the server sends it; `element` 0xff for plain items.
+fn item(
+    slot: u8,
+    item_id: i32,
+    durability: i32,
+    quantity: i32,
+    element: u8,
+    stats: &[(i32, i32)],
+) -> ItemRecord {
+    ItemRecord {
+        slot,
+        item_id,
+        uuid: format!("sample-{slot}-{item_id}"),
+        field0: 0,
+        durability,
+        quantity,
+        field1: 0,
+        element,
+        field2: 0,
+        field3: 0,
+        field4: u8::from(durability >= 0),
+        stats: stats
+            .iter()
+            .map(|&(stat, value)| ItemStat { stat, value })
+            .collect(),
+    }
+}
+
+/// manina's gear after the repair of E2 (12-skills-items.md#đồ-của-manina-e1-e2-popup-ngày-3110): the hat at 55/60, the
+/// axe still broken.
+fn manina_gear() -> Vec<Option<ItemRecord>> {
+    let mut gear = vec![None; 8];
+    gear[0] = Some(item(0, 54, 55, 1, 2, &[(6, 4), (9, 58)]));
+    gear[2] = Some(item(2, 261, 0, 1, 1, &[(5, 8), (2, 10)]));
+    gear
+}
+
+/// manina's bag after the repair: the hammer of slot 6 used up.
+fn manina_bag() -> Vec<ItemRecord> {
+    vec![
+        item(0, 0, -1, 4, 0xff, &[]),
+        item(1, 412, -1, 1, 0xff, &[]),
+        item(2, 147, 60, 1, 1, &[(6, 7), (3, 5)]),
+        item(3, 48, 60, 1, 1, &[(6, 5), (9, 66)]),
+        item(4, 306, 60, 1, 1, &[(5, 9), (8, 1)]),
+        item(5, 415, -1, 1, 0xff, &[]),
+        item(7, 1, -1, 1, 0xff, &[]),
+    ]
 }
 
 fn main_character() -> Snapshot {
@@ -166,6 +217,18 @@ fn main_character() -> Snapshot {
             leaving: false,
         }),
         turn: Some(live_turn()),
+        gear: manina_gear(),
+        bag: Some(Bag {
+            kind: 1,
+            capacity: 42,
+            items: manina_bag(),
+        }),
+        currencies: Some(Currencies {
+            label: "update Xu".into(),
+            xu: 500,
+            xu_khoa: 7370,
+            luong: 0,
+        }),
         ..Snapshot::default()
     }
 }
