@@ -40,6 +40,8 @@ pub enum Command {
     Stats(Option<StatPlan>),
     /// "Cộng +1" on the potential of that c2s/10 index (Bot::add_stat).
     AddStat(usize),
+    /// Nâng cấp on the skill of that id (Bot::upgrade_skill).
+    UpgradeSkill(i32),
     Logout,
 }
 
@@ -246,8 +248,9 @@ async fn session(
                             step = Step::Character;
                         }
                         (Step::Character, 9) => {
-                            name = character_prefix(&p.payload).map_err(|e| unread(op, e))?.name;
-                            send!(30, Ctx::default());
+                            let c = character_prefix(&p.payload).map_err(|e| unread(op, e))?;
+                            name = c.name;
+                            send!(30, Ctx { element: Some(c.field01 as i32), ..Ctx::default() });
                             step = Step::Skills;
                         }
                         (Step::Skills, 30) => { send!(42, Ctx { character_name: Some(&name), ..Ctx::default() }); step = Step::Profile; }
@@ -297,6 +300,7 @@ async fn session(
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
+                    Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),
@@ -492,7 +496,7 @@ mod tests {
                     .u8(0);
                 vec![(9, c.i32(21).i32(132).i32(180).build())]
             }
-            30 => vec![(30, w().i32(0).i32(0).string("").build())],
+            30 => vec![(30, w().i32(0).build())],
             42 => vec![(42, w().string("").build())],
             29 => vec![(29, w().string("manina").string("M1").i32(0).build())],
             11 if fault == Fault::StallMap => vec![],

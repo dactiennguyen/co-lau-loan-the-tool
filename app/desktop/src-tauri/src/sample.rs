@@ -9,9 +9,12 @@ use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
+use cllt_core::skills::SkillDef;
 use cllt_core::world::{Nearby, Quest, QuestStep};
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::Arc;
 
 fn account(label: &str, username: &str) -> Account {
     Account {
@@ -116,7 +119,20 @@ fn manina_bag() -> Vec<ItemRecord> {
     ]
 }
 
+/// The skill tree of an element as s2c/30 sends it, from data/skills.json (built in), with the levels of `levels`.
+fn skills(element: &str, levels: &[(i32, i32)]) -> (Arc<Vec<SkillDef>>, BTreeMap<i32, i32>) {
+    let all: serde_json::Value = serde_json::from_str(include_str!("../../../../data/skills.json"))
+        .expect("data/skills.json reads");
+    let tree: Vec<SkillDef> =
+        serde_json::from_value(all["trees"][element].clone()).expect("a tree of data/skills.json");
+    let mut have: BTreeMap<i32, i32> = tree.iter().map(|k| (k.id, 0)).collect();
+    have.extend(levels.iter().copied());
+    (Arc::new(tree), have)
+}
+
 fn main_character() -> Snapshot {
+    // Hỏa Cầu Thuật level 1, as at that login.
+    let (skills, skill_levels) = skills("1", &[(1000, 1)]);
     let target = |name: &str, level, boss, here| Target {
         name: name.into(),
         level,
@@ -229,6 +245,8 @@ fn main_character() -> Snapshot {
             xu_khoa: 7370,
             luong: 0,
         }),
+        skills,
+        skill_levels,
         ..Snapshot::default()
     }
 }
@@ -316,6 +334,8 @@ pub fn entries() -> Vec<Entry> {
     second.account.proxy = proxy(true, ProxyKind::Socks5, "203.0.113.7", 1080, "bot2");
     second.state = ConnState::Online;
     second.since = "17:42".into();
+    // The Thủy tree: Băng Tiễn Thuật 3, Hàn Lưu Thánh Thủy 1.
+    let thuy = skills("4", &[(4000, 3), (4001, 1)]);
     second.snap = Snapshot {
         name: "kiemkhach".into(),
         level: 15,
@@ -365,6 +385,8 @@ pub fn entries() -> Vec<Entry> {
             started_at: ago(40 * 60),
             ended_at: Some(ago(40 * 60 - 462)),
         }),
+        skills: thuy.0,
+        skill_levels: thuy.1,
         ..Snapshot::default()
     };
 

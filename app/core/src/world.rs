@@ -385,8 +385,17 @@ pub struct Stats {
     pub fields: Option<Vec<i32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<[String; 2]>,
+    /// Kind 32, after c2s/1191: the level of every skill of the character's tree.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skills: Option<Vec<SkillRank>>,
 }
-/// s2c/10: kind 2 level and stats, kind 4 HP/EXP/coins (also after every battle), kind 8 stat points.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SkillRank {
+    pub id: i32,
+    pub level: i32,
+}
+/// s2c/10: kind 2 level and stats, kind 4 HP/EXP/coins (also after every battle), kind 8 stat points, kind 32 the skill
+/// levels (12-skills-items.md#c2s-1191).
 pub fn character_stats(p: &[u8]) -> Result<Stats> {
     let mut r = Reader::new(p);
     let (kind, name) = (r.i32()?, r.string()?);
@@ -415,6 +424,18 @@ pub fn character_stats(p: &[u8]) -> Result<Stats> {
             s.stat_points = Some(r.i32()?);
             s.fields = Some(ints(&mut r, 3)?);
             s.labels = Some([r.string()?, r.string()?]);
+        }
+        32 => {
+            s.skills = Some(
+                (0..r.i32()?.max(0))
+                    .map(|_| {
+                        Ok(SkillRank {
+                            id: r.i32()?,
+                            level: r.i32()?,
+                        })
+                    })
+                    .collect::<Result<_>>()?,
+            );
         }
         _ => {}
     }

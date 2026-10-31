@@ -188,6 +188,35 @@ export interface Character {
   bag: BagContents | null;
   /** Xu, Xu khoá, Lượng (s2c/46). */
   currencies: Currencies | null;
+  /** The Kỹ năng tab: the tree of s2c/30 with the levels; empty until s2c/30 came. */
+  skills: Skill[];
+}
+
+/** One level of a skill (s2c/30): skill points, character level, nội lực (25 = 1 thành). */
+export interface SkillLevel {
+  level: number;
+  description: string;
+  cost: number;
+  requiredLevel: number;
+  mana: number;
+}
+
+/** SkillView of view.rs: one skill of the tree with the character's level. */
+export interface Skill {
+  id: number;
+  name: string;
+  /** Top left corner on the tree background (288 × 347, boxes of 60); null when it has no box. */
+  place: { x: number; y: number; branch: string; depth: number } | null;
+  level: number;
+  maxLevel: number;
+  prerequisite: { id: number; name: string; learned: boolean } | null;
+  current: SkillLevel | null;
+  /** null at the top level. */
+  next: SkillLevel | null;
+  /** Why Nâng cấp cannot take the next level now; empty when it can. */
+  blockers: string[];
+  /** The game's detail panel, line by line. */
+  panel: string[];
 }
 
 /** ItemView of view.rs: an item of the bag or a gear slot, named from data/items.json. */

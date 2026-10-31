@@ -10,7 +10,7 @@ use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
 use cllt_core::requests::{build, Ctx};
 use cllt_core::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Turn};
-use cllt_core::{items, world};
+use cllt_core::{items, skills, world};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -157,11 +157,86 @@ fn decoders_read_what_the_ts_decoders_read() {
             "inventory" => serde_json::to_value(items::inventory(&p).unwrap()),
             "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
             "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
+            "skillTable" => serde_json::to_value(skills::skill_table(&p).unwrap()),
+            "characterSkills" => serde_json::to_value(skills::character_skills(&p).unwrap()),
             other => panic!("no Rust decoder for {other}"),
         }
         .unwrap();
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
     }
+}
+
+/// The skill tree of s2c/30 and the levels of s2c/9 in the snapshot; Nâng cấp sends c2s/1191 only when the tab would
+/// allow it, and s2c/10 kind 32 and s2c/1191 bring the new level and the points left.
+#[test]
+fn the_snapshot_holds_the_skills_and_nang_cap_sends_c2s_1191_when_it_can() {
+    let all = v();
+    let hex_of = |f: &str, kind: Option<i64>| {
+        let case = all["decoders"].as_array().unwrap().iter().find(|c| {
+            c["fn"] == f && kind.is_none_or(|k| c["expected"]["kind"].as_i64() == Some(k))
+        });
+        hex(case.unwrap()["hex"].as_str().unwrap())
+    };
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    // manina at level 21 (E1): Hỏa Cầu Thuật level 1, 19 skill points.
+    bot.on_packet(9, &hex_of("characterGear", None), now, &mut out)
+        .unwrap();
+    bot.on_packet(30, &hex_of("skillTable", None), now, &mut out)
+        .unwrap();
+    let s = bot.snapshot();
+    assert_eq!(
+        (s.skills.len(), s.skills[0].name.as_str()),
+        (9, "Hỏa Cầu Thuật")
+    );
+    assert_eq!(
+        (s.skill_levels.get(&1000), s.skill_points),
+        (Some(&1), Some(19))
+    );
+    assert!(out.is_empty(), "{out:?}");
+    let sent = |out: &[Out]| -> Vec<(i32, String)> {
+        out.iter()
+            .filter_map(|o| match o {
+                Out::Send(op, p) => Some((*op, tohex(p))),
+                Out::Log(_) => None,
+            })
+            .collect()
+    };
+    // Đại Lực Công needs level 32 and Hỏa Kiếm Thuật first: nothing goes out.
+    bot.upgrade_skill(1002, now, &mut out);
+    assert_eq!(sent(&out), []);
+    assert_eq!(
+        out,
+        [Out::Log(
+            "Chưa nâng Đại Lực Công: cần cấp 32, phải học Hỏa Kiếm Thuật".into()
+        )]
+    );
+    out.clear();
+    bot.upgrade_skill(1000, now, &mut out);
+    assert_eq!(sent(&out), [(1191, "000003e800000001".to_string())]);
+    // A second click before the answer waits for it.
+    out.clear();
+    bot.upgrade_skill(1001, now, &mut out);
+    assert_eq!(sent(&out), []);
+    bot.on_packet(10, &hex_of("characterStats", Some(32)), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_packet(1191, &hex("0000004400000012"), now, &mut out)
+        .unwrap();
+    let s = bot.snapshot();
+    assert_eq!(
+        (s.skill_levels.get(&1000), s.skill_points),
+        (Some(&2), Some(18))
+    );
+    assert_eq!(
+        out,
+        [Out::Log(
+            "Đã nâng Hỏa Cầu Thuật lên cấp 2; còn 18 điểm kỹ năng".into()
+        )]
+    );
+    out.clear();
+    bot.upgrade_skill(1001, now, &mut out);
+    assert_eq!(sent(&out), [(1191, "000003e900000001".to_string())]);
 }
 
 /// The bag, gear and money cases on their own, so they report even while a decoder elsewhere in the list is missing.
@@ -297,6 +372,8 @@ fn requests_match_build_request() {
             mv,
             stat: i("stat"),
             amount: i("amount"),
+            element: i("element"),
+            skill_id: i("skillId"),
             ..Ctx::default()
         };
         let op = r["opcode"].as_i64().unwrap() as i32;

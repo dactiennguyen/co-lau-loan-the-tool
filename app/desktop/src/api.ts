@@ -30,6 +30,8 @@ export interface Api {
   setStats(id: number, plan: StatPlan | null): Promise<void>;
   /** "Cộng +1" on the potential of that c2s/10 index. */
   addStat(id: number, stat: number): Promise<void>;
+  /** Nâng cấp: one level of that skill (c2s/1191). */
+  upgradeSkill(id: number, skill: number): Promise<void>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -58,6 +60,7 @@ const tauri: Api = {
   stop: (id, surrender) => invoke("stop", { id, surrender: surrender ?? false }),
   setStats: (id, plan) => invoke("set_stats", { id, plan }),
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
+  upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
@@ -90,6 +93,7 @@ const preview: Api = {
   stop: nothing,
   setStats: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   addStat: nothing,
+  upgradeSkill: nothing,
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),

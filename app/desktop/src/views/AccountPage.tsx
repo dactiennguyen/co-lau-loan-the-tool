@@ -10,10 +10,11 @@ import { LogCard } from "./LogCard";
 import { MetricRow } from "./MetricRow";
 import { PlayersCard } from "./PlayersCard";
 import { QuestCard } from "./QuestCard";
+import { SkillsCard } from "./SkillsCard";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
-type Task = "quest" | "fight" | "bag";
+type Task = "quest" | "fight" | "bag" | "skills";
 
 /**
  * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and fight
@@ -51,6 +52,7 @@ export function AccountPage({ account }: { account: Account }) {
               { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
               { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
               { key: "bag", label: "Túi đồ", icon: "gem" },
+              { key: "skills", label: "Kỹ năng", icon: "bolt" },
             ]}
           />
           <TabPanel id={tabs} value={task}>
@@ -58,6 +60,8 @@ export function AccountPage({ account }: { account: Account }) {
               <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
             ) : task === "bag" ? (
               <InventoryCard account={account} />
+            ) : task === "skills" ? (
+              <SkillsCard account={account} onUpgrade={(skill) => api.upgradeSkill(id, skill)} />
             ) : (
               <FightCard
                 account={account}

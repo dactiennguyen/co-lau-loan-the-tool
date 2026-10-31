@@ -2,6 +2,7 @@
 //! with the bag of s2c/42 and s2c/1187, the 8 gear slots at the end of s2c/9 and the currencies of s2c/46; and the
 //! game's item table of data/items.json (src/items.ts), built into the binary, for names, icons and stat texts.
 use crate::protocol::{character_profile_end, Reader, Result};
+use crate::skills::skill_list;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -102,9 +103,7 @@ pub fn character_extra(p: &[u8]) -> Result<CharacterExtra> {
 pub fn character_gear(p: &[u8]) -> Result<Vec<Option<ItemRecord>>> {
     let mut r = Reader::new(p);
     r.take(character_profile_end(p)?)?;
-    for _ in 0..r.i32()?.max(0) {
-        r.take(13)?; // skills: i32 id; i32 level; i32 mana; u8 flag
-    }
+    skill_list(&mut r)?;
     (0..r.i32()?.max(0))
         .map(|_| {
             if r.data.get(r.offset) == Some(&0xff) {

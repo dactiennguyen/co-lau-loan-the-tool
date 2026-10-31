@@ -99,6 +99,12 @@ pub fn add_stat(shared: State<Shared>, id: u64, stat: usize) {
     shared.with(|app| app.send(id, Command::AddStat(stat)));
 }
 
+/// Nâng cấp on one skill of the Kỹ năng tab: one level, c2s/1191 (id, 1).
+#[tauri::command]
+pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {
+    shared.with(|app| app.send(id, Command::UpgradeSkill(skill)));
+}
+
 /// The proxy part of the add and edit form. An empty password with a username keeps the saved one when editing.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

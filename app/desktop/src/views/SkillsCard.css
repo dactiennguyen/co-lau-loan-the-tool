@@ -1,0 +1,90 @@
+/* Kỹ năng: the tree (the game's background, 288 × 347, with the icons in its boxes; SkillsCard shrinks it to fit the card)
+   beside the detail panel, at least 240 px wide. Very narrow cards put the panel under the tree. */
+.sk .card__body { display: grid; align-content: start; container-type: inline-size; overflow: auto; }
+.sk__none { margin: 0; font-size: 12px; color: var(--fg-3); }
+.sk__count {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.sk__body { display: grid; grid-template-columns: auto minmax(240px, 1fr); gap: 16px; align-items: start; }
+.sk__tree { position: relative; flex: none; background: no-repeat 0 0 / 100% 100%; }
+
+/* A box: the icon inside the background's frame; the picked one gets the game's orange frame. */
+.sk__box {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.sk__box img { width: 50px; height: 50px; }
+.sk__box--grey img { opacity: 0.85; }
+.sk__box:hover img { filter: brightness(1.15); }
+.sk__box--on { outline: 3px solid var(--primary); outline-offset: -1px; }
+.sk__box:focus-visible { outline: 3px solid var(--ring); outline-offset: 1px; }
+.sk__noicon { font-size: 20px; font-weight: 800; color: var(--fg-3); }
+.sk__lv {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  min-width: 16px;
+  padding: 1px 3px;
+  background: var(--ink);
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--primary);
+}
+.sk__can {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  background: var(--good);
+  color: var(--ink);
+  box-shadow: var(--bevel-sm);
+}
+
+/* The panel: the game's text, the met conditions green, the others red, Nâng cấp at the end. */
+.sk__panel { display: grid; gap: var(--space-3); min-width: 0; padding: 10px 12px; background: var(--ink); }
+.sk__head { display: flex; align-items: center; gap: var(--space-3); }
+.sk__head > div { display: grid; gap: 3px; min-width: 0; }
+.sk__head b { font-size: 14px; color: var(--fg); }
+.sk__head b.sk__off { color: var(--danger); }
+.sk__icon { display: grid; flex: none; place-items: center; width: 46px; height: 46px; background: var(--bg-2); }
+.sk__icon img { width: 42px; height: 42px; }
+.sk__facts { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--fg-3); }
+
+.sk__lvl { display: grid; gap: 3px; }
+.sk__lvl p { margin: 0; font-size: 12px; line-height: 1.45; color: var(--fg-2); }
+.sk__tag { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-3); }
+.sk__tag--now { color: var(--good); }
+.sk__mana { font-size: 11px; color: var(--exp); }
+
+.sk__needs { display: grid; gap: 3px; margin: 0; padding: 8px 0 0; border-top: 1px dashed var(--line); list-style: none; }
+.sk__needs li { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.sk__needs small { font-size: 11px; color: var(--fg-3); }
+.sk__need--ok { color: var(--good); }
+.sk__need--no { color: var(--danger); }
+
+.sk__act { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); }
+.sk__hint, .sk__why { font-size: 11px; color: var(--fg-3); }
+.sk__why { color: var(--danger); }
+.sk__top { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--good); }
+
+@container (max-width: 420px) {
+  .sk__body { grid-template-columns: minmax(0, 1fr); }
+  .sk__tree { justify-self: center; }
+}

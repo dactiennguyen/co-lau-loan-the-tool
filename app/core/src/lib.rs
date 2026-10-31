@@ -14,4 +14,5 @@ pub mod proxy;
 pub mod quest;
 pub mod requests;
 pub mod runner;
+pub mod skills;
 pub mod world;

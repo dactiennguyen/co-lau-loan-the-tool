@@ -20,6 +20,9 @@ pub struct Ctx<'a> {
     pub mv: Option<Move>,
     pub stat: Option<i32>,
     pub amount: Option<i32>,
+    /// The character's element, field01 of s2c/9 (1 Hỏa, 2 Lôi, 4 Thủy): c2s/30 asks for the skill tree of that element.
+    pub element: Option<i32>,
+    pub skill_id: Option<i32>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -52,7 +55,8 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .u8(2)
             .i32(-1)
             .build(),
-        30 => w.u8(1).build(),
+        // The app sends the element of s2c/9 (sqlq.e49(1) for manina, Hỏa); with 4 the server sends the Thủy tree.
+        30 => w.u8(c.element.unwrap_or(1) as u8).build(),
         42 | 29 => w
             .string(required(c.character_name, "characterName")?)
             .build(),
@@ -68,6 +72,10 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .build(),
         10 => w
             .i32(required(c.stat, "stat")?)
+            .i32(required(c.amount, "amount")?)
+            .build(),
+        1191 => w
+            .i32(required(c.skill_id, "skillId")?)
             .i32(required(c.amount, "amount")?)
             .build(),
         15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),

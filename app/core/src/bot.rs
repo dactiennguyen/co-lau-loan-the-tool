@@ -2,8 +2,8 @@
 //! one of two jobs. A fight job ("đánh X N lần") follows QuestBot --farm of src/quest.ts: c2s/15 for a mob, c2s/1178 for
 //! a boss of s2c/1177, 8 s for s2c/22, 6 × 5 s of waiting while a boss changes tiles, 3 s of rest between battles, and
 //! losses (except to a boss) up to `max_losses`. A quest run ("Tự làm nhiệm vụ") is QuestBot itself: it plays the steps
-//! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point) and walks through portals when the NPC
-//! or mob of a step is in another map. Without I/O, like BattleRunner.
+//! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals
+//! when the NPC or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
 use crate::battle::{battle_setup, Strategy};
 use crate::items::{
@@ -16,11 +16,12 @@ use crate::protocol::{
 use crate::quest::{step_action, StepAction};
 use crate::requests::{build, Ctx};
 use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill, Turn};
+use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
 use crate::world::{
     character_stats, map_boss, map_change, map_data, map_entities, notice, quest_complete,
     quest_data, quest_progress, Mob, Nearby, Place, Quest, ZonePlayers,
 };
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -182,6 +183,10 @@ pub struct Snapshot {
     pub bag: Option<Bag>,
     /// Xu, Xu khoá, Lượng (s2c/46 at login and when they change).
     pub currencies: Option<Currencies>,
+    /// The skill tree of the character's element (s2c/30 at login), shared by every snapshot.
+    pub skills: Arc<Vec<SkillDef>>,
+    /// The level of each skill by id: the s2c/9 tail, then s2c/10 kind 32 after every c2s/1191.
+    pub skill_levels: BTreeMap<i32, i32>,
 }
 
 /// Wall-clock ms since 1970, for the start and end of a job or quest run.
@@ -209,6 +214,15 @@ struct Challenge {
 }
 /// A challenge left unanswered this long is taken as refused: no battle opens that late.
 const CHALLENGE_KEPT: Duration = Duration::from_secs(60);
+
+/// A c2s/1191 waiting for s2c/1191: the skill, when it went out, and whether the quest step "Sử dụng điểm kỹ năng" sent
+/// it (Nâng cấp in the UI does too).
+struct Upgrade {
+    id: i32,
+    name: String,
+    at: Instant,
+    step: bool,
+}
 
 enum Wake {
     Next,
@@ -267,6 +281,7 @@ pub struct Bot {
     allotting: bool,
     allot_failed: bool,
     plan_warned: bool,
+    upgrading: Option<Upgrade>,
 }
 
 impl Bot {
@@ -302,6 +317,7 @@ impl Bot {
             allotting: false,
             allot_failed: false,
             plan_warned: false,
+            upgrading: None,
         }
     }
 
@@ -839,6 +855,38 @@ impl Bot {
                         "Không đọc được trang bị trong s2c/9: {e}"
                     ))),
                 }
+                match character_skills(payload) {
+                    Ok(k) => s.skill_levels = k.iter().map(|k| (k.id, k.level)).collect(),
+                    Err(e) => {
+                        out.push(Out::Log(format!("Không đọc được kỹ năng trong s2c/9: {e}")))
+                    }
+                }
+            }
+            30 => match skill_table(payload) {
+                Ok(t) => s.skills = Arc::new(t.skills),
+                Err(e) => out.push(Out::Log(format!(
+                    "Không đọc được cây kỹ năng (s2c/30): {e}"
+                ))),
+            },
+            // Answer to c2s/1191, after s2c/10 kind 32 (E1): the points left. The quest step moves on with s2c/34 or s2c/39
+            // as for a stat point; without either the run stops rather than spend another point.
+            1191 => {
+                let mut r = Reader::new(payload);
+                let (stat_points, skill_points) = (r.i32()?, r.i32()?);
+                (s.stat_points, s.skill_points) = (Some(stat_points), Some(skill_points));
+                if let Some(u) = self.upgrading.take() {
+                    let level = s.skill_levels.get(&u.id).copied().unwrap_or(0);
+                    out.push(Out::Log(format!(
+                        "Đã nâng {} lên cấp {level}; còn {skill_points} điểm kỹ năng",
+                        u.name
+                    )));
+                    if u.step && self.awaiting_reply {
+                        self.timer = Some((
+                            now + Duration::from_secs(8),
+                            Wake::Silence("Đã dùng điểm kỹ năng nhưng server chưa sang bước sau"),
+                        ));
+                    }
+                }
             }
             // The bag and the money are shown, never acted on: one that does not read is logged and left as it was.
             42 => match character_extra(payload) {
@@ -1003,6 +1051,10 @@ impl Bot {
                 }
                 if let Some(stats) = st.stats {
                     s.stats = stats;
+                }
+                if let Some(skills) = &st.skills {
+                    s.skill_levels
+                        .extend(skills.iter().map(|k| (k.id, k.level)));
                 }
                 if st.stat_points.is_some() {
                     s.stat_points = st.stat_points;
@@ -1294,6 +1346,7 @@ impl Bot {
                     out,
                 )
             }
+            StepAction::Skill => self.upgrade(None, now, out),
             StepAction::Talk { npc_id } => {
                 let map_id = self.snap.map_id.clone();
                 self.doing(step.text.clone());
@@ -1687,5 +1740,79 @@ impl Bot {
         Self::send(out, 10, ctx);
         self.timer = Some((now + Duration::from_secs(8), Wake::StatSilence));
         true
+    }
+}
+
+/// Skill levels: the quest step "Sử dụng điểm kỹ năng" and Nâng cấp of the Kỹ năng tab, both c2s/1191 (id, 1).
+impl Bot {
+    /// Nâng cấp on skill `id`: one level now, when the tab would allow it. Not in a battle, nor while another c2s/1191
+    /// waits for its answer.
+    pub fn upgrade_skill(&mut self, id: i32, now: Instant, out: &mut Vec<Out>) {
+        if self.snap.skills.iter().all(|k| k.id != id) {
+            return out.push(Out::Log(format!(
+                "Chưa nâng kỹ năng {id}: không có trong cây"
+            )));
+        }
+        self.upgrade(Some(id), now, out);
+    }
+
+    /// c2s/1191 (id, 1) for skill `id`, or for the step the first skill of the s2c/30 tree that can take a level now (for
+    /// a new character the root: Hỏa Cầu Thuật 1000, Băng Tiễn Thuật 4000).
+    fn upgrade(&mut self, id: Option<i32>, now: Instant, out: &mut Vec<Out>) {
+        let step = id.is_none();
+        let skills = Arc::clone(&self.snap.skills);
+        let points = self.snap.skill_points.unwrap_or(0);
+        let nodes = skill_tree(&skills, &self.snap.skill_levels, self.snap.level, points);
+        let node = match id {
+            Some(id) => nodes.iter().find(|n| n.skill.id == id),
+            None => nodes.iter().find(|n| n.blockers.is_empty()),
+        };
+        let Some(node) = node else {
+            let reason = match skills.is_empty() {
+                true => "Chưa nhận cây kỹ năng (s2c/30)".to_string(),
+                false => format!(
+                    "Không kỹ năng nào lên cấp được lúc này (cấp {}, {points} điểm kỹ năng)",
+                    self.snap.level
+                ),
+            };
+            return self.finish_quest(&reason, out);
+        };
+        let (name, level) = (node.skill.name.clone(), node.level + 1);
+        let pending = self
+            .upgrading
+            .as_ref()
+            .is_some_and(|u| now < u.at + Duration::from_secs(8));
+        let refused = if !step && self.battle.is_some() {
+            Some("đang đánh, đợi hết trận".to_string())
+        } else if !step && pending {
+            Some("đang đợi server trả lời lần nâng trước".to_string())
+        } else if !node.blockers.is_empty() {
+            Some(node.blockers.join(", "))
+        } else {
+            None
+        };
+        if let Some(why) = refused {
+            return out.push(Out::Log(format!("Chưa nâng {name}: {why}")));
+        }
+        let cost = node.next.map_or(0, |n| n.cost);
+        let text = format!("Nâng {name} lên cấp {level}");
+        out.push(Out::Log(format!("{text} ({cost} điểm kỹ năng)")));
+        self.upgrading = Some(Upgrade {
+            id: node.skill.id,
+            name,
+            at: now,
+            step,
+        });
+        let ctx = Ctx {
+            skill_id: Some(node.skill.id),
+            amount: Some(1),
+            ..Ctx::default()
+        };
+        if step {
+            self.doing(text);
+            self.ask(1191, ctx, "Server không trả lời khi nâng kỹ năng", now, out);
+        } else {
+            Self::send(out, 1191, ctx);
+        }
     }
 }

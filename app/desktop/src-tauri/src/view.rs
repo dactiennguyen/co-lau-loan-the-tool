@@ -7,6 +7,7 @@ use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
+use cllt_core::skills::{skill_tree, Prerequisite, SkillBox, SkillLevel};
 use cllt_core::world::{Nearby, Quest};
 use serde::Serialize;
 
@@ -153,6 +154,29 @@ pub struct CharacterView<'a> {
     pub bag: Option<BagView>,
     /// Xu, Xu khoá, Lượng (s2c/46). Vàng is `coin`.
     pub currencies: Option<&'a Currencies>,
+    /// The Kỹ năng tab: the tree of s2c/30 with the character's levels; empty until s2c/30 came.
+    pub skills: Vec<SkillView<'a>>,
+}
+
+/// One skill of the Kỹ năng tab (skills::skill_tree): its box on the tree background, the level the character has, the
+/// level Nâng cấp would give and why it cannot now.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillView<'a> {
+    pub id: i32,
+    pub name: &'a str,
+    /// Top left corner on the background (288 × 347, boxes of 60); None for an index it has no box for.
+    pub place: Option<SkillBox>,
+    pub level: i32,
+    pub max_level: usize,
+    pub prerequisite: Option<Prerequisite>,
+    pub current: Option<&'a SkillLevel>,
+    /// None at the top level.
+    pub next: Option<&'a SkillLevel>,
+    /// Empty when Nâng cấp can take the next level now.
+    pub blockers: Vec<String>,
+    /// The game's detail panel, line by line.
+    pub panel: Vec<String>,
 }
 
 /// One item as the UI draws it: its record in the bag or a gear slot, named from data/items.json (items::book). An
@@ -292,6 +316,26 @@ pub fn account(e: &Entry) -> AccountView<'_> {
                 .collect(),
             bag: s.bag.as_ref().map(BagView::of),
             currencies: s.currencies.as_ref(),
+            skills: skill_tree(
+                &s.skills,
+                &s.skill_levels,
+                s.level,
+                s.skill_points.unwrap_or(0),
+            )
+            .into_iter()
+            .map(|n| SkillView {
+                id: n.skill.id,
+                name: &n.skill.name,
+                place: n.place,
+                level: n.level,
+                max_level: n.max_level(),
+                panel: n.panel(),
+                prerequisite: n.prerequisite,
+                current: n.current,
+                next: n.next,
+                blockers: n.blockers,
+            })
+            .collect(),
         }),
     }
 }

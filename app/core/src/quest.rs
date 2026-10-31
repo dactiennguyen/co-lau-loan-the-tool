@@ -20,6 +20,8 @@ pub enum StepAction {
     },
     /// "Nâng điểm tiềm năng"
     Stat,
+    /// "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191).
+    Skill,
     /// "Nói chuyện với X", "Báo cáo với X": any other step that names an NPC.
     Talk {
         #[serde(rename = "npcId")]
@@ -78,6 +80,9 @@ pub fn step_action(text: &str, npc_id: i32) -> StepAction {
     }
     if text.starts_with("Nâng điểm tiềm năng") {
         return StepAction::Stat;
+    }
+    if text.starts_with("Sử dụng điểm kỹ năng") {
+        return StepAction::Skill;
     }
     if npc_id >= 0 {
         StepAction::Talk { npc_id }

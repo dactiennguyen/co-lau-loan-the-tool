@@ -72,6 +72,7 @@ pub fn run() {
             commands::stop,
             commands::set_stats,
             commands::add_stat,
+            commands::upgrade_skill,
             commands::add_account,
             commands::update_account,
             commands::test_proxy,
