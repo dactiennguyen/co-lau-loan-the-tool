@@ -39,7 +39,7 @@ Nguồn: V1: response trực tiếp từ server trong phiên kiểm chứng đ�
 }
 ```
 
-Một text khác cũng đến qua `s2c/0` ở cùng bước: **"Vui lòng chờ 0 giây"**, khi client Node đăng nhập vài giây sau lúc app trên điện thoại vừa bị tắt (Q13). Thử lại sau 10 s thì vào được. Server giữ phiên cũ một lúc ngắn sau khi nó đóng. [Đo 1 lần]
+Một text khác cũng đến qua `s2c/0` ở cùng bước: **"Vui lòng chờ 0 giây"**, khi client Node đăng nhập vài giây sau lúc app trên điện thoại vừa bị tắt (Q13). Thử lại sau 10 s thì vào được. Server giữ phiên cũ một lúc ngắn sau khi nó đóng. Với bot TS cũng vậy (R3, 31/10): chạy hai lệnh liền nhau với cùng một nick thì lần sau nhận "Vui lòng chờ 9 giây", rồi "Vui lòng chờ 8 giây". Chờ 12 s giữa hai lần đăng nhập thì không bị chặn. [Đo 3 lần]
 
 **Nếu bản app mới khác:** tìm lại writer/reader/handler native, đối chiếu kiểu getter, cursor và byte gốc; phân biệt thay đổi nội dung động với đổi cấu trúc. Xem [điều tra lại](../reinvestigation.md).
 

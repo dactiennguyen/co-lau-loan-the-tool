@@ -4,16 +4,20 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decodeAsset, ITEM_ELEMENTS, ITEM_TYPES, parseItemTable, parseStatTable, RETIRED, type ItemBook } from './items.ts';
 
-// Rebuilds data/items.json from the game's tables and exports the item icons as WebP (docs/app/events/13-drops-items.md).
-//   npm run items -- --adb=192.168.2.3:5555   copy it0, it1, itv and offline-a2/i*.dat off a rooted phone, then both steps
-//   npm run items -- --from=<dir>             a folder holding it0, it1, itv and optionally offline-a2/i*.dat
+// Rebuilds data/items.json from the game's tables and exports the item and skill icons as WebP
+// (docs/app/events/13-drops-items.md, 12-skills-items.md#tab-kỹ-năng).
+//   npm run items -- --adb=192.168.2.3:5555   copy it0, it1, itv, offline-a2/i*.dat and skill*.dat off a rooted phone
+//   npm run items -- --from=<dir>             a folder holding it0, it1, itv and optionally offline-a2/i*.dat, skill*.dat
+//   --apk=colauloanthe.1.0.3.apk              also the background of the skill tree (assets/x1/skill/tree-skill.dat)
 // --out=data/items.json, --icons=data/icons (needs cwebp), --png=<dir> also keeps the decoded PNGs, --lossless.
 const arg = (name: string) => process.argv.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3);
-const out = arg('out') ?? 'data/items.json', icons = arg('icons') ?? 'data/icons', png = arg('png');
+const out = arg('out') ?? 'data/items.json', icons = arg('icons') ?? 'data/icons', png = arg('png'), apk = arg('apk');
 const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 
 let from = arg('from');
 const serial = arg('adb'), work = mkdtempSync(join(tmpdir(), 'cllt-items-'));
+const quality = process.argv.includes('--lossless') ? ['-lossless', '-exact', '-z', '9'] : ['-q', '90', '-alpha_q', '100', '-m', '6'];
+const pngDir = png ?? join(work, 'png');
 try {
   if (serial) from = pull(serial, work);
   if (!from) throw new Error('give --adb=<serial> or --from=<dir with it0, it1, itv>');
@@ -28,7 +32,8 @@ try {
   show({ kind: 'summary', event: 'items_written', path: out, version, items: items.length, inUse: items.filter(i => i.name !== RETIRED).length, stats: Object.keys(stats).length });
 
   const assets = join(from, 'offline-a2');
-  if (existsSync(assets)) exportIcons(assets);
+  if (existsSync(assets)) { exportIcons(assets); exportSkillIcons(assets); }
+  if (apk) exportTree(apk);
 } finally { rmSync(work, { recursive: true, force: true }); }
 
 /** One item per line, so a table update reads as a short diff. */
@@ -42,24 +47,60 @@ function bookJson({ items, ...head }: ItemBook) {
 function pull(serial: string, dir: string) {
   const tmp = '/data/local/tmp/cllt-items', cache = '/data/data/com.lotasoft.colauloanthe/files/dyncache';
   const adb = (...args: string[]) => execFileSync('adb', ['-s', serial, ...args], { encoding: 'utf8' });
-  adb('shell', `su -c 'rm -rf ${tmp} && mkdir -p ${tmp}/offline-a2 && cp ${cache}/it0 ${cache}/it1 ${cache}/itv ${tmp}/ && cp ${cache}/offline-a2/i[0-9]*.dat ${tmp}/offline-a2/ && chmod -R 755 ${tmp}'`);
+  adb('shell', `su -c 'rm -rf ${tmp} && mkdir -p ${tmp}/offline-a2 && cp ${cache}/it0 ${cache}/it1 ${cache}/itv ${tmp}/ && cp ${cache}/offline-a2/i[0-9]*.dat ${cache}/offline-a2/skill[0-9]*.dat ${tmp}/offline-a2/ && chmod -R 755 ${tmp}'`);
   try { adb('pull', tmp, dir); } finally { adb('shell', `su -c 'rm -rf ${tmp}'`); }
   return join(dir, 'cllt-items');
 }
 
+/** Decodes one asset to <pngDir>/<name>.png and returns the path; the size is in the PNG header. */
+function decodePng(data: Uint8Array, name: string) {
+  const image = decodeAsset(data);
+  if (image.readUInt32BE(0) !== 0x89504e47) throw new Error(`${name} did not decode to a PNG`);
+  mkdirSync(pngDir, { recursive: true });
+  const path = join(pngDir, `${name}.png`);
+  writeFileSync(path, image);
+  return { path, bytes: image.length, width: image.readUInt32BE(16), height: image.readUInt32BE(20) };
+}
+/** cwebp, optionally cutting out the square crop = [x, y, size, size]; returns the WebP size. */
+function webp(pngPath: string, webpPath: string, crop: number[] = []) {
+  execFileSync('cwebp', ['-quiet', ...quality, ...(crop.length ? ['-crop', ...crop.map(String)] : []), pngPath, '-o', webpPath]);
+  return readFileSync(webpPath).length;
+}
+
 function exportIcons(assets: string) {
   const files = readdirSync(assets).filter(f => /^i\d+\.dat$/.test(f)).sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
-  const pngDir = png ?? join(work, 'png');
-  mkdirSync(pngDir, { recursive: true }); mkdirSync(icons, { recursive: true });
-  const quality = process.argv.includes('--lossless') ? ['-lossless', '-exact', '-z', '9'] : ['-q', '90', '-alpha_q', '100', '-m', '6'];
+  mkdirSync(icons, { recursive: true });
   let pngBytes = 0, webpBytes = 0;
   for (const f of files) {
-    const image = decodeAsset(readFileSync(join(assets, f)));
-    if (image.readUInt32BE(0) !== 0x89504e47) throw new Error(`${f} did not decode to a PNG`);
-    const name = f.replace(/\.dat$/, ''), pngPath = join(pngDir, `${name}.png`), webpPath = join(icons, `${name}.webp`);
-    writeFileSync(pngPath, image);
-    execFileSync('cwebp', ['-quiet', ...quality, pngPath, '-o', webpPath]);
-    pngBytes += image.length; webpBytes += readFileSync(webpPath).length;
+    const name = f.replace(/\.dat$/, ''), image = decodePng(readFileSync(join(assets, f)), name);
+    pngBytes += image.bytes; webpBytes += webp(image.path, join(icons, `${name}.webp`));
   }
   show({ kind: 'summary', event: 'icons_written', icons: files.length, dir: icons, png: png ?? null, pngBytes, webpBytes });
+}
+
+/** skill<element>.dat is one row of square icons, box i for skill 1000 × element + i; skill<element>grey.dat the same
+ * icons in grey for skills not learned yet. Writes <icons>/skills/<id>.webp and <id>-grey.webp. */
+function exportSkillIcons(assets: string) {
+  const files = readdirSync(assets).filter(f => /^skill\d+(grey)?\.dat$/.test(f)).sort();
+  if (!files.length) return;
+  const dir = join(icons, 'skills'), written: string[] = [];
+  mkdirSync(dir, { recursive: true });
+  let webpBytes = 0;
+  for (const f of files) {
+    const [, element, grey] = f.match(/^skill(\d+)(grey)?\.dat$/)!, image = decodePng(readFileSync(join(assets, f)), f.replace(/\.dat$/, ''));
+    for (let i = 0; i * image.height < image.width; i++) {
+      const name = `${Number(element) * 1000 + i}${grey ? '-grey' : ''}`;
+      webpBytes += webp(image.path, join(dir, `${name}.webp`), [i * image.height, 0, image.height, image.height]);
+      written.push(name);
+    }
+  }
+  show({ kind: 'summary', event: 'skill_icons_written', sheets: files, icons: written.length, dir, webpBytes });
+}
+
+/** The background of the tree on the Kỹ năng tab, from the APK (it is not in dyncache): <icons>/skills/tree.webp. */
+function exportTree(apkPath: string) {
+  const image = decodePng(execFileSync('unzip', ['-p', apkPath, 'assets/x1/skill/tree-skill.dat']), 'tree-skill');
+  mkdirSync(join(icons, 'skills'), { recursive: true });
+  const bytes = webp(image.path, join(icons, 'skills', 'tree.webp'));
+  show({ kind: 'summary', event: 'skill_tree_written', width: image.width, height: image.height, webpBytes: bytes });
 }

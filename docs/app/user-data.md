@@ -140,4 +140,4 @@ Prefix kết thúc tại byte 3640; còn **7739 byte chưa giải nghĩa**. Offs
 
 ## Chưa xác minh
 
-Chưa xác minh được packet lấy email, số điện thoại, ID account gốc hay tổng tiền. Gói `42` mới đọc prefix; `46` chứa chuỗi `update Xu` nhưng chưa giải giá trị tiền. `1263` là danh sách người chơi khác trong khu ([09](events/09-players-chat.md#đếm-người-xung-quanh)). Các gói này chưa đủ để gọi là profile account đầy đủ.
+Chưa xác minh được packet lấy email, số điện thoại, ID account gốc hay tổng tiền. Gói `42` chứa túi đồ ([12-skills-items](events/12-skills-items.md#túi-đồ)); `46` là ba loại tiền: Xu, Xu khoá, Lượng ([04-push](events/04-push.md#s2c-46)). Vàng là `coin` ở trên. `1263` là danh sách người chơi khác trong khu ([09](events/09-players-chat.md#đếm-người-xung-quanh)). Các gói này chưa đủ để gọi là profile account đầy đủ.

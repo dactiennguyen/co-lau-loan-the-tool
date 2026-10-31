@@ -5,6 +5,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#n
 - **S2**: `npm run scan` có `CLLT_TRACE`, đi M2, M1, M25 bằng cổng (không đi bộ, không đánh).
 - **K2**: bot TS đánh một trận Cóc Xanh với manina ở M2.
 - **P2**: Frida trên điện thoại (ghi mọi gói, hook 114 hàm dựng), thử bắt gói nhặt đồ. Chưa bắt được, xem [Nhặt đồ](#nhặt-đồ).
+- **P3**: Frida trên điện thoại với Tiheo1 (symap, M10): bắt được gói nhặt đồ và câu trả lời của server; xem [P3](#p3).
 - **T3**: đọc tĩnh hàm nạp asset và lớp AES, rồi giải mã thật 246 icon; xem [Giải mã asset](#giải-mã-asset).
 - **T2**: đọc tĩnh `libgdx-flashds.so`, dựng đồ thị gọi JNI của cả thư viện: hàm nào gọi phương thức Java nào. Từ đó tìm ra gói nhặt đồ, xem [Nhặt đồ](#nhặt-đồ).
 - Thêm các gói vật phẩm trên đất của E1, E2 ([12-skills-items](12-skills-items.md)).
@@ -16,7 +17,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Câu hỏi | Trả lời |
 |---|---|
 | Đồ rơi ra sao? | Sau trận thắng quái, hòm đồ "có thể rơi xuống đất" (Cẩm nang). Server báo cho cả map: `s2c/1182` khi có món rơi, `s2c/1183` khi món mất (bị nhặt hoặc hết hạn), `s2c/1184` là danh sách món đang nằm trên đất lúc vào map hay vào khu. Mỗi món hết hạn khoảng 600 s sau khi rơi. Xem [Đồ trên đất](#đồ-trên-đất). [Đo] |
-| Nhặt thế nào? | Trên máy: đứng lên hòm rồi bấm **Nhặt** (Cẩm nang). Nút đó gửi **`c2s/1188` = `string`**, là id của món, có lẽ là uuid trong `s2c/1182`/`1184`. Đọc tĩnh, **chưa gửi thử lên server**; server trả gì chưa biết. Xem [Nhặt đồ](#nhặt-đồ). [Đo tĩnh] |
+| Nhặt thế nào? | Trên máy: chạm hòm rồi bấm **Nhặt**. Nút đó gửi **`c2s/1188` = `string uuid`**, uuid của món trong `s2c/1182`/`1184`. Đã bắt trên máy thật (P3, 31/10): server trả trong 52–56 ms `s2c/46` (số Xu mới), `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" và `s2c/1183` (món rời khỏi đất, báo cả map). Xem [Nhặt đồ](#nhặt-đồ). [Đo] |
 | Nhặt đồ người khác được không? | Bản ghi đồ trên đất không có trường chủ, và chưa thấy client kiểm tra chủ trước khi hỏi "Nhặt". Vậy server quyết; luật chưa đo. [Đo tĩnh; luật Chưa rõ] |
 | Đồ gì rơi? | 106 món đã thấy, gần hết ở M2: Xu khóa (mã 41) 54 đống, mỗi đống 124–250; Đá cấp 1–3 (411–413) 28 viên; Trứng Gà (3) 7 quả; 12 món trang bị cấp 1 (nón, áo, nhẫn, vũ khí), mỗi món 2 chỉ số. M1: 4 đống Xu khóa, 1 Đá cấp 2. M25 không có quái. Xem [Đồ đã thấy](#đồ-đã-thấy). [Đo] |
 | Mã 41 là gì? | **Xu khóa**. Trước đây đoán là tiền ([09](09-players-chat.md#ground-items)). Cẩm nang: "Kiếm Xu khóa: nhặt Xu khóa quái rơi". [Đo] |
@@ -69,7 +70,25 @@ Hai ứng viên cũ không phải gói nhặt:
 - `c2s/1174` (`q120`) do `com.g.m.sqfk.run` gửi. Hàm này lấy chuỗi từ `com.g.c.sqbj.a()`; `sqbj` là một Dialog. Bỏ qua nếu chuỗi rỗng. Có lẽ là chữ người chơi gõ vào. [Đo tĩnh; "chữ gõ vào" là Suy luận]
 - `c2s/1181` (`a122`, `string; i32; i32`) do `sqhz.a17` gửi. Hàm này xử lý khi nhân vật chạm vào thực thể `sqjb`, chọn gói theo byte loại `sqjb.h`: quái thường `c2s/15`, boss `c2s/1178`, loại thứ ba `c2s/1181`. Không liên quan tới hòm. [Đo tĩnh; loại thứ ba Chưa rõ]
 
-Server trả gì khi nhặt được (có lẽ `s2c/1183` cho cả map và `s2c/1187` túi mới), và trả gì khi không được: chưa đo. Opcode s2c trên dây bị băm ([opcode-map](../opcode-map.md)), nên không dò tĩnh. [Chưa rõ]
+<a id="p3"></a>
+
+**P3: bắt được gói nhặt** (Tiheo1, nhân vật symap cấp 42, M10 Cửu Phong khu 0, 31/10). Frida gắn vào game đang chạy, hook writer, reader và 114 hàm dựng gói. Chạm hòm mở hộp thoại "Xu khóa, Yêu cầu cấp: 1" với hai nút **Bỏ qua** và **Nhặt**. Bấm Nhặt:
+
+| ms | Gói | Byte | Nghĩa |
+|---:|---|---|---|
+| 0 | hàm dựng `sqlq.c44("cd89eb9a-…")` | | Gọi từ `sqhz.d21` ← `sqd.a1` ← `sqak.a10`, đúng đường đọc tĩnh ở bảng trên |
+| 0 | `c2s/1188` | `00000024` + 36 byte `"cd89eb9a-24f3-4cfd-a3e2-66046f4b11f5"` (40 byte) | `string uuid` của hòm |
+| 52 | `s2c/46` | `"update Xu"; i64 4895400; i64 5480412; i64 8581` | Xu, Xu khóa, Lượng sau khi nhặt ([04-push](04-push.md)) |
+| 54 | `s2c/1256` | `u8 0; string "Bạn vừa nhận được 474 Xu khóa"` | Dòng chữ hiện trên màn hình |
+| 56 | `s2c/1183` | `string "M10"; string "cd89eb9a-…"` | Hòm rời khỏi đất, gửi cho cả map |
+
+- Bố cục `c2s/1188` khớp đọc tĩnh, và uuid gửi đi đúng là uuid của bản ghi đồ trên đất. [Đo]
+- Xu khóa vào ví nên server gửi `s2c/46` chứ không gửi `s2c/1187`. Món vào túi có lẽ đi kèm `s2c/1187`, nhưng chưa đo. [Đo Xu khóa; món vào túi Suy luận]
+- Trước đó người cầm máy đã tự nhặt một hòm Xu khóa khác, lúc Frida chưa gắn. Xu khóa trên bảng Bản thân tăng tổng cộng 867, tức hòm kia có 393. [Đo]
+- Hòm nằm sẵn cạnh nhân vật lúc vào map, và symap chưa đánh trận nào trong phiên này. Vậy hòm có lẽ do người khác làm rơi, nhưng chưa chắc. [Suy luận]
+- Trong 80 s ghi, map M10 còn rơi thêm 7 món từ trận của người khác: Xu khóa ×382 và ×476, Quặng Bậc 1, Trứng Gà, Đá cấp 4, Nhẫn Thái Cực. Món nào cũng hết hạn sau 601 s. [Đo]
+
+Nhặt không được thì server trả gì, và có phải đứng gần hòm không: chưa đo. [Chưa rõ]
 
 **Ai được nhặt.** Bản ghi đồ trên đất không có trường chủ [Đo]. Phép kiểm tra đầu tiên `sqgu.a(sqgu)` (ngen `a5`) chỉ đọc byte `a`, cờ `F` của hòm và xem hòm có trong mảng `sqil.i` không (có lẽ là danh sách đồ trên map). Chưa thấy chỗ nào so tên người chơi. Có lẽ ai cũng thấy nút "Nhặt" trên mọi hòm. [Đo tĩnh; Suy luận] Server có giữ hòm cho người làm rơi một thời gian không thì chưa đo. Món người khác làm rơi thường mất sau 7–20 s ([Đồ trên đất](#đồ-trên-đất)). [Đo; luật Chưa rõ]
 
@@ -85,7 +104,7 @@ Server trả gì khi nhặt được (có lẽ `s2c/1183` cho cả map và `s2c/
 - Trên bàn cờ, cả chạm, chạm giữ và kéo bằng `adb shell input` đều không làm client gửi nước đi (`c2s/19`). Hết giờ lượt nào thì lượt đó chuyển cho quái.
 - manina thua: "Thua trận, mất 39 kinh nghiệm", HP được hồi đầy. Ngay sau đó tiến trình game trên máy kết thúc.
 
-Sau T2 không cần điện thoại nữa. Để đo trên dây, bot TS:
+Bước tiếp theo, đo bằng bot TS:
 1. Đọc uuid, x, y từ `s2c/1182`/`s2c/1184`.
 2. Đi tới (x, y) bằng `c2s/1169` ([09](09-players-chat.md)).
 3. Gửi `c2s/1188 (uuid)` và ghi mọi gói server trả về.
@@ -102,6 +121,24 @@ Bố cục ba gói và bản ghi vật phẩm ở [09-players-chat](09-players-c
 - Ở M2 đông người, P2 nhận 33 lần `s2c/1182` trong khoảng 9 phút. [Đo]
 - Trận Cóc Xanh thắng ở K2 không rơi gì: sau `s2c/36` không có `s2c/1182`. [Đo, 1 trận]
 - Ai được nhặt món của người khác, và sau bao lâu. [Chưa rõ]
+
+<a id="hiển-thị-đồ-trên-đất"></a>
+
+### Hiển thị trên máy và danh sách của một map (P3, M10)
+
+Game vẽ mỗi món trên đất là **cùng một hình rương màu cam** ở (x, y) của bản ghi. Rương không ghi tên hay số lượng. Chạm vào rương thì mới hiện hộp thoại: icon của món (`data/icons/i<icon>.webp`), tên, "Yêu cầu cấp: n" (`cấpMặc` trong [bảng vật phẩm](#bảng-vật-phẩm)), hai nút **Bỏ qua** và **Nhặt**. [Đo]
+
+Đổi khu 0 → 1 → 0 trên máy để có `s2c/1184` của từng khu. Thứ tự gói: `c2s/1173` → `s2c/13` → client gửi `c2s/11`, `c2s/43` → `s2c/11`, `s2c/43`, `s2c/1177`, `s2c/1263`, `s2c/1212`, rồi `s2c/1184`. [Đo]
+
+| Khu | Số món | Các món (mã) |
+|---|---:|---|
+| 0 (7–8 người) | 20 | Gỗ Bậc 1 (604) ×2–6: 6 đống; Quặng Bậc 1 (598) ×2–6: 5 đống; Đá cấp 3 (413) ×2; Đá cấp 4 (414); Xu khóa (41) ×381 và ×420; Da Bậc 1 (592) ×2; Linh Thạch Bậc 1 (610) ×2; Trứng Gà (3); Nhẫn Thái Cực (333, Hỏa, +14 sức tấn công, +23 thân pháp) |
+| 1 (1–3 người) | 5 | Gỗ Bậc 1 ×4–6: 3 đống; Quặng Bậc 1 ×4; Nón Tiên Phong (59, Lôi, +7 phòng thủ, +14 thân pháp) |
+
+- Món còn nằm từ 36 s tới 589 s nữa mới hết hạn. Nhiều món nằm đó vài phút mà không ai nhặt. [Đo]
+- Ở map cấp 40, quái rơi chủ yếu nguyên liệu Bậc 1 (Gỗ, Quặng, Da, Linh Thạch), Đá cấp 3–4, Xu khóa 381–476 mỗi đống, thỉnh thoảng một trang bị 2 chỉ số. [Đo 1 lần]
+- Các món rơi cùng một trận nằm cách nhau 32 đơn vị, ví dụ Xu khóa ×420 @466 và Gỗ ×6 @498. [Đo]
+- Bot TS ghi danh sách này theo tên khi vào map: sự kiện `ground_items` của `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#quét-map)).
 
 <a id="đồ-đã-thấy"></a>
 
@@ -227,13 +264,16 @@ Mã 0 có mẫu rỗng. Mã 6 và 9 khớp popup Nón Âu Lạc ("+4 phòng th�
 ```bash
 npm run items -- --adb=192.168.2.3:5555        # điện thoại đã root, không cần mở game
 npm run items -- --from=<thư mục có it0, it1, itv, offline-a2/>
+npm run items -- --adb=192.168.2.3:5555 --apk=colauloanthe.1.0.3.apk   # thêm ảnh nền cây kỹ năng từ APK
 ```
 
-Lệnh này ([src/items-run.ts](../../../src/items-run.ts)) làm hai việc:
+Lệnh này ([src/items-run.ts](../../../src/items-run.ts)) làm các việc sau:
 - Ghi lại `data/items.json`.
 - Giải mã `offline-a2/i*.dat` thành PNG, rồi đổi sang WebP trong `data/icons/` bằng `cwebp`. `--png=<thư mục>` giữ thêm các PNG.
+- Cắt `offline-a2/skill<hệ>.dat` và `skill<hệ>grey.dat` thành từng icon kỹ năng trong `data/icons/skills/` ([tab Kỹ năng](12-skills-items.md#tab-kỹ-năng)).
+- Với `--apk`, giải mã thêm ảnh nền cây kỹ năng `assets/x1/skill/tree-skill.dat`, ghi ra `data/icons/skills/tree.webp`.
 
-`--adb` dùng `su` chép các file trong `/data/data/com.lotasoft.colauloanthe/files/dyncache/` sang `/data/local/tmp`, `adb pull` về, rồi xoá bản chép trên máy. Không dùng `adb exec-out su -c cat`: đường đó đổi mỗi byte `0a` thành `0d 0a`, làm `it1` dài thêm 29 byte và lệch bản ghi. Khi game cập nhật bảng, `itv` (hiện 18) có lẽ đổi theo. [Đo]
+`--adb` dùng `su` chép các file cần dùng trong `/data/data/com.lotasoft.colauloanthe/files/dyncache/` sang `/data/local/tmp`, `adb pull` về, rồi xoá bản chép trên máy. Không dùng `adb exec-out su -c cat`: đường đó đổi mỗi byte `0a` thành `0d 0a`, làm `it1` dài thêm 29 byte và lệch bản ghi. Khi game cập nhật bảng, `itv` (hiện 18) có lẽ đổi theo. [Đo]
 
 Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS dùng tên đồ ở hai chỗ:
 - `npm run quest` ghi túi đồ mỗi khi đổi (`s2c/1187`, sự kiện `inventory`).
@@ -241,7 +281,7 @@ Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS
 
 ## Chưa rõ
 
-- `c2s/1188` chưa gửi thử: server trả gì khi nhặt được hoặc không được; có bắt đứng gần hòm không.
+- `c2s/1188`: server trả gì khi nhặt không được; có bắt đứng gần hòm không; món vào túi có kèm `s2c/1187` không.
 - Ai được nhặt món người khác làm rơi, sau bao lâu; tỉ lệ rơi theo quái.
 - Loại thực thể thứ ba trong `sqhz.a17` (gửi `c2s/1181`).
 - Phẩm chất nằm ở trường nào; trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.

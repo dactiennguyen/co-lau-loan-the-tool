@@ -175,7 +175,23 @@ Phần đầu, khối người chơi:
 
 Trong đó: tên `manina` lặp hai lần, cấp `3`, HP `130/130` (`0x82`), hai cặp `0, 100` [Chưa rõ, có thể là nội lực/nộ], chuỗi `"971"`, `"125"` [Chưa rõ] và một uuid riêng của người chơi. Khối quái dùng cùng cấu trúc `u8 u8 u8; i32 cấp; i32; u8; i32 hp; i32 hpMax`, với i32 thứ hai là `100000`. Bản đồ offset đầy đủ của một gói thật ở [07-auto-battle](07-auto-battle.md#s2c22-641-byte). [Đo]
 
-Khối bot của trận Chỉ Huy Sơn Tặc: `"mob872604"`, `"Chỉ Huy Sơn Tặc"`, cấp `10`, HP `202/202` (`0xca`), `100/100`, hai chuỗi `"Chưa có"`, rồi 9 số `2000…2008` (`0x7d0…0x7d8`). Mã kỹ năng 2000 trùng với kỹ năng bot dùng ở s2c/20, nên 9 số này nhiều khả năng là danh sách kỹ năng [Suy luận].
+Khối bot của trận Chỉ Huy Sơn Tặc: `"mob872604"`, `"Chỉ Huy Sơn Tặc"`, cấp `10`, HP `202/202` (`0xca`), `100/100`, hai chuỗi `"Chưa có"`, rồi 9 số `2000…2008` (`0x7d0…0x7d8`). Mã kỹ năng 2000 trùng với kỹ năng bot dùng ở s2c/20, nên 9 số này là danh sách kỹ năng.
+
+<a id="kỹ-năng-trong-trận"></a>
+
+**Kỹ năng của hai bên trong `s2c/22`.** Mỗi khối (người chơi, rồi quái) có `i32 9; 9 × i32 mãKỹNăng` ngay sau hai chuỗi. Đọc 88 gói `s2c/22` đủ byte trong trace bot Q4–Q20 (30–31/10), cộng gói Gà Điên ở [07](07-auto-battle.md#s2c22-641-byte) [Đo]:
+
+| Bên | 9 ô | Ghi chú |
+|---|---|---|
+| manina (88 trận, cấp 4–20) | `1000, -1, -1, -1, -1, -1, -1, -1, -1` | Chỉ học Hỏa Cầu Thuật; `-1` là ô chưa học |
+| Kẻ Gây Rối (cấp 7), Sơn Tặc (cấp 9) | `1000…1008` | Cả cây Hỏa |
+| Sói Xám (cấp 11), Chỉ Huy Sơn Tặc (cấp 10) | `2000…2008` | Cả cây **Lôi** |
+| Cóc Xanh (cấp 13), Gà Điên (cấp 1) | `4000…4008` | Cả cây Thủy |
+
+- Vậy app biết được lúc vào trận nhân vật dùng được kỹ năng nào, và quái thuộc hệ gì. [Đo]
+- Có đủ 9 ô, nhưng vì manina mới học 1 kỹ năng, chưa biết ô `i` có luôn ứng với kỹ năng `1000 × hệ + i` hay các kỹ năng đã học xếp dồn lên đầu. [Chưa rõ]
+- Bốn số `0, 100, 0, 100` trước hai chuỗi có lẽ là nội lực 0/100 và sức mạnh 0/100 lúc vào trận. 100 nội lực bằng 4 thành. [Suy luận]
+- Quái chỉ dùng kỹ năng gốc của cây nó. Trong trace bot: 2000 26 lần (Sói Xám, Chỉ Huy Sơn Tặc), 4000 27 lần (Cóc Xanh), 1000 5 lần (Kẻ Gây Rối); Heo Mọi cũng dùng 2000 ở Q2. Chưa thấy quái dùng kỹ năng nào khác. [Đo]
 
 Phần đuôi:
 
@@ -312,7 +328,7 @@ Ví dụ nước của bot ăn kiếm:
 
 | Kỹ năng | Tên (theo `s2c/30`) | Mục tiêu `k` | Ô bị phá `j` | Đã thấy |
 |---|---|---|---|---|
-| 2000 | [Chưa rõ] | 0 | 1–3 ô rải rác | Chỉ Huy Sơn Tặc (B1), Heo Mọi (Q2): 29 và 20 sát thương |
+| 2000 | Xích Lôi Công ("phá hủy ngẫu nhiên từ 1 đến 3 quân cờ" ở cấp 1) | 0 | 1–3 ô rải rác | Chỉ Huy Sơn Tặc (B1), Heo Mọi (Q2): 29 và 20 sát thương |
 | 1000 | Hỏa Cầu Thuật | 2 | 8: khối 2×2 tính từ mỗi mục tiêu sang phải và xuống dưới | Kẻ Gây Rối (Q4–Q6): 34–39 sát thương |
 
 Ô bị kỹ năng phá mà là viên đặc biệt (`10`) thì viên đó **cũng nổ 3×3**: Q5 seq 41, khối 2×2 chứa Kiếm lửa ở r3c3, server phá 9 ô và gửi 9 viên mới. [Đo] Quái dùng kỹ năng khi nội lực (`stat1` của nó trong danh sách unit) đủ; Kẻ Gây Rối tích tới 34 rồi dùng Hỏa Cầu Thuật, sau đó còn 22. [Đo 1 lần]
@@ -349,7 +365,7 @@ Kỹ năng 1000 (Q4):
 | Bố cục payload | `string battleUuid; i32 seq; i32 skillId` |
 | Cách tìm | Quét hằng số opcode trong các hàm dựng gói `com.mh.sqlq`: `a67` → 15, `y104` → 18, `h73` → 14, `a74` → 19, `s77` → 40, và **`f75(int, int)` → 20**. Disassembly cho thấy `a74` ghi tham số cuối (`seq`) trước rồi tới các tham số theo thứ tự, khớp bố cục `c2s/19` đã biết; `f75` cũng ghi tham số thứ hai trước tham số thứ nhất. [Suy luận tĩnh] |
 | Kết quả | Q9: server trả `s2c/20` với `actor = "manina"`, kỹ năng 1000 Hỏa Cầu Thuật: **62 sát thương** (2 mục tiêu, 7–8 ô), **122** khi thanh sức mạnh đầy, so với 31 cho 3 kiếm. Server tự chọn ô mục tiêu. Nhân vật có kỹ năng này ở cấp 1 (`s2c/9`: `000003e8 00000001 00000019 ff`) [Đo] |
-| Nội lực | Bot dùng khi `stat1 ≥ 25` và server nhận mọi lần thử trong Q9. Giá chính xác [Chưa rõ]; `0x19 = 25` trong `s2c/9` có thể là giá |
+| Nội lực | Hỏa Cầu Thuật tốn **25** (1 thành), theo `nộiLực` của `s2c/30` và chi tiết trên máy ([12](12-skills-items.md#bảng-kỹ-năng)). Bot dùng khi `stat1 ≥ 25`. Trong 71 lần ở trace bot (30–31/10), nội lực trước khi dùng là 25–39, và giảm nhiều nhất 25 (giảm ít hơn khi ô bị phá có viên âm dương). [Đo] |
 
 <a id="trận-tính-giờ"></a>
 

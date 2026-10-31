@@ -16,6 +16,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Bước "Sử dụng điểm kỹ năng" làm bằng gói gì? | **`c2s/1191 (i32 mãKỹNăng; i32 1)`**. Server trả `s2c/10` kiểu 32 (cấp của mọi kỹ năng), `s2c/1191` (điểm tiềm năng, điểm kỹ năng còn lại) và `s2c/34` (bước sau). Bot TS đã làm được bước này với server thật (K1). Xem [Nâng cấp kỹ năng](#c2s-1191). [Đo] |
 | Cộng điểm tiềm năng thế nào? | `c2s/10 (i32 chỉSố; i32 số)`. Số chỉ số theo nút "+" trên bảng: 0 Cường Lực, 1 Nội Lực, 2 Thân Pháp, 3 Thể Lực. Nhưng `stats` của `s2c/9` xếp Thân Pháp trước Nội Lực. manina còn **67 điểm**. Bot TS cộng hết bằng `--stats`. Xem [Điểm tiềm năng](#điểm-tiềm-năng). [Đo P1] |
 | Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
+| Lấy kỹ năng và giao diện tab Kỹ năng thế nào? | Không có gói xin riêng: `s2c/30` (cây của hệ) và đuôi `s2c/9` (cấp từng kỹ năng, điểm) đến lúc đăng nhập. `npm run skills` in cả cây. Icon nằm ở `offline-a2/skill<hệ>.dat`, ảnh nền cây ở APK; repo có bản WebP ở `data/icons/skills/`. Xem [Tab Kỹ năng](#tab-kỹ-năng). [Đo] |
 | Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Mở túi trong game không gửi gói nào. `npm run bag` đăng nhập và in cả hai. Xem [Túi đồ và trang bị](#túi-đồ) và [Cách lấy](#cách-lấy-túi-đồ). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
 | Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, dùng trong trận bằng nút Túi đồ hoặc ngoài trận bằng nút Sử dụng. Gói dùng bình [Chưa rõ]. Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
@@ -80,9 +81,151 @@ i32 n; n × {
 - **Sát thương Hỏa Cầu Thuật** theo chi tiết trên máy: cấp 1 là 11, cấp 2 là 19, cấp 3 là 27, cấp 4 là 35 (+8 mỗi cấp). Trận Q9 đo 62 sát thương ở cấp 1, nên con số trong mô tả chưa tính tấn công của nhân vật. [Đo hai nguồn; công thức Chưa rõ]
 - Mã kỹ năng này cũng là `skillId` của `c2s/20` khi dùng kỹ năng trong trận. [Đo]
 - Cây kỹ năng chia 3 nhánh từ Hỏa Cầu Thuật: 1001 → 1002, 1003 → 1004 → 1005, 1006 → 1007 → 1008. [Đo]
-- **Cây hệ Thủy** (K1, `c2s/30 (4)`): 4000 Băng Tiễn Thuật, 4001 Hàn Lưu Thánh Thủy, 4002 Độc Thủy Ám Thuật, 4003 Băng Đao Kích, 4004 Nghịch Thủy Hàn Kiếm, 4005 Băng Long Chưởng, 4006 Tuyết Sơn Áp Đỉnh, 4007 Bách Băng Chi Kiếm, 4008 Mưa Sao Băng. Mỗi kỹ năng tối đa 20 cấp; 4000 cấp 1 tốn 1 điểm. [Đo]
-- Hệ Lôi có lẽ là một trong hai giá trị `field01` 2 và 3. Chưa có nhân vật để đối chiếu. [Chưa rõ]
+- **Cây Lôi và cây Thủy**: `c2s/30 (2)` và `c2s/30 (4)` (Tiheo1, 31/10; `npm run skills -- --trees`). Server trả cây được xin, dù nhân vật thuộc hệ nào. Cả ba cây có cùng quan hệ học trước (1, 3, 6 cần 0; 2 cần 1; 4 cần 3; 5 cần 4; 7 cần 6; 8 cần 7), cùng điểm, cấp và nội lực từng cấp; chỉ khác hiệu ứng. Bản đủ 20 cấp ở [data/skills.json](../../../data/skills.json). [Đo]
+
+Cây Lôi:
+
+| Mã | Kỹ năng | Học trước | Cấp 1: điểm, cấp nhân vật, nội lực | Cấp 1 | Cấp 20 |
+|---:|---|---|---|---|---|
+| 2000 | Xích Lôi Công |  | 1, 2, 25 | Tấn công và gây 11 sát thương cho đối phương, đồng thời phá hủy ngẫu nhiên từ 1 đến 3 quân cờ. | Tấn công và gây 168 sát thương cho đối phương, đồng thời phá hủy ngẫu nhiên từ 12 đến 14 quân cờ. |
+| 2001 | Kim Cang Hộ Thể | 2000 | 2, 10, 50 | Tăng 10 lực phòng thủ cho nhân vật trong 6 lượt. | Tăng 167 lực phòng thủ cho nhân vật trong 6 lượt. |
+| 2002 | Lôi Thần Nhập Thể | 2001 | 3, 32, 75 | Tăng 15 né tránh cho nhân vật trong 6 lượt. | Tăng 248 né tránh cho nhân vật trong 6 lượt. |
+| 2003 | Lôi Tiễn Công | 2000 | 2, 10, 50 | Tấn công và gây 45 sát thương cho đối phương. | Tấn công và gây 335 sát thương cho đối phương. |
+| 2004 | Chấn Lôi Ma Công | 2003 | 3, 32, 75 | Tấn công và gây 73 sát thương cho đối phương, đồng thời có 35% cơ hội làm đối phương bị giảm 35 lực phòng thủ trong 6 lượt. | Tấn công và gây 363 sát thương cho đối phương, đồng thời có 54% cơ hội làm đối phương bị giảm 135 lực phòng thủ trong 6 lượt. |
+| 2005 | Huyết Lôi Loạn Trảm | 2004 | 4, 60, 100 | Tấn công và gây 45 sát thương cho đối phương, đồng thời có 10% cơ hội hấp thu 70 sinh lực bị mất của đối phương để phục hồi sinh lực cho bản thân. | Tấn công và gây 202 sát thương cho đối phương, đồng thời có 25% cơ hội hấp thu 227 sinh lực bị mất của đối phương để phục hồi sinh lực cho bản thân. |
+| 2006 | Bách Lôi Uy Vũ | 2000 | 2, 10, 50 | Tấn công và gây 57 sát thương cho đối phương, đồng thời phá hủy 1 hàng ngang các quân cờ. | Tấn công và gây 119 sát thương cho đối phương, đồng thời phá hủy 4 hàng ngang các quân cờ. |
+| 2007 | Thiên Lôi Oanh Kích | 2006 | 3, 32, 75 | Tấn công và gây 55 sát thương cho đối phương, đồng thời phá hủy từ 1 đến 2 vùng 3x4 các quân cờ. | Tấn công và gây 193 sát thương cho đối phương, đồng thời phá hủy từ 2 đến 3 vùng 3x4 các quân cờ. |
+| 2008 | Liên Hoàn Lôi Cầu | 2007 | 4, 60, 100 | Tấn công và gây 45 sát thương cho đối phương, đồng thời phá hủy ngẫu nhiên từ 8 đến 16 quân cờ. | Tấn công và gây 202 sát thương cho đối phương, đồng thời phá hủy ngẫu nhiên từ 33 đến 41 quân cờ. |
+
+Cây Thủy:
+
+| Mã | Kỹ năng | Học trước | Cấp 1: điểm, cấp nhân vật, nội lực | Cấp 1 | Cấp 20 |
+|---:|---|---|---|---|---|
+| 4000 | Băng Tiễn Thuật |  | 1, 2, 25 | Tấn công và gây 11 sát thương cho đối phương, đồng thời phá hủy từ 1 đến 2 vùng 2x2 các quân cờ. | Tấn công và gây 168 sát thương cho đối phương, đồng thời phá hủy từ 2 đến 3 vùng 2x2 các quân cờ. |
+| 4001 | Hàn Lưu Thánh Thủy | 4000 | 2, 10, 50 | Phục hồi 11% sinh lực cho bản thân. | Phục hồi 30% sinh lực cho bản thân. |
+| 4002 | Độc Thủy Ám Thuật | 4001 | 3, 32, 75 | Triệt tiêu 23% năng lượng của kẻ thù. | Triệt tiêu 75% năng lượng của kẻ thù. |
+| 4003 | Băng Đao Kích | 4000 | 2, 10, 50 | Tấn công và gây 45 sát thương cho đối phương. | Tấn công và gây 335 sát thương cho đối phương. |
+| 4004 | Nghịch Thủy Hàn Kiếm | 4003 | 3, 32, 75 | Tấn công và gây 73 sát thương cho đối phương. | Tấn công và gây 363 sát thương cho đối phương. |
+| 4005 | Băng Long Chưởng | 4004 | 4, 60, 100 | Tấn công và gây 45 sát thương cho đối phương, đồng thời có 10% cơ hội hấp thu 70 sinh lực bị mất của đối phương để phục hồi sinh lực cho bản thân. | Tấn công và gây 202 sát thương cho đối phương, đồng thời có 25% cơ hội hấp thu 227 sinh lực bị mất của đối phương để phục hồi sinh lực cho bản thân. |
+| 4006 | Tuyết Sơn Áp Đỉnh | 4000 | 2, 10, 50 | Tấn công và gây 57 sát thương cho đối phương, đồng thời phá hủy 1 vùng 3x3 các quân cờ. | Tấn công và gây 119 sát thương cho đối phương, đồng thời phá hủy 4 vùng 3x3 các quân cờ. |
+| 4007 | Bách Băng Chi Kiếm | 4006 | 3, 32, 75 | Tấn công và gây 55 sát thương cho đối phương, đồng thời phá hủy từ 1 đến 2 vùng 4x4 các quân cờ. | Tấn công và gây 193 sát thương cho đối phương, đồng thời phá hủy từ 1 đến 2 vùng 4x4 các quân cờ. |
+| 4008 | Mưa Sao Băng | 4007 | 4, 60, 100 | Tấn công và gây 45 sát thương cho đối phương, đồng thời phá hủy từ 2 đến 4 vùng 2x2 các quân cờ. | Tấn công và gây 202 sát thương cho đối phương, đồng thời phá hủy từ 11 đến 13 vùng 2x2 các quân cờ. |
+
+- Kỹ năng gốc của cả ba hệ đều gây 11 sát thương ở cấp 1 và 168 ở cấp 20, chỉ khác cách phá quân: Hỏa và Thủy phá vùng 2×2, Lôi phá ngẫu nhiên vài quân. Đúng như đã thấy khi quái dùng 2000 và 4000 trong trận ([05-battle](05-battle.md#s2c-20)). [Đo]
+- Hiệu ứng khác hẳn nhau: Lôi có tăng phòng thủ (2001), tăng né tránh (2002), giảm phòng thủ địch (2004), phá hàng ngang (2006). Thủy có hồi 11–30% sinh lực (4001), triệt tiêu năng lượng địch (4002). Hỏa có biến quân thành kiếm lửa (1001), tăng tấn công (1002). [Đo]
+- **Hệ Lôi là 2.** Game có ba tấm icon kỹ năng `skill1`, `skill2`, `skill4`: tấm 2 toàn tia sét, tấm 1 lửa, tấm 4 băng ([Tab Kỹ năng](#tab-kỹ-năng)). Byte hệ của vật phẩm cũng đánh số như vậy (2 Lôi). Quái hệ Lôi (Sói Xám, Chỉ Huy Sơn Tặc) mang kỹ năng 2000–2008 trong `s2c/22` và dùng 2000 trong trận ([05-battle](05-battle.md#kỹ-năng-trong-trận)). `c2s/30 (2)` trả cây Lôi: 2000 Xích Lôi Công … 2008 Liên Hoàn Lôi Cầu (bảng dưới). [Đo]
 - **Gợi ý cho bot**: Liệt Hỏa Chi Kiếm (1003) gây 45 sát thương, gấp 4 lần Hỏa Cầu Thuật cấp 1, với giá 2 thành nội lực. Nó học được từ cấp 10 bằng 2 điểm. [Suy luận]
+
+<a id="tab-kỹ-năng"></a>
+
+## Tab Kỹ năng: cách lấy và cách vẽ
+
+Mở trên máy: Bản thân → Kỹ năng. Ảnh chụp ở E1 (manina cấp 21, Hỏa Cầu Thuật cấp 1, 19 điểm):
+
+| Phần | Lấy từ |
+|---|---|
+| Cây 9 ô (giữa màn) | Ảnh nền `tree-skill` cộng icon của từng kỹ năng, xem [Vị trí các ô](#vị-trí-các-ô) |
+| Icon màu hay xám | Màu khi cấp > 0, xám khi chưa học. Cấp lấy ở danh sách kỹ năng của đuôi `s2c/9`, sau đó là `s2c/10` kiểu 32 |
+| Khung góc màu cam | Ô đang chọn. Có lẽ là ảnh `assets/info/skilltree.dat` trong APK (82 × 200, các đoạn khung cam) [Suy luận] |
+| "Điểm kỹ năng: 19" | `điểmKỹNăng` của `s2c/9`, sau đó là `s2c/1191` |
+| Bảng chi tiết bên phải | Tên, mô tả, điều kiện của từng cấp lấy từ `s2c/30`. Xem [Bảng chi tiết](#bảng-chi-tiết-kỹ-năng) |
+| Nút "Nâng cấp" | Gửi `c2s/1191 (mã, 1)`, xem [Nâng cấp kỹ năng](#c2s-1191) |
+
+Giống túi đồ, không có gói nào để hỏi kỹ năng. `s2c/30` (cây của hệ) và `s2c/9` (cấp từng kỹ năng, điểm) đến lúc đăng nhập. Mở tab không gửi gì. [Đo]
+
+Trong trận, `s2c/22` mở trận ghi 9 ô kỹ năng của mỗi bên (`-1` là ô chưa học), và nhân vật dùng kỹ năng bằng `c2s/20`. Xem [Kỹ năng trong trận](05-battle.md#kỹ-năng-trong-trận) và [c2s/20](05-battle.md#c2s-20).
+
+<a id="vị-trí-các-ô"></a>
+
+### Vị trí các ô
+
+Ảnh nền `assets/x1/skill/tree-skill.dat` trong APK (288 × 347) vẽ sẵn 9 khung 60 × 60 và các mũi tên. Kỹ năng `1000 × hệ + i` nằm ở khung `i`:
+
+```text
+                [0] gốc
+       ┌─────────┼─────────┐
+      [3]        │        [6]
+       │        [1]        │
+      [4]        │        [7]
+       │        [2]        │
+      [5]                 [8]
+```
+
+| `i` | Nhánh | Góc trên trái (x, y) | Hỏa | Thủy |
+|---:|---|---|---|---|
+| 0 | gốc | 114, 0 | Hỏa Cầu Thuật | Băng Tiễn Thuật |
+| 1, 2 | giữa | 114, 155; 114, 243 | Hỏa Kiếm Thuật → Đại Lực Công | Hàn Lưu Thánh Thủy → Độc Thủy Ám Thuật |
+| 3, 4, 5 | trái | 0, 111; 0, 199; 0, 287 | Liệt Hỏa Chi Kiếm → Phích Lịch Hỏa Sư → Hỏa Long Chưởng | Băng Đao Kích → Nghịch Thủy Hàn Kiếm → Băng Long Chưởng |
+| 6, 7, 8 | phải | 227, 111; 227, 199; 227, 287 | Thiên Hỏa Kích → Dung Nham Địa Ngục → Hỏa Phụng Liêu Nguyên | Tuyết Sơn Áp Đỉnh → Bách Băng Chi Kiếm → Mưa Sao Băng |
+
+- Vị trí đo từ khung xanh trong ảnh nền. Chỗ của từng kỹ năng khớp ảnh chụp E1. Ghép icon theo bảng này ra đúng cây như trên máy. [Đo]
+- Mũi tên trong ảnh nền nối mỗi ô với ô `họcTrước` của nó trong `s2c/30`: 1001 cần 1000, 1002 cần 1001, 1004 cần 1003… [Đo]
+- Cây Lôi và Thủy có cùng quan hệ học trước như cây Hỏa ([bảng](#bảng-kỹ-năng)), nên mũi tên của ảnh nền cũng khớp, và các kỹ năng của hai cây này xếp theo `i` như cột Thủy. Hai cây này chưa chụp trên máy. [Đo cấu trúc; ảnh Chưa chụp]
+
+**Icon** nằm trong `files/dyncache/offline-a2/` trên máy, mã hoá như icon vật phẩm ([giải mã asset](13-drops-items.md#giải-mã-asset)):
+- `skill<hệ>.dat` là một hàng 9 icon 84 × 84 (ảnh 756 × 84). Ô thứ `i` là icon của kỹ năng `1000 × hệ + i`. Có `skill1` (Hỏa), `skill2` (Lôi), `skill4` (Thủy). [Đo]
+- `skill<hệ>grey.dat` là cùng các icon đó, màu xám, cho kỹ năng chưa học. [Đo]
+- APK có bản nhỏ 42 × 42 ở `assets/x1/skill/`. Icon nút kỹ năng trong trận là `battle_skill.dat` và `battle_skill_disabled.dat` (104 × 104). [Đo]
+
+Repo có các icon đã tách ra từng file: [data/icons/skills/](../../../data/icons/skills/), gồm `<mã>.webp`, `<mã>-grey.webp` và `tree.webp` (ảnh nền). Tổng 55 file, 232 KB.
+
+<a id="bảng-chi-tiết-kỹ-năng"></a>
+
+### Bảng chi tiết
+
+Chạm một ô thì bảng bên phải ghi từng dòng như sau. Phần trong ngoặc nhọn lấy từ `s2c/30`:
+
+```text
+{tên}
+Cấp tối đa: {cấpTốiĐa}
+Cấp hiện tại: {cấp}                       ← đã học: mô tả và nội lực của cấp đang có
+{môTả}
+- Tiêu hao nội lực: {nộiLực / 25} thành nội lực
+Cấp kế tiếp: {cấp + 1}                    ← "Chưa học" nếu cấp 0, rồi mô tả của cấp 1
+{môTả}
+- Tiêu hao nội lực: {nộiLực / 25} thành nội lực
+Điều kiện để học
++ Nhân vật đạt cấp: {cấpNhânVật}
++ Phải học: {tên kỹ năng họcTrước}        ← chỉ khi có họcTrước
++ Tiêu hao: {điểmKỹNăng} điểm kỹ năng
+```
+
+- Đối chiếu từng chữ với ảnh E1: Hỏa Cầu Thuật (đã học, cấp 1), Phích Lịch Hỏa Sư và Hỏa Kiếm Thuật (chưa học). Dòng tên và dòng "Chưa học" màu đỏ khi chưa học. Dòng "Cấp hiện tại" màu xanh. "Cấp kế tiếp" và các dòng điều kiện màu đỏ, kể cả điều kiện đã đủ. [Đo]
+- Ảnh của Hỏa Cầu Thuật bị cắt sau dòng "Điều kiện để học". Hai dòng cuối của kỹ năng đã học suy theo kỹ năng chưa học. Kỹ năng đã tối đa thì có lẽ không có phần "Cấp kế tiếp". [Suy luận]
+
+<a id="cách-lấy-kỹ-năng"></a>
+
+### Cách lấy
+
+**1. Bot TS:** `npm run skills` đăng nhập, in cây rồi ngắt. Ngoài các gói đăng nhập, nó không gửi gì. Phải thoát game trên điện thoại trước, như với [`npm run bag`](#cách-lấy-túi-đồ). Chạy thật ngày 31/10:
+
+```text
+{"event":"character","name":"manina","level":21,"element":"Hỏa","skillPoints":16}
+{"event":"skills","skills":["1000 Hỏa Cầu Thuật 4/20 (gốc): cần cấp 22","1001 Hỏa Kiếm Thuật 0/20 (giữa 1): học được, 2 điểm",
+  "1002 Đại Lực Công 0/20 (giữa 2): cần cấp 32, phải học Hỏa Kiếm Thuật", …]}
+```
+
+`--panel` in thêm bảng chi tiết của mọi kỹ năng, `--panel=1004` chỉ in một kỹ năng:
+
+```text
+{"event":"skill_panel","id":1004,"icon":"data/icons/skills/1004-grey.webp","lines":["Phích Lịch Hỏa Sư","Cấp tối đa: 20","Chưa học",
+  "Tấn công và gây 73 sát thương cho đối phương.","- Tiêu hao nội lực: 3 thành nội lực","Điều kiện để học","+ Nhân vật đạt cấp: 32",
+  "+ Phải học: Liệt Hỏa Chi Kiếm","+ Tiêu hao: 3 điểm kỹ năng"]}
+```
+
+`--trees` xin thêm `c2s/30` cho cả ba hệ (1, 2, 4) rồi ghi [data/skills.json](../../../data/skills.json): 27 kỹ năng, mỗi kỹ năng 20 cấp (mô tả, điểm, cấp nhân vật, nội lực), một kỹ năng một dòng. Gói `c2s/30` này giống gói app gửi lúc đăng nhập, chỉ khác byte hệ.
+
+Code: [src/skills.ts](../../../src/skills.ts) (`SKILL_TREE` vị trí ô, `skillTree` trạng thái từng ô, `skillPanel` bảng chi tiết) và [src/skills-run.ts](../../../src/skills-run.ts). Bot làm nhiệm vụ cũng dùng `skillTree` để chọn kỹ năng nâng cấp.
+
+**2. Trên Android, bắt gói:** như [túi đồ](#cách-lấy-túi-đồ). Gắn Frida khi game đang ở màn đăng nhập, rồi bấm đăng nhập để ghi `s2c/9` và `s2c/30`. Đọc bằng `characterSkills` ([src/protocol.ts](../../../src/protocol.ts)) và `skillTable` ([src/world.ts](../../../src/world.ts)).
+
+**3. Icon và ảnh nền, từ file của game:**
+
+```bash
+npm run items -- --adb=192.168.2.3:5555 --apk=colauloanthe.1.0.3.apk
+```
+
+Lệnh này chép `skill*.dat` từ máy đã root (không cần mở game), cắt từng icon, đổi sang WebP trong `data/icons/skills/`. Với `--apk`, nó lấy thêm ảnh nền cây từ APK ([cách lấy lại dữ liệu](13-drops-items.md#cách-lấy-lại-dữ-liệu)).
 
 <a id="điểm-tiềm-năng"></a>
 
@@ -178,7 +321,7 @@ Bảng **Bản thân → Trang bị** (31/10) có 8 ô quanh nhân vật:
 | Hình đầu người | Cánh (hình đôi cánh) |
 | Huy hiệu ngôi sao (danh hiệu?) | Thú cưng (hình con vật) |
 
-- Hai ô đo được là 0 (nón) và 2 (vũ khí), đúng bằng `loại` của bảng vật phẩm (0 nón, 2 vũ khí). Có lẽ số ô = `loại`: 1 áo, 3 nhẫn, 4 cánh, 5 huyết châu hay thú cưng, 7 danh hiệu. Ô 6 (hình đầu người) không có loại nào trong `it1`. [Đo ô 0, 2; còn lại Suy luận]
+- Số ô = `loại` của bảng vật phẩm. manina có ô 0 (nón) và 2 (vũ khí). symap (Tiheo1, R3) có ô 0 Nón Hào Kiệt, 1 Áo Thuật Sĩ, 2 Chiến Đao, 3 Nhẫn Đại Hiệp, 5 Thú cưng Chồn nhỏ (+19 cường lực). Ô 4 có lẽ là cánh, 7 là danh hiệu. Ô 6 (hình đầu người) không có loại nào trong `it1`. [Đo ô 0, 1, 2, 3, 5; còn lại Suy luận]
 - Ô "Ẩn Nón" dưới nhân vật chỉ ẩn nón khi vẽ, món vẫn mặc. [Đo]
 
 <a id="hiển-thị-vật-phẩm"></a>
@@ -306,7 +449,7 @@ Gói dùng bình [Chưa rõ]. Trong [bảng hàm dựng](../c2s-builders.md#bả
 ## Chưa rõ
 
 - Nghĩa hai trường của `c2s/48`, và biến thể `a46` (`u8; i32; i32`).
-- Gói dùng bình, nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã đọc tĩnh nhưng chưa gửi thử ([13](13-drops-items.md#c2s-1188)).
+- Gói dùng bình, nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã bắt trên máy (P3), bot chưa gửi thử ([13](13-drops-items.md#p3)).
 - `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều".
 - Sau sửa đồ, chỉ số có đổi trước lần `s2c/10` sau (sau trận, đăng nhập lại) không.
 - Cây kỹ năng và giá trị `field01` của hệ Lôi.

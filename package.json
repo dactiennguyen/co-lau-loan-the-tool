@@ -13,6 +13,7 @@
     "scan": "node --experimental-strip-types src/map-scan-run.ts",
     "items": "node --experimental-strip-types src/items-run.ts",
     "bag": "node --experimental-strip-types src/bag-run.ts",
+    "skills": "node --experimental-strip-types src/skills-run.ts",
     "test:scenario": "node --experimental-strip-types test/scenario-runner.ts",
     "check:apk": "node --experimental-strip-types src/check-apk.ts",
     "check:capture": "node --experimental-strip-types src/check-capture.ts",

@@ -219,6 +219,14 @@ export function bag(r: Reader) {
 }
 export function inventory(payload: Uint8Array) { const r = new Reader(payload); return finish(r, bag(r), 's2c/1187'); }
 
+/** s2c/46 after s2c/9 and whenever money changes (quest rewards): the three currencies of the Bản thân panel, as i64.
+ * E1 (31/10): 500, 7370, 0 while the panel read 500 Xu, 7.370 Xu khoá, 0 Lượng. Vàng, the gold bar that turns into Xu
+ * khoá at 10.000, is `coin` of s2c/9 and s2c/10 kind 4 (04-push.md#s2c-46). */
+export function currencies(payload: Uint8Array) {
+  const r = new Reader(payload), label = r.string(), i64 = () => Number(r.take(8).readBigInt64BE());
+  return finish(r, { label, xu: i64(), xuKhoa: i64(), luong: i64() }, 's2c/46');
+}
+
 /** s2c/42 answering c2s/42 at login: a label ("test dong 1"), two unknown ints (42, 3), then the bag. */
 export function characterExtra(payload: Uint8Array) {
   const r = new Reader(payload), label = r.string(), fields = [r.i32(), r.i32()];

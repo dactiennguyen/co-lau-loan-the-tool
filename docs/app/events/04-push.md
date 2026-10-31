@@ -198,10 +198,10 @@ Nguồn: A2: packet đọc từ native reader, record 93.
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | currency_notice |
-| Xuất hiện khi | Sau s2c/9 |
+| Xuất hiện khi | Sau s2c/9; khi tiền đổi (trả nhiệm vụ) |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | Prefix string update Xu; opaque tail |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong |
+| Độ chắc chắn | Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng |
 | Độ dài payload mẫu | 37 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
@@ -210,9 +210,20 @@ Nguồn: A2: packet đọc từ native reader, record 93.
 00000009757064617465205875000000000000000000000000000004ec0000000000000000
 ```
 
-Nguồn: A2: packet đọc từ native reader, record 145.
+Nguồn: A2: packet đọc từ native reader, record 145. Đọc ra: Xu 0, Xu khoá 1260 (`4ec`), Lượng 0.
 
 Điểm quan sát: Quan sát giá trị sqi trả về từ com.mh.sqnw.e(), trước handler làm thay đổi cursor c.
+
+**Ba loại tiền** [Đo]: E1 (điện thoại, 31/10, manina) nhận lúc đăng nhập
+
+```text
+00000009 "update Xu" 00000000000001f4 0000000000001cca 0000000000000000
+```
+
+tức Xu 500, Xu khoá 7370, Lượng 0, đúng bảng Bản thân lúc đó (500 Xu, 7.370 Xu khoá, 0 Lượng; [12-skills-items](12-skills-items.md#túi-đồ)). Các phiên khác cho Xu khoá 1920, 2060, 2770, 3540, 4360, 6490 cùng Xu 0 hoặc 500. Xu 500 khác 0 nên thứ tự Xu rồi Lượng không lẫn được. Hàm đọc: `currencies` trong [src/world.ts](../../../src/world.ts). Gói cũng đến khi tiền đổi giữa phiên: P3 (Tiheo1 ở M10, 31/10) nhặt một đống Xu khoá bằng `c2s/1188`, và 52–56 ms sau có `s2c/46` (Xu 4.895.400, Xu khoá 5.480.412, Lượng 8.581, đọc hết 37 byte) rồi `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" ([13-drops-items](13-drops-items.md#nhặt-đồ)). App Rust hiện ô Tiền đúng với server thật ngày 31/10 (nick cấp 15: 0, 2.630, 0).
+
+- **Xu**: tiền ở Chợ trời, góp quân lương. **Xu khoá**: cửa hàng NPC, cường hoá; nhặt từ quái (mã 41, [13-drops-items](13-drops-items.md#đồ-đã-thấy)). **Lượng**: tiền nạp (Cẩm nang).
+- **Vàng** không nằm ở đây: đó là `coin` của `s2c/9` và `s2c/10` kiểu 4 (thanh "2664/10000" trên bảng Bản thân), đủ 10.000 thì tự đổi thành 10.000 Xu khoá ([user-data](../user-data.md#đuôi-s2c9)).
 
 **Diễn giải từ byte** (tên key là nhãn của tài liệu):
 

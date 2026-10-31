@@ -301,4 +301,4 @@ Trong L1, ai đó dùng chính điện thoại để trả nhiệm vụ, nhận 
 - `field14` của `1262`; trạng thái 2, 3, 4, 8; `cờ[0]`, `cờ[1]`, `cờ[4]`.
 - Ý nghĩa của khối ngoại hình, `loại`, hiệu ứng 9300–9302, `i32` trước tên sứ quân.
 - Gói gửi chat Thế giới và chat riêng.
-- Ai được nhặt và trong bao lâu. Gói nhặt `c2s/1188 (uuid)` mới đọc tĩnh, chưa gửi thử ([13-drops-items](13-drops-items.md#c2s-1188)).
+- Ai được nhặt và trong bao lâu. Gói nhặt `c2s/1188 (uuid)` đã bắt trên máy (P3), nhưng chưa thử với món người khác làm rơi ([13-drops-items](13-drops-items.md#p3)).

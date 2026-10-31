@@ -4,10 +4,11 @@ import { createCipheriv } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol.ts';
-import { characterExtra, characterGear, groundItems } from '../src/world.ts';
+import { characterExtra, characterGear, currencies, groundItems } from '../src/world.ts';
 import { QuestBot } from '../src/quest.ts';
 import { decodeAsset, Items, parseItemTable, parseStatTable, RETIRED } from '../src/items.ts';
 import { MapScanner } from '../src/map-scan.ts';
+import { buildRequest, decodeEvent } from '../src/events.ts';
 import { emptyAtlas } from '../src/atlas.ts';
 
 const items = Items.load();
@@ -31,6 +32,12 @@ test('data/items.json: 646 items with id = index, names seen on the phone, 17 st
     [54, 'Nón Âu Lạc'], [147, 'Áo Hào Kiệt'], [261, 'Rìu Âu Lạc'], [306, 'Nhẫn Trơn'], [412, 'Đá cấp 2'], [415, 'Đá cấp 5']] as const) assert.equal(items.name(id), name);
   assert.equal(Object.keys(book.stats).length, 17);
   assert.equal(items.name(9999), '#9999');
+});
+
+test('s2c/46 holds Xu, Xu khoá and Lượng as i64 (E1: 500, 7370, 0 like the Bản thân panel)', () => {
+  assert.deepEqual(currencies(Buffer.from(fixtures.currencies['s2c/46 E1'], 'hex')), { label: 'update Xu', xu: 500, xuKhoa: 7370, luong: 0 });
+  const a2 = fixtures.scenario.stages.flatMap((st: any) => st.responses ?? []).find((r: any) => r.opcode === 46)?.hex;
+  if (a2) assert.equal(currencies(Buffer.from(a2, 'hex')).xuKhoa, 1260);
 });
 
 test('bag at login (s2c/42, E1) reads as the bag on the phone', () => {
@@ -82,4 +89,13 @@ test('map scanner names the items on the ground of each map (s2c/1184)', () => {
   assert.equal(groundItems(payload).items.length, 2);
   new MapScanner({ atlas: emptyAtlas(), log: e => events.push(e), items }).onPacket(1184, payload);
   assert.deepEqual(events.find(e => e.event === 'ground_items')?.items, ['Xu khóa ×123 @1391,640', 'Nhẫn Hào Kiệt (+6 sức tấn công, +10 cường lực) @1455,640']);
+});
+
+test('pickup on the phone (P3, Tiheo1 at M10): c2s/1188 carries the uuid of the chest, the server answers with money, a notice and the removal', () => {
+  const uuid = 'cd89eb9a-24f3-4cfd-a3e2-66046f4b11f5', sent = '00000024' + Buffer.from(uuid).toString('hex');
+  assert.equal(buildRequest(1188, { uuid }).toString('hex'), sent);
+  assert.deepEqual(decodeEvent('c2s', 1188, Buffer.from(sent, 'hex')).fields, { uuid });
+  // 52, 54 and 56 ms after it: s2c/46 (Xu, Xu khóa, Lượng), s2c/1256, s2c/1183 for the whole map.
+  assert.deepEqual(decodeEvent('s2c', 1256, Buffer.from('000000002842e1baa16e2076e1bbab61206e68e1baad6e20c491c6b0e1bba36320343734205875206b68c3b361', 'hex')).fields?.text, 'Bạn vừa nhận được 474 Xu khóa');
+  assert.deepEqual(decodeEvent('s2c', 1183, Buffer.from('000000034d3130' + sent, 'hex')).fields, { mapId: 'M10', uuid });
 });

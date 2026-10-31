@@ -8,7 +8,8 @@ import { BattleRunner, type BattleEnd } from './battle-runner.ts';
 import { buildRequest } from './events.ts';
 import type { SessionApi, WorldSession } from './client.ts';
 import { ITEM_ELEMENTS, type Items } from './items.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterGear, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
+import { skillTree } from './skills.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterGear, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -242,7 +243,13 @@ export class QuestBot implements WorldSession {
         break;
       // Empty, at the end of a battle and after c2s/40 (05-battle).
       case 1214: if (this.battle?.surrendered) this.left(1214); break;
-      case 46: this.log('currency', { payloadHex: payload.toString('hex') }); break;
+      // Xu, Xu khóa, Lượng after a change: login, a quest reward, a pickup (P3).
+      case 46: {
+        let money: ReturnType<typeof currencies> | undefined;
+        try { money = currencies(payload); } catch { this.log('currency', { payloadHex: payload.toString('hex') }); break; }
+        this.log('currency', { xu: money.xu, xuKhoa: money.xuKhoa, luong: money.luong });
+        break;
+      }
       case 1187: {
         // The whole bag after it changed: a quest reward, a repair, an item picked up.
         let bag: ReturnType<typeof inventory> | undefined;
@@ -386,11 +393,7 @@ export class QuestBot implements WorldSession {
   /** Skills of s2c/30 whose next level the character can take now (prerequisite learned, character level and skill points
    * enough), in the order of the tree, the root first. */
   upgradable() {
-    const level = (id: number) => this.skillLevels.get(id) ?? 0;
-    return this.skills.filter(k => {
-      const next = k.levels[level(k.id)];
-      return next !== undefined && (k.prerequisite < 0 || level(k.prerequisite) > 0) && next.requiredLevel <= this.level && next.cost <= (this.skillPoints ?? 0);
-    });
+    return skillTree(this.skills, this.skillLevels, { level: this.level, skillPoints: this.skillPoints ?? 0 }).filter(k => !k.blockers.length).map(k => k.skill);
   }
 
   private fight(targets: Mob[], reason: string, opcode: 15 | 1178 = 15) {

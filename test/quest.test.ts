@@ -389,3 +389,9 @@ test('quest bot: --stats=auto raises the main stat of the element and keeps a po
   assert.deepEqual([statSends(none), none[0]?.opcode, events.filter(e => e.event === 'stat_plan_unknown_element').length], [[], 13, 1]);
   t.mock.timers.tick(10000);
 });
+
+test('quest bot logs Xu, Xu khóa and Lượng of s2c/46 (P3, after a pickup)', () => {
+  const events: Record<string, any>[] = [];
+  new QuestBot({ maxFights: 1, log: e => events.push(e) }).onPacket(46, Buffer.from('0000000975706461746520587500000000004ab2a80000000000539fdc0000000000002185', 'hex'));
+  assert.deepEqual(events.find(e => e.event === 'currency'), { kind: 'quest', event: 'currency', at: events[0].at, xu: 4895400, xuKhoa: 5480412, luong: 8581 });
+});

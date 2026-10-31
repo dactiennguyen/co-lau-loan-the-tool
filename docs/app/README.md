@@ -17,7 +17,7 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Các bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân | [Bảng chức năng](events/11-panels.md) |
 | Kỹ năng, điểm tiềm năng, túi đồ, sửa đồ, luật trong Cẩm nang | [Kỹ năng và vật phẩm](events/12-skills-items.md) |
 | Đồ rơi, nhặt đồ, tên của 646 vật phẩm và 17 mã chỉ số, giải mã icon (dữ liệu game trên máy) | [Đồ rơi và vật phẩm](events/13-drops-items.md) |
-| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 119 opcode chưa thấy | [Opcode map](opcode-map.md) |
+| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 118 opcode chưa thấy | [Opcode map](opcode-map.md) |
 | Mọi gói client gửi được: hàm dựng native, opcode, kiểu từng trường | [Hàm dựng gói](c2s-builders.md) |
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |

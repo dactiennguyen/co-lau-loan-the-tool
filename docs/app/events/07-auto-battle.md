@@ -307,14 +307,15 @@ Từ seq 3 tới seq 8 bàn không còn kiếm nào ăn được. Bot chọn nh�
 ```text
    0  0000 00000006 "manina" 00000006 "manina"                 2 byte đầu; tên; tên hiển thị
   22  00 00 01 00000003 00000000 00 00000082 00000082           3 byte; cấp 3; i32 0; u8 0; HP 130/130
-  42  00000000 00000064 00000000 00000064                       0, 100, 0, 100  [Chưa rõ]
-  58  00000004 "1097" 00000003 "125" 00000009 000003e8          [Chưa rõ]
-  81  ffffffff × 8, 00016120, …, uuid người chơi "d3d51a41-…", bảng màu ARGB (ff525252 ffbfbfbf …)   [Chưa rõ]
+  42  00000000 00000064 00000000 00000064                       nội lực 0/100, sức mạnh 0/100  [Suy luận]
+  58  00000004 "1097" 00000003 "125"                            [Chưa rõ]
+  73  00000009 000003e8 ffffffff × 8                           9 ô kỹ năng: 1000, còn lại -1 (chưa học)  [Đo]
+ 113  00016120, …, uuid người chơi "d3d51a41-…", bảng màu ARGB (ff525252 ffbfbfbf …)   [Chưa rõ]
  369  00000005 "mob10" 0000000a "Gà Điên"                       khối quái
  392  01 00 04 00000001 000186a0 00 00000032 00000032           3 byte; cấp 1; i32 100000; u8 0; HP 50/50
  412  00000000 00000064 00000000 00000064                       0, 100, 0, 100
  428  00000009 "Chưa có" 00000009 "Chưa có"
- 454  00000009 00000fa0 … 00000fa8                              9 kỹ năng 4000…4008  [Suy luận]
+ 454  00000009 00000fa0 … 00000fa8                              9 kỹ năng 4000…4008  [Đo]
  494  24 byte 0, ffffffff, 9 byte 0                            [Chưa rõ]
  531  00000024 "c451ecac-ea99-42b8-a22a-c5c72e898659"           uuid trận
  571  00000040 + 64 byte bàn (575–638)                          xem dưới
@@ -371,7 +372,7 @@ Khi thua (B1), 16 byte sau `end` đều là 0. Đối chiếu s2c/10 trước v�
 
 ## Chưa biết
 
-- Giá nội lực chính xác của Hỏa Cầu Thuật và các kỹ năng khác của nhân vật.
+- Giá nội lực của kỹ năng ngoài Hỏa Cầu Thuật khi dùng trong trận (bảng `s2c/30` ghi 50–100, chưa dùng thử).
 - Mã viên đặc biệt khác `10`.
 - Công thức sát thương.
 - Quái có biến mất hoặc hồi sinh phía server sau khi bị giết không.
