@@ -6,6 +6,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#n
 - **K2**: bot TS đánh một trận Cóc Xanh với manina ở M2.
 - **P2**: Frida trên điện thoại (ghi mọi gói, hook 114 hàm dựng), thử bắt gói nhặt đồ. Chưa bắt được, xem [Nhặt đồ](#nhặt-đồ).
 - **P3**: Frida trên điện thoại với Tiheo1 (symap, M10): bắt được gói nhặt đồ và câu trả lời của server; xem [P3](#p3).
+- **K3**: bot TS với Tiheo2 (Ttuananh, cấp 15, M1): nhặt từ xa, nhặt món đã mất, và thử nhặt đồ người khác ở nhiều mốc tuổi trong 6 phút; xem [K3](#k3).
 - **T3**: đọc tĩnh hàm nạp asset và lớp AES, rồi giải mã thật 246 icon; xem [Giải mã asset](#giải-mã-asset).
 - **T2**: đọc tĩnh `libgdx-flashds.so`, dựng đồ thị gọi JNI của cả thư viện: hàm nào gọi phương thức Java nào. Từ đó tìm ra gói nhặt đồ, xem [Nhặt đồ](#nhặt-đồ).
 - Thêm các gói vật phẩm trên đất của E1, E2 ([12-skills-items](12-skills-items.md)).
@@ -20,7 +21,8 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 |---|---|
 | Đồ rơi ra sao? | Sau trận thắng quái, hòm đồ "có thể rơi xuống đất" (Cẩm nang). Server báo cho cả map: `s2c/1182` khi có món rơi, `s2c/1183` khi món mất (bị nhặt hoặc hết hạn), `s2c/1184` là danh sách món đang nằm trên đất lúc vào map hay vào khu. Mỗi món hết hạn khoảng 600 s sau khi rơi. Xem [Đồ trên đất](#đồ-trên-đất). [Đo] |
 | Nhặt thế nào? | Trên máy: chạm hòm rồi bấm **Nhặt**. Nút đó gửi **`c2s/1188` = `string uuid`**, uuid của món trong `s2c/1182`/`1184`. Đã bắt trên máy thật (P3, 31/10): server trả trong 52–56 ms `s2c/46` (số Xu mới), `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" và `s2c/1183` (món rời khỏi đất, báo cả map). Xem [Nhặt đồ](#nhặt-đồ). [Đo] |
-| Nhặt đồ người khác được không? | Bản ghi đồ trên đất không có trường chủ, và chưa thấy client kiểm tra chủ trước khi hỏi "Nhặt". Vậy server quyết; luật chưa đo. [Đo tĩnh; luật Chưa rõ] |
+| Nhặt đồ người khác được không? | **Được, sau khoảng 16–17 s.** Trước đó server trả `s2c/1256` "Không thể nhặt vật phẩm của người khác" (16 lần thất bại khi món 5–7 s và 16 s tuổi; nhặt được ở 17, 18, 31 s). Bản ghi đồ trên đất không có trường chủ, server tự giữ. Xem [K3](#k3). [Đo] |
+| Phải đứng gần hòm không? | **Không.** Bot đứng ở (90, 640) vẫn nhặt được món ở (1520, 640), cách 1430 px, và món ở (3413, 192). [Đo K3] |
 | Đồ gì rơi? | 106 món đã thấy, gần hết ở M2: Xu khóa (mã 41) 54 đống, mỗi đống 124–250; Đá cấp 1–3 (411–413) 28 viên; Trứng Gà (3) 7 quả; 12 món trang bị cấp 1 (nón, áo, nhẫn, vũ khí), mỗi món 2 chỉ số. M1: 4 đống Xu khóa, 1 Đá cấp 2. M25 không có quái. Xem [Đồ đã thấy](#đồ-đã-thấy). [Đo] |
 | Mã 41 là gì? | **Xu khóa**. Trước đây đoán là tiền ([09](09-players-chat.md#ground-items)). Cẩm nang: "Kiếm Xu khóa: nhặt Xu khóa quái rơi". [Đo] |
 | Tên vật phẩm lấy ở đâu? | Không có trong APK, cũng không có gói nào khi mở popup vật phẩm. Game tải bảng `it1` về máy: 646 món (407 món "Ngừng dùng"), mỗi món có tên, mô tả, loại, cấp mặc, hệ, độ bền, số xếp chồng. Repo có bản sao ở `data/items.json`. Xem [Bảng vật phẩm](#bảng-vật-phẩm). [Đo] |
@@ -85,14 +87,29 @@ Hai ứng viên cũ không phải gói nhặt:
 | 56 | `s2c/1183` | `string "M10"; string "cd89eb9a-…"` | Hòm rời khỏi đất, gửi cho cả map |
 
 - Bố cục `c2s/1188` khớp đọc tĩnh, và uuid gửi đi đúng là uuid của bản ghi đồ trên đất. [Đo]
-- Xu khóa vào ví nên server gửi `s2c/46` chứ không gửi `s2c/1187`. Món vào túi có lẽ đi kèm `s2c/1187`, nhưng chưa đo. [Đo Xu khóa; món vào túi Suy luận]
+- Xu khóa vào ví nên server gửi `s2c/46` chứ không gửi `s2c/1187`. Món vào túi đi kèm `s2c/51`, cũng không phải `s2c/1187` ([K3](#k3)). [Đo]
 - Trước đó người cầm máy đã tự nhặt một hòm Xu khóa khác, lúc Frida chưa gắn. Xu khóa trên bảng Bản thân tăng tổng cộng 867, tức hòm kia có 393. [Đo]
 - Hòm nằm sẵn cạnh nhân vật lúc vào map, và symap chưa đánh trận nào trong phiên này. Vậy hòm có lẽ do người khác làm rơi, nhưng chưa chắc. [Suy luận]
 - Trong 80 s ghi, map M10 còn rơi thêm 7 món từ trận của người khác: Xu khóa ×382 và ×476, Quặng Bậc 1, Trứng Gà, Đá cấp 4, Nhẫn Thái Cực. Món nào cũng hết hạn sau 601 s. [Đo]
 
-Nhặt không được thì server trả gì, và có phải đứng gần hòm không: chưa đo. [Chưa rõ]
+<a id="k3"></a>
 
-**Ai được nhặt.** Bản ghi đồ trên đất không có trường chủ [Đo]. Phép kiểm tra đầu tiên `sqgu.a(sqgu)` (ngen `a5`) chỉ đọc byte `a`, cờ `F` của hòm và xem hòm có trong mảng `sqil.i` không (có lẽ là danh sách đồ trên map). Chưa thấy chỗ nào so tên người chơi. Có lẽ ai cũng thấy nút "Nhặt" trên mọi hòm. [Đo tĩnh; Suy luận] Server có giữ hòm cho người làm rơi một thời gian không thì chưa đo. Món người khác làm rơi thường mất sau 7–20 s ([Đồ trên đất](#đồ-trên-đất)). [Đo; luật Chưa rõ]
+**K3: nhặt bằng bot TS** (Tiheo2, nhân vật Ttuananh cấp 15, M1 Làng Thanh Khê khu 0, 31/10). Bot đứng yên ở chỗ đăng nhập (90, 640), chỉ gửi `c2s/1188` với uuid lấy từ `s2c/1184`, `s2c/1182`. Tuổi của món tính bằng `hếtHạn − 601 s` so với đồng hồ máy, nên lệch được khoảng 1 s.
+
+| Lần thử | Server trả (sau ~26 ms) |
+|---|---|
+| Đá cấp 2 ở (1520, 640), cách 1430 px, món cũ | `s2c/51` (ô túi 4), `s2c/1256` field 0 "Bạn vừa nhận được Đá cấp 2", `s2c/1183` |
+| Cùng uuid đó lần nữa | `s2c/1256` field 1 "Không thể thực hiện" |
+| Món người khác vừa làm rơi, 5–7 s và 16 s tuổi (16 lần, 13 món) | `s2c/1256` field 1 "Không thể nhặt vật phẩm của người khác" |
+| Món người khác, 17 s (Đá cấp 2), 18 s (Rìu Âu Lạc), 31 s (Xu khóa ×144); món cũ 177 s (Áo Chiến ở (3413, 192)) | Nhặt được: `s2c/51` hoặc `s2c/46`, rồi `s2c/1256` field 0 |
+
+- **Đồ người khác bị khoá khoảng 16–17 s** cho người làm rơi, sau đó ai cũng nhặt được. Nhiều món biến mất lúc 10–14 s tuổi (`s2c/1183`): chính chủ nhặt trong lúc còn khoá. [Đo]
+- **Không cần đứng gần.** Server không kiểm khoảng cách: nhặt được từ 1430 px và từ đầu kia bản đồ. Game trên máy bắt đi tới hòm trước khi hiện nút Nhặt, nhưng đó là luật của client. [Đo]
+- `s2c/1256` có field 0 khi nhặt được và 1 khi bị từ chối. [Đo]
+- **`s2c/51`** (opcode trước đó chưa từng thấy): `i32 -1; i32 0; u8 1; bản ghi vật phẩm` của ô túi vừa nhận món. 3 mẫu đọc hết byte: Áo Chiến ô 5, Đá cấp 2 ô 6, Rìu Âu Lạc ô 7. Món nhặt sau vào ô trống kế tiếp; Đá cấp 2 có `xếpChồng` 1 nên viên thứ hai vào ô riêng. Bộ giải mã: `bagSlot` trong [src/world.ts](../../../src/world.ts). [Đo]
+- Áo Chiến mất 844 ms mới có trả lời, các lần khác 25–30 ms. [Đo]
+
+**Ai được nhặt.** Bản ghi đồ trên đất không có trường chủ [Đo]. Phép kiểm tra đầu tiên `sqgu.a(sqgu)` (ngen `a5`) chỉ đọc byte `a`, cờ `F` của hòm và xem hòm có trong mảng `sqil.i` không (có lẽ là danh sách đồ trên map). Chưa thấy chỗ nào so tên người chơi. Có lẽ ai cũng thấy nút "Nhặt" trên mọi hòm. [Đo tĩnh; Suy luận] Server giữ hòm cho người làm rơi khoảng 16–17 s rồi mới cho người khác nhặt ([K3](#k3)). [Đo]
 
 Đồ thị JNI dựng bằng script tạm, không lưu trong repo:
 - Đọc `R_AARCH64_GLOB_DAT` để biết GOT của từng lớp (`cstrings`, `cclasses`, `cmethods`, `cfields`, `string_pool`).
@@ -122,7 +139,7 @@ Bố cục ba gói và bản ghi vật phẩm ở [09-players-chat](09-players-c
 - Món người khác làm rơi thường mất sau 7–20 s (`s2c/1183`), có lẽ do chính họ nhặt. Có món nằm tới khi gần hết hạn. [Đo]
 - Ở M2 đông người, P2 nhận 33 lần `s2c/1182` trong khoảng 9 phút. [Đo]
 - Trận Cóc Xanh thắng ở K2 không rơi gì: sau `s2c/36` không có `s2c/1182`. [Đo, 1 trận]
-- Ai được nhặt món của người khác, và sau bao lâu. [Chưa rõ]
+- Ai được nhặt món của người khác, và sau bao lâu: sau khoảng 16–17 s thì ai cũng được ([K3](#k3)). [Đo]
 
 <a id="hiển-thị-đồ-trên-đất"></a>
 
@@ -283,7 +300,7 @@ Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS
 
 ## Chưa rõ
 
-- `c2s/1188`: server trả gì khi nhặt không được; có bắt đứng gần hòm không; món vào túi có kèm `s2c/1187` không.
-- Ai được nhặt món người khác làm rơi, sau bao lâu; tỉ lệ rơi theo quái.
+- `c2s/1188`: túi đầy thì server trả gì; thời gian khoá có đổi theo loại món, hay khi người làm rơi ở trong tổ đội không.
+- Tỉ lệ rơi theo quái.
 - Loại thực thể thứ ba trong `sqhz.a17` (gửi `c2s/1181`).
 - Phẩm chất có đúng là `field4` không (cần một món không phải Hiếm); trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.

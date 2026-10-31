@@ -2,7 +2,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
-  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate } from './world.ts';
+  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, bagSlot } from './world.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, type Move } from './battle.ts';
 
 export type Direction = 'c2s' | 's2c';
@@ -61,9 +61,9 @@ event('s2c', 1172, 'zone_list', 'world', 'Trả zone_list_request', 'Người ch
 event('c2s', 13, 'npc_talk', 'world', 'Nói chuyện với NPC của bước nhiệm vụ, hoặc bấm Vào ở một cổng (id cổng trong s2c/11)', 'NPC: s2c/34 (lời thoại), trả nhiệm vụ: s2c/35, 39. Cổng: s2c/13 với map mới', 'string mapId; i32 npcId', 'Đo: npcId lấy từ bước nhiệm vụ trong s2c/39; bot Node gửi và server chấp nhận. Cổng 1015 (M1 → M2) đo B5');
 event('c2s', 10, 'add_stat_point', 'world', 'Bấm cộng điểm tiềm năng', 's2c/10 kiểu 2, 4, 8', 'i32 stat; i32 amount', 'L1: 10 lần (0, 1), Cường Lực; P1: (2, 1), Thân Pháp. stat là nút + trên bảng Chỉ số, theo hàng: 0 Cường Lực, 1 Nội Lực (suy luận), 2 Thân Pháp, 3 Thể Lực');
 event('c2s', 1191, 'skill_upgrade', 'world', 'Bấm Nâng cấp ở tab Kỹ năng (sqgu.a4 → sqlq.e52(skillId, 1)); bước nhiệm vụ "Sử dụng điểm kỹ năng"', 's2c/10 kiểu 32 và s2c/1191; ở bước nhiệm vụ thêm s2c/34', 'i32 skillId; i32 amount', 'Đo trên dây K1: 00000fa0 00000001 (Băng Tiễn Thuật 4000), server trả trong 30 ms; E1 3 lần qua tham số hàm dựng (1000, 1)');
-event('c2s', 1188, 'pickup_item', 'world', 'Chạm hòm đồ trên đất rồi bấm Nhặt (sqhz.d21 → sqlq.c44(uuid))', 's2c/46 (Xu khóa vào ví), s2c/1256 "Bạn vừa nhận được …", s2c/1183 (hòm rời khỏi đất, cả map)', 'string uuid (của s2c/1182, s2c/1184)', 'Đo P3 trên máy 1 lần: Xu khóa ×474 ở M10, server trả trong 52–56 ms');
+event('c2s', 1188, 'pickup_item', 'world', 'Chạm hòm đồ trên đất rồi bấm Nhặt (sqhz.d21 → sqlq.c44(uuid))', 's2c/46 (Xu khóa vào ví) hoặc s2c/51 (món vào túi), s2c/1256 "Bạn vừa nhận được …", s2c/1183 (hòm rời khỏi đất, cả map). Không được: s2c/1256 "Không thể nhặt vật phẩm của người khác" hay "Không thể thực hiện"', 'string uuid (của s2c/1182, s2c/1184)', 'Đo P3 trên máy 1 lần (Xu khóa ×474 ở M10, server trả trong 52–56 ms); K3 bot TS 20 lần: đứng xa 1430 px vẫn nhặt được, đồ người khác khoá ~16–17 s');
 event('c2s', 48, 'repair_item', 'world', 'Sửa chữa ở chi tiết trang bị rồi OK (sqh.run1 ← sqaj.a5 → sqlq.c47)', 's2c/1187 rồi s2c/48', 'u8 where (0: ô trang bị); i32 slot', 'Đo E2 (nón, 00 00000000) và P4 (vũ khí, 00 00000002); mỗi lần tốn 1 Búa sửa chữa');
-event('c2s', 1186, 'equip_item', 'world', 'Trang bị (món trong túi) hoặc Cởi ra (món đang mặc) ở chi tiết vật phẩm (sqe.a2, sqf.run1 → sqlq.b45)', 's2c/10 kiểu 4, s2c/37 (8 ô trang bị), s2c/42 (cả túi), s2c/1186, s2c/1166 và s2c/1212 cho cả khu', 'u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị); i32 slot', 'Đo P4: cởi thú cưng 01 00000005, mặc lại 00 00000027 (ô 39 của túi)');
+event('c2s', 1186, 'equip_item', 'world', 'Trang bị (món trong túi) hoặc Cởi ra (món đang mặc) ở chi tiết vật phẩm (sqe.a2, sqf.run1 → sqlq.b45); Vứt bỏ rồi đồng ý (sqbz.run1 → sqlq.b45)', 'Mặc, cởi: s2c/10 kiểu 4, s2c/37 (8 ô trang bị), s2c/42 (cả túi), s2c/1186, s2c/1166 và s2c/1212 cho cả khu. Vứt bỏ: s2c/83', 'u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị, 2: vứt bỏ món ở ô túi); i32 slot', 'Đo P4: cởi thú cưng 01 00000005, mặc lại 00 00000027 (ô 39 của túi). Vứt bỏ: action 2 đọc tĩnh ở sqbz.run1, đo K3 02 00000004, server trả s2c/83');
 event('c2s', 84, 'use_item', 'world', 'Sử dụng ở chi tiết vật phẩm trong túi (sqe.a2 → sqlq.i79)', 's2c/1256 "Vật phẩm không thể sử dụng!" với Hoàn Linh Dược ngoài trận', 'i32 slot (ô túi)', 'Đo P4 1 lần: 00000003 (Hoàn Linh Dược), server từ chối');
 event('c2s', 1215, 'mail_request', 'world', 'Mở Hòm thư', 's2c/1215', 'Rỗng');
 event('s2c', 1215, 'mail_list', 'world', 'Trả mail_request', 'Không', 'i32 n; bản ghi thư chưa thấy (n = 0)', 'Đo 1 lần, hòm thư trống');
@@ -106,7 +106,9 @@ const pushes: [number, string, string, string, string?][] = [
   [48, 'repair_ack', 'Sau c2s/48 và s2c/1187', 'u8 where; i32 slot (giống c2s/48)', 'Đo E2, P4'],
   [37, 'gear_update', 'Sau c2s/1186 (mặc hoặc cởi đồ)', 'i32 0; u8 0x40; string name; i32 8; 8 * (u8 0xff | item record)', 'Đọc hết byte 2 mẫu (P4): 350 byte khi cởi thú cưng, 423 khi mặc lại'],
   [1186, 'equip_result', 'Sau c2s/1186, sau s2c/42', 'i32 action (lặp lại action của c2s/1186)', 'Đo P4: 1 khi cởi, 0 khi mặc'],
-  [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác; nhặt được đồ (P3)', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực", "Bạn vừa nhận được 474 Xu khóa")', 'Đọc hết byte 5 mẫu (Q6, Q15, S1, P3)'],
+  [51, 'bag_slot_add', 'Nhặt được món vào túi (sau c2s/1188); không có s2c/1187 lúc này', 'i32 -1; i32 0; u8 1; item record (ô túi vừa nhận món)', 'Đo K3 3 lần, đọc hết byte: Áo Chiến ô 5, Đá cấp 2 ô 6, Rìu Âu Lạc ô 7'],
+  [83, 'bag_slot_removed', 'Sau c2s/1186 action 2 (Vứt bỏ)', 'i32 slot; i32 0 (có lẽ số còn lại trong ô)', 'Đo K3 1 lần: 00000004 00000000 khi vứt Đá cấp 2 ở ô 4; đăng nhập lại thì ô 4 trống, không có s2c/1182'],
+  [1256, 'notice_1256', 'Cuối trận thua (Q6); cổng chưa đủ cấp sau c2s/13; c2s/11 cho map khác; nhặt được hay không nhặt được đồ (P3, K3)', 'u8 field; string text ("Thua trận, mất 16 kinh nghiệm", "Bạn phải đạt cấp 40 mới vào được Lạc Cốc", "Không thể chuyển khu vực", "Bạn vừa nhận được 474 Xu khóa", "Không thể nhặt vật phẩm của người khác")', 'Đọc hết byte 5 mẫu (Q6, Q15, S1, P3) và K3; field 0 khi nhặt được, 1 khi bị từ chối (K3)'],
   [1201, 'step_progress', 'Sau mỗi trận được tính cho bước nhiệm vụ đang làm', 'i32 progress: số con đã diệt, hoặc tổng sát thương lên boss', 'Đo: Q2–Q9 tăng 1 sau mỗi trận thắng (1…9); B4 363 = sát thương lên boss sau trận thua'],
   [1200, 'signal_1200', 'Ngay sau s2c/19 end 1, và sau s2c/35 khi trả nhiệm vụ', 'Rỗng', 'Đo; vai trò chưa rõ'],
   [39, 'quest_data', 'Sau s2c/9 và khi nhận nhiệm vụ mới', 'i32 questId; string title; string description; string type; i32 current; i32 progress; i32 n; n * {i32 index; string text; i32 param; i32 required; i32 npcId}', 'Đọc hết byte 3 mẫu; current khớp bước tô xanh trên bảng Nhiệm vụ'],
@@ -252,6 +254,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 42: fields = characterExtra(payload); r.take(payload.length); break;
       case 37: fields = gearUpdate(payload); r.take(payload.length); break;
       case 1186: fields = { action: r.i32() }; break;
+      case 51: fields = bagSlot(payload); r.take(payload.length); break;
+      case 83: fields = { slot: r.i32(), value: r.i32() }; break;
       case 43: fields = mapEntities(payload); r.take(payload.length); break;
       case 13: fields = mapChange(payload); r.take(payload.length); break;
       case 22: fields = battleSetup(payload); r.take(Number(fields.knownBytes)); break;

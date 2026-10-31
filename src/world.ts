@@ -151,6 +151,13 @@ export function gearUpdate(payload: Uint8Array) {
   return finish(r, { field, flag, name, gear }, 's2c/37');
 }
 
+/** s2c/51 after a pickup that goes to the bag (c2s/1188): the bag slot that now holds the item. The client does not get
+ * s2c/1187 then (K3, 13-drops-items.md#k3). */
+export function bagSlot(payload: Uint8Array) {
+  const r = new Reader(payload), a = r.i32(), b = r.i32(), flag = r.u8(), item = itemRecord(r);
+  return finish(r, { a, b, flag, item }, 's2c/51');
+}
+
 /** s2c/1212, also appended to every s2c/1263 entry. Mode 2 carries a list; the 11-byte form a single entry. */
 export function playerStatus(r: Reader) {
   const id = r.i32(), mode = r.u8(), effects = [];

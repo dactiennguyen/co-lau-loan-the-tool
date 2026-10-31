@@ -9,6 +9,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2; từ P
 - **T4, R2**: ảnh nền cây và icon kỹ năng trong APK và `offline-a2`, đối chiếu ảnh chụp tab Kỹ năng; `npm run skills` ([Tab Kỹ năng](#tab-kỹ-năng)).
 - **R1**: `npm run bag` đọc túi và trang bị bằng bot TS ([Cách lấy](#cách-lấy-túi-đồ)).
 - **P4**: điện thoại với Tiheo1, Frida gắn trước khi đăng nhập; cởi và mặc lại thú cưng, sửa Chiến Đao, bấm Sử dụng ở bình máu; đọc đuôi `s2c/9` của 3 nick ([Mặc và cởi đồ](#c2s-1186), [x2 EXP](#x2-exp)).
+- **K3**: bot TS với Tiheo2 (nhân vật Ttuananh, hệ Thủy cấp 15, M1): vứt viên Đá cấp 2 nhặt được từ đất ([Vứt bỏ](#vứt-bỏ)); phần nhặt đồ ở [13](13-drops-items.md#k3).
 
 Bộ giải mã: [src/world.ts](../../../src/world.ts) (`skillTable`, `characterTail`, `gearUpdate`), [src/skills.ts](../../../src/skills.ts), [src/items.ts](../../../src/items.ts); hàm dựng gói ở [src/events.ts](../../../src/events.ts). Test: [test/skills.test.ts](../../../test/skills.test.ts), [test/items.test.ts](../../../test/items.test.ts), [test/quest.test.ts](../../../test/quest.test.ts).
 
@@ -23,7 +24,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Học được kỹ năng nào, tốn gì? | `s2c/30` là bảng 9 kỹ năng của **hệ mà `c2s/30` xin** (1 Hỏa, 2 Lôi, 4 Thủy; app gửi hệ của nhân vật). Mỗi cấp ghi số điểm kỹ năng, cấp nhân vật và nội lực cần có. Xem [Bảng kỹ năng](#bảng-kỹ-năng). [Đo] |
 | Lấy kỹ năng và giao diện tab Kỹ năng thế nào? | Không có gói xin riêng: `s2c/30` (cây của hệ) và đuôi `s2c/9` (cấp từng kỹ năng, điểm) đến lúc đăng nhập. `npm run skills` in cả cây. Icon nằm ở `offline-a2/skill<hệ>.dat`, ảnh nền cây ở APK; repo có bản WebP ở `data/icons/skills/`. Xem [Tab Kỹ năng](#tab-kỹ-năng). [Đo] |
 | Lấy danh sách đồ thế nào? | Không có gói xin riêng. Lúc đăng nhập: `s2c/42` (trả `c2s/42`) chứa túi đồ, đuôi `s2c/9` chứa 8 ô trang bị. Mỗi khi túi đổi, server gửi lại cả túi bằng `s2c/1187`. Mở túi trong game không gửi gói nào. `npm run bag` đăng nhập và in cả hai. Xem [Túi đồ và trang bị](#túi-đồ) và [Cách lấy](#cách-lấy-túi-đồ). [Đo] |
-| Mặc và cởi đồ bằng gói gì? | **`c2s/1186 (u8 action; i32 ô)`**: 0 mặc món ở ô túi, 1 cởi món ở ô trang bị. Server trả `s2c/10` kiểu 4 (chỉ số mới), `s2c/37` (8 ô trang bị), `s2c/42` (cả túi) và `s2c/1186`. Đo 2 lần trên máy (P4). Xem [Mặc và cởi đồ](#c2s-1186). [Đo] |
+| Mặc, cởi, vứt đồ bằng gói gì? | **`c2s/1186 (u8 action; i32 ô)`**: 0 mặc món ở ô túi, 1 cởi món ở ô trang bị, 2 vứt bỏ món ở ô túi. Mặc, cởi: server trả `s2c/10` kiểu 4 (chỉ số mới), `s2c/37` (8 ô trang bị), `s2c/42` (cả túi) và `s2c/1186` (P4, 2 lần). Vứt: `s2c/83 (ô; 0)`, món bị huỷ (K3). Xem [Mặc và cởi đồ](#c2s-1186), [Vứt bỏ](#vứt-bỏ). [Đo] |
 | Ngôi sao xanh "x2" ở góc trái là gì? | Nhân đôi EXP thắng trận của vật phẩm **Tăng Kinh Nghiệm (mã 7)**, 24 giờ, trôi cả lúc offline. Không phải mặc định: server gửi nó trong đuôi `s2c/9` (`"ef7"`, tỉ lệ 200000, ms còn lại), chỉ nick đã dùng món mới có. Xem [x2 EXP](#x2-exp). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
 | Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, dùng trong trận bằng nút Túi đồ. Ngoài trận nút Sử dụng gửi `c2s/84 (i32 ô túi)` nhưng server từ chối bình: "Vật phẩm không thể sử dụng!" ([Dùng vật phẩm](#c2s-84), P4). Gói dùng bình trong trận [Chưa rõ]. Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
@@ -438,7 +439,7 @@ Trên máy: Bản thân → chạm món hỏng → "Sửa chữa" → hộp "B�
 | Mặc lại nó (ô túi 39) | `sqlq.b45(0, 39)` (`com.g.f.sqf.run1` ← `sqe.a2`) | `00 00000027` |
 
 ```text
-c2s/1186 = u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị); i32 ô
+c2s/1186 = u8 action (0: mặc món ở ô túi, 1: cởi món ở ô trang bị, 2: vứt bỏ món ở ô túi); i32 ô
 ```
 
 Server trả ngay, theo thứ tự [Đo 2 lần]:
@@ -457,7 +458,22 @@ Server trả ngay, theo thứ tự [Đo 2 lần]:
 | 0xb20b | `c2s/48` (Sửa chữa) |
 | 0xb20e | Hỏi "Bạn có chắc là muốn vứt bỏ … này không?"; đồng ý thì `com.g.c.sqbz.run1` cũng gửi `c2s/1186` |
 
-Vứt bỏ chưa thử, vì làm mất đồ. [Chưa rõ]
+<a id="vứt-bỏ"></a>
+
+### Vứt bỏ: `c2s/1186` action 2 → `s2c/83`
+
+Đọc tĩnh `com.g.c.sqbz.run1` (chạy khi đồng ý ở hộp hỏi vứt bỏ): lấy ô túi bằng `sqbr.g()`, rồi gọi `sqlq.b45` với `mov w3, #2` ngay trước `CallVoidMethod`. Vậy vứt bỏ là `c2s/1186` với action 2. [Đo tĩnh]
+
+K3 (bot TS, Tiheo2, 31/10): vứt viên Đá cấp 2 ở ô túi 4 (viên nhặt được từ đất ngay trước đó, [13](13-drops-items.md#k3)) [Đo 1 lần]:
+
+| ms | Gói | Byte | Nghĩa |
+|---:|---|---|---|
+| 0 | `c2s/1186` | `02 00000004` | Vứt món ở ô túi 4 |
+| 30 | `s2c/83` | `00000004 00000000` | Ô 4, số 0 (có lẽ số còn lại trong ô) |
+
+- Không có `s2c/1187` hay `s2c/42`: client tự xoá ô theo `s2c/83`. Đăng nhập lại thì ô 4 trống, các ô khác giữ nguyên số ô. [Đo]
+- Món bị huỷ, không rơi xuống đất: không có `s2c/1182` nào cho viên đá. [Đo]
+- `s2c/83` là opcode trước đó chưa từng thấy ([opcode-map](../opcode-map.md#unseen)). Vứt một phần của chồng nhiều món thì số thứ hai có khác 0 không: chưa thử. [Chưa rõ]
 
 <a id="c2s-84"></a>
 
@@ -506,7 +522,7 @@ Cẩm nang (C1):
 - Trong trận, bấm nút Túi đồ ở cột trái bàn cờ. Mỗi lượt dùng được 1 món, kể cả khi đấu với người chơi. Bình mua ở NPC Lái Buôn.
 - Ngoài trận, chạm bình trong túi sẽ có nút "Sử dụng" và "Vứt bỏ".
 
-P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, server trả "Vật phẩm không thể sử dụng!" và số bình không đổi ([Dùng vật phẩm](#c2s-84)). Vậy dù Cẩm nang nói vậy, ngoài trận không hồi máu bằng bình được. [Đo] `c2s/1186` từng được đoán là dùng vật phẩm, nhưng đó là mặc và cởi đồ ([Mặc và cởi đồ](#c2s-1186)). Gói dùng bình trong trận chưa bắt, có lẽ `c2s/47` (`sqlq.b78(int, int, int)`, gọi từ lớp trận `sqlm`). [Chưa rõ]
+P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, server trả "Vật phẩm không thể sử dụng!" và số bình không đổi ([Dùng vật phẩm](#c2s-84)). Vậy dù Cẩm nang nói vậy, ngoài trận không hồi máu bằng bình được. [Đo] `c2s/1186` từng được đoán là dùng vật phẩm, nhưng đó là mặc và cởi đồ ([Mặc và cởi đồ](#c2s-1186)). Gói dùng bình trong trận chưa bắt. `c2s/47` có lẽ không phải (xem [Chưa rõ](#chưa-rõ)); nhiều khả năng vẫn là `c2s/84`. [Chưa rõ]
 
 ## Cẩm nang: luật liên quan tới bot
 
@@ -530,8 +546,8 @@ P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, s
 
 ## Chưa rõ
 
-- Biến thể `a46` của `c2s/48` (`u8; i32; i32`), có lẽ sửa món trong túi. Vứt bỏ (có lẽ `c2s/1186` với action khác) chưa thử.
-- Gói dùng vật phẩm trong trận (có lẽ `c2s/47`, `sqlq.b78(int, int, int)`, gọi từ lớp trận `sqlm`).
+- Biến thể `a46` của `c2s/48` (`u8; i32; i32`), có lẽ sửa món trong túi.
+- Gói dùng vật phẩm trong trận. Không có món tiêu hao nào để thử (Tiheo2 không có bình). Đọc tĩnh: `c2s/47` chỉ do `sqlm.g28(a, b)` gửi, ghi `string uuidTrận; i32 sqlm.o; i32 a; i32 b` (`b78` ghi tham số 3 trước, như `c2s/20` ghi `seq` trước), và `g28` được gọi từ bộ xử lý chạm bàn cờ `sqij` qua `sqlm.f(II)`. Vậy `c2s/47` có lẽ là một thao tác lên ô bàn cờ, không phải dùng món trong túi; dùng bình trong trận nhiều khả năng vẫn là `c2s/84` từ popup vật phẩm. [Đo tĩnh; nghĩa Suy luận]
 - Món nào dùng được ngoài trận bằng `c2s/84`; nhận và trả nhiệm vụ hằng ngày, mua ở NPC. Gói nhặt đồ `c2s/1188` đã bắt trên máy (P3), bot chưa gửi thử ([13](13-drops-items.md#p3)).
 - `c2s/10` của Nội Lực (1) và Thể Lực (3) chưa đo trực tiếp; nút "Cộng nhiều".
 - Sau sửa đồ, chỉ số có đổi trước lần `s2c/10` sau (sau trận, đăng nhập lại) không.

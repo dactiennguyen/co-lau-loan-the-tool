@@ -111,6 +111,19 @@ test('item actions on the phone (P4): equip and unequip c2s/1186, use c2s/84, re
   assert.deepEqual(decodeEvent('s2c', 1186, Buffer.from('00000001', 'hex')).fields, { action: 1 });
 });
 
+test('K3 (bot TS, Tiheo2 at M1): far pickup to the bag (s2c/51), refusals, and Vứt bỏ = c2s/1186 action 2 (s2c/83)', () => {
+  // s2c/51 after picking a Đá cấp 2 another player dropped 17 s before: the bag slot that now holds it.
+  const slot51 = 'ffffffff0000000001060000019c0000002434336363626635352d356439372d346434312d393838342d32656263663039396366356300000000ffffffff0000000100ff00000000000000';
+  const f = decodeEvent('s2c', 51, Buffer.from(slot51, 'hex')).fields as any;
+  assert.deepEqual([f.a, f.b, f.flag, f.item.slot, items.describe(f.item), f.item.uuid], [-1, 0, 1, 6, 'Đá cấp 2', '43ccbf55-5d97-4d41-9884-2ebcf099cf5c']);
+  // The same uuid again, and a drop of another player younger than ~16 s: s2c/1256 with field 1.
+  const refusal = (text: string) => { const b = Buffer.from(text); return Buffer.concat([Buffer.from([1]), Buffer.from([0, 0, 0, b.length]), b]); };
+  assert.deepEqual(decodeEvent('s2c', 1256, refusal('Không thể nhặt vật phẩm của người khác')).fields, { field: 1, text: 'Không thể nhặt vật phẩm của người khác' });
+  // Vứt bỏ: com.g.c.sqbz.run1 calls sqlq.b45(2, slot); the server answers s2c/83 (slot, 0) and the item is gone.
+  assert.equal(buildRequest(1186, { action: 2, slot: 4 }).toString('hex'), '0200000004');
+  assert.deepEqual(decodeEvent('s2c', 83, Buffer.from('0000000400000000', 'hex')).fields, { slot: 4, value: 0 });
+});
+
 test('tail of s2c/9: the x2 EXP star (item 7, rate 200000, time left) and the faction; none for manina', () => {
   assert.deepEqual(characterTail(Buffer.from(fixtures.equip['s2c/9 symap'], 'hex')), { field: 1, appearanceBytes: 203,
     effects: [{ key: 'ef7', rate: 200000, field: 0, remainingMs: 13257567 }], factionField: 2, faction: 'Thiên Tôn', factionFlags: [1, 0] });
