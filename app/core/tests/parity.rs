@@ -3008,7 +3008,24 @@ fn luu_du_lieu_tran_keeps_a_battle_with_its_header_packets_notes_and_result() {
         .collect();
     assert_eq!(
         kinds,
-        ["s2c/22", "c2s/18", "s2c/18", "c2s/14", "s2c/19", "end", "s2c/36", "s2c/1214"]
+        [
+            "s2c/22",
+            "c2s/18",
+            "s2c/18",
+            "c2s/14",
+            "s2c/19",
+            "estimates",
+            "end",
+            "s2c/36",
+            "s2c/1214"
+        ]
+    );
+    // What the battle taught the bot, as the TS bot's `estimates` note; the app's log no longer shows it.
+    let learnt = lines.iter().find(|l| l["note"] == "estimates").unwrap();
+    assert_eq!(learnt["mobId"], "mob61000", "{learnt}");
+    assert!(
+        learnt["me"]["sword"].is_number() && learnt["mob"]["sword"].is_number(),
+        "{learnt}"
     );
     let result = lines.iter().find(|l| l["kind"] == "end").unwrap();
     assert_eq!(

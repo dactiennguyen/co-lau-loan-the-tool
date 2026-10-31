@@ -460,9 +460,16 @@ fn logs(acts: &[Act]) -> Vec<&str> {
         })
         .collect()
 }
+/// The fields of the first `note` the runner wrote for the battle data.
+fn note<'a>(acts: &'a [Act], note: &str) -> Option<&'a serde_json::Value> {
+    acts.iter().find_map(|a| match a {
+        Act::Note(n, fields) if *n == note => Some(fields),
+        _ => None,
+    })
+}
 
 #[test]
-fn runner_with_the_learnt_skills_heals_when_low_and_says_why() {
+fn runner_with_the_learnt_skills_heals_when_low_and_notes_why_in_the_battle_data() {
     let options = RunnerOptions {
         skills: Some(vec![effect(4000, 2), effect(4001, 1)]),
         strategy: Strategy::win(),
@@ -484,17 +491,21 @@ fn runner_with_the_learnt_skills_heals_when_low_and_says_why() {
         .on_packet(24, &packet("own"), now, &mut acts)
         .unwrap();
     assert_eq!(last_sent(&acts), Some((20, 4001)));
-    let line = logs(&acts)[0];
+    // Why: the pick and the three best actions go to the battle data, not to the log (it shows what happened in the game).
+    let turn = note(&acts, "turn").expect("turn note");
+    assert_eq!(turn["pick"], "skill 4001", "{turn}");
+    let labels: Vec<&str> = turn["scores"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s[0].as_str().unwrap())
+        .collect();
     assert!(
-        line.contains("chọn Hàn Lưu Thánh Thủy (Hàn Lưu Thánh Thủy"),
-        "{line}"
+        labels.contains(&"skill 4000") && labels.contains(&"swap"),
+        "{turn}"
     );
-    assert!(
-        line.contains("Băng Tiễn Thuật")
-            && line.contains("đổi viên")
-            && line.contains("HP quái 202"),
-        "{line}"
-    );
+    assert_eq!(turn["mobHp"], 202.0, "{turn}");
+    assert!(logs(&acts).is_empty(), "{:?}", logs(&acts));
 }
 
 #[test]
@@ -850,9 +861,10 @@ fn the_bot_plays_v3_with_the_skill_table_and_the_bag_and_v2_without_the_table() 
     r.i32().unwrap();
     // Kim Đan Dược: 25 nội lực at what Hỏa Cầu Thuật makes of it (W 12 from Tấn công 32 at level 21) beat the 30 HP.
     assert_eq!(r.i32().unwrap(), 7);
+    // Why it picked the potion is not a log line: the log shows what happened in the game.
     assert!(
-        out.iter()
-            .any(|o| matches!(o, Out::Log(_, t) if t.starts_with("Lượt 1: chọn Kim Đan Dược"))),
+        !out.iter()
+            .any(|o| matches!(o, Out::Log(_, t) if t.starts_with("Lượt "))),
         "{out:?}"
     );
     let out = manina_turn(potions, false);

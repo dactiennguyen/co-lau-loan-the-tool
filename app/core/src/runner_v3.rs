@@ -14,7 +14,7 @@ use crate::battle::{
 };
 use crate::battle_actions::{
     best_action, potion_effect, skill_worth, sword_prior, Action, ActionOptions, Buffs, Potion,
-    Scored, SkillEffect,
+    SkillEffect,
 };
 use crate::protocol::Result;
 use crate::requests::{build, Ctx};
@@ -508,48 +508,14 @@ impl BattleRunner {
             "turn",
             json!({ "seq": seq, "pick": all.first().map(|a| a.label.clone()), "hp": self.me.hp, "stat1": self.me.s1, "mobHp": mob_hp, "scores": scores }),
         ));
-        // Only turns where a skill could be cast or something else than a swap was picked: why it cast, healed or not.
-        let best = all.first().map(|a| a.action);
-        if all.iter().any(|a| matches!(a.action, Action::Skill(_)))
-            || best.is_some_and(|a| !matches!(a, Action::Swap(_)))
-        {
-            out.push(Act::Log(self.choice(seq, &all)));
-        }
-        match best {
+        // Why it cast, healed or swapped stays in the battle data only: the log shows what happened in the game.
+        match all.first().map(|a| a.action) {
             Some(Action::Skill(id)) => self.cast_own(seq, id, fallback, now, out),
             Some(Action::Item { slot, .. }) => self.use_item(seq, slot, fallback, now, out),
             _ => self.swap_move(seq, fallback, out),
         }
     }
 
-    /// The `choice` line of the TS side: the pick, the four best scores, own HP and nội lực, the mob's HP.
-    fn choice(&self, seq: i32, all: &[Scored]) -> String {
-        let scores: Vec<String> = all
-            .iter()
-            .take(4)
-            .map(|a| format!("{} {}", self.action_name(a.action), a.score.round() as i64))
-            .collect();
-        let mob_hp = match self.mob.hp.is_finite() {
-            true => self.mob.hp.to_string(),
-            false => "?".into(),
-        };
-        format!(
-            "Lượt {seq}: chọn {} ({}); HP {}, nội lực {}, HP quái {mob_hp}",
-            all.first()
-                .map_or("không có".into(), |a| self.action_name(a.action)),
-            scores.join(", "),
-            self.me.hp,
-            self.me.s1
-        )
-    }
-    fn action_name(&self, a: Action) -> String {
-        match a {
-            Action::Swap(_) => "đổi viên".into(),
-            Action::Skill(id) => self.skill_name(id),
-            Action::Item { item_id, .. } => potion_effect(item_id)
-                .map_or_else(|| format!("vật phẩm {item_id}"), |e| e.name.into()),
-        }
-    }
     fn skill_name(&self, id: i32) -> String {
         self.options
             .skills
@@ -716,17 +682,16 @@ impl BattleRunner {
             });
             return;
         }
-        let r = |v: f64| (v * 10.0).round() / 10.0;
-        out.push(Act::Log(format!(
-            "Ước lượng: kiếm {} / {} sát thương mỗi viên, HP quái tối đa {}",
-            r(self.me.sword),
-            r(self.mob.sword),
-            if self.mob.max_hp.is_finite() {
-                self.mob.max_hp.to_string()
-            } else {
-                "?".into()
-            }
-        )));
+        // What the battle taught it, into the battle data as the TS bot's `estimates` (07-auto-battle.md#ghi-trận).
+        let learnt = |f: &Fighter| {
+            json!({ "sword": round1(f.sword), "heart": round1(f.heart), "yinyang": round1(f.yinyang), "peach": round1(f.peach),
+                "skillCost": round1(f.skill_cost), "skillDamage": round1(f.skill_damage) })
+        };
+        let mob_max_hp = Some(self.mob.max_hp).filter(|v| v.is_finite());
+        out.push(Act::Note(
+            "estimates",
+            json!({ "mobId": self.mob_id, "mobMaxHp": mob_max_hp, "me": learnt(&self.me), "mob": learnt(&self.mob) }),
+        ));
         let won = x.reward.as_ref().map_or(x.actor == self.name, |w| w.won);
         out.push(Act::End(BattleEnd {
             won,
