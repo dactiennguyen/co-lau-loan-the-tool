@@ -1,5 +1,5 @@
 // cllt.db beside accounts.json: every log line and every battle, by account username (lower case), for the filters of
-// the Nhật ký card and the Thống kê tab (docs/integration/rust/README.md#nhật-ký-và-thống-kê). One connection behind a
+// the Nhật ký card and the Thống kê tab (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
 // mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk. PRAGMA user_version is the number of
 // MIGRATIONS applied; a change of the tables is a new entry at the end, never an edit of an old one.
 use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind};

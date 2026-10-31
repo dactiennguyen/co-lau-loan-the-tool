@@ -208,7 +208,7 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
   | 2 | M1: 15/27/47/89/…; M2: 6 mã | Trang trí [Chưa rõ] |
   | 3 | M1: `1` 3391 ô, `0` 164 ô, `2` 33 ô. M2: `1` 2937, `0` 182, `2` 31 | Ô `0`/`2` nằm thành từng đoạn ngang trùng với các bục vẽ ở lớp 1 (M2 hàng 30, cột 4–17), mỗi đoạn có một ô `2` (có thể là thang). Mặt đất ở hàng 31–34 lại có giá trị `1`, nên `1` không phải "ô trống" như từng suy luận. Nghĩa đúng của `1`/`0`/`2` [Chưa rõ] |
 
-  App Rust vẽ bản đồ thu nhỏ từ lớp 1 (ô có hình) và lớp 3 (bục), rồi đặt nhân vật, NPC, cổng và boss vào theo cách quy đổi trên ([App Rust](../../integration/rust/README.md#giao-diện)).
+  App Rust vẽ bản đồ thu nhỏ từ lớp 1 (ô có hình) và lớp 3 (bục), rồi đặt nhân vật, NPC, cổng và boss vào theo cách quy đổi trên ([App Rust](../../integration/rust/features.md#giao-diện)).
 
 - **NPC và cổng.** Cuối s2c/11 có danh sách `i32 n; n × {i32 id; string tên; u8 loại; i32 x; i32 y; i32 w; i32 h; u8; i32 p; i32 q}`, đơn vị server, rồi 12 byte chưa rõ. Đọc hết byte M1 và M2 (`mapData` trong [world.ts](../../../src/protocol/world.ts)). [Đo]
 

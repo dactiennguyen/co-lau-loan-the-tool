@@ -568,7 +568,7 @@ Không có gói nào khi mở hay đóng bảng, chạm một món, hay chỉnh 
 
 - Mua không được (thiếu tiền) thì chỉ có `s2c/1256`: túi và tiền không đổi, không có `s2c/42`, `s2c/46`. [Đo]
 - Số tiền dưới bảng và túi đổi sau khi `s2c/42`, `s2c/46` đến, nên có lẽ client chờ server rồi vẽ lại chứ không tự trừ. Vậy app chỉ cần xử lý hai gói này như lúc đăng nhập. [Suy luận]
-- App Rust đã đọc `s2c/42`, `s2c/1187` và `s2c/46` giữa phiên ([App Rust](../../integration/rust/README.md#túi-đồ-và-trang-bị)), nên tab Túi đồ và số tiền tự đổi sau khi mua. Bot TS đọc `s2c/46` và `s2c/1187` giữa phiên nhưng chưa đọc lại `s2c/42`, cũng chưa đọc `s2c/51` (nhặt vào túi) và `s2c/83` (số còn lại trong ô). [Đo trong code]
+- App Rust đã đọc `s2c/42`, `s2c/1187` và `s2c/46` giữa phiên ([App Rust](../../integration/rust/features.md#túi-đồ-và-trang-bị)), nên tab Túi đồ và số tiền tự đổi sau khi mua. Bot TS đọc `s2c/46` và `s2c/1187` giữa phiên nhưng chưa đọc lại `s2c/42`, cũng chưa đọc `s2c/51` (nhặt vào túi) và `s2c/83` (số còn lại trong ô). [Đo trong code]
 
 <a id="mua-bằng-bot"></a>
 

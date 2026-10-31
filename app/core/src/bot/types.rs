@@ -10,7 +10,7 @@ pub enum Out {
     Battle(Box<BattleRecord>),
 }
 
-/// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/README.md#nhật-ký-và-thống-kê
+/// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/features.md#nhật-ký-và-thống-kê
 /// lists every kind with examples: a new kind, or a new kind of line, goes in that table too.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

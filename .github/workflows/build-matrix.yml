@@ -2,8 +2,8 @@ name: Build Matrix
 
 # Tests, then the desktop app (app/desktop) built for macOS Apple Silicon, macOS Intel, Windows x64 and Ubuntu x64.
 # The bundles stay as artifacts of the run; release.yml calls this workflow on a v* tag and publishes them. With the
-# updater key in the secrets, each bundle also gets its updater file and .sig (docs/integration/rust/README.md#tự-cập-nhật);
-# there is no Apple or Windows code signing (docs/integration/rust/README.md#cicd-và-phát-hành).
+# updater key in the secrets, each bundle also gets its updater file and .sig (docs/integration/rust/release.md#tự-cập-nhật);
+# there is no Apple or Windows code signing (docs/integration/rust/release.md#cicd-và-phát-hành).
 
 on:
   push:

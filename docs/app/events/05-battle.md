@@ -441,7 +441,7 @@ i32 n (8); n × { u8 0xff (ô trống) | u8 ô; i32 độBền }
 - Cả 4 mẫu đọc vừa hết byte theo bố cục trên. Ô có món khớp trang bị của manina trong `s2c/9`. Độ bền về 0 ở cùng trận HP tối đa và sát thương tụt. [Đo]
 - Byte trước độ bền là số ô (`00`, `01`, `02` ở G2), như byte ô của bản ghi vật phẩm. [Đo]
 - G2: cả 6 gói giống hệt nhau, độ bền không giảm qua 6 trận thắng. Gói đến 1 ms sau kết quả cuối trận, ngay sau `s2c/10` kiểu 4. Vậy không phải trận nào cũng làm mòn đồ; quy luật mòn chưa rõ (Q2 giảm gần như mỗi trận). [Đo; quy luật Chưa rõ]
-- Bot TS đọc gói bằng `gearDurability` (src/protocol/world.ts). App Rust cập nhật độ bền trên tab Túi đồ sau mỗi trận, và dựa vào đó để tự sửa đồ ([Tự sửa đồ](../../integration/rust/README.md#tự-sửa-đồ)).
+- Bot TS đọc gói bằng `gearDurability` (src/protocol/world.ts). App Rust cập nhật độ bền trên tab Túi đồ sau mỗi trận, và dựa vào đó để tự sửa đồ ([Tự sửa đồ](../../integration/rust/features.md#tự-sửa-đồ)).
 
 ## Push trên bản đồ: đính chính
 

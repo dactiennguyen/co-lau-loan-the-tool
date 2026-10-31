@@ -1,5 +1,5 @@
 // Writes latest.json, what the updater of the installed apps reads from the latest release
-// (docs/integration/rust/README.md#tự-cập-nhật): for each platform, the bundle that installs it and the signature of its
+// (docs/integration/rust/release.md#tự-cập-nhật): for each platform, the bundle that installs it and the signature of its
 // .sig, which stage-bundles.mjs staged beside it. Fails when a platform has no signed bundle, which happens when the
 // signing key is not in the repository secrets. Used by .github/workflows/release.yml.
 //   node .github/scripts/latest-json.mjs <assets dir> <version> <owner/repo> <tag> <notes file> > latest.json

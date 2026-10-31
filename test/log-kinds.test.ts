@@ -19,7 +19,7 @@ test('log kinds: bot/types.rs, logKinds.ts and the docs table name the same kind
   const ui = [...read('app/desktop/src/logKinds.ts').matchAll(/\{ kind: "(\w+)", label: "([^"]+)"/g)].map(m => ({ key: m[1], label: m[2] }));
   assert.deepEqual(ui, fromRust, 'LOG_KINDS of logKinds.ts');
 
-  const docs = read('docs/integration/rust/README.md');
+  const docs = read('docs/integration/rust/features.md');
   const table = docs.slice(docs.indexOf('### Loại dòng nhật ký'), docs.indexOf('## Proxy'));
   const rows = [...table.matchAll(/^\| ([^|(]+) \(`(\w+)`\) \| ([^|]+) \|$/gm)].map(m => ({ key: m[2], label: m[1].trim(), lines: m[3].trim() }));
   assert.deepEqual(rows.map(({ key, label }) => ({ key, label })), fromRust, 'the table under "Loại dòng nhật ký"');

@@ -8,7 +8,8 @@ Kho này lưu kết quả điều tra APK, phần tích hợp TypeScript (Node.j
 | Chạy client Node.js, dùng API, lấy user, đọc log, chẩn đoán và kiểm thử | [Tích hợp Node.js](docs/integration/nodejs/README.md) |
 | Bot Node.js tự làm nhiệm vụ, đánh quái không giao diện | [Bot làm nhiệm vụ](docs/integration/nodejs/quest-bot.md) |
 | App desktop (Tauri 2, React + TypeScript, lõi Rust): nhiều nick; cấp, EXP, chỉ số, vị trí và số người xung quanh của từng nick; chọn quái/boss và số trận để tự đánh | [App Rust](docs/integration/rust/README.md) |
-| Build và phát hành app `colautool` cho macOS, Windows, Ubuntu bằng GitHub Actions | [CI/CD và phát hành](docs/integration/rust/README.md#cicd-và-phát-hành) |
+| Build và phát hành app `colautool` cho macOS, Windows, Ubuntu bằng GitHub Actions | [CI/CD và phát hành](docs/integration/rust/release.md#cicd-và-phát-hành) |
+| Tổng quan kiến trúc: các lớp từ APK tới giao diện, thư mục `src/` và `app/`, kiểm thử, cách thêm một tính năng | [Kiến trúc](docs/architecture.md) |
 | Toàn bộ mục lục tài liệu | [docs](docs/README.md) |
 | Nguồn dữ liệu và phạm vi regression | [test](test/README.md) |
 
@@ -20,7 +21,7 @@ Repo phát triển song song TypeScript và Rust, theo đúng thứ tự sau:
 
 1. **Điều tra Android** (APK, Frida, REA, bắt gói trên điện thoại): ghi kết quả vào [docs/app](docs/app/README.md) ngay khi tìm ra, kèm bằng chứng và độ chắc chắn.
 2. **Mô phỏng bằng TypeScript** trong `src/` và `test/`: viết decoder, bot, mô phỏng; dùng gói thật làm fixture; chạy thật bằng `npm run …`; ghi kết quả chạy vào docs.
-3. **Port sang Rust** trong `app/`, chỉ khi bản TypeScript đã qua test và đã chạy thật. Lệnh `npm run export:rust` xuất bảng opcode và vector kiểm thử từ TypeScript, và `cargo test` phải khớp ([App Rust](docs/integration/rust/README.md#quy-trình-android--docs--typescript--rust)).
+3. **Port sang Rust** trong `app/`, chỉ khi bản TypeScript đã qua test và đã chạy thật. Lệnh `npm run export:rust` xuất bảng opcode và vector kiểm thử từ TypeScript, và `cargo test` phải khớp ([App Rust](docs/integration/rust/architecture.md#quy-trình-android--docs--typescript--rust)).
 
 `src/` là nơi thử trước, còn `app/` là app thật. Không viết thẳng vào Rust một tính năng chưa có bên TypeScript.
 

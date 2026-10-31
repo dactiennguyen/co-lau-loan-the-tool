@@ -28,7 +28,7 @@
 
 [desktop-updates.test.ts](desktop-updates.test.ts) kiểm cách giao diện desktop theo kịp app Rust ([updates.ts](../app/desktop/src/updates.ts), các hàm thuần mà store zustand dùng): đăng ký sự kiện trước rồi mới lấy `state`, bỏ cập nhật có revision không mới hơn cái đang hiện, giữ nguyên object của nick không đổi, và nối nhật ký theo số dòng.
 
-[rust-export.test.ts](rust-export.test.ts) kiểm `app/core/src/opcodes.rs` và `app/core/tests/vectors.json` đúng là những gì `npm run export:rust` ([src/cli/export-rust.ts](../src/cli/export-rust.ts)) sinh ra từ code TS hiện tại. Vector gồm các fixture trên, kết quả decoder TS trên gói thật, byte của request, 3 trận replay và nước `bestMove`. `cargo test` trong `app/` so phần Rust với vector này ([App Rust](../docs/integration/rust/README.md#đã-kiểm-chứng)).
+[rust-export.test.ts](rust-export.test.ts) kiểm `app/core/src/opcodes.rs` và `app/core/tests/vectors.json` đúng là những gì `npm run export:rust` ([src/cli/export-rust.ts](../src/cli/export-rust.ts)) sinh ra từ code TS hiện tại. Vector gồm các fixture trên, kết quả decoder TS trên gói thật, byte của request, 3 trận replay và nước `bestMove`. `cargo test` trong `app/` so phần Rust với vector này ([App Rust](../docs/integration/rust/status.md#đã-kiểm-chứng)).
 
 Cấu hình bản APK và bảng opcode là code trong [src/protocol/config.ts](../src/protocol/config.ts). Kết quả kiểm tra Node với tài khoản thật nằm trong [báo cáo tích hợp](../docs/integration/nodejs/live-check.md); cách chạy regression/chẩn đoán ở [hướng dẫn Node.js](../docs/integration/nodejs/diagnostics.md).
 

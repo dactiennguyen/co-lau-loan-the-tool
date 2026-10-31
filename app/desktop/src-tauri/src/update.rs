@@ -1,4 +1,4 @@
-// Tự cập nhật (docs/integration/rust/README.md#tự-cập-nhật): tauri-plugin-updater reads latest.json of the latest GitHub
+// Tự cập nhật (docs/integration/rust/release.md#tự-cập-nhật): tauri-plugin-updater reads latest.json of the latest GitHub
 // release, 20 s after the app opens and then every 6 hours, or when the user asks. A newer version is downloaded at once
 // and its minisign signature checked against the public key of tauri.conf.json; it is then installed when the app quits,
 // or at once with Khởi động lại (every account logged out first). The UI hears of each change with the "update" event.
