@@ -38,6 +38,7 @@ npm run quest -- --fights=40
 | Bước trong `s2c/39` | Hành động |
 |---|---|
 | "Nói chuyện với X", "Báo cáo với X" | `c2s/13 (mapId, npcId)`; `s2c/34` trả lời thì tự sang bước sau |
+| "Tỷ thí với X" (nhiệm vụ 12) | `c2s/13` như trên, server trả hộp thoại `s2c/57`. Bot gửi `c2s/57 (dòng "Đồng ý", mapId, npcId)` và đánh trận với NPC; mã NPC trong `s2c/22` là chuỗi ngay trước tên nó (`duelMobId`). `s2c/34` sau trận mới sang bước sau. Hộp thoại không có "Đồng ý" thì dừng với `npc asked something the bot cannot answer`; trận không mở trong 8 s thì nói chuyện lại, lần tỷ thí thứ tư thì dừng với `3 duels and the step did not move` ([Bước Tỷ thí](../../app/events/10-quests.md#tỷ-thí)) |
 | "Tiêu diệt X", "Tiêu diệt 1 X", "Đánh bại X" | `c2s/15` lần lượt từng con tên X trong `s2c/43`, đánh hết trận, mỗi trận thắng tính 1 |
 | "Đạt cấp độ N" (chưa đủ cấp) | Đánh quái mạnh nhất không quá cấp mình, không chọn boss (boss bỏ qua `c2s/15`), hoặc `--grind` |
 | "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào Cường Lực; với `--stats` là chỉ số tới lượt theo lựa chọn đó |
@@ -76,6 +77,7 @@ events.ts    buildRequest() cho mọi gói gửi đi, decodeEvent() cho log
 |---|---|
 | `ready`, `quest` | Vào thế giới; nhận `s2c/39` (kèm bước hiện tại) |
 | `talk`, `quest_progress`, `step_advanced` | Gửi `c2s/13`; nhận `s2c/34`; tự tăng bước |
+| `npc_menu`, `duel`, `duel_no_answer` | Hộp thoại `s2c/57` (tên NPC, câu hỏi, các dòng); gửi `c2s/57` "Đồng ý" để tỷ thí; trận tỷ thí không mở trong 8 s |
 | `challenge`, `battle_setup`, `battle_end`, `kill_counted`, `estimates` | Một trận, từ thách đấu tới kết quả; thông số hai bên học được trong trận (sát thương mỗi viên kiếm, kỹ năng, HP tối đa của quái) |
 | `board_reshuffled`, `board_desync`, `no_legal_move` | Server xếp lại bàn; mô hình lệch với server; không còn nước |
 | `move`, `skill_try`, `skill_cast`, `skill_no_answer`, `timed_attack`, `turn_inferred` | Từng nước (viên ăn được, sát thương); dùng kỹ năng; đòn của quái trong trận tính giờ; tự suy lượt khi thiếu `s2c/24` |

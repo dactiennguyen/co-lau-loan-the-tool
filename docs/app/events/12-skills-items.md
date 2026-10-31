@@ -577,6 +577,8 @@ Không có gói nào khi mở hay đóng bảng, chạm một món, hay chỉnh 
 
 **`c2s/57`** = `u8 mãDòng; string mapId; i32 npcId`, hàm dựng `sqlq.a103(option, mapId, npcId)`. P5: `01 000000024d31 0000006a`.
 
+Hộp thoại của bước "Tỷ thí với Võ Quan Đinh Mộc" cũng là `s2c/57` ("Cậu đã sẵn sàng chiến đấu chưa.", 0 Đồng ý, 1 Từ chối), trả lời bằng cùng `c2s/57`; Từ chối được `s2c/1111` rỗng ([Bước Tỷ thí](10-quests.md#tỷ-thí), N1).
+
 **`s2c/1190`** (bảng cửa hàng, 285 byte, đọc hết) = `u8 6; string "Vật Phẩm"; i32 8;` rồi 8 món, mỗi món 33 byte:
 
 | Trường | Kiểu | Ô 4 ở P5 | Ghi chú |

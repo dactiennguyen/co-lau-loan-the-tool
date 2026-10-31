@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 109 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 109 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 110 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 108 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -79,9 +79,10 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/1186 | equip_item | world | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | c2s/1257 | bag_sort | world | [Sắp xếp túi](12-skills-items.md#sắp-xếp) |
 | c2s/84 | use_item | world | [Dùng vật phẩm](12-skills-items.md#c2s-84) |
-| s2c/57 | npc_menu | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
-| c2s/57 | npc_menu_choice | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| s2c/57 | npc_menu | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
+| c2s/57 | npc_menu_choice | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
 | s2c/1190 | shop_list | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| s2c/1111 | empty_ack | world | [Sắp xếp túi](12-skills-items.md#sắp-xếp), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
 | c2s/1190 | shop_buy | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
 | c2s/44 | battle_use_item | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | s2c/44 | battle_item_result | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |

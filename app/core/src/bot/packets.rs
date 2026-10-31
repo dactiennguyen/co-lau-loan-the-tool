@@ -438,7 +438,8 @@ impl Bot {
                 }
             }
             1172 => self.snap.zones = Some(zone_list(payload)?.zones),
-            // Lái Buôn's menu after c2s/13 (open_shop): Dược phẩm opens the shop.
+            // Lái Buôn's menu after c2s/13 (open_shop): Dược phẩm opens the shop. A talk step's c2s/13 may get a dialog
+            // instead of s2c/34, as "Tỷ thí" does (npc_dialog).
             57 => {
                 let menu = npc_menu(payload)?;
                 if matches!(self.shopping, Some((Shopping::Talk, _))) {
@@ -464,6 +465,8 @@ impl Bot {
                             ));
                         }
                     }
+                } else if self.awaiting_reply && self.quest_running() {
+                    self.npc_dialog(menu, now, out);
                 }
             }
             1190 => {
@@ -556,7 +559,7 @@ impl Bot {
                 ));
                 let changed = before != Some((q.id, q.current));
                 self.snap.quest = Some(q);
-                self.awaiting_reply = false;
+                (self.awaiting_reply, self.duels) = (false, 0);
                 if self.quest_running() && self.battle.is_none() && changed {
                     self.timer = Some((now + Duration::from_millis(1500), Wake::Next));
                 }
@@ -628,7 +631,10 @@ impl Bot {
             1214 => {
                 self.left(1214, now, out);
             }
-            22 => self.on_setup(payload, now, out)?,
+            22 => {
+                self.duel_setup(payload);
+                self.on_setup(payload, now, out)?
+            }
             _ => {}
         }
         Ok(())

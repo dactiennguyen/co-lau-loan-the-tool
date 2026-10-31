@@ -5,7 +5,7 @@
 //! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals
 //! when the NPC or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
-use crate::battle::{battle_setup, mob_block, Strategy};
+use crate::battle::{battle_setup, duel_mob_id, mob_block, Strategy};
 use crate::battle_record::{BattleData, Recorder};
 use crate::items::{
     bag_slot, book, character_extra, character_gear, character_tail, currencies, gear_durability,
@@ -23,8 +23,8 @@ use crate::runner_v3::{Memory, Runner};
 use crate::skills::{character_skills, skill_table, skill_tree, SkillDef};
 use crate::world::{
     character_stats, map_boss, map_change, map_data, map_entities, notice, npc_menu,
-    quest_complete, quest_data, quest_progress, shop_list, zone_list, Mob, Nearby, Place, Quest,
-    ShopList, Zone, ZonePlayers,
+    quest_complete, quest_data, quest_progress, shop_list, zone_list, Mob, Nearby, NpcMenu, Place,
+    Quest, ShopList, Zone, ZonePlayers,
 };
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -185,6 +185,8 @@ pub struct Bot {
     refused: HashSet<i32>,
     /// A talk or stat-point step is answered by s2c/34 alone.
     awaiting_reply: bool,
+    /// Duels taken for the current talk step (Đồng ý in its s2c/57, npc_dialog); a fourth ends the run.
+    duels: u32,
     /// The step of a run that plays one: quest id, step index, its text (`playing` of QuestBot with `once`).
     playing: Option<(i32, i32, String)>,
     /// Quest runs started in this session (QuestRun::id).
@@ -266,6 +268,7 @@ impl Bot {
             hops: 0,
             refused: HashSet::new(),
             awaiting_reply: false,
+            duels: 0,
             playing: None,
             runs: 0,
             reload_map: false,
@@ -360,6 +363,13 @@ impl Bot {
                     .iter()
                     .find(|b| b.ids.values().any(|i| i == mob_id))
                     .map(|b| (b.name.clone(), b.level))
+            })
+            // A duel's NPC is in no mob list: duel_setup gave the target its id.
+            .or_else(|| {
+                self.target
+                    .as_ref()
+                    .filter(|t| t.id == mob_id)
+                    .map(|t| (t.name.clone(), t.level))
             });
         let (mob_name, mob_level) = known.unwrap_or_else(|| (mob_id.to_string(), 0));
         Box::new(BattleRecord {

@@ -2,7 +2,8 @@
 // what the TS decoders, request builders, battle replay and bestMove compute (src/cli/export-rust.ts).
 use cllt_core::atlas::{find_upwards, Atlas, MapRecord};
 use cllt_core::battle::{
-    self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
+    self, battle_result, best_move, duel_mob_id, legal_moves, settle, swap, Board, Fighter, Move,
+    Strategy, N,
 };
 use cllt_core::bot::{
     duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, FightSettings,
@@ -1728,6 +1729,155 @@ fn quest_run_does_not_count_a_loss_and_stops_at_max_losses_or_on_stop() {
     assert_eq!(
         bot.snap.quest_run.as_ref().unwrap().done.as_deref(),
         Some("Đã dừng")
+    );
+}
+
+/// s2c/39 of quest 12 at N1 (wangpt, 31/10): step 3 is "Tỷ thí với Võ Quan Đinh Mộc" (87, 1, NPC 141).
+const QUEST12: &str = "0000000c000000164b69e1babf6d205468e1bbad20416e682048c3b96e67000000b0536175206e6869e1bb8175207468e1bbad207468c3a163682c206e67c6b0c6a16920c491c3a3207468752068c3ba742073e1bbb1206368c3ba20c3bd2063e1bba7612063c3a163206368e1bb8920687579207175c3a26e20c491e1bb99692e2048c3a379206368e1bba96e67206d696e682062e1baa36e207468c3a26e2074726f6e67207472e1baad6e2074e1bbb7207468c3ad2076e1bb9b692056c3b5205175616e20c490696e68204de1bb99632e000000046d61696e0000000200000000000000040000000000000015c490e1baa1742063e1baa57020c491e1bb992031380000001200000001ffffffff000000010000001f47e1bab770205472e1baa169204368e1bba7205068e1baa16d2048c3b96e670000007f000000010000007f000000020000002454e1bbb7207468c3ad2076e1bb9b692056c3b5205175616e20c490696e68204de1bb996300000057000000010000008d000000030000002942c3a16f2063c3a16f2076e1bb9b69205472e1baa169204368e1bba7205068e1baa16d2048c3b96e670000007f000000010000007f";
+/// s2c/57 of N1, after c2s/13 ("M2", 141): "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý, 1 Từ chối.
+const DUEL_DIALOG: &str = "000000020000001456c3b5205175616e20c490696e68204de1bb99630000002c43e1baad7520c491c3a32073e1bab56e2073c3a06e6720636869e1babf6e20c491e1baa575206368c6b0612e000000000ac490e1bb936e6720c3bd010000000b54e1bbab206368e1bb9169";
+
+/// coc_xanh_bot at step 3 of quest 12, and its s2c/22 with the NPC's block in place of Cóc Xanh's (the duel's real id is
+/// not known yet: N1 did not take it).
+fn duel_bot() -> (Bot, Vec<Out>, Instant, Vec<u8>) {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(39, &hex(QUEST12), now, &mut out).unwrap();
+    let cut = Writer::new().string("mob61000").string("Cóc Xanh").build();
+    let at = setup.windows(cut.len()).position(|w| w == cut).unwrap();
+    let mut duel = setup[..at].to_vec();
+    duel.extend(
+        Writer::new()
+            .string("vq141")
+            .string("Võ Quan Đinh Mộc")
+            .build(),
+    );
+    duel.extend(&setup[at + cut.len()..]);
+    (bot, out, now, duel)
+}
+
+#[test]
+fn duel_mob_id_is_the_id_before_the_npc_name_else_the_first_mob_id_with_a_block() {
+    let (_, _, _, duel) = duel_bot();
+    let (_, _, _, coc_xanh) = coc_xanh_bot();
+    assert_eq!(
+        duel_mob_id(&duel, "Võ Quan Đinh Mộc").as_deref(),
+        Some("vq141")
+    );
+    assert_eq!(
+        duel_mob_id(&coc_xanh, "Võ Quan Đinh Mộc").as_deref(),
+        Some("mob61000")
+    );
+    assert_eq!(duel_mob_id(&duel, "Trại Chủ Phạm Hùng"), None);
+    // 00000009 also reads as a 9-byte string ending at the name: the shorter one is the id.
+    let lookalike = Writer::new()
+        .i32(9)
+        .string("vq141")
+        .string("Võ Quan Đinh Mộc")
+        .build();
+    assert_eq!(
+        duel_mob_id(&lookalike, "Võ Quan Đinh Mộc").as_deref(),
+        Some("vq141")
+    );
+}
+
+#[test]
+fn a_talk_step_answered_by_a_dialog_says_dong_y_and_plays_the_duel_as_its_battle() {
+    let (mut bot, mut out, now, duel) = duel_bot();
+    let talk = Out::Send(13, Writer::new().string("M2").i32(141).build());
+    bot.quest(1, None, now, &mut out);
+    assert_eq!(out.last(), Some(&talk));
+    bot.on_packet(57, &hex(DUEL_DIALOG), now, &mut out).unwrap();
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            57,
+            Writer::new().u8(0).string("M2").i32(141).build()
+        ))
+    );
+    let said = |out: &[Out], line: &str| {
+        out.iter()
+            .any(|o| matches!(o, Out::Log(_, text) if text == line))
+    };
+    assert!(said(
+        &out,
+        "Võ Quan Đinh Mộc: Cậu đã sẵn sàng chiến đấu chưa. → Đồng ý"
+    ));
+    assert!(said(&out, "Trận 1: tỷ thí với Võ Quan Đinh Mộc (NPC 141)"));
+    // The NPC's id in the battle is the one before its name; the record names it.
+    bot.on_packet(22, &duel, now, &mut out).unwrap();
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    let record = out
+        .iter()
+        .find_map(|o| match o {
+            Out::Battle(r) => Some(r.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(
+        (
+            record.mob_id.as_str(),
+            record.mob_name.as_str(),
+            record.mob_level
+        ),
+        ("vq141", "Võ Quan Đinh Mộc", 13)
+    );
+    let run = bot.snap.quest_run.clone().unwrap();
+    assert_eq!((run.fights, run.wins, run.done), (1, 1, None));
+    // The server's s2c/34 moves the step on, not the battle.
+    assert_eq!(bot.snap.quest.as_ref().unwrap().current, 2);
+    let reply = Writer::new()
+        .i32(0)
+        .string("subtask 1")
+        .i32(12)
+        .string("Khá lắm!")
+        .build();
+    bot.on_packet(34, &reply, now, &mut out).unwrap();
+    assert_eq!(bot.snap.quest.as_ref().unwrap().current, 3);
+    let later = bot.deadline().expect("next step timer");
+    bot.on_timer(later, &mut out);
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(13, Writer::new().string("M2").i32(127).build()))
+    );
+}
+
+#[test]
+fn a_dialog_without_dong_y_ends_the_run_and_so_does_a_fourth_duel_that_never_opened() {
+    let (mut bot, mut out, now, _) = duel_bot();
+    let talk = Out::Send(13, Writer::new().string("M2").i32(141).build());
+    let yes = Out::Send(57, Writer::new().u8(0).string("M2").i32(141).build());
+    bot.quest(1, None, now, &mut out);
+    let asked = Writer::new()
+        .i32(1)
+        .string("Võ Quan Đinh Mộc")
+        .string("Ngươi muốn gì?")
+        .u8(0)
+        .string("Rời đi")
+        .build();
+    bot.on_packet(57, &asked, now, &mut out).unwrap();
+    assert!(!out.contains(&yes));
+    assert_eq!(
+        bot.snap.quest_run.clone().unwrap().done.as_deref(),
+        Some("Võ Quan Đinh Mộc hỏi \"Ngươi muốn gì?\" (Rời đi): bot chưa biết chọn dòng nào")
+    );
+    // A duel the server never opens: 8 s later the bot talks again, and the fourth dialog ends the run.
+    bot.quest(1, None, now, &mut out);
+    let mut at = now;
+    for _ in 0..3 {
+        bot.on_packet(57, &hex(DUEL_DIALOG), at, &mut out).unwrap();
+        assert_eq!(out.last(), Some(&yes));
+        at = bot.deadline().expect("challenge timer");
+        bot.on_timer(at, &mut out);
+        assert_eq!(out.last(), Some(&talk));
+    }
+    bot.on_packet(57, &hex(DUEL_DIALOG), at, &mut out).unwrap();
+    let run = bot.snap.quest_run.clone().unwrap();
+    assert_eq!(
+        (run.fights, run.done.as_deref()),
+        (
+            3,
+            Some("Đã tỷ thí với Võ Quan Đinh Mộc 3 lần mà bước vẫn chưa sang")
+        )
     );
 }
 
