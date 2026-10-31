@@ -3,10 +3,12 @@ import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Chip } from "../components/Chip";
+import { Elapsed } from "../components/Elapsed";
 import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import type { Account } from "../types";
+import { BattlePanel } from "./BattlePanel";
 import "./FightCard.css";
 
 export interface FightChoice {
@@ -94,31 +96,19 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
               {job.target}: trận <span className="px">{job.fights}/{job.count}</span>
             </span>
             <span className="job__score">
-              <b className="win">{job.wins} thắng</b> · <b className="loss">{job.losses} thua</b> · +{num(job.exp)} EXP · +{num(job.coin)} xu
+              <b className="win">{job.wins} thắng</b> · <b className="loss">{job.losses} thua</b> · +{num(job.exp)} EXP · +{num(job.coin)} xu ·{" "}
+              <Elapsed from={job.startedAt} to={job.endedAt} />
             </span>
           </div>
           <Bar value={job.fights / Math.max(1, job.count)} />
           {job.done && <div className="job__done">{job.done}</div>}
-          {battle && (
-            <div className="battle">
-              <div className="battle__side">
-                <span>Bạn</span>
-                <b className="px">
-                  {num(Math.round(battle.hp))}/{num(Math.round(battle.maxHp))}
-                </b>
-                <Bar value={battle.hp / Math.max(1, battle.maxHp)} fill="var(--hp)" thin />
-              </div>
-              <span className="battle__vs px">
-                VS
-                <small>lượt {battle.turns}</small>
-              </span>
-              <div className="battle__side">
-                <span title={battle.mobName}>{battle.mobName}</span>
-                <b className="px">{battle.mobHp != null && battle.mobMaxHp ? `${num(Math.round(battle.mobHp))}/${num(Math.round(battle.mobMaxHp))}` : "?"}</b>
-                <Bar value={battle.mobHp != null && battle.mobMaxHp ? battle.mobHp / battle.mobMaxHp : 0} fill="var(--accent)" thin />
-              </div>
-            </div>
-          )}
+          {battle && <BattlePanel battle={battle} />}
+        </div>
+      )}
+      {/* A battle with no fight job here: a quest run's, also one played out after Dừng. */}
+      {!job && battle && (
+        <div className="job">
+          <BattlePanel battle={battle} />
         </div>
       )}
     </Card>

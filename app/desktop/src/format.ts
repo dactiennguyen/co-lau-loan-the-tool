@@ -8,6 +8,13 @@ export const num = (n: number | null | undefined) => (n == null ? "—" : number
 export const pct = (part: number) => `${percents.format(part * 100)}%`;
 export const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
+/** 245 → "4:05", 3723 → "1:02:03": seconds as a clock. */
+export function clock(secs: number) {
+  const two = (n: number) => String(n).padStart(2, "0");
+  const [h, m, s] = [Math.floor(secs / 3600), Math.floor(secs / 60) % 60, secs % 60];
+  return h > 0 ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
+}
+
 /** CSS colour variable of a status (tokens.css). */
 export const statusTone = (s: Status) =>
   ["var(--s-offline)", "var(--s-connecting)", "var(--s-online)", "var(--s-fighting)", "var(--s-error)"][s];

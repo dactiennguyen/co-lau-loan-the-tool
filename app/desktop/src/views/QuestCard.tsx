@@ -3,10 +3,12 @@ import type { QuestStepRef } from "../api";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { Elapsed } from "../components/Elapsed";
 import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import type { Account, Quest } from "../types";
+import { BattlePanel } from "./BattlePanel";
 import "./QuestCard.css";
 
 interface Props {
@@ -111,8 +113,15 @@ export function QuestCard({ account, onStart, onStop }: Props) {
           <span className="quest__doing">{running ? run.doing || "Đang chọn việc…" : run.done}</span>
           <span className="quest__score">
             <b className="win">{run.wins} thắng</b> · <b className="loss">{run.losses} thua</b> · +{num(run.exp)} EXP · +{num(run.coin)} xu
-            {run.completed > 0 && <> · xong {run.completed} nhiệm vụ</>}
+            {run.completed > 0 && <> · xong {run.completed} nhiệm vụ</>} · <Elapsed from={run.startedAt} to={run.endedAt} />
           </span>
+        </div>
+      )}
+      {/* The battle on, as the fight job shows it: a step's fights ("Đánh bại Kẻ Gây Rối"), one played out after Dừng,
+          or the fight job's. */}
+      {c?.battle && (
+        <div className="quest__battle">
+          <BattlePanel battle={c.battle} />
         </div>
       )}
 

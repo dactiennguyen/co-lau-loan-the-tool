@@ -73,6 +73,9 @@ pub struct Job {
     pub coin: i64,
     /// Why the job ended; None while it runs.
     pub done: Option<String>,
+    /// When it started and ended, in ms since 1970: the UI shows the time it took, live while it runs.
+    pub started_at: u64,
+    pub ended_at: Option<u64>,
 }
 
 /// "Tự làm nhiệm vụ", or ▶ on one step: the quest run and what it has done so far.
@@ -97,6 +100,9 @@ pub struct QuestRun {
     pub doing: String,
     /// Why the run ended; None while it runs.
     pub done: Option<String>,
+    /// When it started and ended, in ms since 1970, as for Job.
+    pub started_at: u64,
+    pub ended_at: Option<u64>,
 }
 
 /// A boss of this zone and the tile (column, row) it was last seen on; `moving` between s2c/1177 field 1 and field 0.
@@ -169,6 +175,23 @@ pub struct Snapshot {
     pub turn: Option<Turn>,
 }
 
+/// Wall-clock ms since 1970, for the start and end of a job or quest run.
+fn epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64)
+}
+
+/// "45 giây", "3 phút 05 giây", "1 giờ 02 phút".
+pub fn duration_text(d: Duration) -> String {
+    let s = d.as_secs();
+    match s {
+        0..60 => format!("{s} giây"),
+        60..3600 => format!("{} phút {:02} giây", s / 60, s % 60),
+        _ => format!("{} giờ {:02} phút", s / 3600, s / 60 % 60),
+    }
+}
+
 /// A challenge (c2s/15, c2s/1178) not answered by s2c/22 yet: the mob, and the job or quest run that sent it.
 struct Challenge {
     mob_id: String,
@@ -224,6 +247,8 @@ pub struct Bot {
     /// Until when a surrender waits for s2c/1214 or s2c/36 before the battle is played on. Its own deadline, so a job
     /// started or stopped meanwhile cannot clear it.
     leave_until: Option<Instant>,
+    /// When the battle on, or the last one, opened (s2c/22): its result line says how long it took.
+    battle_started: Instant,
     /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
     /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
     /// 8, `allot_failed` once one went unanswered, until the plan is set again.
@@ -261,6 +286,7 @@ impl Bot {
             runs: 0,
             reload_map: false,
             leave_until: None,
+            battle_started: Instant::now(),
             stat_plan,
             given: [0; 4],
             spent: [0; 4],
@@ -453,6 +479,8 @@ impl Bot {
             exp: 0,
             coin: 0,
             done: None,
+            started_at: epoch_ms(),
+            ended_at: None,
         });
         self.waits = 0;
         self.job_seq += 1;
@@ -526,7 +554,9 @@ impl Bot {
             coin: 0,
             completed: 0,
             doing: String::new(),
+            ended_at: done.is_some().then(epoch_ms),
             done,
+            started_at: epoch_ms(),
         }
     }
     /// Ends the job or quest run. A battle in progress is played out, or with `surrender` left as the game's Đầu hàng
@@ -595,20 +625,31 @@ impl Bot {
             None => "tự làm nhiệm vụ",
         };
         if let Some(r) = &mut self.snap.quest_run {
-            r.done = Some(reason.into());
+            let end = epoch_ms();
+            (r.done, r.ended_at) = (Some(reason.into()), Some(end));
             out.push(Out::Log(format!(
-                "Kết thúc {what}: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, xong {} nhiệm vụ)",
-                r.wins, r.losses, r.exp, r.coin, r.completed
+                "Kết thúc {what}: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, xong {} nhiệm vụ, trong {})",
+                r.wins,
+                r.losses,
+                r.exp,
+                r.coin,
+                r.completed,
+                duration_text(Duration::from_millis(end.saturating_sub(r.started_at)))
             )));
         }
     }
 
     fn finish(&mut self, reason: &str, out: &mut Vec<Out>) {
         if let Some(j) = &mut self.snap.job {
-            j.done = Some(reason.into());
+            let end = epoch_ms();
+            (j.done, j.ended_at) = (Some(reason.into()), Some(end));
             out.push(Out::Log(format!(
-                "Kết thúc: {reason} ({} thắng, {} thua, +{} EXP, +{} xu)",
-                j.wins, j.losses, j.exp, j.coin
+                "Kết thúc: {reason} ({} thắng, {} thua, +{} EXP, +{} xu, trong {})",
+                j.wins,
+                j.losses,
+                j.exp,
+                j.coin,
+                duration_text(Duration::from_millis(end.saturating_sub(j.started_at)))
             )));
         }
     }
@@ -715,6 +756,7 @@ impl Bot {
         if self.snap.quest_run.is_some() && !self.job_running() {
             return self.quest_battle_end(&end, boss, now, out);
         }
+        let took = duration_text(now.saturating_duration_since(self.battle_started));
         let Some(j) = &mut self.snap.job else { return };
         if end.won {
             j.wins += 1
@@ -725,10 +767,11 @@ impl Bot {
         j.exp += end.exp.unwrap_or(0) as i64;
         j.coin += end.coin.unwrap_or(0) as i64;
         out.push(Out::Log(format!(
-            "Trận {}: {}, {} lượt, gây {} sát thương, +{} EXP, +{} xu",
+            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu",
             j.fights,
             if end.won { "thắng" } else { "thua" },
             end.my_turns,
+            took,
             end.damage,
             end.exp.unwrap_or(0),
             end.coin.unwrap_or(0)
@@ -1096,6 +1139,7 @@ impl Bot {
         let mut acts = vec![];
         runner.start(&mut acts);
         (self.battle, self.snap.turn) = (Some(runner), None);
+        self.battle_started = now;
         self.apply(acts, now, out);
         Ok(())
     }
@@ -1415,6 +1459,7 @@ impl Bot {
     /// Counts a battle of the quest run. The local count is replaced by the server's s2c/1201 a few ms later. A boss is
     /// not expected to fall: its damage counts won or lost, and a loss to it does not stop the run.
     fn quest_battle_end(&mut self, end: &BattleEnd, boss: bool, now: Instant, out: &mut Vec<Out>) {
+        let took = duration_text(now.saturating_duration_since(self.battle_started));
         let Some(r) = &mut self.snap.quest_run else {
             return;
         };
@@ -1427,10 +1472,11 @@ impl Bot {
         r.coin += end.coin.unwrap_or(0) as i64;
         let (losses, max_losses) = (r.losses, r.max_losses);
         out.push(Out::Log(format!(
-            "Trận {}: {}, {} lượt, gây {} sát thương, +{} EXP, +{} xu",
+            "Trận {}: {}, {} lượt trong {}, gây {} sát thương, +{} EXP, +{} xu",
             r.fights,
             if end.won { "thắng" } else { "thua" },
             end.my_turns,
+            took,
             end.damage,
             end.exp.unwrap_or(0),
             end.coin.unwrap_or(0)

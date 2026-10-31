@@ -3,7 +3,7 @@
 use crate::app::{App, Entry};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleView, BossTile, QuestRun, Snapshot, Target};
+use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Snapshot, Target};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::runner::Turn;
@@ -137,6 +137,8 @@ fn main_character() -> Snapshot {
             completed: 0,
             doing: "Đánh Cóc Xanh (14/15)".into(),
             done: None,
+            started_at: ago(12 * 60 + 34),
+            ended_at: None,
         }),
         battle: Some(BattleView {
             mob_id: "mob61000".into(),
@@ -152,6 +154,15 @@ fn main_character() -> Snapshot {
         turn: Some(live_turn()),
         ..Snapshot::default()
     }
+}
+
+/// The wall clock `secs` ago, in ms since 1970 (Job::started_at).
+fn ago(secs: u64) -> u64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    now.saturating_sub(std::time::Duration::from_secs(secs))
+        .as_millis() as u64
 }
 
 /// Cóc Xanh's latest move in the battle of main_character().
@@ -262,6 +273,20 @@ pub fn entries() -> Vec<Entry> {
                 ("Báo cáo với Bà Tư Hạnh", 103, 1, 103),
             ],
         )),
+        job: Some(Job {
+            target: "Heo Mọi".into(),
+            count: 5,
+            max_losses: 1,
+            fights: 5,
+            wins: 5,
+            losses: 0,
+            damage: 1150,
+            exp: 460,
+            coin: 60,
+            done: Some("Đã đánh đủ 5 trận".into()),
+            started_at: ago(40 * 60),
+            ended_at: Some(ago(40 * 60 - 462)),
+        }),
         ..Snapshot::default()
     };
 

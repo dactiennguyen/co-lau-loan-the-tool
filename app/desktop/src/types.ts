@@ -81,6 +81,9 @@ export interface Job {
   coin: number;
   /** Why the job ended; null while it runs. */
   done: string | null;
+  /** When it started and ended, in ms since 1970. */
+  startedAt: number;
+  endedAt: number | null;
 }
 
 export interface Battle {
@@ -140,6 +143,9 @@ export interface QuestRun {
   doing: string;
   /** Why the run ended; null while it runs. */
   done: string | null;
+  /** When it started and ended, in ms since 1970. */
+  startedAt: number;
+  endedAt: number | null;
 }
 
 /** Attack, defence, accuracy, dodge, critical (the last three labels are inferred: docs/app/user-data.md). */

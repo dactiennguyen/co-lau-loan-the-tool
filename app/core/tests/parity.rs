@@ -4,7 +4,7 @@ use cllt_core::atlas::{Atlas, MapRecord};
 use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
 };
-use cllt_core::bot::{Bot, BotOptions, Out};
+use cllt_core::bot::{duration_text, Bot, BotOptions, Out};
 use cllt_core::potentials::StatPlan;
 use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
@@ -773,6 +773,41 @@ fn the_snapshot_keeps_the_result_that_ended_a_battle_until_the_next_one_opens() 
     assert!(bot.snapshot().turn.is_some());
     bot.on_packet(22, &setup, now, &mut out).unwrap();
     assert_eq!(bot.snapshot().turn, None);
+}
+
+#[test]
+fn a_battle_line_says_how_long_it_took_and_the_job_when_it_ended() {
+    assert_eq!(duration_text(Duration::from_secs(45)), "45 giây");
+    assert_eq!(duration_text(Duration::from_secs(65)), "1 phút 05 giây");
+    assert_eq!(duration_text(Duration::from_secs(3723)), "1 giờ 02 phút");
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(19, &lost_battle(), now + Duration::from_secs(65), &mut out)
+        .unwrap();
+    let logs: Vec<&str> = out
+        .iter()
+        .filter_map(|o| match o {
+            Out::Log(t) => Some(t.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        logs.iter()
+            .any(|t| t.starts_with("Trận 1: thua, ")
+                && t.contains(" lượt trong 1 phút 05 giây, gây ")),
+        "{logs:?}"
+    );
+    assert!(
+        logs.iter()
+            .any(|t| t.starts_with("Kết thúc: Thua 1 trận (") && t.contains(", trong ")),
+        "{logs:?}"
+    );
+    let job = bot.snap.job.unwrap();
+    assert!(job
+        .ended_at
+        .is_some_and(|end| end >= job.started_at && job.started_at > 0));
 }
 
 #[test]

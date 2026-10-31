@@ -59,6 +59,9 @@ pub enum Event {
 type Emit = Arc<dyn Fn(Event) + Send + Sync>;
 type Error = String;
 const STEP: Duration = Duration::from_secs(8);
+/// After s2c/43, how long to wait for s2c/1263: a zone with no other player sends none (M25, 31/10; snapshotWaitMs of
+/// src/client.ts).
+const PLAYERS_WAIT: Duration = Duration::from_millis(1500);
 
 /// Runs the session of `account` until Logout, the server closing, or an error; reports through `emit`.
 pub async fn run(
@@ -157,6 +160,8 @@ async fn session(
     let mut bot = Bot::new(options, atlas);
     let (mut step, mut deadline) = (Step::Key, Instant::now() + STEP);
     let (mut have_list, mut have_flag, mut entities, mut snapshot) = (false, false, false, false);
+    // Set by s2c/43 while no s2c/1263 has come: the login goes on without it at that time.
+    let mut players_wait: Option<Instant> = None;
     let (mut name, mut map_id) = (String::new(), String::new());
     let mut heartbeat = interval(Duration::from_secs(2));
     heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -170,6 +175,13 @@ async fn session(
                 .encode($op, &build($op, &$ctx).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
             stream.write_all(&frame).await.map_err(|e| e.to_string())?;
+        }};
+    }
+    macro_rules! online {
+        () => {{
+            step = Step::Ready;
+            emit(Event::State(ConnState::Online));
+            bot.on_ready(std::time::Instant::now(), &mut out);
         }};
     }
     send!(-1, Ctx::default());
@@ -253,13 +265,14 @@ async fn session(
                             if op == 43 {
                                 map_entities(&p.payload).map_err(|e| unread(op, e))?;
                                 entities = true;
+                                if !snapshot {
+                                    players_wait.get_or_insert(Instant::now() + PLAYERS_WAIT);
+                                }
                             } else {
                                 snapshot = true;
                             }
                             if entities && snapshot {
-                                step = Step::Ready;
-                                emit(Event::State(ConnState::Online));
-                                bot.on_ready(std::time::Instant::now(), &mut out);
+                                online!();
                             }
                         }
                         _ => {}
@@ -283,6 +296,11 @@ async fn session(
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),
+            // Alone in the zone, the server sends no s2c/1263 at all.
+            _ = sleep_until(players_wait.unwrap_or_else(Instant::now)), if players_wait.is_some() && step == Step::Entities => {
+                out.push(Out::Log("Không có người chơi nào khác trong khu (server không gửi s2c/1263)".into()));
+                online!();
+            }
             _ = sleep_until(deadline), if step != Step::Ready => return Err(format!("Hết giờ chờ server ở bước {step:?}")),
         }
         for o in out.drain(..) {
@@ -372,6 +390,8 @@ mod tests {
         NoSeed,
         /// Never answers c2s/11.
         StallMap,
+        /// No other player in the zone: s2c/43 without s2c/1263 (M25, 31/10).
+        Alone,
     }
 
     /// Made-up answers to each login request, enough for the parsers of FLOW.
@@ -417,6 +437,7 @@ mod tests {
             29 => vec![(29, w().string("manina").string("M1").i32(0).build())],
             11 if fault == Fault::StallMap => vec![],
             11 => vec![(11, if fault == Fault::Map { vec![1] } else { map })],
+            43 if fault == Fault::Alone => vec![(43, mobs.build())],
             43 => vec![
                 (
                     43,
@@ -612,6 +633,27 @@ mod tests {
         );
         tx.send(Command::Logout).unwrap();
         ends(task).await;
+    }
+
+    #[tokio::test]
+    async fn alone_in_the_zone_the_login_goes_online_without_s2c_1263() {
+        let (events, tx, task) = login(Fault::Alone).await;
+        online(&events).await;
+        let snap = last_snapshot(&events);
+        assert!(snap.players.is_empty() && !snap.players_unread);
+        assert!(
+            logs(&events)
+                .iter()
+                .any(|l| l.contains("Không có người chơi nào khác")),
+            "{:?}",
+            logs(&events)
+        );
+        tx.send(Command::Logout).unwrap();
+        ends(task).await;
+        assert_eq!(
+            states(&events),
+            [ConnState::Connecting, ConnState::Online, ConnState::Offline]
+        );
     }
 
     #[tokio::test]
