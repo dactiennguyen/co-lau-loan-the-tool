@@ -5,6 +5,7 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{BattleView, BossTile, QuestRun, Snapshot, Target};
 use cllt_core::net::ConnState;
+use cllt_core::runner::Turn;
 use cllt_core::world::{Nearby, Quest, QuestStep};
 use serde_json::json;
 use std::path::Path;
@@ -145,7 +146,36 @@ fn main_character() -> Snapshot {
             timed: false,
             leaving: false,
         }),
+        turn: Some(live_turn()),
         ..Snapshot::default()
+    }
+}
+
+/// Cóc Xanh's latest move in the battle of main_character().
+fn live_turn() -> Turn {
+    Turn {
+        n: 14,
+        foe: "Cóc Xanh".into(),
+        eaten: vec![(0, 3), (2, 3)],
+        damage: 18,
+        s1: 8,
+        left: Some(132),
+        ..Turn::default()
+    }
+}
+
+/// The last move of a battle that the player won.
+fn final_turn(n: u32, eaten: Vec<(i16, u32)>, damage: i32, s2: i32) -> Turn {
+    Turn {
+        n,
+        mine: true,
+        foe: "Cóc Xanh".into(),
+        eaten,
+        damage,
+        s2,
+        left: Some(0),
+        end: true,
+        ..Turn::default()
     }
 }
 
@@ -153,19 +183,38 @@ pub fn entries() -> Vec<Entry> {
     let mut main = Entry::new(0, account("Nick chính", "manina"));
     (main.state, main.snap, main.since) = (ConnState::Online, main_character(), "17:40".into());
     let lines = [
-        "Đã vào game",
-        "Nhiệm vụ 9: Thử Sức Tân Binh; bước 4/5: Tiêu diệt Cóc Xanh",
-        "Bắt đầu: tự làm nhiệm vụ",
-        "Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)",
-        "Trận 1: thắng, 22 lượt, gây 249 sát thương, +142 EXP, +18 xu",
-        "Đã diệt 13/15",
-        "Trận 2: thách đấu Cóc Xanh cấp 13 (mob61006)",
-        "Trận 2: thắng, 19 lượt, gây 249 sát thương, +142 EXP, +18 xu",
-        "Đã diệt 14/15",
-        "Trận 3: thách đấu Cóc Xanh cấp 13 (mob61000)",
+        ("Đã vào game", None),
+        (
+            "Nhiệm vụ 9: Thử Sức Tân Binh; bước 4/5: Tiêu diệt Cóc Xanh",
+            None,
+        ),
+        ("Bắt đầu: tự làm nhiệm vụ", None),
+        (
+            "Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)",
+            Some(final_turn(43, vec![(0, 4), (5, 1)], 41, 0)),
+        ),
+        (
+            "Trận 1: thắng, 22 lượt, gây 249 sát thương, +142 EXP, +18 xu",
+            None,
+        ),
+        ("Đã diệt 13/15", None),
+        (
+            "Trận 2: thách đấu Cóc Xanh cấp 13 (mob61006)",
+            Some(final_turn(37, vec![(0, 3), (3, 3)], 35, 15)),
+        ),
+        (
+            "Trận 2: thắng, 19 lượt, gây 249 sát thương, +142 EXP, +18 xu",
+            None,
+        ),
+        ("Đã diệt 14/15", None),
+        (
+            "Trận 3: thách đấu Cóc Xanh cấp 13 (mob61000)",
+            Some(live_turn()),
+        ),
     ];
-    for (i, text) in lines.iter().enumerate() {
-        main.push(LogLine::new(format!("17:4{i}:0{i}"), text));
+    for (i, (text, turn)) in lines.into_iter().enumerate() {
+        let line = LogLine::new(format!("17:4{i}:0{i}"), text);
+        main.push(LogLine { turn, ..line });
     }
 
     let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"));

@@ -13,6 +13,33 @@ export interface LogLine {
   time: string;
   text: string;
   tone: Tone;
+  /** On the line a battle opened on: its latest result. The line comes again with each new one. */
+  turn?: Turn;
+}
+
+/** What one result of a battle did (Turn of cllt-core's runner.rs). */
+export interface Turn {
+  /** Results of the battle so far, both sides, this one included. */
+  n: number;
+  /** The player moved, else the mob. */
+  mine: boolean;
+  /** Name of the mob. */
+  foe: string;
+  /** Skill cast. */
+  skill: number | null;
+  /** [kind, count], kinds ascending: 0 sword, 1 heart, 2 yin-yang, 3 peach, 4 drop, 5 star, 70 gold. */
+  eaten: [number, number][];
+  /** Damage dealt to the other side. */
+  damage: number;
+  /** HP the actor gained. */
+  heal: number;
+  /** Changes of the actor's nội lực and sức mạnh. */
+  s1: number;
+  s2: number;
+  /** HP of the other side after it, when known. */
+  left: number | null;
+  extraTurn: boolean;
+  end: boolean;
 }
 
 /** Another player of the zone. */

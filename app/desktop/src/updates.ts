@@ -61,9 +61,24 @@ export function merge<S extends Accounts>(s: S, u: AccountsUpdate): S | Accounts
   return { rev: u.rev, order: u.ids ?? s.order, byId };
 }
 
-/** `more` after `lines` without the ones `lines` has (line numbers only grow), to the last LOG_LINES. */
+/**
+ * `more` after `lines`, to the last LOG_LINES. Line numbers only grow, without gaps; a number that comes again is a line
+ * that changed (a new result of its battle) and takes the place of the one before.
+ */
 export function append(lines: LogLine[], more: LogLine[]): LogLine[] {
+  const first = lines.length ? lines[0].seq : 1;
   const last = lines.length ? lines[lines.length - 1].seq : 0;
-  const fresh = more.filter((l) => l.seq > last);
-  return fresh.length ? [...lines, ...fresh].slice(-LOG_LINES) : lines;
+  let out = lines;
+  const fresh: LogLine[] = [];
+  for (const l of more) {
+    if (l.seq > last) {
+      const i = fresh.findIndex((f) => f.seq === l.seq);
+      if (i >= 0) fresh[i] = l;
+      else fresh.push(l);
+    } else if (out[l.seq - first]?.seq === l.seq) {
+      if (out === lines) out = [...lines];
+      out[l.seq - first] = l;
+    }
+  }
+  return fresh.length ? [...out, ...fresh].slice(-LOG_LINES) : out;
 }

@@ -64,7 +64,7 @@ export function AccountPage({ account }: { account: Account }) {
               />
             )}
           </TabPanel>
-          <LogCard lines={log} />
+          <LogCard lines={log} fighting={!!c?.battle} />
         </div>
       </div>
     </div>

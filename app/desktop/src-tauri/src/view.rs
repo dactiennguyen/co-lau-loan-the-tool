@@ -3,6 +3,7 @@
 use crate::app::Entry;
 use cllt_core::bot::{BattleView, BossTile, Job, QuestRun, Target};
 use cllt_core::net::ConnState;
+use cllt_core::runner::Turn;
 use cllt_core::world::{Nearby, Quest};
 use serde::Serialize;
 
@@ -42,6 +43,9 @@ pub struct LogLine {
     pub time: String,
     pub text: String,
     pub tone: u8,
+    /// On the line a battle opened on: the battle's latest result, sent again with each one (App::on_event).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub turn: Option<Turn>,
 }
 impl LogLine {
     pub fn new(time: String, text: &str) -> Self {
@@ -50,6 +54,7 @@ impl LogLine {
             time,
             text: text.into(),
             tone: LogTone::of(text) as u8,
+            turn: None,
         }
     }
 }

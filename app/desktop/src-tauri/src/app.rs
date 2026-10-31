@@ -28,6 +28,8 @@ pub struct Entry {
     pub log: VecDeque<LogLine>,
     /// Number of the next log line.
     next_line: u64,
+    /// While a battle is on: the line it opened on, which shows its latest result.
+    live: Option<u64>,
 }
 impl Entry {
     pub fn new(id: u64, account: Account) -> Self {
@@ -39,6 +41,7 @@ impl Entry {
             since: String::new(),
             log: VecDeque::new(),
             next_line: 1,
+            live: None,
         }
     }
     /// Numbers the line, so the UI can tell the lines it has from new ones, and keeps it.
@@ -50,6 +53,29 @@ impl Entry {
             self.log.pop_front();
         }
         line
+    }
+
+    /// Takes snapshot `s`. A battle that opens gets the line logged last, which is its challenge or the note that an
+    /// earlier challenge opened late; each new result of the battle goes on that line, the one that ended it included.
+    /// Returns the line when it changed.
+    fn take_snapshot(&mut self, s: Snapshot) -> Option<LogLine> {
+        if self.snap.battle.is_none() && s.battle.is_some() {
+            self.live = self.log.back().map(|l| l.seq);
+        }
+        let changed = match (&s.turn, self.live) {
+            (Some(turn), Some(seq)) if s.turn != self.snap.turn => {
+                self.log.iter_mut().rev().find(|l| l.seq == seq).map(|l| {
+                    l.turn = Some(turn.clone());
+                    l.clone()
+                })
+            }
+            _ => None,
+        };
+        if s.battle.is_none() {
+            self.live = None;
+        }
+        self.snap = s;
+        changed
     }
 }
 
@@ -407,10 +433,11 @@ impl App {
                 }
             }
             Event::Snapshot(s) => {
-                if let Some(e) = self.entry_mut(id) {
-                    e.snap = *s;
-                    self.touch(id, false);
+                let Some(e) = self.entry_mut(id) else { return };
+                if let Some(line) = e.take_snapshot(*s) {
+                    self.pending.push((id, line));
                 }
+                self.touch(id, false);
             }
             Event::Log(text) => self.log(id, &text),
         }
@@ -460,6 +487,68 @@ mod tests {
         let update = app.take_update().0.unwrap();
         assert!(update.accounts.is_empty());
         assert_eq!(update.ids, Some(vec![b]));
+    }
+
+    #[test]
+    fn each_result_of_a_battle_goes_on_the_line_it_opened_on() {
+        use cllt_core::bot::BattleView;
+        use cllt_core::runner::Turn;
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        let id = app.add(account("a"));
+        let battle = || BattleView {
+            mob_id: "mob61000".into(),
+            mob_name: "Cóc Xanh".into(),
+            hp: 150.0,
+            max_hp: 180.0,
+            mob_hp: None,
+            mob_max_hp: None,
+            turns: 0,
+            timed: false,
+            leaving: false,
+        };
+        let snap = |battle: Option<BattleView>, n: Option<u32>| {
+            Event::Snapshot(Box::new(Snapshot {
+                battle,
+                turn: n.map(|n| Turn {
+                    n,
+                    end: n == 3,
+                    ..Turn::default()
+                }),
+                ..Snapshot::default()
+            }))
+        };
+        // The line logged last when the battle opens is its challenge; a later line does not take the results.
+        app.on_event(
+            id,
+            Event::Log("Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)".into()),
+        );
+        app.on_event(id, snap(Some(battle()), None));
+        app.on_event(id, Event::Log("Bàn cờ lệch với server ở lượt 2".into()));
+        app.take_update();
+        let sent = |app: &mut App| -> Vec<(u64, Option<u32>)> {
+            let lines = app.take_update().1;
+            lines
+                .iter()
+                .map(|l| (l.line.seq, l.line.turn.as_ref().map(|t| t.n)))
+                .collect()
+        };
+        app.on_event(id, snap(Some(battle()), Some(1)));
+        assert_eq!(sent(&mut app), [(1, Some(1))]);
+        // A snapshot with the same result sends nothing; the result that ends the battle comes with no battle.
+        app.on_event(id, snap(Some(battle()), Some(1)));
+        app.on_event(id, snap(Some(battle()), Some(2)));
+        app.on_event(id, snap(None, Some(3)));
+        assert_eq!(sent(&mut app), [(1, Some(2)), (1, Some(3))]);
+        let log = app.logs(id);
+        assert_eq!(log[0].turn.as_ref().map(|t| t.end), Some(true));
+        assert_eq!(log[1].turn, None);
+        // The next battle, before its first result, leaves that line as it is.
+        app.on_event(
+            id,
+            Event::Log("Trận 2: thách đấu Cóc Xanh cấp 13 (mob61000)".into()),
+        );
+        app.on_event(id, snap(Some(battle()), None));
+        assert_eq!(sent(&mut app), [(3, None)]);
     }
 
     #[test]

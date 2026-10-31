@@ -82,6 +82,19 @@ const paths = {
   scroll: <path d="M8 3h11a2 2 0 0 1 2 2v2h-4M8 3a2 2 0 0 0-2 2v12a2 2 0 0 1-2 2h11a2 2 0 0 0 2-2V5a2 2 0 0 1 2-2M9.5 8h4.5M9.5 12h4.5" />,
   check: <path d="m5 12 5 5 9-10" />,
   pencil: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
+  yinyang: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a4.5 4.5 0 0 0 0 9 4.5 4.5 0 0 1 0 9M12 7.5h.01M12 16.5h.01" />
+    </>
+  ),
+  peach: (
+    <>
+      <path d="M12 8C7.5 6.5 4 9.5 4 14c0 4 3.6 7 8 7s8-3 8-7c0-4.5-3.5-7.5-8-6z" />
+      <path d="M12 8c0-2.2 1.2-3.8 3.5-4.5M12 8C10.6 5.8 8.4 5.2 6.5 5.6 7.2 7.6 9.4 8.6 12 8" />
+    </>
+  ),
+  drop: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof paths;

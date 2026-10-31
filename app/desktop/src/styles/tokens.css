@@ -54,6 +54,15 @@
   --c-dodge: #7fb4c2;
   --c-critical: #d5b06b;
 
+  /* board pieces (docs/app/events/05-battle.md) */
+  --piece-sword: #d98278;
+  --piece-heart: #d98aa6;
+  --piece-yinyang: #a397d6;
+  --piece-peach: #e0a37c;
+  --piece-drop: #7fb4c2;
+  --piece-star: #e2c46c;
+  --piece-gold: #d5b06b;
+
   /* avatar tiles */
   --tile-0: #6e9fcf;
   --tile-1: #92b97c;

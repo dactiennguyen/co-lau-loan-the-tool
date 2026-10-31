@@ -1,0 +1,77 @@
+/* The latest result of a battle, under its line in the log: a stripe of the side that moved, the move's number, then
+   the move in words with the pieces as coloured chips. */
+.turn {
+  --side: var(--good);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 1px 0 2px;
+  padding: 1px 6px 1px 6px;
+  box-shadow: inset 2px 0 0 var(--side);
+  background: var(--bg-2);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+.turn--foe { --side: var(--hp); }
+.turn--live { animation: turn-in var(--slow) var(--step); }
+.turn__n { flex: none; min-width: 22px; font-size: 9.5px; color: var(--fg-3); }
+.turn--live .turn__n::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  vertical-align: 1px;
+  background: var(--side);
+  animation: turn-blink 1s steps(2, jump-none) infinite;
+}
+.turn__body { min-width: 0; }
+.turn__actor { font-weight: 700; color: var(--fg); }
+.turn__hit { color: var(--hp); font-weight: 600; }
+.turn__left { color: var(--fg-3); font-weight: 500; }
+.turn__heal { color: var(--good); font-weight: 600; }
+.turn__arrow { color: var(--fg-3); }
+.turn__tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.turn__tag--end { border-color: var(--primary-shade); color: var(--primary); }
+
+.piece {
+  --piece: var(--fg-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  padding: 0 4px;
+  background: var(--ink);
+  color: var(--piece);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.piece svg { align-self: center; }
+.piece b { font-size: 10px; font-weight: 400; }
+.piece--sword { --piece: var(--piece-sword); }
+.piece--heart { --piece: var(--piece-heart); }
+.piece--yinyang { --piece: var(--piece-yinyang); }
+.piece--peach { --piece: var(--piece-peach); }
+.piece--drop { --piece: var(--piece-drop); }
+.piece--star { --piece: var(--piece-star); }
+.piece--gold { --piece: var(--piece-gold); }
+
+@keyframes turn-in {
+  from { background: var(--card-2); }
+}
+@keyframes turn-blink {
+  from { opacity: 1; }
+  to { opacity: 0.25; }
+}

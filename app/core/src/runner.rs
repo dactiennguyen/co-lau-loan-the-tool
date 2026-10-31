@@ -31,6 +31,33 @@ pub struct BattleEnd {
     pub damage: i32,
 }
 
+/// What one result (s2c/19, 20, 21) did: the desktop shows the last one under the log line its battle opened on.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Turn {
+    /// Results of the battle so far, this one included.
+    pub n: u32,
+    /// The player moved, else the mob.
+    pub mine: bool,
+    /// Name of the mob; the Bot fills it in (the runner knows its id only).
+    pub foe: String,
+    /// Skill cast (s2c/20).
+    pub skill: Option<i32>,
+    /// Pieces eaten (`battle::kind`: 0 sword, 1 heart, 2 yin-yang, 3 peach, 4 drop, 5 star, 70 gold), kinds ascending.
+    pub eaten: Vec<(i16, u32)>,
+    /// Damage dealt to the other side.
+    pub damage: i32,
+    /// HP the actor gained.
+    pub heal: i32,
+    /// Changes of the actor's nội lực (s1) and sức mạnh (s2).
+    pub s1: i32,
+    pub s2: i32,
+    /// HP of the other side after it, when known.
+    pub left: Option<i32>,
+    pub extra_turn: bool,
+    pub end: bool,
+}
+
 /// Own skill to cast (c2s/20) once own stat1 reaches `cost`; `1000:25` is Hỏa Cầu Thuật.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Skill {
@@ -114,6 +141,8 @@ pub struct BattleRunner {
     pub surrendered: bool,
     /// The last turn passed over while leaving (seq, own turn), for resume().
     missed: Option<(i32, bool)>,
+    /// The latest result, for the status of the battle.
+    pub last: Option<Turn>,
     skill_refused: bool,
     /// Running sums behind each learnt value: (total, pieces), seeded with the default as `prior` pieces.
     seen: HashMap<(Side, Key), (f64, f64)>,
@@ -148,6 +177,7 @@ impl BattleRunner {
             leaving: false,
             surrendered: false,
             missed: None,
+            last: None,
             skill_refused: false,
             seen: HashMap::new(),
             options,
@@ -364,6 +394,7 @@ impl BattleRunner {
         } else {
             Side::Mob
         };
+        let before = (self.me, self.mob);
         if let Some(unit) = x.units.iter().find(|u| u.name == x.actor) {
             self.learn_from(side, unit, &o, skill);
             if side == Side::Me && unit.damage > 0 {
@@ -395,6 +426,7 @@ impl BattleRunner {
                 f.s2 = u.s2 as f64;
             }
         }
+        self.last = Some(self.turn(&x, side, &o, before));
         if !x.end && self.leaving {
             let again = self.timed || (x.actor == self.name) == x.extra_turn;
             self.missed = Some((x.seq, again));
@@ -431,6 +463,45 @@ impl BattleRunner {
             mob_id: self.mob_id.clone(),
             damage: self.damage,
         }));
+    }
+
+    /// What `x` did, from both sides as they were `before` it (own, mob's) and as they are now.
+    fn turn(&self, x: &BattleResult, side: Side, o: &Outcome, before: (Fighter, Fighter)) -> Turn {
+        let ((was, other_was), (after, other)) = match side {
+            Side::Me => (before, (self.me, self.mob)),
+            Side::Mob => ((before.1, before.0), (self.mob, self.me)),
+        };
+        let change = |now: f64, was: f64| {
+            if now.is_finite() && was.is_finite() {
+                (now - was).round() as i32
+            } else {
+                0
+            }
+        };
+        Turn {
+            n: self.last.as_ref().map_or(0, |t| t.n) + 1,
+            mine: side == Side::Me,
+            foe: String::new(),
+            skill: x.skill,
+            eaten: o
+                .cleared
+                .iter()
+                .filter(|(_, &n)| n > 0)
+                .map(|(&k, &n)| (k, n))
+                .collect(),
+            // The actor's unit carries the damage it dealt; without one, the HP the other side lost.
+            damage: x
+                .units
+                .iter()
+                .find(|u| u.name == x.actor && u.damage >= 0)
+                .map_or_else(|| (-change(other.hp, other_was.hp)).max(0), |u| u.damage),
+            heal: change(after.hp, was.hp).max(0),
+            s1: change(after.s1, was.s1),
+            s2: change(after.s2, was.s2),
+            left: Some(other.hp).filter(|v| v.is_finite()).map(|v| v as i32),
+            extra_turn: x.extra_turn,
+            end: x.end,
+        }
     }
 
     /// What the actor's pieces did in this result, read before its unit updates the state (learnFrom of battle-runner.ts).

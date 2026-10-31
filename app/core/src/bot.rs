@@ -11,7 +11,7 @@ use crate::protocol::{
 };
 use crate::quest::{step_action, StepAction};
 use crate::requests::{build, Ctx};
-use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill};
+use crate::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Skill, Turn};
 use crate::world::{
     character_stats, map_boss, map_change, map_data, map_entities, notice, quest_complete,
     quest_data, quest_progress, Mob, Nearby, Place, Quest, ZonePlayers,
@@ -159,6 +159,8 @@ pub struct Snapshot {
     pub quest: Option<Quest>,
     pub quest_run: Option<QuestRun>,
     pub battle: Option<BattleView>,
+    /// The latest result of the battle on, or of the battle just over until the next one opens.
+    pub turn: Option<Turn>,
 }
 
 /// A challenge (c2s/15, c2s/1178) not answered by s2c/22 yet: the mob, and the job or quest run that sent it.
@@ -261,13 +263,12 @@ impl Bot {
         let mut s = self.snap.clone();
         s.targets = self.targets();
         s.players = self.zone.list();
+        if let Some(b) = &self.battle {
+            s.turn = self.turn_of(b);
+        }
         s.battle = self.battle.as_ref().map(|b| BattleView {
             mob_id: b.mob_id.clone(),
-            mob_name: self
-                .mobs
-                .iter()
-                .find(|m| m.id == b.mob_id)
-                .map_or_else(|| b.mob_id.clone(), |m| m.name.clone()),
+            mob_name: self.mob_name(&b.mob_id),
             hp: b.me.hp,
             max_hp: b.me.max_hp,
             mob_hp: Some(b.mob.hp).filter(|v| v.is_finite()),
@@ -277,6 +278,19 @@ impl Bot {
             leaving: b.leaving,
         });
         s
+    }
+
+    fn mob_name(&self, id: &str) -> String {
+        self.mobs
+            .iter()
+            .find(|m| m.id == id)
+            .map_or_else(|| id.to_string(), |m| m.name.clone())
+    }
+
+    /// The last result of `b`, with the mob's name.
+    fn turn_of(&self, b: &BattleRunner) -> Option<Turn> {
+        let foe = self.mob_name(&b.mob_id);
+        b.last.clone().map(|t| Turn { foe, ..t })
     }
 
     /// Bosses of the current map: seen in this session, or in data/maps.json.
@@ -640,7 +654,8 @@ impl Bot {
     }
 
     fn on_battle_end(&mut self, end: BattleEnd, now: Instant, out: &mut Vec<Out>) {
-        self.battle = None;
+        // The result that ended it reaches no snapshot with the battle on: the snapshot keeps it until the next battle.
+        self.snap.turn = self.battle.take().and_then(|b| self.turn_of(&b));
         self.snap.hp = end.hp as i32;
         let boss = self.bosses.contains(&end.mob_id);
         if self.battle_seq != self.job_seq {
@@ -1035,7 +1050,7 @@ impl Bot {
         );
         let mut acts = vec![];
         runner.start(&mut acts);
-        self.battle = Some(runner);
+        (self.battle, self.snap.turn) = (Some(runner), None);
         self.apply(acts, now, out);
         Ok(())
     }

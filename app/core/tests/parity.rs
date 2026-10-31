@@ -8,7 +8,7 @@ use cllt_core::bot::{Bot, BotOptions, Out};
 use cllt_core::protocol::*;
 use cllt_core::quest::step_action;
 use cllt_core::requests::{build, Ctx};
-use cllt_core::runner::{Act, BattleEnd, BattleRunner, RunnerOptions};
+use cllt_core::runner::{Act, BattleEnd, BattleRunner, RunnerOptions, Turn};
 use cllt_core::world;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -447,6 +447,116 @@ fn runner_joins_steps_for_the_mob_plays_a_legal_move_and_ends() {
     assert_eq!(runner.deadline(), None);
 }
 
+/// s2c/19 of a swap and its `refill`; `units` are (name, damage, hp, s1, s2), -1 for unchanged.
+fn swap_result(
+    seq: i32,
+    mv: &[i32],
+    refill: &[u8],
+    units: &[(&str, i32, i32, i32, i32)],
+    actor: &str,
+    extra_turn: bool,
+) -> Vec<u8> {
+    let mut w = Writer::new().i32(seq).i32(0).i32(0);
+    for v in mv {
+        w = w.i32(v + 2);
+    }
+    w = w
+        .i32(1)
+        .bytes(refill)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(units.len() as u8);
+    for &(name, damage, hp, s1, s2) in units {
+        w = w.string(name).i32(damage).u8(0).i32(hp).i32(s1).i32(s2);
+    }
+    w.u8(0)
+        .u8(extra_turn as u8)
+        .u8(0)
+        .u8((actor == "manina") as u8)
+        .string(actor)
+        .u8(0)
+        .build()
+}
+
+#[test]
+fn runner_tells_what_each_result_did() {
+    let all = v();
+    let b = &all["battles"][0];
+    let steps = b["steps"].as_array().unwrap();
+    let step = |k: usize| {
+        let mv: Vec<i32> = steps[k]["move"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_i64().unwrap() as i32)
+            .collect();
+        let refill: Vec<u8> = steps[k]["refill"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_u64().unwrap() as u8)
+            .collect();
+        (mv, refill)
+    };
+    let setup = battle::Setup {
+        me: "manina".into(),
+        level: 3,
+        hp: 120,
+        max_hp: 130,
+        uuid: "u".into(),
+        board: board(&b["board"]).to_vec(),
+        turn_seconds: 30,
+    };
+    let (mut runner, mut acts, now) = (
+        BattleRunner::new(&setup, "mob872604", RunnerOptions::default()),
+        vec![],
+        Instant::now(),
+    );
+    // B1 step 0: own swap eating 4 peaches and 3 drops, then another turn.
+    let (mv, refill) = step(0);
+    let own = swap_result(
+        3,
+        &mv,
+        &refill,
+        &[("manina", -1, -1, -1, 20)],
+        "manina",
+        true,
+    );
+    runner.on_packet(19, &own, now, &mut acts).unwrap();
+    assert_eq!(
+        runner.last,
+        Some(Turn {
+            n: 1,
+            mine: true,
+            eaten: vec![(3, 4), (4, 3)],
+            s2: 20,
+            extra_turn: true,
+            ..Turn::default()
+        })
+    );
+    // Step 1 played by the mob: it hits for 14, and own HP is the mob's target.
+    let (mv, refill) = step(1);
+    let units = [("mob872604", 14, -1, -1, 22), ("manina", -1, 106, -1, -1)];
+    let mob = swap_result(4, &mv, &refill, &units, "mob872604", false);
+    runner.on_packet(19, &mob, now, &mut acts).unwrap();
+    assert_eq!(
+        runner.last,
+        Some(Turn {
+            n: 2,
+            eaten: vec![(3, 4)],
+            damage: 14,
+            s2: 22,
+            left: Some(106),
+            ..Turn::default()
+        })
+    );
+    assert!(!acts
+        .iter()
+        .any(|a| matches!(a, Act::Log(t) if t.starts_with("Bàn cờ lệch"))));
+}
+
 /// s2c/1177 of a boss in the layout of world.ts (field 0 at a tile, field 1 gone).
 fn boss(field: u8) -> Vec<u8> {
     if field == 1 {
@@ -639,6 +749,33 @@ fn fight_job_against_a_mob_stops_at_max_losses_and_a_missing_mob_ends_it() {
         bot.snap.job.as_ref().unwrap().done.as_deref(),
         Some("Không thấy Cóc Xanh ở khu này")
     );
+}
+
+#[test]
+fn the_snapshot_keeps_the_result_that_ended_a_battle_until_the_next_one_opens() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 2, 1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert_eq!(bot.snapshot().turn, None);
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    let (snap, start_hp) = (bot.snapshot(), 150);
+    assert_eq!(snap.battle, None);
+    let turn = snap.turn.expect("the last result");
+    // won_battle() has no unit for the mob that moved: the damage is the HP manina lost.
+    assert_eq!(
+        (
+            turn.foe.as_str(),
+            turn.mine,
+            turn.end,
+            turn.left,
+            turn.damage
+        ),
+        ("Cóc Xanh", false, true, Some(0), start_hp)
+    );
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert!(bot.snapshot().turn.is_some());
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    assert_eq!(bot.snapshot().turn, None);
 }
 
 #[test]
