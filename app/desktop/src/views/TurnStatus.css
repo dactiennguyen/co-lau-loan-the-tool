@@ -1,10 +1,12 @@
-/* The latest result of a battle, under its line in the log: a stripe of the side that moved, the move's number, then
-   the move in words with the pieces as coloured chips. */
+/* The latest result of a battle, under its line in the log: a stripe of the side that moved, the move's number, the
+   move in words with the pieces as coloured chips, then both sides' HP on the right (own green, the mob's red, as the
+   stripe). */
 .turn {
   --side: var(--good);
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 6px;
   margin: 1px 0 2px;
   padding: 1px 6px 1px 6px;
   box-shadow: inset 2px 0 0 var(--side);
@@ -14,8 +16,8 @@
   color: var(--fg-2);
 }
 .turn--foe { --side: var(--hp); }
-.turn--live { animation: turn-in var(--slow) var(--step); }
-.turn__n { flex: none; min-width: 22px; font-size: 9.5px; color: var(--fg-3); }
+.turn--live .turn__body { animation: turn-in var(--slow) var(--step); }
+.turn__n { min-width: 22px; font-size: 9.5px; color: var(--fg-3); }
 .turn--live .turn__n::before {
   content: "";
   display: inline-block;
@@ -29,9 +31,9 @@
 .turn__body { min-width: 0; }
 .turn__actor { font-weight: 700; color: var(--fg); }
 .turn__hit { color: var(--hp); font-weight: 600; }
-.turn__left { color: var(--fg-3); font-weight: 500; }
 .turn__heal { color: var(--good); font-weight: 600; }
 .turn__arrow { color: var(--fg-3); }
+.turn__fx { white-space: nowrap; }
 .turn__tag {
   display: inline-block;
   margin-left: 6px;
@@ -45,6 +47,11 @@
   letter-spacing: 0.04em;
 }
 .turn__tag--end { border-color: var(--primary-shade); color: var(--primary); }
+
+.turn__hp { display: grid; gap: 3px; width: 178px; padding: 2px 0 2px 8px; border-left: 1px solid var(--line); }
+.turn__side { display: grid; grid-template-columns: 52px minmax(0, 1fr) 50px; align-items: center; gap: 5px; font-size: 10px; line-height: 1.2; }
+.turn__who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-3); }
+.turn__side b { font-size: 9.5px; font-weight: 400; text-align: right; color: var(--fg-2); }
 
 .piece {
   --piece: var(--fg-2);

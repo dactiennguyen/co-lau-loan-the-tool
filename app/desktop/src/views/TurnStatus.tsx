@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { Bar } from "../components/Bar";
 import { Icon, type IconName } from "../components/Icon";
 import { num } from "../format";
 import type { Turn } from "../types";
@@ -17,9 +18,20 @@ const PIECES: Record<number, { name: string; icon: IconName; cls: string }> = {
 
 const signed = (n: number) => (n > 0 ? `+${num(n)}` : `−${num(-n)}`);
 
+/** HP of one side after the result: name, bar, HP/max; "?" until the mob's HP is known. */
+function Hp({ who, hp, fill }: { who: string; hp: [number, number] | null; fill: string }) {
+  return (
+    <span className="turn__side" title={hp ? `${who}: ${num(hp[0])}/${num(hp[1])} máu` : `${who}: chưa biết máu`}>
+      <span className="turn__who">{who}</span>
+      <Bar value={hp ? hp[0] / Math.max(1, hp[1]) : 0} fill={fill} thin label={`Máu ${who}`} />
+      <b className="px">{hp ? `${num(hp[0])}/${num(hp[1])}` : "?"}</b>
+    </span>
+  );
+}
+
 /**
- * The latest result of a battle, under the log line the battle opened on: who moved, the pieces eaten, what that did.
- * `live` while the battle is on.
+ * The latest result of a battle, under the log line the battle opened on: who moved, the pieces eaten, what that did,
+ * and both sides' HP after it on the right. `live` while the battle is on.
  */
 export function TurnStatus({ turn: t, live }: { turn: Turn; live: boolean }) {
   const effects: ReactNode[] = [];
@@ -27,7 +39,6 @@ export function TurnStatus({ turn: t, live }: { turn: Turn; live: boolean }) {
     effects.push(
       <span className="turn__hit">
         {t.mine ? t.foe : "bạn"} −{num(t.damage)} máu
-        {t.left != null && <span className="turn__left"> (còn {num(t.left)})</span>}
       </span>,
     );
   }
@@ -41,7 +52,8 @@ export function TurnStatus({ turn: t, live }: { turn: Turn; live: boolean }) {
       <span className="turn__n px" title={`Nước thứ ${t.n} của trận, tính cả hai bên${live ? "; trận đang đánh" : ""}`}>
         #{t.n}
       </span>
-      <span className="turn__body">
+      {/* A new result mounts a new body, which flashes; the bars stay and slide to the new HP. */}
+      <span className="turn__body" key={t.n}>
         <b className="turn__actor">{t.mine ? "Bạn" : t.foe}</b> {verb}
         {t.eaten.map(([kind, n]) => {
           const p = PIECES[kind];
@@ -60,13 +72,17 @@ export function TurnStatus({ turn: t, live }: { turn: Turn; live: boolean }) {
             {effects.map((e, i) => (
               <Fragment key={i}>
                 {i > 0 && ", "}
-                {e}
+                <span className="turn__fx">{e}</span>
               </Fragment>
             ))}
           </>
         )}
         {t.extraTurn && !t.end && <span className="turn__tag">thêm lượt</span>}
         {t.end && <span className="turn__tag turn__tag--end">hết trận</span>}
+      </span>
+      <span className="turn__hp">
+        <Hp who="Bạn" hp={t.hp} fill="var(--good)" />
+        <Hp who={t.foe} hp={t.mobHp} fill="var(--hp)" />
       </span>
     </div>
   );

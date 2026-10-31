@@ -532,13 +532,14 @@ fn runner_tells_what_each_result_did() {
             mine: true,
             eaten: vec![(3, 4), (4, 3)],
             s2: 20,
+            hp: [120, 130],
             extra_turn: true,
             ..Turn::default()
         })
     );
-    // Step 1 played by the mob: it hits for 14, and own HP is the mob's target.
+    // Step 1 played by the mob: it hits for 14 and shows its HP, whose max is that HP as nothing hit it yet.
     let (mv, refill) = step(1);
-    let units = [("mob872604", 14, -1, -1, 22), ("manina", -1, 106, -1, -1)];
+    let units = [("mob872604", 14, 90, -1, 22), ("manina", -1, 106, -1, -1)];
     let mob = swap_result(4, &mv, &refill, &units, "mob872604", false);
     runner.on_packet(19, &mob, now, &mut acts).unwrap();
     assert_eq!(
@@ -548,7 +549,8 @@ fn runner_tells_what_each_result_did() {
             eaten: vec![(3, 4)],
             damage: 14,
             s2: 22,
-            left: Some(106),
+            hp: [106, 130],
+            mob_hp: Some([90, 90]),
             ..Turn::default()
         })
     );
@@ -763,14 +765,8 @@ fn the_snapshot_keeps_the_result_that_ended_a_battle_until_the_next_one_opens() 
     let turn = snap.turn.expect("the last result");
     // won_battle() has no unit for the mob that moved: the damage is the HP manina lost.
     assert_eq!(
-        (
-            turn.foe.as_str(),
-            turn.mine,
-            turn.end,
-            turn.left,
-            turn.damage
-        ),
-        ("Cóc Xanh", false, true, Some(0), start_hp)
+        (turn.foe.as_str(), turn.mine, turn.end, turn.hp, turn.damage),
+        ("Cóc Xanh", false, true, [0, 180], start_hp)
     );
     bot.on_timer(bot.deadline().unwrap(), &mut out);
     assert!(bot.snapshot().turn.is_some());

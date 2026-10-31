@@ -38,7 +38,7 @@ export function LogCard({ lines, fighting }: { lines: LogLine[]; fighting: boole
             <time className="px">{l.time}</time>
             <div className="log__main">
               <span className="log__text">{l.text}</span>
-              {l.turn && <TurnStatus key={l.turn.n} turn={l.turn} live={i === live} />}
+              {l.turn && <TurnStatus turn={l.turn} live={i === live} />}
             </div>
           </li>
         ))}

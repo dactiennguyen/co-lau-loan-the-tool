@@ -36,8 +36,10 @@ export interface Turn {
   /** Changes of the actor's nội lực and sức mạnh. */
   s1: number;
   s2: number;
-  /** HP of the other side after it, when known. */
-  left: number | null;
+  /** Own [HP, max HP] after it. */
+  hp: [number, number];
+  /** The mob's, once a result showed its HP. */
+  mobHp: [number, number] | null;
   extraTurn: boolean;
   end: boolean;
 }

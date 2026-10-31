@@ -159,13 +159,14 @@ fn live_turn() -> Turn {
         eaten: vec![(0, 3), (2, 3)],
         damage: 18,
         s1: 8,
-        left: Some(132),
+        hp: [132, 180],
+        mob_hp: Some([96, 249]),
         ..Turn::default()
     }
 }
 
 /// The last move of a battle that the player won.
-fn final_turn(n: u32, eaten: Vec<(i16, u32)>, damage: i32, s2: i32) -> Turn {
+fn final_turn(n: u32, eaten: Vec<(i16, u32)>, damage: i32, s2: i32, hp: i32) -> Turn {
     Turn {
         n,
         mine: true,
@@ -173,7 +174,8 @@ fn final_turn(n: u32, eaten: Vec<(i16, u32)>, damage: i32, s2: i32) -> Turn {
         eaten,
         damage,
         s2,
-        left: Some(0),
+        hp: [hp, 180],
+        mob_hp: Some([0, 249]),
         end: true,
         ..Turn::default()
     }
@@ -191,7 +193,7 @@ pub fn entries() -> Vec<Entry> {
         ("Bắt đầu: tự làm nhiệm vụ", None),
         (
             "Trận 1: thách đấu Cóc Xanh cấp 13 (mob61000)",
-            Some(final_turn(43, vec![(0, 4), (5, 1)], 41, 0)),
+            Some(final_turn(43, vec![(0, 4), (5, 1)], 41, 0, 118)),
         ),
         (
             "Trận 1: thắng, 22 lượt, gây 249 sát thương, +142 EXP, +18 xu",
@@ -200,7 +202,7 @@ pub fn entries() -> Vec<Entry> {
         ("Đã diệt 13/15", None),
         (
             "Trận 2: thách đấu Cóc Xanh cấp 13 (mob61006)",
-            Some(final_turn(37, vec![(0, 3), (3, 3)], 35, 15)),
+            Some(final_turn(37, vec![(0, 3), (3, 3)], 35, 15, 151)),
         ),
         (
             "Trận 2: thắng, 19 lượt, gây 249 sát thương, +142 EXP, +18 xu",

@@ -52,8 +52,10 @@ pub struct Turn {
     /// Changes of the actor's nội lực (s1) and sức mạnh (s2).
     pub s1: i32,
     pub s2: i32,
-    /// HP of the other side after it, when known.
-    pub left: Option<i32>,
+    /// Own HP and max HP after it.
+    pub hp: [i32; 2],
+    /// The mob's, once a result showed its HP. Its max is that HP plus the damage dealt before it (on_result).
+    pub mob_hp: Option<[i32; 2]>,
     pub extra_turn: bool,
     pub end: bool,
 }
@@ -467,6 +469,11 @@ impl BattleRunner {
 
     /// What `x` did, from both sides as they were `before` it (own, mob's) and as they are now.
     fn turn(&self, x: &BattleResult, side: Side, o: &Outcome, before: (Fighter, Fighter)) -> Turn {
+        let hp = |f: Fighter| {
+            Some([f.hp, f.max_hp])
+                .filter(|v| v.iter().all(|x| x.is_finite()))
+                .map(|v| v.map(|x| x.round() as i32))
+        };
         let ((was, other_was), (after, other)) = match side {
             Side::Me => (before, (self.me, self.mob)),
             Side::Mob => ((before.1, before.0), (self.mob, self.me)),
@@ -498,7 +505,8 @@ impl BattleRunner {
             heal: change(after.hp, was.hp).max(0),
             s1: change(after.s1, was.s1),
             s2: change(after.s2, was.s2),
-            left: Some(other.hp).filter(|v| v.is_finite()).map(|v| v as i32),
+            hp: hp(self.me).unwrap_or_default(),
+            mob_hp: hp(self.mob),
             extra_turn: x.extra_turn,
             end: x.end,
         }
