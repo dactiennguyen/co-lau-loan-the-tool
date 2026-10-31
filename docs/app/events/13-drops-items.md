@@ -22,7 +22,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Câu hỏi | Trả lời |
 |---|---|
 | Đồ rơi ra sao? | Sau trận thắng quái, hòm đồ "có thể rơi xuống đất" (Cẩm nang). Server báo cho cả map: `s2c/1182` khi có món rơi, `s2c/1183` khi món mất (bị nhặt hoặc hết hạn), `s2c/1184` là danh sách món đang nằm trên đất lúc vào map hay vào khu. Mỗi món hết hạn khoảng 600 s sau khi rơi. Xem [Đồ trên đất](#đồ-trên-đất). [Đo] |
-| Đánh xong có rơi đồ không, tỉ lệ bao nhiêu? | **Có, chỉ khi thắng.** 59/93 trận thắng có đồ (**63%**, khoảng tin cậy 95%: 53–73%), trung bình 0,76 món mỗi trận thắng. 0/15 trận thua có đồ. Xu khóa rơi ở 44% trận thắng, Đá 20%, trang bị 10%, Trứng Gà 2%. Trung bình mỗi trận thắng có 63 Xu khóa trên đất ở M1 và 91 ở M2, gấp 2–3 lần Vàng thưởng cuối trận (34). Bot TS tự nhặt từ G2; app Rust chưa nhặt. Xem [Tỉ lệ rơi](#tỉ-lệ-rơi). [Đo G1] |
+| Đánh xong có rơi đồ không, tỉ lệ bao nhiêu? | **Có, chỉ khi thắng.** 59/93 trận thắng có đồ (**63%**, khoảng tin cậy 95%: 53–73%), trung bình 0,76 món mỗi trận thắng. 0/15 trận thua có đồ. Xu khóa rơi ở 44% trận thắng, Đá 20%, trang bị 10%, Trứng Gà 2%. Trung bình mỗi trận thắng có 63 Xu khóa trên đất ở M1 và 91 ở M2, gấp 2–3 lần Vàng thưởng cuối trận (34). Bot TS tự nhặt từ G2; app Rust cũng nhặt (cài đặt Tự nhặt đồ, mặc định bật, [app Rust](../../integration/rust/README.md#tự-nhặt-đồ)). Xem [Tỉ lệ rơi](#tỉ-lệ-rơi). [Đo G1] |
 | Nhặt thế nào? | Trên máy: chạm hòm rồi bấm **Nhặt**. Nút đó gửi **`c2s/1188` = `string uuid`**, uuid của món trong `s2c/1182`/`1184`. Đã bắt trên máy thật (P3, 31/10): server trả trong 52–56 ms `s2c/46` (số Xu mới), `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" và `s2c/1183` (món rời khỏi đất, báo cả map). Bot TS gửi gói này ngay khi thắng trận, cho từng món của mình: 4/4 món nhặt được, server trả trong 25 ms ([G2](#g2)). Xem [Nhặt đồ](#nhặt-đồ). [Đo] |
 | Nhặt đồ người khác được không? | **Được, sau khoảng 16–17 s.** Trước đó server trả `s2c/1256` "Không thể nhặt vật phẩm của người khác" (16 lần thất bại khi món 5–7 s và 16 s tuổi; nhặt được ở 17, 18, 31 s). Bản ghi đồ trên đất không có trường chủ, server tự giữ. Xem [K3](#k3). [Đo] |
 | Phải đứng gần hòm không? | **Không.** Bot đứng ở (90, 640) vẫn nhặt được món ở (1520, 640), cách 1430 px, và món ở (3413, 192). [Đo K3] |
@@ -192,7 +192,7 @@ Chạy thật 31/10 với manina (cấp 21, lên 22 ở trận 4), M1, `--farm="
 - 4/6 trận có đồ (Sơn Tặc ở G1: 75%). Bot nhặt đủ 4/4 món: 405 Xu khóa và 1 Áo Âu Lạc. Cùng 6 trận đó, Vàng thưởng cộng lại là 186. [Đo]
 - Không nhặt nhầm món nào. Một món của người khác rơi 511 ms trước gói kết thúc trận 2, ngoài khung 300 ms, nên bot để lại. Không có lần nào server trả "Không thể nhặt". [Đo]
 - Đồ mình rơi luôn đến trước gói kết thúc trong cùng lần đọc. Vì vậy gói nhặt đi ngay trong mili-giây đó, trước cả `s2c/10` và `s2c/36` của trận. [Đo]
-- Chưa thử: túi đầy; app Rust. [Chưa rõ]
+- Chưa thử: túi đầy; app Rust với server thật (đã port, test bằng gói thật). [Chưa rõ]
 
 <a id="hiển-thị-đồ-trên-đất"></a>
 

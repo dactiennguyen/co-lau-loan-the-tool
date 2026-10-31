@@ -35,6 +35,8 @@ pub struct Ctx<'a> {
     /// The shop line of c2s/1190 (s2c/1190), and how many.
     pub shop_id: Option<i32>,
     pub quantity: Option<i32>,
+    /// uuid of an item on the ground (s2c/1182, s2c/1184) for c2s/1188.
+    pub uuid: Option<&'a str>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -114,6 +116,7 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .i32(required(c.slot, "slot")?)
             .build(),
         15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),
+        1188 => w.string(required(c.uuid, "uuid")?).build(),
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),
         18 | 40 => w.string(required(c.battle_uuid, "battleUuid")?).build(),
         14 => w

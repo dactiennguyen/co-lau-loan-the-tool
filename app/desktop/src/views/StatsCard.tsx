@@ -25,7 +25,7 @@ interface Props {
 }
 
 /** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8) and a + on each;
- * the gear before Tiềm năng opens how the bot spends them on its own, lit while it does. The skill points are on the Kỹ
+ * the gear after Tiềm năng opens how the bot spends them on its own, lit while it does. The skill points are on the Kỹ
  * năng tab. */
 export function StatsCard({ account, onAdd, onPlan }: Props) {
   const c = account.character;
@@ -51,6 +51,10 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
         ))}
       </ul>
       <div className="potentials__head">
+        <span className="potentials__title">
+          <Icon name="gem" size={13} />
+          Tiềm năng
+        </span>
         <Button
           kind="ghost"
           small
@@ -60,7 +64,6 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
           aria-haspopup="dialog"
           onClick={onPlan}
         />
-        <span className="potentials__title">Tiềm năng</span>
         <span className="potentials__left">
           {c?.statPoints != null ? (
             <>

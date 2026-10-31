@@ -799,7 +799,10 @@ mod tests {
         assert!(block_on(shared.add(account("A"))).is_err());
 
         // Tự sửa đồ is saved on its own, and the edit form (which does not send it) keeps it.
-        let repair = FightSettings { repair: true };
+        let repair = FightSettings {
+            repair: true,
+            ..FightSettings::default()
+        };
         block_on(shared.set_fight(id, repair)).unwrap();
         assert_eq!(accounts::load(&path).unwrap()[0].fight, repair);
 

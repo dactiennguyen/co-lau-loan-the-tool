@@ -114,7 +114,10 @@ mod tests {
             server_id: 24,
             skill: None,
             stats: None,
-            fight: FightSettings { repair: true },
+            fight: FightSettings {
+                repair: true,
+                pickup: false,
+            },
             proxy: Some(crate::proxy::Proxy {
                 enabled: false,
                 kind: crate::proxy::ProxyKind::Http,
@@ -133,6 +136,11 @@ mod tests {
             assert_eq!(mode & 0o777, 0o600);
         }
         assert!(!dir.join("accounts.json.tmp").exists());
+        // Tự nhặt đồ is on for an account saved before it existed, or with only Tự sửa đồ set.
+        std::fs::write(&path, r#"{"accounts":[{"username":"a","password":"x"},{"username":"b","password":"y","fight":{"repair":true}}]}"#).unwrap();
+        let old = load(&path).unwrap();
+        assert_eq!(old[0].fight, FightSettings::default());
+        assert!(old[0].fight.pickup && old[1].fight.pickup && old[1].fight.repair);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

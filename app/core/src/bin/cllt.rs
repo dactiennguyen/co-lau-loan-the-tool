@@ -1,9 +1,10 @@
 // Headless counterpart of the desktop app, for checks against the live server:
 //   cllt status                                       log in every account, print its status, log out
-//   cllt fight --account=NAME --target="X" --count=N [--max-losses=1] [--auto-repair]
-//   cllt quest --account=NAME [--max-losses=1] [--auto-repair]
+//   cllt fight --account=NAME --target="X" --count=N [--max-losses=1] [--auto-repair] [--no-pickup]
+//   cllt quest --account=NAME [--max-losses=1] [--auto-repair] [--no-pickup]
 //                                                       "Tự làm nhiệm vụ" until it stops, then log out; --auto-repair
-//                                                       turns on Tự sửa đồ for the run (uses the hammers of the bag)
+//                                                       turns on Tự sửa đồ for the run (uses the hammers of the bag),
+//                                                       --no-pickup turns off Tự nhặt đồ (the own drops of a won battle)
 //   cllt skill --account=NAME [--id=1001]               print the skill tree; with --id, Nâng cấp that skill once
 //                                                       (c2s/1191, spends skill points), print the tree again
 //   cllt item --account=NAME [--equip=SLOT | --unequip=SLOT | --use=SLOT | --repair=SLOT]
@@ -224,11 +225,13 @@ fn main() {
         eprintln!("Không có tài khoản tên đó");
         std::process::exit(2);
     }
-    // Tự sửa đồ for this run, as when ticked in the Cài đặt tab; accounts.json is left as it is.
+    // Tự sửa đồ on, or Tự nhặt đồ off, for this run, as when ticked in the Cài đặt tab; accounts.json is left as it is.
     let auto_repair = args.iter().any(|a| a == "--auto-repair");
+    let no_pickup = args.iter().any(|a| a == "--no-pickup");
     for (id, a) in &chosen {
         let mut a = a.clone();
         a.fight.repair |= auto_repair && fight;
+        a.fight.pickup &= !no_pickup;
         manager.login(*id, a);
     }
     let mut snaps: Vec<Snapshot> = vec![Snapshot::default(); chosen.len()];

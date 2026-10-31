@@ -156,6 +156,48 @@ pub fn gear_durability(p: &[u8]) -> Result<Vec<Option<i32>>> {
     r.finish(slots, "s2c/36")
 }
 
+/// s2c/1182: an item that fell on the ground of the map (13-drops-items.md#đồ-trên-đất), anyone's: the item record (slot
+/// byte 0xfe), where it lies and when it expires (ms since 1970, about 600 s on). Own drops come with the end of a won
+/// battle; c2s/1188 with its uuid picks it up from anywhere in the map.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroundItem {
+    pub map_id: String,
+    pub item: ItemRecord,
+    pub x: i32,
+    pub y: i32,
+    pub expires_at: i64,
+}
+pub fn ground_item_add(p: &[u8]) -> Result<GroundItem> {
+    let mut r = Reader::new(p);
+    let (map_id, item) = (r.string()?, item_record(&mut r)?);
+    let (x, y) = (r.i32()?, r.i32()?);
+    let expires_at = i64::from_be_bytes(r.take(8)?.try_into().unwrap());
+    r.finish(
+        GroundItem {
+            map_id,
+            item,
+            x,
+            y,
+            expires_at,
+        },
+        "s2c/1182",
+    )
+}
+/// s2c/1183: an item left the ground of a map, picked up or expired: (map id, uuid).
+pub fn ground_item_remove(p: &[u8]) -> Result<(String, String)> {
+    let mut r = Reader::new(p);
+    let gone = (r.string()?, r.string()?);
+    r.finish(gone, "s2c/1183")
+}
+/// s2c/51 after an item picked up went to the bag (K3): i32 -1; i32 0; u8 1; the item record of the bag slot that holds it.
+/// No s2c/1187 comes then.
+pub fn bag_slot(p: &[u8]) -> Result<ItemRecord> {
+    let mut r = Reader::new(p);
+    r.take(9)?;
+    let item = item_record(&mut r)?;
+    r.finish(item, "s2c/51")
+}
+
 /// s2c/46 after s2c/9 and whenever money changes: Xu, Xu khoá and Lượng as on the Bản thân panel. Vàng is `coin` of
 /// s2c/9 and s2c/10 kind 4.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]

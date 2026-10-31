@@ -1,5 +1,5 @@
-/* One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it, Bật/Tắt. A setting
-   that is on gets a green edge, as the proxy of the account form does. */
+/* One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it, Bật/Tắt; the card
+   stacks them. A setting that is on gets a green edge, as the proxy of the account form does. */
 .setting { display: grid; background: var(--ink); container-type: inline-size; }
 .setting--on { box-shadow: inset 3px 0 0 var(--good); }
 .setting__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); padding: 0 12px; }

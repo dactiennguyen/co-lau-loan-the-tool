@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { BASELINE, OPCODE_ENTRIES } from './config.ts';
 import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from './protocol.ts';
-import { buildRequest } from './events.ts';
+import { buildRequest, decodeEvent } from './events.ts';
 import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, skillTable,
   characterExtra, characterGear, inventory, currencies, gearUpdate, zoneList } from './world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from './battle.ts';
@@ -73,6 +73,14 @@ function decoders() {
   add('currencies', fixtures.currencies['s2c/46 E1'], currencies(bytes(fixtures.currencies['s2c/46 E1'])));
   // The gear after Cởi ra and Trang bị on the phone (P4, 12-skills-items.md#c2s-1186).
   for (const k of ['s2c/37 unequip pet', 's2c/37 equip pet']) add('gearUpdate', fixtures.equip[k], gearUpdate(bytes(fixtures.equip[k])));
+  // Drops (13-drops-items.md#g2): an item falling (s2c/1182, Xu khóa and a ring), leaving the ground (s2c/1183), and the bag
+  // slot of an item picked up (s2c/51 of K3, as in test/items.test.ts).
+  for (const k of ['s2c/1182 gold', 's2c/1182 gear']) {
+    add('groundItemAdd', w[k].hex, pick(decodeEvent('s2c', 1182, bytes(w[k].hex)).fields as any, ['mapId', 'itemId', 'uuid', 'quantity', 'x', 'y', 'expiresAt']));
+  }
+  add('groundItemRemove', w['s2c/1183'].hex, decodeEvent('s2c', 1183, bytes(w['s2c/1183'].hex)).fields);
+  const slot51 = 'ffffffff0000000001060000019c0000002434336363626635352d356439372d346434312d393838342d32656263663039396366356300000000ffffffff0000000100ff00000000000000';
+  add('bagSlot', slot51, (decodeEvent('s2c', 51, bytes(slot51)).fields as any).item);
   // The skill step (docs/app/events/12-skills-items.md): the tree of s2c/30, the skill list of the s2c/9 tail, s2c/10 kind 32.
   add('skillTable', response(7, 30), skillTable(bytes(response(7, 30))));
   for (const h of [a2, fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterSkills', h, characterSkills(bytes(h)));
@@ -229,7 +237,9 @@ function requests() {
     // Khu vực (B2, Z1): the list, the zone picked, then the map of that zone.
     [1172, {}], [1173, { zone: 20 }], [11, { mapId: 'M1', zone: 20 }],
     // Item actions of P4: Cởi ra the pet, Trang bị it again from bag slot 39, Sử dụng bag slot 3, Sửa chữa gear slot 2.
-    [1186, { action: 1, slot: 5 }], [1186, { action: 0, slot: 39 }], [84, { slot: 3 }], [48, { slot: 2 }], [48, { where: 0, slot: 0 }]];
+    [1186, { action: 1, slot: 5 }], [1186, { action: 0, slot: 39 }], [84, { slot: 3 }], [48, { slot: 2 }], [48, { where: 0, slot: 0 }],
+    // Nhặt the Xu khóa of 's2c/1182 gold' (G2).
+    [1188, { uuid: 'f573bf90-942b-48d1-b466-4552dfa4f7cb' }]];
   return ctx.map(([opcode, c]) => ({ opcode, ctx: c, hex: hex(buildRequest(opcode, c as any)) }));
 }
 

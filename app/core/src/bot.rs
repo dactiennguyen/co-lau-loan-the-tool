@@ -7,8 +7,8 @@
 use crate::atlas::{Atlas, MapRecord, Portal};
 use crate::battle::{battle_setup, Strategy};
 use crate::items::{
-    book, character_extra, character_gear, currencies, gear_durability, gear_update, inventory,
-    Bag, Currencies, ItemRecord,
+    bag_slot, book, character_extra, character_gear, currencies, gear_durability, gear_update,
+    ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
 };
 use crate::potentials::{next_stat, StatPlan, POTENTIALS};
 use crate::protocol::{
@@ -23,7 +23,7 @@ use crate::world::{
     quest_complete, quest_data, quest_progress, shop_list, zone_list, Mob, Nearby, Place, Quest,
     ShopList, Zone, ZonePlayers,
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -197,15 +197,28 @@ impl Default for BotOptions {
     }
 }
 
-/// Cài đặt đánh of an account (accounts.json): what the bot does on its own between the battles of a fight job or a
-/// quest run.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Cài đặt đánh of an account (accounts.json): what the bot does on its own around the battles it plays.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FightSettings {
-    /// Tự sửa đồ: a worn item at durability 0 is repaired with a Búa Sửa Chữa of the bag before the next battle
-    /// (Bot::auto_repair). Hammers are never bought for it.
+    /// Tự sửa đồ: a worn item at durability 0 is repaired with a Búa Sửa Chữa of the bag before the next battle of a
+    /// fight job or quest run (Bot::auto_repair). Hammers are never bought for it.
     #[serde(default)]
     pub repair: bool,
+    /// Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up (Bot::loot).
+    #[serde(default = "on")]
+    pub pickup: bool,
+}
+fn on() -> bool {
+    true
+}
+impl Default for FightSettings {
+    fn default() -> Self {
+        Self {
+            repair: false,
+            pickup: true,
+        }
+    }
 }
 impl FightSettings {
     pub fn is_default(&self) -> bool {
@@ -411,6 +424,13 @@ const HAMMER: i32 = 2;
 const POTION: u8 = 20;
 /// How long Tự sửa đồ waits for s2c/48 before the run goes on without the repair (the answer took 40 ms in E2).
 const REPAIR_WAIT: Duration = Duration::from_secs(5);
+/// Tự nhặt đồ (13-drops-items.md#g2): items fallen in the map are kept DROPS_KEPT; those within LOOT of the end of a won
+/// battle, before it or after, are its own drops. One c2s/1188 every PICK_GAP; a s2c/1256 within PICK_ANSWER of the last
+/// one is its answer.
+const DROPS_KEPT: Duration = Duration::from_secs(2);
+const LOOT: Duration = Duration::from_millis(300);
+const PICK_GAP: Duration = Duration::from_millis(200);
+const PICK_ANSWER: Duration = Duration::from_secs(2);
 
 /// Lái Buôn (NPC 106 of M1) and the line of his menu that opens the Dược phẩm shop (12-skills-items.md#c2s-1190). The
 /// server answers c2s/13 to him from anywhere on M1, and "Không thể thực hiện" from another map (B1).
@@ -528,6 +548,15 @@ pub struct Bot {
     repairing: Option<(u8, String)>,
     repair_failed: HashSet<u8>,
     repair_warned: bool,
+    /// Tự nhặt đồ: the items fallen in the last DROPS_KEPT (uuid, name, when); until when a won battle's drops are still
+    /// coming; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
+    /// when the last c2s/1188 went.
+    drops: Vec<(String, String, Instant)>,
+    loot_until: Option<Instant>,
+    to_pick: VecDeque<(String, String)>,
+    pick_at: Option<Instant>,
+    asked: HashSet<String>,
+    picked_at: Option<Instant>,
 }
 
 impl Bot {
@@ -577,6 +606,12 @@ impl Bot {
             repairing: None,
             repair_failed: HashSet::new(),
             repair_warned: false,
+            drops: vec![],
+            loot_until: None,
+            to_pick: VecDeque::new(),
+            pick_at: None,
+            asked: HashSet::new(),
+            picked_at: None,
         }
     }
 
@@ -735,6 +770,7 @@ impl Bot {
             self.leave_until,
             self.move_until,
             self.shopping.as_ref().map(|s| s.1),
+            self.pick_at,
         ]
         .into_iter()
         .flatten()
@@ -779,6 +815,9 @@ impl Bot {
                     }
                 }
             }
+        }
+        if self.pick_at.is_some_and(|t| t <= now) {
+            self.pick_next(now, out);
         }
         if self.shopping.as_ref().is_some_and(|s| s.1 <= now) {
             self.shopping = None;
@@ -1163,6 +1202,9 @@ impl Bot {
     }
 
     fn on_battle_end(&mut self, end: BattleEnd, now: Instant, out: &mut Vec<Out>) {
+        if end.won && self.fight.pickup {
+            self.loot(now, out);
+        }
         // The result that ended it reaches no snapshot with the battle on: the snapshot keeps it until the next battle.
         self.snap.turn = self.battle.take().and_then(|b| self.turn_of(&b));
         self.snap.hp = end.hp as i32;
@@ -1324,6 +1366,41 @@ impl Bot {
                     format!("Không đọc được túi đồ (s2c/42): {e}"),
                 )),
             },
+            // An item picked up went to the bag (s2c/51, K3): that slot, without a whole new bag.
+            51 => match bag_slot(payload) {
+                Ok(item) => {
+                    if let Some(b) = s.bag.as_mut() {
+                        b.items.retain(|i| i.slot != item.slot);
+                        b.items.push(item);
+                        b.items.sort_by_key(|i| i.slot);
+                    }
+                }
+                Err(e) => out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Không đọc được ô túi vừa nhận đồ (s2c/51): {e}"),
+                )),
+            },
+            // An item fell in the map, anyone's: kept a moment, as a won battle's own drops come just before its end.
+            1182 => {
+                let g = ground_item_add(payload)?;
+                let def = book().get(g.item.item_id);
+                let name = def.map_or_else(|| format!("#{}", g.item.item_id), |d| d.name.clone());
+                let name = match g.item.quantity {
+                    q if q > 1 => format!("{name} ×{q}"),
+                    _ => name,
+                };
+                self.drops
+                    .retain(|d| now.saturating_duration_since(d.2) < DROPS_KEPT);
+                self.drops.push((g.item.uuid.clone(), name.clone(), now));
+                if self.loot_until.is_some_and(|t| now < t) {
+                    self.pick(g.item.uuid, name, now, out);
+                }
+            }
+            // An item left the ground (picked up, or expired): it is not asked for again.
+            1183 => {
+                let (_, uuid) = ground_item_remove(payload)?;
+                self.drops.retain(|d| d.0 != uuid);
+            }
             1187 => match inventory(payload) {
                 Ok(b) => s.bag = Some(b),
                 Err(e) => out.push(Out::Log(
@@ -1608,6 +1685,26 @@ impl Bot {
             }
             1256 => {
                 let text = notice(payload)?;
+                // The answer to c2s/1188 ("Bạn vừa nhận được 137 Xu khóa", "Không thể nhặt vật phẩm của người khác"),
+                // also when it comes during a portal trip: it is not that portal's refusal (13-drops-items.md#g2). While
+                // something else waits for its own s2c/1256 (a portal, a purchase, an item action such as Tự sửa đồ, a
+                // zone), only a line about the pickup is taken for its answer.
+                let picking = self.picked_at.is_some_and(|t| now < t + PICK_ANSWER);
+                let about = text.contains("nhặt") || text.contains("nhận được");
+                let waiting = self.travelling.is_some()
+                    || self.shopping.is_some()
+                    || self.item_wait.is_some()
+                    || self.zoning.is_some();
+                if picking && (about || !waiting) {
+                    out.push(Out::Log(
+                        LogKind::Item,
+                        match text.contains("nhận được") {
+                            true => text,
+                            false => format!("Không nhặt được: {text}"),
+                        },
+                    ));
+                    return Ok(());
+                }
                 out.push(Out::Log(LogKind::Server, text.clone()));
                 // The purchase ("Bạn vừa mua thành công! 1 Búa Sửa Chữa", "Không đủ Xu để thực hiện"), or c2s/13 to Lái
                 // Buôn refused ("Không thể thực hiện" from another map, B1).
@@ -2562,7 +2659,61 @@ impl Bot {
             ));
             (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
         }
+        if settings.pickup != self.fight.pickup {
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.pickup {
+                    true => "Bật tự nhặt đồ: đồ của mình rơi sau mỗi trận thắng sẽ được nhặt",
+                    false => "Tắt tự nhặt đồ",
+                }
+                .into(),
+            ));
+        }
         self.fight = settings;
+    }
+
+    /// Tự nhặt đồ, at the end of a won battle (13-drops-items.md#g2): its own drops came just before the end, in the same
+    /// read, and a few may come just after, so every item fallen within LOOT of it, before or after, is picked up with
+    /// c2s/1188 from where the character stands; the server does not check the distance. A stranger's item in that window
+    /// is refused for its first 16 s ("Không thể nhặt vật phẩm của người khác"), which costs nothing.
+    fn loot(&mut self, now: Instant, out: &mut Vec<Out>) {
+        self.loot_until = Some(now + LOOT);
+        self.asked.clear();
+        let own: Vec<(String, String)> = self
+            .drops
+            .iter()
+            .filter(|d| now.saturating_duration_since(d.2) <= LOOT)
+            .map(|d| (d.0.clone(), d.1.clone()))
+            .collect();
+        for (uuid, name) in own {
+            self.pick(uuid, name, now, out);
+        }
+    }
+    /// Queues an item for c2s/1188, once; one goes out every PICK_GAP.
+    fn pick(&mut self, uuid: String, name: String, now: Instant, out: &mut Vec<Out>) {
+        if self.asked.contains(&uuid) || self.to_pick.iter().any(|p| p.0 == uuid) {
+            return;
+        }
+        self.to_pick.push_back((uuid, name));
+        if self.pick_at.is_none() {
+            self.pick_next(now, out);
+        }
+    }
+    fn pick_next(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let Some((uuid, _)) = self.to_pick.pop_front() else {
+            self.pick_at = None;
+            return;
+        };
+        Self::send(
+            out,
+            1188,
+            Ctx {
+                uuid: Some(&uuid),
+                ..Ctx::default()
+            },
+        );
+        self.asked.insert(uuid);
+        (self.picked_at, self.pick_at) = (Some(now), Some(now + PICK_GAP));
     }
 
     /// s2c/36 after a battle: the durability of each worn item. One that just reached 0 is said in the log, as it adds

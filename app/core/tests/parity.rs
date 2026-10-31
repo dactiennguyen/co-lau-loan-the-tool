@@ -162,6 +162,18 @@ fn decoders_read_what_the_ts_decoders_read() {
             "characterGear" => serde_json::to_value(items::character_gear(&p).unwrap()),
             "currencies" => serde_json::to_value(items::currencies(&p).unwrap()),
             "gearUpdate" => serde_json::to_value(items::gear_update(&p).unwrap()),
+            "groundItemAdd" => {
+                let g = items::ground_item_add(&p).unwrap();
+                Ok(
+                    json!({"mapId": g.map_id, "itemId": g.item.item_id, "uuid": g.item.uuid,
+                    "quantity": g.item.quantity, "x": g.x, "y": g.y, "expiresAt": g.expires_at}),
+                )
+            }
+            "groundItemRemove" => {
+                let (map_id, uuid) = items::ground_item_remove(&p).unwrap();
+                Ok(json!({"mapId": map_id, "uuid": uuid}))
+            }
+            "bagSlot" => serde_json::to_value(items::bag_slot(&p).unwrap()),
             "skillTable" => serde_json::to_value(skills::skill_table(&p).unwrap()),
             "characterSkills" => serde_json::to_value(skills::character_skills(&p).unwrap()),
             other => panic!("no Rust decoder for {other}"),
@@ -484,6 +496,7 @@ fn requests_match_build_request() {
             action: i("action"),
             place: i("where"),
             zone: i("zone"),
+            uuid: s("uuid"),
             ..Ctx::default()
         };
         let op = r["opcode"].as_i64().unwrap() as i32;
@@ -2192,13 +2205,19 @@ fn tu_sua_do_repairs_broken_gear_with_the_hammers_of_the_bag_before_the_next_bat
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     assert_eq!((sends(&out, 48), sends(&out, 15)), (0, 1), "{out:?}");
     // On, but Sửa was just pressed by hand: that answer is awaited, the job does not send a second repair.
-    let (mut bot, mut out, now, _) = broken_gear_bot(FightSettings { repair: true });
+    let (mut bot, mut out, now, _) = broken_gear_bot(FightSettings {
+        repair: true,
+        ..FightSettings::default()
+    });
     bot.item(ItemAct::Repair(2), now, &mut out);
     out.clear();
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     assert_eq!((sends(&out, 48), sends(&out, 15)), (0, 1), "{out:?}");
 
-    let (mut bot, mut out, now, setup) = broken_gear_bot(FightSettings { repair: true });
+    let (mut bot, mut out, now, setup) = broken_gear_bot(FightSettings {
+        repair: true,
+        ..FightSettings::default()
+    });
     assert!(logged(&out, "Bật tự sửa đồ"), "{out:?}");
     out.clear();
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
@@ -2316,4 +2335,162 @@ fn tu_sua_do_repairs_broken_gear_with_the_hammers_of_the_bag_before_the_next_bat
     out.clear();
     bot.set_fight(FightSettings::default(), &mut out);
     assert!(logged(&out, "Tắt tự sửa đồ"));
+}
+
+/// s2c/1182 of an item fallen in M1, as the server writes it (13-drops-items.md#đồ-trên-đất).
+fn drop_packet(uuid: &str, item_id: i32, quantity: i32) -> Vec<u8> {
+    Writer::new()
+        .string("M1")
+        .u8(0xfe)
+        .i32(item_id)
+        .string(uuid)
+        .i32(0)
+        .i32(-1)
+        .i32(quantity)
+        .u8(0)
+        .u8(0xff)
+        .i32(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .i32(1400)
+        .i32(640)
+        .i32(417)
+        .i32(0)
+        .build()
+}
+
+/// Tự nhặt đồ (13-drops-items.md#g2), on by default: after a won battle the bot sends c2s/1188 for the items fallen within
+/// 300 ms of its end, before it or after, one every 200 ms; a stranger's older item, a lost battle, or the setting off
+/// pick nothing. The answers are Vật phẩm lines, s2c/51 puts the item in the bag.
+#[test]
+fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str, n: usize| {
+        hex(cases.iter().filter(|c| c["fn"] == f).nth(n).unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let (gold, ring) = (hex_of("groundItemAdd", 0), hex_of("groundItemAdd", 1));
+    let gold_uuid = "f573bf90-942b-48d1-b466-4552dfa4f7cb";
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    assert!(FightSettings::default().pickup);
+    bot.on_packet(42, &hex_of("characterExtra", 0), now, &mut out)
+        .unwrap();
+    bot.fight("Cóc Xanh", 3, 3, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    // A stranger's item a second before the end, then the Xu khóa of G2 in the same read as the won end.
+    bot.on_packet(1182, &drop_packet("stranger", 412, 1), now, &mut out)
+        .unwrap();
+    let end = now + Duration::from_secs(1);
+    bot.on_packet(1182, &gold, end, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+    let request = |uuid: &str| tohex(&Writer::new().string(uuid).build());
+    assert_eq!(sends(&out, 1188), 1, "{out:?}");
+    assert_eq!(sent(&out, 1188), Some(request(gold_uuid)));
+    // The ring comes 100 ms after the end: picked too, 200 ms after the first; one 400 ms after is not.
+    out.clear();
+    bot.on_packet(1182, &ring, end + Duration::from_millis(100), &mut out)
+        .unwrap();
+    assert_eq!(sends(&out, 1188), 0);
+    let gap = bot.deadline().unwrap();
+    assert_eq!(gap, end + Duration::from_millis(200));
+    bot.on_timer(gap, &mut out);
+    assert_eq!(
+        sent(&out, 1188),
+        Some(request("fdcdeddb-5213-4b53-b67b-8a82ed08815d"))
+    );
+    out.clear();
+    bot.on_packet(
+        1182,
+        &drop_packet("late", 41, 50),
+        end + Duration::from_millis(400),
+        &mut out,
+    )
+    .unwrap();
+    bot.on_timer(end + Duration::from_millis(400), &mut out);
+    assert_eq!(sends(&out, 1188), 0, "{out:?}");
+    // The answers: what was received, a refusal, both as Vật phẩm lines; 2 s later a notice is the server's again.
+    let notice = |text: &str| Writer::new().u8(0).string(text).build();
+    out.clear();
+    let at = end + Duration::from_millis(230);
+    bot.on_packet(1256, &notice("Bạn vừa nhận được 123 Xu khóa"), at, &mut out)
+        .unwrap();
+    bot.on_packet(
+        1256,
+        &notice("Không thể nhặt vật phẩm của người khác"),
+        at,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        [
+            Out::Log(LogKind::Item, "Bạn vừa nhận được 123 Xu khóa".into()),
+            Out::Log(
+                LogKind::Item,
+                "Không nhặt được: Không thể nhặt vật phẩm của người khác".into()
+            ),
+        ]
+    );
+    // Sử dụng pressed meanwhile on the hammer of bag slot 6 waits for its own answer: its refusal is not the pickup's.
+    out.clear();
+    bot.item(ItemAct::Use(6), at, &mut out);
+    assert_eq!(sends(&out, 84), 1, "{out:?}");
+    out.clear();
+    bot.on_packet(1256, &notice("Vật phẩm không thể sử dụng!"), at, &mut out)
+        .unwrap();
+    assert_eq!(
+        out,
+        [Out::Log(
+            LogKind::Server,
+            "Vật phẩm không thể sử dụng!".into()
+        )]
+    );
+    out.clear();
+    bot.on_packet(
+        1256,
+        &notice("Server bảo trì"),
+        end + Duration::from_secs(3),
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, [Out::Log(LogKind::Server, "Server bảo trì".into())]);
+    // s2c/51: the stone of K3 lands in bag slot 6, which held the hammer.
+    bot.on_packet(51, &hex_of("bagSlot", 0), at, &mut out)
+        .unwrap();
+    let bag = bot.snapshot().bag.unwrap();
+    assert_eq!(
+        bag.items.iter().find(|i| i.slot == 6).map(|i| i.item_id),
+        Some(412)
+    );
+    assert_eq!(bag.items.len(), 8);
+
+    // A lost battle picks nothing, nor a won one with the setting off.
+    let t = end + Duration::from_secs(5);
+    bot.on_timer(bot.deadline().unwrap().max(t), &mut out);
+    bot.on_packet(22, &setup, t, &mut out).unwrap();
+    bot.on_packet(1182, &drop_packet("after-a-loss", 41, 80), t, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_packet(19, &lost_battle(), t, &mut out).unwrap();
+    assert_eq!(sends(&out, 1188), 0, "{out:?}");
+    bot.set_fight(
+        FightSettings {
+            repair: false,
+            pickup: false,
+        },
+        &mut out,
+    );
+    assert!(logged(&out, "Tắt tự nhặt đồ"));
+    let t = t + Duration::from_secs(5);
+    bot.on_timer(bot.deadline().unwrap().max(t), &mut out);
+    bot.on_packet(22, &setup, t, &mut out).unwrap();
+    bot.on_packet(1182, &drop_packet("off", 41, 80), t, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_packet(19, &won_battle(), t, &mut out).unwrap();
+    assert_eq!(sends(&out, 1188), 0, "{out:?}");
 }
