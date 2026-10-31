@@ -8,8 +8,8 @@ Quy trình đưa một tính năng từ điều tra Android vào app, và cấu 
 |---|---|---|
 | 1. Điều tra | Đọc APK, bắt gói trên điện thoại (Frida, REA), đo byte và hành vi | Ghi ngay vào [docs/app](../../app/README.md): bằng chứng, bố cục byte, độ chắc chắn |
 | 2. Mô phỏng bằng TS | Viết decoder, bot, mô phỏng trong `src/`; gói thật làm fixture trong `test/`; chạy thật bằng `npm run …` | Ghi kết quả chạy vào [docs/integration/nodejs](../nodejs/README.md) và các mục event |
-| 3. Port sang Rust | Chỉ khi bản TS đã qua test và đã chạy thật: chuyển sang `app/core`, chạy `npm run export:rust`, rồi `cargo test` phải khớp | Tài liệu này |
-| 4. Giao diện | `app/desktop` (Tauri) chỉ gọi `app/core`, không tự giải gói. Rust gửi dữ liệu đã giải, TypeScript chỉ hiển thị | Tài liệu này |
+| 3. Port sang Rust | Chỉ khi bản TS đã qua test và đã chạy thật: chuyển sang `app/core`, chạy `npm run export:rust`, rồi `cargo test` phải khớp | [App Rust](README.md): [Hướng dẫn dùng app](features.md), [Đã kiểm chứng](status.md) |
+| 4. Giao diện | `app/desktop` (Tauri) chỉ gọi `app/core`, không tự giải gói. Rust gửi dữ liệu đã giải, TypeScript chỉ hiển thị | [Hướng dẫn dùng app](features.md) |
 
 - Hai bên dùng chung **một nguồn dữ liệu**:
   - `npm run export:rust` ([src/cli/export-rust.ts](../../../src/cli/export-rust.ts)) sinh `app/core/src/opcodes.rs` từ [src/protocol/config.ts](../../../src/protocol/config.ts).

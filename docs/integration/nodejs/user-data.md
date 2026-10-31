@@ -17,7 +17,7 @@
 Ví dụ entry point đặt tại thư mục gốc dự án; nạp biến môi trường trước khi gọi:
 
 ```typescript
-import { runClient } from './src/client.ts';
+import { runClient } from './src/net/client.ts';
 
 const result = await runClient({
   username: process.env.CLLT_USERNAME,

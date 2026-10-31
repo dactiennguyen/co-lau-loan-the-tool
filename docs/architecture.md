@@ -40,7 +40,7 @@ Một tính năng mới đi đúng thứ tự trên ([Quy trình](integration/ru
 | `src/net/` | Kết nối: các bước đăng nhập (FLOW), proxy SOCKS5 và HTTP, tài khoản trong `.env` | `client.ts`, `proxy.ts`, `env.ts` |
 | `src/battle/` | Thuật toán đánh: bàn 8×8, chọn nước và hành động trong lượt, một trận trên phiên thật | `battle.ts`, `battle-actions.ts`, `battle-runner.ts` |
 | `src/bot/` | Bot: làm nhiệm vụ và đánh quái (`QuestBot`), bản đồ đã học, quét map | `quest.ts`, `atlas.ts`, `map-scan.ts` |
-| `src/cli/` | Lệnh `npm run …`: mỗi file một lệnh, chỉ đọc tham số rồi gọi các thư mục trên | `connect.ts`, `quest-run.ts`, `map-scan-run.ts`, `items-run.ts`, `bag-run.ts`, `skills-run.ts`, `zone-run.ts`, `buy-run.ts`, `check-apk.ts`, `check-capture.ts`, `export-rust.ts` |
+| `src/cli/` | Lệnh `npm run …`: mỗi file một lệnh, đọc tham số rồi chạy việc của lệnh đó bằng các thư mục trên; `export-rust.ts`, `items-run.ts` có thêm logic riêng (sinh vector cho Rust, giải ảnh của APK) | `connect.ts`, `quest-run.ts`, `map-scan-run.ts`, `items-run.ts`, `bag-run.ts`, `skills-run.ts`, `zone-run.ts`, `buy-run.ts`, `check-apk.ts`, `check-capture.ts`, `export-rust.ts` |
 
 Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `protocol`; `battle` và `net` không dùng nhau. Ngoại lệ duy nhất: các bộ giải gói trận (`battleSetup`, `turnState`, `battleResult`…) nằm trong `battle/battle.ts` cạnh luật bàn cờ, và `protocol/events.ts` dùng chúng cho danh mục event.
 

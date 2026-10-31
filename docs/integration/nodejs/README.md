@@ -49,7 +49,7 @@ CLLT_PROXY=http://user:pass@1.2.3.4:8080      # proxy HTTP có CONNECT
 
 ```typescript
 // Entry point đặt ở thư mục gốc dự án.
-import { runClient } from './src/client.ts';
+import { runClient } from './src/net/client.ts';
 
 const result = await runClient({
   host: 'play.colauloanthe.vn',

@@ -1,4 +1,4 @@
-//! Đánh quái: the fight job ("đánh X N lần"), the challenge and its s2c/22, and the end of every battle.
+//! Đánh quái: the fight job ("đánh X N lần"), the challenge and its s2c/22, Đầu hàng, and the end of every battle.
 use super::*;
 
 impl Bot {
