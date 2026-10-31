@@ -7,7 +7,7 @@ Bot đã đánh thật với server:
 - **run3**: phát hiện viên đặc biệt, mô hình cũ lệch bàn.
 - **run4**: thắng Gà Điên sau 5 nước, mô hình không lệch lần nào.
 
-Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bước của ba trận thật (B1 của [05-battle](05-battle.md), run3, run4), xem test [test/battle.test.ts](../../../test/battle.test.ts) và mô hình [src/battle.ts](../../../src/battle.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** dùng như các file khác.
+Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bước của ba trận thật (B1 của [05-battle](05-battle.md), run3, run4), xem test [test/battle.test.ts](../../../test/battle.test.ts) và mô hình [src/battle/battle.ts](../../../src/battle/battle.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** dùng như các file khác.
 
 ## Trả lời nhanh
 
@@ -190,7 +190,7 @@ Kỹ năng:      W × (3 + S) × 2 nếu sức mạnh = 100  +  K
 Tiheo2 (Ttuananh, hệ Thủy) cấp 15 → 16, đăng nhập sẵn trên điện thoại. Chỉ số theo `s2c/10` kiểu 4: Tấn công 23, P.Thủ 16, Chính xác 64, Né tránh 96, Chí mạng 9. manina: 32, 5–9, 30, 20, 6.
 
 Cách làm:
-- Bàn cờ không nhận chạm ADB, nên trận do cầu nối trong game đánh, như run4. Cầu nối có ba phần: agent Frida gọi hàm dựng gói của chính game (`a67`, `y104`, `h73`, `a74`, `f75`, `g76`, `e52`…), host Python, và brain Node chạy `BattleRunner` của [src/battle-runner.ts](../../../src/battle-runner.ts) với chiến lược `win`.
+- Bàn cờ không nhận chạm ADB, nên trận do cầu nối trong game đánh, như run4. Cầu nối có ba phần: agent Frida gọi hàm dựng gói của chính game (`a67`, `y104`, `h73`, `a74`, `f75`, `g76`, `e52`…), host Python, và brain Node chạy `BattleRunner` của [src/battle/battle-runner.ts](../../../src/battle/battle-runner.ts) với chiến lược `win`.
 - Mỗi gói BattleRunner dựng được đổi thành lời gọi hàm dựng tương ứng. Gói game gửi đi được so với gói BattleRunner dựng: không lệch lần nào.
 - Đã làm: nâng Hàn Lưu Thánh Thủy (4001) cấp 1 và Băng Tiễn Thuật (4000) lên cấp 2, tốn 3 điểm kỹ năng. Mua 4 Kim Đan và 2 Hoàn Linh Dược, tốn 720 Xu khóa.
 - 7 trận do bot đánh, thắng cả 7: Heo Mọi, 3 Sơn Tặc, Kẻ Gây Rối, Chỉ Huy Sơn Tặc. 3 lần đầu hàng, sau khi brain lỗi hoặc game tự mở trận.
@@ -255,7 +255,7 @@ So sánh các mô hình bằng log-likelihood trên 1011 nước:
 
 ## Thuật toán của bot
 
-Xem `bestMove` và `moveValue` trong [src/battle.ts](../../../src/battle.ts); `BattleRunner` ([src/battle-runner.ts](../../../src/battle-runner.ts)) giữ trạng thái hai bên và tự học thông số trong trận.
+Xem `bestMove` và `moveValue` trong [src/battle/battle.ts](../../../src/battle/battle.ts); `BattleRunner` ([src/battle/battle-runner.ts](../../../src/battle/battle-runner.ts)) giữ trạng thái hai bên và tự học thông số trong trận.
 
 **Tốc độ do server quyết định, không phải do thuật toán.** Trong trận theo lượt, bot gửi nước và nhận kết quả mất ~35 ms, rồi server đợi ~965 ms mới gửi `s2c/24` cho lượt sau, sau **mọi** nước của cả hai bên (Q19: 106 lần đo). Một trận Cóc Xanh khoảng 27 nước của bot + 26 nước của quái ≈ 53 s. Muốn trận ngắn hơn chỉ có cách thắng bằng ít nước hơn. Chọn nước mất dưới 10 ms. [Đo]
 
@@ -307,7 +307,7 @@ Bảng trên dùng mô hình quái cũ (chọn nước ăn nhiều nhất 40–1
 
 ### Thuật toán v2 (31/10)
 
-Chọn bằng `--goal=win` (thắng nhiều trận nhất) hoặc `--goal=farm` (thêm thưởng cho giọt 2, sao 4, vàng 1 như `exp`). `kill` và `exp` giữ nguyên cách Q20, vì bot Rust trong `app/core` vẫn chơi theo cách đó và `export:rust` kiểm hai chiến lược này. Code ở `bestMove`, `answerValue`, `castSkill`, `mobMoveOdds` trong [src/battle.ts](../../../src/battle.ts).
+Chọn bằng `--goal=win` (thắng nhiều trận nhất) hoặc `--goal=farm` (thêm thưởng cho giọt 2, sao 4, vàng 1 như `exp`). `kill` và `exp` giữ nguyên cách Q20, vì bot Rust trong `app/core` vẫn chơi theo cách đó và `export:rust` kiểm hai chiến lược này. Code ở `bestMove`, `answerValue`, `castSkill`, `mobMoveOdds` trong [src/battle/battle.ts](../../../src/battle/battle.ts).
 
 | Phần | Q20 (`kill`, `exp`) | v2 (`win`, `farm`) |
 |---|---|---|
@@ -375,7 +375,7 @@ Mỗi lượt bot so ba loại hành động trên cùng một thang điểm, t�
 - từng kỹ năng đã học mà nội lực đủ trả;
 - từng bình trong túi.
 
-Code ở `bestAction` trong [src/battle-actions.ts](../../../src/battle-actions.ts). `BattleRunner` dùng nó khi biết danh sách kỹ năng. `QuestBot` tự lấy danh sách này từ bảng kỹ năng và túi đồ. Tham số dòng lệnh: `--skills` (mặc định `auto`) và `--potions` ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)). Không có bảng kỹ năng thì bot chơi như v2 với `--skill`. Test: [test/battle-actions.test.ts](../../../test/battle-actions.test.ts).
+Code ở `bestAction` trong [src/battle/battle-actions.ts](../../../src/battle/battle-actions.ts). `BattleRunner` dùng nó khi biết danh sách kỹ năng. `QuestBot` tự lấy danh sách này từ bảng kỹ năng và túi đồ. Tham số dòng lệnh: `--skills` (mặc định `auto`) và `--potions` ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)). Không có bảng kỹ năng thì bot chơi như v2 với `--skill`. Test: [test/battle-actions.test.ts](../../../test/battle-actions.test.ts).
 
 **Bot biết gì trước trận:**
 
@@ -516,11 +516,11 @@ Bot gọi thẳng hàm dựng gói native của `com.mh.sqlq` trong `libgdx-flas
 - Lấy object `sqlq`: hook bất kỳ hàm `sqlq` nào. Hàm `a115` (c2s/1169) được gọi đều đặn kể cả khi đứng yên, nên bắt được ngay. Giữ object bằng `NewGlobalRef`.
 - Gọi trên **luồng GL**: hook `eglSwapBuffers` trong `libEGL.so` (13–38 lần/giây), lấy `JNIEnv` bằng `JNI_GetCreatedJavaVMs` → `GetEnv`, rồi gọi hàm dựng gói giữa `PushLocalFrame`/`PopLocalFrame`.
 - Đọc gói: hook writer `sqje.a2` và lúc trả về của reader `sqnw.e6` như [05-battle § Thu lại](05-battle.md#thu-lại).
-- Phần não (TypeScript, dùng `src/protocol.ts` `Reader` và `src/battle.ts`) nhận gói qua relay Python `frida` (bộ binding đi kèm Frida 17.10 trên máy Mac), rồi trả lệnh dạng `{fn: 'a74', args: [...]}`.
+- Phần não (TypeScript, dùng `src/protocol/protocol.ts` `Reader` và `src/battle/battle.ts`) nhận gói qua relay Python `frida` (bộ binding đi kèm Frida 17.10 trên máy Mac), rồi trả lệnh dạng `{fn: 'a74', args: [...]}`.
 
 ### B. Client Node.js không giao diện, đã chạy
 
-[src/battle-runner.ts](../../../src/battle-runner.ts) gửi các gói dưới (dựng bằng `buildRequest` của [src/events.ts](../../../src/events.ts)) sau khi `runClient` vào thế giới; [src/quest.ts](../../../src/quest.ts) chọn quái và thách đấu. Cần `CLLT_USERNAME`/`CLLT_PASSWORD`, và tài khoản không được online ở máy khác (server từ chối bằng `s2c/0`). Bot đã thắng 10/10 trận Heo Mọi, xem [10-quests](10-quests.md#kết-quả-q2); cách chạy ở [bot làm nhiệm vụ](../../integration/nodejs/quest-bot.md).
+[src/battle/battle-runner.ts](../../../src/battle/battle-runner.ts) gửi các gói dưới (dựng bằng `buildRequest` của [src/protocol/events.ts](../../../src/protocol/events.ts)) sau khi `runClient` vào thế giới; [src/bot/quest.ts](../../../src/bot/quest.ts) chọn quái và thách đấu. Cần `CLLT_USERNAME`/`CLLT_PASSWORD`, và tài khoản không được online ở máy khác (server từ chối bằng `s2c/0`). Bot đã thắng 10/10 trận Heo Mọi, xem [10-quests](10-quests.md#kết-quả-q2); cách chạy ở [bot làm nhiệm vụ](../../integration/nodejs/quest-bot.md).
 
 | Gói | Payload |
 |---|---|

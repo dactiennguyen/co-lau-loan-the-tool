@@ -4,7 +4,7 @@
 // same piece crossing (the in-game guide "Cẩm nang"; never seen in the captured battles).
 // Codes 10..69 are special pieces of type code%10 ("Kiếm lửa") that also clear their 3×3 neighbourhood.
 // The packet readers at the end follow docs/app/events/05-battle.md; cells go on the wire as row+2, col+2.
-import { Reader } from './protocol.ts';
+import { Reader } from '../protocol/protocol.ts';
 
 export const N = 8, EMPTY = -1, UNKNOWN = -2;
 // Effects measured in Q5/Q6 (docs/app/events/07-auto-battle.md): sword deals damage; heart heals; yin-yang fills stat1

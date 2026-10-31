@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { BASELINE } from './config.ts';
+import { BASELINE } from '../protocol/config.ts';
 
 /** Connection settings for the CLIs: local .env (values already in the shell win), defaults from the verified baseline. */
 export function envConnection() {

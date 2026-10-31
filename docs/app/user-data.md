@@ -62,7 +62,7 @@ Sau `maxHp` là đúng những số mà `s2c/10` gửi lại sau mỗi trận ho
 - **30/10:** bot TS đăng nhập chỉ đọc ngày 30/10/2026. manina cấp 21 ở M2, không đánh trận nào. Mẫu lưu ở `fixtures['profile']`.
 - **31/10, nick thứ hai:** đăng nhập chỉ đọc tới `s2c/9` rồi ngắt, cấp 2, `field01` = 4. Mẫu lưu ở `fixtures['profile']` với tên nhân vật thay bằng `nickthu2` cùng độ dài. Chưa có `s2c/11` đi kèm để đối chiếu x/y.
 
-Bộ giải mã là `characterProfile` trong [src/protocol.ts](../../src/protocol.ts); phần sau trang bị là `characterTail` trong [src/world.ts](../../src/world.ts). Test ở [test/protocol.test.ts](../../test/protocol.test.ts).
+Bộ giải mã là `characterProfile` trong [src/protocol/protocol.ts](../../src/protocol/protocol.ts); phần sau trang bị là `characterTail` trong [src/protocol/world.ts](../../src/protocol/world.ts). Test ở [test/protocol.test.ts](../../test/protocol.test.ts).
 
 Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắn khác nhau:
 
@@ -85,7 +85,7 @@ Offset trong bảng tính từ ngay sau `maxHp`, vì tên nhân vật dài ngắ
 | sau đó | i32 | | | | | symap 1, manina 0 [Chưa rõ] |
 | sau đó | | | | | | Khối ngoại hình, cùng bố cục với bản ghi người chơi (mốc 99000, bảng màu ARGB) ([09](events/09-players-chat.md#player-record)) [Đo] |
 | sau đó | | | | | | Hiệu ứng có hạn giờ: `i32 n; n × {string khoá; i32 tỉLệ; i32; i32 msCònLại}`. symap (P4): `"ef7"` tỉ lệ 200000, tức ngôi sao **x2 EXP** của vật phẩm Tăng Kinh Nghiệm; manina, nick thứ hai: n = 0 ([12-skills-items](events/12-skills-items.md#x2-exp)) [Đo] |
-| sau đó | i32; string; u8; u8 | | | | | Sứ quân: symap `2`, "Thiên Tôn" (chữ trên đầu nhân vật), `01 00`; manina chuỗi rỗng. Giải mã cả đuôi: `characterTail` trong [src/world.ts](../../src/world.ts), hết byte [Đo] |
+| sau đó | i32; string; u8; u8 | | | | | Sứ quân: symap `2`, "Thiên Tôn" (chữ trên đầu nhân vật), `01 00`; manina chuỗi rỗng. Giải mã cả đuôi: `characterTail` trong [src/protocol/world.ts](../../src/protocol/world.ts), hết byte [Đo] |
 
 `combat` là các chỉ số chiến đấu:
 

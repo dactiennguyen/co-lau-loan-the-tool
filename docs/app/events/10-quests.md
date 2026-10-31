@@ -2,11 +2,11 @@
 
 Mốc: APK 1.0.3, ngày 30/10/2026, nhân vật `manina`. Nguồn ([các phiên bắt gói](../investigation.md#nguồn-dữ-liệu)):
 - **L1**: người chơi tự trả nhiệm vụ 3 và nhận nhiệm vụ 4 trên điện thoại.
-- **Q1–Q20**: bot Node [src/quest.ts](../../../src/quest.ts) tự đăng nhập không cần điện thoại và làm nhiệm vụ. Q1 dừng sau 33 s vì gặp gói chưa biết; Q2 làm xong nhiệm vụ 4; Q3–Q9 nhiệm vụ 5, 6 và một phần nhiệm vụ 7; Q10, Q13 thử boss; Q11, Q12 đo tốc độ; Q14–Q17 nhiệm vụ 7 (báo cáo), 8 và 9; Q18–Q20 Cóc Xanh của nhiệm vụ 9, đo hồi máu và thử cách chấm nước mới.
+- **Q1–Q20**: bot Node [src/bot/quest.ts](../../../src/bot/quest.ts) tự đăng nhập không cần điện thoại và làm nhiệm vụ. Q1 dừng sau 33 s vì gặp gói chưa biết; Q2 làm xong nhiệm vụ 4; Q3–Q9 nhiệm vụ 5, 6 và một phần nhiệm vụ 7; Q10, Q13 thử boss; Q11, Q12 đo tốc độ; Q14–Q17 nhiệm vụ 7 (báo cáo), 8 và 9; Q18–Q20 Cóc Xanh của nhiệm vụ 9, đo hồi máu và thử cách chấm nước mới.
 - **B3–B5**: app trên điện thoại với hook Frida, chỉ để bắt gói bot chưa biết: B3 đi tìm boss (không thấy), B4 gói đánh boss, B5 gói qua cổng.
 - **S1**: bot Node thử từng cổng và quét mọi map vào được (`npm run scan`, [06-map-mobs](06-map-mobs.md#atlas)).
 
-Bộ giải mã: [src/world.ts](../../../src/world.ts), [src/battle.ts](../../../src/battle.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
+Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/battle/battle.ts](../../../src/battle/battle.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 ## Trả lời nhanh
 

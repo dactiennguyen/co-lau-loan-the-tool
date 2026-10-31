@@ -1,9 +1,9 @@
-//! Port of buildRequest() of src/events.ts: the payload of every request the app sends.
+//! Port of buildRequest() of src/protocol/events.ts: the payload of every request the app sends.
 use crate::battle::Move;
 use crate::opcodes::{PLATFORM, PROTOCOL_VERSION, SERVER_ID};
 use crate::protocol::{err, login_payload, password_proof, Result, Writer};
 
-/// Fields a request may need, as RequestContext of src/events.ts.
+/// Fields a request may need, as RequestContext of src/protocol/events.ts.
 #[derive(Default, Clone)]
 pub struct Ctx<'a> {
     pub username: Option<&'a str>,

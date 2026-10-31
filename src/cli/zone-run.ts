@@ -1,8 +1,8 @@
-import { runClient, type SessionApi } from './client.ts';
-import { envConnection } from './env.ts';
-import { buildRequest, decodeEvent } from './events.ts';
-import { mapPrefix } from './protocol.ts';
-import { mapChange, mapEntities, playersSnapshot, zoneList, type Mob } from './world.ts';
+import { runClient, type SessionApi } from '../net/client.ts';
+import { envConnection } from '../net/env.ts';
+import { buildRequest, decodeEvent } from '../protocol/events.ts';
+import { mapPrefix } from '../protocol/protocol.ts';
+import { mapChange, mapEntities, playersSnapshot, zoneList, type Mob } from '../protocol/world.ts';
 
 // Logs in (CLLT_USERNAME/CLLT_PASSWORD from .env), asks the zones of the current map (c2s/1172) and prints them; with
 // --zone=N then moves to zone N as the game's Khu vực panel does (06-map-mobs.md#đổi-khu-vực-trong-cùng-map):

@@ -3,7 +3,7 @@ use super::*;
 
 /// Potential points: the stat plan (--stats of QuestBot) and "Cộng +1" on one stat.
 impl Bot {
-    /// The game has let the character in (net.rs): the stat plan spends what points there are.
+    /// The game has let the character in (net/session.rs): the stat plan spends what points there are.
     pub fn on_ready(&mut self, now: Instant, out: &mut Vec<Out>) {
         if self.stat_plan.is_some() && self.idle() {
             self.next(now, out);

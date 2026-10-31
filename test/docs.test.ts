@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join, normalize, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EVENTS } from '../src/events.ts';
+import { EVENTS } from '../src/protocol/events.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const events = join(root, 'docs/app/events');
@@ -38,7 +38,7 @@ test('every relative link and #anchor in the docs resolves', () => {
   assert.deepEqual(problems, []);
 });
 
-test('the event table of docs/app/events/README.md lists exactly the catalog of src/events.ts', () => {
+test('the event table of docs/app/events/README.md lists exactly the catalog of src/protocol/events.ts', () => {
   const rows = [...readFileSync(join(events, 'README.md'), 'utf8').matchAll(/^\| ((?:c2s|s2c)\/-?\d+) \| ([^|]+) \| ([^|]+) \|/gm)]
     .map(m => `${m[1]} ${m[2].trim()} ${m[3].trim()}`);
   assert.deepEqual(rows.toSorted(), EVENTS.map(e => `${e.direction}/${e.opcode} ${e.name} ${e.phase}`).toSorted());

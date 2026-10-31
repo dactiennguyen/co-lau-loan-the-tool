@@ -118,7 +118,7 @@ impl Bot {
     }
 }
 
-/// The quest run: next(), elsewhere(), travel(), fight() and onBattleEnd() of QuestBot in src/quest.ts.
+/// The quest run: next(), elsewhere(), travel(), fight() and onBattleEnd() of QuestBot in src/bot/quest.ts.
 impl Bot {
     pub(super) fn doing(&mut self, text: String) {
         if let Some(r) = &mut self.snap.quest_run {

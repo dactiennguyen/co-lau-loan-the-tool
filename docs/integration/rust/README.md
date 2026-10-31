@@ -27,7 +27,7 @@ Code TypeScript trong `src/` vẫn được giữ song song: đó là nơi thử
 | 4. Giao diện | `app/desktop` (Tauri) chỉ gọi `app/core`, không tự giải gói. Rust gửi dữ liệu đã giải, TypeScript chỉ hiển thị | Tài liệu này |
 
 - Hai bên dùng chung **một nguồn dữ liệu**:
-  - `npm run export:rust` ([src/export-rust.ts](../../../src/export-rust.ts)) sinh `app/core/src/opcodes.rs` từ [src/config.ts](../../../src/config.ts).
+  - `npm run export:rust` ([src/cli/export-rust.ts](../../../src/cli/export-rust.ts)) sinh `app/core/src/opcodes.rs` từ [src/protocol/config.ts](../../../src/protocol/config.ts).
   - Lệnh đó cũng sinh `app/core/tests/vectors.json` từ [test/fixtures.ts](../../../test/fixtures.ts) và từ kết quả các hàm TS chạy trên gói thật.
   - Không sửa hai file sinh ra này bằng tay.
 - `npm test` có [test/rust-export.test.ts](../../../test/rust-export.test.ts), báo lỗi khi TS đã đổi mà chưa xuất lại. Khi đã xuất lại, `cargo test` báo lỗi cho tới khi Rust làm theo.
@@ -40,18 +40,18 @@ app/
   Cargo.toml              workspace: core, desktop/src-tauri (Rust 1.90); profile release của template Tauri
   accounts.example.json   mẫu; app/accounts.json là file thật, đã gitignore
   core/                   cllt-core: không có UI, test được không cần màn hình
-    src/opcodes.rs          sinh từ src/config.ts
-    src/protocol.rs         ← src/protocol.ts: frame, XOR, handshake, proof mật khẩu, s2c/9 (cả phần đuôi), 29, 11
-    src/requests.rs         ← buildRequest của src/events.ts
-    src/world.rs            ← src/world.ts: s2c/43, 11, 13, 1177, 1256, 10; người chơi trong khu (1263, 1167, 1170, 1253);
+    src/opcodes.rs          sinh từ src/protocol/config.ts
+    src/protocol.rs         ← src/protocol/protocol.ts: frame, XOR, handshake, proof mật khẩu, s2c/9 (cả phần đuôi), 29, 11
+    src/requests.rs         ← buildRequest của src/protocol/events.ts
+    src/world.rs            ← src/protocol/world.ts: s2c/43, 11, 13, 1177, 1256, 10; người chơi trong khu (1263, 1167, 1170, 1253);
                             nhiệm vụ (39, 34, 35)
-    src/battle.rs           ← src/battle.ts: bàn 8×8, cascade, bestMove, gói trận
-    src/runner.rs           ← src/battle-runner.ts: một trận, học thông số hai bên
-    src/quest.rs            ← stepAction của src/quest.ts: bước nhiệm vụ đòi làm gì
-    src/bot.rs              ← QuestBot của src/quest.ts: trạng thái nhân vật, việc "đánh X N lần" (--farm),
+    src/battle.rs           ← src/battle/battle.ts: bàn 8×8, cascade, bestMove, gói trận
+    src/runner.rs           ← src/battle/battle-runner.ts: một trận, học thông số hai bên
+    src/quest.rs            ← stepAction của src/bot/quest.ts: bước nhiệm vụ đòi làm gì
+    src/bot.rs              ← QuestBot của src/bot/quest.ts: trạng thái nhân vật, việc "đánh X N lần" (--farm),
                             "Tự làm nhiệm vụ"
-    src/net.rs              ← FLOW của src/client.ts: đăng nhập, heartbeat, Manager nhiều nick (tokio)
-    src/atlas.rs            ← src/atlas.ts: data/maps.json, những gì phiên thấy thêm, đường qua cổng (không ghi file)
+    src/net.rs              ← FLOW của src/net/client.ts: đăng nhập, heartbeat, Manager nhiều nick (tokio)
+    src/atlas.rs            ← src/bot/atlas.ts: data/maps.json, những gì phiên thấy thêm, đường qua cổng (không ghi file)
     src/accounts.rs         accounts.json, .env
     src/bin/cllt.rs         CLI không giao diện: status, fight, quest
     tests/parity.rs         so với vectors.json
@@ -275,7 +275,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 
 - **Đăng nhập:**
   - Mỗi nick có một kết nối TCP riêng trên tokio (`Manager` của core).
-  - `s2c/9`, `29`, `11`, `43` phải đọc được thì phiên mới sang Trực tuyến; gói nào hỏng thì phiên báo Lỗi, ghi rõ opcode. Riêng `s2c/1263` chỉ là danh sách người chơi khác: đọc hỏng thì vẫn vào game, nhưng số người xung quanh hiện `?`. Khu không có ai khác (M25, 31/10) thì server không gửi `s2c/1263`: sau `s2c/43` đợi 1,5 s rồi vào game với 0 người, có ghi nhật ký. Các cách làm này giống client TS (`src/client.ts`, `snapshotWaitMs`).
+  - `s2c/9`, `29`, `11`, `43` phải đọc được thì phiên mới sang Trực tuyến; gói nào hỏng thì phiên báo Lỗi, ghi rõ opcode. Riêng `s2c/1263` chỉ là danh sách người chơi khác: đọc hỏng thì vẫn vào game, nhưng số người xung quanh hiện `?`. Khu không có ai khác (M25, 31/10) thì server không gửi `s2c/1263`: sau `s2c/43` đợi 1,5 s rồi vào game với 0 người, có ghi nhật ký. Các cách làm này giống client TS (`src/net/client.ts`, `snapshotWaitMs`).
   - Đăng xuất dừng phiên ở mọi bước: lúc đang kết nối, chờ seed, hay giữa các bước đăng nhập. Lệnh đánh hay làm nhiệm vụ gửi trước khi vào game bị bỏ qua, có ghi nhật ký.
 - **Luồng dữ liệu:**
   - Mỗi sự kiện của session cập nhật nick đó trong `app.rs`, đánh dấu nick đã đổi và tăng số revision.
@@ -327,7 +327,7 @@ Các nút của popup vật phẩm, bắt trên điện thoại ở P4 ([12-skil
 
 ## Kỹ năng
 
-Port của `src/skills.ts` và bước kỹ năng của `QuestBot`. Cây và cấp kỹ năng đến lúc đăng nhập, không có gói xin riêng ([12-skills-items](../../app/events/12-skills-items.md#tab-kỹ-năng)):
+Port của `src/protocol/skills.ts` và bước kỹ năng của `QuestBot`. Cây và cấp kỹ năng đến lúc đăng nhập, không có gói xin riêng ([12-skills-items](../../app/events/12-skills-items.md#tab-kỹ-năng)):
 
 | Gói | App đọc hay gửi | Hàm |
 |---|---|---|
@@ -416,7 +416,7 @@ Bot gắn loại cho từng dòng lúc ghi (`Out::Log(LogKind, …)`), không đ
 
 ## Proxy
 
-Mỗi nick có thể đi qua một proxy riêng, SOCKS5 hoặc HTTP (CONNECT), có hoặc không có tài khoản. `core/src/proxy.rs` làm giống `src/proxy.ts` ([proxy của bot TS](../nodejs/README.md#proxy)): nối tới proxy, mở đường tới `play.colauloanthe.vn:1688`, rồi giao thức game chạy bên trong như khi không có proxy. Proxy trả lời dính liền với vài byte đầu của seed thì các byte đó vẫn được dùng.
+Mỗi nick có thể đi qua một proxy riêng, SOCKS5 hoặc HTTP (CONNECT), có hoặc không có tài khoản. `core/src/proxy.rs` làm giống `src/net/proxy.ts` ([proxy của bot TS](../nodejs/README.md#proxy)): nối tới proxy, mở đường tới `play.colauloanthe.vn:1688`, rồi giao thức game chạy bên trong như khi không có proxy. Proxy trả lời dính liền với vài byte đầu của seed thì các byte đó vẫn được dùng.
 
 | Lúc | App làm gì |
 |---|---|

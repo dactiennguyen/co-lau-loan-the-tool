@@ -1,4 +1,4 @@
-//! Port of src/protocol.ts (docs/app/protocol.md): frames, XOR stream, handshake, session key, password proof, login
+//! Port of src/protocol/protocol.ts (docs/app/protocol.md): frames, XOR stream, handshake, session key, password proof, login
 //! payload, and the prefixes of s2c/9, s2c/29, s2c/11 that the login flow reads.
 use crate::opcodes::{OPCODES, PLATFORM, PROTOCOL_VERSION};
 use std::collections::HashMap;
@@ -116,7 +116,7 @@ impl<'a> Reader<'a> {
     pub fn string(&mut self) -> Result<String> {
         Ok(String::from_utf8_lossy(self.bytes()?).into_owned())
     }
-    /// Fails unless every byte was read, like finish() in src/world.ts.
+    /// Fails unless every byte was read, like finish() in src/protocol/world.ts.
     pub fn finish<T>(&self, value: T, what: &str) -> Result<T> {
         if self.remaining() != 0 {
             return err(
@@ -263,7 +263,7 @@ impl Protocol {
     }
 }
 
-/// s2c/9 after the prefix, up to where the character stands; port of characterProfile of src/protocol.ts. The numbers
+/// s2c/9 after the prefix, up to where the character stands; port of characterProfile of src/protocol/protocol.ts. The numbers
 /// are those s2c/10 kinds 2, 4 and 8 send later; x, y are those of the s2c/11 that follows (docs/app/user-data.md).
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -289,7 +289,7 @@ pub struct Profile {
 pub fn character_profile(p: &[u8]) -> Result<Profile> {
     profile(&mut Reader::new(p))
 }
-/// Where the skill list of the s2c/9 tail starts, right after x, y (profileBytes of src/protocol.ts).
+/// Where the skill list of the s2c/9 tail starts, right after x, y (profileBytes of src/protocol/protocol.ts).
 pub fn character_profile_end(p: &[u8]) -> Result<usize> {
     let mut r = Reader::new(p);
     profile(&mut r)?;
@@ -347,7 +347,7 @@ pub fn character_prefix(p: &[u8]) -> Result<Character> {
 fn prefix(r: &mut Reader) -> Result<Character> {
     let status = r.u8()?;
     // field01 is no count of characters but the element: 1 for manina, 4 for a second account, equal to flag1 both
-    // times, the same layout after it (characterPrefix of src/protocol.ts).
+    // times, the same layout after it (characterPrefix of src/protocol/protocol.ts).
     let field01 = r.u8()?;
     if status != 1 {
         return err(

@@ -1,5 +1,5 @@
-import { runClient } from './client.ts';
-import { envConnection } from './env.ts';
+import { runClient } from '../net/client.ts';
+import { envConnection } from '../net/env.ts';
 
 // No simulator or Frida imports in the live entry point.
 const connection = envConnection();

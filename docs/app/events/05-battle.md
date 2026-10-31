@@ -2,7 +2,7 @@
 
 Mốc: APK 1.0.3. Nguồn là phiên Frida **B1** (29/10/2026, máy M2101K7BG, Android 13), hook writer `com.mh.sqje.a(sqi)` và reader `com.mh.sqnw.e()` nên payload dưới đây là **byte trước XOR**, chưa gồm header. Trong B1 nhân vật `manina` (cấp 3) chạm hai bot: Gà Điên `mob13` (trận bị huỷ sau nước đầu) và Chỉ Huy Sơn Tặc `mob872604` (đánh nhiều lượt).
 
-Trận Chỉ Huy Sơn Tặc kết thúc khi manina hết HP (bot thắng), sau 28 bước. Mọi bố cục trong file này đã được kiểm bằng cách giải **111 gói trận** của B1 với `Reader` của [src/protocol.ts](../../../src/protocol.ts): mỗi gói đọc hết đúng từng byte, không thừa, không thiếu. Nhãn: **[Đo]** thấy trực tiếp trong byte/màn hình; **[Suy luận]** khớp dữ liệu nhưng chưa có bằng chứng thứ hai; **[Chưa rõ]** giữ nguyên tên trung tính.
+Trận Chỉ Huy Sơn Tặc kết thúc khi manina hết HP (bot thắng), sau 28 bước. Mọi bố cục trong file này đã được kiểm bằng cách giải **111 gói trận** của B1 với `Reader` của [src/protocol/protocol.ts](../../../src/protocol/protocol.ts): mỗi gói đọc hết đúng từng byte, không thừa, không thiếu. Nhãn: **[Đo]** thấy trực tiếp trong byte/màn hình; **[Suy luận]** khớp dữ liệu nhưng chưa có bằng chứng thứ hai; **[Chưa rõ]** giữ nguyên tên trung tính.
 
 ## Luồng
 
@@ -37,7 +37,7 @@ Huỷ trận C→S 40 (uuid) + C→S 11/43; S→C 10
   - Lấp **từng cột trái → phải, trong cột từ dưới lên**. Chuỗi ăn lặp lại với cùng danh sách.
   - Có đoạn ≥4 ở bất kỳ đợt nào thì được thêm lượt.
   - Mã `10` là kiếm đặc biệt, khi bị ăn thì phá thêm 3×3.
-  - Chi tiết và ví dụ ở [07-auto-battle](07-auto-battle.md#luật-bàn-cờ). Mô hình chạy được: [src/battle.ts](../../../src/battle.ts).
+  - Chi tiết và ví dụ ở [07-auto-battle](07-auto-battle.md#luật-bàn-cờ). Mô hình chạy được: [src/battle/battle.ts](../../../src/battle/battle.ts).
 - Thời gian lượt là 30 s, khớp byte `0x1e` cuối s2c/22 và đồng hồ dưới bàn. [Đo]
 
 | Mã | Viên (tên trong Cẩm nang) | Đo được (B1, run3, run4, Q2, Q5, Q6) | Cẩm nang trong game |
@@ -53,7 +53,7 @@ Huỷ trận C→S 40 (uuid) + C→S 11/43; S→C 10
 
 Thêm lượt [Đo + Cẩm nang]:
 - Ăn ≥4 viên thẳng hàng, ở bất kỳ đợt nào của chuỗi. [Đo]
-- Hai hàng 3 viên cùng loại cắt nhau (hình L/T). Theo Cẩm nang; chưa gặp trong capture. [src/battle.ts](../../../src/battle.ts) đã tính luật này.
+- Hai hàng 3 viên cùng loại cắt nhau (hình L/T). Theo Cẩm nang; chưa gặp trong capture. [src/battle/battle.ts](../../../src/battle/battle.ts) đã tính luật này.
 
 Bàn bị **xếp lại** khi hết nước đi: bàn mới 64 ô đi kèm `s2c/19` (xem bố cục dưới). Thấy 3 lần trong Q1/Q2 của [10-quests](10-quests.md#hai-điều-q1-phát-hiện). [Đo]
 
@@ -441,7 +441,7 @@ i32 n (8); n × { u8 0xff (ô trống) | u8 ô; i32 độBền }
 - Cả 4 mẫu đọc vừa hết byte theo bố cục trên. Ô có món khớp trang bị của manina trong `s2c/9`. Độ bền về 0 ở cùng trận HP tối đa và sát thương tụt. [Đo]
 - Byte trước độ bền là số ô (`00`, `01`, `02` ở G2), như byte ô của bản ghi vật phẩm. [Đo]
 - G2: cả 6 gói giống hệt nhau, độ bền không giảm qua 6 trận thắng. Gói đến 1 ms sau kết quả cuối trận, ngay sau `s2c/10` kiểu 4. Vậy không phải trận nào cũng làm mòn đồ; quy luật mòn chưa rõ (Q2 giảm gần như mỗi trận). [Đo; quy luật Chưa rõ]
-- Bot TS đọc gói bằng `gearDurability` (src/world.ts). App Rust cập nhật độ bền trên tab Túi đồ sau mỗi trận, và dựa vào đó để tự sửa đồ ([Tự sửa đồ](../../integration/rust/README.md#tự-sửa-đồ)).
+- Bot TS đọc gói bằng `gearDurability` (src/protocol/world.ts). App Rust cập nhật độ bền trên tab Túi đồ sau mỗi trận, và dựa vào đó để tự sửa đồ ([Tự sửa đồ](../../integration/rust/README.md#tự-sửa-đồ)).
 
 ## Push trên bản đồ: đính chính
 

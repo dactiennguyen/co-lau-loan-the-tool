@@ -1,10 +1,10 @@
 import { writeFileSync } from 'node:fs';
-import { runClient } from './client.ts';
-import { envConnection } from './env.ts';
-import { characterProfile, characterSkills } from './protocol.ts';
-import { skillTable, type Skill } from './world.ts';
-import { buildRequest } from './events.ts';
-import { skillLine, skillPanel, skillTree } from './skills.ts';
+import { runClient } from '../net/client.ts';
+import { envConnection } from '../net/env.ts';
+import { characterProfile, characterSkills } from '../protocol/protocol.ts';
+import { skillTable, type Skill } from '../protocol/world.ts';
+import { buildRequest } from '../protocol/events.ts';
+import { skillLine, skillPanel, skillTree } from '../protocol/skills.ts';
 
 // Read-only: logs in (CLLT_USERNAME/CLLT_PASSWORD from .env), prints the Kỹ năng tab (the tree of s2c/30 with the levels
 // and skill points of s2c/9), then closes. Both arrive during the login of client.ts; only --trees sends anything more.

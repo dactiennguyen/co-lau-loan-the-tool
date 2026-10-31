@@ -1,5 +1,5 @@
 //! A proxy the session reaches the game server through: SOCKS5 (RFC 1928/1929) or an HTTP proxy with CONNECT, as
-//! src/proxy.ts. Only the TCP connection changes; the game protocol runs inside the tunnel as it does without one.
+//! src/net/proxy.ts. Only the TCP connection changes; the game protocol runs inside the tunnel as it does without one.
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -77,7 +77,7 @@ enum Stage {
 /// An HTTP proxy answer bigger than this without its blank line is not a CONNECT reply.
 const HTTP_HEAD_MAX: usize = 16384;
 
-/// Opens a tunnel to host:port through a proxy with no I/O of its own (ProxyTunnel of src/proxy.ts): send `start()`,
+/// Opens a tunnel to host:port through a proxy with no I/O of its own (ProxyTunnel of src/net/proxy.ts): send `start()`,
 /// feed what the proxy answers to `receive`, write back what it returns, until `open`. Errors are the reason in
 /// Vietnamese, without the proxy's name; `open_tunnel` adds it.
 pub struct Tunnel<'a> {

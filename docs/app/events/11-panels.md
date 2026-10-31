@@ -1,6 +1,6 @@
 # Các bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân
 
-Mốc: APK 1.0.3, ngày 30/10/2026, nhân vật `manina`. Nguồn **U1** ([các phiên bắt gói](../investigation.md#nguồn-dữ-liệu)): mở lần lượt các bảng chức năng trên điện thoại trong lúc bắt gói, chỉ mở rồi đóng, không mua bán. Bộ giải mã: [src/world.ts](../../../src/world.ts) (`ranking`), [src/events.ts](../../../src/events.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
+Mốc: APK 1.0.3, ngày 30/10/2026, nhân vật `manina`. Nguồn **U1** ([các phiên bắt gói](../investigation.md#nguồn-dữ-liệu)): mở lần lượt các bảng chức năng trên điện thoại trong lúc bắt gói, chỉ mở rồi đóng, không mua bán. Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts) (`ranking`), [src/protocol/events.ts](../../../src/protocol/events.ts). Test: [test/quest.test.ts](../../../test/quest.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 ## Bảng nào gửi gói gì
 

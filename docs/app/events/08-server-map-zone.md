@@ -5,7 +5,7 @@ Mốc: APK 1.0.3. Ngày đo: 30/10/2026, cùng máy và nhân vật `manina` nh�
 - **W1**: attach vào game đang chạy, khu 0.
 - **A1/B2**: các capture cũ của [05-battle](05-battle.md) và [06-map-mobs](06-map-mobs.md).
 
-Agent hook đọc packet ở native writer/reader như các file trước. `c2s/4` (mật khẩu) chỉ ghi độ dài. Bộ giải mã: [src/world.ts](../../../src/world.ts). Test với mẫu thật: [test/world.test.ts](../../../test/world.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** dùng như các file khác.
+Agent hook đọc packet ở native writer/reader như các file trước. `c2s/4` (mật khẩu) chỉ ghi độ dài. Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts). Test với mẫu thật: [test/world.test.ts](../../../test/world.test.ts). Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** dùng như các file khác.
 
 ## Trả lời nhanh
 

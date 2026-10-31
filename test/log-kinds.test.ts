@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 // the desktop UI, and the table of the Rust app docs, which says what each kind holds (a new kind goes in all three).
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
-test('log kinds: bot.rs, logKinds.ts and the docs table name the same kinds in the same order', () => {
-  const rust = read('app/core/src/bot.rs');
+test('log kinds: bot/types.rs, logKinds.ts and the docs table name the same kinds in the same order', () => {
+  const rust = read('app/core/src/bot/types.rs');
   const impl = rust.slice(rust.indexOf('impl LogKind'), rust.indexOf('/// What the battle was played for'));
   const arms = (fn: string) => {
     const body = impl.slice(impl.indexOf(`fn ${fn}(`));

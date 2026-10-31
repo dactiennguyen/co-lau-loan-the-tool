@@ -3,7 +3,7 @@
 // asked for (s2c/1256), and the world map of c2s/11 "M99". Only what the server sent is stored.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Mob, Place } from './world.ts';
+import type { Mob, Place } from '../protocol/world.ts';
 
 export interface MapRecord {
   mapId: string; name: string;

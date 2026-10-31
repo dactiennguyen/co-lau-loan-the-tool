@@ -1,5 +1,5 @@
 import net from 'node:net';
-import { ProtocolError } from './protocol.ts';
+import { ProtocolError } from '../protocol/protocol.ts';
 
 /** A proxy the client reaches the game server through: SOCKS5 (RFC 1928/1929) or an HTTP proxy with CONNECT. The
  * game protocol is unchanged; only the TCP connection goes through the proxy (docs/integration/nodejs/README.md#proxy). */

@@ -1,5 +1,5 @@
 // The Rust core against the TypeScript side: vectors.json is written by `npm run export:rust` from test/fixtures.ts and
-// what the TS decoders, request builders, battle replay and bestMove compute (src/export-rust.ts).
+// what the TS decoders, request builders, battle replay and bestMove compute (src/cli/export-rust.ts).
 use cllt_core::atlas::{find_upwards, Atlas, MapRecord};
 use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
@@ -1988,7 +1988,7 @@ fn every_battle_that_ends_leaves_a_record_for_the_history_of_the_account() {
     );
 }
 
-/// Lái Buôn's menu (s2c/57) and Dược phẩm shop (s2c/1190) of P5, as npcMenu and shopList of src/world.ts read them.
+/// Lái Buôn's menu (s2c/57) and Dược phẩm shop (s2c/1190) of P5, as npcMenu and shopList of src/protocol/world.ts read them.
 const LAI_BUON_MENU: &str = "000000030000000a4cc3a169204275c3b46e00000030e1bb9e206368e1bb972074612063c3b32072e1baa574206e6869e1bb8175206dc3b36e20c491e1bb932074e1bb91742e000000000856c5a9206b68c3ad010000000e44c6b0e1bba363207068e1baa96d020000001643e1bbad612068c3a06e67205b4cc6b0e1bba36e675d";
 const LAI_BUON_SHOP: &str = "060000000c56e1baad74205068e1baa96d000000080000000000000000000000006dffffffff0000000101ff000000000000000000000000000100000001000000006dffffffff0000000101ff0000000000000000000000000002000000020000000049ffffffff0000000101ff0000000000000000000000000004000000000100000078ffffffff0000000100ff0000000000000000000000000005000000010100000078ffffffff0000000100ff0000000000000000000000000006000000020100000050ffffffff0000000100ff000000000000000000000000019f000000100000000fa0ffffffff0000000101ff00000000000000000000000001e70000001500000001f4ffffffff0000000101ff00000000000000000000";
 

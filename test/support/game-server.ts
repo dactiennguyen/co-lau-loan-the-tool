@@ -1,8 +1,8 @@
 import net from 'node:net';
 import { once } from 'node:events';
 import { fixtures } from '../fixtures.ts';
-import { encodedOpcodes, handshake, sessionKey, XorStream, MAX_FRAME } from '../../src/protocol.ts';
-import { buildRequest, decodeEvent } from '../../src/events.ts';
+import { encodedOpcodes, handshake, sessionKey, XorStream, MAX_FRAME } from '../../src/protocol/protocol.ts';
+import { buildRequest, decodeEvent } from '../../src/protocol/events.ts';
 
 export const scenario = fixtures.scenario;
 const boot = fixtures.prelogin;

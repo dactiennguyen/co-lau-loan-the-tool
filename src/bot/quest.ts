@@ -2,15 +2,15 @@
 // fights the named mob with BattleRunner, talks to quest NPCs with c2s/13, and walks through portals (c2s/13 with the
 // portal id) when the NPC or mob of a step is in another map. What it sees of each map goes to the atlas (atlas.ts), which
 // also tells it the way to maps seen in earlier runs.
-import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills } from './protocol.ts';
-import { battleSetup, mobBlock, type Strategy } from './battle.ts';
-import { BattleRunner, type BattleEnd } from './battle-runner.ts';
-import { learntSkills, POTIONS } from './battle-actions.ts';
-import { buildRequest } from './events.ts';
-import type { SessionApi, WorldSession } from './client.ts';
-import { ITEM_ELEMENTS, type Items } from './items.ts';
-import { skillTree } from './skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from './world.ts';
+import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills } from '../protocol/protocol.ts';
+import { battleSetup, mobBlock, type Strategy } from '../battle/battle.ts';
+import { BattleRunner, type BattleEnd } from '../battle/battle-runner.ts';
+import { learntSkills, POTIONS } from '../battle/battle-actions.ts';
+import { buildRequest } from '../protocol/events.ts';
+import type { SessionApi, WorldSession } from '../net/client.ts';
+import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
+import { skillTree } from '../protocol/skills.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */

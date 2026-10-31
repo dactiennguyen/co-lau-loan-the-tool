@@ -1,6 +1,6 @@
 //! Skills (docs/app/events/12-skills-items.md#bảng-kỹ-năng, #tab-kỹ-năng): the tree of s2c/30 (skillTable of
-//! src/world.ts), the skill list of the s2c/9 tail (characterSkills of src/protocol.ts), and the Kỹ năng tab as the game
-//! draws it (src/skills.ts): the 9 boxes on the tree background, what Nâng cấp needs, the detail panel text.
+//! src/protocol/world.ts), the skill list of the s2c/9 tail (characterSkills of src/protocol/protocol.ts), and the Kỹ năng tab as the game
+//! draws it (src/protocol/skills.ts): the 9 boxes on the tree background, what Nâng cấp needs, the detail panel text.
 use crate::protocol::{character_profile_end, Reader, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -203,7 +203,7 @@ impl SkillNode<'_> {
     }
 
     /// "1003 Liệt Hỏa Chi Kiếm 0/20 (trái 1): học được, 2 điểm" or "… (trái 2): cần cấp 32, phải học Liệt Hỏa Chi Kiếm",
-    /// as skillLine of src/skills.ts (npm run skills).
+    /// as skillLine of src/protocol/skills.ts (npm run skills).
     pub fn line(&self) -> String {
         let place = match self.place {
             Some(b) if b.depth > 0 => format!("{} {}", b.branch, b.depth),

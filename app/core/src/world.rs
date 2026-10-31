@@ -1,4 +1,4 @@
-//! Port of the world packets of src/world.ts the app reads: mobs (s2c/43), map and places (s2c/11), map change (s2c/13),
+//! Port of the world packets of src/protocol/world.ts the app reads: mobs (s2c/43), map and places (s2c/11), map change (s2c/13),
 //! bosses (s2c/1177), notices (s2c/1256), character stats (s2c/10), the other players of the zone (s2c/1263, 1167, 1170,
 //! 1253).
 use crate::protocol::{err, Reader, Result};
@@ -127,7 +127,7 @@ pub fn map_data(p: &[u8]) -> Result<MapData> {
     )
 }
 
-/// The three grids of s2c/11 (mapGrid of src/world.ts): `rows` × `cols` bytes each, row by row from the top, one byte per
+/// The three grids of s2c/11 (mapGrid of src/protocol/world.ts): `rows` × `cols` bytes each, row by row from the top, one byte per
 /// tile of 32 server units, so x / 32 and y / 32 of the character and of the places index them.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct MapGrid {
@@ -388,7 +388,7 @@ pub fn notice(p: &[u8]) -> Result<String> {
 }
 
 /// s2c/57 after c2s/13 to an NPC with a menu (Lái Buôn, P5): its name, its line, and the choices (code, label) that
-/// c2s/57 picks from. ← npcMenu of src/world.ts.
+/// c2s/57 picks from. ← npcMenu of src/protocol/world.ts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct NpcMenu {
     pub npc: String,
@@ -422,7 +422,7 @@ pub struct ShopItem {
 }
 
 /// s2c/1190 after c2s/57 opens a shop (Dược phẩm of Lái Buôn: kind 6, "Vật Phẩm", 8 lines of 33 bytes, P5). ← shopList of
-/// src/world.ts.
+/// src/protocol/world.ts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShopList {
@@ -544,7 +544,7 @@ pub struct Player {
     pub x: i32,
     pub y: i32,
 }
-/// Player record of s2c/1167 and of each s2c/1263 entry; the appearance block is read past, as in src/world.ts.
+/// Player record of s2c/1167 and of each s2c/1263 entry; the appearance block is read past, as in src/protocol/world.ts.
 pub fn player_record(r: &mut Reader) -> Result<Player> {
     r.u8()?;
     let (name, id) = (r.string()?, r.i32()?);
@@ -622,7 +622,7 @@ impl From<Player> for Nearby {
         }
     }
 }
-/// The other players of the zone; port of ZonePlayers of src/world.ts. s2c/1263 replaces the list (after c2s/43 and
+/// The other players of the zone; port of ZonePlayers of src/protocol/world.ts. s2c/1263 replaces the list (after c2s/43 and
 /// after a battle), s2c/1167 adds or refreshes one, s2c/1170 removes one, s2c/1253 updates a level. The own character
 /// is never in it.
 #[derive(Debug, Clone, Default, PartialEq)]

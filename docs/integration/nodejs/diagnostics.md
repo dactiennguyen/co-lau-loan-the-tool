@@ -11,7 +11,7 @@ npm test
 npm run check:apk -- colauloanthe.1.0.3.apk
 ```
 
-Baseline được khai báo trong [config.ts](../../../src/config.ts); dữ liệu regression nằm trong [test/fixtures.ts](../../../test/fixtures.ts). Các lệnh này không đăng nhập server. `check:apk` trả exit code 0 nếu byte APK trùng baseline, 1 nếu khác build, 2 nếu không đọc được đầu vào/định dạng ZIP không hỗ trợ. APK khác chưa đồng nghĩa giao thức hỏng.
+Baseline được khai báo trong [config.ts](../../../src/protocol/config.ts); dữ liệu regression nằm trong [test/fixtures.ts](../../../test/fixtures.ts). Các lệnh này không đăng nhập server. `check:apk` trả exit code 0 nếu byte APK trùng baseline, 1 nếu khác build, 2 nếu không đọc được đầu vào/định dạng ZIP không hỗ trợ. APK khác chưa đồng nghĩa giao thức hỏng.
 
 | Finding | Nghĩa / bước tiếp |
 |---|---|
@@ -27,9 +27,9 @@ Marker là phép tìm chuỗi trong binary, không phải resolve ELF export hay
 
 ```bash
 mkdir -p captures
-node --experimental-strip-types src/connect.ts --bootstrap > captures/bootstrap-NEW.jsonl
+node --experimental-strip-types src/cli/connect.ts --bootstrap > captures/bootstrap-NEW.jsonl
 # Sau khi điền credential trong .env:
-node --experimental-strip-types src/connect.ts --world > captures/world-NEW.jsonl
+node --experimental-strip-types src/cli/connect.ts --world > captures/world-NEW.jsonl
 ```
 
 Dùng `node` trực tiếp khi redirect để không lẫn banner npm. CLI nạp `.env`, mở TCP tới host/port đã cấu hình và ghi JSONL. Log packet có hướng/opcode, encoded opcode, state, fields và số byte chưa giải; [chi tiết log](README.md#log-event-thực-tế).
@@ -70,9 +70,9 @@ Index bắt đầu từ 0 trong danh sách record đã normalize. Lỗi parse c�
 | `PROXY_REFUSED` | Proxy không chịu nối tới server game: mã trả lời SOCKS5 khác 0 (`socksReply`) hoặc HTTP không phải 2xx (`httpStatus`). Proxy có thể chỉ cho cổng 80/443 |
 | `PROXY_PROTOCOL` | Trả lời không phải của proxy SOCKS5/HTTP: sai loại trong `CLLT_PROXY` |
 | `SEED_TIMEOUT` | Chưa nhận đủ 4 byte seed; đối chiếu endpoint/handshake mới |
-| `FRAME_LENGTH` | [protocol.ts](../../../src/protocol.ts): length/offset/buffering frame |
+| `FRAME_LENGTH` | [protocol.ts](../../../src/protocol/protocol.ts): length/offset/buffering frame |
 | `KEY_LAYOUT` | `sessionKey()` và handler -1 của app |
-| `OPCODE_MAPPING_OR_CATALOG`, `OPCODE_NEW` | Mapping trong config và danh mục [events.ts](../../../src/events.ts); unknown frame vẫn phải tiêu thụ XOR |
+| `OPCODE_MAPPING_OR_CATALOG`, `OPCODE_NEW` | Mapping trong config và danh mục [events.ts](../../../src/protocol/events.ts); unknown frame vẫn phải tiêu thụ XOR |
 | `CLIENT_INFO_CHANGED` | Platform/protocol version gửi ở request 1206 |
 | `PAYLOAD_SCHEMA`, `SCHEMA_CHANGED`, `UNEXPECTED_TAIL`, `PAYLOAD_OR_BRANCH` | Opcode/offset và getter native; cập nhật parser khi đã có schema |
 | `PUSH_SCHEMA` | Schema push đang suy luận; giữ raw/opaque tới khi xác minh |
@@ -106,7 +106,7 @@ Ví dụ bad-map dừng ở state `map`, chờ opcode 11 và báo `PAYLOAD_SCHEM
 ## Cập nhật code sau khi điều tra bản mới
 
 1. Ghi nhận artifact, wire/schema/flow và nguồn bằng chứng mới trong `docs/app/` trước; giữ rõ mốc build cũ/mới.
-2. Cập nhật [config.ts](../../../src/config.ts) nếu build identity/endpoint/client info/opcode map đổi; [protocol.ts](../../../src/protocol.ts) nếu serializer/framing/key/proof đổi; [events.ts](../../../src/events.ts) nếu schema đổi; [client.ts](../../../src/client.ts) nếu thứ tự/state/cause đổi.
+2. Cập nhật [config.ts](../../../src/protocol/config.ts) nếu build identity/endpoint/client info/opcode map đổi; [protocol.ts](../../../src/protocol/protocol.ts) nếu serializer/framing/key/proof đổi; [events.ts](../../../src/protocol/events.ts) nếu schema đổi; [client.ts](../../../src/net/client.ts) nếu thứ tự/state/cause đổi.
 3. Giữ vector cũ hữu ích và bổ sung capture/native vector vào module fixture dành cho test; không dùng response mẫu làm kết quả của client thật.
 4. Chạy regression thích hợp. Khi kiểm chứng server thật, ghi build, thời điểm, mode và kết quả; chỉ ghi phạm vi thực sự đã chạy.
 5. Cập nhật các trang app và tích hợp tương ứng bằng Markdown. Tài liệu hiện là file tĩnh; không còn script sinh docs/hook tạm trong repo.

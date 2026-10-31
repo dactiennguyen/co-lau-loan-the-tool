@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
-import { characterProfile, characterSkills } from '../src/protocol.ts';
-import { skillTable } from '../src/world.ts';
-import { SKILL_TREE, skillLine, skillPanel, skillTree } from '../src/skills.ts';
+import { characterProfile, characterSkills } from '../src/protocol/protocol.ts';
+import { skillTable } from '../src/protocol/world.ts';
+import { SKILL_TREE, skillLine, skillPanel, skillTree } from '../src/protocol/skills.ts';
 
 // The Hỏa tree of s2c/30 (A2) and manina's s2c/9 at level 21: Hỏa Cầu Thuật level 1 and 19 skill points, the state of the
 // Kỹ năng tab in the E1 screenshots (12-skills-items.md#tab-kỹ-năng).

@@ -1,5 +1,5 @@
 //! What one logged-in account knows and does: the character, map, mobs and current quest from the world packets, and
-//! one of two jobs. A fight job ("đánh X N lần") follows QuestBot --farm of src/quest.ts: c2s/15 for a mob, c2s/1178 for
+//! one of two jobs. A fight job ("đánh X N lần") follows QuestBot --farm of src/bot/quest.ts: c2s/15 for a mob, c2s/1178 for
 //! a boss of s2c/1177, 8 s for s2c/22, 6 × 5 s of waiting while a boss changes tiles, 3 s of rest between battles, and
 //! losses (except to a boss) up to `max_losses`. A quest run ("Tự làm nhiệm vụ") is QuestBot itself: it plays the steps
 //! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals

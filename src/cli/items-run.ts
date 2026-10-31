@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decodeAsset, ITEM_ELEMENTS, ITEM_TYPES, parseItemTable, parseStatTable, RETIRED, type ItemBook } from './items.ts';
+import { decodeAsset, ITEM_ELEMENTS, ITEM_TYPES, parseItemTable, parseStatTable, RETIRED, type ItemBook } from '../protocol/items.ts';
 
 // Rebuilds data/items.json from the game's tables and exports the item and skill icons as WebP
 // (docs/app/events/13-drops-items.md, 12-skills-items.md#tab-kỹ-năng).

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runClient } from '../src/client.ts';
+import { runClient } from '../src/net/client.ts';
 import { startSimulator } from './support/game-server.ts';
 import type { SimFault } from './support/game-server.ts';
 

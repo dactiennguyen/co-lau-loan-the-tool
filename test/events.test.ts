@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { EVENTS, buildRequest, decodeEvent } from '../src/events.ts';
+import { EVENTS, buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { scenario } from './support/game-server.ts';
-import { checkCapture, normalizeCapture } from '../src/check-capture.ts';
+import { checkCapture, normalizeCapture } from '../src/cli/check-capture.ts';
 
 const scenarioText = JSON.stringify(fixtures.scenario);
 

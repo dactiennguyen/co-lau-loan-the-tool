@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
-import { inspectApk } from '../src/check-apk.ts';
+import { inspectApk } from '../src/cli/check-apk.ts';
 
 function zip(files: Record<string, string>, method = 0) {
   const locals: Buffer[] = [], directory: Buffer[] = []; let offset = 0;

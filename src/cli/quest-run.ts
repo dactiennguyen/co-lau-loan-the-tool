@@ -1,9 +1,9 @@
 import { createWriteStream } from 'node:fs';
-import { runClient } from './client.ts';
-import { QuestBot, statPlan } from './quest.ts';
-import { envConnection } from './env.ts';
-import { STRATEGIES } from './battle.ts';
-import { Items } from './items.ts';
+import { runClient } from '../net/client.ts';
+import { QuestBot, statPlan } from '../bot/quest.ts';
+import { envConnection } from '../net/env.ts';
+import { STRATEGIES } from '../battle/battle.ts';
+import { Items } from '../protocol/items.ts';
 
 // Logs in directly (CLLT_USERNAME/CLLT_PASSWORD from .env) and plays the current main quest.
 // The account must not be online on another device: the server then answers s2c/0 and refuses the login.

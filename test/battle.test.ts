@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, type Move } from '../src/battle.ts';
-import { Writer } from '../src/protocol.ts';
-import { buildRequest, decodeEvent } from '../src/events.ts';
-import { BattleRunner, type BattleEnd } from '../src/battle-runner.ts';
+import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, type Move } from '../src/battle/battle.ts';
+import { Writer } from '../src/protocol/protocol.ts';
+import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
+import { BattleRunner, type BattleEnd } from '../src/battle/battle-runner.ts';
 
 const battles: { source: string; board: number[]; steps: { seq: number; move?: number[]; cells?: number[][]; refill: number[]; actor: string; extraTurn: boolean }[] }[] = fixtures.battles;
 const toMove = (m: number[]): Move => ({ from: [m[0], m[1]], to: [m[2], m[3]] });

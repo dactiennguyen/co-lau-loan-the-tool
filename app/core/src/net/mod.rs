@@ -1,4 +1,4 @@
-//! One TCP session per account over tokio: the login of FLOW in src/client.ts, heartbeat c2s/1 every 2 s from the key
+//! One TCP session per account over tokio: the login of FLOW in src/net/client.ts, heartbeat c2s/1 every 2 s from the key
 //! exchange on, then the Bot with its commands and timers. Manager runs one session per account on a shared runtime.
 //! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
@@ -83,7 +83,7 @@ type Emit = Arc<dyn Fn(Event) + Send + Sync>;
 type Error = String;
 const STEP: Duration = Duration::from_secs(8);
 /// After s2c/43, how long to wait for s2c/1263: a zone with no other player sends none (M25, 31/10; snapshotWaitMs of
-/// src/client.ts).
+/// src/net/client.ts).
 const PLAYERS_WAIT: Duration = Duration::from_millis(1500);
 
 mod connect;

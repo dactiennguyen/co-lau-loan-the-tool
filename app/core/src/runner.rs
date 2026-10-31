@@ -1,4 +1,4 @@
-//! Port of BattleRunner (src/battle-runner.ts): one battle over a live session. s2c/22 setup → c2s/18 join → s2c/18 →
+//! Port of BattleRunner (src/battle/battle-runner.ts): one battle over a live session. s2c/22 setup → c2s/18 join → s2c/18 →
 //! c2s/14 seq 0 → { s2c/19|20 result; s2c/24 turn → c2s/19 own swap | c2s/14 mob step } until a result carries end=1.
 //! Without I/O: packets and the clock come in, actions go out, and `deadline()` says when `on_timer` is due.
 use crate::battle::{

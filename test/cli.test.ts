@@ -17,7 +17,7 @@ for (const mode of ['auto-world', 'bootstrap']) {
     writeFileSync(join(folder, '.env'), `CLLT_HOST=127.0.0.1\nCLLT_PORT=${peer.port}\nCLLT_USERNAME=probe_user\nCLLT_PASSWORD=abc\n`);
     const env = { ...process.env };
     for (const name of Object.keys(env)) if (name.startsWith('CLLT_')) delete env[name];
-    const child = spawn(process.execPath, ['--experimental-strip-types', fileURLToPath(new URL('../src/connect.ts', import.meta.url)), ...(mode === 'bootstrap' ? ['--bootstrap'] : [])], { cwd: folder, env });
+    const child = spawn(process.execPath, ['--experimental-strip-types', fileURLToPath(new URL('../src/cli/connect.ts', import.meta.url)), ...(mode === 'bootstrap' ? ['--bootstrap'] : [])], { cwd: folder, env });
     t.after(() => child.kill());
     let stdout = '', stderr = '';
     child.stdout.on('data', b => { stdout += b; }); child.stderr.on('data', b => { stderr += b; });

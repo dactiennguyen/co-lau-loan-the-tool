@@ -1,4 +1,4 @@
-import { Writer } from '../../src/protocol.ts';
+import { Writer } from '../../src/protocol/protocol.ts';
 
 /** s2c/11 flag 1 with empty grids and the given places (id, name, type). */
 export const mapPacket = (mapId: string, name: string, places: [number, string, number][], zone = 0) => {

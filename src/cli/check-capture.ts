@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { decodeEvent, findEvent } from './events.ts';
-import { EXPECTED, FLOW } from './client.ts';
-import { PLATFORM, PROTOCOL_VERSION } from './protocol.ts';
-import { BASELINE } from './config.ts';
+import { decodeEvent, findEvent } from '../protocol/events.ts';
+import { EXPECTED, FLOW } from '../net/client.ts';
+import { PLATFORM, PROTOCOL_VERSION } from '../protocol/protocol.ts';
+import { BASELINE } from '../protocol/config.ts';
 
 const baseline = BASELINE;
 export interface Finding { severity: 'error' | 'warning'; code: string; message: string; index?: number; opcode?: number; direction?: string; details?: unknown }

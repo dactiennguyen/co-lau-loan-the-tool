@@ -4,10 +4,10 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fixtures } from './fixtures.ts';
-import { Reader, Writer } from '../src/protocol.ts';
-import { mapData, mapEntities } from '../src/world.ts';
-import { emptyAtlas, loadAtlas, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, portalRefusal, destination, route } from '../src/atlas.ts';
-import { MapScanner } from '../src/map-scan.ts';
+import { Reader, Writer } from '../src/protocol/protocol.ts';
+import { mapData, mapEntities } from '../src/protocol/world.ts';
+import { emptyAtlas, loadAtlas, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, portalRefusal, destination, route } from '../src/bot/atlas.ts';
+import { MapScanner } from '../src/bot/map-scan.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 
 const mp: Record<string, string> = fixtures['map-packets'];

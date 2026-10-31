@@ -1,6 +1,6 @@
-//! Bag, gear and money (docs/app/events/12-skills-items.md#túi-đồ, 04-push.md#s2c-46): the item record of src/world.ts
+//! Bag, gear and money (docs/app/events/12-skills-items.md#túi-đồ, 04-push.md#s2c-46): the item record of src/protocol/world.ts
 //! with the bag of s2c/42 and s2c/1187, the 8 gear slots at the end of s2c/9 and the currencies of s2c/46; and the
-//! game's item table of data/items.json (src/items.ts), built into the binary, for names, icons and stat texts.
+//! game's item table of data/items.json (src/protocol/items.ts), built into the binary, for names, icons and stat texts.
 use crate::protocol::{character_profile_end, Reader, Result};
 use crate::skills::skill_list;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub struct ItemStat {
     pub value: i32,
 }
 
-/// One item of the bag, a gear slot or the ground (itemRecord of src/world.ts). `durability` is -1 for items without
+/// One item of the bag, a gear slot or the ground (itemRecord of src/protocol/world.ts). `durability` is -1 for items without
 /// one; `element` 1 Hỏa, 2 Lôi, 4 Thủy, 0xff for plain items; the fields are not understood.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -144,7 +144,7 @@ pub fn gear_update(p: &[u8]) -> Result<GearUpdate> {
 }
 
 /// s2c/36 at the end of every battle, and after Đầu hàng: the durability of the 8 gear slots in the order of s2c/9, None
-/// for an empty slot (0xff), else after the slot byte (gearDurability of src/world.ts, 05-battle.md#s2c-36).
+/// for an empty slot (0xff), else after the slot byte (gearDurability of src/protocol/world.ts, 05-battle.md#s2c-36).
 pub fn gear_durability(p: &[u8]) -> Result<Vec<Option<i32>>> {
     let mut r = Reader::new(p);
     let slots = (0..r.i32()?.max(0))
@@ -224,7 +224,7 @@ pub fn currencies(p: &[u8]) -> Result<Currencies> {
     )
 }
 
-/// One item of the game's table `it1` (ItemDef of src/items.ts): `kind` the type (0 hat … 29 egg), `icon` the file
+/// One item of the game's table `it1` (ItemDef of src/protocol/items.ts): `kind` the type (0 hat … 29 egg), `icon` the file
 /// data/icons/i<icon>.webp, `level` the level to wear it, `stack` how many fit in one slot, `durability` the most.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ItemDef {

@@ -1,4 +1,4 @@
-//! Port of src/battle.ts (docs/app/events/07-auto-battle.md): the 8×8 board, cascades, legal moves, the HP-value move
+//! Port of src/battle/battle.ts (docs/app/events/07-auto-battle.md): the 8×8 board, cascades, legal moves, the HP-value move
 //! search, and the battle packets of docs/app/events/05-battle.md. tests/parity.rs checks every function against what
 //! the TS code computes on the captured battles (`npm run export:rust`).
 use crate::protocol::{Reader, Result};

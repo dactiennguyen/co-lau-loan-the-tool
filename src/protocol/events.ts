@@ -3,7 +3,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
   zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, shopList } from './world.ts';
-import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from './battle.ts';
+import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from '../battle/battle.ts';
 
 export type Direction = 'c2s' | 's2c';
 export type Phase = 'boot' | 'login' | 'world' | 'battle' | 'push';

@@ -13,7 +13,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026, nhân vật `manina` cấp 21 ở M2; từ P
 - **P5**: điện thoại với Tiheo2, Frida ghi mọi gói: tới Lái Buôn (M1, đổi sang khu 2 vì khu 0 đông người che NPC), mở Dược phẩm, mua 1 Hoàn Linh Dược bằng Xu khóa, rồi dùng nó trong trận với Sơn Tặc ([Mua ở Lái Buôn](#c2s-1190), [Dùng trong trận](#c2s-44)).
 - **B1**: bot TS với manina (cấp 21, ngày 31/10), `npm run buy`: mở cửa hàng Lái Buôn từ M2 rồi từ M1, mua 1 Búa Sửa Chữa bằng 80 Xu khóa ([Mua bằng bot TS](#mua-bằng-bot)).
 
-Bộ giải mã: [src/world.ts](../../../src/world.ts) (`skillTable`, `characterTail`, `gearUpdate`), [src/skills.ts](../../../src/skills.ts), [src/items.ts](../../../src/items.ts); hàm dựng gói ở [src/events.ts](../../../src/events.ts). Test: [test/skills.test.ts](../../../test/skills.test.ts), [test/items.test.ts](../../../test/items.test.ts), [test/quest.test.ts](../../../test/quest.test.ts).
+Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts) (`skillTable`, `characterTail`, `gearUpdate`), [src/protocol/skills.ts](../../../src/protocol/skills.ts), [src/protocol/items.ts](../../../src/protocol/items.ts); hàm dựng gói ở [src/protocol/events.ts](../../../src/protocol/events.ts). Test: [test/skills.test.ts](../../../test/skills.test.ts), [test/items.test.ts](../../../test/items.test.ts), [test/quest.test.ts](../../../test/quest.test.ts).
 
 Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -126,7 +126,7 @@ Cây Thủy:
 - Hiệu ứng khác hẳn nhau: Lôi có tăng phòng thủ (2001), tăng né tránh (2002), giảm phòng thủ địch (2004), phá hàng ngang (2006). Thủy có hồi 11–30% sinh lực (4001), triệt tiêu năng lượng địch (4002). Hỏa có biến quân thành kiếm lửa (1001), tăng tấn công (1002). [Đo]
 - **Hệ Lôi là 2.** Game có ba tấm icon kỹ năng `skill1`, `skill2`, `skill4`: tấm 2 toàn tia sét, tấm 1 lửa, tấm 4 băng ([Tab Kỹ năng](#tab-kỹ-năng)). Byte hệ của vật phẩm cũng đánh số như vậy (2 Lôi). Quái hệ Lôi (Sói Xám, Chỉ Huy Sơn Tặc) mang kỹ năng 2000–2008 trong `s2c/22` và dùng 2000 trong trận ([05-battle](05-battle.md#kỹ-năng-trong-trận)). `c2s/30 (2)` trả cây Lôi: 2000 Xích Lôi Công … 2008 Liên Hoàn Lôi Cầu (bảng dưới). [Đo]
 - **Gợi ý cho bot** (mô phỏng A2, [07-auto-battle](07-auto-battle.md#chọn-hành-động)): nâng kỹ năng gốc trước. Nó cho nhiều sát thương nhất trên mỗi điểm nội lực: Hỏa Cầu Thuật cấp 4 của manina gây khoảng 78 cho 25 nội lực, trong khi Liệt Hỏa Chi Kiếm (1003, 45 sát thương, 50 nội lực) chỉ khoảng 75 cho 50. Bot dùng kỹ năng gốc ngay khi có lợi, nên kỹ năng 50 nội lực hiếm khi đến lượt. Với Tiheo2: Băng Tiễn Thuật cấp 4 cho thêm khoảng 13% trận thắng mỗi giờ; Hàn Lưu Thánh Thủy cấp 2, Băng Đao Kích, Tuyết Sơn Áp Đỉnh gần như không đổi gì. [Mô phỏng]
-- Bot đọc hiệu ứng của mọi cấp (540 mô tả, 14 dạng câu) bằng `skillEffect` trong [src/battle-actions.ts](../../../src/battle-actions.ts) để chọn kỹ năng trong trận. [Đo: test đọc hết data/skills.json]
+- Bot đọc hiệu ứng của mọi cấp (540 mô tả, 14 dạng câu) bằng `skillEffect` trong [src/battle/battle-actions.ts](../../../src/battle/battle-actions.ts) để chọn kỹ năng trong trận. [Đo: test đọc hết data/skills.json]
 
 <a id="tab-kỹ-năng"></a>
 
@@ -227,9 +227,9 @@ Cấp kế tiếp: {cấp + 1}                    ← "Chưa học" nếu cấp 
 
 `--trees` xin thêm `c2s/30` cho cả ba hệ (1, 2, 4) rồi ghi [data/skills.json](../../../data/skills.json): 27 kỹ năng, mỗi kỹ năng 20 cấp (mô tả, điểm, cấp nhân vật, nội lực), một kỹ năng một dòng. Gói `c2s/30` này giống gói app gửi lúc đăng nhập, chỉ khác byte hệ.
 
-Code: [src/skills.ts](../../../src/skills.ts) (`SKILL_TREE` vị trí ô, `skillTree` trạng thái từng ô, `skillPanel` bảng chi tiết) và [src/skills-run.ts](../../../src/skills-run.ts). Bot làm nhiệm vụ cũng dùng `skillTree` để chọn kỹ năng nâng cấp.
+Code: [src/protocol/skills.ts](../../../src/protocol/skills.ts) (`SKILL_TREE` vị trí ô, `skillTree` trạng thái từng ô, `skillPanel` bảng chi tiết) và [src/cli/skills-run.ts](../../../src/cli/skills-run.ts). Bot làm nhiệm vụ cũng dùng `skillTree` để chọn kỹ năng nâng cấp.
 
-**2. Trên Android, bắt gói:** như [túi đồ](#cách-lấy-túi-đồ). Gắn Frida khi game đang ở màn đăng nhập, rồi bấm đăng nhập để ghi `s2c/9` và `s2c/30`. Đọc bằng `characterSkills` ([src/protocol.ts](../../../src/protocol.ts)) và `skillTable` ([src/world.ts](../../../src/world.ts)).
+**2. Trên Android, bắt gói:** như [túi đồ](#cách-lấy-túi-đồ). Gắn Frida khi game đang ở màn đăng nhập, rồi bấm đăng nhập để ghi `s2c/9` và `s2c/30`. Đọc bằng `characterSkills` ([src/protocol/protocol.ts](../../../src/protocol/protocol.ts)) và `skillTable` ([src/protocol/world.ts](../../../src/protocol/world.ts)).
 
 **3. Icon và ảnh nền, từ file của game:**
 
@@ -355,7 +355,7 @@ Theo popup trên máy, một món gồm:
 | Bộ cùng hệ (n/4) | Số món cùng hệ đang mặc. Cẩm nang: đủ 4 món cùng hệ thì +8% tấn công và +8% sinh lực |
 | Nút | Món đang mặc: Cởi ra, Sửa chữa. Món trong túi: Trang bị, Vứt bỏ |
 
-Bot TS ghi dạng chữ ([src/items.ts](../../../src/items.ts)):
+Bot TS ghi dạng chữ ([src/protocol/items.ts](../../../src/protocol/items.ts)):
 - Túi đồ: `"Hoàn Linh Dược ×4"`, `"Nón Lá (+5 phòng thủ, +66 sinh lực)"`, trong sự kiện `inventory`. Bản chữ chỉ ghi ×n khi số lượng lớn hơn 1.
 - Trang bị đang mặc: `"0: Nón Âu Lạc (+4 phòng thủ, +58 sinh lực), hệ Lôi, độ bền 55/60"`, trong sự kiện `gear` lúc đăng nhập.
 
@@ -390,7 +390,7 @@ npm run bag
 
 - Tài khoản lấy từ `CLLT_USERNAME` và `CLLT_PASSWORD` trong `.env`.
 - **Phải thoát game trên điện thoại trước.** Nếu nick đang online ở máy khác, server trả `s2c/0` và từ chối đăng nhập.
-- Code: [src/bag-run.ts](../../../src/bag-run.ts).
+- Code: [src/cli/bag-run.ts](../../../src/cli/bag-run.ts).
 - `npm run quest` cũng ghi các sự kiện `gear` và `inventory` khi chạy ([quest-bot](../../integration/nodejs/quest-bot.md)).
 - Chạy thật ngày 31/10 sau khi tắt game trên máy: ra đúng đồ trên máy. Búa sửa chữa đã hết, nên ô 6 của túi trống. [Đo]
 
@@ -398,7 +398,7 @@ npm run bag
 1. Mở game, dừng ở màn đăng nhập.
 2. Frida attach vào `com.lotasoft.colauloanthe`, hook native reader (cách hook ở [Điều tra lại](../reinvestigation.md#3-thu-lại-từ-boot-tới-thế-giới)).
 3. Bấm đăng nhập. Ghi payload của `s2c/9` và `s2c/42`, sau đó là mọi `s2c/1187`.
-4. Đọc payload bằng `characterGear` (đuôi `s2c/9`), `characterExtra` (`s2c/42`) và `inventory` (`s2c/1187`) trong [src/world.ts](../../../src/world.ts). Đổi mã ra tên bằng `Items` trong [src/items.ts](../../../src/items.ts).
+4. Đọc payload bằng `characterGear` (đuôi `s2c/9`), `characterExtra` (`s2c/42`) và `inventory` (`s2c/1187`) trong [src/protocol/world.ts](../../../src/protocol/world.ts). Đổi mã ra tên bằng `Items` trong [src/protocol/items.ts](../../../src/protocol/items.ts).
 
 Nếu attach khi đã vào game thì đã lỡ `s2c/9` và `s2c/42`. Lúc đó chỉ còn bắt được `s2c/1187` khi túi đổi. [Đo]
 
@@ -574,7 +574,7 @@ Không có gói nào khi mở hay đóng bảng, chạm một món, hay chỉnh 
 
 ### Mua bằng bot TS
 
-Các hàm dựng đã có trong [src/events.ts](../../../src/events.ts):
+Các hàm dựng đã có trong [src/protocol/events.ts](../../../src/protocol/events.ts):
 
 ```ts
 buildRequest(13, { mapId: 'M1', npcId: 106 })                 // nói chuyện với Lái Buôn
@@ -582,9 +582,9 @@ buildRequest(57, { option: 1, mapId: 'M1', npcId: 106 })      // chọn Dược 
 buildRequest(1190, { shopId: 4, quantity: 1 })                // mua 1 Hoàn Linh Dược giá Xu khóa
 ```
 
-- Chọn ô theo `s2c/1190`, không theo mã vật phẩm: tìm món có `itemId` cần mua và `currency` muốn trả, rồi gửi `shopId` của nó. Bộ giải mã: `npcMenu`, `shopList` trong [src/world.ts](../../../src/world.ts).
+- Chọn ô theo `s2c/1190`, không theo mã vật phẩm: tìm món có `itemId` cần mua và `currency` muốn trả, rồi gửi `shopId` của nó. Bộ giải mã: `npcMenu`, `shopList` trong [src/protocol/world.ts](../../../src/protocol/world.ts).
 - Kiểm tiền trước khi gửi: `giá × số lượng` phải ≤ Xu hoặc Xu khóa của `s2c/46` gần nhất.
-- Lệnh [src/buy-run.ts](../../../src/buy-run.ts): `npm run buy [-- --item=2] [--pay=khoa|xu] [--qty=1] [--buy]`. Lệnh đăng nhập, mở Dược phẩm, in bảng, chọn ô có `itemId` và loại tiền muốn trả, kiểm tiền, rồi chỉ gửi `c2s/1190` khi có `--buy`. Không có `--buy` thì chỉ mở cửa hàng, không tốn gì.
+- Lệnh [src/cli/buy-run.ts](../../../src/cli/buy-run.ts): `npm run buy [-- --item=2] [--pay=khoa|xu] [--qty=1] [--buy]`. Lệnh đăng nhập, mở Dược phẩm, in bảng, chọn ô có `itemId` và loại tiền muốn trả, kiểm tiền, rồi chỉ gửi `c2s/1190` khi có `--buy`. Không có `--buy` thì chỉ mở cửa hàng, không tốn gì.
 - **B1** (31/10, manina cấp 21, 500 Xu, 8.517 Xu khóa, không có búa):
   - Đứng ở **M2**: `c2s/13 ("M1", 106)` → `s2c/1256` "Không thể thực hiện" sau 27 ms, không có `s2c/57`. **Phải đang ở M1** mới mở được Lái Buôn. [Đo]
   - Sang M1 (`cllt goto --map=M1`, server xếp khu 1), đứng ở chỗ đăng nhập, xa NPC: `s2c/57` sau 26 ms, `s2c/1190` sau 26 ms, đủ 8 món đúng giá và đúng ô như P5. Khoảng cách tới NPC không quan trọng. [Đo]
@@ -619,7 +619,7 @@ P5, trận tính giờ với Sơn Tặc cấp 9. Trận bắt đầu khi nhân v
 |---:|---|---|---|
 | 0 | `c2s/44` | `string uuidTrận; i32 0; i32 4` | Dùng món ở ô túi 4. Hàm dựng `sqlq.g76(ô, 0)` ghi số 0 trước, như `c2s/20` ghi `seq` trước mã kỹ năng |
 | 28 | `s2c/83` | `00000004 00000000` | Ô 4 còn 0 món (cùng gói với Vứt bỏ) |
-| 31 | `s2c/44` | 75 byte: `seq 1; 0; seed; i32 0; i32 4; i32 0; i32 0 quân rơi; u8 1 bên; "Ttuananh" sát thương -1, HP 67; cờ; "Ttuananh"; end 0` | Kết quả trong trận. Như `s2c/19` nhưng không có byte xếp lại bàn và 3 byte trước danh sách. Bộ giải mã: `battleItemResult` trong [src/battle.ts](../../../src/battle.ts) |
+| 31 | `s2c/44` | 75 byte: `seq 1; 0; seed; i32 0; i32 4; i32 0; i32 0 quân rơi; u8 1 bên; "Ttuananh" sát thương -1, HP 67; cờ; "Ttuananh"; end 0` | Kết quả trong trận. Như `s2c/19` nhưng không có byte xếp lại bàn và 3 byte trước danh sách. Bộ giải mã: `battleItemResult` trong [src/battle/battle.ts](../../../src/battle/battle.ts) |
 
 - **HP 31 → 67, tức +36.** Mô tả ghi "Bơm 30% sinh lực", mà 30% của 145 là 43,5; +36 chỉ bằng 24,8%. Có thể tính theo HP gốc chứ không theo HP tối đa, hoặc mô tả làm tròn. Mới đo 1 lần. [Đo; lý do Chưa rõ]
 - **A1 (31/10), trận theo lượt, bot gửi `c2s/44` qua cầu nối trong game:**
@@ -637,7 +637,7 @@ P5, trận tính giờ với Sơn Tặc cấp 9. Trận bắt đầu khi nhân v
 
 Dưới avatar của symap có ngôi sao xanh ghi "x2" và giờ còn lại ("4h" lúc 10:47, "3h" lúc 11:12). manina và Tiheo2 không có. [Đo]
 
-Server gửi nó trong **đuôi `s2c/9`** lúc đăng nhập, ngay sau khối ngoại hình (`characterTail` trong [src/world.ts](../../../src/world.ts)):
+Server gửi nó trong **đuôi `s2c/9`** lúc đăng nhập, ngay sau khối ngoại hình (`characterTail` trong [src/protocol/world.ts](../../../src/protocol/world.ts)):
 
 ```text
 … 8 ô trang bị; i32 (symap 1, manina 0); khối ngoại hình (như bản ghi người chơi);

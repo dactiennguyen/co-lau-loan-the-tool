@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import { once } from 'node:events';
-import { runClient } from '../src/client.ts';
-import { ProtocolError } from '../src/protocol.ts';
-import { ProxyTunnel, parseProxy, proxyLabel } from '../src/proxy.ts';
+import { runClient } from '../src/net/client.ts';
+import { ProtocolError } from '../src/protocol/protocol.ts';
+import { ProxyTunnel, parseProxy, proxyLabel } from '../src/net/proxy.ts';
 import { startSimulator } from './support/game-server.ts';
 
 interface FakeProxyOptions {

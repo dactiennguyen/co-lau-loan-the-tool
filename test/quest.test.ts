@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { Reader, Writer, characterSkills } from '../src/protocol.ts';
-import { buildRequest, decodeEvent } from '../src/events.ts';
-import { skillTable, inventory, characterExtra, questData, characterStats, POTENTIALS } from '../src/world.ts';
-import { QuestBot, stepAction, statPlan } from '../src/quest.ts';
-import { Items } from '../src/items.ts';
+import { Reader, Writer, characterSkills } from '../src/protocol/protocol.ts';
+import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
+import { skillTable, inventory, characterExtra, questData, characterStats, POTENTIALS } from '../src/protocol/world.ts';
+import { QuestBot, stepAction, statPlan } from '../src/bot/quest.ts';
+import { Items } from '../src/protocol/items.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 
 const q: Record<string, string> = fixtures.quest;
@@ -195,7 +195,7 @@ test('quest bot: --max-losses lets a kill step go on after a lost battle, and st
   assert.equal(events.at(-1), 'stop');
 });
 
-/** s2c/22 against Cóc Xanh (mob61000) in the layout of battle.ts, with a captured board (as src/export-rust.ts builds it);
+/** s2c/22 against Cóc Xanh (mob61000) in the layout of battle.ts, with a captured board (as src/cli/export-rust.ts builds it);
  * battleSetup reads the uuid from a tail of fixed length, so it has the 36 characters of a real one. */
 const UUID = '3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e';
 const cocXanhSetup = () => {

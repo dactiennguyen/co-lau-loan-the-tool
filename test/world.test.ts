@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { buildRequest, decodeEvent } from '../src/events.ts';
-import { mapGrid, mapData, gearDurability, ZonePlayers } from '../src/world.ts';
-import { mapPrefix } from '../src/protocol.ts';
+import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
+import { mapGrid, mapData, gearDurability, ZonePlayers } from '../src/protocol/world.ts';
+import { mapPrefix } from '../src/protocol/protocol.ts';
 
 const w: Record<string, { opcode: number; at: number; hex: string }> = fixtures.world;
 const decode = (key: string) => {

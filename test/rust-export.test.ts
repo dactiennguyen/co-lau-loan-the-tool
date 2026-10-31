@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rustExports } from '../src/export-rust.ts';
+import { rustExports } from '../src/cli/export-rust.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 

@@ -39,14 +39,14 @@ export type UpdateState =
 /** Tự cập nhật: the version running, then where its update stands. */
 export type UpdateView = { current: string } & UpdateState;
 
-/** What a log line is about (LogKind of cllt-core's bot.rs); logKinds.ts names them. */
+/** What a log line is about (LogKind of cllt-core's bot/types.rs); logKinds.ts names them. */
 export type LogKind = "connection" | "battle" | "quest" | "travel" | "character" | "item" | "server";
 
-/** What a battle was played for, and how it ended (bot.rs). */
+/** What a battle was played for, and how it ended (bot/types.rs). */
 export type BattleSource = "fight" | "quest" | "other";
 export type BattleResult = "won" | "lost" | "left";
 
-/** One battle of the history (BattleRecord of bot.rs, with its row in cllt.db). */
+/** One battle of the history (BattleRecord of bot/types.rs, with its row in cllt.db). */
 export interface StoredBattle {
   id: number;
   character: string;
@@ -423,7 +423,7 @@ export interface ProxyInfo {
  * Thân pháp, Thể lực). */
 export type StatPlan = "auto" | { weights: [number, number, number, number] };
 
-/** FightSettings of cllt-core's bot.rs: what the bot does on its own around the battles it plays. */
+/** FightSettings of cllt-core's bot/types.rs: what the bot does on its own around the battles it plays. */
 export interface FightSettings {
   /** Tự sửa đồ: a worn item at durability 0 is repaired with a Búa Sửa Chữa of the bag; none is ever bought for it. */
   repair: boolean;

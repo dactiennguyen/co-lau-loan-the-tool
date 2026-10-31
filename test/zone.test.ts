@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRequest, decodeEvent } from '../src/events.ts';
-import { mapChange } from '../src/world.ts';
+import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
+import { mapChange } from '../src/protocol/world.ts';
 
 test('zone change as the phone did it (B2, khu 20 of M1): c2s/1173, s2c/13 with the zone, then c2s/11 of that zone', () => {
   assert.equal(buildRequest(1173, { zone: 20 }).toString('hex'), '14');

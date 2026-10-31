@@ -1,9 +1,9 @@
 import { createWriteStream } from 'node:fs';
-import { runClient } from './client.ts';
-import { MapScanner } from './map-scan.ts';
-import { loadAtlas, saveAtlas } from './atlas.ts';
-import { envConnection } from './env.ts';
-import { Items } from './items.ts';
+import { runClient } from '../net/client.ts';
+import { MapScanner } from '../bot/map-scan.ts';
+import { loadAtlas, saveAtlas } from '../bot/atlas.ts';
+import { envConnection } from '../net/env.ts';
+import { Items } from '../protocol/items.ts';
 
 // Logs in directly (CLLT_USERNAME/CLLT_PASSWORD from .env), visits every map the character may enter and updates the
 // atlas (default data/maps.json, --atlas=path). The account must not be online on another device.

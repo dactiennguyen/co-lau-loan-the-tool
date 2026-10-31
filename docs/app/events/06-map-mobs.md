@@ -81,7 +81,7 @@ Toạ độ đổi về đơn vị server (= bộ nhớ ÷ 1,5). Đây là một
 
 **Kết luận: ở cấp 19 chỉ vào được 3 map: M1, M2, M25.** Mọi cổng khác bị server từ chối: hoặc vì cấp, hoặc vì chưa xong nhiệm vụ. Server cũng không trả dữ liệu của map mình chưa đứng trong đó, nên chưa lấy được NPC, cổng, quái của 22 map còn lại. [Đo S1]
 
-Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#quét-map)) đăng nhập, xin bản đồ thế giới `c2s/11 "M99"`, rồi đi lần lượt qua từng cổng vào được. Ở mỗi map nó xin `c2s/11` (map, NPC, cổng) và `c2s/43` (quái), nhận `s2c/1177` (boss), rồi quay về map ban đầu. Kết quả ghi vào [data/maps.json](../../../data/maps.json); bot nhiệm vụ đọc file này để biết đường đi qua các lần chạy ([src/atlas.ts](../../../src/atlas.ts)). Lệnh chỉ gửi `c2s/11`, `c2s/13`, `c2s/43`: không đánh, không chat, không mua bán.
+Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#quét-map)) đăng nhập, xin bản đồ thế giới `c2s/11 "M99"`, rồi đi lần lượt qua từng cổng vào được. Ở mỗi map nó xin `c2s/11` (map, NPC, cổng) và `c2s/43` (quái), nhận `s2c/1177` (boss), rồi quay về map ban đầu. Kết quả ghi vào [data/maps.json](../../../data/maps.json); bot nhiệm vụ đọc file này để biết đường đi qua các lần chạy ([src/bot/atlas.ts](../../../src/bot/atlas.ts)). Lệnh chỉ gửi `c2s/11`, `c2s/13`, `c2s/43`: không đánh, không chat, không mua bán.
 
 | Thử | Server trả | Kết luận |
 |---|---|---|
@@ -200,7 +200,7 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
 - **c2s/1169** chỉ được gửi khi đang chạy, nhảy hoặc rơi (~100–130 ms/gói): `i32 x; i32 y; i32 state; 5 byte cờ`. State thấy được: 0 đứng, 1 chạy, 5 lên, 6 rơi. [Đo] Server không trả lời gói nào. Vị trí của người chơi khác đến qua s2c/1262.
 - **Lưới s2c/11.** Sau prefix là 3 lớp, mỗi lớp gồm `i32 n` và `n` byte. Số byte là `dimension1 × dimension2` (M1: 23 × 156 = 3588; M2: 35 × 90 = 3150).
   - `dimension1` là số hàng, `dimension2` là số cột. Lưới lưu theo từng hàng, từ hàng trên cùng xuống, mỗi byte là một ô 32 đơn vị server.
-  - Vì vậy `x / 32` và `y / 32` của nhân vật (`s2c/11`), NPC và cổng chỉ thẳng vào ô của lưới. Ở M2 (2880 × 1120 đơn vị), cổng nằm ở x = 32 và x = 2848, đúng mép trái và mép phải. [Đo, `mapGrid` trong [world.ts](../../../src/world.ts)]
+  - Vì vậy `x / 32` và `y / 32` của nhân vật (`s2c/11`), NPC và cổng chỉ thẳng vào ô của lưới. Ở M2 (2880 × 1120 đơn vị), cổng nằm ở x = 32 và x = 2848, đúng mép trái và mép phải. [Đo, `mapGrid` trong [world.ts](../../../src/protocol/world.ts)]
 
   | Lớp | Giá trị | Ý nghĩa |
   |---|---|---|
@@ -210,7 +210,7 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
 
   App Rust vẽ bản đồ thu nhỏ từ lớp 1 (ô có hình) và lớp 3 (bục), rồi đặt nhân vật, NPC, cổng và boss vào theo cách quy đổi trên ([App Rust](../../integration/rust/README.md#giao-diện)).
 
-- **NPC và cổng.** Cuối s2c/11 có danh sách `i32 n; n × {i32 id; string tên; u8 loại; i32 x; i32 y; i32 w; i32 h; u8; i32 p; i32 q}`, đơn vị server, rồi 12 byte chưa rõ. Đọc hết byte M1 và M2 (`mapData` trong [world.ts](../../../src/world.ts)). [Đo]
+- **NPC và cổng.** Cuối s2c/11 có danh sách `i32 n; n × {i32 id; string tên; u8 loại; i32 x; i32 y; i32 w; i32 h; u8; i32 p; i32 q}`, đơn vị server, rồi 12 byte chưa rõ. Đọc hết byte M1 và M2 (`mapData` trong [world.ts](../../../src/protocol/world.ts)). [Đo]
 
   | Loại | Tên (id) | x, y |
   |---|---|---|
@@ -241,7 +241,7 @@ Toàn bộ chuỗi mất ~3,6 s. Hàm dựng gói (tìm qua hằng số): `sqlq.
 
 ### Bot TS đổi khu (Z1)
 
-`npm run zone` đăng nhập, gửi `c2s/1172` rồi in số người của từng khu; `--zone=N` đi tiếp đúng chuỗi trên rồi in quái và người của khu mới ([src/zone-run.ts](../../../src/zone-run.ts)). Lần chạy với manina ở M2 (31/10, khoảng 12:30):
+`npm run zone` đăng nhập, gửi `c2s/1172` rồi in số người của từng khu; `--zone=N` đi tiếp đúng chuỗi trên rồi in quái và người của khu mới ([src/cli/zone-run.ts](../../../src/cli/zone-run.ts)). Lần chạy với manina ở M2 (31/10, khoảng 12:30):
 
 | Bước | Gói | Kết quả |
 |---|---|---|

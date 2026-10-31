@@ -4,11 +4,11 @@
 // quest is tried again on the next run; one refused for the level only once the character has it.
 // The server answers c2s/11 and c2s/43 only for the map the character stands in ("Không thể chuyển khu vực"), so a map
 // can only be read by entering it.
-import { Writer } from './protocol.ts';
-import { buildRequest } from './events.ts';
-import type { SessionApi, WorldSession } from './client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, worldMap, groundItems, type Place } from './world.ts';
-import type { Items } from './items.ts';
+import { Writer } from '../protocol/protocol.ts';
+import { buildRequest } from '../protocol/events.ts';
+import type { SessionApi, WorldSession } from '../net/client.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, worldMap, groundItems, type Place } from '../protocol/world.ts';
+import type { Items } from '../protocol/items.ts';
 import { type Atlas, recordWorld, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf } from './atlas.ts';
 
 export interface MapScanOptions {

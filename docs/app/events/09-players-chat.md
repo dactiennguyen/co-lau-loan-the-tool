@@ -1,6 +1,6 @@
 # Di chuyển, người chơi khác, chat và vật phẩm rơi
 
-Mốc, nguồn **L1/W1/A1/B2** và nhãn như [08-server-map-zone](08-server-map-zone.md). Bộ giải mã: [src/world.ts](../../../src/world.ts). Test với mẫu thật: [test/world.test.ts](../../../test/world.test.ts).
+Mốc, nguồn **L1/W1/A1/B2** và nhãn như [08-server-map-zone](08-server-map-zone.md). Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts). Test với mẫu thật: [test/world.test.ts](../../../test/world.test.ts).
 
 Mọi bố cục dưới đây đã được kiểm bằng cách đọc hết byte của mọi payload đã bắt:
 
@@ -176,7 +176,7 @@ Không có gói nào trả thẳng "số người trong khu". Muốn đếm thì
 - **Nhân vật của mình không có trong `1263`.** L1 có 18 người, cộng mình là 19, khớp "Dân số 19/20" của khu 0 trong `s2c/1172`. Lần đăng nhập ngày 30/10/2026 (M2, khu 0) có 8 người, id 155 của manina không có trong đó. [Đo]
 - `1262` (vị trí) chỉ gửi người vừa di chuyển, nên không dùng để đếm được. [Đo]
 
-TypeScript: `ZonePlayers` trong [src/world.ts](../../../src/world.ts). Bot nhiệm vụ ghi sự kiện `players` mỗi khi nhận `1263`. App Rust hiện số người và danh sách tên kèm cấp ([integration/rust](../../integration/rust/README.md)).
+TypeScript: `ZonePlayers` trong [src/protocol/world.ts](../../../src/protocol/world.ts). Bot nhiệm vụ ghi sự kiện `players` mỗi khi nhận `1263`. App Rust hiện số người và danh sách tên kèm cấp ([integration/rust](../../integration/rust/README.md)).
 
 <a id="s2c-1166"></a>
 

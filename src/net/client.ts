@@ -1,7 +1,7 @@
 import net from 'node:net';
-import { Protocol, ProtocolError, Reader, handshake, sessionKey, characterPrefix, characterLocation, mapPrefix, encodedOpcodes } from './protocol.ts';
-import { buildRequest, decodeEvent, findEvent } from './events.ts';
-import { BASELINE } from './config.ts';
+import { Protocol, ProtocolError, Reader, handshake, sessionKey, characterPrefix, characterLocation, mapPrefix, encodedOpcodes } from '../protocol/protocol.ts';
+import { buildRequest, decodeEvent, findEvent } from '../protocol/events.ts';
+import { BASELINE } from '../protocol/config.ts';
 import { ProxyTunnel, parseProxy, proxyLabel } from './proxy.ts';
 
 /** Login/world flow: entering `state` sends `request`; the state ends when its `expect` responses arrived. */

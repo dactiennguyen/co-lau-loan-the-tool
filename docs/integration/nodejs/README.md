@@ -1,6 +1,6 @@
 # Node.js kết nối trực tiếp và lấy user
 
-Đường chạy: `src/connect.ts` → `runClient()` → `net.createConnection()` → `play.colauloanthe.vn:1688`. Code chạy bằng Node.js ≥22.6, không có dependency npm ngoài. Lệnh trong tài liệu chạy từ thư mục gốc dự án.
+Đường chạy: `src/cli/connect.ts` → `runClient()` → `net.createConnection()` → `play.colauloanthe.vn:1688`. Code chạy bằng Node.js ≥22.6, không có dependency npm ngoài. Lệnh trong tài liệu chạy từ thư mục gốc dự án.
 
 | Cần tra | Tài liệu |
 |---|---|
@@ -98,26 +98,26 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 
 | File | Vai trò |
 |---|---|
-| [connect.ts](../../../src/connect.ts) | Entry point trực tiếp; chọn mode, in kết quả |
-| [env.ts](../../../src/env.ts) | Nạp `.env` và dựng option kết nối cho các CLI |
-| [proxy.ts](../../../src/proxy.ts) | Đọc `CLLT_PROXY`; bắt tay SOCKS5/HTTP CONNECT không I/O (`ProxyTunnel`) mà `client.ts` chạy trước seed ([proxy](#proxy)) |
-| [client.ts](../../../src/client.ts) | Socket thật, luồng đăng nhập `FLOW`, log event, `result.user`, heartbeat, deadline, `session` |
-| [events.ts](../../../src/events.ts) | Catalog 91 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
-| [protocol.ts](../../../src/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR; đọc gói nhân vật/vị trí/map |
-| [world.ts](../../../src/world.ts) | Đọc gói thế giới: quái của map, khu, người chơi, chat, vật phẩm, chỉ số, nhiệm vụ, xếp hạng |
-| [battle.ts](../../../src/battle.ts), [battle-runner.ts](../../../src/battle-runner.ts) | Mô hình bàn 8×8 và gói trận; chạy một trận không giao diện |
-| [quest.ts](../../../src/quest.ts), [quest-run.ts](../../../src/quest-run.ts) | Bot làm nhiệm vụ và lệnh `npm run quest` |
-| [items.ts](../../../src/items.ts), [items-run.ts](../../../src/items-run.ts) | Bảng vật phẩm (`data/items.json`), tên đồ cho bot, giải mã icon; lệnh `npm run items` ([13-drops-items](../../app/events/13-drops-items.md#cách-lấy-lại-dữ-liệu)) |
-| [bag-run.ts](../../../src/bag-run.ts) | Lệnh `npm run bag`: đăng nhập, in trang bị đang mặc và túi đồ theo tên, rồi ngắt; chỉ đọc ([cách lấy túi đồ](../../app/events/12-skills-items.md#cách-lấy-túi-đồ)) |
-| [skills.ts](../../../src/skills.ts), [skills-run.ts](../../../src/skills-run.ts) | Tab Kỹ năng: vị trí 9 ô trên ảnh nền, ô nào học hay nâng cấp được, bảng chi tiết như trên máy; lệnh `npm run skills` chỉ đọc ([tab Kỹ năng](../../app/events/12-skills-items.md#tab-kỹ-năng)) |
-| [buy-run.ts](../../../src/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
-| [zone-run.ts](../../../src/zone-run.ts) | Lệnh `npm run zone`: đăng nhập, in số người của từng khu (`c2s/1172`); `--zone=N` thì sang khu N như bảng Khu vực trong game rồi in quái và người của khu mới ([đổi khu](../../app/events/06-map-mobs.md#bot-ts-đổi-khu-z1)) |
-| [atlas.ts](../../../src/atlas.ts), [map-scan.ts](../../../src/map-scan.ts), [map-scan-run.ts](../../../src/map-scan-run.ts) | Bản đồ đã biết (`data/maps.json`) và lệnh `npm run scan` ([quét map](quest-bot.md#quét-map)) |
-| [config.ts](../../../src/config.ts) | Baseline build, host/client info và opcode map |
-| [check-apk.ts](../../../src/check-apk.ts) | So build APK/DEX/native bằng Node.js |
-| [check-capture.ts](../../../src/check-capture.ts) | So log/capture, opcode, schema và bước đang thiếu |
+| [connect.ts](../../../src/cli/connect.ts) | Entry point trực tiếp; chọn mode, in kết quả |
+| [env.ts](../../../src/net/env.ts) | Nạp `.env` và dựng option kết nối cho các CLI |
+| [proxy.ts](../../../src/net/proxy.ts) | Đọc `CLLT_PROXY`; bắt tay SOCKS5/HTTP CONNECT không I/O (`ProxyTunnel`) mà `client.ts` chạy trước seed ([proxy](#proxy)) |
+| [client.ts](../../../src/net/client.ts) | Socket thật, luồng đăng nhập `FLOW`, log event, `result.user`, heartbeat, deadline, `session` |
+| [events.ts](../../../src/protocol/events.ts) | Catalog 91 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
+| [protocol.ts](../../../src/protocol/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR; đọc gói nhân vật/vị trí/map |
+| [world.ts](../../../src/protocol/world.ts) | Đọc gói thế giới: quái của map, khu, người chơi, chat, vật phẩm, chỉ số, nhiệm vụ, xếp hạng |
+| [battle.ts](../../../src/battle/battle.ts), [battle-runner.ts](../../../src/battle/battle-runner.ts) | Mô hình bàn 8×8 và gói trận; chạy một trận không giao diện |
+| [quest.ts](../../../src/bot/quest.ts), [quest-run.ts](../../../src/cli/quest-run.ts) | Bot làm nhiệm vụ và lệnh `npm run quest` |
+| [items.ts](../../../src/protocol/items.ts), [items-run.ts](../../../src/cli/items-run.ts) | Bảng vật phẩm (`data/items.json`), tên đồ cho bot, giải mã icon; lệnh `npm run items` ([13-drops-items](../../app/events/13-drops-items.md#cách-lấy-lại-dữ-liệu)) |
+| [bag-run.ts](../../../src/cli/bag-run.ts) | Lệnh `npm run bag`: đăng nhập, in trang bị đang mặc và túi đồ theo tên, rồi ngắt; chỉ đọc ([cách lấy túi đồ](../../app/events/12-skills-items.md#cách-lấy-túi-đồ)) |
+| [skills.ts](../../../src/protocol/skills.ts), [skills-run.ts](../../../src/cli/skills-run.ts) | Tab Kỹ năng: vị trí 9 ô trên ảnh nền, ô nào học hay nâng cấp được, bảng chi tiết như trên máy; lệnh `npm run skills` chỉ đọc ([tab Kỹ năng](../../app/events/12-skills-items.md#tab-kỹ-năng)) |
+| [buy-run.ts](../../../src/cli/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
+| [zone-run.ts](../../../src/cli/zone-run.ts) | Lệnh `npm run zone`: đăng nhập, in số người của từng khu (`c2s/1172`); `--zone=N` thì sang khu N như bảng Khu vực trong game rồi in quái và người của khu mới ([đổi khu](../../app/events/06-map-mobs.md#bot-ts-đổi-khu-z1)) |
+| [atlas.ts](../../../src/bot/atlas.ts), [map-scan.ts](../../../src/bot/map-scan.ts), [map-scan-run.ts](../../../src/cli/map-scan-run.ts) | Bản đồ đã biết (`data/maps.json`) và lệnh `npm run scan` ([quét map](quest-bot.md#quét-map)) |
+| [config.ts](../../../src/protocol/config.ts) | Baseline build, host/client info và opcode map |
+| [check-apk.ts](../../../src/cli/check-apk.ts) | So build APK/DEX/native bằng Node.js |
+| [check-capture.ts](../../../src/cli/check-capture.ts) | So log/capture, opcode, schema và bước đang thiếu |
 
-Code live không import `test/` và không đọc JSON cấu hình/dữ liệu mẫu. Có ba file dữ liệu. [data/maps.json](../../../data/maps.json): bot và lệnh quét tự ghi vào đó những gì server đã gửi về từng map. [data/items.json](../../../data/items.json): bảng vật phẩm chép từ file của game trên máy, dựng lại bằng `npm run items`. [data/skills.json](../../../data/skills.json): cây kỹ năng của ba hệ do server gửi (`s2c/30`), dựng lại bằng `npm run skills -- --trees`. Mapping opcode, host, version và build identity là hằng TypeScript trong [src/config.ts](../../../src/config.ts). Bản copy chỉ có `src/` đã đăng nhập server thật và nhận đủ user/map; xem [live-check](live-check.md). Dữ liệu regression chỉ còn một module `test/fixtures.ts`.
+Code live không import `test/` và không đọc JSON cấu hình/dữ liệu mẫu. Có ba file dữ liệu. [data/maps.json](../../../data/maps.json): bot và lệnh quét tự ghi vào đó những gì server đã gửi về từng map. [data/items.json](../../../data/items.json): bảng vật phẩm chép từ file của game trên máy, dựng lại bằng `npm run items`. [data/skills.json](../../../data/skills.json): cây kỹ năng của ba hệ do server gửi (`s2c/30`), dựng lại bằng `npm run skills -- --trees`. Mapping opcode, host, version và build identity là hằng TypeScript trong [src/protocol/config.ts](../../../src/protocol/config.ts). Bản copy chỉ có `src/` đã đăng nhập server thật và nhận đủ user/map; xem [live-check](live-check.md). Dữ liệu regression chỉ còn một module `test/fixtures.ts`.
 
 Các option của `runClient()` gồm host/port/serverId, username/password, `proxy`, mode, callback log và timeout. Mặc định API chọn bootstrap, timeout mỗi bước 8000 ms, tổng 30000 ms, heartbeat 2000 ms, settle 0 ms. CLI tự chọn mode theo credential như trên; `responseTimeoutMs`, `overallTimeoutMs`, `heartbeatMs`, `settleMs` là option API.
 

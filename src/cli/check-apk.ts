@@ -2,7 +2,7 @@ import { createReadStream, closeSync, fstatSync, openSync, readFileSync, readSyn
 import { createHash } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
-import { BASELINE } from './config.ts';
+import { BASELINE } from '../protocol/config.ts';
 
 const defaultBaseline = BASELINE;
 interface Baseline { baseline: string; apkSha256: string; members: Record<string, string>; symbolMarkers: Record<string, string> }

@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { createCipheriv } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
-import { Writer } from '../src/protocol.ts';
-import { characterExtra, characterGear, characterTail, currencies, gearUpdate, groundItems } from '../src/world.ts';
-import { QuestBot } from '../src/quest.ts';
-import { decodeAsset, Items, parseItemTable, parseStatTable, RETIRED } from '../src/items.ts';
-import { MapScanner } from '../src/map-scan.ts';
-import { buildRequest, decodeEvent } from '../src/events.ts';
-import { emptyAtlas } from '../src/atlas.ts';
+import { Writer } from '../src/protocol/protocol.ts';
+import { characterExtra, characterGear, characterTail, currencies, gearUpdate, groundItems } from '../src/protocol/world.ts';
+import { QuestBot } from '../src/bot/quest.ts';
+import { decodeAsset, Items, parseItemTable, parseStatTable, RETIRED } from '../src/protocol/items.ts';
+import { MapScanner } from '../src/bot/map-scan.ts';
+import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
+import { emptyAtlas } from '../src/bot/atlas.ts';
 
 const items = Items.load();
 

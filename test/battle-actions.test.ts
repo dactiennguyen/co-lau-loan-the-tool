@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
-import { N, UNKNOWN, fighter, STRATEGIES, answerValue } from '../src/battle.ts';
-import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type SkillEffect } from '../src/battle-actions.ts';
-import { BattleRunner } from '../src/battle-runner.ts';
-import { decodeEvent } from '../src/events.ts';
+import { N, UNKNOWN, fighter, STRATEGIES, answerValue } from '../src/battle/battle.ts';
+import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type SkillEffect } from '../src/battle/battle-actions.ts';
+import { BattleRunner } from '../src/battle/battle-runner.ts';
+import { decodeEvent } from '../src/protocol/events.ts';
 
 const trees = JSON.parse(readFileSync(new URL('../data/skills.json', import.meta.url), 'utf8')).trees as Record<string, { id: number; name: string; levels: { level: number; description: string; mana: number }[] }[]>;
 const skill = (id: number, level: number) => {

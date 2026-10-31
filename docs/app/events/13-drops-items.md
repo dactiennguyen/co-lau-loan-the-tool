@@ -13,7 +13,7 @@ Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#n
 - **G1** (31/10): đọc lại log của 108 trận. 89 trận do bot TS đánh (manina cấp 8–20, Q3–Q20, M1 và M2); 19 trận qua cầu nối trên điện thoại (Tiheo2 cấp 15–18, A1 và A2, M1). Xem [Tỉ lệ rơi](#tỉ-lệ-rơi).
 - **G2** (31/10): bot TS với manina (cấp 21–22, M1) đánh 6 trận Sơn Tặc và tự nhặt đồ của mình sau mỗi trận thắng; xem [G2](#g2).
 
-Bộ giải mã và bảng vật phẩm: [src/items.ts](../../../src/items.ts), [src/world.ts](../../../src/world.ts); lệnh `npm run items` ở [src/items-run.ts](../../../src/items-run.ts). Test: [test/items.test.ts](../../../test/items.test.ts) (đồ trên đất, gói nhặt P3, bảng vật phẩm, icon).
+Bộ giải mã và bảng vật phẩm: [src/protocol/items.ts](../../../src/protocol/items.ts), [src/protocol/world.ts](../../../src/protocol/world.ts); lệnh `npm run items` ở [src/cli/items-run.ts](../../../src/cli/items-run.ts). Test: [test/items.test.ts](../../../test/items.test.ts) (đồ trên đất, gói nhặt P3, bảng vật phẩm, icon).
 
 Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -109,7 +109,7 @@ Hai ứng viên cũ không phải gói nhặt:
 - **Đồ người khác bị khoá khoảng 16–17 s** cho người làm rơi, sau đó ai cũng nhặt được. Nhiều món biến mất lúc 10–14 s tuổi (`s2c/1183`): chính chủ nhặt trong lúc còn khoá. [Đo]
 - **Không cần đứng gần.** Server không kiểm khoảng cách: nhặt được từ 1430 px và từ đầu kia bản đồ. Game trên máy bắt đi tới hòm trước khi hiện nút Nhặt, nhưng đó là luật của client. [Đo]
 - `s2c/1256` có field 0 với "Bạn vừa nhận được…" và 1 với hai câu từ chối. Field 1 không có nghĩa là lỗi: "Bạn vừa mua thành công!…" cũng là 1 ([P5](12-skills-items.md#c2s-1190)); có lẽ 1 là câu hiện giữa màn hình. [Đo]
-- **`s2c/51`** (opcode trước đó chưa từng thấy): `i32 -1; i32 0; u8 1; bản ghi vật phẩm` của ô túi vừa nhận món. 3 mẫu đọc hết byte: Áo Chiến ô 5, Đá cấp 2 ô 6, Rìu Âu Lạc ô 7. Món nhặt sau vào ô trống kế tiếp; Đá cấp 2 có `xếpChồng` 1 nên viên thứ hai vào ô riêng. Bộ giải mã: `bagSlot` trong [src/world.ts](../../../src/world.ts). [Đo]
+- **`s2c/51`** (opcode trước đó chưa từng thấy): `i32 -1; i32 0; u8 1; bản ghi vật phẩm` của ô túi vừa nhận món. 3 mẫu đọc hết byte: Áo Chiến ô 5, Đá cấp 2 ô 6, Rìu Âu Lạc ô 7. Món nhặt sau vào ô trống kế tiếp; Đá cấp 2 có `xếpChồng` 1 nên viên thứ hai vào ô riêng. Bộ giải mã: `bagSlot` trong [src/protocol/world.ts](../../../src/protocol/world.ts). [Đo]
 - Áo Chiến mất 844 ms mới có trả lời, các lần khác 25–30 ms. [Đo]
 
 **Ai được nhặt.** Bản ghi đồ trên đất không có trường chủ [Đo]. Phép kiểm tra đầu tiên `sqgu.a(sqgu)` (ngen `a5`) chỉ đọc byte `a`, cờ `F` của hòm và xem hòm có trong mảng `sqil.i` không (có lẽ là danh sách đồ trên map). Chưa thấy chỗ nào so tên người chơi. Có lẽ ai cũng thấy nút "Nhặt" trên mọi hòm. [Đo tĩnh; Suy luận] Server giữ hòm cho người làm rơi khoảng 16–17 s rồi mới cho người khác nhặt ([K3](#k3)). [Đo]
@@ -177,7 +177,7 @@ Món nằm đúng chỗ nhân vật đứng, các món cùng trận cách nhau 3
 
 ### Bot tự nhặt sau trận (G2)
 
-Bot TS ([quest-bot](../../integration/nodejs/quest-bot.md#chạy), mặc định bật, tắt bằng `--no-pickup`) nhớ mọi `s2c/1182` trong 2 s gần nhất. Khi thắng một trận, bot gửi `c2s/1188` cho mỗi món đến trong khoảng 300 ms quanh gói kết thúc trận. Các món cách nhau 200 ms. Thua thì không nhặt. Code: `pick()` trong [src/quest.ts](../../../src/quest.ts); test trong [test/quest.test.ts](../../../test/quest.test.ts).
+Bot TS ([quest-bot](../../integration/nodejs/quest-bot.md#chạy), mặc định bật, tắt bằng `--no-pickup`) nhớ mọi `s2c/1182` trong 2 s gần nhất. Khi thắng một trận, bot gửi `c2s/1188` cho mỗi món đến trong khoảng 300 ms quanh gói kết thúc trận. Các món cách nhau 200 ms. Thua thì không nhặt. Code: `pick()` trong [src/bot/quest.ts](../../../src/bot/quest.ts); test trong [test/quest.test.ts](../../../test/quest.test.ts).
 
 Chạy thật 31/10 với manina (cấp 21, lên 22 ở trận 4), M1, `--farm="Sơn Tặc" --fights=6`:
 
@@ -339,7 +339,7 @@ npm run items -- --from=<thư mục có it0, it1, itv, offline-a2/>
 npm run items -- --adb=192.168.2.3:5555 --apk=colauloanthe.1.0.3.apk   # thêm ảnh nền cây kỹ năng từ APK
 ```
 
-Lệnh này ([src/items-run.ts](../../../src/items-run.ts)) làm các việc sau:
+Lệnh này ([src/cli/items-run.ts](../../../src/cli/items-run.ts)) làm các việc sau:
 - Ghi lại `data/items.json`.
 - Giải mã `offline-a2/i*.dat` thành PNG, rồi đổi sang WebP trong `data/icons/` bằng `cwebp`. `--png=<thư mục>` giữ thêm các PNG.
 - Cắt `offline-a2/skill<hệ>.dat` và `skill<hệ>grey.dat` thành từng icon kỹ năng trong `data/icons/skills/` ([tab Kỹ năng](12-skills-items.md#tab-kỹ-năng)).
@@ -347,7 +347,7 @@ Lệnh này ([src/items-run.ts](../../../src/items-run.ts)) làm các việc sau
 
 `--adb` dùng `su` chép các file cần dùng trong `/data/data/com.lotasoft.colauloanthe/files/dyncache/` sang `/data/local/tmp`, `adb pull` về, rồi xoá bản chép trên máy. Không dùng `adb exec-out su -c cat`: đường đó đổi mỗi byte `0a` thành `0d 0a`, làm `it1` dài thêm 29 byte và lệch bản ghi. Khi game cập nhật bảng, `itv` (hiện 18) có lẽ đổi theo. [Đo]
 
-Code đọc bảng và giải mã: [src/items.ts](../../../src/items.ts). Bot TS dùng tên đồ ở hai chỗ:
+Code đọc bảng và giải mã: [src/protocol/items.ts](../../../src/protocol/items.ts). Bot TS dùng tên đồ ở hai chỗ:
 - `npm run quest` ghi túi đồ mỗi khi đổi (`s2c/1187`, sự kiện `inventory`).
 - `npm run scan` ghi đồ đang nằm trên đất của từng map (`s2c/1184`, sự kiện `ground_items`).
 

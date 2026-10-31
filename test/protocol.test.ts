@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { decodeEvent } from '../src/events.ts';
+import { decodeEvent } from '../src/protocol/events.ts';
 import { Protocol, Reader, Writer, handshake, sessionKey, passwordProof, loginPayload,
-  characterPrefix, characterProfile, mapPrefix, usernameHash } from '../src/protocol.ts';
+  characterPrefix, characterProfile, mapPrefix, usernameHash } from '../src/protocol/protocol.ts';
 
 const fixture = (name: string) => fixtures[name];
 const boot = fixture('prelogin');

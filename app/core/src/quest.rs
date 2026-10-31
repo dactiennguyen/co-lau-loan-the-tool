@@ -1,5 +1,5 @@
-//! What a quest step asks for, read from its text: stepAction of src/quest.ts (the steps of quests 3–9 in
-//! docs/app/events/10-quests.md). The bot plays the step in bot.rs.
+//! What a quest step asks for, read from its text: stepAction of src/bot/quest.ts (the steps of quests 3–9 in
+//! docs/app/events/10-quests.md). The bot plays the step in bot/quest.rs.
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

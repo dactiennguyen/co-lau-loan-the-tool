@@ -1,8 +1,8 @@
-import { runClient, type SessionApi } from './client.ts';
-import { envConnection } from './env.ts';
-import { buildRequest } from './events.ts';
-import { Items } from './items.ts';
-import { characterExtra, currencies, inventory, notice, npcMenu, shopList } from './world.ts';
+import { runClient, type SessionApi } from '../net/client.ts';
+import { envConnection } from '../net/env.ts';
+import { buildRequest } from '../protocol/events.ts';
+import { Items } from '../protocol/items.ts';
+import { characterExtra, currencies, inventory, notice, npcMenu, shopList } from '../protocol/world.ts';
 
 // Buys at Lái Buôn (NPC 106 of M1, 12-skills-items.md#c2s-1190) as the game's Dược phẩm shop does, from wherever the
 // character stands: c2s/13 (M1, 106) → s2c/57 menu → c2s/57 (Dược phẩm) → s2c/1190 list → c2s/1190 (shop slot, count)

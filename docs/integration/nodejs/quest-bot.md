@@ -67,7 +67,7 @@ battle.ts    mô hình bàn 8×8, bestMove, đọc s2c/22, s2c/24, s2c/19|20
 events.ts    buildRequest() cho mọi gói gửi đi, decodeEvent() cho log
 ```
 
-`WorldSession` ([client.ts](../../../src/client.ts)) là điểm nối chung: bot khác chỉ cần cài `onReady(api)` và `onPacket(opcode, payload)`, rồi gửi bằng `api.send(opcode, buildRequest(opcode, ctx))`. Sau khi vào thế giới, lỗi giải mã một gói chỉ sinh `schema_warning`, không đóng kết nối.
+`WorldSession` ([client.ts](../../../src/net/client.ts)) là điểm nối chung: bot khác chỉ cần cài `onReady(api)` và `onPacket(opcode, payload)`, rồi gửi bằng `api.send(opcode, buildRequest(opcode, ctx))`. Sau khi vào thế giới, lỗi giải mã một gói chỉ sinh `schema_warning`, không đóng kết nối.
 
 ## Sự kiện log của bot
 
@@ -98,7 +98,7 @@ npm run scan
 | `--atlas=<file>` | `data/maps.json` | File đọc vào rồi ghi lại sau mỗi map và mỗi cổng bị từ chối |
 | `CLLT_TRACE=<file>` | | Ghi mọi log client ra JSONL kèm hex đầy đủ, như `npm run quest`. Đồ đang nằm trên đất của từng map là `s2c/1184` trong file này ([13-drops-items](../../app/events/13-drops-items.md#đồ-đã-thấy)) |
 
-`data/maps.json` ([src/atlas.ts](../../../src/atlas.ts)) gồm:
+`data/maps.json` ([src/bot/atlas.ts](../../../src/bot/atlas.ts)) gồm:
 
 | Khoá | Nội dung | Nguồn |
 |---|---|---|

@@ -1,11 +1,11 @@
 // One mob battle over a live session, without the game UI (docs/app/events/07-auto-battle.md):
 // s2c/22 setup → c2s/18 join → s2c/18 → c2s/14 seq 0 → { s2c/19|20 result; s2c/24 turn → c2s/19 own swap | c2s/14 mob step }
 // until a result carries end=1.
-import { Reader } from './protocol.ts';
+import { Reader } from '../protocol/protocol.ts';
 import { EMPTY, UNKNOWN, swap, settle, findRuns, bestMove, castSkill, battleSetup, battleJoinAck, battleResult, battleItemResult, timeoutResult, turnState, fighter, unknownMob,
   STRATEGIES, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
 import { bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from './battle-actions.ts';
-import { buildRequest } from './events.ts';
+import { buildRequest } from '../protocol/events.ts';
 
 export interface BattleEnd { won: boolean; actor: string; exp?: number; coin?: number; myTurns: number; hp: number; mobId: string; damage: number }
 export interface BattleIo {

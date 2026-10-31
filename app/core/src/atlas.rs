@@ -1,4 +1,4 @@
-//! data/maps.json (src/atlas.ts): NPCs and portals of each map, mob kinds by zone, bosses, where a portal led or why it
+//! data/maps.json (src/bot/atlas.ts): NPCs and portals of each map, mob kinds by zone, bosses, where a portal led or why it
 //! was refused. The app reads the file at start; each session works on its own copy and records what it sees, as
 //! QuestBot does, so the quest bot finds the way to the NPC or mob of a step. The app does not write the file back; the
 //! TS bots and `npm run scan` do.

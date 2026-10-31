@@ -1,8 +1,8 @@
-import { runClient } from './client.ts';
-import { envConnection } from './env.ts';
-import { characterProfile } from './protocol.ts';
-import { characterExtra, characterGear, type itemRecord } from './world.ts';
-import { Items, ITEM_ELEMENTS } from './items.ts';
+import { runClient } from '../net/client.ts';
+import { envConnection } from '../net/env.ts';
+import { characterProfile } from '../protocol/protocol.ts';
+import { characterExtra, characterGear, type itemRecord } from '../protocol/world.ts';
+import { Items, ITEM_ELEMENTS } from '../protocol/items.ts';
 
 // Read-only: logs in (CLLT_USERNAME/CLLT_PASSWORD from .env), prints the gear worn (tail of s2c/9) and the bag (s2c/42),
 // then closes. Both arrive during the login of client.ts; nothing else is sent (12-skills-items.md#cách-lấy-túi-đồ).

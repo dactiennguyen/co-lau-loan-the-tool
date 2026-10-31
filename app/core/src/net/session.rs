@@ -1,4 +1,4 @@
-//! Đăng nhập and the session of one account: the login steps of FLOW (src/client.ts), then the Bot with its
+//! Đăng nhập and the session of one account: the login steps of FLOW (src/net/client.ts), then the Bot with its
 //! packets, commands, timers and the heartbeat until Logout or the end of the connection.
 use super::connect::connect;
 use super::*;
@@ -30,7 +30,7 @@ pub(super) async fn run_at(
     emit(Event::State(state));
 }
 
-/// Login states of FLOW (src/client.ts): each sends one request and waits for its answers.
+/// Login states of FLOW (src/net/client.ts): each sends one request and waits for its answers.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum Step {
     Key,
@@ -197,7 +197,7 @@ pub(super) async fn session(
                             send!(11, Ctx { map_id: Some(&map_id), ..Ctx::default() });
                             step = Step::Map;
                         }
-                        // The map and its mobs must read, as in src/client.ts: the bot moves and fights from them.
+                        // The map and its mobs must read, as in src/net/client.ts: the bot moves and fights from them.
                         (Step::Map, 11) => {
                             map_prefix(&p.payload).map_err(|e| unread(op, e))?;
                             send!(43, Ctx { map_id: Some(&map_id), ..Ctx::default() });
@@ -205,7 +205,7 @@ pub(super) async fn session(
                         }
                         (Step::Entities, 43 | 1263) => {
                             // s2c/1263 only lists the other players: one record this decoder does not know leaves them
-                            // unknown (Snapshot::players_unread) instead of stopping the login, as in src/client.ts.
+                            // unknown (Snapshot::players_unread) instead of stopping the login, as in src/net/client.ts.
                             if op == 43 {
                                 map_entities(&p.payload).map_err(|e| unread(op, e))?;
                                 entities = true;

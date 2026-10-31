@@ -1,5 +1,5 @@
 //! Potential points (docs/app/events/12-skills-items.md#điểm-tiềm-năng): POTENTIALS, MAIN_STAT, statPlan and nextStat of
-//! the TS side (src/world.ts, src/quest.ts). A point goes out as c2s/10 (stat, 1), as the game's "Cộng +1" sends it (P1).
+//! the TS side (src/protocol/world.ts, src/bot/quest.ts). A point goes out as c2s/10 (stat, 1), as the game's "Cộng +1" sends it (P1).
 use serde::{Deserialize, Serialize};
 
 /// The four potential stats by c2s/10 index (the + buttons of the character panel row by row): name, and the slot of
@@ -13,7 +13,7 @@ pub const POTENTIALS: [(&str, usize); 4] = [
 ];
 
 /// The stat that raises attack for an element (field01 of s2c/9), by c2s/10 index, from the in-game handbook: Hỏa
-/// Cường Lực, Lôi Thân Pháp, Thủy Nội Lực (MAIN_STAT of src/world.ts). Lôi's 2 is the c2s/30 that answers its skill
+/// Cường Lực, Lôi Thân Pháp, Thủy Nội Lực (MAIN_STAT of src/protocol/world.ts). Lôi's 2 is the c2s/30 that answers its skill
 /// tree; no Lôi character has been read yet.
 pub fn main_stat(element: i32) -> Option<usize> {
     match element {
