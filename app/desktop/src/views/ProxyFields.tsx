@@ -80,7 +80,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
   return (
     // A switch row, then (on) a dark plate with the paste field, the kind, the address and the check; off, one line on
     // what the account does instead.
-    <fieldset className="grid gap-2.5 m-0 p-0 border-0 min-w-0">
+    <fieldset className="grid gap-2.5 min-w-0">
       <label
         className={cn(
           "grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 px-2.5 py-2 bg-ink cursor-pointer hover:bg-bg-2",
@@ -106,7 +106,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
       </label>
 
       {!p.enabled && (
-        <p className="m-0 text-11 leading-[1.45] text-fg-2">
+        <p className="text-11 leading-[1.45] text-fg-2">
           {p.host.trim()
             ? `Đã có ${proxyLabel(p)}, đang tắt: nick kết nối thẳng tới server game. Bật lại để dùng.`
             : "Nick kết nối thẳng tới server game. Bật để đi qua proxy SOCKS5 hoặc HTTP."}
@@ -139,7 +139,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
             </p>
           ) : null}
           {pasted && !pasted.ok && (
-            <ul className="flex flex-wrap gap-1 -mt-1 mx-0 mb-0 p-0 list-none" aria-label="Các dạng proxy đọc được">
+            <ul className="flex flex-wrap gap-1 -mt-1" aria-label="Các dạng proxy đọc được">
               {PROXY_FORMATS.map((f) => (
                 <li key={f} className="px-[5px] py-px bg-ink font-mono font-normal text-[10.5px] leading-[1.5] text-fg-2">
                   {f}

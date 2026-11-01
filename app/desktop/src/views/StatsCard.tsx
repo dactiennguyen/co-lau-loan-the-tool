@@ -64,7 +64,7 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
   );
   return (
     <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? undefined : "Đăng nhập để xem chỉ số"} aside={skills}>
-      <ul className="list-none m-0 p-0 grid gap-1">
+      <ul className="grid gap-1">
         {COMBAT.map((s, i) => (
           <li key={s.label} className="flex items-center gap-1.5 py-[3px] pr-1.5 pl-[3px] bg-bg-2">
             <span className="grid place-items-center size-[22px] bg-ink" style={{ color: s.tone }}>

@@ -120,7 +120,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 {defaults && (
                   <div className="flex flex-wrap items-center justify-between gap-1.5 min-h-[26px] text-11 text-fg-3">
                     <span>
-                      Mặc định của game: <b className="text-fg-2 font-bold selectable">{`${defaults.server.host}:${defaults.server.port}`}</b>
+                      Mặc định của game: <b className="text-fg-2 font-bold select-text">{`${defaults.server.host}:${defaults.server.port}`}</b>
                     </span>
                     {!atDefault && (
                       <Button kind="ghost" small icon="refresh" onClick={() => set({ server: defaults.server })}>
@@ -162,7 +162,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     <>
                       <p className={cn(EXPORT_TEXT, "text-good")} role="status">
                         Đã xuất {num(exported.file.battles)} trận ({size(exported.file.bytes)}) vào{" "}
-                        <b className="text-fg font-bold selectable">{fileName(exported.file.path)}</b> trong Downloads.
+                        <b className="text-fg font-bold select-text">{fileName(exported.file.path)}</b> trong Downloads.
                       </p>
                       <Button kind="ghost" small icon="folder" onClick={() => api.revealExport(exported.file.path).catch((err) => setExported({ state: "fail", text: message(err) }))}>
                         Mở thư mục

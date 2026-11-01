@@ -167,7 +167,7 @@ export function LogCard({ id, lines, fighting }: Props) {
       </div>
       <ol
         ref={list}
-        className="list-none m-0 px-[3px] py-1 flex-1 min-h-0 bg-ink scroll selectable"
+        className="px-[3px] py-1 flex-1 min-h-0 bg-ink scroll select-text"
         onScroll={(e) => {
           const el = e.currentTarget;
           pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;

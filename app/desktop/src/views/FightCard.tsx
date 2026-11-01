@@ -20,7 +20,7 @@ const LOSSES_LEFT = "inline-flex items-center gap-1 h-[30px] text-[11.5px] font-
 /* narrow: (up to 1120 px, tailwind.css) puts the list over the controls, the controls two by two. */
 /** The list of mobs and bosses beside the controls. */
 const GRID = "grid grid-cols-[minmax(0,1fr)_208px] gap-2.5 narrow:grid-cols-[1fr]";
-const LIST = "list-none m-0 p-[3px] h-[150px] bg-ink flex flex-col gap-1 narrow:h-[120px] scroll";
+const LIST = "p-[3px] h-[150px] bg-ink flex flex-col gap-1 narrow:h-[120px] scroll";
 /** A row of the list of mobs and bosses (also the one saying there is none). */
 const TARGET = "flex-none flex items-center gap-2 h-[30px] py-0 pr-2 pl-[5px] border-2 border-transparent";
 /** Số trận, Thua tối đa, the buttons. */
@@ -128,7 +128,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             Dừng
           </Button>
         </div>
-        {questing && <p className="m-0 text-[10.5px] text-primary">Đang tự làm nhiệm vụ: bấm Dừng ở tab Nhiệm vụ rồi mới đánh quái.</p>}
+        {questing && <p className="text-[10.5px] text-primary">Đang tự làm nhiệm vụ: bấm Dừng ở tab Nhiệm vụ rồi mới đánh quái.</p>}
       </div>
       </div>
 

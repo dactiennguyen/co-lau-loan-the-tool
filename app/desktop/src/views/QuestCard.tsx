@@ -40,7 +40,7 @@ const STEP: Record<State, { row: string; mark: string; text: string; count: stri
 const RUN = "flex items-center gap-2.5 py-[5px] px-2.5 bg-ink text-[11.5px] whitespace-nowrap";
 /** What the bot does: gold, blue while the run goes on. */
 const DOING = "min-w-0 overflow-hidden text-ellipsis font-extrabold text-coin";
-const HINT = "m-0 text-[10.5px] text-fg-3";
+const HINT = "text-[10.5px] text-fg-3";
 
 /** Each step with its position, state and count: kills or boss damage for steps that ask for more than one. */
 function steps(q: Quest) {
@@ -98,7 +98,7 @@ export function QuestCard({ account, onStart, onStop }: Props) {
     >
       {/* The steps take what the card has left and scroll when the window is short. */}
       {q && (
-        <ol ref={list} className="relative list-none m-0 p-0 flex-1 min-h-24 grid [align-content:start] gap-1 scroll">
+        <ol ref={list} className="relative flex-1 min-h-24 grid [align-content:start] gap-1 scroll">
           {stepList.map((s) => (
             <li
               key={s.index}

@@ -69,7 +69,7 @@ const WEEKDAY = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 /** Inside a part, a column of blocks that keep their height. */
 const STACK = "flex flex-col gap-2.5 *:flex-none";
 const H = "mt-1 mb-0 text-11 font-extrabold tracking-[0.06em] uppercase text-fg-2";
-const NONE = "m-0 text-12 text-fg-3";
+const NONE = "text-12 text-fg-3";
 const WRAP = "overflow-x-auto";
 const TABLE = "w-full border-collapse text-12";
 /** A cell: figures on the right. */
@@ -88,10 +88,10 @@ const WITH_TAG = "inline-flex items-center gap-1.5";
 /** Tỉ lệ thắng: the figure, then a bar. */
 const RATE = "inline-grid grid-cols-[40px_60px] items-center gap-1.5";
 /** The battles and the losses, a row each on a dark plate. */
-const LIST = "grid gap-0.5 m-0 p-0 list-none";
+const LIST = "grid gap-0.5";
 const ROW_TIME = "text-10 text-fg-3 px";
 const MOB = "truncate font-bold text-fg";
-const MOB_LEVEL = "font-medium text-fg-3";
+const MOB_LEVEL = "text-10 font-medium text-fg-3";
 /** Where and how a battle went; under the mob on a narrow body. */
 const FACTS = "truncate text-fg-2 [@container(max-width:560px)]:col-[2/-1]";
 
@@ -451,7 +451,7 @@ function Tile({ label, value, text, children }: { label: string; value: string; 
     <div className="grid gap-[3px] [align-content:start] min-w-0 px-2.5 py-2 bg-ink">
       <dt className="text-10 font-extrabold tracking-[0.06em] uppercase text-fg-3">{label}</dt>
       {/* A figure in the pixel face; words (a time) smaller, in the UI face. */}
-      <dd className={cn("m-0 text-18 font-extrabold text-fg whitespace-nowrap", text ? "text-14 leading-[1.5]" : "px")}>{value}</dd>
+      <dd className={cn("text-18 font-extrabold text-fg whitespace-nowrap", text ? "text-14 leading-[1.5]" : "px")}>{value}</dd>
       <small className="text-11 leading-[1.4] text-fg-2">{children}</small>
     </div>
   );
@@ -604,7 +604,7 @@ function Levels({ t, account, range, source }: { t: BattleStats; account: Accoun
           </tbody>
         </table>
       </div>
-      <p className="m-0 text-11 leading-[1.5] text-fg-3">
+      <p className="text-11 leading-[1.5] text-fg-3">
         Bảng theo mọi trận, kể cả khi lọc Đánh quái hay Nhiệm vụ: cấp là của nhân vật. Lên cấp lúc là lúc xong trận cuối cùng ở
         cấp dưới, tức trận mang EXP lên cấp (lên cấp nhờ thưởng nhiệm vụ thì là lúc đó hoặc muộn hơn); cấp đã có trước trận cũ
         nhất còn lưu thì không biết lúc lên.

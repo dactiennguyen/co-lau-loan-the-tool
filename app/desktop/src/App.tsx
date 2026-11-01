@@ -26,7 +26,7 @@ export default function App() {
     <div className="grid grid-cols-[252px_minmax(0,1fr)] h-screen">
       <Sidebar />
       <main className="relative min-w-0 min-h-0 overflow-auto pt-[30px] px-4 pb-4 not-mac:pt-4">
-        {/* No display class: base.css hides the drag strips outside macOS. */}
+        {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
         <div className="absolute inset-x-0 top-0 h-7" data-tauri-drag-region />
         {account ? <AccountPage key={account.id} account={account} /> : ready && <EmptyState onAdd={() => open({ kind: "add" })} />}
       </main>

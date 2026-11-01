@@ -20,7 +20,7 @@ const GAP = 16;
 
 /** A level in the panel: its label ("Cấp hiện tại" green), its text. */
 const TAG = "text-11 font-extrabold tracking-[0.04em] uppercase text-fg-3";
-const TEXT = "m-0 text-12 leading-[1.45] text-fg-2";
+const TEXT = "text-12 leading-[1.45] text-fg-2";
 
 const mana = (l: SkillLevel) => `Tiêu hao ${(l.mana / THANH).toLocaleString("vi-VN")} thành nội lực`;
 
@@ -140,7 +140,7 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
       </div>
       <div className="@container min-h-0 scroll" ref={frame}>
         {!c || !shown ? (
-          <p className="m-0 text-12 text-fg-3">
+          <p className="text-12 text-fg-3">
             {c ? "Server chưa gửi cây kỹ năng (s2c/30)." : "Đăng nhập để xem kỹ năng: server chỉ gửi cây kỹ năng lúc vào game."}
           </p>
         ) : (
@@ -265,7 +265,7 @@ function SkillPanel({ skill: k, level, points, busy, onUpgrade }: PanelProps) {
             <p className={TEXT}>{next.description}</p>
             <span className="text-11 text-exp">{mana(next)}</span>
           </div>
-          <ul className="grid gap-[3px] m-0 pt-2 px-0 pb-0 [border-top:1px_dashed_var(--line)] list-none" aria-label="Điều kiện để học">
+          <ul className="grid gap-[3px] pt-2 [border-top:1px_dashed_var(--line)]" aria-label="Điều kiện để học">
             {needs.map((n) => (
               <li key={n.text} className={cn("flex items-center gap-1.5 text-12", n.ok ? "text-good" : "text-danger")}>
                 <Icon name={n.ok ? "check" : "close"} size={11} />

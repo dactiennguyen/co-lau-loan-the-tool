@@ -14,7 +14,7 @@ import { useStore } from "../store";
 /** The body of the card: a column of parts that keep their height, scrolling inside; narrow ones a container. */
 const BODY = "grid [align-content:start] gap-2.5 @container overflow-auto";
 /** Said in place of the gear and the bag, or of the bag alone. */
-const NONE = "m-0 text-12 text-fg-3";
+const NONE = "text-12 text-fg-3";
 /** A column of four gear slots, either side of the character. */
 const COL = "grid gap-[5px] [align-content:start]";
 /** The buttons of the item clicked, at the right end of the detail strip; the reason a button is greyed under them. */

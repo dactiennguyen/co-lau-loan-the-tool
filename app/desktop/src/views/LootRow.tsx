@@ -22,7 +22,7 @@ export function LootRow({ items, className, itemClassName }: { items: Picked[]; 
   return (
     <div className={cn("flex items-baseline gap-2.5 text-[11.5px]", className)}>
       <span className="flex-none text-10 font-extrabold tracking-[0.06em] uppercase text-fg-3">Đã nhặt</span>
-      <ul className="flex flex-wrap gap-y-1 gap-x-3 min-w-0 m-0 p-0 list-none">
+      <ul className="flex flex-wrap gap-y-1 gap-x-3 min-w-0">
         {items.map((p) => (
           <li key={p.itemId} className={cn("inline-flex items-center gap-1 text-fg", itemClassName)}>
             <PickedIcon icon={p.icon} />

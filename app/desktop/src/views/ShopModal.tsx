@@ -35,8 +35,8 @@ const BACK = "shop.back";
 export const SHOP = {
   /** A sub-tab: its parts stacked. */
   tab: "grid [align-content:start] gap-2.5",
-  note: "m-0 text-12 text-fg-3 leading-[1.5]",
-  why: "m-0 text-12 text-danger",
+  note: "text-12 text-fg-3 leading-[1.5]",
+  why: "text-12 text-danger",
   /** A heading of a part with its "?", and the heading. */
   lead: "flex items-center gap-1.5",
   leadTitle: "text-[12.5px] text-fg",
@@ -286,8 +286,8 @@ function SmithStatus({ run, onStop }: { run: SmithRun; onStop: () => void }) {
           </Button>
         )}
       </div>
-      <p className="m-0 text-12 text-fg-2">{running ? run.doing || "…" : run.done}</p>
-      <p className="m-0 text-11 text-fg-3">
+      <p className="text-12 text-fg-2">{running ? run.doing || "…" : run.done}</p>
+      <p className="text-11 text-fg-3">
         {run.steps > 0 && (
           <>
             {run.steps} lần · <span className="text-s-online">{run.ok} được</span>

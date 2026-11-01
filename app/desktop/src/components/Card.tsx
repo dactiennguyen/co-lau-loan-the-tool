@@ -36,7 +36,7 @@ export function Card({ title, icon, tone = "var(--primary)", subtitle, aside, cl
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className="m-0 font-display font-extrabold text-12 leading-[1.2] tracking-[0.06em] uppercase text-fg">{title}</h2>
+          <h2 className="font-display font-extrabold text-12 leading-[1.2] tracking-[0.06em] uppercase text-fg">{title}</h2>
           {subtitle && <p className="mt-0.5 mb-0 text-11 text-fg-3 truncate">{subtitle}</p>}
         </div>
         {aside}

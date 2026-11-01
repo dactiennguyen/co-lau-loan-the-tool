@@ -73,7 +73,7 @@ export function StatPlanDialog({ account, onClose }: Props) {
       </div>
       {mode === "weights" && (
         // Wide enough for each name on one line beside the wider number field of a Stepper.
-        <ul className="list-none m-0 p-0 grid grid-cols-[1fr_1fr] gap-y-1.5 gap-x-3.5">
+        <ul className="grid grid-cols-[1fr_1fr] gap-y-1.5 gap-x-3.5">
           {POTENTIALS.map((p) => (
             <li key={p.index} className="flex items-center justify-between gap-1.5">
               <span className="text-12 font-semibold text-fg-2 whitespace-nowrap">{p.name}</span>

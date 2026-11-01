@@ -4,7 +4,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles/tokens.css";
-import "./styles/base.css";
 
 // macOS draws its window buttons over the page (titleBarStyle Overlay); Windows and Linux keep a native title bar.
 document.documentElement.dataset.os = navigator.userAgent.includes("Mac") ? "mac" : "other";

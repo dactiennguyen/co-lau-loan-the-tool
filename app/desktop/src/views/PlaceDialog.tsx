@@ -22,8 +22,8 @@ function busy(c: Character) {
 /** A part of the dialog: its head (a title, a sum at the right, a button), then its content. */
 const SEC = "grid gap-1.5 min-w-0";
 const HEAD = "flex items-center gap-1.5";
-const H3 = "m-0 text-12 font-extrabold tracking-[0.06em] uppercase text-fg-2";
-const NOTE = "m-0 text-11 text-fg-3";
+const H3 = "text-12 font-extrabold tracking-[0.06em] uppercase text-fg-2";
+const NOTE = "text-11 text-fg-3";
 
 function zoneTitle(z: Zone, here: boolean) {
   if (here) return `Khu ${z.zone}: đang ở đây, ${z.players}/${z.capacity} người`;
@@ -112,7 +112,7 @@ export function PlaceDialog({ account, onClose }: Props) {
             <div className={HEAD}>
               <h3 id="place-maps" className={H3}>Map khác</h3>
             </div>
-            <ul className="grid gap-1 m-0 p-0 list-none">
+            <ul className="grid gap-1">
               {c.maps.map((m) => (
                 <li
                   key={m.mapId}

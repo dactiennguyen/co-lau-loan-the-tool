@@ -28,14 +28,14 @@ export function PlayersCard({ character: c }: { character: Character | null }) {
       }
     >
       {c && !c.playersKnown && (
-        <p className="m-0 text-fg-3 text-12">Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.</p>
+        <p className="text-fg-3 text-12">Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.</p>
       )}
-      {c?.playersKnown && players.length === 0 && <p className="m-0 text-fg-3 text-12">Chỉ có bạn ở khu này.</p>}
-      <ul className="scroll list-none m-0 p-0 flex-1 min-h-0 grid [align-content:start] gap-1">
+      {c?.playersKnown && players.length === 0 && <p className="text-fg-3 text-12">Chỉ có bạn ở khu này.</p>}
+      <ul className="scroll flex-1 min-h-0 grid [align-content:start] gap-1">
         {players.map((p) => (
           <li key={p.id} className="flex items-center gap-2 py-[3px] pr-1.5 pl-[3px] bg-bg-2 hover:bg-card-2">
             <Avatar name={p.name} size={22} />
-            <span className="selectable flex-1 min-w-0 truncate text-12 font-semibold">{p.name}</span>
+            <span className="select-text flex-1 min-w-0 truncate text-12 font-semibold">{p.name}</span>
             <Badge tone={levelTone(p.level, c!.level)}>LV {p.level}</Badge>
           </li>
         ))}

@@ -37,7 +37,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
         <Avatar name={a.username} status={a.status} size={46} dotClassName="border-card" />
         <div className="flex-1 min-w-0 grid gap-1">
           <div className="flex items-center gap-2 min-w-0">
-            <h1 className="m-0 font-display font-extrabold text-20 leading-[1.1] text-fg truncate">{c?.name ?? a.label}</h1>
+            <h1 className="font-display font-extrabold text-20 leading-[1.1] text-fg truncate">{c?.name ?? a.label}</h1>
             {c && <Badge className="h-5 text-12 px-1.5">LV {c.level}</Badge>}
             {c && <ElementTag element={c.element} className="h-5 px-1.5 border border-current" />}
             {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}

@@ -70,13 +70,13 @@ export function ItemDetail({ item, where, element, actions }: Props) {
             {item.stats.length > 0 && (
               <ul className="contents">
                 {item.stats.map((s, i) => (
-                  <li key={i} className="list-none py-px px-1.5 bg-bg-2 text-11 font-semibold text-good">
+                  <li key={i} className="py-px px-1.5 bg-bg-2 text-11 font-semibold text-good">
                     {s}
                   </li>
                 ))}
               </ul>
             )}
-            {item.desc && <p className="m-0 text-11 leading-[1.4] text-fg-2">{item.desc}</p>}
+            {item.desc && <p className="text-11 leading-[1.4] text-fg-2">{item.desc}</p>}
           </div>
         )}
       </div>

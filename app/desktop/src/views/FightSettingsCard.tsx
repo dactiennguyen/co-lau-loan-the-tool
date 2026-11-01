@@ -80,7 +80,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
         hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Không nhặt đồ người khác làm rơi. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
       />
       {error && (
-        <p className="m-0 text-[11.5px] text-danger selectable" role="alert">
+        <p className="text-[11.5px] text-danger select-text" role="alert">
           Chưa lưu được: {error}
         </p>
       )}

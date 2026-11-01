@@ -84,9 +84,9 @@ export function UpdateBox() {
                   />
                 </button>
                 {notes && (
-                  <div id="upd-notes" className="max-h-[150px] pr-1 text-11 leading-[1.45] text-fg-2 scroll selectable">
+                  <div id="upd-notes" className="max-h-[150px] pr-1 text-11 leading-[1.45] text-fg-2 scroll select-text">
                     {paragraphs(u.notes).map((p, i) => (
-                      <p key={i} className="mx-0 mt-0 mb-1">{p}</p>
+                      <p key={i} className="mb-1">{p}</p>
                     ))}
                   </div>
                 )}

@@ -46,7 +46,7 @@ export function Sidebar() {
   return (
     // The 40 px top leaves room for the macOS window buttons.
     <aside className="relative flex flex-col gap-3 min-h-0 pt-10 px-3 pb-3 bg-bg-2 border-r-[length:var(--px)] border-r-ink not-mac:pt-3">
-      {/* No display class: base.css hides the drag strips outside macOS. */}
+      {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
       <div className="absolute inset-x-0 top-0 h-9" data-tauri-drag-region />
       <div className="flex items-center gap-2.5">
         <img className="block shrink-0 size-[34px] object-contain" src={appIcon} alt="" draggable={false} />
@@ -67,14 +67,14 @@ export function Sidebar() {
         Thêm nick
       </Button>
       {error && (
-        <p className="m-0 px-2.5 py-2 border-2 border-accent-deep bg-ink text-danger text-11 wrap-anywhere selectable" role="alert">
+        <p className="px-2.5 py-2 border-2 border-accent-deep bg-ink text-danger text-11 wrap-anywhere select-text" role="alert">
           Không đọc được accounts.json, app sẽ không ghi đè file này. Sửa file rồi mở lại app. ({error})
         </p>
       )}
       <div className="text-10 font-extrabold tracking-[0.1em] uppercase text-fg-3">Tài khoản</div>
       {/* One column as wide as the sidebar: an auto column would grow to a card's longest line and clip its button. */}
       <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)] [align-content:start] gap-1.5 -mx-1 px-1 pb-1 scroll">
-        {order.length === 0 && <p className="m-0 text-fg-3 text-12">Chưa có nick nào.</p>}
+        {order.length === 0 && <p className="text-fg-3 text-12">Chưa có nick nào.</p>}
         {order.map((id) => (
           <AccountCard key={id} id={id} onMenu={openMenu} />
         ))}
