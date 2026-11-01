@@ -374,11 +374,13 @@ pub enum SmithTask {
     /// Gộp đá: every set of 4 stones of a level at 100%, again on the stones made, up to Đá cấp `up_to`; unlocked
     /// stones too with `unlocked` (in Luyện đá [Xu], paid in Xu).
     Merge(MergeOptions),
-    /// Nâng cấp the item of bag slot `slot` up to +`to_level` (npc::SAFE_LEVEL at most until Bùa is measured), each level
-    /// with the cheapest stones that bring the odds to `rate` %, or as far as they go; [Cẩn thận] with `careful`. With
-    /// `quote` only the price and odds of the next level are asked: nothing is pressed or spent. With `worn`, `slot` is a
-    /// gear slot: the game's window takes items of the bag only (J1), so the item is taken off first (c2s/1186) and worn
-    /// again once the task ends, however it ends.
+    /// Nâng cấp the item of bag slot `slot` up to +`to_level` (its cap at most: npc::item_cap), each level with the
+    /// cheapest stones that bring the odds to `rate` %, or as far as they go; [Cẩn thận] with `careful`. With `quote` only
+    /// the price and odds of the next level are asked: nothing is pressed or spent. With `worn`, `slot` is a gear slot:
+    /// the game's window takes items of the bag only (J1), so the item is taken off first (c2s/1186) and worn again once
+    /// the task ends, however it ends. With `charm`, every press a failure would lose levels on (+5–+7, +9–+11, +13, +15)
+    /// takes the lowest Bùa bảo vệ that protects it, and the task ends before it without one; without `charm` such a
+    /// failure drops the item to +4, +8, +12 or +14 and ends the task.
     Upgrade {
         slot: u8,
         careful: bool,
@@ -387,6 +389,7 @@ pub enum SmithTask {
         unlocked: bool,
         quote: bool,
         worn: bool,
+        charm: bool,
     },
     /// Tách đá of the item of bag slot `slot`.
     Separate { slot: u8 },
@@ -394,6 +397,38 @@ pub enum SmithTask {
     Transmute { source: u8, target: u8 },
     /// Đổi lượng: `times` × 50 Lượng for 50.000 Xu (option 0) or 55.000 Xu khóa (option 1).
     Exchange { option: u8, times: u32 },
+    /// Chế tạo trang bị, reading only: the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn) to
+    /// Snapshot.recipes. Nothing is put or pressed.
+    Recipes { kind: u8 },
+    /// Chế tạo trang bị: tier `tier` of item kind `kind`, the materials of its recipe in, Bắt đầu (the Xu of the recipe).
+    Craft { kind: u8, tier: i32 },
+    /// Đổi Băng Tâm lấy bình rỗng: line `option` of its menu, 0 one bottle, 1 five, 2 all (8 Băng Tâm each).
+    Ice { option: u8 },
+    /// Điểm năng động of Hương Lão, reading only: the points of the week and the exchange limit to Snapshot.points, with
+    /// Cách tính điểm (s2c/0) when `rules`. Đổi Xu is not measured: never picked.
+    Points { rules: bool },
+}
+
+/// The recipes of an item kind of Chế tạo trang bị as its menu said them last (SmithTask::Recipes, Craft).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CraftRecipes {
+    pub kind: u8,
+    /// "Nhẫn".
+    pub name: &'static str,
+    pub recipes: Vec<npc::Recipe>,
+    pub read_at: u64,
+}
+
+/// Điểm năng động as Hương Lão said it last (SmithTask::Points): the numbers, his words, and Cách tính điểm if asked.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PointsRead {
+    #[serde(flatten)]
+    pub points: npc::ActivityPoints,
+    pub text: String,
+    pub rules: Option<String>,
+    pub read_at: u64,
 }
 
 /// The work of Pháp sư or Hương Lão under way or last done, for Tiện ích.
@@ -402,7 +437,7 @@ pub enum SmithTask {
 pub struct SmithRun {
     /// Number of the run in this session, so the UI tells a new one from the one before.
     pub id: u32,
-    /// "merge", "upgrade", "quote", "separate", "transmute" or "exchange".
+    /// "merge", "upgrade", "quote", "separate", "transmute", "exchange", "recipes", "craft", "ice" or "points".
     pub kind: &'static str,
     /// "Gộp đá tới Đá cấp 6", "Nâng cấp Nhẫn Trơn tới +4".
     pub title: String,
@@ -694,6 +729,10 @@ pub struct Snapshot {
     pub shop: Option<ShopList>,
     /// The work of Pháp sư or Hương Lão under way or last done (Bot::smith).
     pub smith: Option<SmithRun>,
+    /// Chế tạo trang bị: the recipes of each item kind read so far, in the order read.
+    pub recipes: Vec<CraftRecipes>,
+    /// Điểm năng động of Hương Lão as last read.
+    pub points: Option<PointsRead>,
     /// Mã quà tặng under way or last done (Bot::redeem).
     pub gift: Option<GiftRun>,
     /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().

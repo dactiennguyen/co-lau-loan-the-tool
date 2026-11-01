@@ -145,15 +145,16 @@ impl Bot {
             }
             90 => {
                 let a = service_slot(payload)?;
-                self.smith_slot(&a.text, a.ready, !a.gear, now, out);
+                self.smith_slot(&a.text, a.ready, !a.gear, None, now, out);
             }
+            // Luyện đá and Chế tạo trang bị; the latter says its fee in a field (craft_slot, O1).
             92 => {
-                let a = stone_slot(payload)?;
-                self.smith_slot(&a.text, a.ready, false, now, out);
+                let a = npc::craft_slot(payload)?;
+                self.smith_slot(&a.text, a.ready, false, Some(a.fee as i64), now, out);
             }
             1260 => {
                 let a = transmute_target(payload)?;
-                self.smith_slot(&a.text, a.ready, false, now, out);
+                self.smith_slot(&a.text, a.ready, false, None, now, out);
             }
             1258 => self.smith_preview(service_preview(payload)?.item),
             91 => {
@@ -696,10 +697,15 @@ impl Bot {
                     out.push(Out::Log(LogKind::Server, format!("Server: {text}")));
                     // Chế tạo cánh says what it lacks this way (J2): it ends a task of Pháp sư waiting for the answer to
                     // an item put in or to Bắt đầu. Another message box of the server leaves the task alone.
-                    let answers = self.smith.as_ref().is_some_and(|s| {
-                        matches!(s.stage, smith::Stage::Put | smith::Stage::Start)
-                    });
-                    if opcode == 0 && answers {
+                    let stage = self.smith.as_ref().map(|s| s.stage);
+                    let answers = matches!(
+                        stage,
+                        Some(smith::Stage::Put | smith::Stage::Start | smith::Stage::IceDone)
+                    );
+                    if opcode == 0 && stage == Some(smith::Stage::Rules) {
+                        // Cách tính điểm of Điểm năng động.
+                        self.smith_rules(&text, now, out);
+                    } else if opcode == 0 && answers {
                         self.smith_notice(&text, now, out);
                     }
                 }

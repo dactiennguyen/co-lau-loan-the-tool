@@ -46,6 +46,8 @@ pub struct Ctx<'a> {
     pub tab: Option<i32>,
     pub page: Option<i32>,
     pub price: Option<i64>,
+    /// The third field of c2s/97: npc::PUT_ITEM (gear, stones) or npc::PUT_STACK (Bùa bảo vệ, materials of Chế tạo).
+    pub put_kind: Option<i32>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -126,7 +128,7 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         97 => w
             .string("")
             .u8(0)
-            .i32(0)
+            .i32(c.put_kind.unwrap_or(0))
             .i32(required(c.slot, "slot")?)
             .i32(c.quantity.unwrap_or(1))
             .build(),

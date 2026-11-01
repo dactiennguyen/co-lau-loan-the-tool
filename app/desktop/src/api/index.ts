@@ -85,7 +85,23 @@ export interface Api {
   mergeForecast(id: number, options: MergeOptions): Promise<MergeForecast | null>;
   /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
   /** `worn`: `slot` is a gear slot; the bot takes the item off, upgrades it and wears it again. */
-  smithUpgrade(id: number, slot: number, careful: boolean, rate: number, toLevel: number, unlocked: boolean, quote: boolean, worn: boolean): Promise<void>;
+  smithUpgrade(
+    id: number,
+    slot: number,
+    careful: boolean,
+    rate: number,
+    toLevel: number,
+    unlocked: boolean,
+    quote: boolean,
+    worn: boolean,
+    charm: boolean,
+  ): Promise<void>;
+  /** Chế tạo trang bị: the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make that tier. */
+  smithCraft(id: number, kind: number, tier: number | null): Promise<void>;
+  /** Đổi Băng Tâm lấy bình rỗng: line `option` (0 one bottle, 1 five, 2 all). */
+  smithIce(id: number, option: number): Promise<void>;
+  /** Điểm năng động of Hương Lão, reading only; Cách tính điểm too with `rules`. */
+  elderPoints(id: number, rules: boolean): Promise<void>;
   /** Tách đá of the item of bag slot `slot`. */
   smithSeparate(id: number, slot: number): Promise<void>;
   /** Chuyển hoá from bag slot `source` to bag slot `target`. */
@@ -194,8 +210,11 @@ const tauri: Api = {
   openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
   smithMerge: (id, options) => invoke("smith_merge", { id, options }),
   mergeForecast: (id, options) => invoke("merge_forecast", { id, options }),
-  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn) =>
-    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn }),
+  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn, charm) =>
+    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn, charm }),
+  smithCraft: (id, kind, tier) => invoke("smith_craft", { id, kind, tier }),
+  smithIce: (id, option) => invoke("smith_ice", { id, option }),
+  elderPoints: (id, rules) => invoke("elder_points", { id, rules }),
   smithSeparate: (id, slot) => invoke("smith_separate", { id, slot }),
   smithTransmute: (id, source, target) => invoke("smith_transmute", { id, source, target }),
   transmuteTargets: (id, source) => invoke("transmute_targets", { id, source }),
@@ -277,6 +296,9 @@ const preview: Api = {
   smithMerge: nothing,
   mergeForecast: async () => null,
   smithUpgrade: nothing,
+  smithCraft: nothing,
+  smithIce: nothing,
+  elderPoints: nothing,
   smithSeparate: nothing,
   smithTransmute: nothing,
   transmuteTargets: async () => [],

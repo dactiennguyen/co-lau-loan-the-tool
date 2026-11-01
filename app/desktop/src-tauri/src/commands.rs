@@ -227,6 +227,7 @@ pub fn merge_forecast(
 
 /// Nâng cấp the item of bag slot `slot` (gear slot with `worn`: taken off first, worn again after) up to +`to_level` with
 /// stones up to `rate` % each level ([Cẩn thận] with `careful`); `quote` only asks the price and odds of the next level.
+/// `charm` (default true): Bùa bảo vệ on every press a failure would lose levels on.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub fn smith_upgrade(
@@ -239,6 +240,7 @@ pub fn smith_upgrade(
     unlocked: bool,
     quote: bool,
     worn: Option<bool>,
+    charm: Option<bool>,
 ) {
     let task = SmithTask::Upgrade {
         slot,
@@ -248,8 +250,31 @@ pub fn smith_upgrade(
         unlocked,
         quote,
         worn: worn.unwrap_or(false),
+        charm: charm.unwrap_or(true),
     };
     shared.with(|app| app.send(id, Command::Smith(task)));
+}
+
+/// Chế tạo trang bị: read the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make that tier.
+#[tauri::command]
+pub fn smith_craft(shared: State<Shared>, id: u64, kind: u8, tier: Option<i32>) {
+    let task = match tier {
+        Some(tier) => SmithTask::Craft { kind, tier },
+        None => SmithTask::Recipes { kind },
+    };
+    shared.with(|app| app.send(id, Command::Smith(task)));
+}
+
+/// Đổi Băng Tâm lấy bình rỗng: line `option` of its menu (0 one bottle, 1 five, 2 all).
+#[tauri::command]
+pub fn smith_ice(shared: State<Shared>, id: u64, option: u8) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Ice { option })));
+}
+
+/// Điểm năng động of Hương Lão, reading only; Cách tính điểm too with `rules`.
+#[tauri::command]
+pub fn elder_points(shared: State<Shared>, id: u64, rules: bool) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Points { rules })));
 }
 
 /// Tách đá of the item of bag slot `slot`.

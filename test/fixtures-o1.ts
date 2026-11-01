@@ -1,6 +1,6 @@
 // Packets of O1 (01/11/2026, tiheo2 / Ttuananh level 31; docs/app/events/16-upgrade.md#o1): the TS bot's probes and the
 // phone with Frida. Nâng cấp [Cẩn thận] of Nhẫn Thái Cực with a Bùa bảo vệ, Chế tạo of a Nhẫn Bậc I, Đổi Băng Tâm. Golden
-// inputs for test/smith.test.ts only; not in the Rust vectors.
+// inputs for test/smith.test.ts, and through src/cli/export-rust.ts for the o1 part of the npc Rust vectors.
 export const o1Packets: Record<string, string> = {
   "s2c/57 Pháp sư": "00000004000000095068c3a1702073c6b00000002143e1baad75206d75e1bb916e207461206769c3ba70207669e1bb87632067c3ac2e000000000b4ec3a26e672063e1baa570010000000c4c7579e1bb876e20c491c3a1020000000a54c3a1636820c491c3a1030000000b4368e1babf2074e1baa16f",
   "s2c/57 Nâng cấp": "00000003000000095068c3a1702073c6b00000002143e1baad75206d75e1bb916e207461206769c3ba70207669e1bb87632067c3ac2e00000000174ec3a26e672063e1baa570205b5468c6b0e1bb9d6e675d010000001a4ec3a26e672063e1baa570205b43e1baa96e207468e1baad6e5d020000001843687579e1bb836e20686fc3a1207472616e672062e1bb8b",

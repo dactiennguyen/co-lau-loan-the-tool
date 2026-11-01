@@ -175,6 +175,8 @@ G1, Tiheo2 cấp 31: "Điểm năng động tuần này: 12/100\nHạn mức đ�
 - Đổi Xu khi đủ 100 điểm chưa đo (tốn Xu khóa) [Chưa rõ].
 - Bot không gửi dòng 2 Đóng: chỉ cần không chọn gì nữa. Trên máy, chạm vào khung chữ của hộp thoại thì hộp đóng mà không gửi gói nào [Đo G1].
 
+App Rust đọc Điểm năng động ở tab Đổi lượng của Tiện ích: điểm tuần, hạn mức đổi, số suất, và Cách tính điểm nếu hỏi. Không chọn Đổi Xu hay Đóng, và nói lại với Hương Lão trước khi xong để menu Đổi Xu không còn là menu server nhớ ([features](../../integration/rust/features.md#tiện-ích)).
+
 **Đổi lượng dòng 0 ở G1:** `c2s/57 (0, "M1", 102)` → `s2c/46` (Lượng 30.000 → 29.950), `s2c/46` (Xu 15.003.600 → 15.053.600), `s2c/1256` "Bạn vừa nhận được 50.000 Xu"; hộp thoại đóng ([15-shops](15-shops.md#đổi-lượng)).
 
 **Sự cố ở manina2 (G1):** trên điện thoại, nhân vật manina đứng cạnh Hương Lão (chưa gắn Frida). Hai lần bấm định mở menu ≡ và đóng một hộp thoại thì hiện ra hộp Nhiệm vụ hàng ngày, rồi "Bạn vừa nhận được 50.000 Xu". Bot đọc lại ví: Lượng 10.000 → 9.950, Xu 5.003.600 → 5.053.600, tức dòng 0 của Đổi lượng đã chạy. Không biết lần bấm nào gây ra. Chạm vào khung chữ thì không gửi gì (đã thử ở Tiheo2) [Chưa rõ]. Cách tránh: gắn Frida trước khi bấm, chụp màn hình trước mỗi lần bấm, và không bấm gì quanh một NPC có dòng đổi tiền ngay.

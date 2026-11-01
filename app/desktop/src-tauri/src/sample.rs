@@ -5,14 +5,15 @@ use crate::store::{BattleFilter, Store};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, GiftCode, GiftLimits,
-    GiftRun, Job, LogKind, Mailbox, MapChoice, MapMob, MarketState, Picked, PickupRecord, QuestRun,
-    SmithRun, Snapshot, Target,
+    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, CraftRecipes, GiftCode,
+    GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MapMob, MarketState, Picked,
+    PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{MailBody, MailHeader};
 use cllt_core::market::{MarketListing, MarketPage, MarketStat, MarketTab, MarketTabs};
 use cllt_core::net::ConnState;
+use cllt_core::npc;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
@@ -543,6 +544,29 @@ fn main_character() -> Snapshot {
             rate: 200_000,
             until: ago(0) + 13_257_567,
         }],
+        // Chế tạo trang bị: the Nhẫn of O1, read ten minutes ago; Điểm năng động as G1 read it.
+        recipes: vec![CraftRecipes {
+            kind: 3,
+            name: "Nhẫn",
+            recipes: npc::recipes(
+                "Chế tạo Nhẫn cần:\nBậc I: Quặng Bậc 1 x24, Linh Thạch Bậc 1 x24, 2.400 Xu\nBậc II: Quặng Bậc 2 x24, Linh Thạch Bậc 2 x24, 26.500 Xu\nBậc III: Quặng Bậc 3 x24, Linh Thạch Bậc 3 x24, 90.000 Xu",
+                &[
+                    (0, "Bậc I (Lv 21)".into()),
+                    (1, "Bậc II (Lv 51)".into()),
+                    (2, "Bậc III (Lv 101)".into()),
+                ],
+            ),
+            read_at: ago(600),
+        }],
+        points: Some({
+            let text = "Điểm năng động tuần này: 12/100\nHạn mức đổi (cấp 31): 3.000 Xu, cần 3.300 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai.";
+            PointsRead {
+                points: npc::points_text(text),
+                text: text.into(),
+                rules: None,
+                read_at: ago(1200),
+            }
+        }),
         ..Snapshot::default()
     }
 }

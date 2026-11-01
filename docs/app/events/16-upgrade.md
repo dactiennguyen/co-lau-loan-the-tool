@@ -502,16 +502,16 @@ Tiền của Tiheo2 trước và sau O1: Xu 15.103.600 → 15.097.200 (chế Nh�
 
 ## Trong app
 
-Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%; gộp hết tới một cấp, hay từng bộ một bằng nút Gộp của mỗi dòng), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
+Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%; gộp hết tới một cấp, hay từng bộ một bằng nút Gộp của mỗi dòng), Nâng cấp tới trần của món (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại; **Bùa bảo vệ** `c2s/97` loại 1 ở mỗi lần nâng mà thất bại sẽ tụt cấp, không bùa thì dừng ở lần tụt đầu tiên), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, **Chế tạo trang bị** (công thức đọc từ menu, nguyên liệu loại 1 với cả chồng), **Đổi Băng Tâm**, Đổi lượng. CLI: `cllt smith` (thêm `--charm=never`). Bùa, Chế tạo và Đổi Băng Tâm mới chạy trong test phát lại gói O1, chưa chạy thật trong app.
 
-Bot TS `npm run smith` ([Pháp sư bằng Node.js](../../integration/nodejs/smith.md)) làm Hỏi giá, Nâng cấp, Gộp đá, Tách đá, Chuyển hoá như app, và thêm bốn phần app chưa có: **bùa bảo vệ** (`c2s/97` loại 1, chỉ ở lần nâng mà thất bại sẽ tụt cấp), **nâng trên +4** tới trần theo bậc, **Chế tạo trang bị** (công thức đọc từ menu, nguyên liệu loại 1 với cả chồng), **Đổi Băng Tâm**. Không có `--confirm` thì bot dừng trước Bắt đầu. Đã có test phát lại gói O1; chưa chạy với server thật.
+Bot TS `npm run smith` ([Pháp sư bằng Node.js](../../integration/nodejs/smith.md)) làm cùng các việc như app: Hỏi giá, Nâng cấp có bùa, Gộp đá, Tách đá, Chuyển hoá, Chế tạo trang bị, Đổi Băng Tâm. Khác ở chỗ bản TS mặc định dừng ở thất bại đầu tiên (`--tries` để bấm tiếp), còn app có bùa thì thử lại cấp đó. Không có `--confirm` thì bot dừng trước Bắt đầu. Đã có test phát lại gói O1; chưa chạy với server thật.
 
 <a id="todo"></a>
 
 ## Còn để sau (TODO)
 
-- **Bùa bảo vệ và nâng trên +4.** Gói đã đo ở O1 (bùa là `c2s/97` loại 1; thất bại tụt về +4; có bùa thì giữ cấp; bùa mất cả khi thành công). Bot TS đã làm ([nâng cấp](../../integration/nodejs/smith.md#nâng-cấp)); còn phải chạy thật bằng bot TS rồi port sang app: đặt bùa đúng loại, chọn khi nào cần bùa, và bỏ giới hạn `npc::SAFE_LEVEL`.
-- **Chế tạo trang bị.** Gói đã đo ở O1 ([chế tạo](#chế-tạo)): đặt hai nguyên liệu bằng `c2s/97` loại 1 với cả chồng, Bắt đầu `c2s/91`, món mới trong `s2c/1187` loại 4. Bot TS đã làm ([chế tạo](../../integration/nodejs/smith.md#chế-tạo)), cùng Đổi Băng Tâm; còn phải chạy thật rồi port sang app.
+- **Chạy thật trong app:** Bùa bảo vệ với nâng trên +4, Chế tạo trang bị và Đổi Băng Tâm đã port sang app từ gói O1 ([features](../../integration/rust/features.md#tiện-ích)); chưa bấm thật lần nào bằng app.
+- **Chế tạo cánh, Chế Băng Kiếm:** chưa đo.
 
 <a id="tính-năng"></a>
 

@@ -45,6 +45,130 @@ fn the_packets_of_the_windows_and_shops_read_as_the_ts_decoders_read_them() {
 }
 
 #[test]
+fn bua_che_tao_bang_tam_and_diem_nang_dong_read_as_the_ts_side() {
+    let all = v();
+    let o = &all["npc"]["o1"];
+    let cases = o["decoders"].as_array().unwrap();
+    assert_eq!(cases.len(), 20);
+    for case in cases {
+        let (f, p) = (
+            case["fn"].as_str().unwrap(),
+            hex(case["hex"].as_str().unwrap()),
+        );
+        let got = match f {
+            "serviceWindow" => serde_json::to_value(npc::service_window(&p).unwrap()),
+            "craftWindow" => serde_json::to_value(npc::craft_window(&p).unwrap()),
+            "serviceSlot" => serde_json::to_value(npc::service_slot(&p).unwrap()),
+            "craftSlot" => serde_json::to_value(npc::craft_slot(&p).unwrap()),
+            "servicePreview" => serde_json::to_value(npc::service_preview(&p).unwrap()),
+            "serviceResult" => serde_json::to_value(npc::service_result(&p).unwrap()),
+            "stoneResult" => serde_json::to_value(npc::stone_result(&p).unwrap()),
+            "npcMenu" => {
+                let m = world::npc_menu(&p).unwrap();
+                let options: Vec<Value> = (m.options.iter())
+                    .map(|(o, l)| serde_json::json!({ "option": o, "label": l }))
+                    .collect();
+                Ok(serde_json::json!({ "npc": m.npc, "text": m.text, "options": options }))
+            }
+            other => panic!("no Rust decoder for {other}"),
+        }
+        .unwrap();
+        assert_eq!(got, case["expected"], "{f} {}", case["key"]);
+    }
+    for case in o["recipes"].as_array().unwrap() {
+        let options: Vec<(u8, String)> = (case["options"].as_array().unwrap().iter())
+            .map(|x| {
+                let option = x["option"].as_u64().unwrap() as u8;
+                (option, x["label"].as_str().unwrap().to_string())
+            })
+            .collect();
+        let got = npc::recipes(case["text"].as_str().unwrap(), &options);
+        assert_eq!(
+            serde_json::to_value(&got).unwrap(),
+            case["expected"],
+            "{}",
+            case["key"]
+        );
+    }
+    let book = cllt_core::items::book();
+    for (name, id) in o["ids"].as_object().unwrap() {
+        assert_eq!(book.material(name).map(i64::from), id.as_i64(), "{name}");
+    }
+    let ring = npc::recipes(
+        o["recipes"][0]["text"].as_str().unwrap(),
+        &(o["recipes"][0]["options"].as_array().unwrap().iter())
+            .map(|x| {
+                (
+                    x["option"].as_u64().unwrap() as u8,
+                    x["label"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    for case in o["materials"].as_array().unwrap() {
+        let bag: Vec<BagItem> = serde_json::from_value(case["bag"].clone()).unwrap();
+        let recipe = ring
+            .iter()
+            .find(|r| case["tier"].as_i64() == Some(i64::from(r.tier)))
+            .unwrap();
+        let (puts, missing) = npc::craft_materials(&bag, recipe, |n| book.material(n));
+        let puts: Vec<Value> = (puts.iter())
+            .map(|p| serde_json::json!({ "name": p.name, "count": p.count, "slot": p.item.slot }))
+            .collect();
+        assert_eq!(Value::from(puts), case["puts"], "{case}");
+        assert_eq!(
+            serde_json::to_value(missing).unwrap(),
+            case["missing"],
+            "{case}"
+        );
+    }
+    for case in o["ice"].as_array().unwrap() {
+        let text = case["text"].as_str().unwrap();
+        assert_eq!(npc::ice_held(text), case["held"].as_i64(), "{text}");
+    }
+    for case in o["points"].as_array().unwrap() {
+        let text = case["text"].as_str().unwrap();
+        let got = serde_json::to_value(npc::points_text(text)).unwrap();
+        assert_eq!(got, case["expected"], "{text}");
+    }
+    let charm_bag: Vec<BagItem> = serde_json::from_value(o["charmBag"].clone()).unwrap();
+    for case in o["charms"].as_array().unwrap() {
+        let level = case["level"].as_i64().unwrap() as i32;
+        let got = (
+            npc::fail_level(level),
+            npc::charm_useful(level),
+            npc::charm_for(&charm_bag, level).map(|i| i.slot),
+        );
+        let want = (
+            case["failLevel"].as_i64().unwrap() as i32,
+            case["charmUseful"].as_bool().unwrap(),
+            case["charm"].as_i64().map(|s| s as i32),
+        );
+        assert_eq!(got, want, "+{level}");
+    }
+    for case in o["caps"].as_array().unwrap() {
+        let (kind, level) = (
+            case["type"].as_u64().unwrap() as u8,
+            case["level"].as_i64().unwrap() as i32,
+        );
+        assert_eq!(
+            i64::from(npc::item_cap(kind, level)),
+            case["cap"].as_i64().unwrap(),
+            "{case}"
+        );
+    }
+    for r in o["requests"].as_array().unwrap() {
+        let got = tohex(&npc::put_request(
+            r["slot"].as_i64().unwrap() as i32,
+            r["quantity"].as_i64().unwrap() as i32,
+            r["kind"].as_i64().unwrap() as i32,
+        ));
+        assert_eq!(got, r["hex"], "{}", r["key"]);
+        assert_eq!(got, r["phone"], "{}", r["key"]);
+    }
+}
+
+#[test]
 fn quote_reads_the_fee_lượng_odds_stone_and_gain_as_the_ts_side() {
     let all = v();
     for case in all["npc"]["quotes"].as_array().unwrap() {
@@ -83,7 +207,7 @@ fn gop_da_and_nang_cap_plan_what_the_ts_side_plans_on_symaps_bag() {
         assert_eq!(serde_json::to_value(slots).unwrap(), case["slots"]);
     }
     assert_eq!(
-        tohex(&npc::put_request(45)),
+        tohex(&npc::put_request(45, 1, npc::PUT_ITEM)),
         all["npc"]["requests"]["put45"].as_str().unwrap()
     );
     assert_eq!(
@@ -101,6 +225,7 @@ fn chuyen_hoa_finds_the_targets_and_the_cheapest_item_that_moves_the_level() {
         item_id,
         field0,
         field1: 0,
+        quantity: 1,
     };
     // J3: Nhẫn Quỷ +1 (tier 51) moves to Anh Hùng Nhẫn +0 (tier 51), not to Nhẫn Trơn (tier 1) nor Giáp Đại Tướng.
     let bag = [
@@ -321,14 +446,20 @@ fn gop_da_luyen_each_set_of_four_then_plans_again_on_the_new_bag() {
         &mut out,
     )
     .unwrap();
-    assert_eq!(sent(&out, 97), [tohex(&npc::put_request(20))]);
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(20, 1, npc::PUT_ITEM))]
+    );
     for (i, slot) in [24, 25, 26].into_iter().enumerate() {
         out.clear();
         let text = ["Cần chọn đá số lượng 2 đến 24", "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%",
             "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 75%"][i];
         bot.on_packet(92, &slot92(20, text, i > 0), now, &mut out)
             .unwrap();
-        assert_eq!(sent(&out, 97), [tohex(&npc::put_request(slot))]);
+        assert_eq!(
+            sent(&out, 97),
+            [tohex(&npc::put_request(slot, 1, npc::PUT_ITEM))]
+        );
     }
     out.clear();
     bot.on_packet(92, &slot92(26, "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 100%", true), now, &mut out).unwrap();
@@ -506,6 +637,7 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
         unlocked: true,
         quote: false,
         worn: false,
+        charm: true,
     };
     bot.smith(task, now, &mut out);
     let open = |bot: &mut Bot, out: &mut Vec<Out>| {
@@ -540,7 +672,7 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
     );
     assert_eq!(
         sent(&out, 97),
-        [tohex(&npc::put_request(15))],
+        [tohex(&npc::put_request(15, 1, npc::PUT_ITEM))],
         "the item first"
     );
     let price = |rate: i32| {
@@ -567,7 +699,10 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
         out.clear();
         bot.on_packet(90, &answer, now, &mut out).unwrap();
         put.extend(sent(&out, 97));
-        assert_eq!(sent(&out, 97), [tohex(&npc::put_request(next))]);
+        assert_eq!(
+            sent(&out, 97),
+            [tohex(&npc::put_request(next, 1, npc::PUT_ITEM))]
+        );
     }
     // Đá cấp 4 raised nothing: the window opens again for the three stones before it, and nothing was pressed.
     out.clear();
@@ -596,7 +731,10 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
         out.clear();
         bot.on_packet(90, &answer, now, &mut out).unwrap();
         match next {
-            Some(s) => assert_eq!(sent(&out, 97), [tohex(&npc::put_request(s))]),
+            Some(s) => assert_eq!(
+                sent(&out, 97),
+                [tohex(&npc::put_request(s, 1, npc::PUT_ITEM))]
+            ),
             None => assert_eq!(sent(&out, 91), ["00000000"], "{out:?}"),
         }
     }
@@ -647,6 +785,7 @@ fn nang_cap_out_of_stones_under_the_rate_presses_nothing() {
             unlocked: true,
             quote: false,
             worn: false,
+            charm: true,
         },
         now,
         &mut out,
@@ -711,6 +850,7 @@ fn hoi_gia_says_the_price_and_odds_and_presses_nothing() {
             unlocked: true,
             quote: true,
             worn: false,
+            charm: true,
         },
         now,
         &mut out,
@@ -874,6 +1014,7 @@ fn a_refusal_or_silence_ends_the_task_and_tach_da_reads_the_stones_it_gave() {
             unlocked: true,
             quote: true,
             worn: false,
+            charm: true,
         },
         now,
         &mut out,
@@ -933,6 +1074,22 @@ fn doi_luong_talks_to_huong_lao_and_counts_each_exchange() {
         )
         .unwrap();
     }
+    // The last menu was Đổi lượng, whose lines exchange at once: Hương Lão is talked to again before the task ends, so
+    // the menu the server remembers is his first one (G1, NP1).
+    assert_eq!(sent(&out, 13), ["000000024d3100000066"]);
+    assert!(bot.snapshot().smith.unwrap().done.is_none());
+    out.clear();
+    let root = menu(
+        "Hương Lão Trần Bá",
+        &[
+            "Mã quà tặng",
+            "Đổi lượng",
+            "Nhiệm vụ hàng ngày",
+            "Điểm năng động",
+        ],
+    );
+    bot.on_packet(57, &root, now, &mut out).unwrap();
+    assert!(sent(&out, 57).is_empty());
     assert!(
         logged(
             &out,
@@ -1082,6 +1239,7 @@ fn worn_ring(rate: i32, to_level: i32) -> SmithTask {
         unlocked: false,
         quote: false,
         worn: true,
+        charm: true,
     }
 }
 
@@ -1141,7 +1299,10 @@ fn nang_cap_do_dang_mac_coi_ra_nang_roi_mac_lai() {
         &mut out,
     )
     .unwrap();
-    assert_eq!(sent(&out, 97), [tohex(&npc::put_request(20))]);
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(20, 1, npc::PUT_ITEM))]
+    );
     let price = "Cần: 19 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 80%";
     for answer in [
         slot90(
@@ -1362,4 +1523,500 @@ fn nang_cap_do_dang_mac_chi_tin_o_trang_bi_va_tui_that() {
         "still worn: nothing to wear again"
     );
     assert_eq!(bot.deadline(), None);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Bùa bảo vệ, Chế tạo trang bị, Đổi Băng Tâm (the packets of O1) and Điểm năng động.
+
+/// A packet of O1 under that key of test/fixtures-o1.ts ("s2c/57 Pháp sư").
+fn o1(key: &str) -> Vec<u8> {
+    let all = v();
+    let case = all["npc"]["o1"]["decoders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["key"] == key)
+        .unwrap_or_else(|| panic!("no O1 packet {key}"))
+        .clone();
+    hex(case["hex"].as_str().unwrap())
+}
+/// c2s/97 as the phone sent it in O1 ("c2s/97 bùa").
+fn o1_put(key: &str) -> String {
+    let all = v();
+    all["npc"]["o1"]["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["key"] == key)
+        .unwrap()["phone"]
+        .as_str()
+        .unwrap()
+        .to_string()
+}
+/// s2c/42 holding (slot, item, +level, field1, quantity) items.
+fn bag_n(items: &[(u8, i32, i32, u8, i32)]) -> Vec<u8> {
+    let mut w = Writer::new()
+        .string("test dong 1")
+        .i32(42)
+        .i32(3)
+        .u8(2)
+        .i32(54)
+        .i32(items.len() as i32);
+    for &(slot, id, plus, f1, quantity) in items {
+        w = w
+            .u8(slot)
+            .i32(id)
+            .string(&format!("uuid-{slot}-{id}"))
+            .i32(plus)
+            .i32(-1)
+            .i32(quantity)
+            .u8(f1)
+            .u8(255)
+            .i32(0)
+            .u8(0)
+            .u8(0)
+            .u8(0);
+    }
+    w.build()
+}
+fn menu_text(npc: &str, text: &str, lines: &[&str]) -> Vec<u8> {
+    let mut w = Writer::new()
+        .i32(lines.len() as i32)
+        .string(npc)
+        .string(text);
+    for (i, l) in lines.iter().enumerate() {
+        w = w.u8(i as u8).string(l);
+    }
+    w.build()
+}
+/// c2s/57 of line `option` to `npc` (hex), on M1.
+fn line57(option: u8, npc: i32) -> String {
+    tohex(&Writer::new().u8(option).string("M1").i32(npc).build())
+}
+const HUONG_LAO: &str = "000000024d3100000066";
+fn upgrade(slot: u8, careful: bool, rate: i32, to_level: i32, charm: bool) -> SmithTask {
+    SmithTask::Upgrade {
+        slot,
+        careful,
+        rate,
+        to_level,
+        unlocked: true,
+        quote: false,
+        worn: false,
+        charm,
+    }
+}
+
+#[test]
+fn nang_cap_tu_5_dat_bua_bao_ve_nhu_o1_roi_moi_dat_da() {
+    // O1: Nhẫn Thái Cực +5 (tier 21, cap +8) in slot 19, Bùa bảo vệ sơ cấp ×4 in 20, two Đá cấp 5 in 22 and 23.
+    let items = [
+        (19, 333, 5, 0, 1),
+        (20, 35, 0, 1, 4),
+        (22, 415, 0, 0, 1),
+        (23, 415, 0, 0, 1),
+    ];
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(42, &bag_n(&items), now, &mut out).unwrap();
+    out.clear();
+    bot.smith(upgrade(19, true, 80, 6, true), now, &mut out);
+    assert!(
+        logged(&out, "Nâng cấp [Cẩn thận] Nhẫn Thái Cực tới +6"),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Pháp sư"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 57), [line57(0, 161)], "Nâng cấp");
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Nâng cấp"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 57), [line57(1, 161)], "[Cẩn thận]");
+    out.clear();
+    bot.on_packet(
+        96,
+        &o1("s2c/96 Nâng cấp [cẩn thận] Ttuananh"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(sent(&out, 97), [o1_put("c2s/97 nhẫn")], "the ring, kind 0");
+    out.clear();
+    bot.on_packet(90, &o1("s2c/90 nhẫn +5"), now, &mut out)
+        .unwrap();
+    bot.on_packet(1258, &o1("s2c/1258 nhẫn +5"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 97), [o1_put("c2s/97 bùa")], "the charm, kind 1");
+    out.clear();
+    bot.on_packet(90, &o1("s2c/90 bùa +5→+6"), now, &mut out)
+        .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(22, 1, npc::PUT_ITEM))],
+        "then the cheapest stone; the charm's 0% is no stone's"
+    );
+    out.clear();
+    bot.on_packet(90, &o1("s2c/90 đá +5→+6 lần 1"), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Bắt đầu: Nâng Nhẫn Thái Cực +5 lên +6, có Bùa bảo vệ sơ cấp (2.910 Xu khóa + 10 Lượng, tỉ lệ 82%)"
+        ),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 91), ["00000000"]);
+    out.clear();
+    bot.on_packet(91, &o1("s2c/91 bùa thành công +5→+6"), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp thành công: Nhẫn Thái Cực +6 (mất 1 Bùa bảo vệ sơ cấp)"
+        ),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 42).len(), 1);
+    out.clear();
+    let after = [(19, 333, 6, 0, 1), (20, 35, 0, 1, 3), (23, 415, 0, 0, 1)];
+    bot.on_packet(42, &bag_n(&after), now, &mut out).unwrap();
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp [Cẩn thận] Nhẫn Thái Cực tới +6: Nhẫn Thái Cực đã +6 (1 lần, tốn 2.910 Xu khóa, 10 Lượng)"
+        ),
+        "{out:?}"
+    );
+}
+
+#[test]
+fn nang_cap_tren_4_khong_bua_thi_tut_cap_va_dung_thieu_bua_thi_khong_bat_dau() {
+    // +5 with charms asked for and none in the bag: nothing is sent.
+    let (mut bot, mut out, now) = symap(&[(19, 333, 5, 0), (22, 415, 0, 0)]);
+    bot.smith(upgrade(19, false, 80, 8, true), now, &mut out);
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Thái Cực tới +8: thất bại ở +5 sẽ tụt về +4: cần Bùa bảo vệ trong túi"
+        ),
+        "{out:?}"
+    );
+    // Without charms: said before, then a failure that drops the ring to +4 ends the task.
+    out.clear();
+    bot.smith(upgrade(19, false, 80, 8, false), now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Không dùng bùa: thất bại sẽ tụt Nhẫn Thái Cực từ +5 về +4"
+        ),
+        "{out:?}"
+    );
+    bot.on_packet(57, &o1("s2c/57 Pháp sư"), now, &mut out)
+        .unwrap();
+    bot.on_packet(57, &o1("s2c/57 Nâng cấp"), now, &mut out)
+        .unwrap();
+    bot.on_packet(96, &o1("s2c/96 Nâng cấp [thường] Ttuananh"), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_packet(90, &o1("s2c/90 nhẫn +5"), now, &mut out)
+        .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(22, 1, npc::PUT_ITEM))],
+        "no charm: the stone next"
+    );
+    out.clear();
+    bot.on_packet(90, &o1("s2c/90 đá +5→+6 lần 1"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"]);
+    bot.on_packet(
+        91,
+        &captured("serviceResult", "ok", false.into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    bot.on_packet(42, &bag(&[(19, 333, 4, 0)]), now, &mut out)
+        .unwrap();
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Thái Cực tới +8: Nhẫn Thái Cực tụt từ +5 về +4: thất bại không có bùa thì dừng"
+        ),
+        "{out:?}"
+    );
+    // With a charm the level stays (O1, +7 kept): the same level is tried again with the next charm.
+    let items = [
+        (19, 333, 7, 0, 1),
+        (20, 35, 0, 1, 2),
+        (22, 415, 0, 0, 1),
+        (23, 415, 0, 0, 1),
+    ];
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(42, &bag_n(&items), now, &mut out).unwrap();
+    bot.smith(upgrade(19, true, 80, 8, true), now, &mut out);
+    for key in ["s2c/57 Pháp sư", "s2c/57 Nâng cấp"] {
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+    }
+    bot.on_packet(
+        96,
+        &o1("s2c/96 Nâng cấp [cẩn thận] Ttuananh"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    for key in [
+        "s2c/90 nhẫn +5",
+        "s2c/90 bùa +5→+6",
+        "s2c/90 đá +5→+6 lần 1",
+    ] {
+        bot.on_packet(90, &o1(key), now, &mut out).unwrap();
+    }
+    out.clear();
+    bot.on_packet(91, &o1("s2c/91 bùa thất bại +7"), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp thất bại: Nhẫn Thái Cực còn +7, mất 1 viên đá nhờ bùa, mất cả 1 Bùa bảo vệ sơ cấp"
+        ),
+        "{out:?}"
+    );
+    out.clear();
+    let after = [(19, 333, 7, 0, 1), (20, 35, 0, 1, 1), (23, 415, 0, 0, 1)];
+    bot.on_packet(42, &bag_n(&after), now, &mut out).unwrap();
+    assert_eq!(sent(&out, 13), [PHAP_SU], "again at +7");
+    assert!(bot.snapshot().smith.unwrap().done.is_none());
+}
+
+#[test]
+fn che_tao_nhan_bac_i_nhu_o1_dat_ca_chong_nguyen_lieu() {
+    // O1: Quặng Bậc 1 ×86 in slot 33, Linh Thạch Bậc 1 ×43 in 37; level 31.
+    let items = [(33, 598, 0, 0, 86), (37, 610, 0, 0, 43)];
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(42, &bag_n(&items), now, &mut out).unwrap();
+    bot.snap.level = 31;
+    out.clear();
+    bot.smith(SmithTask::Craft { kind: 3, tier: 1 }, now, &mut out);
+    assert!(logged(&out, "Chế tạo Nhẫn Bậc I"), "{out:?}");
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+    let path = [
+        ("s2c/57 Pháp sư", 3),
+        ("s2c/57 Chế tạo", 1),
+        ("s2c/57 Chế tạo trang bị", 3),
+        ("s2c/57 Nhẫn", 0),
+    ];
+    for (key, option) in path {
+        out.clear();
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+        assert_eq!(sent(&out, 57), [line57(option, 161)], "{key}");
+    }
+    let read = &bot.snapshot().recipes;
+    assert_eq!(
+        (
+            read.len(),
+            read[0].name,
+            read[0].recipes.len(),
+            read[0].recipes[0].xu
+        ),
+        (1, "Nhẫn", 3, 2400)
+    );
+    out.clear();
+    bot.on_packet(99, &o1("s2c/99 Chế tạo trang bị"), now, &mut out)
+        .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [o1_put("c2s/97 Quặng")],
+        "the whole stack, kind 1"
+    );
+    out.clear();
+    bot.on_packet(92, &o1("s2c/92 Quặng"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 97), [o1_put("c2s/97 Linh Thạch")]);
+    out.clear();
+    bot.on_packet(92, &o1("s2c/92 Linh Thạch sẵn sàng"), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Bắt đầu: Chế tạo Nhẫn Bậc I (Quặng Bậc 1 24, Linh Thạch Bậc 1 24, 2.400 Xu) (2.400 Xu)"
+        ),
+        "{out:?}"
+    );
+    out.clear();
+    bot.on_packet(93, &o1("s2c/93 Chế tạo"), now, &mut out)
+        .unwrap();
+    assert!(logged(&out, "Chế tạo thành công: Nhẫn Bậc I"), "{out:?}");
+    // The notice of the item comes during the bag's wait: it ends nothing.
+    bot.on_packet(
+        1256,
+        &notice("Bạn vừa nhận được Nhẫn Thái Cực"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    let after = [(33, 598, 0, 0, 62), (37, 610, 0, 0, 19), (12, 333, 0, 0, 1)];
+    bot.on_packet(42, &bag_n(&after), now, &mut out).unwrap();
+    assert!(
+        logged(
+            &out,
+            "Chế tạo Nhẫn Bậc I: đã chế tạo Nhẫn Thái Cực (ô túi 13) (1 lần, tốn 2.400 Xu)"
+        ),
+        "{out:?}"
+    );
+    // Bậc II needs level 51 and materials the bag lacks: said, nothing picked.
+    out.clear();
+    bot.smith(SmithTask::Craft { kind: 3, tier: 2 }, now, &mut out);
+    for key in [
+        "s2c/57 Pháp sư",
+        "s2c/57 Chế tạo",
+        "s2c/57 Chế tạo trang bị",
+    ] {
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+    }
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Nhẫn"), now, &mut out)
+        .unwrap();
+    assert!(sent(&out, 57).is_empty());
+    assert!(
+        logged(
+            &out,
+            "Chế tạo Nhẫn Bậc II: cần cấp 51, nhân vật cấp 31; thiếu Quặng Bậc 2 0/24; thiếu Linh Thạch Bậc 2 0/24"
+        ),
+        "{out:?}"
+    );
+}
+
+#[test]
+fn doi_bang_tam_roi_noi_lai_voi_phap_su_va_diem_nang_dong_chi_doc() {
+    // O1: 8 Băng Tâm, one bottle.
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(42, &bag_n(&[(40, 21, 0, 1, 8)]), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.smith(SmithTask::Ice { option: 0 }, now, &mut out);
+    for (key, option) in [("s2c/57 Pháp sư", 3), ("s2c/57 Chế tạo", 3)] {
+        out.clear();
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+        assert_eq!(sent(&out, 57), [line57(option, 161)], "{key}");
+    }
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Đổi Băng Tâm có 8"), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 57), [line57(0, 161)], "Đổi 1 bình");
+    out.clear();
+    bot.on_packet(
+        1256,
+        &notice("Đã đổi 8 Băng Tâm lấy 1 Bình Huyết Linh (Rỗng)"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    // Its lines exchange at once: Pháp sư is talked to again before anything else.
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Pháp sư"), now, &mut out)
+        .unwrap();
+    assert!(sent(&out, 57).is_empty());
+    assert_eq!(sent(&out, 42).len(), 1);
+    out.clear();
+    bot.on_packet(42, &bag_n(&[(40, 16, 0, 1, 1)]), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Đổi Băng Tâm lấy bình rỗng (1 bình): đã đổi; còn 0 Băng Tâm, có 1 Bình Huyết Linh (Rỗng) (1 lần)"
+        ),
+        "{out:?}"
+    );
+    // Five bottles from 8: said once the menu shows the count, and Pháp sư talked to again.
+    bot.on_packet(42, &bag_n(&[(40, 21, 0, 1, 8)]), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.smith(SmithTask::Ice { option: 1 }, now, &mut out);
+    for key in ["s2c/57 Pháp sư", "s2c/57 Chế tạo"] {
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+    }
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Đổi Băng Tâm có 8"), now, &mut out)
+        .unwrap();
+    assert!(sent(&out, 57).is_empty());
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Pháp sư"), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Đổi Băng Tâm lấy bình rỗng (5 bình): cần 40 Băng Tâm, có 8"
+        ),
+        "{out:?}"
+    );
+
+    // Điểm năng động: line 3 of Hương Lão, then Cách tính điểm, then his first menu again; nothing else is picked.
+    out.clear();
+    bot.smith(SmithTask::Points { rules: true }, now, &mut out);
+    assert_eq!(sent(&out, 13), [HUONG_LAO]);
+    let root = menu(
+        "Hương Lão Trần Bá",
+        &[
+            "Mã quà tặng",
+            "Đổi lượng",
+            "Nhiệm vụ hàng ngày",
+            "Điểm năng động",
+        ],
+    );
+    out.clear();
+    bot.on_packet(57, &root, now, &mut out).unwrap();
+    assert_eq!(sent(&out, 57), [line57(3, 102)]);
+    let text = "Điểm năng động tuần này: 12/100\nHạn mức đổi (cấp 31): 3.000 Xu, cần 3.300 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai.";
+    out.clear();
+    bot.on_packet(
+        57,
+        &menu_text(
+            "Hương Lão Trần Bá",
+            text,
+            &["Đổi Xu", "Cách tính điểm", "Đóng"],
+        ),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 57),
+        [line57(1, 102)],
+        "Cách tính điểm, never Đổi Xu"
+    );
+    out.clear();
+    let rules = Writer::new()
+        .u8(0)
+        .string("Đánh quái: 1 điểm mỗi trận thắng.")
+        .build();
+    bot.on_packet(0, &rules, now, &mut out).unwrap();
+    assert_eq!(sent(&out, 13), [HUONG_LAO]);
+    out.clear();
+    bot.on_packet(57, &root, now, &mut out).unwrap();
+    assert!(sent(&out, 57).is_empty());
+    assert!(
+        logged(
+            &out,
+            "Xem Điểm năng động: 12/100 điểm; đổi được 3.000 Xu (cần 3.300 Xu khóa); đã đọc Cách tính điểm"
+        ),
+        "{out:?}"
+    );
+    let p = bot.snapshot().points.unwrap();
+    assert_eq!(
+        (
+            p.points.points,
+            p.points.xu_khoa,
+            p.points.slots_left,
+            p.rules.is_some()
+        ),
+        (Some(12), Some(3300), Some(500), true)
+    );
 }

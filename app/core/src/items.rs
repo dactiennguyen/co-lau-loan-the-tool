@@ -318,6 +318,15 @@ impl ItemBook {
     pub fn get(&self, id: i32) -> Option<&ItemDef> {
         self.by_id.get(&id).map(|&i| &self.items[i])
     }
+    /// The id of the material (it1 type 22) named so, the last of that name as the TS side's Map keeps it (the materials
+    /// of Chế tạo trang bị: "Quặng Bậc 1" is 598).
+    pub fn material(&self, name: &str) -> Option<i32> {
+        self.items
+            .iter()
+            .rev()
+            .find(|d| d.kind == 22 && d.name == name)
+            .map(|d| d.id)
+    }
     /// "+4 phòng thủ", "+1% chí mạng"; "code: value" for a code the table has no text for.
     pub fn stat(&self, s: &ItemStat) -> String {
         match self

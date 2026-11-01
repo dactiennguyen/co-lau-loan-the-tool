@@ -21,7 +21,11 @@ import { fixtures } from '../../test/fixtures.ts';
 import { npcPackets, symapBag } from '../../test/fixtures-npc.ts';
 import { shopList } from '../protocol/world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, quote, mergePlan,
-  mergeForecast, upgradeStones, putRequest, startRequest } from '../protocol/npc.ts';
+  mergeForecast, upgradeStones, putRequest, startRequest, craftSlot, recipes, craftMaterials, iceHeld, failLevel, charmUseful, charmFor, itemCap,
+  PUT_ITEM, PUT_STACK } from '../protocol/npc.ts';
+import { o1Packets } from '../../test/fixtures-o1.ts';
+import { npcMenu } from '../protocol/world.ts';
+import { pointsText } from '../protocol/shops.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 import { g1Packets } from '../../test/fixtures-g1.ts';
 import { q17Packets } from '../../test/fixtures-q17.ts';
@@ -132,6 +136,55 @@ function npcCases() {
     decoders, quotes: [...texts].map(text => ({ text, expected: quote(text) })), plans,
     upgradeStones: [true, false].map(unlocked => ({ unlocked, slots: upgradeStones(symapBag, { unlocked }).map(i => i.slot) })),
     requests: { put45: hex(putRequest(45)), start: hex(startRequest()) },
+    o1: o1Cases(),
+  };
+}
+
+/** Bùa bảo vệ, Chế tạo trang bị and Đổi Băng Tâm (test/fixtures-o1.ts, O1), Điểm năng động (the texts of G1 and J1,
+ * 14-npc.md#điểm-năng-động): what the TS side reads in the packets and texts, its rules for charms and caps, the stacks
+ * it puts for a recipe, and c2s/97 of a charm and of materials as the phone sent them (app/core/tests/npc.rs). */
+function o1Cases() {
+  const P = o1Packets, b = (k: string) => bytes(P[k]);
+  const fns: Record<string, [string, (p: Uint8Array) => unknown]> = {
+    's2c/96': ['serviceWindow', serviceWindow], 's2c/99': ['craftWindow', craftWindow], 's2c/90': ['serviceSlot', serviceSlot],
+    's2c/92': ['craftSlot', craftSlot], 's2c/1258': ['servicePreview', servicePreview], 's2c/91': ['serviceResult', serviceResult],
+    's2c/93': ['stoneResult', stoneResult], 's2c/57': ['npcMenu', npcMenu],
+  };
+  const decoders = Object.entries(P).flatMap(([key, h]) => {
+    const f = fns[key.split(' ')[0]];
+    return f ? [{ fn: f[0], key, hex: h, expected: f[1](bytes(h)) }] : [];
+  });
+  const items = Items.load(), ids = new Map(items.book.items.filter(i => i.type === 22).map(i => [i.name, i.id]));
+  const ring = npcMenu(b('s2c/57 Nhẫn')), recipeList = recipes(ring);
+  // The materials of O1 (Quặng 86 in slot 33, Linh Thạch 43 in 37), a smaller Quặng stack, and a Linh Thạch short of 24.
+  const quang = ids.get('Quặng Bậc 1')!, linh = ids.get('Linh Thạch Bậc 1')!;
+  const bags = [
+    [{ slot: 33, itemId: quang, field0: 0, field1: 0, quantity: 86 }, { slot: 37, itemId: linh, field0: 0, field1: 0, quantity: 43 }, { slot: 40, itemId: quang, field0: 0, field1: 0, quantity: 30 }],
+    [{ slot: 5, itemId: quang, field0: 0, field1: 0, quantity: 24 }, { slot: 6, itemId: linh, field0: 0, field1: 0, quantity: 10 }],
+  ];
+  const materials = bags.flatMap(bag => recipeList.map(recipe => {
+    const { puts, missing } = craftMaterials(bag, recipe, name => ids.get(name));
+    return { bag, tier: recipe.tier, puts: puts.map(p => ({ name: p.name, count: p.count, slot: p.item.slot })), missing };
+  }));
+  const charmBag = [{ slot: 20, itemId: 35, field0: 0, field1: 1, quantity: 3 }, { slot: 21, itemId: 37, field0: 0, field1: 1, quantity: 1 }];
+  const pointTexts = ['Điểm năng động tuần này: 12/100\nHạn mức đổi (cấp 31): 3.000 Xu, cần 3.300 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai.',
+    'Điểm năng động tuần này: 54/100\nHạn mức đổi (cấp 79): 7.000 Xu, cần 7.700 Xu khóa\nTuần này còn 1.200/1.500 suất.', 'Hương Lão chưa nói gì.'];
+  return {
+    decoders,
+    recipes: [{ key: 's2c/57 Nhẫn', text: ring.text, options: ring.options, expected: recipeList },
+      { key: 's2c/57 Pháp sư', text: npcMenu(b('s2c/57 Pháp sư')).text, options: npcMenu(b('s2c/57 Pháp sư')).options, expected: recipes(npcMenu(b('s2c/57 Pháp sư'))) }],
+    materials, ids: Object.fromEntries([...new Set(recipeList.flatMap(r => r.materials.map(m => m.name)))].map(n => [n, ids.get(n) ?? null])),
+    ice: [npcMenu(b('s2c/57 Đổi Băng Tâm có 8')).text, 'Bạn đang có 1.024 Băng Tâm.', 'Không có Băng Tâm.'].map(text => ({ text, held: iceHeld(text) ?? null })),
+    points: pointTexts.map(text => ({ text, expected: pointsText(text) })),
+    charms: Array.from({ length: 17 }, (_, level) => ({ level, failLevel: failLevel(level), charmUseful: charmUseful(level), charm: charmFor(charmBag, level)?.slot ?? null })),
+    charmBag,
+    caps: [[4, 1], [0, 51], [3, 21], [0, 101], [1, 20]].map(([type, level]) => ({ type, level, cap: itemCap({ type, level }) })),
+    requests: [
+      { key: 'c2s/97 Quặng', slot: 33, quantity: 86, kind: PUT_STACK, hex: hex(putRequest(33, 86, PUT_STACK)), phone: P['c2s/97 Quặng'] },
+      { key: 'c2s/97 Linh Thạch', slot: 37, quantity: 43, kind: PUT_STACK, hex: hex(putRequest(37, 43, PUT_STACK)), phone: P['c2s/97 Linh Thạch'] },
+      { key: 'c2s/97 nhẫn', slot: 19, quantity: 1, kind: PUT_ITEM, hex: hex(putRequest(19, 1, PUT_ITEM)), phone: P['c2s/97 nhẫn'] },
+      { key: 'c2s/97 bùa', slot: 20, quantity: 1, kind: PUT_STACK, hex: hex(putRequest(20, 1, PUT_STACK)), phone: P['c2s/97 bùa'] },
+    ],
   };
 }
 

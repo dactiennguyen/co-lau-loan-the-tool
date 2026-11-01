@@ -15,8 +15,8 @@ use crate::mail::{MailBody, MailHeader};
 use crate::market::{MarketPage, MarketTabs};
 use crate::npc::{
     self, craft_window, merge_plan, quote, service_preview, service_result, service_slot,
-    service_window, stone_result, stone_slot, transmute_item, transmute_target, upgrade_stones,
-    BagItem, MergeOptions, Quote, WindowKind,
+    service_window, stone_result, transmute_item, transmute_target, upgrade_stones, BagItem,
+    MergeOptions, Quote, WindowKind,
 };
 use crate::potentials::{next_stat, StatPlan, POTENTIALS};
 use crate::protocol::{

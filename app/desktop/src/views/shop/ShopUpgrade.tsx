@@ -8,7 +8,7 @@ import { Icon } from "@/components/Icon";
 import { Stepper } from "@/components/Stepper";
 import { num } from "@/utils/format";
 import { itemIcon } from "@/game/itemIcons";
-import { isGear, SAFE_LEVEL, stoneCounts, stoneLevel, TRANSMUTE_ITEMS, upgradeCap } from "@/game/shops";
+import { CHARMS, charmUseful, failLevel, isGear, itemCap, SAFE_LEVEL, stoneCounts, stoneLevel, TRANSMUTE_ITEMS } from "@/game/shops";
 import type { Item } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 import { ItemChip, Stone, STONES } from "./Stone";
@@ -20,8 +20,9 @@ const PART = "grid [align-content:start] justify-items-start gap-1.5 px-2.5 py-2
  * Nâng cấp (16-upgrade.md#nâng-cấp): a piece of gear of the bag, Thường or Cẩn thận (+5 Lượng, odds ×1,5), the odds to
  * aim for and the level to reach. Hỏi giá asks Pháp sư the price and odds of the next level and presses nothing. Nâng
  * cấp puts the cheapest stones one by one until the odds are reached, as the server takes every stone put in, and goes
- * on level by level up to +4 (below it a failure keeps the level; Bùa bảo vệ is not measured yet). Tách đá and Chuyển
- * hoá work on the same item. Gear worn is listed too: the game's window takes items of the bag only, so the bot takes it
+ * on level by level up to the level chosen, the cap of the item at most. Below +4 a failure keeps the level; from +5 it
+ * drops to +4, +8, +12 or +14 unless a Bùa bảo vệ is in (O1), which Dùng Bùa bảo vệ puts on those presses. Tách đá and
+ * Chuyển hoá work on the same item. Gear worn is listed too: the game's window takes items of the bag only, so the bot takes it
  * off, upgrades it and wears it again (SmithTask::Upgrade `worn`). Every press asks once more.
  */
 export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
@@ -42,8 +43,9 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   const [careful, setCareful] = useState(false);
   const [rate, setRate] = useState(100);
   const [unlocked, setUnlocked] = useState(false);
-  const cap = item ? upgradeCap(item.level ?? 1) : 0;
-  const top = Math.min(cap, SAFE_LEVEL);
+  const [charm, setCharm] = useState(true);
+  const cap = item ? itemCap(item) : 0;
+  const top = cap;
   const [toLevel, setToLevel] = useState(1);
   useEffect(() => {
     if (item) setToLevel(Math.min(top, item.plus + 1));
@@ -55,6 +57,13 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
     .map(([locked, free], level): [number, number] => [level, locked + (unlocked ? free : 0)])
     .filter(([level, n]) => level > 0 && n > 0);
   const mine = run && item && run.item?.uuid === item.uuid ? run : null;
+  // Bùa bảo vệ: the levels of the run a failure would drop, the charm each needs, and those of the bag.
+  const risky = item ? Array.from({ length: Math.max(0, toLevel - item.plus) }, (_, k) => item.plus + k).filter(charmUseful) : [];
+  const charms = CHARMS.map((ch) => ({
+    ...ch,
+    count: (c.bag?.items ?? []).filter((i) => i.id === ch.id).reduce((n, i) => n + i.quantity, 0),
+  }));
+  const lacking = risky.filter((level) => !charms.some((ch) => ch.upTo > level && ch.count > 0));
 
   // Chuyển hoá: the targets the bot accepts, and the item that moves this level.
   const [targets, setTargets] = useState<number[]>([]);
@@ -122,9 +131,22 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               <Stepper value={toLevel} onChange={setToLevel} min={Math.min(top, item.plus + 1)} max={top} label="cấp muốn đạt" />
             </label>
             <Hint label="Nâng tới + là gì?" id={`${hint}-to`}>
-              Bot nâng từng cấp một tới cấp này. Thất bại thì thử lại đúng cấp đó với đá mới, cho tới khi đạt, hết đá hay hết tiền;
-              bấm Dừng để thôi giữa chừng. Tạm chỉ tới +{SAFE_LEVEL}: từ +5 thất bại sẽ tụt cấp và cần Bùa bảo vệ (chưa làm). Trần
-              theo bậc món: bậc 1 tới +4, bậc 21 tới +8, bậc 51 tới +12, bậc 101 tới +16.
+              Bot nâng từng cấp một tới cấp này. Dưới +{SAFE_LEVEL}, hay có bùa, thất bại giữ cấp nên bot thử lại đúng cấp đó với đá mới,
+              cho tới khi đạt, hết đá, hết bùa hay hết tiền; bấm Dừng để thôi giữa chừng. Trần theo bậc món: bậc 1 tới +4, bậc 21 tới
+              +8, bậc 51 tới +12, bậc 101 và Cánh tới +16.
+            </Hint>
+            <label className={SHOP.check}>
+              <input className={SHOP.checkInput} type="checkbox" checked={charm} onChange={(e) => setCharm(e.target.checked)} />
+              <span className={SHOP.checkBox} aria-hidden="true">
+                <Icon name="check" size={11} />
+              </span>
+              Dùng Bùa bảo vệ
+            </label>
+            <Hint label="Bùa bảo vệ là gì?" id={`${hint}-charm`}>
+              Từ +5, thất bại làm món tụt về +4 (từ +9 về +8, +13 về +12, +15 về +14). Có bùa thì giữ cấp, nhưng bùa mất cả khi
+              thành công lẫn thất bại. Chọn mục này thì mỗi lần bấm ở các cấp đó bot đặt 1 bùa thấp nhất còn bảo vệ được (sơ cấp
+              tới +8, trung cấp tới +12, cao cấp tới +14, siêu cấp tới +16); hết bùa thì dừng trước khi bấm. Bỏ chọn thì nâng không
+              bùa, và thất bại đầu tiên làm tụt cấp thì bot dừng.
             </Hint>
             <label className={SHOP.check}>
               <input className={SHOP.checkInput} type="checkbox" checked={unlocked} onChange={(e) => setUnlocked(e.target.checked)} />
@@ -148,8 +170,16 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
           <p className={SHOP.note}>
             {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stones.length} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
             khi đủ tỉ lệ hoặc tỉ lệ không tăng nữa (server lấy hết đá đã đặt); hết đá mà chưa đủ tỉ lệ thì không bấm.
-            Tạm chỉ nâng tới +{SAFE_LEVEL}: dưới +4 thất bại không tụt cấp.
           </p>
+          {risky.length > 0 && (
+            <p className={cn(SHOP.note, charm && lacking.length > 0 && "text-danger")}>
+              {charm
+                ? `Bùa: mỗi lần bấm ở +${risky.join(", +")} dùng 1 bùa. Túi có: ${
+                    charms.filter((ch) => ch.count > 0).map((ch) => `${ch.count} Bùa bảo vệ ${ch.name}`).join(", ") || "không có bùa"
+                  }.${lacking.length ? ` Thiếu bùa cho +${lacking.join(", +")}: bot sẽ dừng trước cấp đó.` : ""}`
+                : `Không dùng bùa: thất bại ở +${risky[0]} sẽ tụt về +${failLevel(risky[0])} và bot dừng.`}
+            </p>
+          )}
           {mine?.quote && (
             <div className="grid gap-0.5 px-2.5 py-2 text-12 text-fg bg-bg-2 border-l-3 border-l-primary">
               <span>
@@ -171,7 +201,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               disabled={!!why || !!wornWhy || item.plus >= cap || stones.length === 0}
               onClick={() => {
                 track();
-                api.smithUpgrade(account.id, item.slot, careful, rate, item.plus + 1, unlocked, true, worn);
+                api.smithUpgrade(account.id, item.slot, careful, rate, item.plus + 1, unlocked, true, worn, charm);
               }}
             >
               {worn ? "Hỏi giá (miễn phí; cởi ra rồi mặc lại)" : "Hỏi giá (miễn phí)"}
@@ -183,10 +213,10 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               onClick={() =>
                 ask({
                   title: `Nâng cấp ${item.name}`,
-                  message: `Nâng ${item.name} từ +${item.plus} tới +${toLevel}${careful ? " (Cẩn thận, mỗi lần +5 Lượng)" : ""}, mỗi lần đặt đá tới tỉ lệ ${rate}% hoặc tới trần. Mỗi lần nâng tốn đá và Xu khóa, thất bại thì mất cả hai nhưng không tụt cấp dưới +4; thành công thì món bị khoá giao dịch.${worn ? " Món đang mặc: bot cởi ra túi trước, xong (hay dừng giữa chừng) thì mặc lại." : ""}`,
+                  message: `Nâng ${item.name} từ +${item.plus} tới +${toLevel}${careful ? " (Cẩn thận, mỗi lần +5 Lượng)" : ""}, mỗi lần đặt đá tới tỉ lệ ${rate}% hoặc tới trần. Mỗi lần nâng tốn đá và Xu khóa, thất bại thì mất cả hai; thành công thì món bị khoá giao dịch.${risky.length ? (charm ? ` Ở +${risky.join(", +")} mỗi lần bấm dùng 1 Bùa bảo vệ (mất cả khi thành công), thất bại thì giữ cấp và bot thử lại.` : ` Không dùng bùa: thất bại ở +${risky[0]} sẽ tụt về +${failLevel(risky[0])} và bot dừng.`) : " Dưới +4 thất bại không tụt cấp."}${worn ? " Món đang mặc: bot cởi ra túi trước, xong (hay dừng giữa chừng) thì mặc lại." : ""}`,
                   confirm: "Nâng cấp",
                   icon: "hammer",
-                  run: () => api.smithUpgrade(account.id, item.slot, careful, rate, toLevel, unlocked, false, worn),
+                  run: () => api.smithUpgrade(account.id, item.slot, careful, rate, toLevel, unlocked, false, worn, charm),
                 })
               }
             >
@@ -282,9 +312,6 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
           )}
         </>
       )}
-      <p className="mt-1.5 mb-0 px-2 py-1.5 text-[11.5px] text-fg-3 bg-bg-2 border-l-3 border-l-line-strong">
-        Chưa làm: Bùa bảo vệ và nâng trên +{SAFE_LEVEL} (chưa đo được cấp nào server nhận bùa), Chế tạo trang bị theo công thức.
-      </p>
     </div>
   );
 }

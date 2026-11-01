@@ -218,6 +218,36 @@ pub fn stone_slot(p: &[u8]) -> Result<StoneSlot> {
     )
 }
 
+/// s2c/92 in Chế tạo trang bị: as stone_slot, with the fee in Xu once both materials are in (O1: 2.400 for Bậc I, 26.500
+/// Bậc II, 90.000 Bậc III; 0 before that, and 0 in Luyện đá, whose fee is in the text). ← craftSlot.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CraftSlot {
+    pub name: String,
+    pub slot: i32,
+    pub fee: i32,
+    pub text: String,
+    pub ready: bool,
+}
+pub fn craft_slot(p: &[u8]) -> Result<CraftSlot> {
+    let mut r = Reader::new(p);
+    let name = r.string()?;
+    r.u8()?;
+    let slot = r.i32()?;
+    r.i32()?;
+    let fee = r.i32()?;
+    let (text, ready) = (r.string()?, r.u8()? == 1);
+    r.finish(
+        CraftSlot {
+            name,
+            slot,
+            fee,
+            text,
+            ready,
+        },
+        "s2c/92",
+    )
+}
+
 /// s2c/1258 after the gear of Nâng cấp is put, and after Bắt đầu: the item one level up, for the result slot.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ServicePreview {
@@ -296,14 +326,19 @@ pub fn stone_result(p: &[u8]) -> Result<StoneResult> {
     r.finish(StoneResult { name, ok, items }, "s2c/93")
 }
 
-/// c2s/97: puts the item of a bag slot in the open window. Free; the window answers.
-pub fn put_request(slot: i32) -> Vec<u8> {
+/// The third field of c2s/97 (16-upgrade.md#gói): 0 for gear, stones and Chuyển hoá items; 1 for Bùa bảo vệ and the
+/// materials of Chế tạo trang bị, which go in with the whole stack (O1). With 0 a charm is "Vật phẩm không phù hợp".
+pub const PUT_ITEM: i32 = 0;
+pub const PUT_STACK: i32 = 1;
+/// c2s/97: puts `quantity` of the item of a bag slot in the open window, as `kind` (PUT_ITEM, PUT_STACK). Free; the window
+/// answers. ← putRequest.
+pub fn put_request(slot: i32, quantity: i32, kind: i32) -> Vec<u8> {
     Writer::new()
         .string("")
         .u8(0)
-        .i32(0)
+        .i32(kind)
         .i32(slot)
-        .i32(1)
+        .i32(quantity)
         .build()
 }
 /// c2s/91: Bắt đầu, the same in every window.
@@ -442,19 +477,22 @@ pub fn upgrade_cap(wear_level: i32) -> i32 {
         _ => 4,
     }
 }
-/// Below +4 a failed Nâng cấp keeps the level (Cẩm nang); the app upgrades only that far until Bùa is measured.
+/// Below +4 a failed Nâng cấp keeps the level (Cẩm nang).
 pub const SAFE_LEVEL: i32 = 4;
 /// Chuyển hoá trang bị sơ, trung, cao cấp and the level each moves up to.
 pub const TRANSMUTE_ITEMS: [(i32, i32); 3] = [(616, 10), (617, 13), (618, 16)];
 
 /// The fields of a bag item the plans read (ItemRecord, or {slot, itemId, field0, field1} of the vectors).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BagItem {
     pub slot: i32,
     pub item_id: i32,
     pub field0: i32,
     pub field1: u8,
+    /// The stack (materials of Chế tạo); 0 in the vectors that leave it out.
+    #[serde(default)]
+    pub quantity: i32,
 }
 impl From<&ItemRecord> for BagItem {
     fn from(i: &ItemRecord) -> Self {
@@ -463,6 +501,7 @@ impl From<&ItemRecord> for BagItem {
             item_id: i.item_id,
             field0: i.field0,
             field1: i.field1,
+            quantity: i.quantity,
         }
     }
 }
@@ -667,4 +706,253 @@ pub fn transmute_item(bag: &[BagItem], level: i32) -> Option<BagItem> {
         .iter()
         .filter(|(_, up_to)| *up_to >= level)
         .find_map(|(id, _)| bag.iter().find(|i| i.item_id == *id).copied())
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Bùa bảo vệ, Chế tạo trang bị and Đổi Băng Tâm (O1, 16-upgrade.md#thất-bại-và-bùa, #chế-tạo); Điểm năng động of Hương
+// Lão (14-npc.md#điểm-năng-động). ← the same part of src/protocol/npc.ts and pointsText of src/protocol/shops.ts.
+
+/// Bùa bảo vệ sơ, trung, cao, siêu cấp and the highest level of the upgrade each protects ("từ cấp 1 đến cấp 8 / 12 / 14
+/// / 16"). They stack, and go in with c2s/97 PUT_STACK, quantity 1.
+pub const CHARMS: [(i32, i32); 4] = [(35, 8), (36, 12), (37, 14), (38, 16)];
+/// The levels a failed Nâng cấp falls back to (Cẩm nang; +7 → +4 measured in O1). Below +4 it keeps its level.
+pub const FALLBACK_LEVELS: [i32; 4] = [4, 8, 12, 14];
+/// The level of an item +`level` after a failed Nâng cấp without a charm.
+pub fn fail_level(level: i32) -> i32 {
+    FALLBACK_LEVELS
+        .iter()
+        .copied()
+        .rfind(|&m| m <= level)
+        .unwrap_or(level)
+}
+/// Whether a failed Nâng cấp from +`level` loses levels (+5 to +7, +9 to +11, +13, +15), so a charm is worth it.
+pub fn charm_useful(level: i32) -> bool {
+    fail_level(level) < level
+}
+/// The lowest charm of the bag that protects the upgrade from +`level` to the next.
+pub fn charm_for(bag: &[BagItem], level: i32) -> Option<BagItem> {
+    CHARMS
+        .iter()
+        .filter(|(_, up_to)| *up_to > level)
+        .find_map(|(id, _)| bag.iter().find(|i| i.item_id == *id).copied())
+}
+/// Trần cường hoá of an item from its it1 type and wear level: wings (type 4) go to +16 whatever their level.
+pub fn item_cap(kind: u8, wear_level: i32) -> i32 {
+    match kind {
+        4 => 16,
+        _ => upgrade_cap(wear_level),
+    }
+}
+
+/// Chế tạo trang bị: Pháp sư → 3 Chế tạo → 1 Chế tạo trang bị → the kind (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), whose s2c/57
+/// gives the recipes; a tier line opens the window s2c/99 "abcd1001".
+pub const CRAFT_PATH: [u8; 2] = [3, 1];
+pub const CRAFT_LABELS: [&str; 4] = ["Nón", "Áo", "Vũ khí", "Nhẫn"];
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Material {
+    pub name: String,
+    pub count: i32,
+}
+/// A tier of an item kind: its line in the menu, the character level it needs, the materials and the Xu.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Recipe {
+    pub tier: i32,
+    pub option: u8,
+    pub level: i32,
+    pub materials: Vec<Material>,
+    pub xu: i64,
+}
+/// "2.400" → 2400.
+fn amount(s: &str) -> Option<i64> {
+    let d: String = s.chars().filter(|c| *c != '.').collect();
+    (!d.is_empty() && d.bytes().all(|b| b.is_ascii_digit()))
+        .then(|| d.parse().ok())
+        .flatten()
+}
+fn roman(s: &str) -> Option<i32> {
+    ["I", "II", "III", "IV", "V", "VI"]
+        .iter()
+        .position(|r| *r == s)
+        .map(|i| i as i32 + 1)
+}
+/// The recipes of an item kind from its s2c/57: the text gives "Bậc I: Quặng Bậc 1 x24, Linh Thạch Bậc 1 x24, 2.400 Xu"
+/// for each tier, the lines "Bậc II (Lv 51)" the character level each needs (O1). ← recipes.
+pub fn recipes(text: &str, options: &[(u8, String)]) -> Vec<Recipe> {
+    let mut out = vec![];
+    for line in text.split('\n') {
+        let Some((head, rest)) = line
+            .trim()
+            .strip_prefix("Bậc ")
+            .and_then(|l| l.split_once(": "))
+        else {
+            continue;
+        };
+        if !head.chars().all(|c| c == 'I' || c == 'V') || rest.is_empty() {
+            continue;
+        }
+        let Some(tier) = roman(head) else { continue };
+        let parts: Vec<&str> = rest.split(',').map(str::trim).collect();
+        let xu = parts
+            .last()
+            .and_then(|p| p.strip_suffix(" Xu"))
+            .and_then(amount);
+        let materials: Vec<Material> = parts[..parts.len() - 1]
+            .iter()
+            .filter_map(|p| {
+                let (name, count) = p.rsplit_once(" x")?;
+                let count = count
+                    .parse()
+                    .ok()
+                    .filter(|_| count.bytes().all(|b| b.is_ascii_digit()))?;
+                (!name.is_empty()).then(|| Material {
+                    name: name.into(),
+                    count,
+                })
+            })
+            .collect();
+        let prefix = format!("Bậc {head} (Lv ");
+        let label = options.iter().find_map(|(o, l)| {
+            let lv = l.strip_prefix(&prefix)?;
+            let end = lv.find(|c: char| !c.is_ascii_digit())?;
+            (end > 0 && lv[end..].starts_with(')')).then(|| (*o, lv[..end].parse::<i32>().ok()))
+        });
+        let (Some(xu), Some((option, Some(level)))) = (xu, label) else {
+            continue;
+        };
+        if materials.len() != parts.len() - 1 {
+            continue;
+        }
+        out.push(Recipe {
+            tier,
+            option,
+            level,
+            materials,
+            xu,
+        });
+    }
+    out
+}
+/// A material of a recipe and the bag stack to put for it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MaterialPut {
+    pub name: String,
+    pub count: i32,
+    pub item: BagItem,
+}
+/// The bag slot to put for each material of a recipe: the largest stack of that item, which must hold the count (the
+/// client puts one stack, the whole of it; the server takes the count), and what is missing ("Quặng Bậc 1 10/24").
+/// `id_of` maps a material name to its item id. ← craftMaterials.
+pub fn craft_materials(
+    bag: &[BagItem],
+    recipe: &Recipe,
+    id_of: impl Fn(&str) -> Option<i32>,
+) -> (Vec<MaterialPut>, Vec<String>) {
+    let (mut puts, mut missing) = (vec![], vec![]);
+    for m in &recipe.materials {
+        let id = id_of(&m.name);
+        // The largest stack; the first of equal ones, as the stable sort of the TS side.
+        let best = bag
+            .iter()
+            .filter(|i| Some(i.item_id) == id)
+            .fold(None::<&BagItem>, |b, i| match b {
+                Some(b) if b.quantity >= i.quantity => Some(b),
+                _ => Some(i),
+            });
+        match best {
+            Some(b) if b.quantity >= m.count => puts.push(MaterialPut {
+                name: m.name.clone(),
+                count: m.count,
+                item: *b,
+            }),
+            _ => missing.push(format!(
+                "{} {}/{}",
+                m.name,
+                best.map_or(0, |b| b.quantity),
+                m.count
+            )),
+        }
+    }
+    (puts, missing)
+}
+
+/// Đổi Băng Tâm lấy bình rỗng: Pháp sư → 3 Chế tạo → 3, then 0 one bottle, 1 five, 2 all. 8 Băng Tâm (item 21) make one
+/// Bình Huyết Linh (Rỗng) (item 16). The server exchanges as soon as the line is picked, without asking again (O1).
+pub const ICE_PATH: [u8; 2] = [3, 3];
+pub const ICE_PER_BOTTLE: i64 = 8;
+pub const ICE_ID: i32 = 21;
+pub const BOTTLE_ID: i32 = 16;
+/// What follows each `pat` in `text`, first to last (a regex tries every place).
+fn after_each<'a>(text: &'a str, pat: &'a str) -> impl Iterator<Item = &'a str> {
+    text.match_indices(pat)
+        .map(move |(i, _)| &text[i + pat.len()..])
+}
+/// `[\d.]+` at the start of `s` as a number ("7.000" → 7000) and what follows; None without a digit.
+fn dotted(s: &str) -> Option<(i64, &str)> {
+    let end = s
+        .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+        .unwrap_or(s.len());
+    amount(&s[..end]).map(|n| (n, &s[end..]))
+}
+
+/// "Đổi 8 Băng Tâm lấy 1 Bình Huyết Linh (Rỗng). Bạn đang có 8 Băng Tâm." → 8. ← iceHeld.
+pub fn ice_held(text: &str) -> Option<i64> {
+    after_each(text, "Bạn đang có ").find_map(|r| {
+        let (n, r) = dotted(r)?;
+        r.starts_with(" Băng Tâm").then_some(n)
+    })
+}
+
+/// Điểm năng động of Hương Lão: line 3 of his menu, whose s2c/57 says the points of the week and the exchange limit; its
+/// line 1 Cách tính điểm answers with s2c/0. Its line 0 Đổi Xu (at 100 points, for Xu khóa) is not measured and line 2
+/// Đóng leaves the phone's client stuck (G1): the bot sends neither.
+pub const POINTS_PATH: u8 = 3;
+pub const POINTS_RULES: u8 = 1;
+/// "Điểm năng động tuần này: 54/100\nHạn mức đổi (cấp 79): 7.000 Xu, cần 7.700 Xu khóa\nTuần này còn 500/500 suất. …"
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityPoints {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub points: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub need: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub xu: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub xu_khoa: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slots_left: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slots: Option<i64>,
+}
+/// ← pointsText.
+pub fn points_text(text: &str) -> ActivityPoints {
+    let mut p = ActivityPoints::default();
+    let points = after_each(text, "tuần này: ").find_map(|r| {
+        let (a, r) = digits(r)?;
+        let (b, _) = digits(r.strip_prefix('/')?)?;
+        Some((a, b))
+    });
+    if let Some((a, b)) = points {
+        (p.points, p.need) = (Some(a), Some(b));
+    }
+    let limit = after_each(text, "Hạn mức đổi (cấp ").find_map(|r| {
+        let (level, r) = digits(r)?;
+        let (xu, r) = dotted(r.strip_prefix("): ")?)?;
+        let (khoa, r) = dotted(r.strip_prefix(" Xu, cần ")?)?;
+        r.starts_with(" Xu khóa").then_some((level, xu, khoa))
+    });
+    if let Some((level, xu, khoa)) = limit {
+        (p.level, p.xu, p.xu_khoa) = (Some(level), Some(xu), Some(khoa));
+    }
+    let slots = after_each(text, "còn ").find_map(|r| {
+        let (a, r) = dotted(r)?;
+        let (b, r) = dotted(r.strip_prefix('/')?)?;
+        r.starts_with(" suất").then_some((a, b))
+    });
+    if let Some((a, b)) = slots {
+        (p.slots_left, p.slots) = (Some(a), Some(b));
+    }
+    p
 }

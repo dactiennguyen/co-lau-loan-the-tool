@@ -356,6 +356,10 @@ export interface Character {
   shop: Shop | null;
   /** The work of Pháp sư or Hương Lão under way or last done (Tiện ích). */
   smith: SmithRun | null;
+  /** Chế tạo trang bị: the recipes of each item kind read so far (Xem công thức). */
+  recipes: CraftRecipes[];
+  /** Điểm năng động of Hương Lão as last read. */
+  points: PointsRead | null;
   /** Mã quà tặng under way or last done (Tiện ích). */
   gift: GiftRun | null;
   /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
@@ -527,10 +531,41 @@ export interface Quote {
   gain: { quantity: number; name: string }[];
 }
 
+/** A tier of an item kind of Chế tạo trang bị, as Pháp sư's menu says it (npc::Recipe). */
+export interface Recipe {
+  tier: number;
+  option: number;
+  /** The character level it needs. */
+  level: number;
+  materials: { name: string; count: number }[];
+  xu: number;
+}
+export interface CraftRecipes {
+  kind: number;
+  name: string;
+  recipes: Recipe[];
+  readAt: number;
+}
+/** Điểm năng động (npc::ActivityPoints): the points of the week out of `need`, the exchange limit at `level`, the
+ * places left this week; a number is missing when Hương Lão's words did not have it. */
+export interface PointsRead {
+  points?: number;
+  need?: number;
+  level?: number;
+  xu?: number;
+  xuKhoa?: number;
+  slotsLeft?: number;
+  slots?: number;
+  text: string;
+  /** Cách tính điểm, when asked. */
+  rules: string | null;
+  readAt: number;
+}
+
 /** The work of Pháp sư or Hương Lão under way or last done (SmithView of view.rs). */
 export interface SmithRun {
   id: number;
-  kind: "merge" | "upgrade" | "quote" | "separate" | "transmute" | "exchange";
+  kind: "merge" | "upgrade" | "quote" | "separate" | "transmute" | "exchange" | "recipes" | "craft" | "ice" | "points";
   title: string;
   doing: string;
   steps: number;

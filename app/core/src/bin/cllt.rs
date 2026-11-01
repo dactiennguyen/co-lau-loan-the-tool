@@ -23,8 +23,8 @@
 //                                                       --confirm buy that item (2 Búa Sửa Chữa), which spends money
 //   cllt smith --account=NAME --quote=SLOT [--careful]  Pháp sư (on M1): print the stones and gear of the bag, ask the
 //                                                       price and odds of the next level of bag slot SLOT (free)
-//   cllt smith --account=NAME [--merge=12 | --upgrade=SLOT [--to=4] [--rate=100] [--careful] | --separate=SLOT |
-//              --transmute=SRC:DST | --exchange=OPT:TIMES] --confirm
+//   cllt smith --account=NAME [--merge=12 | --upgrade=SLOT [--to=4] [--rate=100] [--careful] [--charm=never] |
+//              --separate=SLOT | --transmute=SRC:DST | --exchange=OPT:TIMES] --confirm
 //                                                       Gộp đá, Nâng cấp, Tách đá, Chuyển hoá, Đổi lượng: spends money
 //                                                       and stones; without --confirm only what it would do is printed
 //                                                       --worn: SLOT of --quote, --upgrade is a gear slot; the item is
@@ -136,6 +136,12 @@ fn smith_task(
             b.parse().map_err(|_| bad())?,
         )))
     };
+    // --charm=never: no Bùa bảo vệ, a failure from +5 and up drops the item and ends the task.
+    let charm = match arg("charm").as_deref() {
+        None | Some("auto") => true,
+        Some("never") => false,
+        Some(v) => return Err(format!("--charm={v}: chỉ auto hoặc never")),
+    };
     if let Some(slot) = slot("quote")? {
         return Ok(Some(SmithTask::Upgrade {
             slot,
@@ -145,6 +151,7 @@ fn smith_task(
             unlocked: true,
             quote: true,
             worn,
+            charm,
         }));
     }
     if let Some(slot) = slot("upgrade")? {
@@ -156,6 +163,7 @@ fn smith_task(
             unlocked: false,
             quote: false,
             worn,
+            charm,
         }));
     }
     if let Some(up_to) = int("merge")? {

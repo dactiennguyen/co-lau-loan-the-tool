@@ -1,5 +1,6 @@
-//! Pháp sư and Hương Lão for Tiện ích: Gộp đá, Nâng cấp, Tách đá, Chuyển hoá and Đổi lượng
-//! (docs/app/events/16-upgrade.md#tính-năng, 15-shops.md#đổi-lượng). One task at a time, step by step as the game does:
+//! Pháp sư and Hương Lão for Tiện ích: Gộp đá, Nâng cấp (with Bùa bảo vệ), Tách đá, Chuyển hoá, Chế tạo trang bị, Đổi
+//! Băng Tâm, Đổi lượng and Điểm năng động (docs/app/events/16-upgrade.md#tính-năng, 15-shops.md#đổi-lượng,
+//! 14-npc.md#điểm-năng-động). One task at a time, step by step as the game does:
 //! c2s/13 to the NPC, c2s/57 down its menus, the window (s2c/96, s2c/99), c2s/97 for each item put in and the price and
 //! odds the window says (s2c/90, s2c/92, s2c/1260), c2s/91 for Bắt đầu and its result (s2c/91, s2c/93). The server sends no
 //! bag after a press, so the bot asks for it (c2s/42 → s2c/42) before the next one.
@@ -33,6 +34,22 @@ pub(super) enum Stage {
     Unequip,
     /// The task ended with a worn item still in the bag: Mặc (c2s/1186 action 0) sent; s2c/37, then s2c/42 next.
     Rewear,
+    /// The last line of the path went out for a menu the task reads (s2c/57): the recipes of Chế tạo trang bị, the Băng
+    /// Tâm held, the Điểm năng động.
+    Read,
+    /// Đổi Băng Tâm: its line sent; "Đã đổi …" (s2c/1256) or a refusal next.
+    IceDone,
+    /// Điểm năng động: Cách tính điểm sent; s2c/0 with the rules next.
+    Rules,
+    /// c2s/13 sent again so that the menu the server remembers is the NPC's first one, not one whose line 0 spends (Đổi
+    /// lượng, Đổi Băng Tâm, Đổi Xu of Điểm năng động; NP1, G1): its s2c/57 next, then the task ends.
+    Reset,
+}
+
+/// An item to put in a window: bag slot, quantity, npc::PUT_ITEM or PUT_STACK.
+type Put = (i32, i32, i32);
+fn put_one(slot: i32) -> Put {
+    (slot, 1, npc::PUT_ITEM)
 }
 
 /// A worn item taken off for Nâng cấp: its gear slot, its uuid (to find it in the bag), its name, and why the task ended
@@ -47,13 +64,23 @@ pub(super) struct Wear {
     notice: Option<String>,
 }
 
-/// The level Nâng cấp goes up to for an item worn from level `wear`: its cap, or with no `quote` npc::SAFE_LEVEL and
-/// `to_level` too.
-fn upgrade_top(wear: i32, quote: bool, to_level: i32) -> i32 {
+/// The level Nâng cấp goes up to for an item of it1 type `kind` worn from level `wear`: its cap, and `to_level` too
+/// with no `quote`.
+fn upgrade_top(kind: u8, wear: i32, quote: bool, to_level: i32) -> i32 {
     match quote {
-        true => npc::upgrade_cap(wear),
-        false => npc::upgrade_cap(wear).min(npc::SAFE_LEVEL).min(to_level),
+        true => npc::item_cap(kind, wear),
+        false => npc::item_cap(kind, wear).min(to_level),
     }
+}
+/// The it1 type and wear level of an item, (0, 1) when the book lacks it.
+fn kind_level(item_id: i32) -> (u8, i32) {
+    book()
+        .get(item_id)
+        .map_or((0, 1), |d| (d.kind, d.level as i32))
+}
+/// "Nhẫn", "item kind 7".
+fn craft_name(kind: u8) -> &'static str {
+    npc::CRAFT_LABELS.get(kind as usize).copied().unwrap_or("?")
 }
 
 /// The NPC of a task, for its log lines.
@@ -88,8 +115,18 @@ pub(super) struct Smith {
     /// Lines of the menus still to pick.
     left: Vec<u8>,
     window: WindowKind,
-    /// Bag slots still to put in the window, in order.
-    puts: VecDeque<i32>,
+    /// Items still to put in the window, in order, and the bag slot put last.
+    puts: VecDeque<Put>,
+    putting: i32,
+    /// Nâng cấp: the bag slot of the Bùa bảo vệ put in this window, and the level of the item when Bắt đầu was pressed.
+    charm: Option<i32>,
+    pressed_at: Option<i32>,
+    /// Chế tạo trang bị: the uuids of the bag when Bắt đầu was pressed, to find the item made.
+    before: Vec<String>,
+    /// The menu the server remembers may spend on a line 0 (Đổi lượng, Đổi Băng Tâm, Điểm năng động): the task talks to
+    /// the NPC again before it ends, and `ending` is why it ends once the NPC answered.
+    reset: bool,
+    ending: Option<String>,
     /// Nâng cấp: the stones to try, cheapest first (upgrade_stones), those put in this window and the odds after each,
     /// and how many to put when the window was opened again for exactly that many.
     stones: Vec<i32>,
@@ -238,6 +275,23 @@ impl Bot {
                 let luong = npc::EXCHANGE_LUONG * *times as i64;
                 ("exchange", format!("Đổi {luong} Lượng lấy {gives}"))
             }
+            SmithTask::Recipes { kind } => (
+                "recipes",
+                format!("Xem công thức chế tạo {}", craft_name(*kind)),
+            ),
+            SmithTask::Craft { kind, tier } => (
+                "craft",
+                format!("Chế tạo {} Bậc {}", craft_name(*kind), roman(*tier)),
+            ),
+            SmithTask::Ice { option } => {
+                let what = match option {
+                    0 => "1 bình",
+                    1 => "5 bình",
+                    _ => "hết",
+                };
+                ("ice", format!("Đổi Băng Tâm lấy bình rỗng ({what})"))
+            }
+            SmithTask::Points { .. } => ("points", "Xem Điểm năng động".into()),
         }
     }
 
@@ -297,8 +351,8 @@ impl Bot {
                         Some("túi đồ đầy: cần 1 ô trống để cởi món ra nâng cấp".into())
                     }
                     Some(i) => {
-                        let wear = book().get(i.item_id).map_or(1, |d| d.level as i32);
-                        if i.field0 >= upgrade_top(wear, *quote, *to_level) {
+                        let (kind, wear) = kind_level(i.item_id);
+                        if i.field0 >= upgrade_top(kind, wear, *quote, *to_level) {
                             Some(format!("{} đã +{}", item_name(i.item_id), i.field0))
                         } else if upgrade_stones(&self.bag_items(), *unlocked).is_empty() {
                             Some("hết đá nâng cấp trong túi".into())
@@ -344,7 +398,27 @@ impl Bot {
                         None
                     }
                 }
-                SmithTask::Merge(_) => None,
+                SmithTask::Merge(_) | SmithTask::Points { .. } => None,
+                SmithTask::Recipes { kind } | SmithTask::Craft { kind, .. } if *kind > 3 => {
+                    Some("chọn Nón, Áo, Vũ khí hay Nhẫn".into())
+                }
+                SmithTask::Craft { tier, .. } if !(1..=6).contains(tier) => {
+                    Some("chọn một bậc từ I tới VI".into())
+                }
+                SmithTask::Recipes { .. } | SmithTask::Craft { .. } => None,
+                SmithTask::Ice { option } if *option > 2 => {
+                    Some("chọn đổi 1 bình, 5 bình hay hết".into())
+                }
+                SmithTask::Ice { .. } => {
+                    let held: i64 = (self.snap.bag.iter())
+                        .flat_map(|b| &b.items)
+                        .filter(|i| i.item_id == npc::ICE_ID)
+                        .map(|i| i.quantity as i64)
+                        .sum();
+                    (held < npc::ICE_PER_BOTTLE).then(|| {
+                        format!("cần {} Băng Tâm, túi có {held}", npc::ICE_PER_BOTTLE)
+                    })
+                }
             });
         if let Some(why) = why {
             return out.push(Out::Log(LogKind::Item, format!("Chưa {title}: {why}")));
@@ -390,6 +464,12 @@ impl Bot {
             left: vec![],
             window: WindowKind::Upgrade,
             puts: VecDeque::new(),
+            putting: -1,
+            charm: None,
+            pressed_at: None,
+            before: vec![],
+            reset: false,
+            ending: None,
             stones: vec![],
             tried: vec![],
             rates: vec![],
@@ -487,6 +567,16 @@ impl Bot {
         out: &mut Vec<Out>,
     ) {
         let reason = reason.into();
+        // The menu the server remembers may spend on its line 0: the NPC is talked to again first, and the task ends on
+        // its answer (smith_menu) or its silence (smith_timer).
+        if let Some(sm) = self
+            .smith
+            .as_mut()
+            .filter(|s| s.reset && s.stage != Stage::Reset)
+        {
+            sm.ending = Some(reason);
+            return self.smith_reset(now, out);
+        }
         let back = self
             .smith
             .as_ref()
@@ -508,6 +598,22 @@ impl Bot {
             return Self::gear_action(out, 0, slot as i32);
         }
         self.smith_end(reason, out);
+    }
+
+    /// c2s/13 to the task's NPC again, so that the menu the server remembers is the first one (Stage::Reset).
+    fn smith_reset(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let sm = self.smith.as_mut().unwrap();
+        (sm.stage, sm.until) = (Stage::Reset, now + SMITH_WAIT);
+        let npc_id = sm.npc;
+        Self::send(
+            out,
+            13,
+            Ctx {
+                map_id: Some(npc::NPC_MAP),
+                npc_id: Some(npc_id),
+                ..Ctx::default()
+            },
+        );
     }
 
     /// Ends the task now, with the reason in the log and on the tab.
@@ -553,7 +659,7 @@ impl Bot {
         let (xu, xu_khoa, _) = self.money();
         let open = |bot: &mut Bot,
                     window: WindowKind,
-                    puts: Vec<i32>,
+                    puts: Vec<Put>,
                     doing: String,
                     now,
                     out: &mut Vec<Out>| {
@@ -598,7 +704,8 @@ impl Bot {
                     set.level,
                     set.level + 1
                 );
-                open(self, set.window, set.slots, doing, now, out);
+                let puts = set.slots.into_iter().map(put_one).collect();
+                open(self, set.window, puts, doing, now, out);
             }
             SmithTask::Upgrade {
                 slot,
@@ -606,6 +713,7 @@ impl Bot {
                 to_level,
                 unlocked,
                 quote,
+                charm,
                 ..
             } => {
                 let Some(item) = self.bag_record(slot as i32) else {
@@ -615,22 +723,54 @@ impl Bot {
                         out,
                     );
                 };
-                let wear = book().get(item.item_id).map_or(1, |d| d.level as i32);
-                let top = upgrade_top(wear, quote, to_level);
+                let name = item_name(item.item_id);
+                let (kind, wear) = kind_level(item.item_id);
+                let (top, cap) = (
+                    upgrade_top(kind, wear, quote, to_level),
+                    npc::item_cap(kind, wear),
+                );
                 if let Some(r) = self.snap.smith.as_mut() {
                     r.item = Some(item.clone());
                 }
+                // A failure without a charm dropped the item (+7 → +4): the task ends there. With one, or below +4, the
+                // level stayed and the same level is tried again.
+                let pressed = self.smith.as_mut().unwrap().pressed_at.take();
+                if let Some(from) = pressed.filter(|&from| item.field0 < from) {
+                    let why = format!(
+                        "{name} tụt từ +{from} về +{}: thất bại không có bùa thì dừng",
+                        item.field0
+                    );
+                    return self.smith_finish(why, now, out);
+                }
                 if item.field0 >= top || (quote && steps > 0) {
-                    let why = match (quote, item.field0 >= npc::upgrade_cap(wear)) {
-                        (_, true) => format!(
-                            "{} đã tới trần +{}",
-                            item_name(item.item_id),
-                            npc::upgrade_cap(wear)
-                        ),
+                    let why = match (quote, item.field0 >= cap) {
+                        (_, true) => format!("{name} đã tới trần +{cap}"),
                         (true, _) => "đã có giá".into(),
-                        _ => format!("{} đã +{}", item_name(item.item_id), item.field0),
+                        _ => format!("{name} đã +{}", item.field0),
                     };
                     return self.smith_finish(why, now, out);
+                }
+                let level = item.field0;
+                let protect = npc::charm_useful(level);
+                let held = (charm && protect)
+                    .then(|| npc::charm_for(&bag, level))
+                    .flatten();
+                if charm && protect && held.is_none() && !quote {
+                    let why = format!(
+                        "thất bại ở +{level} sẽ tụt về +{}: cần Bùa bảo vệ trong túi (sơ cấp tới +8, trung cấp tới +12, cao cấp tới +14, siêu cấp tới +16), hoặc bỏ chọn Dùng bùa",
+                        npc::fail_level(level)
+                    );
+                    return self.smith_finish(why, now, out);
+                }
+                if protect && held.is_none() {
+                    let line = match quote {
+                        true => format!("Không có Bùa bảo vệ cho +{level}: giá này chưa tính bùa"),
+                        false => format!(
+                            "Không dùng bùa: thất bại sẽ tụt {name} từ +{level} về +{}",
+                            npc::fail_level(level)
+                        ),
+                    };
+                    out.push(Out::Log(LogKind::Item, line));
                 }
                 let stones: Vec<i32> = upgrade_stones(&bag, unlocked)
                     .iter()
@@ -641,18 +781,17 @@ impl Bot {
                 }
                 let sm = self.smith.as_mut().unwrap();
                 (sm.stones, sm.tried, sm.rates, sm.exact) = (stones, vec![], vec![], None);
+                sm.charm = held.map(|c| c.slot);
                 let window = if careful {
                     WindowKind::Careful
                 } else {
                     WindowKind::Upgrade
                 };
-                let doing = format!(
-                    "Nâng {} +{} lên +{}",
-                    item_name(item.item_id),
-                    item.field0,
-                    item.field0 + 1
-                );
-                open(self, window, vec![slot as i32], doing, now, out);
+                let with = held.map_or(String::new(), |c| format!(", có {}", item_name(c.item_id)));
+                let doing = format!("Nâng {name} +{level} lên +{}{with}", level + 1);
+                let mut puts = vec![put_one(slot as i32)];
+                puts.extend(held.map(|c| (c.slot, 1, npc::PUT_STACK)));
+                open(self, window, puts, doing, now, out);
             }
             SmithTask::Separate { slot } => {
                 if steps > 0 {
@@ -662,7 +801,7 @@ impl Bot {
                 open(
                     self,
                     WindowKind::Separate,
-                    vec![slot as i32],
+                    vec![put_one(slot as i32)],
                     doing,
                     now,
                     out,
@@ -684,7 +823,11 @@ impl Bot {
                 open(
                     self,
                     WindowKind::Transmute,
-                    vec![source as i32, target as i32, stuff.slot],
+                    vec![
+                        put_one(source as i32),
+                        put_one(target as i32),
+                        put_one(stuff.slot),
+                    ],
                     doing,
                     now,
                     out,
@@ -695,6 +838,7 @@ impl Bot {
                 if sm.times == 0 {
                     return self.smith_finish("đã đổi xong", now, out);
                 }
+                sm.reset = true;
                 (sm.npc, sm.left) = (npc::ELDER, vec![npc::EXCHANGE_PATH, option]);
                 (sm.stage, sm.until) = (Stage::Talk, now + SMITH_WAIT);
                 let left = sm.times;
@@ -711,7 +855,95 @@ impl Bot {
                     },
                 );
             }
+            SmithTask::Recipes { .. } if steps > 0 => self.smith_finish("đã đọc", now, out),
+            SmithTask::Craft { .. } if steps > 0 => {
+                let before = self.smith.as_ref().map_or(vec![], |s| s.before.clone());
+                let made: Vec<String> = (self.snap.bag.iter())
+                    .flat_map(|b| &b.items)
+                    .filter(|i| !before.contains(&i.uuid))
+                    .map(|i| format!("{} (ô túi {})", item_name(i.item_id), i.slot as u32 + 1))
+                    .collect();
+                let why = match made.is_empty() {
+                    true => "xong, chưa thấy món mới trong túi".to_string(),
+                    false => format!("đã chế tạo {}", made.join(", ")),
+                };
+                self.smith_finish(why, now, out)
+            }
+            SmithTask::Ice { .. } if steps > 0 => {
+                let count = |id: i32| -> i64 {
+                    (self.snap.bag.iter())
+                        .flat_map(|b| &b.items)
+                        .filter(|i| i.item_id == id)
+                        .map(|i| i.quantity as i64)
+                        .sum()
+                };
+                let why = format!(
+                    "đã đổi; còn {} Băng Tâm, có {} Bình Huyết Linh (Rỗng)",
+                    count(npc::ICE_ID),
+                    count(npc::BOTTLE_ID)
+                );
+                self.smith_finish(why, now, out)
+            }
+            SmithTask::Recipes { kind } | SmithTask::Craft { kind, .. } => {
+                let path = [npc::CRAFT_PATH[0], npc::CRAFT_PATH[1], kind];
+                self.smith_talk(
+                    npc::SMITH,
+                    &path,
+                    false,
+                    "Đọc công thức ở Pháp sư",
+                    now,
+                    out,
+                )
+            }
+            SmithTask::Ice { .. } => self.smith_talk(
+                npc::SMITH,
+                &npc::ICE_PATH,
+                true,
+                "Mở Đổi Băng Tâm ở Pháp sư",
+                now,
+                out,
+            ),
+            SmithTask::Points { .. } if steps > 0 => self.smith_finish("đã đọc", now, out),
+            SmithTask::Points { .. } => {
+                let path = [npc::POINTS_PATH];
+                self.smith_talk(
+                    npc::ELDER,
+                    &path,
+                    true,
+                    "Hỏi Hương Lão Điểm năng động",
+                    now,
+                    out,
+                )
+            }
         }
+    }
+
+    /// c2s/13 to `npc`, then down `path` to a menu the task reads (Stage::Read). With `reset`, the NPC is talked to again
+    /// before the task ends.
+    fn smith_talk(
+        &mut self,
+        npc_id: i32,
+        path: &[u8],
+        reset: bool,
+        doing: &str,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        if let Some(r) = self.snap.smith.as_mut() {
+            r.doing = doing.into();
+        }
+        let sm = self.smith.as_mut().unwrap();
+        (sm.npc, sm.left, sm.reset) = (npc_id, path.to_vec(), reset);
+        (sm.stage, sm.until) = (Stage::Talk, now + SMITH_WAIT);
+        Self::send(
+            out,
+            13,
+            Ctx {
+                map_id: Some(npc::NPC_MAP),
+                npc_id: Some(npc_id),
+                ..Ctx::default()
+            },
+        );
     }
 
     /// c2s/13 to Pháp sư, then down the lines of the window's menu.
@@ -733,13 +965,32 @@ impl Bot {
 
     /// The NPC's menu (s2c/57) while a task talks to it: the next line of the path. False when no task waits for one.
     pub(super) fn smith_menu(&mut self, menu: &NpcMenu, now: Instant, out: &mut Vec<Out>) -> bool {
-        let Some(sm) = self
-            .smith
-            .as_mut()
-            .filter(|s| matches!(s.stage, Stage::Talk | Stage::Menu))
-        else {
+        let Some(sm) = self.smith.as_mut().filter(|s| {
+            matches!(
+                s.stage,
+                Stage::Talk | Stage::Menu | Stage::Read | Stage::Reset
+            )
+        }) else {
             return false;
         };
+        match sm.stage {
+            Stage::Reset => {
+                // Talked to again: the menu remembered is the first one, nothing to do again before the end.
+                sm.reset = false;
+                let ending = sm.ending.take();
+                match ending {
+                    Some(why) => self.smith_end(why, out),
+                    // Đổi Băng Tâm went through: the bag next (smith_bag, smith_next).
+                    None => self.smith_refresh(now, out),
+                }
+                return true;
+            }
+            Stage::Read => {
+                self.smith_read(menu, now, out);
+                return true;
+            }
+            _ => {}
+        }
         let Some(&option) = sm.left.first() else {
             return false;
         };
@@ -749,11 +1000,17 @@ impl Bot {
             return true;
         }
         sm.left.remove(0);
-        let exchange = matches!(sm.task, SmithTask::Exchange { .. });
-        sm.stage = match (sm.left.is_empty(), exchange) {
+        sm.stage = match (sm.left.is_empty(), &sm.task) {
             (false, _) => Stage::Menu,
-            (true, true) => Stage::Exchange,
-            (true, false) => Stage::Window,
+            (true, SmithTask::Exchange { .. }) => Stage::Exchange,
+            (
+                true,
+                SmithTask::Recipes { .. }
+                | SmithTask::Craft { .. }
+                | SmithTask::Ice { .. }
+                | SmithTask::Points { .. },
+            ) => Stage::Read,
+            (true, _) => Stage::Window,
         };
         sm.until = now + SMITH_WAIT;
         let npc_id = sm.npc;
@@ -788,6 +1045,8 @@ impl Bot {
     fn smith_put(&mut self, now: Instant, out: &mut Vec<Out>) {
         let sm = self.smith.as_mut().unwrap();
         let mut next = sm.puts.pop_front();
+        // A Bùa bảo vệ in the window takes one of its 18 slots.
+        let room = STONE_SLOTS - sm.charm.is_some() as usize;
         if next.is_none() {
             if let SmithTask::Upgrade {
                 slot,
@@ -801,18 +1060,21 @@ impl Bot {
                 let stalled =
                     sm.rates.len() >= 2 && last <= sm.rates.get(sm.rates.len() - 2).copied();
                 let enough = last.is_some_and(|r| r >= rate);
-                let more = sm.tried.len() < sm.stones.len() && sm.tried.len() < STONE_SLOTS;
+                let more = sm.tried.len() < sm.stones.len() && sm.tried.len() < room;
                 let capped = !careful && last.is_some_and(|r| r >= THUONG_CAP_LOW);
                 match sm.exact {
-                    Some(k) if sm.tried.len() < k && more => next = Some(sm.stones[sm.tried.len()]),
+                    Some(k) if sm.tried.len() < k && more => {
+                        next = Some(put_one(sm.stones[sm.tried.len()]))
+                    }
                     Some(_) => {}
                     None if stalled => {
                         sm.exact = Some(sm.tried.len() - 1);
                         (sm.tried, sm.rates) = (vec![], vec![]);
-                        sm.puts = VecDeque::from([slot as i32]);
+                        sm.puts = VecDeque::from([put_one(slot as i32)]);
+                        sm.puts.extend(sm.charm.map(|c| (c, 1, npc::PUT_STACK)));
                         return self.smith_open(now, out);
                     }
-                    None if !enough && more => next = Some(sm.stones[sm.tried.len()]),
+                    None if !enough && more => next = Some(put_one(sm.stones[sm.tried.len()])),
                     None if !enough && !quote && !capped => {
                         let why = format!(
                             "đặt hết {} viên đá chỉ được {}%, chưa tới {rate}% muốn đạt; thêm đá hoặc hạ tỉ lệ",
@@ -824,18 +1086,20 @@ impl Bot {
                     None => {}
                 }
                 if let Some(s) = next {
-                    sm.tried.push(s);
+                    sm.tried.push(s.0);
                 }
             }
         }
         match next {
-            Some(slot) => {
-                (sm.stage, sm.until) = (Stage::Put, now + SMITH_WAIT);
+            Some((slot, quantity, kind)) => {
+                (sm.stage, sm.until, sm.putting) = (Stage::Put, now + SMITH_WAIT, slot);
                 Self::send(
                     out,
                     97,
                     Ctx {
                         slot: Some(slot),
+                        quantity: Some(quantity),
+                        put_kind: Some(kind),
                         ..Ctx::default()
                     },
                 );
@@ -851,13 +1115,23 @@ impl Bot {
         text: &str,
         ready: bool,
         stone: bool,
+        fee: Option<i64>,
         now: Instant,
         out: &mut Vec<Out>,
     ) {
         let Some(sm) = self.smith.as_mut().filter(|s| s.stage == Stage::Put) else {
             return;
         };
-        let q = quote(text);
+        let mut q = quote(text);
+        // Chế tạo trang bị says its fee in a field of s2c/92 (Xu), not in the text.
+        if let Some(amount) = fee.filter(|f| *f > 0) {
+            q.fee = Some(npc::Fee {
+                money: npc::Money::Xu,
+                amount,
+            });
+        }
+        // The charm's answer says 0%: it is no stone.
+        let stone = stone && sm.charm != Some(sm.putting);
         (sm.text, sm.ready) = (text.to_string(), ready);
         if q.rate.is_some() || q.fee.is_some() || !q.gain.is_empty() {
             sm.quote = q.clone();
@@ -933,8 +1207,19 @@ impl Bot {
             let line = format!("{doing}: {}{rate}", fee_text(&q));
             return self.smith_finish(line, now, out);
         }
+        let uuids: Vec<String> = (self.snap.bag.iter())
+            .flat_map(|b| &b.items)
+            .map(|i| i.uuid.clone())
+            .collect();
+        let level = match self.smith.as_ref().map(|s| &s.task) {
+            Some(SmithTask::Upgrade { slot, .. }) => {
+                self.bag_record(*slot as i32).map(|i| i.field0)
+            }
+            _ => None,
+        };
         let sm = self.smith.as_mut().unwrap();
         (sm.stage, sm.until) = (Stage::Start, now + SMITH_WAIT);
+        (sm.before, sm.pressed_at) = (uuids, level);
         out.push(Out::Log(
             LogKind::Item,
             format!("Bắt đầu: {doing} ({}{rate})", fee_text(&q)),
@@ -957,6 +1242,12 @@ impl Bot {
         };
         let q = sm.quote.clone();
         let stones = sm.tried.len();
+        let charm = sm.charm.and_then(|slot| {
+            (self.snap.bag.iter())
+                .flat_map(|b| &b.items)
+                .find(|i| i.slot as i32 == slot)
+                .map(|i| item_name(i.item_id))
+        });
         let line = match (&sm.task, ok) {
             (SmithTask::Merge(_), true) => {
                 let made = received
@@ -968,17 +1259,30 @@ impl Bot {
             (SmithTask::Upgrade { .. }, true) => {
                 let i = item.as_ref();
                 format!(
-                    "Nâng cấp thành công: {} +{}",
+                    "Nâng cấp thành công: {} +{}{}",
                     i.map_or("món".into(), |i| item_name(i.item_id)),
-                    i.map_or(0, |i| i.field0)
+                    i.map_or(0, |i| i.field0),
+                    charm
+                        .as_ref()
+                        .map_or(String::new(), |c| format!(" (mất 1 {c})"))
                 )
             }
             (SmithTask::Upgrade { .. }, false) => {
                 let i = item.as_ref();
+                let kept = charm
+                    .as_ref()
+                    .map_or(String::new(), |c| format!(" nhờ bùa, mất cả 1 {c}"));
                 format!(
-                    "Nâng cấp thất bại: {} còn +{}, mất {stones} viên đá",
+                    "Nâng cấp thất bại: {} còn +{}, mất {stones} viên đá{kept}",
                     i.map_or("món".into(), |i| item_name(i.item_id)),
                     i.map_or(0, |i| i.field0)
+                )
+            }
+            (SmithTask::Craft { kind, tier }, true) => {
+                format!(
+                    "Chế tạo thành công: {} Bậc {}",
+                    craft_name(*kind),
+                    roman(*tier)
                 )
             }
             (SmithTask::Separate { .. }, true) => {
@@ -993,7 +1297,13 @@ impl Bot {
                 target.as_ref().map_or(0, |i| i.field0)
             ),
             (_, false) => format!("Pháp sư báo không thành: {}", sm.text.replace('\n', "; ")),
-            (SmithTask::Exchange { .. }, true) => String::new(),
+            (
+                SmithTask::Exchange { .. }
+                | SmithTask::Recipes { .. }
+                | SmithTask::Ice { .. }
+                | SmithTask::Points { .. },
+                true,
+            ) => String::new(),
         };
         if let Some(r) = self.snap.smith.as_mut() {
             r.steps += 1;
@@ -1014,6 +1324,11 @@ impl Bot {
             r.doing = line.clone();
         }
         out.push(Out::Log(LogKind::Item, line));
+        self.smith_refresh(now, out);
+    }
+
+    /// c2s/42: the whole bag again, since the server sends none after a press; the task goes on with it (smith_bag).
+    fn smith_refresh(&mut self, now: Instant, out: &mut Vec<Out>) {
         let sm = self.smith.as_mut().unwrap();
         (sm.stage, sm.until) = (Stage::Refresh, now + SMITH_WAIT);
         let name = self.snap.name.clone();
@@ -1025,6 +1340,180 @@ impl Bot {
                 ..Ctx::default()
             },
         );
+    }
+
+    /// The menu a task reads (Stage::Read). Chế tạo trang bị: the recipes of the kind, kept for the tab; Craft then picks
+    /// the tier's line once the level, the materials, the Xu and a free slot are there, and puts each material with its
+    /// whole stack (PUT_STACK, as the phone, O1). Đổi Băng Tâm: the Băng Tâm held, then the line asked when there are
+    /// enough and room for the bottles. Điểm năng động: the points, then Cách tính điểm if asked.
+    fn smith_read(&mut self, menu: &NpcMenu, now: Instant, out: &mut Vec<Out>) {
+        let Some(task) = self.smith.as_ref().map(|s| s.task.clone()) else {
+            return;
+        };
+        let send57 = |out: &mut Vec<Out>, option: u8, npc_id: i32| {
+            Self::send(
+                out,
+                57,
+                Ctx {
+                    option: Some(option as i32),
+                    map_id: Some(npc::NPC_MAP),
+                    npc_id: Some(npc_id),
+                    ..Ctx::default()
+                },
+            )
+        };
+        let bag = self.bag_items();
+        let free = self
+            .snap
+            .bag
+            .as_ref()
+            .map_or(0, |b| b.capacity - b.items.len() as i32);
+        match task {
+            SmithTask::Recipes { kind } | SmithTask::Craft { kind, .. } => {
+                let recipes = npc::recipes(&menu.text, &menu.options);
+                let read = CraftRecipes {
+                    kind,
+                    name: craft_name(kind),
+                    recipes: recipes.clone(),
+                    read_at: epoch_ms(),
+                };
+                self.snap.recipes.retain(|r| r.kind != kind);
+                self.snap.recipes.push(read);
+                let SmithTask::Craft { tier, .. } = task else {
+                    let line = format!("{} bậc", recipes.len());
+                    out.push(Out::Log(
+                        LogKind::Item,
+                        format!("Công thức chế tạo {}: {line}", craft_name(kind)),
+                    ));
+                    return self.smith_finish(format!("đọc xong, {line}"), now, out);
+                };
+                let Some(recipe) = recipes.iter().find(|r| r.tier == tier) else {
+                    let why = format!("menu không có công thức Bậc {}", roman(tier));
+                    return self.smith_finish(why, now, out);
+                };
+                let book = book();
+                let (puts, missing) = npc::craft_materials(&bag, recipe, |n| book.material(n));
+                let mut problems: Vec<String> = vec![];
+                if self.snap.level < recipe.level {
+                    problems.push(format!(
+                        "cần cấp {}, nhân vật cấp {}",
+                        recipe.level, self.snap.level
+                    ));
+                }
+                problems.extend(missing.iter().map(|m| format!("thiếu {m}")));
+                if self.money().0 < recipe.xu {
+                    problems.push(format!(
+                        "thiếu Xu: cần {}, có {}",
+                        grouped(recipe.xu),
+                        grouped(self.money().0)
+                    ));
+                }
+                if free < 1 {
+                    problems.push("túi không còn ô trống cho món mới".into());
+                }
+                if !problems.is_empty() {
+                    return self.smith_finish(problems.join("; "), now, out);
+                }
+                let materials: Vec<String> = (puts.iter())
+                    .map(|p| format!("{} {}", p.name, p.count))
+                    .collect();
+                if let Some(r) = self.snap.smith.as_mut() {
+                    r.doing = format!(
+                        "Chế tạo {} Bậc {} ({}, {} Xu)",
+                        craft_name(kind),
+                        roman(tier),
+                        materials.join(", "),
+                        grouped(recipe.xu)
+                    );
+                }
+                let sm = self.smith.as_mut().unwrap();
+                sm.puts = (puts.iter())
+                    .map(|p| (p.item.slot, p.item.quantity, npc::PUT_STACK))
+                    .collect();
+                (sm.window, sm.ready, sm.text) = (WindowKind::Upgrade, false, String::new());
+                (sm.stage, sm.until) = (Stage::Window, now + SMITH_WAIT);
+                send57(out, recipe.option, npc::SMITH);
+            }
+            SmithTask::Ice { option } => {
+                let in_bag: i64 = (bag.iter())
+                    .filter(|i| i.item_id == npc::ICE_ID)
+                    .map(|i| i.quantity as i64)
+                    .sum();
+                let held = npc::ice_held(&menu.text).unwrap_or(in_bag);
+                let want = match option {
+                    0 => 1,
+                    1 => 5,
+                    _ => held / npc::ICE_PER_BOTTLE,
+                };
+                let need = want.max(1) * npc::ICE_PER_BOTTLE;
+                let bottles = bag.iter().any(|i| i.item_id == npc::BOTTLE_ID);
+                let why = if held < need {
+                    Some(format!("cần {need} Băng Tâm, có {held}"))
+                } else if !bottles && free < 1 {
+                    Some("túi không còn ô trống cho bình".to_string())
+                } else {
+                    None
+                };
+                if let Some(why) = why {
+                    return self.smith_finish(why, now, out);
+                }
+                if let Some(r) = self.snap.smith.as_mut() {
+                    r.doing = format!(
+                        "Đổi {} Băng Tâm lấy {want} bình",
+                        want * npc::ICE_PER_BOTTLE
+                    );
+                }
+                let sm = self.smith.as_mut().unwrap();
+                (sm.stage, sm.until) = (Stage::IceDone, now + SMITH_WAIT);
+                send57(out, option, npc::SMITH);
+            }
+            SmithTask::Points { rules } => {
+                let points = npc::points_text(&menu.text);
+                let line = match (points.points, points.need) {
+                    (Some(p), Some(n)) => format!("{p}/{n} điểm"),
+                    _ => menu.text.replace('\n', "; "),
+                };
+                let limit = match (points.xu, points.xu_khoa) {
+                    (Some(xu), Some(k)) => {
+                        format!("; đổi được {} Xu (cần {} Xu khóa)", grouped(xu), grouped(k))
+                    }
+                    _ => String::new(),
+                };
+                self.snap.points = Some(PointsRead {
+                    points,
+                    text: menu.text.clone(),
+                    rules: None,
+                    read_at: epoch_ms(),
+                });
+                if let Some(r) = self.snap.smith.as_mut() {
+                    r.doing = format!("Điểm năng động: {line}{limit}");
+                }
+                if rules {
+                    let sm = self.smith.as_mut().unwrap();
+                    (sm.stage, sm.until) = (Stage::Rules, now + SMITH_WAIT);
+                    return send57(out, npc::POINTS_RULES, npc::ELDER);
+                }
+                self.smith_finish(format!("{line}{limit}"), now, out);
+            }
+            _ => self.smith_finish("menu không như kế hoạch", now, out),
+        }
+    }
+
+    /// Cách tính điểm (s2c/0) of Điểm năng động: kept with the points; the task ends.
+    pub(super) fn smith_rules(&mut self, text: &str, now: Instant, out: &mut Vec<Out>) {
+        if let Some(p) = self.snap.points.as_mut() {
+            p.rules = Some(text.to_string());
+        }
+        let line = self
+            .snap
+            .smith
+            .as_ref()
+            .map_or(String::new(), |r| r.doing.clone());
+        let line = line
+            .strip_prefix("Điểm năng động: ")
+            .unwrap_or(&line)
+            .to_string();
+        self.smith_finish(format!("{line}; đã đọc Cách tính điểm"), now, out);
     }
 
     /// The whole bag (s2c/42) after a press: the task goes on.
@@ -1057,6 +1546,17 @@ impl Bot {
             }
             return true;
         }
+        // Đổi Băng Tâm: "Đã đổi 8 Băng Tâm lấy 1 Bình Huyết Linh (Rỗng)", then the NPC again and the bag (smith_menu).
+        if sm.stage == Stage::IceDone && text.starts_with("Đã đổi") {
+            if let Some(r) = self.snap.smith.as_mut() {
+                (r.steps, r.ok, r.doing) = (r.steps + 1, r.ok + 1, text.to_string());
+            }
+            out.push(Out::Log(LogKind::Item, text.to_string()));
+            let sm = self.smith.as_mut().unwrap();
+            sm.ending = None;
+            self.smith_reset(now, out);
+            return true;
+        }
         // While Cởi ra or Mặc waits, a notice is kept as the reason in case the item does not move; it ends nothing, as
         // it may be another's (a broadcast, a late answer).
         if matches!(sm.stage, Stage::Unequip | Stage::Rewear) {
@@ -1084,21 +1584,30 @@ impl Bot {
             };
         }
         let who = npc_who(sm.npc);
-        self.smith_finish(
-            format!("{who} không trả lời sau {} s", SMITH_WAIT.as_secs()),
-            now,
-            out,
-        );
+        let silent = format!("{who} không trả lời sau {} s", SMITH_WAIT.as_secs());
+        if sm.stage == Stage::Reset {
+            let why = match sm.ending.clone() {
+                Some(why) => format!("{why} ({silent} khi nói lại)"),
+                None => silent,
+            };
+            return self.smith_end(why, out);
+        }
+        self.smith_finish(silent, now, out);
     }
 
     /// Dừng: the task ends now, or once the press waiting for its result is in.
     pub(super) fn smith_stop(&mut self, now: Instant, out: &mut Vec<Out>) {
         match self.smith.as_mut() {
-            Some(sm) if matches!(sm.stage, Stage::Start | Stage::Exchange | Stage::Unequip) => {
+            Some(sm)
+                if matches!(
+                    sm.stage,
+                    Stage::Start | Stage::Exchange | Stage::Unequip | Stage::IceDone
+                ) =>
+            {
                 sm.stopping = true
             }
-            // Worn again already: the task ends on the answer.
-            Some(sm) if sm.stage == Stage::Rewear => {}
+            // Worn again already, or talking to the NPC again: the task ends on the answer.
+            Some(sm) if matches!(sm.stage, Stage::Rewear | Stage::Reset) => {}
             Some(_) => self.smith_finish("Đã dừng", now, out),
             None => {}
         }
@@ -1123,4 +1632,12 @@ fn merge_title(o: &MergeOptions) -> String {
         (None, Some(n)) => format!("Gộp đá tới Đá cấp {}, tối đa {n} lần", o.up_to.min(12)),
         (None, None) => format!("Gộp đá tới Đá cấp {}", o.up_to.min(12)),
     }
+}
+
+/// "I", "II", … "VI" for the tiers of Chế tạo trang bị.
+fn roman(tier: i32) -> &'static str {
+    ["?", "I", "II", "III", "IV", "V", "VI"]
+        .get(tier.clamp(0, 6) as usize)
+        .copied()
+        .unwrap_or("?")
 }
