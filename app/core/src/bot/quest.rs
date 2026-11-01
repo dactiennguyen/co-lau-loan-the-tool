@@ -40,6 +40,12 @@ impl Bot {
                 "Đang nhập mã quà tặng: bấm Dừng rồi mới làm nhiệm vụ".into(),
             ));
         }
+        if self.mail_changing() {
+            return out.push(Out::Log(
+                LogKind::Quest,
+                "Đang nhận hay xoá thư: đợi xong rồi mới làm nhiệm vụ".into(),
+            ));
+        }
         let playing = step.and_then(|(id, i)| {
             let q = self
                 .snap

@@ -24,7 +24,8 @@ import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, tra
   mergeForecast, upgradeStones, putRequest, startRequest } from '../protocol/npc.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 import { g1Packets } from '../../test/fixtures-g1.ts';
-import { giftCodeRequest, giftCodeResult, newMail } from '../protocol/mail.ts';
+import { claimedCount, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
+import { Items } from '../protocol/items.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -139,6 +140,30 @@ function giftCases() {
   });
   const requests = ['ALPHATEST1', 'denbu', '  DENBU  ', 'Saima2026'].map(typed => ({ typed, hex: hex(giftCodeRequest(typed)) }));
   return { decoders, requests };
+}
+
+/** Hòm thư (test/fixtures-g1.ts, G1): what mailList, mailBody and mailAck read in the captured packets, the bytes of
+ * c2s/1216, c2s/1217 and c2s/1219, the bag slots slotsNeeded counts for the mails of G1 against a bag, and the notices of
+ * Nhận hết as claimedCount reads them (app/core/tests/mail.rs). */
+function mailCases() {
+  const fns: Record<string, [string, (p: Uint8Array) => unknown]> = {
+    's2c/1215': ['mailList', p => mailList(p).mails], 's2c/1216': ['mailBody', mailBody],
+    's2c/1217': ['mailAck', p => mailAck(p, 1217)], 's2c/1219': ['mailAck', p => mailAck(p, 1219)],
+  };
+  const decoders = Object.entries(g1Packets).flatMap(([key, h]) => {
+    const f = fns[key.split(' ')[0]];
+    return f ? [{ fn: f[0], key, hex: h, expected: f[1](bytes(h)) }] : [];
+  });
+  const requests = [6280, 6273, 5118, 2 ** 40 + 7].map(id => ({ id, hex: hex(mailIdRequest(id)) }));
+  const items = Items.load(), stack = (id: number) => items.get(id)?.stack ?? 1;
+  // 6273 in G1: the bag held Búa (2), Hoàn Linh (0) and Kim Đan (1), locked; another lock is not known to stack.
+  const locked = [2, 0, 1].map(itemId => ({ itemId, field1: 0 })), unlocked = locked.map(i => ({ ...i, field1: 1 }));
+  const slots = ([['s2c/1216 6280 Đền bù', []], ['s2c/1216 6273 Ngày 1', locked], ['s2c/1216 6273 Ngày 1', unlocked], ['s2c/1216 6273 Ngày 1', []],
+    ['s2c/1216 6278 Alpha Test', []], ['s2c/1216 5118 cấp 20', []], ['s2c/1216 5118 cấp 20', [{ itemId: 7, field1: 0 }]]] as const)
+    .map(([key, bag]) => ({ key, bag: bag.map(i => [i.itemId, i.field1]), slots: slotsNeeded(mailBody(bytes(g1Packets[key])).items, [...bag], stack) }));
+  const claimed = ['Đã nhận quà của 2 thư', 'Đã nhận quà của 1 thư, rương đã đầy', 'Không có quà nào để nhận',
+    'Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa'].map(text => ({ text, count: claimedCount(text) }));
+  return { decoders, requests, slots, claimed };
 }
 
 function stepActions() {
@@ -468,7 +493,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
-    battleV3: battleV3(), npc: npcCases(), gift: giftCases(),
+    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }

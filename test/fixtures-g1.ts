@@ -1,6 +1,6 @@
 // Packets of G1 (01/11/2026, tiheo2 / Ttuananh level 31; docs/app/events/14-npc.md#mã-quà-tặng, #hòm-thư,
 // #nhiệm-vụ-hàng-ngày): the phone with Frida. Gift codes, the mailbox, Hương Lão's daily quests. Golden inputs for
-// test/mail.test.ts only; not in the Rust vectors.
+// test/mail.test.ts, and through src/cli/export-rust.ts for the gift and mail parts of the Rust vectors.
 export const g1Packets: Record<string, string> = {
   "s2c/57 Hương Lão": "000000040000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000004c4368c3a06f206de1bbab6e6720636f6e20c491e1babf6e2076e1bb9b69205468616e68204b68c3aa0a4ee1babf752063e1baa76e2067c3ac2068c3a3792074e1bb9b692074c3ac6d2074612e000000000f4dc3a3207175c3a02074e1bab76e67010000000fc490e1bb9569206cc6b0e1bba36e6702000000184e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0790300000015c49069e1bb836d206ec4836e6720c491e1bb996e67",
   "s2c/57 nhiệm vụ ngày 0/3 Nhận": "000000010000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000003648c3b46d206e617920636f6e20c491c3a3206e68e1baad6e20302f33206e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0792e00000000134e68e1baad6e206e6869e1bb876d2076e1bba5",

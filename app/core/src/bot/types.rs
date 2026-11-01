@@ -483,6 +483,43 @@ pub struct GiftCode {
     pub mail: Option<String>,
 }
 
+/// What the Hòm thư tab asks (Bot::mail). Each is one packet but Xóa, which sends one c2s/1219 per mail. There is no Xóa
+/// hết: c2s/1221 deletes the gifts not taken too (mail::DELETE_ALL).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MailTask {
+    /// c2s/1215: the list.
+    List,
+    /// c2s/1216: what a mail says and holds. The server marks it read.
+    Open(i64),
+    /// c2s/1217: the gift of one mail, once the bag has the room for it (opened first when it was not yet).
+    Claim(i64),
+    /// c2s/1218: every gift that fits; the server leaves out the mails it has no room for.
+    ClaimAll,
+    /// c2s/1219 for each of these mails, one by one: only mails whose gift is taken, or that had none.
+    Delete(Vec<i64>),
+}
+
+/// The mailbox as the app knows it (Bot::mail, mailbox.rs), for the Hòm thư tab of Tiện ích.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Mailbox {
+    /// s2c/1215 as last listed, newest first, with the mails come since (s2c/1222) and those deleted taken out; None
+    /// until listed in this session.
+    pub mails: Option<Vec<MailHeader>>,
+    /// The mails opened in this session (s2c/1216), of those still listed.
+    pub opened: Vec<MailBody>,
+    /// s2c/1220: whether a mail is not read yet; None until the server said.
+    pub unread: Option<bool>,
+    /// What the task under way does ("Đang nhận thư Quà Alpha Test"); None when none is.
+    pub doing: Option<String>,
+    /// The mail the task under way is about (c2s/1216, c2s/1217, c2s/1219), if one is.
+    pub busy_with: Option<i64>,
+    /// The task under way is Nhận, Nhận hết or Xóa, which keeps the character busy (Bot::mail_changing); filled by
+    /// snapshot().
+    pub changing: bool,
+    /// The line the last task ended with, as in the log ("Xong nhận thư …", "Chưa nhận thư …").
+    pub last: Option<String>,
+}
+
 /// A map of the atlas for "Đổi map": the level the world map asks for, and how many portals away it is.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -613,6 +650,8 @@ pub struct Snapshot {
     pub gift: Option<GiftRun>,
     /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().
     pub gift_limits: GiftLimits,
+    /// Hòm thư (Bot::mail).
+    pub mailbox: Mailbox,
     /// Timed effects at login (the s2c/9 tail), such as x2 EXP; no packet is known yet to update them in the session.
     pub boosts: Vec<Boost>,
 }

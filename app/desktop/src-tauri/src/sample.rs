@@ -6,9 +6,11 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, GiftCode, GiftLimits,
-    GiftRun, Job, LogKind, MapChoice, Picked, PickupRecord, QuestRun, SmithRun, Snapshot, Target,
+    GiftRun, Job, LogKind, Mailbox, MapChoice, Picked, PickupRecord, QuestRun, SmithRun, Snapshot,
+    Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
+use cllt_core::mail::{MailBody, MailHeader};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -73,6 +75,80 @@ fn quest(
                 npc_id,
             })
             .collect(),
+    }
+}
+
+/// The mailbox of Ttuananh in G1 (14-npc.md#hòm-thư): the four gift mails, Đền bù taken, Ngày 1 opened and not taken.
+fn g1_mailbox() -> Mailbox {
+    let header = |id: i64, title: &str, read: bool, taken: bool, mins: u64| MailHeader {
+        id,
+        kind: 1,
+        title: title.into(),
+        sender: "Hệ Thống".into(),
+        read,
+        gift: true,
+        taken,
+        sent_at: ago(mins * 60) as i64,
+        last: 0,
+    };
+    // The items of a mail: slot 0xff; `field1` 1 unlocked, 0 locked.
+    let goods = |list: &[(i32, i32, u8)]| -> Vec<ItemRecord> {
+        list.iter()
+            .map(|&(item_id, quantity, field1)| ItemRecord {
+                slot: 0xff,
+                field1,
+                ..item(0xff, item_id, -1, quantity, 0xff, &[])
+            })
+            .collect()
+    };
+    let body = |id: i64, title: &str, body: &str, taken: bool, items: &[(i32, i32, u8)]| MailBody {
+        id,
+        title: title.into(),
+        body: body.into(),
+        sender: "Hệ Thống".into(),
+        taken,
+        items: goods(items),
+    };
+    Mailbox {
+        mails: Some(vec![
+            header(6280, "Quà Đền bù AlphaTest", true, true, 7),
+            header(6278, "Quà Alpha Test", false, false, 7),
+            header(6273, "Quà Alpha Test Ngày 1", true, false, 8),
+            header(5118, "Quà đạt cấp 20", false, false, 16 * 60),
+        ]),
+        opened: vec![
+            body(
+                6280,
+                "Quà Đền bù AlphaTest",
+                "Cảm ơn Sứ Quân đã chịu khó chờ đợi",
+                true,
+                &[(40, 5_000_000, 1), (42, 10_000, 1), (41, 5_000_000, 1)],
+            ),
+            body(
+                6273,
+                "Quà Alpha Test Ngày 1",
+                "Chào mừng Sứ Quân",
+                false,
+                &[
+                    (41, 1_000_000, 1),
+                    (7, 1, 0),
+                    (415, 1, 0),
+                    (2, 10, 0),
+                    (0, 10, 0),
+                    (1, 10, 0),
+                    (415, 1, 0),
+                    (415, 1, 0),
+                ],
+            ),
+        ],
+        unread: Some(true),
+        doing: None,
+        busy_with: None,
+        changing: false,
+        last: Some(
+            "Xong nhận thư \"Quà Đền bù AlphaTest\": 5.000.000 Xu, 10.000 Lượng, 5.000.000 Xu khóa"
+                .into(),
+        ),
     }
 }
 
@@ -564,6 +640,7 @@ pub fn entries() -> Vec<Entry> {
             wrong: 1,
             ..GiftLimits::default()
         },
+        mailbox: g1_mailbox(),
         ..Snapshot::default()
     };
 

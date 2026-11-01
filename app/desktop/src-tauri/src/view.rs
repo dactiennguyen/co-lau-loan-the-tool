@@ -3,10 +3,11 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BattleView, Boost, BossTile, FightSettings, GiftLimits, GiftRun, Job, LogKind, MapChoice,
-    Picked, QuestRun, SmithRun, Target,
+    BattleView, Boost, BossTile, FightSettings, GiftLimits, GiftRun, Job, LogKind, Mailbox,
+    MapChoice, Picked, QuestRun, SmithRun, Target,
 };
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
+use cllt_core::mail::{self, MailBody, MailHeader, Money};
 use cllt_core::net::ConnState;
 use cllt_core::npc::{self, Quote};
 use cllt_core::potentials::StatPlan;
@@ -218,6 +219,82 @@ pub struct CharacterView<'a> {
     pub gift: Option<&'a GiftRun>,
     /// Codes refused in a row, how many the bot allows, and the server's lock on codes.
     pub gift_limits: &'a GiftLimits,
+    /// Hòm thư (Tiện ích): the list, the mails opened, the task under way.
+    pub mailbox: MailboxView<'a>,
+}
+
+/// Mailbox for the Hòm thư tab: the list as last listed (null until listed), the mails opened with their items drawn as
+/// the bag draws them, whether a mail is not read yet (s2c/1220), the task under way and the line the last one ended with.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailboxView<'a> {
+    pub mails: Option<&'a [MailHeader]>,
+    pub opened: Vec<MailBodyView<'a>>,
+    pub unread: Option<bool>,
+    pub doing: Option<&'a str>,
+    /// The mail the task under way is about.
+    pub busy_with: Option<i64>,
+    /// The task under way is Nhận, Nhận hết or Xóa: the character counts as busy.
+    pub changing: bool,
+    pub last: Option<&'a str>,
+}
+impl<'a> MailboxView<'a> {
+    pub fn of(m: &'a Mailbox, bag: Option<&Bag>) -> Self {
+        Self {
+            mails: m.mails.as_deref(),
+            opened: m.opened.iter().map(|o| MailBodyView::of(o, bag)).collect(),
+            unread: m.unread,
+            doing: m.doing.as_deref(),
+            busy_with: m.busy_with,
+            changing: m.changing,
+            last: m.last.as_deref(),
+        }
+    }
+}
+
+/// A mail opened (s2c/1216): its words, the money in it (items #40–#42), its other items, and the bag slots those need
+/// now (mail::slots_for, as Bot::mail checks before Nhận).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailBodyView<'a> {
+    pub id: i64,
+    pub title: &'a str,
+    pub body: &'a str,
+    pub sender: &'a str,
+    pub taken: bool,
+    pub xu: i64,
+    pub xu_khoa: i64,
+    pub luong: i64,
+    pub items: Vec<ItemView>,
+    pub slots: u32,
+}
+impl<'a> MailBodyView<'a> {
+    fn of(m: &'a MailBody, bag: Option<&Bag>) -> Self {
+        let sum = |money: Money| {
+            m.items
+                .iter()
+                .filter(|i| mail::money_item(i.item_id) == Some(money))
+                .map(|i| i.quantity as i64)
+                .sum()
+        };
+        Self {
+            id: m.id,
+            title: &m.title,
+            body: &m.body,
+            sender: &m.sender,
+            taken: m.taken,
+            xu: sum(Money::Xu),
+            xu_khoa: sum(Money::XuKhoa),
+            luong: sum(Money::Luong),
+            items: m
+                .items
+                .iter()
+                .filter(|i| mail::money_item(i.item_id).is_none())
+                .map(ItemView::of)
+                .collect(),
+            slots: mail::slots_for(&m.items, bag.map_or(&[], |b| &b.items)),
+        }
+    }
 }
 
 /// SmithRun with its items named and drawn as the bag draws them.
@@ -531,6 +608,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             smith: s.smith.as_ref().map(SmithView::of),
             gift: s.gift.as_ref(),
             gift_limits: &s.gift_limits,
+            mailbox: MailboxView::of(&s.mailbox, s.bag.as_ref()),
             moving: s.moving.as_deref(),
             back_to: s.back_to.as_deref(),
             maps: &s.maps,

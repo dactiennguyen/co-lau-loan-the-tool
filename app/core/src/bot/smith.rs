@@ -111,7 +111,7 @@ pub(super) struct Smith {
 }
 
 /// "1.639".
-fn grouped(n: i64) -> String {
+pub(super) fn grouped(n: i64) -> String {
     let s = n.abs().to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {

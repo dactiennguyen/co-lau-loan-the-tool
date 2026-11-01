@@ -56,11 +56,7 @@ impl Bot {
         if let Some(why) = self.busy() {
             return Some(why.into());
         }
-        let waiting = self.shopping.is_some()
-            || self.item_wait.is_some()
-            || self.repairing.is_some()
-            || self.picked_at.is_some_and(|t| now < t + PICK_ANSWER);
-        if waiting {
+        if self.notice_awaited(now) {
             return Some("đang đợi server trả lời việc khác, thử lại sau ít giây".into());
         }
         let m = *memory(&self.options.gift);

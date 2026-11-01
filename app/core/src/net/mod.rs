@@ -5,8 +5,8 @@ use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::battle_record::BattleData;
 use crate::bot::{
-    BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind, Out, PickupRecord,
-    SmithTask, Snapshot,
+    BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind, MailTask, Out,
+    PickupRecord, SmithTask, Snapshot,
 };
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
@@ -82,6 +82,8 @@ pub enum Command {
     Gift(Vec<String>),
     /// Đếm lại từ 0 of the codes refused in a row (Bot::gift_reset).
     GiftReset,
+    /// A task of the Hòm thư tab (Bot::mail).
+    Mail(MailTask),
     Logout,
 }
 

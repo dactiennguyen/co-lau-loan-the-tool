@@ -111,7 +111,7 @@ export function AccountPage({ account }: { account: Account }) {
                 { key: "bag", label: "Túi đồ", icon: "gem" },
               ]}
             />
-            {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng, Mã quà tặng (ShopModal). */}
+            {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng, Hòm thư, Mã quà tặng (ShopModal). */}
             <Button
               kind="outline"
               small
@@ -124,6 +124,8 @@ export function AccountPage({ account }: { account: Account }) {
               onClick={() => open({ kind: "shop", id })}
             >
               Tiện ích
+              {/* A mail not read yet (s2c/1220), as the red mark of the game's Thư button. */}
+              {c?.mailbox.unread && <i className="size-1.5 bg-danger" role="img" aria-label="có thư chưa đọc" />}
             </Button>
           </div>
           <TabPanel id={tabs} value={task}>

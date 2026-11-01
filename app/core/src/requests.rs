@@ -39,6 +39,8 @@ pub struct Ctx<'a> {
     pub uuid: Option<&'a str>,
     /// A gift code of c2s/1223, already as the client sends it (mail::normalize_code).
     pub code: Option<&'a str>,
+    /// The mail of c2s/1216 (open), c2s/1217 (Nhận), c2s/1219 (Xóa): its id in s2c/1215.
+    pub mail_id: Option<i64>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -51,7 +53,9 @@ fn required<T>(v: Option<T>, name: &str) -> Result<T> {
 pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
     let w = Writer::new();
     Ok(match opcode {
-        -1 | 1 | 2 | 3 | 1172 | 1257 => w.build(),
+        // c2s/1215 asks for the mailbox, c2s/1218 is Nhận hết. c2s/1221 (Xóa hết) has no arm: it deletes the gifts not
+        // taken too (mail::DELETE_ALL).
+        -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 => w.build(),
         1206 => w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build(),
         5 => w
             .i32(c.server_id.unwrap_or(SERVER_ID))
@@ -130,6 +134,8 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         1188 => w.string(required(c.uuid, "uuid")?).build(),
         // Mã quà tặng (G1): the code alone, from anywhere in the world.
         1223 => w.string(required(c.code, "code")?).build(),
+        // Hòm thư (G1): open, Nhận and Xóa of one mail.
+        1216 | 1217 | 1219 => w.i64(required(c.mail_id, "mailId")?).build(),
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),
         1181 => w
             .string(required(c.mob_id, "mobId")?)

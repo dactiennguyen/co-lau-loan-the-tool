@@ -16219,5 +16219,534 @@
    { "typed": "  DENBU  ", "hex": "0000000544454e4255" },
    { "typed": "Saima2026", "hex": "000000095341494d4132303236" }
   ]
+ },
+ "mail": {
+  "decoders": [
+   {
+    "fn": "mailList",
+    "key": "s2c/1215 bốn thư mới",
+    "hex": "00000004000000000000188801000000195175c3a020c490e1bb816e2062c3b920416c706861546573740000000c48e1bb87205468e1bb916e67000100000001a195fd245000000000000000000000000000001886010000000f5175c3a020416c70686120546573740000000c48e1bb87205468e1bb916e67000100000001a195fceab70000000000000000000000000000188101000000175175c3a020416c7068612054657374204e67c3a07920310000000c48e1bb87205468e1bb916e67000100000001a195fbe949000000000000000000000000000013fe01000000145175c3a020c491e1baa1742063e1baa5702032300000000c48e1bb87205468e1bb916e67000100000001a1928d413b0000000000000000",
+    "expected": [
+     { "id": 6280, "kind": 1, "title": "Quà Đền bù AlphaTest", "sender": "Hệ Thống", "read": false, "gift": true, "taken": false, "sentAt": 1793517757520, "last": 0 },
+     { "id": 6278, "kind": 1, "title": "Quà Alpha Test", "sender": "Hệ Thống", "read": false, "gift": true, "taken": false, "sentAt": 1793517742775, "last": 0 },
+     { "id": 6273, "kind": 1, "title": "Quà Alpha Test Ngày 1", "sender": "Hệ Thống", "read": false, "gift": true, "taken": false, "sentAt": 1793517676873, "last": 0 },
+     { "id": 5118, "kind": 1, "title": "Quà đạt cấp 20", "sender": "Hệ Thống", "read": false, "gift": true, "taken": false, "sentAt": 1793460093243, "last": 0 }
+    ]
+   },
+   {
+    "fn": "mailBody",
+    "key": "s2c/1216 6280 Đền bù",
+    "hex": "0000000000001888000000195175c3a020c490e1bb816e2062c3b920416c706861546573740000003243e1baa36d20c6a16e2053e1bba9205175c3a26e20c491c3a3206368e1bb8b75206b68c3b3206368e1bb9d20c491e1bba3690000000c48e1bb87205468e1bb916e670000000003ff000000280000002431316139356537612d343631302d346465612d626338652d63336636326633363738313600000000ffffffff004c4b4001ff00000000000000ff0000002a0000002432623431656162352d303661352d346661332d383433612d38393630656333326266353300000000ffffffff0000271001ff00000000000000ff000000290000002434306564303232652d653035642d346137382d383033662d37393631306538363533656600000000ffffffff004c4b4001ff00000000000000",
+    "expected": {
+     "id": 6280,
+     "title": "Quà Đền bù AlphaTest",
+     "body": "Cảm ơn Sứ Quân đã chịu khó chờ đợi",
+     "sender": "Hệ Thống",
+     "taken": false,
+     "items": [
+      {
+       "slot": 255,
+       "itemId": 40,
+       "uuid": "11a95e7a-4610-4dea-bc8e-c3f62f367816",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 5000000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 42,
+       "uuid": "2b41eab5-06a5-4fa3-843a-8960ec32bf53",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 10000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 41,
+       "uuid": "40ed022e-e05d-4a78-803f-79610e8653ef",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 5000000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ]
+    }
+   },
+   {
+    "fn": "mailAck",
+    "key": "s2c/1217 6280 được",
+    "hex": "000000000000188801",
+    "expected": { "id": 6280, "ok": true }
+   },
+   {
+    "fn": "mailBody",
+    "key": "s2c/1216 6278 Alpha Test",
+    "hex": "00000000000018860000000f5175c3a020416c70686120546573740000000f5175c3a020416c70686120546573740000000c48e1bb87205468e1bb916e67000000000bff000000280000002463616539633230342d303738612d346633342d386535642d31633861326661633935653200000000ffffffff0098968001ff00000000000000ff000000290000002437333737613736652d363266662d346531372d386562332d61616664313361356533613800000000ffffffff0098968001ff00000000000000ff0000002a0000002432336662653339662d376163322d343432362d623466622d35623633306265393165623300000000ffffffff00004e2001ff00000000000000ff0000025d0000002431303030303136622d356139612d343636642d383631302d37643762613239613964653900000000ffffffff000001f401ff00000000000000ff000002510000002462363035373663622d336238332d346538302d396365322d33373430646234346161373100000000ffffffff000001f401ff00000000000000ff000002630000002430393131326265372d616533632d343933372d396330322d33636461653238353064626500000000ffffffff000001f401ff00000000000000ff000002570000002463363839373439622d633838622d343635612d383032332d31623034626566336663396500000000ffffffff000001f401ff00000000000000ff0000025e0000002462656564636661382d356538612d343765372d626635362d31353837366336363535343600000000ffffffff000001f401ff00000000000000ff000002520000002435303339666136332d363431382d343765642d393839372d38646465636262393965323900000000ffffffff000001f401ff00000000000000ff000002640000002436353066656266652d343365612d346136322d623862332d61333037653533643062313100000000ffffffff000001f401ff00000000000000ff000002580000002438623134376265662d346434372d343133642d383432382d39656439366133666530323900000000ffffffff000001f401ff00000000000000",
+    "expected": {
+     "id": 6278,
+     "title": "Quà Alpha Test",
+     "body": "Quà Alpha Test",
+     "sender": "Hệ Thống",
+     "taken": false,
+     "items": [
+      {
+       "slot": 255,
+       "itemId": 40,
+       "uuid": "cae9c204-078a-4f34-8e5d-1c8a2fac95e2",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 10000000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 41,
+       "uuid": "7377a76e-62ff-4e17-8eb3-aafd13a5e3a8",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 10000000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 42,
+       "uuid": "23fbe39f-7ac2-4426-b4fb-5b630be91eb3",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 20000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 605,
+       "uuid": "1000016b-5a9a-466d-8610-7d7ba29a9de9",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 593,
+       "uuid": "b60576cb-3b83-4e80-9ce2-3740db44aa71",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 611,
+       "uuid": "09112be7-ae3c-4937-9c02-3cdae2850dbe",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 599,
+       "uuid": "c689749b-c88b-465a-8023-1b04bef3fc9e",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 606,
+       "uuid": "beedcfa8-5e8a-47e7-bf56-15876c665546",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 594,
+       "uuid": "5039fa63-6418-47ed-9897-8ddecbb99e29",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 612,
+       "uuid": "650febfe-43ea-4a62-b8b3-a307e53d0b11",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 600,
+       "uuid": "8b147bef-4d47-413d-8428-9ed96a3fe029",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 500,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ]
+    }
+   },
+   {
+    "fn": "mailAck",
+    "key": "s2c/1217 6278 không được",
+    "hex": "000000000000188600",
+    "expected": { "id": 6278, "ok": false }
+   },
+   {
+    "fn": "mailBody",
+    "key": "s2c/1216 6273 Ngày 1",
+    "hex": "0000000000001881000000175175c3a020416c7068612054657374204e67c3a0792031000000174368c3a06f206de1bbab6e672053e1bba9205175c3a26e0000000c48e1bb87205468e1bb916e670000000008ff000000290000002431613665303238352d326330622d346463302d383362652d33326235373865386331353200000000ffffffff000f424001ff00000000000000ff000000070000002433646636313134622d393536362d346565342d386263622d39333438366231616463366600000000ffffffff0000000100ff00000000000000ff0000019f0000002437393965393663632d653533322d346439622d386533652d63643433646437366662303000000000ffffffff0000000100ff00000000000000ff000000020000002436393862633735612d613331342d346531652d623864382d64396234646330326163616200000000ffffffff0000000a00ff00000000000000ff000000000000002435306134666662642d356434642d343361362d393832362d65393633646465633734613700000000ffffffff0000000a00ff00000000000000ff000000010000002432666135656233342d353133372d343131302d623862632d31653638396438626165323700000000ffffffff0000000a00ff00000000000000ff0000019f0000002434393462316162362d353466362d346664662d623163652d30346237373162363235343600000000ffffffff0000000100ff00000000000000ff0000019f0000002464333066383537632d333864632d343037392d613664362d39343434363966386266636500000000ffffffff0000000100ff00000000000000",
+    "expected": {
+     "id": 6273,
+     "title": "Quà Alpha Test Ngày 1",
+     "body": "Chào mừng Sứ Quân",
+     "sender": "Hệ Thống",
+     "taken": false,
+     "items": [
+      {
+       "slot": 255,
+       "itemId": 41,
+       "uuid": "1a6e0285-2c0b-4dc0-83be-32b578e8c152",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1000000,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 7,
+       "uuid": "3df6114b-9566-4ee4-8bcb-93486b1adc6f",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 415,
+       "uuid": "799e96cc-e532-4d9b-8e3e-cd43dd76fb00",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 2,
+       "uuid": "698bc75a-a314-4e1e-b8d8-d9b4dc02acab",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 10,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 0,
+       "uuid": "50a4ffbd-5d4d-43a6-9826-e963ddec74a7",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 10,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 1,
+       "uuid": "2fa5eb34-5137-4110-b8bc-1e689d8bae27",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 10,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 415,
+       "uuid": "494b1ab6-54f6-4fdf-b1ce-04b771b62546",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 415,
+       "uuid": "d30f857c-38dc-4079-a6d6-944469f8bfce",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ]
+    }
+   },
+   {
+    "fn": "mailBody",
+    "key": "s2c/1216 5118 cấp 20",
+    "hex": "00000000000013fe000000145175c3a020c491e1baa1742063e1baa570203230000000424368c3ba63206de1bbab6e672062e1baa16e20c491e1baa1742063e1baa570203230212042e1baa56d206e68e1baad6e20c491e1bb83206ce1baa579207175c3a02e0000000c48e1bb87205468e1bb916e670000000003ff000000290000002434353730626437612d643364392d343962362d393166612d33386134323833653133356600000000ffffffff000010fe00ff00000000000000ff000000070000002435336233303831352d313065612d343165322d623637302d33343834626664356634376600000000ffffffff0000000100ff00000000000000ff0000019f0000002433336361393435622d663431612d343431342d396137302d64303332323636653737306500000000ffffffff0000000100ff00000000000000",
+    "expected": {
+     "id": 5118,
+     "title": "Quà đạt cấp 20",
+     "body": "Chúc mừng bạn đạt cấp 20! Bấm nhận để lấy quà.",
+     "sender": "Hệ Thống",
+     "taken": false,
+     "items": [
+      {
+       "slot": 255,
+       "itemId": 41,
+       "uuid": "4570bd7a-d3d9-49b6-91fa-38a4283e135f",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 4350,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 7,
+       "uuid": "53b30815-10ea-41e2-b670-3484bfd5f47f",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 255,
+       "itemId": 415,
+       "uuid": "33ca945b-f41a-4414-9a70-d032266e770e",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ]
+    }
+   },
+   {
+    "fn": "mailList",
+    "key": "s2c/1215 sau Nhận hết khi đầy",
+    "hex": "00000004000000000000188801000000195175c3a020c490e1bb816e2062c3b920416c706861546573740000000c48e1bb87205468e1bb916e67010101000001a195fd245000000000000000000000000000001886010000000f5175c3a020416c70686120546573740000000c48e1bb87205468e1bb916e67010100000001a195fceab70000000000000000000000000000188101000000175175c3a020416c7068612054657374204e67c3a07920310000000c48e1bb87205468e1bb916e67010100000001a195fbe949000000000000000000000000000013fe01000000145175c3a020c491e1baa1742063e1baa5702032300000000c48e1bb87205468e1bb916e67010100000001a1928d413b0000000000000000",
+    "expected": [
+     { "id": 6280, "kind": 1, "title": "Quà Đền bù AlphaTest", "sender": "Hệ Thống", "read": true, "gift": true, "taken": true, "sentAt": 1793517757520, "last": 0 },
+     { "id": 6278, "kind": 1, "title": "Quà Alpha Test", "sender": "Hệ Thống", "read": true, "gift": true, "taken": false, "sentAt": 1793517742775, "last": 0 },
+     { "id": 6273, "kind": 1, "title": "Quà Alpha Test Ngày 1", "sender": "Hệ Thống", "read": true, "gift": true, "taken": false, "sentAt": 1793517676873, "last": 0 },
+     { "id": 5118, "kind": 1, "title": "Quà đạt cấp 20", "sender": "Hệ Thống", "read": true, "gift": true, "taken": false, "sentAt": 1793460093243, "last": 0 }
+    ]
+   },
+   {
+    "fn": "mailAck",
+    "key": "s2c/1219 6280 đã xoá",
+    "hex": "000000000000188801",
+    "expected": { "id": 6280, "ok": true }
+   },
+   {
+    "fn": "mailList",
+    "key": "s2c/1215 ba thư chưa nhận",
+    "hex": "000000030000000000001886010000000f5175c3a020416c70686120546573740000000c48e1bb87205468e1bb916e67010100000001a195fceab70000000000000000000000000000188101000000175175c3a020416c7068612054657374204e67c3a07920310000000c48e1bb87205468e1bb916e67010100000001a195fbe949000000000000000000000000000013fe01000000145175c3a020c491e1baa1742063e1baa5702032300000000c48e1bb87205468e1bb916e67010100000001a1928d413b0000000000000000",
+    "expected": [
+     { "id": 6278, "kind": 1, "title": "Quà Alpha Test", "sender": "Hệ Thống", "read": true, "gift": true, "taken": false, "sentAt": 1793517742775, "last": 0 },
+     { "id": 6273, "kind": 1, "title": "Quà Alpha Test Ngày 1", "sender": "Hệ Thống", "read": true, "gift": true, "taken": false, "sentAt": 1793517676873, "last": 0 },
+     { "id": 5118, "kind": 1, "title": "Quà đạt cấp 20", "sender": "Hệ Thống", "read": true, "gift": true, "taken": false, "sentAt": 1793460093243, "last": 0 }
+    ]
+   },
+   {
+    "fn": "mailList",
+    "key": "s2c/1215 ba thư đã nhận",
+    "hex": "000000030000000000001886010000000f5175c3a020416c70686120546573740000000c48e1bb87205468e1bb916e67010101000001a195fceab70000000000000000000000000000188101000000175175c3a020416c7068612054657374204e67c3a07920310000000c48e1bb87205468e1bb916e67010101000001a195fbe949000000000000000000000000000013fe01000000145175c3a020c491e1baa1742063e1baa5702032300000000c48e1bb87205468e1bb916e67010101000001a1928d413b0000000000000000",
+    "expected": [
+     { "id": 6278, "kind": 1, "title": "Quà Alpha Test", "sender": "Hệ Thống", "read": true, "gift": true, "taken": true, "sentAt": 1793517742775, "last": 0 },
+     { "id": 6273, "kind": 1, "title": "Quà Alpha Test Ngày 1", "sender": "Hệ Thống", "read": true, "gift": true, "taken": true, "sentAt": 1793517676873, "last": 0 },
+     { "id": 5118, "kind": 1, "title": "Quà đạt cấp 20", "sender": "Hệ Thống", "read": true, "gift": true, "taken": true, "sentAt": 1793460093243, "last": 0 }
+    ]
+   }
+  ],
+  "requests": [
+   { "id": 6280, "hex": "0000000000001888" },
+   { "id": 6273, "hex": "0000000000001881" },
+   { "id": 5118, "hex": "00000000000013fe" },
+   { "id": 1099511627783, "hex": "0000010000000007" }
+  ],
+  "slots": [
+   {
+    "key": "s2c/1216 6280 Đền bù",
+    "bag": [],
+    "slots": 0
+   },
+   {
+    "key": "s2c/1216 6273 Ngày 1",
+    "bag": [
+     [ 2, 0 ],
+     [ 0, 0 ],
+     [ 1, 0 ]
+    ],
+    "slots": 4
+   },
+   {
+    "key": "s2c/1216 6273 Ngày 1",
+    "bag": [
+     [ 2, 1 ],
+     [ 0, 1 ],
+     [ 1, 1 ]
+    ],
+    "slots": 7
+   },
+   {
+    "key": "s2c/1216 6273 Ngày 1",
+    "bag": [],
+    "slots": 7
+   },
+   {
+    "key": "s2c/1216 6278 Alpha Test",
+    "bag": [],
+    "slots": 8
+   },
+   {
+    "key": "s2c/1216 5118 cấp 20",
+    "bag": [],
+    "slots": 2
+   },
+   {
+    "key": "s2c/1216 5118 cấp 20",
+    "bag": [
+     [ 7, 0 ]
+    ],
+    "slots": 1
+   }
+  ],
+  "claimed": [
+   { "text": "Đã nhận quà của 2 thư", "count": 2 },
+   { "text": "Đã nhận quà của 1 thư, rương đã đầy", "count": 1 },
+   { "text": "Không có quà nào để nhận", "count": 0 },
+   { "text": "Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa", "count": 0 }
+  ]
  }
 }

@@ -37,6 +37,12 @@ impl Bot {
                 "Đang nhập mã quà tặng: bấm Dừng rồi mới đánh quái".into(),
             ));
         }
+        if self.mail_changing() {
+            return out.push(Out::Log(
+                LogKind::Battle,
+                "Đang nhận hay xoá thư: đợi xong rồi mới đánh quái".into(),
+            ));
+        }
         self.snap.job = Some(Job {
             target: target.into(),
             count,

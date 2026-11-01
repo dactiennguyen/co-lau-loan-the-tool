@@ -360,6 +360,55 @@ export interface Character {
   gift: GiftRun | null;
   /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
   giftLimits: GiftLimits;
+  /** Hòm thư (Tiện ích): the list, the mails opened, the task under way. */
+  mailbox: Mailbox;
+}
+
+/** The mailbox as the app knows it (MailboxView of view.rs). */
+export interface Mailbox {
+  /** The list as last listed, newest first, with the mails come since; null until listed in this session. */
+  mails: MailHeader[] | null;
+  /** The mails opened in this session, of those still listed. */
+  opened: MailBody[];
+  /** Whether a mail is not read yet (s2c/1220); null until the server said. */
+  unread: boolean | null;
+  /** What the task under way does ("Đang nhận thư …"); null when none is. */
+  doing: string | null;
+  /** The mail the task under way is about. */
+  busyWith: number | null;
+  /** The task under way is Nhận, Nhận hết or Xóa: the character counts as busy until the server answers. */
+  changing: boolean;
+  /** The line the last task ended with, as in the log ("Xong nhận thư …", "Chưa nhận thư …"). */
+  last: string | null;
+}
+
+/** One mail of the list (s2c/1215, s2c/1222). */
+export interface MailHeader {
+  id: number;
+  kind: number;
+  title: string;
+  sender: string;
+  read: boolean;
+  /** It holds a gift, and whether that was taken. */
+  gift: boolean;
+  taken: boolean;
+  /** When it was sent, in ms since 1970 (server time). */
+  sentAt: number;
+  last: number;
+}
+
+/** A mail opened (s2c/1216): its words, its money, its other items, and the bag slots those need now. */
+export interface MailBody {
+  id: number;
+  title: string;
+  body: string;
+  sender: string;
+  taken: boolean;
+  xu: number;
+  xuKhoa: number;
+  luong: number;
+  items: Item[];
+  slots: number;
 }
 
 /** The server's lock on gift codes as the app knows it (GiftMemory of the Rust core). */

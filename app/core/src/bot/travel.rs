@@ -23,6 +23,8 @@ impl Bot {
             Some("đang làm việc với Pháp sư hay Hương Lão, bấm Dừng trước")
         } else if self.gift.is_some() {
             Some("đang nhập mã quà tặng, bấm Dừng trước")
+        } else if self.mail_changing() {
+            Some("đang nhận hay xoá thư, đợi server trả lời")
         } else {
             None
         }

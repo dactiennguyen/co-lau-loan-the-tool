@@ -16,15 +16,18 @@ import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { ShopBuy } from "./ShopBuy";
 import { ShopExchange } from "./ShopExchange";
 import { ShopGift } from "./ShopGift";
+import { ShopMail } from "./ShopMail";
 import { ShopMerge } from "./ShopMerge";
 import { ShopUpgrade } from "./ShopUpgrade";
 
-export type ShopSub = "buy" | "merge" | "upgrade" | "exchange" | "gift";
+export type ShopSub = "buy" | "merge" | "upgrade" | "exchange" | "mail" | "gift";
+/** Mã quà tặng last: the least used. */
 const SUBS: { key: ShopSub; label: string; icon: IconName }[] = [
   { key: "buy", label: "Mua", icon: "cart" },
   { key: "merge", label: "Gộp đá", icon: "gem" },
   { key: "upgrade", label: "Nâng cấp", icon: "hammer" },
   { key: "exchange", label: "Đổi lượng", icon: "coin" },
+  { key: "mail", label: "Hòm thư", icon: "mail" },
   { key: "gift", label: "Mã quà tặng", icon: "gift" },
 ];
 const SUB_KEY = "shop.sub";
@@ -89,8 +92,8 @@ export interface Ask {
 }
 
 /** What the sub-tabs share: the account, why nothing can be done now (null when it can), the same without the trip to
- * Làng Thanh Khê for what works anywhere (Mã quà tặng), the confirm box, and `track` to call before a task sent without
- * it (Hỏi giá, Mã quà tặng), so the modal shows the bot's refusal of it. */
+ * Làng Thanh Khê for what works anywhere (Hòm thư, Mã quà tặng), the confirm box, and `track` to call before a task sent
+ * without it (Hỏi giá, Mã quà tặng), so the modal shows the bot's refusal of it. */
 export interface ShopContext {
   account: Account;
   why: string | null;
@@ -108,8 +111,9 @@ interface Props {
 
 /**
  * Tiện ích (16-upgrade.md#tính-năng), a large modal: the money and the bag's room, where the character stands (the NPCs
- * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and five
- * sub-tabs: Mua at the 14 shops, Gộp đá, Nâng cấp (with Tách đá and Chuyển hoá), Đổi lượng, Mã quà tặng (from anywhere).
+ * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and six
+ * sub-tabs: Mua at the 14 shops, Gộp đá, Nâng cấp (with Tách đá and Chuyển hoá), Đổi lượng, then Hòm thư and Mã quà tặng
+ * (both from anywhere; the gift codes last, the least used).
  * Every spend asks once more.
  * Closing it, however it closes, walks the character back after a trip with "Xong việc quay về chỗ cũ" (Bot::shop_closed).
  */
@@ -140,6 +144,8 @@ export function ShopModal({ account, item, onClose }: Props) {
   const why = busy ?? (here ? null : "Các NPC này ở Làng Thanh Khê (M1): đi tới đó trước.");
   const money = c?.currencies;
   const bag = c?.bag;
+  // Gift mails not taken yet, on the Hòm thư tab.
+  const gifts = c?.mailbox.mails?.filter((m) => m.gift && !m.taken).length ?? 0;
   const ctx: ShopContext = {
     account,
     why,
@@ -158,7 +164,7 @@ export function ShopModal({ account, item, onClose }: Props) {
   return (
     <Dialog
       title="Tiện ích"
-      subtitle={`${account.label} · Lái Buôn, Bà Tư Hạnh, Pháp sư, Hương Lão · Làng Thanh Khê`}
+      subtitle={`${account.label} · Lái Buôn, Bà Tư Hạnh, Pháp sư, Hương Lão · Làng Thanh Khê · Hòm thư`}
       className="w-[min(1180px,96vw)] h-[min(880px,94vh)] max-w-none max-h-none"
       formClassName="h-full box-border grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
       onClose={close}
@@ -229,7 +235,13 @@ export function ShopModal({ account, item, onClose }: Props) {
         )}
         {c?.smith && <SmithStatus run={c.smith} onStop={() => api.stop(id)} />}
       </div>
-      <Tabs<ShopSub> id={tabs} label="Việc ở cửa hàng" value={sub} onChange={pick} tabs={SUBS} />
+      <Tabs<ShopSub>
+        id={tabs}
+        label="Việc ở cửa hàng"
+        value={sub}
+        onChange={pick}
+        tabs={SUBS.map((s) => (s.key === "mail" ? { ...s, count: gifts, countLabel: "thư quà chưa nhận" } : s))}
+      />
       <div className="@container min-h-0 overflow-y-auto pr-1.5 scroll">
         <TabPanel id={tabs} value={sub} className="block">
           {!c ? (
@@ -242,6 +254,8 @@ export function ShopModal({ account, item, onClose }: Props) {
             <ShopUpgrade {...ctx} />
           ) : sub === "exchange" ? (
             <ShopExchange {...ctx} />
+          ) : sub === "mail" ? (
+            <ShopMail {...ctx} />
           ) : (
             <ShopGift {...ctx} />
           )}

@@ -51,7 +51,7 @@ Với mỗi mã, bot làm như sau:
    - Bot dừng ngay, ghi các mã chưa gửi, và lưu giờ hết chặn. Chạy với `--confirm` trước giờ đó thì bot dừng luôn, không đăng nhập.
    - Sau lần chặn, bot đặt số lần sai về 0. Chưa đo server có làm vậy không [Chưa rõ].
 
-Quà không tự vào túi: chạy `npm run mail -- --claim-all --confirm` để nhận.
+Quà không tự vào túi: chạy `npm run mail -- --claim-all --confirm` để nhận, hay bấm Nhận hết ở tab Hòm thư của app ([app Rust](../rust/features.md#hòm-thư)).
 
 ## Hòm thư
 

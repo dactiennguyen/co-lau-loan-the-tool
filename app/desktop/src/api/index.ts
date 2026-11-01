@@ -95,6 +95,16 @@ export interface Api {
   redeemCodes(id: number, codes: string[]): Promise<void>;
   /** Mã quà tặng, Đếm lại từ 0: forgets the codes refused in a row (the server's lock stays). */
   resetGiftCount(id: number): Promise<void>;
+  /** Hòm thư, from wherever the character stands: the list. */
+  mailList(id: number): Promise<void>;
+  /** Hòm thư: what a mail says and holds; the server marks it read. */
+  mailOpen(id: number, mail: number): Promise<void>;
+  /** Hòm thư, Nhận: the gift of one mail, once the bag has the room. */
+  mailClaim(id: number, mail: number): Promise<void>;
+  /** Hòm thư, Nhận hết: every gift that fits. */
+  mailClaimAll(id: number): Promise<void>;
+  /** Hòm thư, Xóa: these mails, only those whose gift is taken or that had none. There is no Xóa hết. */
+  mailDelete(id: number, mails: number[]): Promise<void>;
   /** Older lines of the Nhật ký from cllt.db, oldest first: before row `before`, of `kinds` (all when empty), only the
    * red ones with `bad`. Empty without the database. */
   logHistory(id: number, before: number | null, kinds: LogKind[], bad: boolean, limit: number): Promise<LogLine[]>;
@@ -172,6 +182,11 @@ const tauri: Api = {
   exchangeLuong: (id, option, times) => invoke("exchange_luong", { id, option, times }),
   redeemCodes: (id, codes) => invoke("redeem_codes", { id, codes }),
   resetGiftCount: (id) => invoke("reset_gift_count", { id }),
+  mailList: (id) => invoke("mail_list", { id }),
+  mailOpen: (id, mail) => invoke("mail_open", { id, mail }),
+  mailClaim: (id, mail) => invoke("mail_claim", { id, mail }),
+  mailClaimAll: (id) => invoke("mail_claim_all", { id }),
+  mailDelete: (id, mails) => invoke("mail_delete", { id, mails }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
   battleStats: (id, since, source) => invoke("battle_stats", { id, since, source }),
   battleHistory: (id, since, source, before, limit) => invoke("battle_history", { id, since, source, before, limit }),
@@ -240,6 +255,11 @@ const preview: Api = {
   exchangeLuong: nothing,
   redeemCodes: nothing,
   resetGiftCount: nothing,
+  mailList: nothing,
+  mailOpen: nothing,
+  mailClaim: nothing,
+  mailClaimAll: nothing,
+  mailDelete: nothing,
   logHistory: async () => [],
   battleStats: async () => (await loadSample()).battleStats ?? null,
   battleHistory: async (_id, _since, _source, before) => (before == null ? ((await loadSample()).battleHistory ?? []) : []),

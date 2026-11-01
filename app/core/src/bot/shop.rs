@@ -45,6 +45,7 @@ impl Bot {
             || self.shopping.is_some()
             || self.smith.is_some()
             || self.gift.is_some()
+            || self.mail_changing()
             || self.battle.is_some()
         {
             return;

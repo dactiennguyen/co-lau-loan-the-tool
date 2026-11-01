@@ -8,6 +8,9 @@ export interface Tab<K extends string> {
   icon: IconName;
   /** A blinking light: something runs behind this tab. */
   busy?: boolean;
+  /** A count beside the label (gifts not taken), with what it counts for screen readers; none at 0. */
+  count?: number;
+  countLabel?: string;
 }
 
 const tabId = (id: string, key: string) => `${id}-tab-${key}`;
@@ -66,6 +69,14 @@ export function Tabs<K extends string>({
           {t.label}
           {/* Something runs behind that tab. */}
           {t.busy && <i className="size-1.5 bg-s-fighting animate-blink" role="img" aria-label="đang chạy" />}
+          {!!t.count && (
+            <span
+              className="grid place-items-center min-w-4 h-4 px-1 bg-accent-deep text-fg font-pixel font-normal text-10 leading-none tracking-normal"
+              aria-label={`${t.count} ${t.countLabel ?? ""}`.trim()}
+            >
+              {t.count}
+            </span>
+          )}
         </button>
       ))}
     </div>

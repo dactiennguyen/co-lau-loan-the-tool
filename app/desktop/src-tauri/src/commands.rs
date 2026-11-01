@@ -7,7 +7,7 @@ use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleSource, FightSettings, ItemAct, LogKind, SmithTask};
+use cllt_core::bot::{BattleSource, FightSettings, ItemAct, LogKind, MailTask, SmithTask};
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
 use cllt_core::potentials::StatPlan;
@@ -286,6 +286,36 @@ pub fn redeem_codes(shared: State<Shared>, id: u64, codes: Vec<String>) {
 #[tauri::command]
 pub fn reset_gift_count(shared: State<Shared>, id: u64) {
     shared.with(|app| app.send(id, Command::GiftReset));
+}
+
+/// Hòm thư, from wherever the character stands (Bot::mail); `character.mailbox` and the log tell how it went. The list.
+#[tauri::command]
+pub fn mail_list(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::List)));
+}
+
+/// Hòm thư: what mail `mail` says and holds; the server marks it read.
+#[tauri::command]
+pub fn mail_open(shared: State<Shared>, id: u64, mail: i64) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::Open(mail))));
+}
+
+/// Hòm thư, Nhận: the gift of mail `mail`, once the bag has the room for it.
+#[tauri::command]
+pub fn mail_claim(shared: State<Shared>, id: u64, mail: i64) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::Claim(mail))));
+}
+
+/// Hòm thư, Nhận hết: every gift that fits.
+#[tauri::command]
+pub fn mail_claim_all(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::ClaimAll)));
+}
+
+/// Hòm thư, Xóa: these mails one by one, only those whose gift is taken or that had none. There is no Xóa hết.
+#[tauri::command]
+pub fn mail_delete(shared: State<Shared>, id: u64, mails: Vec<i64>) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::Delete(mails))));
 }
 
 /// Mua: `quantity` of the shop line `shop_id`; the log tells how it went.

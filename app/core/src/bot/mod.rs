@@ -11,6 +11,7 @@ use crate::items::{
     bag_slot, book, character_extra, character_gear, character_tail, currencies, gear_durability,
     gear_update, ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
 };
+use crate::mail::{MailBody, MailHeader};
 use crate::npc::{
     self, craft_window, merge_plan, quote, service_preview, service_result, service_slot,
     service_window, stone_result, stone_slot, transmute_item, transmute_target, upgrade_stones,
@@ -38,6 +39,7 @@ use std::time::{Duration, Instant};
 mod fight;
 mod gift;
 mod items;
+mod mailbox;
 mod packets;
 mod quest;
 mod record;
@@ -271,6 +273,8 @@ pub struct Bot {
     gift: Option<gift::Gift>,
     gift_runs: u32,
     gift_echo: Option<(String, Instant)>,
+    /// Hòm thư (mailbox.rs): the task under way, waiting for the server. What the mailbox holds is in Snapshot.mailbox.
+    mail: Option<mailbox::MailWait>,
     fight: FightSettings,
     /// The gear slot and item name of the repair auto_repair sent, until s2c/48 or a notice answers it. `repair_failed`
     /// holds the slots the server did not repair in this run, `repair_warned` whether the run said it has no hammer.
@@ -347,6 +351,7 @@ impl Bot {
             gift: None,
             gift_runs: 0,
             gift_echo: None,
+            mail: None,
             fight,
             repairing: None,
             repair_failed: HashSet::new(),
@@ -385,6 +390,7 @@ impl Bot {
             .as_ref()
             .map(|b| format!("{} khu {}", b.name, b.zone));
         s.gift_limits = self.gift_limits();
+        s.mailbox.changing = self.mail_changing();
         if let Some(b) = &self.battle {
             s.turn = self.turn_of(b);
         }
@@ -533,6 +539,7 @@ impl Bot {
             self.shopping.as_ref().map(|s| s.1),
             self.smith.as_ref().map(|s| s.until),
             self.gift.as_ref().map(|g| g.until),
+            self.mail.as_ref().map(|m| m.until),
             self.pick_at,
         ]
         .into_iter()
@@ -603,6 +610,7 @@ impl Bot {
         }
         self.smith_timer(now, out);
         self.gift_timer(now, out);
+        self.mail_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
             if let Some(z) = self.zoning.take() {
@@ -660,6 +668,7 @@ impl Bot {
         }
         self.smith_stop(now, out);
         self.gift_stop(out);
+        self.mail_stop();
         if surrender {
             self.surrender(now, out);
         }

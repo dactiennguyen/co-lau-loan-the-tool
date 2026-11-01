@@ -21,6 +21,8 @@ impl Bot {
             Some("đang làm việc ở Pháp sư hay Hương Lão")
         } else if self.gift.is_some() {
             Some("đang nhập mã quà tặng")
+        } else if self.mail_changing() {
+            Some("đang nhận hay xoá thư")
         } else {
             None
         };

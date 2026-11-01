@@ -36,7 +36,7 @@ function useNow(until: number | null) {
 /**
  * Mã quà tặng (14-npc.md#mã-quà-tặng): the box of Hương Lão's Phúc lợi window, for several codes at once. Codes go out
  * from wherever the character stands (G1), one by one; each gets the server's words, a good one its mail. Rewards go to
- * the mailbox, which the app does not open yet.
+ * the mailbox, taken in the Hòm thư tab (ShopMail).
  */
 export function ShopGift({ account, busy, ask, track }: ShopContext) {
   const c = account.character!;
@@ -93,7 +93,7 @@ export function ShopGift({ account, busy, ask, track }: ShopContext) {
     <div className={SHOP.tab}>
       <p className={SHOP.note}>
         Hương Lão Trần Bá → Mã quà tặng. Mã gửi được từ bất kỳ đâu, không cần về Làng Thanh Khê. Phần thưởng vào{" "}
-        <b className="text-fg">Hòm thư</b>: app chưa mở Hòm thư, nên nhận quà trong game.
+        <b className="text-fg">Hòm thư</b>: nhận ở tab Hòm thư ngay bên cạnh.
       </p>
       <div className="grid gap-[5px]">
         <div className={SHOP.lead}>

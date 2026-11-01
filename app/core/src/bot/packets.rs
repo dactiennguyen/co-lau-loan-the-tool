@@ -563,6 +563,7 @@ impl Bot {
                     || self.shopping.is_some()
                     || self.smith.is_some()
                     || self.gift.is_some()
+                    || self.mail.is_some()
                     || self.item_wait.is_some()
                     || self.zoning.is_some();
                 if picking && (about || !waiting) {
@@ -570,6 +571,8 @@ impl Bot {
                     return Ok(());
                 }
                 out.push(Out::Log(LogKind::Server, text.clone()));
+                // The notice of Nhận ("Rương đã đầy…") or Nhận hết ("Đã nhận quà của 2 thư"), for its result line.
+                self.mail_notice(&text);
                 // The answer of Pháp sư or Hương Lão to a task (smith_notice).
                 if self.smith_notice(&text, now, out) {
                     return Ok(());
@@ -726,8 +729,27 @@ impl Bot {
             }
             1222 => {
                 let m = crate::mail::new_mail(payload)?;
+                self.mail_arrived(&m);
                 self.gift_mail(m, now, out);
             }
+            // Hòm thư (mailbox.rs): the list, a mail opened, Nhận, Xóa, and whether a mail is not read yet.
+            1215 => {
+                let mails = crate::mail::mail_list(payload)?;
+                self.mail_listed(mails, out);
+            }
+            1216 => {
+                let body = crate::mail::mail_body(payload)?;
+                self.mail_opened(body, now, out);
+            }
+            1217 => {
+                let a = crate::mail::mail_ack(payload, 1217)?;
+                self.mail_claimed(a, out);
+            }
+            1219 => {
+                let a = crate::mail::mail_ack(payload, 1219)?;
+                self.mail_deleted(a, now, out);
+            }
+            1220 => self.snap.mailbox.unread = payload.first().map(|&b| b == 1),
             _ => {}
         }
         self.walk_back(now, out);

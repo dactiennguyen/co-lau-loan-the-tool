@@ -59,6 +59,10 @@ impl Writer {
         self.0.push(v);
         self
     }
+    pub fn i64(mut self, v: i64) -> Self {
+        self.0.extend_from_slice(&v.to_be_bytes());
+        self
+    }
     pub fn bytes(self, v: &[u8]) -> Self {
         let mut w = self.i32(v.len() as i32);
         w.0.extend_from_slice(v);
