@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { DIALOG, Dialog } from "../components/Dialog";
 import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
@@ -8,15 +9,18 @@ import { Icon } from "../components/Icon";
 import { num } from "../format";
 import { skillIcon, TREE } from "../skillIcons";
 import type { Account, FightSettings, Skill, SkillLevel } from "../types";
-import "./SkillsModal.css";
 
 /** Nội lực of one "thành" (12-skills-items.md#bảng-kỹ-năng). */
 const THANH = 25;
 /** A Nâng cấp the server has not answered in this long is let go, and the button comes back. */
 const ANSWER_MS = 8000;
-/** The narrowest the detail panel gets beside the tree, and the gap between them (SkillsModal.css). */
+/** The narrowest the detail panel gets beside the tree, and the gap between them (minmax(240px,1fr) and gap-4 of the body). */
 const PANEL_MIN = 240;
 const GAP = 16;
+
+/** A level in the panel: its label ("Cấp hiện tại" green), its text. */
+const TAG = "text-11 font-extrabold tracking-[0.04em] uppercase text-fg-3";
+const TEXT = "m-0 text-12 leading-[1.45] text-fg-2";
 
 const mana = (l: SkillLevel) => `Tiêu hao ${(l.mana / THANH).toLocaleString("vi-VN")} thành nội lực`;
 
@@ -56,7 +60,7 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
     const t = setTimeout(() => setSent(null), ANSWER_MS);
     return () => clearTimeout(t);
   }, [sent]);
-  // The modal is as tall as what it holds, up to the form's max-height (SkillsModal.css). The tree shrinks (0.6 to 1) to
+  // The modal is as tall as what it holds, up to the form's max-height (formClassName). The tree shrinks (0.6 to 1) to
   // fit the room the form leaves its body, and to leave PANEL_MIN beside it. The room is the max-height less the rest
   // of the form (title, bar, footer), so it does not follow the tree's own size and grows back with the window.
   const frame = useRef<HTMLDivElement>(null);
@@ -96,15 +100,32 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
       onClose={onClose}
       onSubmit={(e) => e.preventDefault()}
     >
-      <div className="skmodal__bar">
+      {/* The bar (learnt, Tự cộng) over the tree (the game's background, 288 × 347, with the icons in its boxes; shrunk
+          when the window is short) beside the detail panel, at least 240 px wide. The form stops at its max-height and
+          the body scrolls; a narrow window puts the panel under the tree. */}
+      <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5">
         {skills.length > 0 && (
-          <span className="sk__count">
+          <span className="py-px px-1.5 border border-line text-10 font-bold tracking-[0.04em] uppercase text-fg-3">
             {learned}/{skills.length} đã học
           </span>
         )}
-        <label className="skmodal__auto">
-          <input type="checkbox" checked={settings.autoSkills} disabled={!!saving} onChange={(e) => setAuto(e.target.checked)} />
-          <span className="skmodal__box" aria-hidden="true">
+        {/* Tự cộng: a pixel check box, green when on, as the setting rows. */}
+        <label className="inline-flex items-center gap-1.5 text-12 font-semibold text-fg-2 cursor-pointer hover:text-fg has-[input:disabled]:opacity-60 has-[input:disabled]:cursor-wait">
+          <input
+            className="peer absolute opacity-0 w-px h-px"
+            type="checkbox"
+            checked={settings.autoSkills}
+            disabled={!!saving}
+            onChange={(e) => setAuto(e.target.checked)}
+          />
+          <span
+            className={
+              "grid place-items-center flex-none size-4 text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +
+              "peer-checked:text-ink peer-checked:bg-good peer-checked:shadow-[inset_-2px_-2px_0_var(--good-shade)] " +
+              "peer-focus-visible:outline-2 peer-focus-visible:outline-ring peer-focus-visible:outline-offset-2"
+            }
+            aria-hidden="true"
+          >
             <Icon name="check" size={11} />
           </span>
           Tự cộng
@@ -115,17 +136,18 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
           nào đủ điều kiện. Bot cộng giữa các trận và khi nick rảnh, không cộng lúc đang đánh, và chừa điểm cho bước nhiệm vụ
           "Sử dụng điểm kỹ năng". Mặc định tắt; lưu theo nick.
         </Hint>
-        {error && <span className="sk__why">{error}</span>}
+        {error && <span className="text-11 text-danger">{error}</span>}
       </div>
-      <div className="skmodal__body scroll" ref={frame}>
+      <div className="@container min-h-0 scroll" ref={frame}>
         {!c || !shown ? (
-          <p className="sk__none">
+          <p className="m-0 text-12 text-fg-3">
             {c ? "Server chưa gửi cây kỹ năng (s2c/30)." : "Đăng nhập để xem kỹ năng: server chỉ gửi cây kỹ năng lúc vào game."}
           </p>
         ) : (
-          <div className="sk__body">
+          // With 420 px of room or less, the panel goes under the tree, which stays in the middle.
+          <div className="grid grid-cols-[auto_minmax(240px,1fr)] gap-4 [align-items:start] [@container(max-width:420px)]:grid-cols-[minmax(0,1fr)]">
             <div
-              className="sk__tree"
+              className="relative flex-none bg-no-repeat bg-position-[0_0] bg-size-[100%_100%] [@container(max-width:420px)]:justify-self-center"
               role="group"
               aria-label={`Cây kỹ năng${element ? ` hệ ${element}` : ""}`}
               style={{ width: TREE.width, height: TREE.height, zoom, backgroundImage: TREE.url ? `url(${TREE.url})` : undefined }}
@@ -162,19 +184,30 @@ function SkillBox({ skill: k, active, onPick }: { skill: Skill; active: boolean;
   const state = k.level > 0 ? `cấp ${k.level}/${k.maxLevel}` : "chưa học";
   const icon = skillIcon(k.id, k.level > 0);
   return (
+    // The icon inside the background's frame; the picked one gets the game's orange frame (the focus ring wins over it).
     <button
       type="button"
-      className={`sk__box${active ? " sk__box--on" : ""}${k.level > 0 ? "" : " sk__box--grey"}`}
+      className={cn(
+        "group/box absolute grid place-items-center p-0 bg-transparent bg-none [border:0] cursor-pointer",
+        "focus-visible:outline-3 focus-visible:outline-ring focus-visible:outline-offset-1",
+        active && "outline-3 outline-primary -outline-offset-1",
+      )}
       style={{ left: k.place!.x, top: k.place!.y, width: TREE.box, height: TREE.box }}
       aria-pressed={active}
       aria-label={`${k.name}, ${state}${can ? ", nâng cấp được" : ""}`}
       title={k.panel.join("\n")}
       onClick={onPick}
     >
-      {icon ? <img src={icon} alt="" /> : <span className="sk__noicon">{k.name.slice(0, 1)}</span>}
-      {k.level > 0 && <span className="sk__lv px">{k.level}</span>}
+      {icon ? (
+        <img className={cn("size-[50px] group-hover/box:brightness-115", k.level <= 0 && "opacity-85")} src={icon} alt="" />
+      ) : (
+        <span className="text-20 font-extrabold text-fg-3">{k.name.slice(0, 1)}</span>
+      )}
+      {k.level > 0 && (
+        <span className="px absolute right-1 bottom-1 min-w-4 py-px px-[3px] bg-ink text-10 leading-[1.1] text-center text-primary">{k.level}</span>
+      )}
       {can && (
-        <span className="sk__can" aria-hidden="true">
+        <span className="absolute top-[3px] right-[3px] grid place-items-center size-3.5 bg-good text-ink bevel-sm" aria-hidden="true">
           <Icon name="plus" size={9} />
         </span>
       )}
@@ -205,12 +238,13 @@ function SkillPanel({ skill: k, level, points, busy, onUpgrade }: PanelProps) {
     : [];
   const why = busy ?? (k.blockers.length ? k.blockers.join(", ") : null);
   return (
-    <section className="sk__panel" aria-label={`Chi tiết ${k.name}`}>
-      <header className="sk__head">
-        <span className="sk__icon">{icon && <img src={icon} alt="" />}</span>
-        <div>
-          <b className={k.level > 0 ? "" : "sk__off"}>{k.name}</b>
-          <span className="sk__facts">
+    // The game's text, the met conditions green, the others red, Nâng cấp at the end.
+    <section className="grid gap-2.5 min-w-0 px-3 py-2.5 bg-ink" aria-label={`Chi tiết ${k.name}`}>
+      <header className="flex items-center gap-2.5">
+        <span className="grid flex-none place-items-center size-[46px] bg-bg-2">{icon && <img className="size-[42px]" src={icon} alt="" />}</span>
+        <div className="grid gap-[3px] min-w-0">
+          <b className={cn("text-14 text-fg", k.level <= 0 && "text-danger")}>{k.name}</b>
+          <span className="inline-flex items-center gap-1.5 text-11 text-fg-3">
             {k.level > 0 ? `Cấp ${k.level}/${k.maxLevel}` : `Chưa học · tối đa ${k.maxLevel}`}
             {elementIcon && <Icon name={elementIcon} size={11} />}
           </span>
@@ -218,38 +252,38 @@ function SkillPanel({ skill: k, level, points, busy, onUpgrade }: PanelProps) {
       </header>
 
       {k.current && (
-        <div className="sk__lvl">
-          <span className="sk__tag sk__tag--now">Cấp hiện tại: {k.current.level}</span>
-          <p>{k.current.description}</p>
-          <span className="sk__mana">{mana(k.current)}</span>
+        <div className="grid gap-[3px]">
+          <span className={cn(TAG, "text-good")}>Cấp hiện tại: {k.current.level}</span>
+          <p className={TEXT}>{k.current.description}</p>
+          <span className="text-11 text-exp">{mana(k.current)}</span>
         </div>
       )}
       {next ? (
         <>
-          <div className="sk__lvl">
-            <span className="sk__tag">{k.current ? `Cấp kế tiếp: ${next.level}` : "Chưa học: cấp 1"}</span>
-            <p>{next.description}</p>
-            <span className="sk__mana">{mana(next)}</span>
+          <div className="grid gap-[3px]">
+            <span className={TAG}>{k.current ? `Cấp kế tiếp: ${next.level}` : "Chưa học: cấp 1"}</span>
+            <p className={TEXT}>{next.description}</p>
+            <span className="text-11 text-exp">{mana(next)}</span>
           </div>
-          <ul className="sk__needs" aria-label="Điều kiện để học">
+          <ul className="grid gap-[3px] m-0 pt-2 px-0 pb-0 [border-top:1px_dashed_var(--line)] list-none" aria-label="Điều kiện để học">
             {needs.map((n) => (
-              <li key={n.text} className={n.ok ? "sk__need--ok" : "sk__need--no"}>
+              <li key={n.text} className={cn("flex items-center gap-1.5 text-12", n.ok ? "text-good" : "text-danger")}>
                 <Icon name={n.ok ? "check" : "close"} size={11} />
-                {n.text} <small>({n.have})</small>
+                {n.text} <small className="text-11 text-fg-3">({n.have})</small>
               </li>
             ))}
           </ul>
-          <div className="sk__act">
+          <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5">
             <Button kind="primary" small icon="plus" disabled={!!why} onClick={onUpgrade}>
               {k.level > 0 ? `Nâng lên cấp ${next.level}` : "Học kỹ năng"}
             </Button>
-            <span className={why ? "sk__why" : "sk__hint"} role="status">
+            <span className={cn("text-11 text-fg-3", why && "text-danger")} role="status">
               {why ?? `Mỗi lần bấm nâng 1 cấp, tốn ${next.cost} điểm kỹ năng, không lấy lại được`}
             </span>
           </div>
         </>
       ) : (
-        <p className="sk__top">
+        <p className="flex items-center gap-1.5 m-0 text-12 text-good">
           <Icon name="check" size={12} /> Đã tối đa cấp {k.maxLevel}
         </p>
       )}

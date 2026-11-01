@@ -15,7 +15,6 @@ import { StatPlanDialog } from "./views/StatPlanDialog";
 import { StopDialog } from "./views/StopDialog";
 import { Toaster } from "./views/Toaster";
 import { UpdateDialog } from "./views/UpdateDialog";
-import "./App.css";
 
 /** Sidebar of accounts, the selected account, the dialog the store says is open, and the toasts. */
 export default function App() {
@@ -24,10 +23,11 @@ export default function App() {
   const account = useStore(selectedAccount);
   const open = useStore((s) => s.open);
   return (
-    <div className="app">
+    <div className="grid grid-cols-[252px_minmax(0,1fr)] h-screen">
       <Sidebar />
-      <main className="main">
-        <div className="main__drag" data-tauri-drag-region />
+      <main className="relative min-w-0 min-h-0 overflow-auto pt-[30px] px-4 pb-4 not-mac:pt-4">
+        {/* No display class: base.css hides the drag strips outside macOS. */}
+        <div className="absolute inset-x-0 top-0 h-7" data-tauri-drag-region />
         {account ? <AccountPage key={account.id} account={account} /> : ready && <EmptyState onAdd={() => open({ kind: "add" })} />}
       </main>
       <Dialogs />

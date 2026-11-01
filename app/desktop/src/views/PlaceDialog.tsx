@@ -4,7 +4,6 @@ import { Button } from "../components/Button";
 import { DIALOG, Dialog } from "../components/Dialog";
 import { cn } from "../cn";
 import type { Account, Character, Zone } from "../types";
-import "./PlaceDialog.css";
 
 interface Props {
   account: Account;
@@ -19,6 +18,12 @@ function busy(c: Character) {
   if (c.moving) return `${c.moving}…`;
   return null;
 }
+
+/** A part of the dialog: its head (a title, a sum at the right, a button), then its content. */
+const SEC = "grid gap-1.5 min-w-0";
+const HEAD = "flex items-center gap-1.5";
+const H3 = "m-0 text-12 font-extrabold tracking-[0.06em] uppercase text-fg-2";
+const NOTE = "m-0 text-11 text-fg-3";
 
 function zoneTitle(z: Zone, here: boolean) {
   if (here) return `Khu ${z.zone}: đang ở đây, ${z.players}/${z.capacity} người`;
@@ -57,57 +62,70 @@ export function PlaceDialog({ account, onClose }: Props) {
       {why && <p className={cn(DIALOG.note, "text-fg")}>{why}</p>}
       {c && (
         <>
-          <section className="place__sec" aria-labelledby="place-zones">
-            <div className="place__head">
-              <h3 id="place-zones">Khu của {c.mapName}</h3>
+          {/* The zones of the map as the game's Khu vực panel (number, players of 20, red when crowded), scrolling within
+              the dialog; then one row per map with the portals to take. */}
+          <section className={SEC} aria-labelledby="place-zones">
+            <div className={HEAD}>
+              <h3 id="place-zones" className={H3}>Khu của {c.mapName}</h3>
               {c.zones && (
-                <span className="place__sum">
+                <span className="ml-auto text-11 text-fg-3">
                   {c.zones.reduce((n, z) => n + z.players, 0)} người, {c.zones.filter((z) => !z.players).length} khu trống
                 </span>
               )}
               <Button kind="ghost" small icon="refresh" className={c.zones ? undefined : "ml-auto"} aria-label="Làm mới số người" onClick={() => api.listZones(account.id)} />
             </div>
             {c.zones ? (
-              <div className="place__zones">
+              <div className="grid grid-cols-10 gap-1 max-h-[200px] overflow-auto p-0.5">
                 {c.zones.map((z) => {
                   const here = z.zone === c.zone;
+                  const load = Math.min(z.load, 2);
                   return (
                     <button
                       key={z.zone}
                       type="button"
-                      className={`place__zone place__zone--l${Math.min(z.load, 2)}${here ? " place__zone--here" : ""}`}
+                      className={cn(
+                        "grid justify-items-center gap-px pt-1 px-0 pb-[3px] bg-ink border border-line text-fg-2 cursor-pointer",
+                        "enabled:hover:border-primary focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1",
+                        "disabled:cursor-default disabled:opacity-55",
+                        here && "opacity-100 disabled:opacity-100 border-primary bg-bg-2",
+                      )}
                       disabled={!!why || here || z.players >= z.capacity}
                       title={zoneTitle(z, here)}
                       aria-label={zoneTitle(z, here)}
                       onClick={() => zone(z.zone)}
                     >
-                      <b className="px">{z.zone}</b>
-                      <small>{z.players}/{z.capacity}</small>
+                      <b className="px text-12 text-fg">{z.zone}</b>
+                      <small className={cn("text-9 tabular-nums", load === 1 && "text-coin", load === 2 && "text-danger")}>
+                        {z.players}/{z.capacity}
+                      </small>
                     </button>
                   );
                 })}
               </div>
             ) : (
-              <p className="place__wait">Đang lấy số người của từng khu…</p>
+              <p className={NOTE}>Đang lấy số người của từng khu…</p>
             )}
-            <p className="place__hint">Mỗi khu có quái và boss riêng. Đăng nhập lại thì server tự xếp khu.</p>
+            <p className={NOTE}>Mỗi khu có quái và boss riêng. Đăng nhập lại thì server tự xếp khu.</p>
           </section>
 
-          <section className="place__sec" aria-labelledby="place-maps">
-            <div className="place__head">
-              <h3 id="place-maps">Map khác</h3>
+          <section className={SEC} aria-labelledby="place-maps">
+            <div className={HEAD}>
+              <h3 id="place-maps" className={H3}>Map khác</h3>
             </div>
-            <ul className="place__maps">
+            <ul className="grid gap-1 m-0 p-0 list-none">
               {c.maps.map((m) => (
-                <li key={m.mapId} className={m.hops === 0 ? "place__map--here" : undefined}>
-                  <div className="place__name">
-                    <b>{m.name}</b>
-                    <small>
+                <li
+                  key={m.mapId}
+                  className={cn("flex items-center gap-2.5 px-2 py-1.5 bg-ink", m.hops === 0 && "outline-1 outline-primary -outline-offset-1")}
+                >
+                  <div className="grid gap-px min-w-0 mr-auto">
+                    <b className="text-13 text-fg">{m.name}</b>
+                    <small className="text-11 text-fg-3">
                       {m.mapId}
                       {m.level != null && ` · cấp ${m.level}`}
                     </small>
                   </div>
-                  <span className="place__way">
+                  <span className="text-11 text-fg-2 whitespace-nowrap">
                     {m.hops === 0 ? "Đang ở đây" : m.need != null ? `Cần cấp ${m.need}` : m.hops == null ? "Chưa có đường" : `${m.hops} cổng`}
                   </span>
                   <Button kind="tonal" small disabled={!!why || !m.hops || m.need != null} onClick={() => go(m.mapId)}>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { api } from "../api";
+import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { FilterChip } from "../components/FilterChip";
 import { Hint } from "../components/Hint";
@@ -10,7 +11,7 @@ import { recalled, remember } from "../remember";
 import { CATEGORIES, MONEY, shopKind, type Category, type Gender, type Money } from "../shops";
 import { selectedLog, useStore } from "../store";
 import type { ShopLine } from "../types";
-import type { ShopContext } from "./ShopModal";
+import { SHOP, type ShopContext } from "./ShopModal";
 
 /** The lines Bot::buy and the server leave in the log for a purchase. */
 const RESULT = /^(Đã mua|Chưa mua|Lái Buôn không trả lời|Bà Tư Hạnh không trả lời)/;
@@ -67,8 +68,9 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
   };
 
   return (
-    <div className="sbuy">
-      <div className="sbuy__filters" role="group" aria-label="Cửa hàng">
+    // Rows of chips, the lines of the shop, the line picked.
+    <div className={SHOP.tab}>
+      <div className={SHOP.chips} role="group" aria-label="Cửa hàng">
         {CATEGORIES.map((x) => (
           <FilterChip
             key={x.key}
@@ -85,7 +87,7 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
         ))}
       </div>
       {cat.gear && (
-        <div className="sbuy__filters" role="group" aria-label="Loại tiền, nam nữ, bậc">
+        <div className={SHOP.chips} role="group" aria-label="Loại tiền, nam nữ, bậc">
           {([0, 1] as Money[]).map((m) => (
             <FilterChip
               key={m}
@@ -118,7 +120,7 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
             Mỗi cửa hàng trang bị có hai bản: trả bằng Xu hoặc bằng Xu khóa. Món mua bằng Xu khóa bị khoá giao dịch (không bán,
             không đưa người khác được); mua bằng Xu hay Lượng thì không khoá. Xu khóa còn dùng trả phí nâng cấp và gộp đá.
           </Hint>
-          <span className="sbuy__sep" aria-hidden="true" />
+          <span className="w-0.5 h-[18px] bg-line" aria-hidden="true" />
           {TIERS.map((t) => (
             <FilterChip key={t} on={tier === t} onClick={() => setTier(tier === t ? null : t)}>
               {`Cấp ${t}`}
@@ -130,8 +132,9 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
           </Hint>
         </div>
       )}
-      <div className="sbuy__head">
-        <p className="shoptab__note">
+      {/* The line over the shop's list with its "?" and Mở lại. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <p className={SHOP.note}>
           {cat.npc} · {shop ? `${shop.items.length} món` : why ? "mở được khi ở Làng Thanh Khê và nick rảnh" : "đang mở…"}
           {cat.gear && money === 1 && " · đồ mua bằng Xu khóa bị khoá giao dịch"}
           {cat.gear && " · đồ cửa hàng luôn đúng hệ của nhân vật"}
@@ -155,7 +158,7 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
         )}
       </div>
       {shop && (
-        <div className="sbuy__list" role="radiogroup" aria-label="Món bán">
+        <div className={SHOP.list} role="radiogroup" aria-label="Món bán">
           {lines.map((l) => {
             const on = l.shopId === line?.shopId;
             const icon = itemIcon(l.icon);
@@ -165,19 +168,19 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
                 type="button"
                 role="radio"
                 aria-checked={on}
-                className={on ? "sline sline--on" : "sline"}
+                className={cn(SHOP.line, on && SHOP.lineOn)}
                 onClick={() => setPicked(l.shopId)}
               >
-                <span className="sline__icon">{icon && <img src={icon} alt="" />}</span>
-                <span className="sline__name">
-                  <b>{l.name}</b>
-                  <small>
+                <span className={SHOP.lineIcon}>{icon && <img className={SHOP.lineImg} src={icon} alt="" />}</span>
+                <span className={SHOP.lineName}>
+                  <b className={SHOP.lineTitle}>{l.name}</b>
+                  <small className={SHOP.lineSub}>
                     {l.level != null && `Cấp ${l.level} · `}
                     {l.ranges.length ? l.ranges.join(", ") : l.desc || `Trong túi: ${owned(l.itemId)}`}
                   </small>
                 </span>
-                <span className={`sline__price sline__price--${l.currency}`}>
-                  <b className="px">{num(l.price)}</b> {MONEY[l.currency]}
+                <span className={SHOP.linePrice}>
+                  <b className={cn("px", SHOP.linePriceFig, l.currency === 1 && "text-coin", l.currency === 2 && "text-accent")}>{num(l.price)}</b> {MONEY[l.currency]}
                 </span>
               </button>
             );
@@ -185,14 +188,14 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
         </div>
       )}
       {line && (
-        <div className="sbuy__buy">
-          <span className="sbuy__what">
+        <div className={SHOP.buy}>
+          <span className={SHOP.buyWhat}>
             {line.name} · trong túi {owned(line.itemId)}
             {line.locks && " · sẽ bị khoá"}
           </span>
           <Stepper value={quantity} onChange={setQuantity} min={1} label="số lượng" />
-          <span className={short ? "sbuy__cost sbuy__cost--short" : "sbuy__cost"}>
-            = <b className="px">{num(cost)}</b> {MONEY[line.currency]}
+          <span className={short ? SHOP.costShort : undefined}>
+            = <b className={SHOP.costFig}>{num(cost)}</b> {MONEY[line.currency]}
             {short && ` · thiếu ${num(cost - (have ?? 0))}`}
           </span>
           <Button kind="primary" icon="cart" disabled={!!why || short || full || waiting} onClick={buy}>
@@ -200,9 +203,9 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
           </Button>
         </div>
       )}
-      {full && <p className="shoptab__why">Túi đã đầy: server không bán thêm ("Rương đã đầy").</p>}
+      {full && <p className={SHOP.why}>Túi đã đầy: server không bán thêm ("Rương đã đầy").</p>}
       {result && (
-        <p className={result.text.startsWith("Đã mua") ? "shoptab__result shoptab__result--ok" : "shoptab__result"} role="status">
+        <p className={cn(SHOP.why, result.text.startsWith("Đã mua") && "text-s-online")} role="status">
           {result.text}
         </p>
       )}

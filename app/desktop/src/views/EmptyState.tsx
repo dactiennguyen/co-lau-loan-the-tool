@@ -1,14 +1,13 @@
 import { Button } from "../components/Button";
 import appIcon from "../../app-icon.png";
-import "./EmptyState.css";
 
 /** Shown before the first account is added. */
 export function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="empty">
-      <img className="empty__logo" src={appIcon} alt="" draggable={false} />
-      <h1>Thêm nick đầu tiên để bắt đầu</h1>
-      <p>Mỗi nick đăng nhập bằng một kết nối riêng. Tài khoản chỉ lưu trên máy này.</p>
+    <div className="h-full grid place-content-center justify-items-center gap-2.5 text-center">
+      <img className="block size-[72px] mb-1.5 object-contain [image-rendering:pixelated]" src={appIcon} alt="" draggable={false} />
+      <h1 className="m-0 font-display font-extrabold text-18 leading-[1.2] uppercase tracking-[0.04em]">Thêm nick đầu tiên để bắt đầu</h1>
+      <p className="mx-0 mt-0 mb-1.5 text-fg-2">Mỗi nick đăng nhập bằng một kết nối riêng. Tài khoản chỉ lưu trên máy này.</p>
       <Button kind="primary" icon="plus" onClick={onAdd}>
         Thêm nick
       </Button>

@@ -1,5 +1,5 @@
 @layer legacy {
-/* Page-wide defaults; layout lives in App.css and each view's CSS. */
+/* Page-wide defaults; layout lives in the Tailwind classes of each .tsx. */
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body, #root { height: 100%; margin: 0; }

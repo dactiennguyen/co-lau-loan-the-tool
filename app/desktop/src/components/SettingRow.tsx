@@ -62,7 +62,7 @@ export function SettingRow({ id, on, disabled, onChange, icon, title, hint, chil
           <span
             className={cn(
               "flex flex-wrap items-center gap-x-3 gap-y-1 ml-2.5 py-1.5 pl-3 min-w-0 border-l-2 border-bg-2 text-[11.5px]",
-              "@max-[620px]:order-1 @max-[620px]:basis-full @max-[620px]:ml-0 @max-[620px]:pt-1.5 @max-[620px]:pb-2 @max-[620px]:pl-16 @max-[620px]:border-l-0 @max-[620px]:border-t-2",
+              "[@container(max-width:620px)]:order-1 [@container(max-width:620px)]:basis-full [@container(max-width:620px)]:ml-0 [@container(max-width:620px)]:pt-1.5 [@container(max-width:620px)]:pb-2 [@container(max-width:620px)]:pl-16 [@container(max-width:620px)]:border-l-0 [@container(max-width:620px)]:border-t-2",
             )}
           >
             {children}

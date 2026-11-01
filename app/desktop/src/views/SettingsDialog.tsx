@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
+import { cn } from "../cn";
 import { DIALOG, Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
 import { SETTING_FACT, SettingRow } from "../components/SettingRow";
@@ -9,7 +10,6 @@ import { TextField } from "../components/TextField";
 import { num, size } from "../format";
 import { inGame, useStore } from "../store";
 import type { Exported, Settings, SettingsView } from "../types";
-import "./SettingsDialog.css";
 
 type Page = "server" | "data";
 const PAGES: Tab<Page>[] = [
@@ -22,6 +22,12 @@ type Export = { state: "idle" } | { state: "working" } | { state: "done"; file: 
 const message = (err: unknown) => String(err instanceof Error ? err.message : err);
 const sameServer = (a: Settings, b: Settings) => a.server.host.trim() === b.server.host && a.server.port === b.server.port;
 const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
+
+/** One page of the tabs. Both pages sit in the same grid cell, the hidden one invisible, so the dialog is as tall as the
+ * taller page and does not jump when the tab changes. */
+const PAGE = "[grid-area:1/1] grid gap-2.5 [align-content:start] min-w-0 inert:invisible";
+/** What the export does or what it wrote, beside its button. */
+const EXPORT_TEXT = "flex-[1_1_220px] m-0 text-[11.5px] text-fg-2 wrap-anywhere";
 
 /**
  * Cài đặt of the app, behind the button beside colautool, in two tabs. Server game: the address the next logins connect
@@ -92,9 +98,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <>
           <Tabs id={`${id}tabs`} tabs={PAGES} value={page} onChange={setPage} label="Mục cài đặt" />
           <TabPanel id={`${id}tabs`} value={page}>
-            <div className="app-settings__pages">
-              <div className="app-settings__page" inert={page !== "server"}>
-                <div className="app-settings__server">
+            <div className="grid min-w-0">
+              <div className={PAGE} inert={page !== "server"}>
+                {/* Address and port on one line; the inputs shrink with their column. */}
+                <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-2.5">
                   <TextField className="min-w-0" inputClassName="w-full min-w-0"
                     label="Địa chỉ"
                     placeholder={defaults?.server.host}
@@ -111,9 +118,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   />
                 </div>
                 {defaults && (
-                  <div className="app-settings__default">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 min-h-[26px] text-11 text-fg-3">
                     <span>
-                      Mặc định của game: <b className="selectable">{`${defaults.server.host}:${defaults.server.port}`}</b>
+                      Mặc định của game: <b className="text-fg-2 font-bold selectable">{`${defaults.server.host}:${defaults.server.port}`}</b>
                     </span>
                     {!atDefault && (
                       <Button kind="ghost" small icon="refresh" onClick={() => set({ server: defaults.server })}>
@@ -129,7 +136,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 )}
               </div>
 
-              <div className="app-settings__page" inert={page !== "data"}>
+              <div className={PAGE} inert={page !== "data"}>
                 <SettingRow
                   id={`${id}record`}
                   on={form.record}
@@ -146,26 +153,27 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     </span>
                   )}
                 </SettingRow>
-                <div className="app-settings__export">
+                {/* The export: its button, then what it does or what it wrote, on a dark plate. */}
+                <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5 px-3 py-2.5 bg-ink">
                   <Button kind="outline" small icon="download" disabled={!data?.battles || exported.state === "working"} onClick={exportBattles}>
                     {exported.state === "working" ? "Đang xuất…" : "Xuất dữ liệu trận"}
                   </Button>
                   {exported.state === "done" ? (
                     <>
-                      <p className="app-settings__done" role="status">
+                      <p className={cn(EXPORT_TEXT, "text-good")} role="status">
                         Đã xuất {num(exported.file.battles)} trận ({size(exported.file.bytes)}) vào{" "}
-                        <b className="selectable">{fileName(exported.file.path)}</b> trong Downloads.
+                        <b className="text-fg font-bold selectable">{fileName(exported.file.path)}</b> trong Downloads.
                       </p>
                       <Button kind="ghost" small icon="folder" onClick={() => api.revealExport(exported.file.path).catch((err) => setExported({ state: "fail", text: message(err) }))}>
                         Mở thư mục
                       </Button>
                     </>
                   ) : exported.state === "fail" ? (
-                    <p className="app-settings__fail" role="alert">
+                    <p className={cn(EXPORT_TEXT, "text-danger")} role="alert">
                       {exported.text}
                     </p>
                   ) : (
-                    <p>
+                    <p className={EXPORT_TEXT}>
                       {data?.battles
                         ? "Mọi trận đã lưu của mọi nick vào một file .db trong Downloads, để gửi đi học thuật toán đánh."
                         : "Chưa có trận nào được lưu."}

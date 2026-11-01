@@ -2,7 +2,6 @@ import { Bar } from "../components/Bar";
 import { STAT, Stat, StatTile, StatTop } from "../components/StatTile";
 import { levelProgress, num, pct } from "../format";
 import type { Character } from "../types";
-import "./MetricRow.css";
 
 /** Vàng turns into 10.000 Xu khoá when the bar is full (Cẩm nang). */
 const GOLD_BAR = 10000;
@@ -14,13 +13,19 @@ const MONEY = [
   { key: "luong", label: "Lượng", use: "tiền nạp" },
 ] as const;
 
+/** One amount of money, over its name (dt, order 2): the pixel face of .px, without its tabular figures (the font
+ * shorthand of the amounts reset them). */
+const AMOUNT = "px order-1 m-0 font-pixel font-normal text-16 leading-[1.15] normal-nums text-coin whitespace-nowrap";
+const NAME = "order-2 text-11 text-fg-2 whitespace-nowrap";
+const CURRENCY = "flex flex-col gap-1 min-w-0";
+
 /** Two tiles: HP and EXP of the level; the money, Vàng (coin of s2c/9) with Xu, Xu khoá and Lượng (s2c/46). Dashes until
  * the character is in the game. The points left to spend are in StatsCard. */
 export function MetricRow({ character: c }: { character: Character | null }) {
   const level = c && levelProgress(c);
   const gold = c?.coin;
   return (
-    <div className="metrics">
+    <div className="grid grid-cols-2 gap-3">
       <StatTile>
         <Stat
           label="HP"
@@ -42,18 +47,28 @@ export function MetricRow({ character: c }: { character: Character | null }) {
       <StatTile>
         <div className={STAT}>
           <StatTop label="Tiền" icon="wallet" fill="var(--coin)" aside={`Vàng đủ ${num(GOLD_BAR)} thì thành Xu khoá`} />
-          <dl className="money">
-            <div title={`Vàng: đủ ${num(GOLD_BAR)} thì thành ${num(GOLD_BAR)} Xu khoá`}>
-              <dt>Vàng</dt>
-              <dd className="px">{gold != null ? <>{num(gold)} <small>/ {num(GOLD_BAR)}</small></> : "—"}</dd>
-              <dd className="money__bar">
+          {/* The money: Vàng with its bar to 10.000, then Xu, Xu khoá, Lượng; each value over its name, as the other figures
+              sit over their caption. Big amounts wrap to a second line rather than cut. */}
+          <dl className="flex flex-wrap justify-between gap-y-1.5 gap-x-3 mt-0.5 mb-0 min-w-0">
+            <div className={CURRENCY} title={`Vàng: đủ ${num(GOLD_BAR)} thì thành ${num(GOLD_BAR)} Xu khoá`}>
+              <dt className={NAME}>Vàng</dt>
+              <dd className={AMOUNT}>
+                {gold != null ? (
+                  <>
+                    {num(gold)} <small className="font-ui font-semibold text-12 leading-none text-fg-3">/ {num(GOLD_BAR)}</small>
+                  </>
+                ) : (
+                  "—"
+                )}
+              </dd>
+              <dd className="order-3 m-0 font-pixel font-normal text-16 leading-[1.15] text-coin whitespace-nowrap">
                 <Bar value={gold != null ? gold / GOLD_BAR : 0} fill="var(--coin)" label="Vàng tới 10.000" />
               </dd>
             </div>
             {MONEY.map((m) => (
-              <div key={m.key} title={`${m.label}: ${m.use}`}>
-                <dt>{m.label}</dt>
-                <dd className="px">{c?.currencies ? num(c.currencies[m.key]) : "—"}</dd>
+              <div key={m.key} className={CURRENCY} title={`${m.label}: ${m.use}`}>
+                <dt className={NAME}>{m.label}</dt>
+                <dd className={AMOUNT}>{c?.currencies ? num(c.currencies[m.key]) : "—"}</dd>
               </div>
             ))}
           </dl>

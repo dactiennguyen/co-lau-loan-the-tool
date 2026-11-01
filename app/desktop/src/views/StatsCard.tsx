@@ -7,7 +7,6 @@ import { Icon, type IconName } from "../components/Icon";
 import { num } from "../format";
 import { mainStat, planText, POTENTIALS } from "../potentials";
 import type { Account } from "../types";
-import "./StatsCard.css";
 
 // Labels of the game's character panel, in the order of `combat` and `stats`; both measured against the panel by the
 // P1 capture (docs/app/user-data.md). c2s/10 numbers the potentials in another order (12-skills-items.md).
@@ -57,30 +56,35 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
       onClick={onSkills}
     >
       Kỹ năng
-      {skillPoints > 0 && <b className="stats__badge px">{num(skillPoints)}</b>}
+      {/* The skill points not spent yet, in a gold badge. */}
+      {skillPoints > 0 && (
+        <b className="px inline-grid place-items-center min-w-4 h-4 ml-0.5 px-1 py-0 bg-primary text-ink text-10 leading-none">{num(skillPoints)}</b>
+      )}
     </Button>
   );
   return (
     <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? undefined : "Đăng nhập để xem chỉ số"} aside={skills}>
-      <ul className="combat">
+      <ul className="list-none m-0 p-0 grid gap-1">
         {COMBAT.map((s, i) => (
-          <li key={s.label}>
-            <span className="combat__icon" style={{ color: s.tone }}>
+          <li key={s.label} className="flex items-center gap-1.5 py-[3px] pr-1.5 pl-[3px] bg-bg-2">
+            <span className="grid place-items-center size-[22px] bg-ink" style={{ color: s.tone }}>
               <Icon name={s.icon} size={14} />
             </span>
-            <span className="combat__label">{s.label}</span>
-            <span className="combat__bar">
+            <span className="flex-none w-[66px] text-12 font-semibold text-fg-2">{s.label}</span>
+            <span className="flex-1 min-w-5">
               <Bar value={(c?.combat?.[i] ?? 0) / top} fill={s.tone} thin />
             </span>
-            <span className="combat__value px">{num(c?.combat?.[i])}</span>
+            <span className="px flex-none min-w-[26px] text-right text-13 text-fg">{num(c?.combat?.[i])}</span>
           </li>
         ))}
       </ul>
-      <div className="potentials__head">
-        <span className="potentials__title">
-          <Icon name="gem" size={13} />
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <span className="inline-flex items-center gap-1.5 font-display font-extrabold text-[10.5px] leading-[1.2] tracking-[0.06em] uppercase text-fg-2">
+          <Icon name="gem" size={13} className="text-points" />
           Tiềm năng
         </span>
+        {/* Tự cộng điểm, after the title: grey while off; it lights up in the colour of the points while the bot spends
+            them on its own. */}
         <Button
           kind="ghost"
           small
@@ -90,29 +94,40 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
           aria-haspopup="dialog"
           onClick={onPlan}
         />
-        <span className="potentials__left">
+        <span className="ml-auto text-[11.5px] font-semibold text-fg-2 whitespace-nowrap">
           {c?.statPoints != null ? (
             <>
-              <b className="px">{num(c.statPoints)}</b> điểm
+              <b className="px text-14 text-points">{num(c.statPoints)}</b> điểm
             </>
           ) : (
             "—"
           )}
         </span>
       </div>
-      <div className="potentials">
+      <div className="grid grid-cols-4 gap-1.5 narrow:grid-cols-2">
         {POTENTIALS.map((p, i) => {
-          // Without an element whose main stat is known, the four look alike.
-          const kind = main == null ? "" : p.index === main ? ` potential--main ${elementVar(element)}` : " potential--other";
+          // Without an element whose main stat is known, the four look alike. The main stat of the element (mainStat of
+          // potentials.ts; --el from elementVar) is framed and tinted in the element's colour, the element's icon in the
+          // corner. The tint sits behind the content (isolation), so the + keeps its own colour.
+          const isMain = main != null && p.index === main;
           return (
-            <div key={p.name} className={`potential${kind}`}>
+            <div
+              key={p.name}
+              className={cn(
+                "relative grid justify-items-center gap-0.5 pt-1.5 px-1 pb-1 bg-ink",
+                isMain &&
+                  "isolate shadow-[inset_0_0_0_2px_var(--el)] before:content-[''] before:absolute before:inset-0 before:z-[-1] before:bg-(--el) before:opacity-14",
+                isMain && elementVar(element),
+              )}
+            >
               {p.index === main && element != null && (
-                <span className="potential__mark" title={`Chỉ số chính của hệ ${elementName}`}>
+                <span className="absolute top-1 left-[5px] flex text-(--el)" title={`Chỉ số chính của hệ ${elementName}`}>
                   <Icon name={ELEMENT_ICON[element]} size={10} />
                 </span>
               )}
-              <span className="potential__value px">{num(c?.stats[i])}</span>
-              <span className="potential__label">{p.name}</span>
+              <span className="px text-14 leading-[1.1] text-points">{num(c?.stats[i])}</span>
+              <span className={cn("text-10 text-fg-3 whitespace-nowrap", isMain && "font-extrabold text-(--el)")}>{p.name}</span>
+              {/* "Cộng +1" under the label: one click, one point (Bot::add_stat). */}
               <Button
                 kind="tonal"
                 small

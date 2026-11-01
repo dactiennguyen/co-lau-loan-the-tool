@@ -17,7 +17,7 @@ const panelId = (id: string) => `${id}-panel`;
  * narrower than 600 px drops the icons and some padding, and scrolls sideways when still too narrow. */
 const TAB =
   "relative inline-flex flex-none items-center gap-1.5 h-[30px] px-3 py-0 border-2 border-ink notch-sm bg-bg-2 text-fg-3 font-extrabold text-12 tracking-[0.04em] uppercase whitespace-nowrap cursor-pointer bevel-sm " +
-  "@max-[600px]:gap-1 @max-[600px]:px-[7px] @max-[600px]:tracking-[0.02em] hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-5 " +
+  "[@container(max-width:600px)]:gap-1 [@container(max-width:600px)]:px-[7px] [@container(max-width:600px)]:tracking-[0.02em] hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-5 " +
   "aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[inset_0_-3px_0_var(--primary)]";
 
 /**
@@ -62,7 +62,7 @@ export function Tabs<K extends string>({
           className={TAB}
           onClick={() => onChange(t.key)}
         >
-          <Icon name={t.icon} size={14} className="@max-[600px]:hidden" />
+          <Icon name={t.icon} size={14} className="[@container(max-width:600px)]:hidden" />
           {t.label}
           {/* Something runs behind that tab. */}
           {t.busy && <i className="size-1.5 bg-s-fighting animate-blink" role="img" aria-label="đang chạy" />}

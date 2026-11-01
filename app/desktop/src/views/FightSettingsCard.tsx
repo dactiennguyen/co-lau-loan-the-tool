@@ -8,7 +8,6 @@ import { cn } from "../cn";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account, FightSettings, Item } from "../types";
-import "./FightSettingsCard.css";
 
 /** Item id of the Búa Sửa Chữa. */
 const HAMMER = 2;
@@ -43,7 +42,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const hammers = c?.bag?.items.filter((i) => i.id === HAMMER).reduce((n, i) => n + Math.max(1, i.quantity), 0) ?? 0;
   const broken = (c?.gear ?? []).filter((g): g is Item & { durability: [number, number] } => g?.durability?.[0] === 0);
   return (
-    <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ" className="settings">
+    <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
       <SettingRow
         id={`${id}repair`}
         on={settings.repair}
@@ -81,7 +80,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
         hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Không nhặt đồ người khác làm rơi. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
       />
       {error && (
-        <p className="settings__error selectable" role="alert">
+        <p className="m-0 text-[11.5px] text-danger selectable" role="alert">
           Chưa lưu được: {error}
         </p>
       )}

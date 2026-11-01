@@ -16,7 +16,6 @@ import { QuestCard } from "./QuestCard";
 import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { StatsCard } from "./StatsCard";
-import "./AccountPage.css";
 
 // Kỹ năng is a modal of the Chỉ số card (SkillsModal), Thống kê one of the header (StatsModal); a tab kept as "skills"
 // or "stats" opens Nhiệm vụ.
@@ -70,8 +69,10 @@ export function AccountPage({ account }: { account: Account }) {
   const targets = c?.targets ?? [];
   // The chosen target, else the first one offered (bosses first, then the strongest).
   const target = targets.some((t) => t.name === choice.target) ? choice.target : (targets[0]?.name ?? "");
+  // As tall as the window, so the bottom cards take what is left (and scroll inside); below 800 px the page scrolls.
+  // Narrow windows (up to 1120 px): the page grows with its cards and scrolls.
   return (
-    <div className="page">
+    <div className="grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3 h-full min-h-[700px] narrow:h-auto narrow:min-h-full">
       <HeroCard
         account={account}
         onLogin={() => api.login(id)}
@@ -81,8 +82,10 @@ export function AccountPage({ account }: { account: Account }) {
         onStats={() => open({ kind: "battles", id })}
       />
       <MetricRow character={c} />
-      <div className="page__columns">
-        <div className="page__stack">
+      <div className="grid grid-cols-[minmax(240px,300px)_minmax(0,1fr)] gap-3 min-h-0 narrow:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
+        {/* The top card keeps its full height; the bottom one takes what is left, and the page scrolls when that is too
+            little. */}
+        <div className="grid grid-rows-[max-content_minmax(140px,1fr)] gap-3 min-h-0 narrow:grid-rows-[max-content_230px]">
           <StatsCard
             account={account}
             onAdd={(stat) => api.addStat(id, stat)}
@@ -91,8 +94,10 @@ export function AccountPage({ account }: { account: Account }) {
           />
           <PlayersCard character={c} />
         </div>
-        <div className="page__stack page__stack--tasks">
-          <div className="page__tasks">
+        {/* Tabs, the quest or fight card (up to its full height, less when the window is short), the log. */}
+        <div className="grid grid-rows-[max-content_minmax(0,max-content)_minmax(150px,1fr)] gap-2.5 min-h-0 narrow:grid-rows-[max-content_max-content_210px]">
+          {/* The task tabs, and Tiện ích beside them. */}
+          <div className="flex items-center gap-1.5 min-w-0">
             <Tabs<Task>
               className="flex-auto min-w-0"
               id={tabs}
@@ -112,7 +117,7 @@ export function AccountPage({ account }: { account: Account }) {
               small
               icon="grid"
               // A line of the fighting colour along its bottom while Pháp sư works.
-              className={cn("page__shop", c?.smith && c.smith.done == null && "shadow-[inset_0_-3px_0_var(--s-fighting)]")}
+              className={cn("flex-none", c?.smith && c.smith.done == null && "shadow-[inset_0_-3px_0_var(--s-fighting)]")}
               onClick={() => open({ kind: "shop", id })}
             >
               Tiện ích

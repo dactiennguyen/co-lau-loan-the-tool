@@ -7,6 +7,7 @@ import { DetailsToggle } from "../components/DetailsToggle";
 import { Elapsed } from "../components/Elapsed";
 import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
+import { cn } from "../cn";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account, Quest } from "../types";
@@ -14,7 +15,6 @@ import { useFightSetting } from "../useFightSetting";
 import { BattlePanel } from "./BattlePanel";
 import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
-import "./QuestCard.css";
 
 interface Props {
   account: Account;
@@ -24,6 +24,23 @@ interface Props {
 }
 
 type State = "done" | "current" | "todo";
+
+/** What each state adds to a step: its row, its mark (done and current have no frame), its text and its count. */
+const STEP: Record<State, { row: string; mark: string; text: string; count: string }> = {
+  done: { row: "", mark: "bg-good text-ink", text: "text-fg-2", count: "" },
+  current: {
+    row: "bg-card-2 shadow-[inset_0_0_0_2px_var(--primary)]",
+    mark: "bg-primary shadow-[inset_-3px_-3px_0_var(--primary-shade)]",
+    text: "text-fg font-extrabold",
+    count: "text-primary",
+  },
+  todo: { row: "", mark: "border-2 border-line", text: "", count: "" },
+};
+/** One line: what the bot does on the left, the score on the right. */
+const RUN = "flex items-center gap-2.5 py-[5px] px-2.5 bg-ink text-[11.5px] whitespace-nowrap";
+/** What the bot does: gold, blue while the run goes on. */
+const DOING = "min-w-0 overflow-hidden text-ellipsis font-extrabold text-coin";
+const HINT = "m-0 text-[10.5px] text-fg-3";
 
 /** Each step with its position, state and count: kills or boss damage for steps that ask for more than one. */
 function steps(q: Quest) {
@@ -76,24 +93,30 @@ export function QuestCard({ account, onStart, onStop }: Props) {
       icon="scroll"
       tone="var(--primary)"
       subtitle={q ? <>Nhiệm vụ chính <span className="px">#{q.id}</span></> : c ? "Server chưa gửi nhiệm vụ nào" : "Đăng nhập để xem nhiệm vụ"}
-      aside={q && <span className="quest__step px">{Math.min(q.current + 1, q.steps.length)}/{q.steps.length}</span>}
-      className="quest"
+      aside={q && <span className="text-13 text-primary px">{Math.min(q.current + 1, q.steps.length)}/{q.steps.length}</span>}
+      className="[--frame:var(--primary)]"
     >
+      {/* The steps take what the card has left and scroll when the window is short. */}
       {q && (
-        <ol ref={list} className="quest__steps scroll">
+        <ol ref={list} className="relative list-none m-0 p-0 flex-1 min-h-24 grid [align-content:start] gap-1 scroll">
           {stepList.map((s) => (
-            <li key={s.index} className={`step step--${s.state}`} aria-current={s.state === "current" ? "step" : undefined}>
-              <span className="step__mark" aria-hidden="true">
+            <li
+              key={s.index}
+              className={cn("flex items-center gap-2.5 py-1 pr-[5px] pl-2 bg-bg-2", STEP[s.state].row)}
+              aria-current={s.state === "current" ? "step" : undefined}
+            >
+              <span className={cn("flex-none grid place-items-center w-4 h-4", STEP[s.state].mark)} aria-hidden="true">
                 {s.state === "done" && <Icon name="check" size={11} />}
               </span>
-              <div className="step__body">
-                <div className="step__line">
-                  <span className="step__text">{s.text}</span>
-                  {s.count && <span className="step__count px">{s.count}</span>}
+              <div className="flex-1 min-w-0 grid gap-1">
+                <div className="flex justify-between gap-2.5">
+                  <span className={cn("text-12 font-semibold text-fg-3", STEP[s.state].text)}>{s.text}</span>
+                  {s.count && <span className={cn("flex-none text-12 text-fg-3 px", STEP[s.state].count)}>{s.count}</span>}
                 </div>
                 {s.state === "current" && s.required > 1 && <Bar value={s.part} fill="var(--primary)" thin />}
               </div>
-              <span className="step__slot">
+              {/* ▶ at the end of a step to do (■ while that step plays); empty on steps done, so the counts line up. */}
+              <span className="flex-none grid place-items-center w-6 h-6">
                 {s.state === "done" ? null : playing === s.at ? (
                   <Button kind="danger" small icon="stop" className="w-6 h-6" aria-label={`Dừng bước "${s.text}"`} onClick={onStop} />
                 ) : (
@@ -116,35 +139,36 @@ export function QuestCard({ account, onStart, onStop }: Props) {
       )}
 
       {run && (
-        <div className={`quest__run${running ? " quest__run--live" : ""}`} role="status">
-          <span className="quest__doing">{running ? run.doing || "Đang chọn việc…" : run.done}</span>
+        <div className={RUN} role="status">
+          <span className={cn(DOING, running && "text-s-fighting")}>{running ? run.doing || "Đang chọn việc…" : run.done}</span>
           {c?.battle && <DetailsToggle open={details} onToggle={toggle} controls="quest-battle" />}
-          <span className="quest__score">
-            <b className="win">{run.wins} thắng</b> · <b className="loss">{run.losses} thua</b> · +{num(run.exp)} EXP · +{num(run.coin)} xu
+          <span className="ml-auto text-fg-2">
+            <b className="text-s-online">{run.wins} thắng</b> · <b className="text-danger">{run.losses} thua</b> · +{num(run.exp)} EXP · +{num(run.coin)} xu
             {run.completed > 0 && <> · xong {run.completed} nhiệm vụ</>} · <Elapsed from={run.startedAt} to={run.endedAt} />
           </span>
         </div>
       )}
+      {/* Đã nhặt of the run, as a second line of the row above. */}
       {run && run.picked.length > 0 && (
-        <div className="quest__loot">
+        <div className="-mt-2.5 pt-0 px-2.5 pb-[5px] bg-ink">
           <LootRow items={run.picked} />
         </div>
       )}
       {/* The battle on, as the fight job shows it, under Chi tiết: a step's fights ("Đánh bại Kẻ Gây Rối"), one played out
           after Dừng, or the fight job's (then with a row of its own). */}
       {c?.battle && !run && (
-        <div className="quest__run quest__run--live" role="status">
-          <span className="quest__doing">Đang đánh {c.battle.mobName}</span>
+        <div className={RUN} role="status">
+          <span className={cn(DOING, "text-s-fighting")}>Đang đánh {c.battle.mobName}</span>
           <DetailsToggle open={details} onToggle={toggle} controls="quest-battle" />
         </div>
       )}
       {c?.battle && details && (
-        <div className="quest__battle" id="quest-battle">
+        <div className="p-2.5 bg-ink" id="quest-battle">
           <BattlePanel battle={c.battle} />
         </div>
       )}
 
-      <div className="quest__controls">
+      <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5">
         <Button
           kind="tonal"
           icon="play"
@@ -158,7 +182,7 @@ export function QuestCard({ account, onStart, onStop }: Props) {
         <Button kind="danger" icon="stop" disabled={!running && !c?.battle} onClick={onStop}>
           Dừng
         </Button>
-        <span className="quest__losses">
+        <span className="inline-flex items-center gap-1.5 ml-auto text-11 font-bold text-fg-2">
           {/* While the run goes on, the losses it may still take, changed in place; after Dừng Thua tối đa again, as saved. */}
           {running ? (
             <>
@@ -173,9 +197,9 @@ export function QuestCard({ account, onStart, onStop }: Props) {
           )}
         </span>
       </div>
-      {fighting && <p className="quest__hint quest__hint--busy">Đang đánh quái: bấm Dừng ở tab Đánh quái rồi mới làm nhiệm vụ.</p>}
+      {fighting && <p className={cn(HINT, "text-primary")}>Đang đánh quái: bấm Dừng ở tab Đánh quái rồi mới làm nhiệm vụ.</p>}
       {spendsPoint && (
-        <p className="quest__hint">
+        <p className={HINT}>
           Bước "Nâng điểm tiềm năng" sẽ cộng 1 điểm {account.statPlan ? "theo Tự cộng ở khung Chỉ số" : "vào Cường lực"}.
         </p>
       )}

@@ -7,7 +7,6 @@ import { inGame, useStore, type Dialog } from "../store";
 import type { Account } from "../types";
 import { AccountCard } from "./AccountCard";
 import { UpdateBox } from "./UpdateBox";
-import "./Sidebar.css";
 
 /** The menu of an account: log in, or log out (cancel while connecting); edit; remove once it has no session. */
 function accountMenu(a: Account, open: (d: Dialog) => void): MenuItem[] {
@@ -45,17 +44,22 @@ export function Sidebar() {
   );
   const closeMenu = useCallback(() => setMenu(null), []);
   return (
-    <aside className="sidebar">
-      <div className="sidebar__drag" data-tauri-drag-region />
-      <div className="brand">
-        <img className="brand__logo" src={appIcon} alt="" draggable={false} />
-        <div className="brand__text">
-          <div className="brand__top">
-            <div className="brand__name">colautool</div>
-            <Button kind="ghost" small icon="settings" aria-label="Cài đặt" className="brand__settings" onClick={() => open({ kind: "settings" })} />
+    // The 40 px top leaves room for the macOS window buttons.
+    <aside className="relative flex flex-col gap-3 min-h-0 pt-10 px-3 pb-3 bg-bg-2 border-r-[length:var(--px)] border-r-ink not-mac:pt-3">
+      {/* No display class: base.css hides the drag strips outside macOS. */}
+      <div className="absolute inset-x-0 top-0 h-9" data-tauri-drag-region />
+      <div className="flex items-center gap-2.5">
+        <img className="block shrink-0 size-[34px] object-contain" src={appIcon} alt="" draggable={false} />
+        {/* The name with the Cài đặt button at the right of its line; the summary has the whole width under them. */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="font-pixel font-bold text-15 leading-[1.2] uppercase">colautool</div>
+            {/* Above the strip that drags the window, which covers the brand where the window has no room left for its
+                buttons; the negative margin keeps the line as tall as the name. */}
+            <Button kind="ghost" small icon="settings" aria-label="Cài đặt" className="relative z-1 shrink-0 -my-1.5 -mr-1" onClick={() => open({ kind: "settings" })} />
           </div>
-          <div className="brand__summary">
-            {order.length} nick · <b>{playing}</b> đang trong game
+          <div className="text-11 text-fg-3">
+            {order.length} nick · <b className="text-s-online font-bold">{playing}</b> đang trong game
           </div>
         </div>
       </div>
@@ -63,13 +67,14 @@ export function Sidebar() {
         Thêm nick
       </Button>
       {error && (
-        <p className="sidebar__error selectable" role="alert">
+        <p className="m-0 px-2.5 py-2 border-2 border-accent-deep bg-ink text-danger text-11 wrap-anywhere selectable" role="alert">
           Không đọc được accounts.json, app sẽ không ghi đè file này. Sửa file rồi mở lại app. ({error})
         </p>
       )}
-      <div className="sidebar__label">Tài khoản</div>
-      <div className="sidebar__list scroll">
-        {order.length === 0 && <p className="sidebar__empty">Chưa có nick nào.</p>}
+      <div className="text-10 font-extrabold tracking-[0.1em] uppercase text-fg-3">Tài khoản</div>
+      {/* One column as wide as the sidebar: an auto column would grow to a card's longest line and clip its button. */}
+      <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)] [align-content:start] gap-1.5 -mx-1 px-1 pb-1 scroll">
+        {order.length === 0 && <p className="m-0 text-fg-3 text-12">Chưa có nick nào.</p>}
         {order.map((id) => (
           <AccountCard key={id} id={id} onMenu={openMenu} />
         ))}
@@ -78,7 +83,7 @@ export function Sidebar() {
         <Menu x={menu.x} y={menu.y} label={`Nick ${menuAccount.label}`} items={accountMenu(menuAccount, open)} onClose={closeMenu} />
       )}
       <UpdateBox />
-      <div className="sidebar__footer">
+      <div className="flex gap-1.5">
         <Button kind="outline" icon="bolt" block disabled={order.length === 0} onClick={api.loginAll}>
           Đăng nhập tất cả
         </Button>

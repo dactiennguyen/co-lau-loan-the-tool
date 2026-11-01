@@ -1,13 +1,13 @@
 import { useState, type ClipboardEvent } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
+import { cn } from "../cn";
 import { Icon } from "../components/Icon";
 import { PasswordField } from "../components/PasswordField";
 import { TextField } from "../components/TextField";
 import { num } from "../format";
 import { PROXY_FORMATS, parseProxyText, type ParsedProxy } from "../proxyText";
 import type { ProxyForm, ProxyInfo, ProxyKind } from "../types";
-import "./ProxyFields.css";
 
 interface Props {
   value: ProxyForm;
@@ -25,6 +25,11 @@ const KINDS: { kind: ProxyKind; name: string; port: number }[] = [
 ];
 /** The usual port of a kind, for a new proxy. */
 export const defaultPort = (kind: ProxyKind) => KINDS.find((k) => k.kind === kind)!.port;
+
+/** Address and port, or username and password: the inputs shrink with their column, a disabled one is dimmed. */
+const ROW = "grid gap-2.5 [&_input:disabled]:opacity-50 [&_input:disabled]:cursor-not-allowed";
+/** The radio or checkbox of a label drawn as a switch or a chip: out of sight, still focusable. */
+const HIDDEN_INPUT = "absolute opacity-0 w-px h-px";
 
 export const proxyLabel = (p: ProxyForm) => `${p.kind} ${p.host.includes(":") ? `[${p.host}]` : p.host}:${p.port}`;
 
@@ -73,18 +78,35 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
   const keepsPassword = !!saved?.hasPassword && !!p.username && p.username.trim() === saved.username;
 
   return (
-    <fieldset className={`proxy${p.enabled ? " proxy--on" : ""}`}>
-      <label className="proxy__switch">
-        <input type="checkbox" role="switch" checked={p.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
-        <span className="proxy__track" aria-hidden="true" />
-        <span className="proxy__title">
+    // A switch row, then (on) a dark plate with the paste field, the kind, the address and the check; off, one line on
+    // what the account does instead.
+    <fieldset className="grid gap-2.5 m-0 p-0 border-0 min-w-0">
+      <label
+        className={cn(
+          "grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 px-2.5 py-2 bg-ink cursor-pointer hover:bg-bg-2",
+          p.enabled && "shadow-[inset_3px_0_0_var(--good)]",
+        )}
+      >
+        <input type="checkbox" role="switch" checked={p.enabled} onChange={(e) => set({ enabled: e.target.checked })} className={cn(HIDDEN_INPUT, "peer")} />
+        {/* A pixel switch: a notched track and a square knob that steps across. */}
+        <span
+          className={
+            "relative w-[30px] h-4 bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +
+            "after:content-[''] after:absolute after:top-1 after:left-1 after:size-2 after:bg-fg-3 " +
+            "after:transition-[transform,background] after:duration-(--fast) after:ease-step " +
+            "peer-checked:bg-good-shade peer-checked:shadow-[inset_0_0_0_2px_var(--good)] peer-checked:after:[transform:translateX(14px)] peer-checked:after:bg-fg " +
+            "peer-focus-visible:outline-2 peer-focus-visible:outline-ring peer-focus-visible:outline-offset-2"
+          }
+          aria-hidden="true"
+        />
+        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-fg">
           <Icon name="shield" size={13} /> Kết nối qua proxy
         </span>
-        <span className="proxy__state">{p.enabled ? "Bật" : "Tắt"}</span>
+        <span className={cn("font-pixel font-normal text-11 leading-none text-fg-3", p.enabled && "text-good")}>{p.enabled ? "Bật" : "Tắt"}</span>
       </label>
 
       {!p.enabled && (
-        <p className="proxy__off">
+        <p className="m-0 text-11 leading-[1.45] text-fg-2">
           {p.host.trim()
             ? `Đã có ${proxyLabel(p)}, đang tắt: nick kết nối thẳng tới server game. Bật lại để dùng.`
             : "Nick kết nối thẳng tới server game. Bật để đi qua proxy SOCKS5 hoặc HTTP."}
@@ -92,8 +114,8 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
       )}
 
       {p.enabled && (
-        <div className="proxy__body">
-          <div className="proxy__paste">
+        <div className="grid gap-2.5 p-2.5 bg-bg-2 shadow-[inset_3px_0_0_var(--good)]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] [align-items:end] gap-1.5">
             <TextField className="min-w-0" inputClassName="w-full min-w-0"
               label="Dán proxy"
               placeholder="vd. 1.2.3.4:8080:user:pass"
@@ -112,22 +134,32 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
             </Button>
           </div>
           {pasted ? (
-            <p className={`proxy__note${pasted.ok ? " proxy__note--ok" : " proxy__note--bad"}`} role="status">
+            <p className={cn("-mt-1 mx-0 mb-0 text-11 leading-[1.4] wrap-anywhere", pasted.ok ? "text-good" : "text-danger")} role="status">
               {pasted.text}
             </p>
           ) : null}
           {pasted && !pasted.ok && (
-            <ul className="proxy__formats" aria-label="Các dạng proxy đọc được">
+            <ul className="flex flex-wrap gap-1 -mt-1 mx-0 mb-0 p-0 list-none" aria-label="Các dạng proxy đọc được">
               {PROXY_FORMATS.map((f) => (
-                <li key={f}>{f}</li>
+                <li key={f} className="px-[5px] py-px bg-ink font-mono font-normal text-[10.5px] leading-[1.5] text-fg-2">
+                  {f}
+                </li>
               ))}
             </ul>
           )}
 
-          <div className="proxy__kinds" role="radiogroup" aria-label="Loại proxy">
+          <div className="flex gap-1.5" role="radiogroup" aria-label="Loại proxy">
             {KINDS.map((k) => (
-              <label key={k.kind} className={`proxy__kind${p.kind === k.kind ? " proxy__kind--on" : ""}`}>
+              <label
+                key={k.kind}
+                className={cn(
+                  "inline-flex items-center h-[26px] px-2.5 py-0 bg-ink font-pixel font-normal text-12 leading-none text-fg-2 cursor-pointer notch-sm",
+                  "hover:text-fg has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-ring has-[input:focus-visible]:-outline-offset-4",
+                  p.kind === k.kind && "bg-primary text-on-primary",
+                )}
+              >
                 <input
+                  className={HIDDEN_INPUT}
                   type="radio"
                   name="proxy-kind"
                   value={k.kind}
@@ -139,7 +171,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
               </label>
             ))}
           </div>
-          <div className="proxy__row">
+          <div className={cn(ROW, "grid-cols-[minmax(0,1fr)_92px]")}>
             <TextField className="min-w-0" inputClassName="w-full min-w-0" label="Địa chỉ proxy" placeholder="vd. 1.2.3.4" value={p.host} onPaste={onPaste} onChange={(e) => set({ host: e.target.value })} />
             <TextField className="min-w-0" inputClassName="w-full min-w-0"
               label="Cổng"
@@ -150,7 +182,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
               onChange={(e) => set({ port: Number(e.target.value) })}
             />
           </div>
-          <div className="proxy__row proxy__row--even">
+          <div className={cn(ROW, "grid-cols-[1fr_1fr]")}>
             <TextField className="min-w-0" inputClassName="w-full min-w-0" label="Tài khoản (tuỳ chọn)" value={p.username} onChange={(e) => set({ username: e.target.value })} />
             <PasswordField className="min-w-0"
               label="Mật khẩu"
@@ -160,11 +192,18 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
               onChange={(e) => set({ password: e.target.value })}
             />
           </div>
-          <div className="proxy__check">
+          <div className="flex items-center gap-2.5 min-h-7">
             <Button kind="tonal" small icon="bolt" onClick={test} disabled={!p.host.trim() || !p.port || check.state === "testing"}>
               {check.state === "testing" ? "Đang kiểm tra…" : "Kiểm tra"}
             </Button>
-            <span className={`proxy__result proxy__result--${check.state}`} role="status">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 min-w-0 text-11 leading-[1.4] text-fg-3 wrap-anywhere",
+                check.state === "ok" && "text-good font-semibold",
+                check.state === "fail" && "text-danger",
+              )}
+              role="status"
+            >
               {check.state === "ok" && (
                 <>
                   <Icon name="check" size={12} /> Tới được server game qua proxy, {num(check.ms)} ms

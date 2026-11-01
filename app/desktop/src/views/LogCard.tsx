@@ -1,18 +1,31 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { api } from "../api";
+import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { FilterChip } from "../components/FilterChip";
 import { LOG_KINDS, kindOf } from "../logKinds";
 import { useStore } from "../store";
-import type { LogKind, LogLine } from "../types";
+import type { LogKind, LogLine, Tone } from "../types";
 import { LootRow } from "./LootRow";
 import { TurnStatus } from "./TurnStatus";
-import "./LogCard.css";
 
 /** Lines asked from cllt.db at a time. */
 const PAGE = 200;
 const BAD = 2;
+
+/** A line: the time ("12:30:05", or "30/10 12:30" for another day), the kind, the line. */
+const ROW = "grid grid-cols-[78px_58px_1fr] gap-1.5 px-1.5 py-px text-[11.5px] leading-[1.5] hover:bg-bg-2";
+/** The row of "Xem dòng cũ hơn" / "Hiện lại", and the one saying the log is empty. */
+const ROW_NOTE = cn(ROW, "block text-fg-3");
+/** The colour of a line's words by its tone. */
+const TONE_TEXT: Record<Tone, string> = { 0: "text-fg-2", 1: "text-s-online", 2: "text-danger", 3: "text-primary" };
+/** "Xem dòng cũ hơn", "Hiện lại": a dashed button the width of the log. */
+const MORE =
+  "w-full px-0 py-[3px] bg-transparent border border-dashed border-line font-ui font-semibold text-11 leading-[1.4] text-fg-2 cursor-pointer " +
+  "enabled:hover:border-exp enabled:hover:text-fg disabled:cursor-default disabled:opacity-60";
+/** The items of Đã nhặt under the line of a won battle (LootRow): the gap of the log's rows, a tighter line height. */
+const LOOT_ITEM = "gap-1.5 leading-[1.4]";
 
 interface Props {
   /** The account, whose older lines come from cllt.db. */
@@ -113,8 +126,8 @@ export function LogCard({ id, lines, fighting }: Props) {
       icon="list"
       tone="var(--exp)"
       aside={
-        <span className="log__aside">
-          <span className="log__count">
+        <span className="flex items-center gap-2">
+          <span className="text-11 text-fg-3 whitespace-nowrap">
             <span className="px">{shown.length}</span> dòng
           </span>
           <Button
@@ -131,7 +144,8 @@ export function LogCard({ id, lines, fighting }: Props) {
       }
       className="log-card"
     >
-      <div className="log__filters" role="group" aria-label="Lọc nhật ký">
+      {/* The kinds, then "Chỉ lỗi" after a rule; they wrap on a narrow card. */}
+      <div className="flex flex-wrap items-center gap-1 mb-1.5" role="group" aria-label="Lọc nhật ký">
         <FilterChip
           on={!kinds.length && !bad}
           onClick={() => {
@@ -146,54 +160,60 @@ export function LogCard({ id, lines, fighting }: Props) {
             {k.label}
           </FilterChip>
         ))}
-        <span className="log__sep" aria-hidden="true" />
+        <span className="w-px h-4 mx-0.5 bg-line" aria-hidden="true" />
         <FilterChip on={bad} tone="var(--danger)" onClick={() => setBad((b) => !b)}>
           Chỉ lỗi
         </FilterChip>
       </div>
       <ol
         ref={list}
-        className="log scroll selectable"
+        className="list-none m-0 px-[3px] py-1 flex-1 min-h-0 bg-ink scroll selectable"
         onScroll={(e) => {
           const el = e.currentTarget;
           pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
         }}
       >
         {hidden > 0 ? (
-          <li className="log__more">
-            <button type="button" onClick={() => clearLog(id, null)}>
+          <li className={ROW_NOTE}>
+            <button type="button" className={MORE} onClick={() => clearLog(id, null)}>
               Đã xoá {hidden} dòng khỏi màn hình · Hiện lại
             </button>
           </li>
         ) : (
           cursor != null &&
           !end && (
-            <li className="log__more">
-              <button type="button" disabled={loading} onClick={loadOlder}>
+            <li className={ROW_NOTE}>
+              <button type="button" className={MORE} disabled={loading} onClick={loadOlder}>
                 {loading ? "Đang tải…" : "Xem dòng cũ hơn"}
               </button>
             </li>
           )
         )}
         {shown.length === 0 && (
-          <li className="log__empty">
+          <li className={ROW_NOTE}>
             {visible.length ? "Không có dòng nào khớp bộ lọc." : hidden ? "Dòng mới sẽ hiện ở đây." : "Chưa có gì."}
           </li>
         )}
         {shown.map((l, i) => {
           const k = kindOf(l.kind);
           return (
-            <li key={l.id != null ? `i${l.id}` : `s${l.seq}`} className={`tone-${l.tone}`}>
-              <time className="px" dateTime={l.at ? new Date(l.at).toISOString() : undefined}>
+            <li key={l.id != null ? `i${l.id}` : `s${l.seq}`} className={ROW}>
+              <time
+                className="text-10 leading-[1.75] text-fg-3 whitespace-nowrap px"
+                dateTime={l.at ? new Date(l.at).toISOString() : undefined}
+              >
                 {l.time}
               </time>
-              <span className="log__kind" style={{ "--kind": k.tone } as CSSProperties}>
+              <span
+                className="[justify-self:start] max-w-full truncate text-10 font-bold leading-[1.75] text-(--kind)"
+                style={{ "--kind": k.tone } as CSSProperties}
+              >
                 {k.label}
               </span>
-              <div className="log__main">
-                <span className="log__text">{l.text}</span>
+              <div className="min-w-0">
+                <span className={TONE_TEXT[l.tone]}>{l.text}</span>
                 {l.turn && <TurnStatus turn={l.turn} live={i === live} />}
-                {l.picked && <LootRow items={l.picked} />}
+                {l.picked && <LootRow items={l.picked} className="mt-[3px]" itemClassName={LOOT_ITEM} />}
               </div>
             </li>
           );

@@ -5,7 +5,7 @@ import { FilterChip } from "../components/FilterChip";
 import { Hint } from "../components/Hint";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
-import type { ShopContext } from "./ShopModal";
+import { SHOP, type ShopContext } from "./ShopModal";
 
 const LUONG = 50;
 const OPTIONS = [
@@ -28,11 +28,11 @@ export function ShopExchange({ account, why, ask }: ShopContext) {
   const short = luong < LUONG * times;
   const hint = useId();
   return (
-    <div className="sex">
-      <p className="shoptab__note">
-        Hương Lão Trần Bá → Đổi lượng. Đang có <b className="px">{num(luong)}</b> Lượng. Xu đổi được ở Chợ trời; Xu khóa trả phí cường hoá và mua ở NPC.
+    <div className={SHOP.tab}>
+      <p className={SHOP.note}>
+        Hương Lão Trần Bá → Đổi lượng. Đang có <b className="px text-fg">{num(luong)}</b> Lượng. Xu đổi được ở Chợ trời; Xu khóa trả phí cường hoá và mua ở NPC.
       </p>
-      <div className="sbuy__filters" role="group" aria-label="Đổi lấy">
+      <div className={SHOP.chips} role="group" aria-label="Đổi lấy">
         {OPTIONS.map((x) => (
           <FilterChip key={x.option} on={option === x.option} tone={x.xuKhoa ? "var(--coin)" : undefined} onClick={() => setOption(x.option)}>
             {`50 Lượng → ${x.label}`}
@@ -44,11 +44,11 @@ export function ShopExchange({ account, why, ask }: ShopContext) {
           không đổi ngược được.
         </Hint>
       </div>
-      <div className="sbuy__buy">
-        <span className="sbuy__what">Số lần</span>
+      <div className={SHOP.buy}>
+        <span className={SHOP.buyWhat}>Số lần</span>
         <Stepper value={times} onChange={setTimes} min={1} max={most} label="số lần đổi" />
-        <span className={short ? "sbuy__cost sbuy__cost--short" : "sbuy__cost"}>
-          = <b className="px">{num(LUONG * times)}</b> Lượng → {gives}
+        <span className={short ? SHOP.costShort : undefined}>
+          = <b className={SHOP.costFig}>{num(LUONG * times)}</b> Lượng → {gives}
         </span>
         <Button
           kind="primary"

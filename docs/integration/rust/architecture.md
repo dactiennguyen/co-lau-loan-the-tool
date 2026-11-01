@@ -86,10 +86,11 @@ app/
                               Button, Icon, Badge, Pill, Bar, Avatar, Card, Stepper (ô số gõ được), StatTile, Tabs, TextField, Hint (dấu ? có lời giải thích),
                               ItemSlot (một ô túi đồ), Dialog (khung hộp thoại), Menu (menu chuột phải),
                               SettingRow (một dòng bật/tắt có dấu ?)
-      views/                  các phần của app: Sidebar, AccountCard, AccountPage, HeroCard, MetricRow, StatsCard,
-                              PlayersCard, QuestCard, FightCard, FightSettingsCard (Cài đặt), InventoryCard và ItemDetail
-                              (Túi đồ), SkillsCard (Kỹ năng), LogCard, AccountDialog (thêm và sửa nick), ConfirmDialog (hỏi trước khi
-                              xoá), SettingsDialog (Cài đặt của app), EmptyState
+      views/                  các phần của app, style bằng class Tailwind ngay trong .tsx: Sidebar, AccountCard,
+                              AccountPage, HeroCard, MetricRow, StatsCard, PlayersCard, QuestCard, FightCard,
+                              FightSettingsCard (Cài đặt đánh), InventoryCard và ItemDetail (Túi đồ), SkillsModal (Kỹ năng),
+                              StatsModal (Thống kê), ShopModal (Tiện ích), LogCard, AccountDialog (thêm và sửa nick),
+                              ConfirmDialog (hỏi trước khi xoá), SettingsDialog (Cài đặt của app), EmptyState
       itemIcons.ts, skillIcons.ts  icon vật phẩm và kỹ năng của data/icons, Vite gom vào bản build
       assets/fonts/           Silkscreen (chữ pixel cho số) và Be Vietnam Pro (chữ tiếng Việt), cả hai OFL
     src-tauri/              crate cllt-desktop

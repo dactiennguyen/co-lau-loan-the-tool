@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
+import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { DIALOG, Dialog } from "../components/Dialog";
 import { Hint } from "../components/Hint";
@@ -16,7 +17,6 @@ import { ShopBuy } from "./ShopBuy";
 import { ShopExchange } from "./ShopExchange";
 import { ShopMerge } from "./ShopMerge";
 import { ShopUpgrade } from "./ShopUpgrade";
-import "./ShopModal.css";
 
 export type ShopSub = "buy" | "merge" | "upgrade" | "exchange";
 const SUBS: { key: ShopSub; label: string; icon: IconName }[] = [
@@ -30,6 +30,51 @@ const SUB_KEY = "shop.sub";
 const REFUSED = /^Chưa (Gộp đá|Hỏi giá|Nâng cấp|Tách đá|Chuyển hoá|Đổi )/;
 /** "Xong việc quay về chỗ cũ" is on until turned off. */
 const BACK = "shop.back";
+
+/** The classes the sub-tabs share (ShopBuy, ShopMerge, ShopUpgrade, ShopExchange). */
+export const SHOP = {
+  /** A sub-tab: its parts stacked. */
+  tab: "grid [align-content:start] gap-2.5",
+  note: "m-0 text-12 text-fg-3 leading-[1.5]",
+  why: "m-0 text-12 text-danger",
+  /** A heading of a part with its "?", and the heading. */
+  lead: "flex items-center gap-1.5",
+  leadTitle: "text-[12.5px] text-fg",
+  /** A row of chips (FilterChip, the "?"s). */
+  chips: "flex flex-wrap items-center gap-1.5",
+  /** A row of options, and one option (a label with its Stepper). */
+  opts: "flex flex-wrap items-center gap-y-1.5 gap-x-3",
+  opt: "inline-flex items-center gap-1.5 text-12 text-fg-2",
+  /** A pixel check box like the setting rows: the input hidden, the box after it green when on. */
+  check: "inline-flex items-center gap-1.5 text-12 text-fg-2 cursor-pointer hover:text-fg",
+  checkInput: "peer absolute opacity-0 w-px h-px",
+  checkBox:
+    "grid place-items-center flex-none size-4 text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +
+    "peer-checked:text-ink peer-checked:bg-good peer-checked:shadow-[inset_-2px_-2px_0_var(--good-shade)] " +
+    "peer-focus-visible:outline-2 peer-focus-visible:outline-ring peer-focus-visible:outline-offset-2",
+  /** What is bought or exchanged, the Stepper, the cost (its figure; `costShort` when the money is short), the button. */
+  buy: "flex flex-wrap items-center gap-2.5 text-12",
+  buyWhat: "flex-[1_1_160px] min-w-0 text-fg-2",
+  costFig: "px text-11 text-coin",
+  costShort: "text-danger",
+  /** A list of lines (the shop's, the gear); with the room of the modal (its body is the container), in columns. */
+  list: "grid gap-1 @min-[760px]:grid-cols-[repeat(auto-fill,minmax(340px,1fr))]",
+  /** A line to pick: the picture, the name over a grey line, the price. Picked: `lineOn` (the hover's edge still wins). */
+  line:
+    "grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2.5 px-2 py-1.5 bg-bg-2 border-2 border-line text-fg text-left " +
+    "cursor-pointer hover:border-line-strong focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-4",
+  lineOn: "border-primary bg-card-2",
+  lineIcon: "grid place-items-center size-9 bg-ink",
+  lineImg: "size-[30px] [image-rendering:pixelated]",
+  lineName: "grid min-w-0",
+  lineTitle: "text-[12.5px]",
+  lineSub: "truncate text-11 text-fg-3",
+  linePrice: "text-[11.5px] text-fg-2 whitespace-nowrap",
+  linePriceFig: "text-11 text-fg",
+};
+
+/** One part of the wallet: its icon, figure and name. */
+const WALLET_ITEM = "inline-flex items-center gap-[5px]";
 
 /** A spend to confirm: what it does and costs, and the command that does it. */
 export interface Ask {
@@ -112,31 +157,37 @@ export function ShopModal({ account, item, onClose }: Props) {
       onClose={close}
       onSubmit={(e) => e.preventDefault()}
     >
-      <div className="shopmodal__top">
-        <div className="shopmodal__wallet" aria-label="Tiền và túi">
-          <span title="Xu">
-            <Icon name="coin" size={13} /> <b className="px">{num(money?.xu)}</b> Xu
+      {/* The top (money, where, the work of Pháp sư) and the sub-tabs stay; the body scrolls. */}
+      <div className="grid gap-1.5">
+        <div
+          className="flex flex-wrap items-center gap-y-1.5 gap-x-[18px] px-3 py-2 text-12 text-fg-2 bg-bg-2 border-2 border-line"
+          aria-label="Tiền và túi"
+        >
+          <span title="Xu" className={WALLET_ITEM}>
+            <Icon name="coin" size={13} /> <b className="px text-12 text-fg">{num(money?.xu)}</b> Xu
           </span>
-          <span title="Xu khóa" className="shopmodal__locked">
-            <Icon name="coin" size={13} /> <b className="px">{num(money?.xuKhoa)}</b> Xu khóa
+          <span title="Xu khóa" className={cn(WALLET_ITEM, "text-coin")}>
+            <Icon name="coin" size={13} /> <b className="px text-12 text-coin">{num(money?.xuKhoa)}</b> Xu khóa
           </span>
-          <span title="Lượng" className="shopmodal__luong">
-            <Icon name="gem" size={13} /> <b className="px">{num(money?.luong)}</b> Lượng
+          <span title="Lượng" className={cn(WALLET_ITEM, "text-accent")}>
+            <Icon name="gem" size={13} /> <b className="px text-12 text-accent">{num(money?.luong)}</b> Lượng
           </span>
-          <span title="Ô túi đã dùng">
-            <Icon name="wallet" size={13} /> Túi <b className="px">{bag ? `${bag.items.length}/${bag.capacity}` : "—"}</b>
+          <span title="Ô túi đã dùng" className={WALLET_ITEM}>
+            <Icon name="wallet" size={13} /> Túi <b className="px text-12 text-fg">{bag ? `${bag.items.length}/${bag.capacity}` : "—"}</b>
           </span>
-          <span className="shopmodal__where">
+          <span className={cn(WALLET_ITEM, "ml-auto")}>
             <Icon name="pin" size={13} /> {c ? `${c.mapName} · khu ${c.zone}` : "—"}
           </span>
         </div>
+        {/* Away from Làng Thanh Khê: the trip there, and back once done. */}
         {c && !here && (
-          <div className="shoptab__away">
-            <p>
+          <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5 px-2.5 py-2 text-12 text-fg-2 bg-bg-2 border-2 border-line">
+            <p className="flex-[1_1_100%] m-0">
               {account.label} đang ở {c.mapName}. Lái Buôn, Bà Tư Hạnh, Pháp sư và Hương Lão chỉ làm việc ở Làng Thanh Khê.
             </p>
-            <label className="shoptab__check">
+            <label className={SHOP.check}>
               <input
+                className={SHOP.checkInput}
                 type="checkbox"
                 checked={back}
                 onChange={(e) => {
@@ -144,7 +195,7 @@ export function ShopModal({ account, item, onClose }: Props) {
                   remember(BACK, e.target.checked ? "1" : "0");
                 }}
               />
-              <span className="shoptab__box" aria-hidden="true">
+              <span className={SHOP.checkBox} aria-hidden="true">
                 <Icon name="check" size={11} />
               </span>
               Xong việc quay về chỗ cũ ({c.mapName} khu {c.zone})
@@ -158,24 +209,24 @@ export function ShopModal({ account, item, onClose }: Props) {
             </Button>
           </div>
         )}
-        {busy && <p className="shoptab__why">{busy}</p>}
+        {busy && <p className={SHOP.why}>{busy}</p>}
         {refused && (
-          <p className="shoptab__why" role="status">
+          <p className={SHOP.why} role="status">
             {refused.text}
           </p>
         )}
         {c?.backTo && (
-          <p className="shoptab__note">
+          <p className={SHOP.note}>
             Đóng cửa hàng (nút Quay lại, ✕ hay Esc) thì {account.label} về {c.backTo}.
           </p>
         )}
         {c?.smith && <SmithStatus run={c.smith} onStop={() => api.stop(id)} />}
       </div>
       <Tabs<ShopSub> id={tabs} label="Việc ở cửa hàng" value={sub} onChange={pick} tabs={SUBS} />
-      <div className="shopmodal__body scroll">
+      <div className="@container min-h-0 overflow-y-auto pr-1.5 scroll">
         <TabPanel id={tabs} value={sub} className="block">
           {!c ? (
-            <p className="shoptab__note">Nick chưa vào game.</p>
+            <p className={SHOP.note}>Nick chưa vào game.</p>
           ) : sub === "buy" ? (
             <ShopBuy {...ctx} item={item} />
           ) : sub === "merge" ? (
@@ -219,22 +270,28 @@ function SmithStatus({ run, onStop }: { run: SmithRun; onStop: () => void }) {
   ].filter(Boolean);
   const q = run.quote;
   return (
-    <div className={running ? "smith smith--on" : "smith"} role="status">
-      <div className="smith__head">
-        <Icon name={running ? "refresh" : "check"} size={13} />
-        <b>{run.title}</b>
+    // A lit frame while it runs.
+    <div className={cn("grid gap-[3px] px-2.5 py-2 bg-card-2 border-2 border-line", running && "border-primary")} role="status">
+      <div className="flex items-center gap-1.5 text-[12.5px] text-fg">
+        {/* While it runs, the icon of the head turns, in the primary colour. */}
+        <Icon
+          name={running ? "refresh" : "check"}
+          size={13}
+          className={running ? "text-primary animate-spin motion-reduce:animate-none" : undefined}
+        />
+        <b className="flex-1 min-w-0 truncate">{run.title}</b>
         {running && (
           <Button kind="danger" small icon="stop" onClick={onStop}>
             Dừng
           </Button>
         )}
       </div>
-      <p className="smith__doing">{running ? run.doing || "…" : run.done}</p>
-      <p className="smith__tally">
+      <p className="m-0 text-12 text-fg-2">{running ? run.doing || "…" : run.done}</p>
+      <p className="m-0 text-11 text-fg-3">
         {run.steps > 0 && (
           <>
-            {run.steps} lần · <span className="smith__ok">{run.ok} được</span>
-            {run.failed > 0 && <span className="smith__bad"> · {run.failed} trượt</span>}
+            {run.steps} lần · <span className="text-s-online">{run.ok} được</span>
+            {run.failed > 0 && <span className="text-danger"> · {run.failed} trượt</span>}
           </>
         )}
         {spent.length > 0 && <> · tốn {spent.join(", ")}</>}

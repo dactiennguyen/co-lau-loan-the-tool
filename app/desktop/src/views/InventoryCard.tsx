@@ -10,10 +10,16 @@ import { num } from "../format";
 import type { Account, Item, ItemAction } from "../types";
 import { ItemDetail } from "./ItemDetail";
 import { useStore } from "../store";
-import "./InventoryCard.css";
 
 /** The body of the card: a column of parts that keep their height, scrolling inside; narrow ones a container. */
 const BODY = "grid [align-content:start] gap-2.5 @container overflow-auto";
+/** Said in place of the gear and the bag, or of the bag alone. */
+const NONE = "m-0 text-12 text-fg-3";
+/** A column of four gear slots, either side of the character. */
+const COL = "grid gap-[5px] [align-content:start]";
+/** The buttons of the item clicked, at the right end of the detail strip; the reason a button is greyed under them. */
+const ACT = "grid justify-items-end gap-1 max-w-[230px]";
+const BUTTONS = "flex gap-1.5";
 
 /** The 8 gear slots around the character, as the Bản thân panel lays them out: 0, 1, 2, 3 and 5 are measured (manina,
  * symap), 4 and 7 follow the item types (12-skills-items.md#ô-trang-bị). */
@@ -75,8 +81,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
   }, [sent]);
   if (!c) {
     return (
-      <Card title="Túi đồ" icon="gem" className="inv" bodyClassName={BODY}>
-        <p className="inv__none">Đăng nhập để xem trang bị và túi đồ: server chỉ gửi chúng lúc vào game.</p>
+      <Card title="Túi đồ" icon="gem" bodyClassName={BODY}>
+        <p className={NONE}>Đăng nhập để xem trang bị và túi đồ: server chỉ gửi chúng lúc vào game.</p>
       </Card>
     );
   }
@@ -189,14 +195,14 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     if (!list.length) return undefined;
     // Only the item clicked has buttons: a hovered one changes as the mouse moves to them.
     if (shownKey !== pinned) {
-      return <span className="inv__hint">Bấm hoặc chuột phải vào món để {list.map((a) => a.label.toLowerCase()).join(", ")}</span>;
+      return <span className="max-w-[160px] text-11 text-fg-3 text-right">Bấm hoặc chuột phải vào món để {list.map((a) => a.label.toLowerCase()).join(", ")}</span>;
     }
     const asking = ask?.key === shownKey ? list.find((a) => a.action === ask.action) : undefined;
     if (asking) {
       return (
-        <div className="inv__act">
-          <span className="inv__ask">{asking.confirm}</span>
-          <div className="inv__btns">
+        <div className={ACT}>
+          <span className="text-11 text-fg text-right">{asking.confirm}</span>
+          <div className={BUTTONS}>
             <Button kind={asking.danger ? "danger" : "primary"} small onClick={() => run(asking.action, shown)}>
               {asking.danger ? asking.label : "Đồng ý"}
             </Button>
@@ -209,8 +215,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     }
     const why = busy ?? list.find((a) => a.why)?.why;
     return (
-      <div className="inv__act">
-        <div className="inv__btns">
+      <div className={ACT}>
+        <div className={BUTTONS}>
           {list.map((a) => (
             <Button
               key={a.action}
@@ -230,7 +236,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
             </Button>
           )}
         </div>
-        {why && why !== NO_HAMMER && <span className="inv__why">{why}</span>}
+        {why && why !== NO_HAMMER && <span className="text-11 text-danger text-right">{why}</span>}
       </div>
     );
   })();
@@ -238,11 +244,10 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     <Card
       title="Túi đồ"
       icon="gem"
-      className="inv"
       bodyClassName={BODY}
       subtitle={bag ? `${num(bag.items.length)}/${num(bag.capacity)} ô · ${worn} món đang mặc` : "Chưa nhận túi đồ"}
       aside={
-        <div className="inv__aside">
+        <div className="flex gap-1.5">
           <Button
             kind="tonal"
             small
@@ -259,25 +264,27 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
         </div>
       }
     >
-      <div className="inv__body">
-        <section className="inv__gear" aria-label="Trang bị đang mặc">
-          <div className="inv__col">{LEFT.map(gearSlot)}</div>
-          <div className="inv__me">
+      {/* The gear (two columns of slots around the character) beside the bag grid, then the shown item. Narrow cards put the
+          bag under the gear. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 [align-items:start] [@container(max-width:560px)]:grid-cols-[minmax(0,1fr)]">
+        <section className="grid grid-cols-[auto_minmax(96px,auto)_auto] gap-2 [@container(max-width:560px)]:[justify-content:start]" aria-label="Trang bị đang mặc">
+          <div className={COL}>{LEFT.map(gearSlot)}</div>
+          <div className="grid justify-items-center content-center gap-1 py-2 px-1.5 bg-bg-2 text-center">
             <Avatar name={account.username} size={44} />
-            <b>{c.name}</b>
-            <span className="px">LV {c.level}</span>
+            <b className="max-w-[110px] truncate text-13 text-fg">{c.name}</b>
+            <span className="text-11 text-primary px">LV {c.level}</span>
             <ElementTag element={c.element} />
           </div>
-          <div className="inv__col">{RIGHT.map(gearSlot)}</div>
+          <div className={COL}>{RIGHT.map(gearSlot)}</div>
         </section>
 
-        <section className="inv__bag" aria-label="Túi đồ">
+        <section aria-label="Túi đồ">
           {bag ? (
-            <div className="inv__grid">
+            <div className="grid grid-cols-[repeat(auto-fill,44px)] gap-1">
               {Array.from({ length: cells }, (_, n) => slot(`bag-${n}`, bySlot.get(n) ?? null, `Ô ${n + 1}`))}
             </div>
           ) : (
-            <p className="inv__none">Server chưa gửi túi đồ (s2c/42).</p>
+            <p className={NONE}>Server chưa gửi túi đồ (s2c/42).</p>
           )}
         </section>
       </div>

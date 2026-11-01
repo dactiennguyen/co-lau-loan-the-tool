@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { api } from "../api";
+import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { FilterChip } from "../components/FilterChip";
 import { Hint } from "../components/Hint";
@@ -9,8 +10,11 @@ import { num } from "../format";
 import { itemIcon } from "../itemIcons";
 import { isGear, SAFE_LEVEL, stoneCounts, stoneLevel, TRANSMUTE_ITEMS, upgradeCap } from "../shops";
 import type { Item } from "../types";
-import type { ShopContext } from "./ShopModal";
-import { ItemChip, Stone } from "./Stone";
+import { SHOP, type ShopContext } from "./ShopModal";
+import { ItemChip, Stone, STONES } from "./Stone";
+
+/** A part of the item picked: Tách đá, Chuyển hoá. */
+const PART = "grid [align-content:start] justify-items-start gap-1.5 px-2.5 py-2 bg-bg-2 border-2 border-line";
 
 /**
  * Nâng cấp (16-upgrade.md#nâng-cấp): a piece of gear of the bag, Thường or Cẩn thận (+5 Lượng, odds ×1,5), the odds to
@@ -70,9 +74,10 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   const hint = useId();
 
   return (
-    <div className="sup">
-      <div className="shoptab__lead">
-        <b>Chọn món cần nâng</b>
+    // The gear, the options, Pháp sư's price, and Tách đá, Chuyển hoá.
+    <div className={SHOP.tab}>
+      <div className={SHOP.lead}>
+        <b className={SHOP.leadTitle}>Chọn món cần nâng</b>
         <Hint label="Nâng cấp là gì?" id={`${hint}-what`}>
           Pháp sư nâng món lên từng cấp (+1, +2…) bằng đá và Xu khóa. Tỉ lệ thành công theo tổng sức của đá đặt vào. Thành công
           thì chỉ số tăng (khoảng 20% chỉ số chính) và món bị khoá giao dịch; thất bại thì mất đá và phí, dưới +4 không tụt cấp.
@@ -80,9 +85,9 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
         </Hint>
       </div>
       {gear.length === 0 ? (
-        <p className="shoptab__note">Không có Nón, Áo, Vũ khí, Nhẫn hay Cánh nào, trong túi hay đang mặc.</p>
+        <p className={SHOP.note}>Không có Nón, Áo, Vũ khí, Nhẫn hay Cánh nào, trong túi hay đang mặc.</p>
       ) : (
-        <div className="sup__gear" role="radiogroup" aria-label="Món nâng cấp">
+        <div className={SHOP.list} role="radiogroup" aria-label="Món nâng cấp">
           {gear.map((i) => (
             <GearRow key={i.uuid} item={i} worn={isWorn(i)} on={i.uuid === picked} onPick={() => setPicked(i.uuid)} />
           ))}
@@ -90,8 +95,8 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
       )}
       {item && (
         <>
-          <div className="sup__opts">
-            <div className="sbuy__filters" role="group" aria-label="Kiểu nâng cấp">
+          <div className={SHOP.opts}>
+            <div className={SHOP.chips} role="group" aria-label="Kiểu nâng cấp">
               <FilterChip on={!careful} onClick={() => setCareful(false)}>
                 Thường
               </FilterChip>
@@ -103,7 +108,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
                 khi +1→+2. Phí Xu khóa như nhau. Muốn chắc 100% thì chọn Cẩn thận.
               </Hint>
             </div>
-            <label className="smerge__opt">
+            <label className={SHOP.opt}>
               Tỉ lệ muốn đạt
               <Stepper value={rate} onChange={setRate} min={1} max={100} label="tỉ lệ %" />%
             </label>
@@ -112,7 +117,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               viên thừa, nên bot không đặt dư. Tỉ lệ chạm trần của Thường (80% ở +0→+1, 75% ở +1→+2) thì bot bấm ở trần. Đặt hết đá
               mà tỉ lệ vẫn thấp hơn mức này thì bot dừng, không bấm, không tốn gì.
             </Hint>
-            <label className="smerge__opt">
+            <label className={SHOP.opt}>
               Nâng tới +
               <Stepper value={toLevel} onChange={setToLevel} min={Math.min(top, item.plus + 1)} max={top} label="cấp muốn đạt" />
             </label>
@@ -121,9 +126,9 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               bấm Dừng để thôi giữa chừng. Tạm chỉ tới +{SAFE_LEVEL}: từ +5 thất bại sẽ tụt cấp và cần Bùa bảo vệ (chưa làm). Trần
               theo bậc món: bậc 1 tới +4, bậc 21 tới +8, bậc 51 tới +12, bậc 101 tới +16.
             </Hint>
-            <label className="shoptab__check">
-              <input type="checkbox" checked={unlocked} onChange={(e) => setUnlocked(e.target.checked)} />
-              <span className="shoptab__box" aria-hidden="true">
+            <label className={SHOP.check}>
+              <input className={SHOP.checkInput} type="checkbox" checked={unlocked} onChange={(e) => setUnlocked(e.target.checked)} />
+              <span className={SHOP.checkBox} aria-hidden="true">
                 <Icon name="check" size={11} />
               </span>
               Dùng cả đá chưa khoá
@@ -133,33 +138,33 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               được), nhưng đá đã khoá vẫn được đặt trước.
             </Hint>
           </div>
-          <div className="stones" role="group" aria-label="Đá dùng được, rẻ nhất trước">
+          <div className={STONES} role="group" aria-label="Đá dùng được, rẻ nhất trước">
             {stoneRow.length === 0 ? (
-              <span className="shoptab__note">Không có đá {unlocked ? "" : "đã khoá "}nào trong túi.</span>
+              <span className={SHOP.note}>Không có đá {unlocked ? "" : "đã khoá "}nào trong túi.</span>
             ) : (
-              stoneRow.map(([level, n]) => <Stone key={level} level={level} count={n} short />)
+              stoneRow.map(([level, n]) => <Stone key={level} level={level} count={n} short chip />)
             )}
           </div>
-          <p className="shoptab__note">
+          <p className={SHOP.note}>
             {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stones.length} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
             khi đủ tỉ lệ hoặc tỉ lệ không tăng nữa (server lấy hết đá đã đặt); hết đá mà chưa đủ tỉ lệ thì không bấm.
             Tạm chỉ nâng tới +{SAFE_LEVEL}: dưới +4 thất bại không tụt cấp.
           </p>
           {mine?.quote && (
-            <div className="sup__quote">
+            <div className="grid gap-0.5 px-2.5 py-2 text-12 text-fg bg-bg-2 border-l-3 border-l-primary">
               <span>
                 Pháp sư báo: {mine.quote.fee ? `${num(mine.quote.fee.amount)} ${mine.quote.fee.money === "xu" ? "Xu" : "Xu khóa"}` : "miễn phí"}
                 {mine.quote.luong > 0 && ` + ${mine.quote.luong} Lượng`}
                 {mine.quote.rate != null && ` · tỉ lệ ${mine.quote.rate}%`}
               </span>
               {mine.preview && (
-                <span className="sup__preview">
+                <span className="text-11 text-s-online">
                   +{mine.preview.plus}: <Stats stats={mine.preview.stats} />
                 </span>
               )}
             </div>
           )}
-          <div className="sup__btns">
+          <div className="flex flex-wrap gap-1.5">
             <Button
               kind="outline"
               icon="eye"
@@ -194,23 +199,23 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
             </Hint>
           </div>
           {worn && (
-            <p className="shoptab__note">
+            <p className={SHOP.note}>
               Đang mặc: bot cởi {item.name} ra túi, nâng, rồi mặc lại vào ô cũ; xong, lỗi hay bấm Dừng đều mặc lại.
               {item.plus > 0 && " Tách đá và Chuyển hoá thì cởi món ra túi trước."}
             </p>
           )}
-          {wornWhy && <p className="shoptab__why">{wornWhy}</p>}
+          {wornWhy && <p className={SHOP.why}>{wornWhy}</p>}
           {item.plus > 0 && !worn && (
-            <div className="sup__more">
-              <div className="sup__part">
-                <div className="shoptab__lead">
-                  <b>Tách đá</b>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5">
+              <div className={PART}>
+                <div className={SHOP.lead}>
+                  <b className={SHOP.leadTitle}>Tách đá</b>
                   <Hint label="Tách đá là gì?" id={`${hint}-separate`}>
                     Món về +0, chỉ số về như lúc +0, và nhận lại vài viên đá cấp thấp (đã khoá). Số đá trả theo cấp của món, không theo
                     đá đã dùng: Giáp +1 nâng bằng một Đá cấp 5 chỉ trả 2 Đá cấp 1. Không tốn tiền, nhưng túi phải đủ ô trống cho đá trả về.
                   </Hint>
                 </div>
-                <span className="shoptab__note">Món về +0, nhận lại vài viên đá cấp thấp (J3: +1 trả 2 Đá cấp 1). Miễn phí, cần đủ ô trống.</span>
+                <span className={SHOP.note}>Món về +0, nhận lại vài viên đá cấp thấp (J3: +1 trả 2 Đá cấp 1). Miễn phí, cần đủ ô trống.</span>
                 <Button
                   kind="outline"
                   small
@@ -229,24 +234,24 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
                   Tách đá
                 </Button>
               </div>
-              <div className="sup__part">
-                <div className="shoptab__lead">
-                  <b>Chuyển hoá</b>
+              <div className={PART}>
+                <div className={SHOP.lead}>
+                  <b className={SHOP.leadTitle}>Chuyển hoá</b>
                   <Hint label="Chuyển hoá là gì?" id={`${hint}-transmute`}>
                     Chuyển cấp + của món này sang một món +0 cùng loại, bậc bằng hoặc cao hơn, ví dụ khi đổi sang đồ bậc cao mà không muốn
                     nâng lại. Luôn thành công, không tốn Xu; mất 1 vật phẩm Chuyển hoá: sơ cấp (tới +10, 30 Lượng), trung cấp (tới +13, 150
                     Lượng), cao cấp (tới +16, 500 Lượng). Món này về +0, món đích lên đúng cấp và bị khoá giao dịch.
                   </Hint>
                 </div>
-                <span className="shoptab__note">
+                <span className={SHOP.note}>
                   Chuyển +{item.plus} sang món +0 cùng loại, bậc bằng hoặc cao hơn; món này về +0, món đích bị khoá. Miễn phí, mỗi lần 1 vật phẩm
                   Chuyển hoá ({stuff ? "có trong túi" : "túi chưa có: mua ở Cửa hàng [Lượng]"}).
                 </span>
                 {stuffItem && <ItemChip url={itemIcon(stuffItem.icon)} name={`Sẽ dùng: ${stuffItem.name}`} />}
                 {targets.length === 0 ? (
-                  <span className="shoptab__note">Túi không có món đích hợp lệ.</span>
+                  <span className={SHOP.note}>Túi không có món đích hợp lệ.</span>
                 ) : (
-                  <div className="sup__gear" role="radiogroup" aria-label="Món đích">
+                  <div className={SHOP.list} role="radiogroup" aria-label="Món đích">
                     {targets.map((s) => {
                       const t = byslot(s);
                       return t ? <GearRow key={s} item={t} worn={false} on={s === target} onPick={() => setTarget(s)} /> : null;
@@ -277,7 +282,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
           )}
         </>
       )}
-      <p className="shoptab__todo">
+      <p className="mt-1.5 mb-0 px-2 py-1.5 text-[11.5px] text-fg-3 bg-bg-2 border-l-3 border-l-line-strong">
         Chưa làm: Bùa bảo vệ và nâng trên +{SAFE_LEVEL} (chưa đo được cấp nào server nhận bùa), Chế tạo trang bị theo công thức.
       </p>
     </div>
@@ -287,18 +292,20 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
 function GearRow({ item, worn, on, onPick }: { item: Item; worn: boolean; on: boolean; onPick: () => void }) {
   const icon = itemIcon(item.icon);
   return (
-    <button type="button" role="radio" aria-checked={on} className={on ? "sline sline--on" : "sline"} onClick={onPick}>
-      <span className="sline__icon">{icon && <img src={icon} alt="" />}</span>
-      <span className="sline__name">
-        <b>
-          {item.name} <span className="sline__plus px">+{item.plus}</span>
+    <button type="button" role="radio" aria-checked={on} className={cn(SHOP.line, on && SHOP.lineOn)} onClick={onPick}>
+      <span className={SHOP.lineIcon}>{icon && <img className={SHOP.lineImg} src={icon} alt="" />}</span>
+      <span className={SHOP.lineName}>
+        <b className={SHOP.lineTitle}>
+          {item.name} <span className="ml-1 text-10 text-primary px">+{item.plus}</span>
         </b>
-        <small>
-          {item.kindName} · <b className="sline__lv">cấp {item.level}</b> · <Stats stats={item.stats} />
+        {/* The level and the stats stand out of the grey line: the level blue, the numbers green (as the item detail). */}
+        <small className={SHOP.lineSub}>
+          {item.kindName} · <b className="font-bold text-exp">cấp {item.level}</b> · <Stats stats={item.stats} />
         </small>
       </span>
-      <span className="sline__price">
-        {worn && <b className="sline__worn">đang mặc</b>}
+      <span className={SHOP.linePrice}>
+        {/* A worn item, on a line of its own. */}
+        {worn && <b className="block text-[10.5px] font-semibold text-primary">đang mặc</b>}
         {item.locked ? "khoá" : "chưa khoá"}
       </span>
     </button>
@@ -314,7 +321,7 @@ function Stats({ stats }: { stats: string[] }) {
         {i > 0 && ", "}
         {value ? (
           <>
-            <b className="sline__stat">{value}</b> {name}
+            <b className="font-bold text-good">{value}</b> {name}
           </>
         ) : (
           s

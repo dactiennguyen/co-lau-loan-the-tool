@@ -7,7 +7,11 @@ import { Pill } from "../components/Pill";
 import { isConnected } from "../format";
 import type { Account } from "../types";
 import { BoostTag } from "./BoostTag";
-import "./HeroCard.css";
+
+/** The block of where the character is (Vị trí), a line on its left; its label, and the line under the map name. */
+const BLOCK = "grid gap-0.5 min-w-0 pl-4 border-l-2 border-l-line";
+const LABEL = "inline-flex items-center gap-1 text-10 font-extrabold tracking-[0.08em] uppercase text-fg-3";
+const SUB = "text-11 text-fg-2 truncate tabular-nums";
 
 interface Props {
   account: Account;
@@ -28,35 +32,40 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
   const c = a.character;
   const connected = isConnected(a.status);
   return (
-    <section className="hero">
-      <div className="hero__who">
+    <section className="relative grid grid-cols-[minmax(200px,1.6fr)_minmax(0,1.4fr)_auto] items-center gap-4 py-2.5 px-4 bg-card border-[length:var(--px)] border-line-strong notch bevel">
+      <div className="flex items-center gap-3 min-w-0">
         <Avatar name={a.username} status={a.status} size={46} dotClassName="border-card" />
-        <div className="hero__id">
-          <div className="hero__name">
-            <h1>{c?.name ?? a.label}</h1>
+        <div className="flex-1 min-w-0 grid gap-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="m-0 font-display font-extrabold text-20 leading-[1.1] text-fg truncate">{c?.name ?? a.label}</h1>
             {c && <Badge className="h-5 text-12 px-1.5">LV {c.level}</Badge>}
             {c && <ElementTag element={c.element} className="h-5 px-1.5 border border-current" />}
             {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}
             {a.proxy?.enabled && (
-              <span className="hero__proxy" title={`Kết nối qua proxy ${a.proxy.label}`}>
+              <span
+                className="inline-flex items-center gap-[3px] h-5 px-1.5 py-0 border border-good-shade text-10 font-bold tracking-[0.04em] uppercase text-good whitespace-nowrap"
+                title={`Kết nối qua proxy ${a.proxy.label}`}
+              >
                 <Icon name="shield" size={11} /> Proxy
               </span>
             )}
           </div>
-          <div className="hero__meta">
+          <div className="flex items-center gap-2 min-w-0 text-11 text-fg-2">
             <Pill status={a.status} text={a.statusText} />
+            {/* The span after the status: cut with an ellipsis when the line is too short. */}
             {a.status === 4 ? (
-              <span className="hero__error" title={a.error}>
+              <span className="inline-flex items-center gap-1 min-w-0 truncate text-danger" title={a.error}>
                 {a.error}
               </span>
             ) : a.since ? (
-              <span title={`Vào game lúc ${a.since}`}>
+              <span className="inline-flex items-center gap-1 min-w-0 truncate" title={`Vào game lúc ${a.since}`}>
                 <Icon name="clock" size={12} /> {a.since}
               </span>
             ) : (
-              <span>{a.username}</span>
+              <span className="inline-flex items-center gap-1 min-w-0 truncate">{a.username}</span>
             )}
-            <Button kind="outline" small icon="chart" className="hero__stats" onClick={onStats}>
+            {/* Thống kê at the end of the status line, under the name: the bottom right of who the account is. */}
+            <Button kind="outline" small icon="chart" className="flex-none ml-auto" onClick={onStats}>
               Thống kê
             </Button>
           </div>
@@ -65,19 +74,20 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
 
       {c ? (
         <>
-          <div className="hero__block hero__where">
-            <span className="hero__label">
+          <div className={BLOCK}>
+            <span className={LABEL}>
               <Icon name="pin" size={12} /> Vị trí
             </span>
-            <div className="hero__map">
-              <span className="hero__big" title={c.mapName}>
+            {/* Đổi khu / map as an icon after the map name, no taller than the name. */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-display font-extrabold text-16 leading-[1.25] text-fg truncate" title={c.mapName}>
                 {c.mapName}
               </span>
               <Button kind="outline" small icon="swap" className="flex-none w-[22px] h-[22px]" aria-label="Đổi khu / map" disabled={!!c.moving} onClick={onPlace} />
             </div>
-            <span className="hero__sub">
+            <span className={SUB}>
               {c.moving ? (
-                <span className="hero__moving">{c.moving}…</span>
+                <span className="text-primary">{c.moving}…</span>
               ) : (
                 <>
                   {c.mapId} · Khu {c.zone} · x {c.x} · y {c.y}
@@ -87,15 +97,15 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
           </div>
         </>
       ) : (
-        <div className="hero__block hero__where hero__placeholder">
-          <span className="hero__label">
+        <div className={BLOCK}>
+          <span className={LABEL}>
             <Icon name="pin" size={12} /> Vị trí
           </span>
-          <span className="hero__sub">{a.status === 1 ? "Đang vào game…" : "Đăng nhập để xem nhân vật đang ở đâu"}</span>
+          <span className={SUB}>{a.status === 1 ? "Đang vào game…" : "Đăng nhập để xem nhân vật đang ở đâu"}</span>
         </div>
       )}
 
-      <div className="hero__actions">
+      <div className="flex gap-1.5">
         {!connected && (
           <Button kind="glass" icon="trash" aria-label="Xoá nick" onClick={onRemove} />
         )}

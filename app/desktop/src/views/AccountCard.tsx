@@ -1,4 +1,4 @@
-import { memo, useId } from "react";
+import { memo, useId, useRef } from "react";
 import { api } from "../api";
 import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
@@ -6,9 +6,9 @@ import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { Pill } from "../components/Pill";
+import { cn } from "../cn";
 import { isConnected } from "../format";
 import { selectedId, useStore } from "../store";
-import "./AccountCard.css";
 
 interface Props {
   id: number;
@@ -29,6 +29,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
   const active = useStore((s) => selectedId(s) === accountId);
   const select = useStore((s) => s.select);
   const id = useId();
+  const card = useRef<HTMLDivElement>(null);
   // Removed in the same update that drops it from the sidebar's order.
   if (!a) return null;
   const c = a.character;
@@ -36,7 +37,13 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
   const line = a.status === 4 ? a.error : c ? `${c.mapName} · Khu ${c.zone}` : a.label !== a.username ? a.username : a.statusText;
   return (
     <div
-      className={`acard${active ? " acard--active" : ""}`}
+      ref={card}
+      className={cn(
+        "relative flex items-start gap-2.5 p-2 bg-card border-2 border-line notch-sm bevel-sm cursor-pointer hover:bg-card-2",
+        // The focus ring of the name (the select button) goes around the whole card where :has() works.
+        "has-[>div_button:focus-visible]:outline-2 has-[>div_button:focus-visible]:outline-ring has-[>div_button:focus-visible]:-outline-offset-6",
+        active && "bg-card-2 border-primary",
+      )}
       onClick={() => select(a.id)}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -44,17 +51,21 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
       }}
     >
       <Avatar name={a.username} status={a.status} />
-      <div className="acard__body">
-        <div className="acard__top">
+      <div className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)] gap-1">
+        {/* Login/logout sits in the corner beside the name, so the place and the status row below get the whole width. */}
+        <div className="flex items-center gap-1.5 min-w-0 pr-[26px]">
           <button
             type="button"
-            className="acard__select"
+            className={
+              "min-w-0 p-0 border-0 bg-transparent truncate text-left font-display font-extrabold text-13 leading-[1.3] text-fg cursor-pointer " +
+              "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1 supports-[selector(:has(*))]:focus-visible:outline-none"
+            }
             aria-current={active || undefined}
             aria-describedby={`${id}line ${id}status`}
             onKeyDown={(e) => {
               if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
                 e.preventDefault();
-                const r = e.currentTarget.closest(".acard")!.getBoundingClientRect();
+                const r = card.current!.getBoundingClientRect();
                 onMenu(a.id, r.left + 12, r.bottom - 6);
               }
             }}
@@ -63,17 +74,17 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
           </button>
           {c && <Badge>LV {c.level}</Badge>}
         </div>
-        <div id={`${id}line`} className={`acard__line${a.status === 4 ? " acard__line--error" : ""}`} title={line}>
+        <div id={`${id}line`} className={cn("text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>
           {line}
         </div>
-        <div className="acard__bottom">
+        <div className="flex items-center gap-1.5 mt-0.5">
           <Pill id={`${id}status`} status={a.status} text={a.statusText} />
           {c && (
             <>
-              <div className="acard__hp" title={`HP ${c.hp}/${c.maxHp}`}>
+              <div className="flex-1 min-w-6" title={`HP ${c.hp}/${c.maxHp}`}>
                 <Bar value={c.hp / Math.max(1, c.maxHp)} fill="var(--hp)" thin />
               </div>
-              <span className="acard__people px" title={c.playersKnown ? `${c.players.length} người khác trong khu` : "Chưa đọc được danh sách người trong khu"}>
+              <span className="inline-flex items-center gap-[3px] text-11 text-fg-3 px" title={c.playersKnown ? `${c.players.length} người khác trong khu` : "Chưa đọc được danh sách người trong khu"}>
                 <Icon name="users" size={12} />
                 {c.playersKnown ? c.players.length : "?"}
               </span>

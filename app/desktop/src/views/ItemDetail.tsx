@@ -1,3 +1,4 @@
+import { cn } from "../cn";
 import { Icon } from "../components/Icon";
 import { ELEMENT_ICON, elementText } from "../components/ElementTag";
 import { num } from "../format";
@@ -5,7 +6,12 @@ import { itemIcon } from "../itemIcons";
 import { plusOf } from "../shops";
 import type { ReactNode } from "react";
 import type { Item } from "../types";
-import "./ItemDetail.css";
+
+/** The shown item, a strip under the bag: the icon in a well on the left; then its name, element and facts on one line,
+ * and the durability (red when worn out), the stats as chips and the description on the next. */
+const STRIP = "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 min-h-[60px] py-1.5 px-2.5 bg-ink";
+/** The line of the name, and the line of the durability, stats and description. */
+const LINE = "flex flex-wrap items-center gap-y-[3px] gap-x-2";
 
 interface Props {
   item: Item | null;
@@ -21,7 +27,7 @@ interface Props {
  * level, durability, stats, and the popup's buttons. */
 export function ItemDetail({ item, where, element, actions }: Props) {
   if (!item) {
-    return <div className="detail detail--none">Rê chuột hay bấm vào một món để xem chi tiết.</div>;
+    return <div className={cn(STRIP, "flex text-11 text-fg-3")}>Rê chuột hay bấm vào một món để xem chi tiết.</div>;
   }
   const url = itemIcon(item.icon);
   const broken = item.durability != null && item.durability[0] <= 0;
@@ -33,38 +39,44 @@ export function ItemDetail({ item, where, element, actions }: Props) {
     where,
   ].filter(Boolean);
   return (
-    <div className={`detail${actions ? " detail--act" : ""}`} aria-live="polite">
-      <span className="detail__icon">{url ? <img src={url} alt="" /> : <span className="px">#{item.id}</span>}</span>
-      <div className="detail__body">
-        <div className="detail__name">
-          <b>
+    <div className={cn(STRIP, actions ? "grid-cols-[auto_minmax(0,1fr)_auto]" : null)} aria-live="polite">
+      <span className="grid place-items-center w-[46px] h-[46px] bg-bg-2">
+        {url ? <img src={url} alt="" className="w-[42px] h-[42px]" /> : <span className="px">#{item.id}</span>}
+      </span>
+      <div className="grid gap-1 min-w-0">
+        <div className={LINE}>
+          <b className="text-13 text-fg">
             {item.name}
-            {plus > 0 && <span className="detail__plus px"> +{plus}</span>}
+            {plus > 0 && <span className="text-12 text-primary px"> +{plus}</span>}
           </b>
           {item.element != null && item.elementName && (
-            <span className={`detail__el ${elementText(item.element)}`}>
+            <span className={cn("inline-flex items-center gap-[3px] text-11 font-bold", elementText(item.element))}>
               {ELEMENT_ICON[item.element] && <Icon name={ELEMENT_ICON[item.element]} size={11} />} {item.elementName}
             </span>
           )}
-          {item.element != null && item.element === element && <span className="detail__tag">đúng hệ: +5% chỉ số</span>}
-          <span className="detail__facts">{facts.join(" · ")}</span>
+          {item.element != null && item.element === element && (
+            <span className="py-0 px-[5px] border border-good-shade text-10 font-bold text-good">đúng hệ: +5% chỉ số</span>
+          )}
+          <span className="text-11 text-fg-3">{facts.join(" · ")}</span>
         </div>
         {(item.durability || item.stats.length > 0 || item.desc) && (
-          <div className="detail__info">
+          <div className={LINE}>
             {item.durability && (
-              <span className={`detail__wear${broken ? " detail__wear--broken" : ""}`}>
-                Độ bền <b className="px">{num(item.durability[0])}/{num(item.durability[1])}</b>
+              <span className={cn("text-11 text-fg-2", broken && "text-danger")}>
+                Độ bền <b className={cn("text-[10.5px] font-normal text-fg px", broken && "text-danger")}>{num(item.durability[0])}/{num(item.durability[1])}</b>
                 {broken && ", hỏng: chỉ số không tính, cần 1 Búa sửa chữa"}
               </span>
             )}
             {item.stats.length > 0 && (
-              <ul className="detail__stats">
+              <ul className="contents">
                 {item.stats.map((s, i) => (
-                  <li key={i}>{s}</li>
+                  <li key={i} className="list-none py-px px-1.5 bg-bg-2 text-11 font-semibold text-good">
+                    {s}
+                  </li>
                 ))}
               </ul>
             )}
-            {item.desc && <p className="detail__desc">{item.desc}</p>}
+            {item.desc && <p className="m-0 text-11 leading-[1.4] text-fg-2">{item.desc}</p>}
           </div>
         )}
       </div>

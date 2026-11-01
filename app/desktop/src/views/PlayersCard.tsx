@@ -2,7 +2,6 @@ import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Card } from "../components/Card";
 import type { Character } from "../types";
-import "./PlayersCard.css";
 
 /** Level tag colour against the own level: stronger players red, the same gold, weaker green. */
 const levelTone = (level: number, own: number) =>
@@ -19,22 +18,24 @@ export function PlayersCard({ character: c }: { character: Character | null }) {
       subtitle={c ? `${c.mapName} · Khu ${c.zone}` : "Đăng nhập để xem ai cùng khu"}
       aside={
         c && (
-          <span className="count px" title={c.playersKnown ? `${players.length + 1} người trong khu, tính cả bạn` : "Chưa đọc được danh sách (s2c/1263)"}>
+          <span
+            className="px grid place-items-center min-w-[26px] h-[22px] px-1.5 py-0 bg-points text-ink text-12 bevel-sm"
+            title={c.playersKnown ? `${players.length + 1} người trong khu, tính cả bạn` : "Chưa đọc được danh sách (s2c/1263)"}
+          >
             {c.playersKnown ? players.length : "?"}
           </span>
         )
       }
-      className="players-card"
     >
       {c && !c.playersKnown && (
-        <p className="players__empty">Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.</p>
+        <p className="m-0 text-fg-3 text-12">Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.</p>
       )}
-      {c?.playersKnown && players.length === 0 && <p className="players__empty">Chỉ có bạn ở khu này.</p>}
-      <ul className="players scroll">
+      {c?.playersKnown && players.length === 0 && <p className="m-0 text-fg-3 text-12">Chỉ có bạn ở khu này.</p>}
+      <ul className="scroll list-none m-0 p-0 flex-1 min-h-0 grid [align-content:start] gap-1">
         {players.map((p) => (
-          <li key={p.id}>
+          <li key={p.id} className="flex items-center gap-2 py-[3px] pr-1.5 pl-[3px] bg-bg-2 hover:bg-card-2">
             <Avatar name={p.name} size={22} />
-            <span className="players__name selectable">{p.name}</span>
+            <span className="selectable flex-1 min-w-0 truncate text-12 font-semibold">{p.name}</span>
             <Badge tone={levelTone(p.level, c!.level)}>LV {p.level}</Badge>
           </li>
         ))}

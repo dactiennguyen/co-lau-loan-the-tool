@@ -8,8 +8,13 @@
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @source "../**/*.{ts,tsx}";
 
-/* Windows and Linux keep a native title bar: the strips that drag the window hide there (not-mac:hidden). */
+/* Windows and Linux keep a native title bar (the strips that drag the window hide there, in base.css): `not-mac:` sets
+   what differs on them, as the top padding of the main column and the sidebar. */
 @custom-variant not-mac (:root:not([data-os="mac"]) &);
+
+/* The narrow window: the page stacks its columns, the Đánh quái list and the potentials take fewer columns. Written
+   as max-width (Tailwind's max-[1120px] is width < 1120px, a pixel off). */
+@custom-variant narrow (@media (max-width: 1120px));
 
 /* The faces: Silkscreen (pixel, no Vietnamese marks) only for numbers and ASCII labels, Be Vietnam Pro for the rest.
    Static: the stylesheets not moved yet read them as var(--font-ui)… too. */
@@ -94,11 +99,14 @@
   --ease-step: var(--step);
 }
 
-/* Motion in steps, as sprites move: a light that blinks (a live status, a tab at work), a toast coming in. */
+/* Motion in steps, as sprites move: a light that blinks (a live status, a tab or a battle at work), a toast or a battle
+   line coming in, the gear of Pháp sư at work. */
 @theme {
   --animate-*: initial;
   --animate-blink: blink 1s steps(2, jump-none) infinite;
   --animate-toast-in: toast-in var(--slow) var(--step);
+  --animate-turn-in: turn-in var(--slow) var(--step);
+  --animate-spin: spin 1.2s steps(8) infinite;
 
   @keyframes blink {
     from { opacity: 1; }
@@ -106,6 +114,12 @@
   }
   @keyframes toast-in {
     from { opacity: 0; transform: translateX(18px); }
+  }
+  @keyframes turn-in {
+    from { background: var(--card-2); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 }
 

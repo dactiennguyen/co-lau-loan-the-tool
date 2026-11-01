@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { api } from "../api";
+import { cn } from "../cn";
 import { Badge } from "../components/Badge";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
@@ -21,7 +22,6 @@ import type {
   Totals,
 } from "../types";
 import { PickedIcon, pickedLabel } from "./LootRow";
-import "./StatsModal.css";
 
 type Range = "today" | "week" | "month" | "all";
 const RANGES: { key: Range; label: string }[] = [
@@ -62,6 +62,38 @@ const MEASURES: { key: Measure; label: string; tone: string }[] = [
 const PAGE = 30;
 const HOUR = 3_600_000;
 const WEEKDAY = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
+/* The classes of the parts. The body of the modal is the container of the queries (@container): at most 860 px wide, 3
+   tiles a row and the closest win over the losses; at most 560 px, 2 tiles and a battle on two lines. Written as
+   [@container(max-width:…)] for the same edge as max-width (@max-[860px] is width < 860px). */
+/** Inside a part, a column of blocks that keep their height. */
+const STACK = "flex flex-col gap-2.5 *:flex-none";
+const H = "mt-1 mb-0 text-11 font-extrabold tracking-[0.06em] uppercase text-fg-2";
+const NONE = "m-0 text-12 text-fg-3";
+const WRAP = "overflow-x-auto";
+const TABLE = "w-full border-collapse text-12";
+/** A cell: figures on the right. */
+const TD = "px-2 py-[5px] text-right whitespace-nowrap";
+const TD_PX = `${TD} px`;
+/** A column's name; the first, of the rows' names, on the left. */
+const TH_COL =
+  "px-2 py-[5px] text-right first:text-left whitespace-nowrap text-10 font-extrabold tracking-[0.04em] uppercase text-fg-3 border-b border-b-line";
+/** A row's name, a line under it in <small> (TH_SUB). */
+const TH_ROW = "grid gap-px px-2 py-[5px] text-left whitespace-nowrap font-bold text-fg";
+const TH_SUB = "text-[10.5px] font-medium text-fg-3";
+/** A row of a table's body, every other one on a dark plate. */
+const TR = "odd:bg-ink";
+/** A name with a tag (ĐANG, BOSS) or an icon. */
+const WITH_TAG = "inline-flex items-center gap-1.5";
+/** Tỉ lệ thắng: the figure, then a bar. */
+const RATE = "inline-grid grid-cols-[40px_60px] items-center gap-1.5";
+/** The battles and the losses, a row each on a dark plate. */
+const LIST = "grid gap-0.5 m-0 p-0 list-none";
+const ROW_TIME = "text-10 text-fg-3 px";
+const MOB = "truncate font-bold text-fg";
+const MOB_LEVEL = "font-medium text-fg-3";
+/** Where and how a battle went; under the mob on a narrow body. */
+const FACTS = "truncate text-fg-2 [@container(max-width:560px)]:col-[2/-1]";
 
 /** The start of the range in ms since 1970, whole days with today one of them: local midnight of today for Hôm nay,
  * of 6 days ago for 7 ngày, of 29 days ago for 30 ngày; null for all. The chart then has a column per day of it. */
@@ -267,15 +299,15 @@ export function StatsModal({ account, onClose }: { account: Account; onClose: ()
       onClose={onClose}
       onSubmit={(e) => e.preventDefault()}
     >
-      <div className="bstats__filters">
-        <div role="group" aria-label="Khoảng thời gian">
+      <div className="flex flex-wrap justify-between gap-y-1.5 gap-x-3">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Khoảng thời gian">
           {RANGES.map((r) => (
             <FilterChip key={r.key} on={range === r.key} onClick={() => setRange(r.key)}>
               {r.label}
             </FilterChip>
           ))}
         </div>
-        <div role="group" aria-label="Nguồn trận">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Nguồn trận">
           {SOURCES.map((s) => (
             <FilterChip key={s.label} on={source === s.key} tone="var(--exp)" onClick={() => setSource(s.key)}>
               {s.label}
@@ -284,15 +316,17 @@ export function StatsModal({ account, onClose }: { account: Account; onClose: ()
         </div>
       </div>
       <Tabs<Sub> id={tabs} label="Phần thống kê" value={sub} onChange={pick} tabs={SUBS} />
-      <div className="statsmodal__body scroll">
+      {/* The filters and the sub-tabs stay, the body scrolls; the modal's height is fixed, so the sub-tabs do not make it
+          jump. */}
+      <div className="min-h-0 overflow-y-auto pr-1.5 @container scroll">
         <TabPanel id={tabs} value={sub} className="block">
-          {error && <p className="bstats__error">Không đọc được lịch sử trận: {error}</p>}
+          {error && <p className="mt-0 mb-2.5 text-12 text-danger">Không đọc được lịch sử trận: {error}</p>}
           {t === undefined ? (
-            !error && <p className="bstats__none">Đang tải…</p>
+            !error && <p className={NONE}>Đang tải…</p>
           ) : t === null ? (
-            <p className="bstats__none">Chưa có cơ sở dữ liệu cllt.db nên chưa có lịch sử trận.</p>
+            <p className={NONE}>Chưa có cơ sở dữ liệu cllt.db nên chưa có lịch sử trận.</p>
           ) : t.battles === 0 && !(sub === "levels" && t.levels.length > 0) ? (
-            <p className="bstats__none">Chưa có trận nào trong khoảng này.</p>
+            <p className={NONE}>Chưa có trận nào trong khoảng này.</p>
           ) : sub === "overview" ? (
             <Overview t={t} range={range} />
           ) : sub === "levels" ? (
@@ -324,10 +358,10 @@ function streakNow({ last, lastResult }: BattleStats["streak"]) {
 /** Tổng quan: the tiles, the chart, the closest win and the last losses. */
 function Overview({ t, range }: { t: BattleStats; range: Range }) {
   return (
-    <div className="bstats__stack">
-      <dl className="bstats__tiles">
+    <div className={STACK}>
+      <dl className="grid grid-cols-5 gap-1.5 m-0 [@container(560px_<_width_<=_860px)]:grid-cols-3 [@container(max-width:560px)]:grid-cols-2">
         <Tile label="Trận" value={num(t.battles)}>
-          <b className="win">{t.won} thắng</b> · <b className="loss">{t.lost} thua</b>
+          <b className="text-s-online">{t.won} thắng</b> · <b className="text-danger">{t.lost} thua</b>
           {t.left > 0 && <> · {t.left} rời</>}
         </Tile>
         <Tile label="Tỉ lệ thắng" value={pct(rate(t))}>
@@ -361,41 +395,45 @@ function Overview({ t, range }: { t: BattleStats; range: Range }) {
 
       <DayChart hours={t.hours} range={range} />
 
-      <div className="bstats__pair">
-        <section>
-          <h3 className="bstats__h">Thắng sát nút nhất</h3>
+      {/* The closest win beside the last losses. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 [@container(max-width:860px)]:grid-cols-[minmax(0,1fr)]">
+        <section className="grid gap-1.5 [align-content:start] min-w-0">
+          <h3 className={H}>Thắng sát nút nhất</h3>
           {t.closest ? (
-            <p className="bstats__closest">
-              <b>
+            <p className="grid gap-[3px] m-0 px-2.5 py-2 bg-ink text-12 text-fg-2">
+              <b className="text-fg">
                 {t.closest.mobName}
-                {t.closest.mobLevel > 0 && <small> cấp {t.closest.mobLevel}</small>}
+                {t.closest.mobLevel > 0 && <small className="text-11 font-medium text-fg-3"> cấp {t.closest.mobLevel}</small>}
               </b>
               <span>
-                còn <b className="loss px">{num(t.closest.hpAfter)}</b> / {num(t.closest.maxHp)} máu (
+                còn <b className="text-danger px">{num(t.closest.hpAfter)}</b> / {num(t.closest.maxHp)} máu (
                 {pct(t.closest.hpAfter / Math.max(1, t.closest.maxHp))}) sau {t.closest.turns} lượt
               </span>
-              <small>
+              <small className="text-11 text-fg-3">
                 {when(t.closest.endedAt)} · {t.closest.mapName} · khu {t.closest.zone}
               </small>
             </p>
           ) : (
-            <p className="bstats__none">Chưa thắng trận nào trong khoảng này.</p>
+            <p className={NONE}>Chưa thắng trận nào trong khoảng này.</p>
           )}
         </section>
-        <section>
-          <h3 className="bstats__h">Thua gần đây</h3>
+        <section className="grid gap-1.5 [align-content:start] min-w-0">
+          <h3 className={H}>Thua gần đây</h3>
           {t.losses.length === 0 ? (
-            <p className="bstats__none">Không thua trận nào trong khoảng này.</p>
+            <p className={NONE}>Không thua trận nào trong khoảng này.</p>
           ) : (
-            <ol className="bstats__losses">
+            <ol className={LIST}>
               {t.losses.map((b) => (
-                <li key={b.id}>
-                  <time className="px">{when(b.endedAt)}</time>
-                  <span className="bstats__name">
+                <li
+                  key={b.id}
+                  className="grid grid-cols-[82px_minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-2.5 px-2 py-1 bg-ink text-12"
+                >
+                  <time className={ROW_TIME}>{when(b.endedAt)}</time>
+                  <span className={MOB}>
                     {b.mobName}
-                    {b.mobLevel > 0 && <small> cấp {b.mobLevel}</small>}
+                    {b.mobLevel > 0 && <small className={MOB_LEVEL}> cấp {b.mobLevel}</small>}
                   </span>
-                  <span className="bstats__facts">
+                  <span className={FACTS}>
                     {b.turns} lượt · gây {num(b.damage)} sát thương · {b.mapName}
                   </span>
                 </li>
@@ -410,10 +448,11 @@ function Overview({ t, range }: { t: BattleStats; range: Range }) {
 
 function Tile({ label, value, text, children }: { label: string; value: string; text?: boolean; children: ReactNode }) {
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd className={text ? undefined : "px"}>{value}</dd>
-      <small>{children}</small>
+    <div className="grid gap-[3px] [align-content:start] min-w-0 px-2.5 py-2 bg-ink">
+      <dt className="text-10 font-extrabold tracking-[0.06em] uppercase text-fg-3">{label}</dt>
+      {/* A figure in the pixel face; words (a time) smaller, in the UI face. */}
+      <dd className={cn("m-0 text-18 font-extrabold text-fg whitespace-nowrap", text ? "text-14 leading-[1.5]" : "px")}>{value}</dd>
+      <small className="text-11 leading-[1.4] text-fg-2">{children}</small>
     </div>
   );
 }
@@ -435,10 +474,10 @@ function DayChart({ hours, range }: { hours: GroupTotals[]; range: Range }) {
   const step = Math.ceil(list.length / 12);
   const unit = measure === "exp" ? "EXP" : measure === "coin" ? "xu" : "trận";
   return (
-    <section className="dchart">
-      <div className="dchart__head">
-        <h3 className="bstats__h">{range === "today" ? "Theo giờ, hôm nay" : "Theo ngày"}</h3>
-        <div role="group" aria-label="Số liệu của biểu đồ">
+    <section className="grid gap-1.5 px-3 py-2.5 bg-ink">
+      <div className="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2.5">
+        <h3 className={cn(H, "m-0")}>{range === "today" ? "Theo giờ, hôm nay" : "Theo ngày"}</h3>
+        <div className="flex gap-1" role="group" aria-label="Số liệu của biểu đồ">
           {MEASURES.map((m) => (
             <FilterChip key={m.key} on={measure === m.key} tone={m.tone} onClick={() => setMeasure(m.key)}>
               {m.label}
@@ -446,44 +485,57 @@ function DayChart({ hours, range }: { hours: GroupTotals[]; range: Range }) {
           ))}
         </div>
       </div>
-      <p className="dchart__readout">
+      <p className="flex flex-wrap gap-y-0.5 gap-x-2 min-h-[18px] m-0 text-12 text-fg-2">
         {shown && (
           <>
-            <b>{shown.long}</b>
+            <b className="text-fg">{shown.long}</b>
             {shown.totals.battles === 0 ? (
               <span>không có trận</span>
             ) : (
               <span>
                 {shown.totals.battles} trận · {shown.totals.won} thắng ({pct(rate(shown.totals))}) ·{" "}
-                <b className="dchart__exp">+{num(shown.totals.exp)} EXP</b> · <b className="dchart__coin">+{num(shown.totals.coin)} xu</b> ·{" "}
+                <b className="text-exp">+{num(shown.totals.exp)} EXP</b> · <b className="text-coin">+{num(shown.totals.coin)} xu</b> ·{" "}
                 {span(shown.totals.ms)} trong trận
               </span>
             )}
           </>
         )}
       </p>
-      <div className="dchart__plot" style={{ "--dchart": tone } as CSSProperties}>
-        <span className="dchart__max px" aria-hidden="true">
+      {/* Columns at most 24 px, 2 px apart, from one baseline, in the colour of the measure (--dchart); a hairline at the
+          top value, which the figure over it names. */}
+      <div className="relative grid gap-1 pt-4" style={{ "--dchart": tone } as CSSProperties}>
+        <span className="absolute top-0 left-0 text-10 text-fg-3 px" aria-hidden="true">
           {num(top)} {unit}
         </span>
-        <div className="dchart__cols" onMouseLeave={() => setHover(null)}>
+        <div
+          className="flex items-end gap-0.5 h-[140px] border-t border-t-line border-b border-b-line-strong"
+          onMouseLeave={() => setHover(null)}
+        >
           {list.map((s, i) => (
             <button
               key={s.key}
               type="button"
-              className={i === hover ? "dchart__col is-on" : "dchart__col"}
+              className={cn(
+                "flex flex-[1_1_0] items-end justify-center min-w-0 h-full p-0 bg-transparent [border:0] cursor-default hover:bg-[rgb(255_255_255/0.04)] focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
+                i === hover && "bg-[rgb(255_255_255/0.04)]",
+              )}
               aria-label={`${s.long}: ${num(value(s))} ${unit}`}
               onMouseEnter={() => setHover(i)}
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
             >
-              <span className="dchart__bar" style={{ height: `${(value(s) / top) * 100}%` }} />
+              <span
+                className={cn("w-full max-w-6 min-h-0 bg-(--dchart) rounded-t-[2px]", i === hover && "brightness-125")}
+                style={{ height: `${(value(s) / top) * 100}%` }}
+              />
             </button>
           ))}
         </div>
-        <div className="dchart__labels" aria-hidden="true">
+        <div className="flex gap-0.5" aria-hidden="true">
           {list.map((s, i) => (
-            <span key={s.key}>{i % step === 0 || i === list.length - 1 ? s.label : ""}</span>
+            <span key={s.key} className="flex-[1_1_0] min-w-0 overflow-visible text-10 text-center whitespace-nowrap text-fg-3">
+              {i % step === 0 || i === list.length - 1 ? s.label : ""}
+            </span>
           ))}
         </div>
       </div>
@@ -501,57 +553,58 @@ function Levels({ t, account, range, source }: { t: BattleStats; account: Accoun
   // The rate is of the battles of the filter, the source too: said with it.
   const basis = RANGES.find((r) => r.key === range)!.label.toLowerCase() + (source ? `, chỉ ${SOURCE_NAME[source]}` : "");
   return (
-    <div className="bstats__stack">
-      <div className="bstats__eta">
-        <Icon name="star" size={16} />
+    <div className={STACK}>
+      {/* How long the next level should take. */}
+      <div className="flex items-center gap-2.5 px-3 py-2.5 bg-ink border-l-3 border-l-exp text-[12.5px] leading-[1.5] text-fg-2">
+        <Icon name="star" size={16} className="flex-none text-exp" />
         {!c || !level ? (
           <span>Đăng nhập để biết còn bao nhiêu EXP lên cấp kế.</span>
         ) : runRate <= 0 ? (
           <span>
-            Cấp {c.level}: còn <b className="px">{num(level.left)}</b> EXP lên cấp {c.level + 1}. Chưa có EXP trong khoảng này để
+            Cấp {c.level}: còn <b className="text-fg px">{num(level.left)}</b> EXP lên cấp {c.level + 1}. Chưa có EXP trong khoảng này để
             ước tính thời gian.
           </span>
         ) : (
           <span>
-            Cấp {c.level}: còn <b className="px">{num(level.left)}</b> EXP lên cấp {c.level + 1}, khoảng{" "}
-            <b>{span((level.left / runRate) * HOUR)}</b> bot chạy nữa, theo {num(Math.round(runRate))} EXP mỗi giờ chạy ({basis}).
+            Cấp {c.level}: còn <b className="text-fg px">{num(level.left)}</b> EXP lên cấp {c.level + 1}, khoảng{" "}
+            <b className="text-fg">{span((level.left / runRate) * HOUR)}</b> bot chạy nữa, theo {num(Math.round(runRate))} EXP mỗi giờ chạy ({basis}).
           </span>
         )}
       </div>
-      <div className="bstats__wrap">
-        <table className="bstats__table">
+      <div className={WRAP}>
+        <table className={TABLE}>
           <thead>
             <tr>
-              <th scope="col">Cấp</th>
-              <th scope="col">Lên cấp lúc</th>
-              <th scope="col">Ở cấp này</th>
-              <th scope="col">Trận</th>
-              <th scope="col">Tỉ lệ thắng</th>
-              <th scope="col">EXP</th>
-              <th scope="col">EXP mỗi giờ đánh</th>
+              <th scope="col" className={TH_COL}>Cấp</th>
+              <th scope="col" className={TH_COL}>Lên cấp lúc</th>
+              <th scope="col" className={TH_COL}>Ở cấp này</th>
+              <th scope="col" className={TH_COL}>Trận</th>
+              <th scope="col" className={TH_COL}>Tỉ lệ thắng</th>
+              <th scope="col" className={TH_COL}>EXP</th>
+              <th scope="col" className={TH_COL}>EXP mỗi giờ đánh</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((l) => (
-              <tr key={l.level}>
-                <th scope="row">
-                  <span className="bstats__mob">
+              <tr key={l.level} className={TR}>
+                <th scope="row" className={TH_ROW}>
+                  <span className={WITH_TAG}>
                     Cấp {l.level}
                     {c?.level === l.level && <Badge tone="var(--exp)">ĐANG</Badge>}
                   </span>
                 </th>
-                <td>{l.reachedAt != null ? when(l.reachedAt) : <small className="bstats__dim">trước lịch sử</small>}</td>
-                <td>{stay(l, t.levels, c?.level, now)}</td>
-                <td className="px">{num(l.battles)}</td>
-                <td className="px">{pct(rate(l))}</td>
-                <td className="px">+{num(l.exp)}</td>
-                <td className="px">{perHour(l.exp, l.ms)}</td>
+                <td className={TD}>{l.reachedAt != null ? when(l.reachedAt) : <small className="text-11 text-fg-3">trước lịch sử</small>}</td>
+                <td className={TD}>{stay(l, t.levels, c?.level, now)}</td>
+                <td className={TD_PX}>{num(l.battles)}</td>
+                <td className={TD_PX}>{pct(rate(l))}</td>
+                <td className={TD_PX}>+{num(l.exp)}</td>
+                <td className={TD_PX}>{perHour(l.exp, l.ms)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="bstats__note">
+      <p className="m-0 text-11 leading-[1.5] text-fg-3">
         Bảng theo mọi trận, kể cả khi lọc Đánh quái hay Nhiệm vụ: cấp là của nhân vật. Lên cấp lúc là lúc xong trận cuối cùng ở
         cấp dưới, tức trận mang EXP lên cấp (lên cấp nhờ thưởng nhiệm vụ thì là lúc đó hoặc muộn hơn); cấp đã có trước trận cũ
         nhất còn lưu thì không biết lúc lên.
@@ -571,22 +624,22 @@ function stay(l: LevelTotals, all: LevelTotals[], current: number | undefined, n
 /** One row of the tables by source and by map. */
 function GroupRow({ name, sub, t }: { name: string; sub?: string; t: Totals }) {
   return (
-    <tr>
-      <th scope="row">
+    <tr className={TR}>
+      <th scope="row" className={TH_ROW}>
         {name}
-        {sub && <small>{sub}</small>}
+        {sub && <small className={TH_SUB}>{sub}</small>}
       </th>
-      <td className="px">{num(t.battles)}</td>
-      <td>
-        <span className="bstats__rate">
+      <td className={TD_PX}>{num(t.battles)}</td>
+      <td className={TD}>
+        <span className={RATE}>
           <span className="px">{pct(rate(t))}</span>
           <Bar value={rate(t)} fill="var(--s-online)" thin label={`Tỉ lệ thắng ${name}`} />
         </span>
       </td>
-      <td className="px">{each(t.exp, t.battles)}</td>
-      <td className="px">{each(t.coin, t.battles)}</td>
-      <td>{t.battles > 0 ? span(t.ms / t.battles) : "—"}</td>
-      <td className="px">{perHour(t.exp, t.ms)}</td>
+      <td className={TD_PX}>{each(t.exp, t.battles)}</td>
+      <td className={TD_PX}>{each(t.coin, t.battles)}</td>
+      <td className={TD}>{t.battles > 0 ? span(t.ms / t.battles) : "—"}</td>
+      <td className={TD_PX}>{perHour(t.exp, t.ms)}</td>
     </tr>
   );
 }
@@ -595,13 +648,13 @@ function GroupHead({ first }: { first: string }) {
   return (
     <thead>
       <tr>
-        <th scope="col">{first}</th>
-        <th scope="col">Trận</th>
-        <th scope="col">Tỉ lệ thắng</th>
-        <th scope="col">EXP/trận</th>
-        <th scope="col">Xu/trận</th>
-        <th scope="col">Thời gian/trận</th>
-        <th scope="col">EXP mỗi giờ đánh</th>
+        <th scope="col" className={TH_COL}>{first}</th>
+        <th scope="col" className={TH_COL}>Trận</th>
+        <th scope="col" className={TH_COL}>Tỉ lệ thắng</th>
+        <th scope="col" className={TH_COL}>EXP/trận</th>
+        <th scope="col" className={TH_COL}>Xu/trận</th>
+        <th scope="col" className={TH_COL}>Thời gian/trận</th>
+        <th scope="col" className={TH_COL}>EXP mỗi giờ đánh</th>
       </tr>
     </thead>
   );
@@ -610,12 +663,12 @@ function GroupHead({ first }: { first: string }) {
 /** Quái & bản đồ: by source (Đánh quái against Nhiệm vụ), by map, by mob. */
 function Where({ t, filtered }: { t: BattleStats; filtered: boolean }) {
   return (
-    <div className="bstats__stack">
+    <div className={STACK}>
       {!filtered && (
         <>
-          <h3 className="bstats__h">Theo nguồn</h3>
-          <div className="bstats__wrap">
-            <table className="bstats__table">
+          <h3 className={H}>Theo nguồn</h3>
+          <div className={WRAP}>
+            <table className={TABLE}>
               <GroupHead first="Nguồn" />
               <tbody>
                 {t.sources.map((s) => (
@@ -626,9 +679,9 @@ function Where({ t, filtered }: { t: BattleStats; filtered: boolean }) {
           </div>
         </>
       )}
-      <h3 className="bstats__h">Theo bản đồ</h3>
-      <div className="bstats__wrap">
-        <table className="bstats__table">
+      <h3 className={H}>Theo bản đồ</h3>
+      <div className={WRAP}>
+        <table className={TABLE}>
           <GroupHead first="Bản đồ" />
           <tbody>
             {t.maps.map((m) => (
@@ -637,44 +690,44 @@ function Where({ t, filtered }: { t: BattleStats; filtered: boolean }) {
           </tbody>
         </table>
       </div>
-      <h3 className="bstats__h">Theo quái</h3>
-      <div className="bstats__wrap">
-        <table className="bstats__table">
+      <h3 className={H}>Theo quái</h3>
+      <div className={WRAP}>
+        <table className={TABLE}>
           <thead>
             <tr>
-              <th scope="col">Quái</th>
-              <th scope="col">Trận</th>
-              <th scope="col">Thắng</th>
-              <th scope="col">Tỉ lệ</th>
-              <th scope="col">Lượt</th>
-              <th scope="col">Thời gian</th>
-              <th scope="col">EXP/trận</th>
+              <th scope="col" className={TH_COL}>Quái</th>
+              <th scope="col" className={TH_COL}>Trận</th>
+              <th scope="col" className={TH_COL}>Thắng</th>
+              <th scope="col" className={TH_COL}>Tỉ lệ</th>
+              <th scope="col" className={TH_COL}>Lượt</th>
+              <th scope="col" className={TH_COL}>Thời gian</th>
+              <th scope="col" className={TH_COL}>EXP/trận</th>
             </tr>
           </thead>
           <tbody>
             {t.mobs.map((m) => (
-              <tr key={`${m.mobName}-${m.mobLevel}-${m.mapName}`}>
-                <th scope="row">
-                  <span className="bstats__mob">
+              <tr key={`${m.mobName}-${m.mobLevel}-${m.mapName}`} className={TR}>
+                <th scope="row" className={TH_ROW}>
+                  <span className={WITH_TAG}>
                     {m.mobName}
                     {m.boss && <Badge tone="var(--accent)">BOSS</Badge>}
                   </span>
-                  <small>
+                  <small className={TH_SUB}>
                     {m.mobLevel > 0 && `cấp ${m.mobLevel} · `}
                     {m.mapName}
                   </small>
                 </th>
-                <td className="px">{m.battles}</td>
-                <td className="px">{m.won}</td>
-                <td>
-                  <span className="bstats__rate">
+                <td className={TD_PX}>{m.battles}</td>
+                <td className={TD_PX}>{m.won}</td>
+                <td className={TD}>
+                  <span className={RATE}>
                     <span className="px">{pct(rate(m))}</span>
                     <Bar value={rate(m)} fill="var(--s-online)" thin label={`Tỉ lệ thắng ${m.mobName}`} />
                   </span>
                 </td>
-                <td className="px">{Math.round(m.turns / m.battles)}</td>
-                <td>{span(m.ms / m.battles)}</td>
-                <td className="px">{num(Math.round(m.exp / m.battles))}</td>
+                <td className={TD_PX}>{Math.round(m.turns / m.battles)}</td>
+                <td className={TD}>{span(m.ms / m.battles)}</td>
+                <td className={TD_PX}>{num(Math.round(m.exp / m.battles))}</td>
               </tr>
             ))}
           </tbody>
@@ -687,30 +740,30 @@ function Where({ t, filtered }: { t: BattleStats; filtered: boolean }) {
 /** Đồ nhặt: each item Tự nhặt đồ picked up after these battles, most times first. */
 function Loot({ t }: { t: BattleStats }) {
   if (t.picked.length === 0)
-    return <p className="bstats__none">Chưa nhặt được món nào sau các trận này (Tự nhặt đồ ở tab Cài đặt đánh).</p>;
+    return <p className={NONE}>Chưa nhặt được món nào sau các trận này (Tự nhặt đồ ở tab Cài đặt đánh).</p>;
   return (
-    <div className="bstats__wrap">
-      <table className="bstats__table bstats__loot">
+    <div className={WRAP}>
+      <table className={cn(TABLE, "max-w-[520px]")}>
         <thead>
           <tr>
-            <th scope="col">Món</th>
-            <th scope="col">Số lần nhặt</th>
-            <th scope="col">Tổng số</th>
-            <th scope="col">Mỗi trận thắng</th>
+            <th scope="col" className={TH_COL}>Món</th>
+            <th scope="col" className={TH_COL}>Số lần nhặt</th>
+            <th scope="col" className={TH_COL}>Tổng số</th>
+            <th scope="col" className={TH_COL}>Mỗi trận thắng</th>
           </tr>
         </thead>
         <tbody>
           {t.picked.map((p) => (
-            <tr key={p.itemId}>
-              <th scope="row">
-                <span className="bstats__item">
+            <tr key={p.itemId} className={TR}>
+              <th scope="row" className={TH_ROW}>
+                <span className={WITH_TAG}>
                   <PickedIcon icon={p.icon} />
                   {p.name}
                 </span>
               </th>
-              <td className="px">{num(p.times)}</td>
-              <td className="px">{num(p.quantity)}</td>
-              <td className="px">{t.won > 0 ? avg(p.quantity / t.won) : "—"}</td>
+              <td className={TD_PX}>{num(p.times)}</td>
+              <td className={TD_PX}>{num(p.quantity)}</td>
+              <td className={TD_PX}>{t.won > 0 ? avg(p.quantity / t.won) : "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -722,29 +775,34 @@ function Loot({ t }: { t: BattleStats }) {
 /** Trận: the battles, newest first, with what each brought; Xem thêm asks for the next page. */
 function History({ history, end, loading, onMore }: { history: StoredBattle[]; end: boolean; loading: boolean; onMore: () => void }) {
   return (
-    <div className="bstats__stack">
-      <ol className="bstats__list">
+    <div className={STACK}>
+      {/* The battles, a row each; the modal's body scrolls. */}
+      <ol className={LIST}>
         {history.map((b) => (
-          <li key={b.id}>
-            <time className="px">{when(b.endedAt)}</time>
-            <span className="bstats__name">
+          <li
+            key={b.id}
+            className="grid grid-cols-[82px_minmax(0,1.2fr)_minmax(0,1fr)_64px_minmax(0,1.6fr)] items-baseline gap-2.5 px-2 py-1 bg-ink text-12 [@container(max-width:560px)]:grid-cols-[74px_minmax(0,1fr)_56px]"
+          >
+            <time className={ROW_TIME}>{when(b.endedAt)}</time>
+            <span className={MOB}>
               {b.mobName}
-              {b.mobLevel > 0 && <small> cấp {b.mobLevel}</small>}
+              {b.mobLevel > 0 && <small className={MOB_LEVEL}> cấp {b.mobLevel}</small>}
             </span>
-            <span className="bstats__where">
+            <span className={FACTS}>
               {b.mapName} · khu {b.zone}
             </span>
-            <b className="bstats__result" style={{ color: RESULT[b.result].tone }}>
+            <b className="text-[11.5px]" style={{ color: RESULT[b.result].tone }}>
               {RESULT[b.result].label}
             </b>
-            <span className="bstats__facts">
+            <span className={FACTS}>
               {b.turns} lượt · {span(b.endedAt - b.startedAt)} · +{num(b.exp)} EXP · +{num(b.coin)} xu
             </span>
+            {/* What the battle brought, on a line of its own under the rest. */}
             {b.picked.length > 0 && (
-              <span className="bstats__picked">
+              <span className="col-[2/-1] flex flex-wrap items-center gap-y-0.5 gap-x-1 text-11 text-coin">
                 Nhặt:{" "}
                 {b.picked.map((p, i) => (
-                  <span key={p.itemId}>
+                  <span key={p.itemId} className="inline-flex items-center gap-[3px]">
                     {i > 0 && ", "}
                     <PickedIcon icon={p.icon} />
                     {pickedLabel(p)}
@@ -756,7 +814,12 @@ function History({ history, end, loading, onMore }: { history: StoredBattle[]; e
         ))}
       </ol>
       {!end && (
-        <button type="button" className="bstats__more" disabled={loading} onClick={onMore}>
+        <button
+          type="button"
+          className="self-center px-3.5 py-1 bg-transparent border border-dashed border-line font-ui font-semibold text-11 leading-[1.4] text-fg-2 cursor-pointer enabled:hover:border-exp enabled:hover:text-fg disabled:cursor-default disabled:opacity-60"
+          disabled={loading}
+          onClick={onMore}
+        >
           {loading ? "Đang tải…" : "Xem thêm"}
         </button>
       )}
