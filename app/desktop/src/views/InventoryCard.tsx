@@ -60,8 +60,8 @@ interface Act {
  * Túi đồ tab: the 8 gear slots (s2c/9, then s2c/37) around the character, the bag (s2c/42, s2c/1187) by slot, and the
  * item shown under them with the game's buttons for the item clicked: Mặc and Dùng in the bag, Cởi ra and Sửa on the
  * gear (12-skills-items.md#c2s-1186), and Vứt bỏ for every bag item, which asks once more as the game does. The money is
- * in the metric row. Sắp xếp moves the bag items up over the empty slots (c2s/1257); Cửa hàng opens the shop of Lái Buôn;
- * Mua búa does too, with the hammer picked, where Sửa lacks one. A right click on an item picks it and opens a menu of
+ * in the metric row. Sắp xếp moves the bag items up over the empty slots (c2s/1257); Mua búa, where Sửa lacks one, opens
+ * Tiện ích at Mua with the hammer picked (the shops themselves are only in Tiện ích). A right click on an item picks it and opens a menu of
  * the same buttons, greyed with the same reasons; Dùng, Sửa and Vứt bỏ from it ask once more in the strip, as the buttons
  * do.
  */
@@ -247,21 +247,16 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       bodyClassName={BODY}
       subtitle={bag ? `${num(bag.items.length)}/${num(bag.capacity)} ô · ${worn} món đang mặc` : "Chưa nhận túi đồ"}
       aside={
-        <div className="flex gap-1.5">
-          <Button
-            kind="tonal"
-            small
-            icon="list"
-            disabled={!bag || !!busy}
-            title={busy ?? "Dồn các món lên lấp ô trống, như nút Sắp xếp của game"}
-            onClick={sort}
-          >
-            Sắp xếp
-          </Button>
-          <Button kind="tonal" small icon="cart" onClick={() => shopFor()}>
-            Cửa hàng
-          </Button>
-        </div>
+        <Button
+          kind="tonal"
+          small
+          icon="list"
+          disabled={!bag || !!busy}
+          title={busy ?? "Dồn các món lên lấp ô trống, như nút Sắp xếp của game"}
+          onClick={sort}
+        >
+          Sắp xếp
+        </Button>
       }
     >
       {/* The gear (two columns of slots around the character) beside the bag grid, then the shown item. Narrow cards put the
