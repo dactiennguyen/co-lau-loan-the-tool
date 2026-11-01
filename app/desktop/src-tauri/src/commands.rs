@@ -62,7 +62,7 @@ pub fn fight(shared: State<Shared>, id: u64, target: String, count: u32, max_los
         }
         let command = Command::Fight {
             target,
-            count: count.clamp(1, 999),
+            count: count.max(1),
             max_losses: max_losses.max(1),
         };
         app.send(id, command);
@@ -115,7 +115,7 @@ pub async fn set_fight(
     id: u64,
     mut settings: FightSettings,
 ) -> Result<(), String> {
-    settings.fight_count = settings.fight_count.clamp(1, 999);
+    settings.fight_count = settings.fight_count.max(1);
     settings.fight_losses = settings.fight_losses.max(1);
     settings.quest_losses = settings.quest_losses.max(1);
     shared.set_fight(id, settings).await

@@ -159,7 +159,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
       <div className={CONTROLS}>
         <div className={ROW}>
           <span className={LABEL}>Số trận</span>
-          <Stepper label="số trận" max={999} value={choice.count} onChange={(count) => set({ count })} />
+          <Stepper label="số trận" value={choice.count} onChange={(count) => set({ count })} />
         </div>
         <div className={ROW}>
           {/* While the job goes on, the losses it may still take, changed in place (against a boss, which never ends it, a
