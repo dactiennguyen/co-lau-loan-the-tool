@@ -8,6 +8,7 @@ import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { useStore } from "@/store";
 import { GENDER_ICON, GENDER_WORD, misfit } from "@/game/gender";
+import { ELEMENTS } from "@/game/potentials";
 import type { Account, FightSettings, Item } from "@/api/types";
 
 /** Item id of the Búa Sửa Chữa. */
@@ -17,10 +18,12 @@ const HAMMER = 2;
  * Cài đặt tab: what the bot does on its own around the battles it plays (FightSettings of cllt-core), per account. A
  * change is saved to accounts.json and reaches a session at once; it shows as chosen while it saves. Beside Tự sửa đồ,
  * once in the game: the hammers of the bag and the worn items that are broken, with Mua búa when none is left (the bot
- * never buys one itself). Tự nhặt đồ is on unless turned off, and so is Nhặt cả đồ khác giới tính under it: off, gear
- * the character cannot wear stays on the ground. Lưu dữ liệu trận is not here: it is the same for every account, in
- * the Cài đặt of the app (SettingsDialog).
+ * never buys one itself). Tự nhặt đồ is on unless turned off, and so are Nhặt cả đồ người khác (what others left, once
+ * anyone may have it) and Nhặt cả đồ khác giới tính under it; Chỉ nhặt trang bị đúng hệ is off unless turned on. Lưu dữ
+ * liệu trận is not here: it is the same for every account, in the Cài đặt of the app (SettingsDialog).
  */
+/** The settings this card changes: the box shows the one being saved until the account comes back with it. */
+const KEYS = ["repair", "pickup", "pickupOthers", "pickupOtherGender", "pickupOwnElement"] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
   const saved = account.fightSettings;
@@ -30,7 +33,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const [error, setError] = useState<string | null>(null);
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update.
   useEffect(() => {
-    if (saving && saving.repair === saved.repair && saving.pickup === saved.pickup && saving.pickupOtherGender === saved.pickupOtherGender) {
+    if (saving && KEYS.every((k) => saving[k] === saved[k])) {
       setSaving(null);
     }
   }, [saving, saved]);
@@ -46,6 +49,8 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const hammers = c?.bag?.items.filter((i) => i.id === HAMMER).reduce((n, i) => n + Math.max(1, i.quantity), 0) ?? 0;
   const broken = (c?.gear ?? []).filter((g): g is Item & { durability: [number, number] } => g?.durability?.[0] === 0);
   const unwearable = c?.bag?.items.filter((i) => misfit(i, c.gender)).length ?? 0;
+  const element = c?.element != null ? ELEMENTS[c.element] : undefined;
+  const offElement = c?.bag?.items.filter((i) => i.element != null && i.element !== c.element).length ?? 0;
   return (
     <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
       <SettingRow
@@ -82,10 +87,19 @@ export function FightSettingsCard({ account }: { account: Account }) {
         onChange={(pickup) => save({ ...settings, pickup })}
         icon="gem"
         title="Tự nhặt đồ"
-        hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Không nhặt đồ người khác làm rơi. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
+        hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
       />
       {/* Part of Tự nhặt đồ: indented under it, and greyed while it is off. */}
       <div className="ml-6">
+        <SettingRow
+          id={`${id}others`}
+          on={settings.pickupOthers}
+          disabled={!!saving || !settings.pickup}
+          onChange={(pickupOthers) => save({ ...settings, pickupOthers })}
+          icon="users"
+          title="Nhặt cả đồ người khác"
+          hint="Server giữ đồ rơi cho người làm rơi khoảng 16–17 giây, sau đó ai cũng nhặt được. Bật: sau mỗi trận thắng, nhặt xong đồ của mình thì bot nhặt thêm đồ người khác bỏ lại trong khu đang đứng, món nằm từ 18 giây trở lên, cũ trước, tối đa 8 món mỗi trận. Xu khóa luôn nhặt; món khác chỉ khi túi còn ô trống. Nhật ký ghi Nhặt được đồ người khác bỏ lại; các món này không tính vào đồ rơi của quái ở Thống kê."
+        />
         <SettingRow
           id={`${id}gender`}
           on={settings.pickupOtherGender}
@@ -103,6 +117,28 @@ export function FightSettingsCard({ account }: { account: Account }) {
                 <>
                   {" "}
                   · trong túi <b className="px">{num(unwearable)}</b> món không mặc được
+                </>
+              )}
+            </span>
+          )}
+        </SettingRow>
+        <SettingRow
+          id={`${id}element`}
+          on={settings.pickupOwnElement}
+          disabled={!!saving || !settings.pickup}
+          onChange={(pickupOwnElement) => save({ ...settings, pickupOwnElement })}
+          icon="yinyang"
+          title="Chỉ nhặt trang bị đúng hệ"
+          hint="Trang bị rơi có hệ Hỏa, Lôi hoặc Thủy, cùng một món có thể ra nhiều hệ; đúng hệ nhân vật thì thêm chỉ số. Bật: trang bị khác hệ để lại dưới đất, Nhật ký ghi Bỏ qua. Tắt: nhặt trang bị mọi hệ (để bán ở Chợ trời). Đồ không phải trang bị (Xu khóa, đá, nguyên liệu…) luôn được nhặt."
+        >
+          {element && (
+            <span className={SETTING_FACT}>
+              <Icon name="yinyang" size={12} />
+              Nhân vật hệ {element}
+              {offElement > 0 && (
+                <>
+                  {" "}
+                  · trong túi <b className="px">{num(offElement)}</b> trang bị khác hệ
                 </>
               )}
             </span>

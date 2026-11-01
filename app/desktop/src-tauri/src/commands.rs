@@ -256,11 +256,22 @@ pub fn smith_upgrade(
     shared.with(|app| app.send(id, Command::Smith(task)));
 }
 
-/// Chế tạo trang bị: read the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make that tier.
+/// Chế tạo trang bị: read the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make `times`
+/// items of that tier (1 when left out).
 #[tauri::command]
-pub fn smith_craft(shared: State<Shared>, id: u64, kind: u8, tier: Option<i32>) {
+pub fn smith_craft(
+    shared: State<Shared>,
+    id: u64,
+    kind: u8,
+    tier: Option<i32>,
+    times: Option<u32>,
+) {
     let task = match tier {
-        Some(tier) => SmithTask::Craft { kind, tier },
+        Some(tier) => SmithTask::Craft {
+            kind,
+            tier,
+            times: times.unwrap_or(1),
+        },
         None => SmithTask::Recipes { kind },
     };
     shared.with(|app| app.send(id, Command::Smith(task)));

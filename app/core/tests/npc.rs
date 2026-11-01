@@ -1959,7 +1959,15 @@ fn che_tao_nhan_bac_i_nhu_o1_dat_ca_chong_nguyen_lieu() {
     bot.on_packet(42, &bag_n(&items), now, &mut out).unwrap();
     bot.snap.level = 31;
     out.clear();
-    bot.smith(SmithTask::Craft { kind: 3, tier: 1 }, now, &mut out);
+    bot.smith(
+        SmithTask::Craft {
+            kind: 3,
+            tier: 1,
+            times: 1,
+        },
+        now,
+        &mut out,
+    );
     assert!(logged(&out, "Chế tạo Nhẫn Bậc I"), "{out:?}");
     assert_eq!(sent(&out, 13), [PHAP_SU]);
     let path = [
@@ -2029,7 +2037,15 @@ fn che_tao_nhan_bac_i_nhu_o1_dat_ca_chong_nguyen_lieu() {
     );
     // Bậc II needs level 51 and materials the bag lacks: said, nothing picked.
     out.clear();
-    bot.smith(SmithTask::Craft { kind: 3, tier: 2 }, now, &mut out);
+    bot.smith(
+        SmithTask::Craft {
+            kind: 3,
+            tier: 2,
+            times: 1,
+        },
+        now,
+        &mut out,
+    );
     for key in [
         "s2c/57 Pháp sư",
         "s2c/57 Chế tạo",
@@ -2046,6 +2062,125 @@ fn che_tao_nhan_bac_i_nhu_o1_dat_ca_chong_nguyen_lieu() {
             &out,
             "Chế tạo Nhẫn Bậc II: cần cấp 51, nhân vật cấp 31; thiếu Quặng Bậc 2 0/24; thiếu Linh Thạch Bậc 2 0/24"
         ),
+        "{out:?}"
+    );
+}
+
+/// One press of Chế tạo Nhẫn Bậc I with the packets of O1, from the menu of Nhẫn to the bag after it: `after`.
+fn craft_one(bot: &mut Bot, after: &[(u8, i32, i32, u8, i32)], now: Instant) -> Vec<Out> {
+    let mut out = vec![];
+    for key in [
+        "s2c/57 Pháp sư",
+        "s2c/57 Chế tạo",
+        "s2c/57 Chế tạo trang bị",
+        "s2c/57 Nhẫn",
+    ] {
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+    }
+    for (op, key) in [
+        (99, "s2c/99 Chế tạo trang bị"),
+        (92, "s2c/92 Quặng"),
+        (92, "s2c/92 Linh Thạch sẵn sàng"),
+        (93, "s2c/93 Chế tạo"),
+    ] {
+        bot.on_packet(op, &o1(key), now, &mut out).unwrap();
+    }
+    out.clear();
+    bot.on_packet(42, &bag_n(after), now, &mut out).unwrap();
+    out
+}
+
+#[test]
+fn che_tao_nhieu_mon_doc_lai_menu_moi_mon_va_dung_o_mon_thieu_nguyen_lieu() {
+    // Enough for two Nhẫn Bậc I, not three: the third is not picked, and the end says the two made.
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(
+        42,
+        &bag_n(&[(33, 598, 0, 0, 86), (37, 610, 0, 0, 50)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.snap.level = 31;
+    out.clear();
+    let task = SmithTask::Craft {
+        kind: 3,
+        tier: 1,
+        times: 3,
+    };
+    bot.smith(task.clone(), now, &mut out);
+    assert!(logged(&out, "Chế tạo 3 Nhẫn Bậc I"), "{out:?}");
+    let first = [(33, 598, 0, 0, 62), (37, 610, 0, 0, 26), (12, 333, 0, 0, 1)];
+    let out = craft_one(&mut bot, &first, now);
+    assert_eq!(sent(&out, 13), [PHAP_SU], "the menu again for the second");
+    let run = bot.snapshot().smith.unwrap();
+    assert_eq!((run.steps, run.done), (1, None));
+    assert_eq!(run.doing, "Món 2/3: đọc công thức ở Pháp sư");
+    let second = [
+        (33, 598, 0, 0, 38),
+        (37, 610, 0, 0, 2),
+        (12, 333, 0, 0, 1),
+        (13, 333, 0, 0, 1),
+    ];
+    craft_one(&mut bot, &second, now);
+    let mut out = vec![];
+    for key in [
+        "s2c/57 Pháp sư",
+        "s2c/57 Chế tạo",
+        "s2c/57 Chế tạo trang bị",
+    ] {
+        bot.on_packet(57, &o1(key), now, &mut out).unwrap();
+    }
+    out.clear();
+    bot.on_packet(57, &o1("s2c/57 Nhẫn"), now, &mut out)
+        .unwrap();
+    assert!(sent(&out, 57).is_empty(), "the third lacks Linh Thạch");
+    assert!(
+        logged(
+            &out,
+            "Chế tạo 3 Nhẫn Bậc I: đã chế tạo Nhẫn Thái Cực (ô túi 13), Nhẫn Thái Cực (ô túi 14); món thứ 3 không chế được: thiếu Linh Thạch Bậc 1 2/24 (2 lần, tốn 4.800 Xu)"
+        ),
+        "{out:?}"
+    );
+
+    // Dừng between two items ends the run with the item made.
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(
+        42,
+        &bag_n(&[(33, 598, 0, 0, 86), (37, 610, 0, 0, 50)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.snap.level = 31;
+    bot.smith(task, now, &mut out);
+    craft_one(&mut bot, &first, now);
+    let mut out = vec![];
+    bot.stop(false, now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Chế tạo 3 Nhẫn Bậc I: Đã dừng; đã chế tạo Nhẫn Thái Cực (ô túi 13) (1 lần, tốn 2.400 Xu)"
+        ),
+        "{out:?}"
+    );
+    assert!(sent(&out, 57).is_empty());
+
+    // No item asked for: refused, nothing sent.
+    let (mut bot, mut out, now) = symap(&[]);
+    out.clear();
+    bot.smith(
+        SmithTask::Craft {
+            kind: 3,
+            tier: 1,
+            times: 0,
+        },
+        now,
+        &mut out,
+    );
+    assert!(sent(&out, 13).is_empty());
+    assert!(
+        logged(&out, "Chưa Chế tạo Nhẫn Bậc I: chế tạo ít nhất 1 món"),
         "{out:?}"
     );
 }

@@ -11,7 +11,7 @@ export const POTENTIALS = [
 ] as const;
 
 const BY_INDEX = ["Cường lực", "Nội lực", "Thân pháp", "Thể lực"];
-const ELEMENTS: Record<number, string> = { 1: "Hỏa", 2: "Lôi", 4: "Thủy" };
+export const ELEMENTS: Record<number, string> = { 1: "Hỏa", 2: "Lôi", 4: "Thủy" };
 /** The c2s/10 index of the stat that raises attack, by element (field01): Hỏa Cường lực, Thủy Nội lực, Lôi Thân pháp. */
 const MAIN: [element: number, stat: number][] = [
   [1, 0],

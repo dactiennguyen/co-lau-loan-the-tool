@@ -8,7 +8,7 @@ import { Stepper } from "@/components/Stepper";
 import { num } from "@/utils/format";
 import { recalled, remember } from "@/utils/remember";
 import { stoneCounts } from "@/game/shops";
-import type { MergeForecast } from "@/api/types";
+import type { MergeForecast, MergeOptions } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 import { Stone, STONES } from "./Stone";
 
@@ -20,26 +20,29 @@ const COL = cn(CELL, "text-11 font-semibold text-fg-3");
 const ROW = cn(CELL, "font-medium text-fg");
 const NUM = cn("px", CELL, "text-11 text-fg-2");
 
-/** The stones a row's Gộp takes: its locked ones first, its unlocked ones only with `unlocked`; null without 4 of either
- * (or for Đá cấp 12, the highest). */
-function rowLock(r: { level: number; locked: number; unlocked: number }, unlocked: boolean): boolean | null {
-  if (r.level >= 12) return null;
-  if (r.locked >= 4) return true;
-  return unlocked && r.unlocked >= 4 ? false : null;
+/** The sets of 4 a row's Gộp can take: its locked ones, and its unlocked ones with `unlocked`; none for Đá cấp 12, the
+ * highest. */
+function rowSets(r: { level: number; locked: number; unlocked: number }, unlocked: boolean) {
+  const locked = r.level >= 12 ? 0 : Math.floor(r.locked / 4);
+  const free = r.level >= 12 || !unlocked ? 0 : Math.floor(r.unlocked / 4);
+  return { locked, all: locked + free };
 }
 
 /**
  * Gộp đá (16-upgrade.md#luyện-đá): the stones of the bag by level, locked and not, and what Luyện đá would make of them:
  * only sets of 4 of a level, which make one of the next at 100% and lose nothing, again on the stones made, up to the
  * level chosen. Unlocked stones go to Luyện đá [Xu] and are paid in Xu, so the stone made stays tradeable. The total
- * fee is asked once more before the bot starts. Each row has its own Gộp: one set of 4 of that level into one stone of the
- * next, nothing further, so the small stones a low upgrade needs stay.
+ * fee is asked once more before the bot starts. Each row has its own Gộp: every set of 4 of that level, or as many as its
+ * number says, into stones of the next level, nothing further up, so the small stones a low upgrade needs stay. Fewer
+ * than all take the locked stones first.
  */
 export function ShopMerge({ account, why, ask }: ShopContext) {
   const c = account.character!;
   const [upTo, setUpTo] = useState(() => Number(recalled(UP_TO)) || 12);
   const [unlocked, setUnlocked] = useState(() => recalled(UNLOCKED) !== "0");
   const [forecast, setForecast] = useState<MergeForecast | null>(null);
+  // The sets each row's Gộp takes, by level; all of them until changed.
+  const [picked, setPicked] = useState<Record<number, number>>({});
   const hint = useId();
   const bag = c.bag;
   const stamp = bag ? bag.items.map((i) => `${i.slot}:${i.id}:${i.locked}`).join(",") : "";
@@ -60,15 +63,17 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
   const fee = [forecast?.xuKhoa ? `${num(forecast.xuKhoa)} Xu khóa` : null, forecast?.xu ? `${num(forecast.xu)} Xu` : null]
     .filter(Boolean)
     .join(" + ");
-  /** Gộp of a row: one set of 4 of `level` and `locked`, the fee from the forecast of that one merge, asked once more. */
-  const mergeRow = async (level: number, locked: boolean) => {
-    const options = { level, locked, sets: 1 };
+  /** Gộp of a row: `sets` sets of 4 of `level` into stones of the next level, nothing further up; the locked stones
+   * alone when they are enough. The fee from the forecast of that merge, asked once more. */
+  const mergeRow = async (level: number, sets: number, lockedSets: number) => {
+    const options: MergeOptions = sets <= lockedSets ? { level, locked: true, sets } : { level, unlocked, sets };
     const f = await api.mergeForecast(account.id, options);
     if (!f || f.merges === 0) return;
-    const cost = f.xuKhoa ? `${num(f.xuKhoa)} Xu khóa` : `${num(f.xu)} Xu`;
+    const cost = [f.xuKhoa ? `${num(f.xuKhoa)} Xu khóa` : null, f.xu ? `${num(f.xu)} Xu` : null].filter(Boolean).join(" + ");
+    const made = f.made.map((m) => `${m.count} Đá cấp ${m.level}${m.locked ? " (khoá)" : " (chưa khoá)"}`).join(", ");
     ask({
       title: `Gộp Đá cấp ${level}`,
-      message: `Luyện 4 Đá cấp ${level} (${locked ? "khoá" : "chưa khoá"}) thành 1 Đá cấp ${level + 1}, tốn ${cost}. Tỉ lệ 100%, không mất đá; các viên khác giữ nguyên.`,
+      message: `Luyện ${4 * f.merges} Đá cấp ${level} thành ${made}, tốn ${cost}. Tỉ lệ 100%, không mất đá; đá vừa ra không gộp lên tiếp, các cấp khác giữ nguyên.`,
       confirm: `Gộp, ${cost}`,
       icon: "gem",
       run: () => api.smithMerge(account.id, options),
@@ -89,7 +94,7 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
       {levels.length === 0 ? (
         <p className={SHOP.note}>Túi không có đá nâng cấp (Đá cấp 1–12).</p>
       ) : (
-        <table className="w-full max-w-[520px] border-collapse text-12">
+        <table className="w-full max-w-[640px] border-collapse text-12">
           <thead>
             <tr>
               <th className={COL} scope="col">Đá</th>
@@ -97,14 +102,15 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
               <th className={COL} scope="col">Chưa khoá</th>
               <th className={COL} scope="col">Bộ 4 viên</th>
               <th className={COL} scope="col">
-                <span className="sr-only">Gộp một bộ</span>
+                <span className="sr-only">Gộp lên một cấp</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {levels.map((r) => {
-              const lock = rowLock(r, unlocked);
-              const what = `4 Đá cấp ${r.level}${lock === false ? " chưa khoá" : ""} thành 1 Đá cấp ${r.level + 1}`;
+              const sets = rowSets(r, unlocked);
+              const n = Math.min(picked[r.level] ?? sets.all, sets.all);
+              const what = `${4 * n} Đá cấp ${r.level} thành ${n} Đá cấp ${r.level + 1}`;
               return (
                 <tr key={r.level}>
                   <th className={ROW} scope="row">
@@ -112,19 +118,30 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
                   </th>
                   <td className={NUM}>{r.locked || "—"}</td>
                   <td className={NUM}>{r.unlocked || "—"}</td>
-                  <td className={NUM}>{Math.floor(r.locked / 4) + (unlocked ? Math.floor(r.unlocked / 4) : 0) || "—"}</td>
-                  <td className={cn(CELL, "py-0.5 text-right")}>
+                  <td className={NUM}>{sets.all || "—"}</td>
+                  <td className={cn(CELL, "py-0.5")}>
                     {r.level < 12 && (
-                      <Button
-                        small
-                        icon="gem"
-                        disabled={!!why || lock == null}
-                        title={lock == null ? `Cần 4 Đá cấp ${r.level} cùng khoá hay cùng chưa khoá` : `Gộp ${what}`}
-                        aria-label={`Gộp ${what}`}
-                        onClick={() => lock != null && void mergeRow(r.level, lock)}
-                      >
-                        Gộp
-                      </Button>
+                      <span className="flex flex-wrap items-center justify-end gap-1.5">
+                        {sets.all > 1 && (
+                          <Stepper
+                            value={n}
+                            onChange={(v) => setPicked((m) => ({ ...m, [r.level]: v }))}
+                            min={1}
+                            max={sets.all}
+                            label={`số bộ Đá cấp ${r.level} cần gộp`}
+                          />
+                        )}
+                        <Button
+                          small
+                          icon="gem"
+                          disabled={!!why || sets.all === 0}
+                          title={sets.all === 0 ? `Cần 4 Đá cấp ${r.level} cùng khoá hay cùng chưa khoá` : `Gộp ${what}`}
+                          aria-label={sets.all === 0 ? `Gộp Đá cấp ${r.level}` : `Gộp ${what}`}
+                          onClick={() => sets.all > 0 && void mergeRow(r.level, n, sets.locked)}
+                        >
+                          {n > 1 && n === sets.all ? "Gộp hết" : "Gộp"}
+                        </Button>
+                      </span>
                     )}
                   </td>
                 </tr>

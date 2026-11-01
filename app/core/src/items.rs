@@ -297,19 +297,33 @@ pub struct GroundItem {
 }
 pub fn ground_item_add(p: &[u8]) -> Result<GroundItem> {
     let mut r = Reader::new(p);
-    let (map_id, item) = (r.string()?, item_record(&mut r)?);
+    let map_id = r.string()?;
+    let g = ground_item(&mut r, map_id)?;
+    r.finish(g, "s2c/1182")
+}
+/// One item on the ground after its map id: the item record, x, y, and when it expires (s2c/1182, s2c/1184).
+fn ground_item(r: &mut Reader, map_id: String) -> Result<GroundItem> {
+    let item = item_record(r)?;
     let (x, y) = (r.i32()?, r.i32()?);
     let expires_at = i64::from_be_bytes(r.take(8)?.try_into().unwrap());
-    r.finish(
-        GroundItem {
-            map_id,
-            item,
-            x,
-            y,
-            expires_at,
-        },
-        "s2c/1182",
-    )
+    Ok(GroundItem {
+        map_id,
+        item,
+        x,
+        y,
+        expires_at,
+    })
+}
+/// s2c/1184 right after s2c/43 on entering a map or zone: every item lying on its ground, anyone's (`string mapId; i32 n;
+/// n ×` as in s2c/1182; 09-players-chat.md#ground-items).
+pub fn ground_items(p: &[u8]) -> Result<Vec<GroundItem>> {
+    let mut r = Reader::new(p);
+    let map_id = r.string()?;
+    let n = r.i32()?;
+    let items = (0..n.max(0))
+        .map(|_| ground_item(&mut r, map_id.clone()))
+        .collect::<Result<Vec<_>>>()?;
+    r.finish(items, "s2c/1184")
 }
 /// s2c/1183: an item left the ground of a map, picked up or expired: (map id, uuid).
 pub fn ground_item_remove(p: &[u8]) -> Result<(String, String)> {
@@ -393,6 +407,16 @@ pub fn misfit(item: u8, character: Option<u8>) -> Option<String> {
     let c = character.filter(|&c| c != GENDER_BOTH)?;
     (item != GENDER_BOTH && item != c)
         .then(|| format!("đồ {}, nhân vật là {}", gender_word(item), gender_word(c)))
+}
+
+/// Why gear of element `item` (byte `hệ` of the item record) is not of the character's element `character` (field01 of
+/// s2c/9): "đồ hệ Lôi, nhân vật hệ Hỏa". None when it is, for an item that is not gear (0xff), or while either element
+/// is not one of the item table (1 Hỏa, 2 Lôi, 4 Thủy).
+pub fn off_element(item: u8, character: Option<i32>) -> Option<String> {
+    let c = u8::try_from(character?).ok()?;
+    let name = |e: u8| book().element_name(e);
+    let (mine, its) = (name(c)?, name(item)?);
+    (item != c).then(|| format!("đồ hệ {its}, nhân vật hệ {mine}"))
 }
 
 /// data/items.json: the item table, the stat templates of `it0` ("#" is the value), and names of types and elements.

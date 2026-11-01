@@ -355,30 +355,12 @@ Code đọc bảng và giải mã: [src/protocol/items.ts](../../../src/protocol
 
 ## Còn để sau (TODO)
 
-**Nhặt đồ người khác bỏ lại** (app Rust; người dùng hỏi 01/11, chưa làm). Hiện app chỉ nhặt đồ của mình ([Tự nhặt đồ](../../integration/rust/features.md#tự-nhặt-đồ)).
-- **Giữ danh sách đồ trên đất của khu đang đứng:**
-  - đọc `s2c/1184` lúc vào map hay đổi khu (app chưa đọc gói này; bot TS đọc bằng `groundItems`);
-  - thêm món theo `s2c/1182`;
-  - bỏ món theo `s2c/1183`.
-
-  Hiện app chỉ nhớ `s2c/1182` trong 2 s.
-- **Chỉ nhặt món đủ tuổi:** tuổi = bây giờ − (hếtHạn − 601 s). Nhặt từ 18 s tuổi trở lên, vì đồ bị khoá 16–17 s cho người làm rơi ([K3](#k3)). Nhặt giữa các trận, sau khi nhặt đồ của mình, mỗi món cách nhau 200 ms.
-- **Không di chuyển:** server không kiểm khoảng cách ([K3](#k3)).
-  - Dịch chuyển bằng một gói `c2s/1169` thì người khác thấy nhân vật nhảy tới hòm.
-  - Đi bộ thật thì app chưa có.
-- **Lọc theo món:** bản ghi trên đất đã có mã món, số lượng, hệ, chỉ số và độ bền ([Đồ trên đất](#đồ-trên-đất)), nên bot biết món gì trước khi nhặt. Lọc được theo:
-  - Xu khóa;
-  - nguyên liệu theo bậc;
-  - Đá từ cấp N;
-  - trang bị đúng hệ và đúng giới tính của nhân vật.
-- **Túi đầy:**
-  - luôn nhặt Xu khóa, vì vào ví chứ không vào túi;
-  - nhặt món có `xếpChồng` 999 (nguyên liệu, Trứng Gà, Băng Tâm, Hoàn Linh Dược, Búa Sửa Chữa) khi túi đã có ô cùng món mà cộng vào chưa quá 999;
-  - bỏ qua Đá cấp 1–12 và trang bị (`xếpChồng` 1). [Suy luận từ [bảng vật phẩm](#bảng-vật-phẩm)]
-- **Cần đo trước khi làm:**
+**Nhặt đồ người khác bỏ lại**: đã có ở app Rust (02/11), ô **Nhặt cả đồ người khác** của Cài đặt đánh, mặc định bật; cách làm ở [Tự nhặt đồ](../../integration/rust/features.md#tự-nhặt-đồ). Bot giữ danh sách đồ trên đất của khu (`s2c/1184`, `s2c/1182`, `s2c/1183`), nhặt món từ 18 s tuổi sau mỗi trận thắng, tối đa 8 món, không di chuyển, tiền luôn nhặt, món khác khi túi còn ô. Lọc theo món mới có giới tính và hệ (ô **Chỉ nhặt trang bị đúng hệ**, mặc định tắt). Chưa chạy thật.
+- **Còn để sau:** lọc theo Xu khóa, nguyên liệu theo bậc, Đá từ cấp N; nhặt khi đang đứng không đánh (giờ chỉ nhặt sau trận thắng); cộng món vào chồng sẵn có khi túi đầy.
+- **Cần đo:**
   - nhặt lúc túi đầy thì server trả gì, có cộng vào ô cùng món không;
   - món nhặt về có cộng vào ô cũ không, kể cả khi một bên đã khoá giao dịch;
-  - nhặt trong lúc đang đánh được không;
+  - nhặt trong lúc đang đánh được không (bot hiện không nhặt đồ người khác trong trận);
   - nhặt từ xa liên tục có bị server để ý không.
 
 ## Chưa rõ

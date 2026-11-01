@@ -171,6 +171,12 @@ fn decoders_read_what_the_ts_decoders_read() {
                     "quantity": g.item.quantity, "x": g.x, "y": g.y, "expiresAt": g.expires_at}),
                 )
             }
+            "groundItems" => Ok(json!(items::ground_items(&p)
+                .unwrap()
+                .iter()
+                .map(|g| json!({"itemId": g.item.item_id, "uuid": g.item.uuid, "quantity": g.item.quantity,
+                    "element": g.item.element, "x": g.x, "y": g.y, "expiresAt": g.expires_at}))
+                .collect::<Vec<_>>())),
             "groundItemRemove" => {
                 let (map_id, uuid) = items::ground_item_remove(&p).unwrap();
                 Ok(json!({"mapId": map_id, "uuid": uuid}))
@@ -2838,8 +2844,12 @@ fn tu_nhat_do_counts_the_drops_of_the_last_battle_in_the_job_it_ended() {
 
 /// s2c/1182 of an item fallen in M1, as the server writes it (13-drops-items.md#đồ-trên-đất).
 fn drop_packet(uuid: &str, item_id: i32, quantity: i32) -> Vec<u8> {
+    drop_in("M1", uuid, item_id, quantity, 0xff)
+}
+/// drop_packet in `map`, of element `element` (0xff for an item that is not gear).
+fn drop_in(map: &str, uuid: &str, item_id: i32, quantity: i32, element: u8) -> Vec<u8> {
     Writer::new()
-        .string("M1")
+        .string(map)
         .u8(0xfe)
         .i32(item_id)
         .string(uuid)
@@ -2847,7 +2857,7 @@ fn drop_packet(uuid: &str, item_id: i32, quantity: i32) -> Vec<u8> {
         .i32(-1)
         .i32(quantity)
         .u8(0)
-        .u8(0xff)
+        .u8(element)
         .i32(0)
         .u8(0)
         .u8(0)
@@ -3567,6 +3577,214 @@ fn s2c_1187_kind_2_sets_what_is_left_in_one_slot() {
     let empty = bot.snapshot().bag.unwrap();
     assert_eq!(empty.items.len(), before.items.len() - 1);
     assert!(empty.items.iter().all(|i| i.slot != slot));
+}
+
+/// Nhặt cả đồ người khác, on by default (13-drops-items.md#k3): after a won battle, once its own drops are asked for,
+/// the items others left on the zone's ground 18 s ago or more are picked up too, oldest first, money always and the
+/// rest while the bag has a free slot; a younger one waits. What came is a Vật phẩm line of its own and counts in the
+/// job, never in the drops of the mob (no Out::Pickup). An item refused as too young waits 18 s more; one gone, or of
+/// another zone, is not asked for again. The ground of a zone entered (s2c/1184) is aged from when its items expire.
+/// Off, only the own drops are picked up. Chỉ nhặt trang bị đúng hệ, off by default: gear of another element stays.
+#[test]
+fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str| {
+        hex(cases.iter().find(|c| c["fn"] == f).unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let settings = FightSettings::default();
+    assert!(settings.pickup_others && !settings.pickup_own_element);
+    let request = |uuid: &str| tohex(&Writer::new().string(uuid).build());
+    let picked = |out: &[Out]| -> Vec<String> {
+        out.iter()
+            .filter_map(|o| match o {
+                Out::Send(1188, p) => Some(tohex(p)),
+                _ => None,
+            })
+            .collect()
+    };
+    // Every c2s/1188 of a won battle at `end`, the timer run until the queue is empty. The challenge of that battle goes
+    // out first, once the rest after the one before is over.
+    let win = |bot: &mut Bot, setup: &[u8], end: Instant| -> Vec<Out> {
+        let mut out = vec![];
+        while let Some(d) = bot.deadline().filter(|d| *d <= end) {
+            bot.on_timer(d, &mut out);
+            if out.iter().any(|o| matches!(o, Out::Send(15, _))) {
+                break;
+            }
+        }
+        bot.on_packet(22, setup, end, &mut out).unwrap();
+        out.clear();
+        bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+        let mut t = end;
+        while let Some(next) = bot
+            .deadline()
+            .filter(|d| *d <= end + Duration::from_secs(2))
+        {
+            t = next.max(t);
+            bot.on_timer(t, &mut out);
+        }
+        out
+    };
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    bot.fight("Cóc Xanh", 50, 50, now, &mut out);
+    // Others' Đá cấp 2 and Xu khóa at 0 s, a stone in another map, a Giáp Tiên Phong at 10 s; the own Xu khóa at the end, 20 s.
+    for (map, uuid, id, n, at) in [
+        ("M2", "da", 412, 1, 0),
+        ("M2", "xu", 41, 300, 0),
+        ("M1", "m1", 412, 1, 0),
+        ("M2", "giap", 200, 1, 10),
+    ] {
+        let t = now + Duration::from_secs(at);
+        bot.on_packet(1182, &drop_in(map, uuid, id, n, 0xff), t, &mut out)
+            .unwrap();
+    }
+    let end = now + Duration::from_secs(20);
+    bot.on_packet(1182, &drop_in("M2", "own", 41, 50, 0xff), end, &mut out)
+        .unwrap();
+    let out = win(&mut bot, &setup, end);
+    assert_eq!(
+        picked(&out),
+        [request("own"), request("da"), request("xu")],
+        "{out:?}"
+    );
+    let notice = |text: &str| Writer::new().u8(0).string(text).build();
+    let mut out = vec![];
+    let at = end + Duration::from_millis(500);
+    for text in [
+        "Bạn vừa nhận được 50 Xu khóa",
+        "Bạn vừa nhận được Đá cấp 2",
+        "Bạn vừa nhận được 300 Xu khóa",
+    ] {
+        bot.on_packet(1256, &notice(text), at, &mut out).unwrap();
+    }
+    let pickups = out.iter().filter(|o| matches!(o, Out::Pickup(_))).count();
+    assert_eq!(pickups, 1, "only the own one is a drop of the mob: {out:?}");
+    assert!(
+        logged(&out, "Nhặt được đồ người khác bỏ lại: Đá cấp 2"),
+        "{out:?}"
+    );
+    assert!(
+        logged(&out, "Nhặt được đồ người khác bỏ lại: Xu khóa ×300"),
+        "{out:?}"
+    );
+    let job = bot.snapshot().job.unwrap().picked;
+    assert_eq!(job, [Picked::of(41, 350), Picked::of(412, 1)]);
+    for uuid in ["da", "xu", "own"] {
+        bot.on_packet(
+            1183,
+            &Writer::new().string("M2").string(uuid).build(),
+            at,
+            &mut out,
+        )
+        .unwrap();
+    }
+    // The Giáp, 30 s old at the next win, is refused as another's all the same: asked again 18 s later, not before.
+    let end = now + Duration::from_secs(40);
+    let out = win(&mut bot, &setup, end);
+    assert_eq!(picked(&out), [request("giap")], "{out:?}");
+    let mut out = vec![];
+    bot.on_packet(
+        1256,
+        &notice("Không thể nhặt vật phẩm của người khác"),
+        end,
+        &mut out,
+    )
+    .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Không nhặt được Giáp Tiên Phong: Không thể nhặt vật phẩm của người khác"
+        ),
+        "{out:?}"
+    );
+    let out = win(&mut bot, &setup, end + Duration::from_secs(10));
+    assert!(picked(&out).is_empty(), "{out:?}");
+    let out = win(&mut bot, &setup, end + Duration::from_secs(20));
+    assert_eq!(picked(&out), [request("giap")], "{out:?}");
+
+    // A full bag takes only money; with the setting off nothing of others is asked for.
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    let held = bot.snapshot().bag.unwrap().items.len() as i32;
+    bot.snap.bag.as_mut().unwrap().capacity = held;
+    bot.fight("Cóc Xanh", 50, 50, now, &mut out);
+    for (uuid, id, n) in [("da", 412, 1), ("xu", 41, 300)] {
+        bot.on_packet(1182, &drop_in("M2", uuid, id, n, 0xff), now, &mut out)
+            .unwrap();
+    }
+    let out = win(&mut bot, &setup, now + Duration::from_secs(20));
+    assert_eq!(picked(&out), [request("xu")], "{out:?}");
+    // One free slot goes to the own stone, sent at once: another's stone waits.
+    let gone = Writer::new().string("M2").string("xu").build();
+    bot.on_packet(1183, &gone, now, &mut vec![]).unwrap();
+    bot.snap.bag.as_mut().unwrap().capacity = held + 1;
+    let end = now + Duration::from_secs(25);
+    bot.on_packet(1182, &drop_in("M2", "own", 412, 1, 0xff), end, &mut vec![])
+        .unwrap();
+    let out = win(&mut bot, &setup, end);
+    assert_eq!(picked(&out), [request("own")], "{out:?}");
+    let mut out = vec![];
+    bot.set_fight(
+        FightSettings {
+            pickup_others: false,
+            ..FightSettings::default()
+        },
+        &mut out,
+    );
+    assert!(
+        logged(&out, "Tắt nhặt đồ người khác: chỉ nhặt đồ của mình"),
+        "{out:?}"
+    );
+    bot.snap.bag.as_mut().unwrap().capacity = held + 10;
+    let out = win(&mut bot, &setup, now + Duration::from_secs(35));
+    assert!(picked(&out).is_empty(), "{out:?}");
+
+    // The ground of the zone entered: the four items of M1's s2c/1184 (here in M2) expired long ago, so all are old.
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    bot.fight("Cóc Xanh", 50, 50, now, &mut out);
+    let mut ground = hex_of("groundItems");
+    assert_eq!(&ground[..6], &[0, 0, 0, 2, b'M', b'1']);
+    ground[5] = b'2';
+    bot.on_packet(1184, &ground, now, &mut out).unwrap();
+    let out = win(&mut bot, &setup, now + Duration::from_secs(1));
+    assert_eq!(picked(&out).len(), 4, "{out:?}");
+
+    // Chỉ nhặt trang bị đúng hệ: manina Hỏa leaves a Lôi ring, takes a Hỏa one and a stone.
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    bot.snap.element = Some(1);
+    bot.set_fight(
+        FightSettings {
+            pickup_own_element: true,
+            ..FightSettings::default()
+        },
+        &mut out,
+    );
+    assert!(logged(
+        &out,
+        "Bật chỉ nhặt trang bị đúng hệ: trang bị khác hệ nhân vật sẽ để lại dưới đất"
+    ));
+    bot.fight("Cóc Xanh", 50, 50, now, &mut out);
+    let end = now + Duration::from_secs(1);
+    for (uuid, id, element) in [("loi", 312, 2), ("hoa", 312, 1), ("da", 412, 0xff)] {
+        bot.on_packet(1182, &drop_in("M2", uuid, id, 1, element), end, &mut out)
+            .unwrap();
+    }
+    let out = win(&mut bot, &setup, end);
+    assert_eq!(picked(&out), [request("hoa"), request("da")], "{out:?}");
+    assert!(
+        logged(&out, "Bỏ qua Nhẫn Hào Kiệt: đồ hệ Lôi, nhân vật hệ Hỏa"),
+        "{out:?}"
+    );
 }
 
 /// Nhặt cả đồ khác giới tính, on by default: Tự nhặt đồ picks up Giáp Tiên Phong nữ for manina too. Off, gear the

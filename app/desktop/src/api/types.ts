@@ -778,6 +778,12 @@ export interface FightSettings {
   /** Nhặt cả đồ khác giới tính, on unless turned off: Tự nhặt đồ also picks up gear the character cannot wear (to
    * sell); off, such gear stays on the ground. */
   pickupOtherGender: boolean;
+  /** Nhặt cả đồ người khác, on unless turned off: after each won battle Tự nhặt đồ also picks up what others left on
+   * the ground of the zone, from 18 s after it fell (when the server lets anyone have it), while the bag has room. */
+  pickupOthers: boolean;
+  /** Chỉ nhặt trang bị đúng hệ, off unless turned on: gear of another element than the character's stays on the
+   * ground. */
+  pickupOwnElement: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

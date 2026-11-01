@@ -267,6 +267,15 @@ pub struct FightSettings {
     /// it; off, it leaves such gear on the ground (Bot::pick).
     #[serde(default = "on")]
     pub pickup_other_gender: bool,
+    /// Nhặt cả đồ người khác, on unless turned off: after each won battle Tự nhặt đồ also picks up what others left on
+    /// the ground of the zone, once the server lets anyone have it (OTHERS_AGE after it fell, 13-drops-items.md#k3), a
+    /// few at a time and only while the bag has room for them (Bot::loot_others).
+    #[serde(default = "on")]
+    pub pickup_others: bool,
+    /// Chỉ nhặt trang bị đúng hệ, off unless turned on: gear of another element than the character's stays on the
+    /// ground, said once; items that are not gear are picked up as before (Bot::pick).
+    #[serde(default)]
+    pub pickup_own_element: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -297,6 +306,8 @@ impl Default for FightSettings {
             repair: false,
             pickup: true,
             pickup_other_gender: true,
+            pickup_others: true,
+            pickup_own_element: false,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -405,8 +416,10 @@ pub enum SmithTask {
     /// Chế tạo trang bị, reading only: the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn) to
     /// Snapshot.recipes. Nothing is put or pressed.
     Recipes { kind: u8 },
-    /// Chế tạo trang bị: tier `tier` of item kind `kind`, the materials of its recipe in, Bắt đầu (the Xu of the recipe).
-    Craft { kind: u8, tier: i32 },
+    /// Chế tạo trang bị: tier `tier` of item kind `kind`, the materials of its recipe in, Bắt đầu (the Xu of the recipe);
+    /// `times` items one after another, the menu read and checked again before each, ending early on the first one that
+    /// lacks something.
+    Craft { kind: u8, tier: i32, times: u32 },
     /// Đổi Băng Tâm lấy bình rỗng: line `option` of its menu, 0 one bottle, 1 five, 2 all (8 Băng Tâm each).
     Ice { option: u8 },
     /// Điểm năng động of Hương Lão, reading only: the points of the week and the exchange limit to Snapshot.points, with

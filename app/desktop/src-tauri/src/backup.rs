@@ -1,6 +1,7 @@
 // Nhập / Xuất JSON of the Tài khoản list (the buttons beside "Tài khoản" in the sidebar). Xuất writes the accounts as
-// accounts.json holds them, passwords included (the user's choice: the JSON is to move the accounts to another machine),
-// and the Cài đặt of the app (settings.json) when asked. Nhập reads that, a plain accounts.json ({"accounts": […]}), an
+// accounts.json holds them, passwords included (the user's choice: the JSON is to move the accounts to another machine)
+// and each with its whole Cài đặt đánh ("fight": Tự nhặt đồ, Nhặt cả đồ người khác, Chỉ nhặt trang bị đúng hệ, …), and
+// the Cài đặt of the app (settings.json) when asked. Nhập reads that, a plain accounts.json ({"accounts": […]}), an
 // array of accounts or one account; an account without "password" comes in with an empty one, to fill in with Sửa nick.
 // Battles and logs (cllt.db) are not in it: Xuất dữ liệu trận of Cài đặt has them.
 use crate::settings::Settings;
@@ -244,6 +245,17 @@ mod tests {
         assert!(text.contains("\"app\": \"CLLT Tool\"") && text.contains("\"format\": 1"));
         let back = parse(&text).unwrap();
         assert_eq!(back.accounts, accounts);
+        // Cài đặt đánh in full, also at its defaults, so that each setting can be changed in the file before Nhập.
+        for key in [
+            "\"pickupOthers\": true",
+            "\"pickupOwnElement\": false",
+            "\"pickupOtherGender\": true",
+        ] {
+            assert_eq!(text.matches(key).count(), 2, "{key}");
+        }
+        let edited = text.replacen("\"pickupOthers\": true", "\"pickupOthers\": false", 1);
+        let back = parse(&edited).unwrap();
+        assert!(!back.accounts[0].fight.pickup_others && back.accounts[1].fight.pickup_others);
         assert_eq!(back.settings.map(|s| s.record), Some(false));
         assert!(parse(&export(&accounts, None, "t"))
             .unwrap()

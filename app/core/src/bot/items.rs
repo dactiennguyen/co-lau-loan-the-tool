@@ -171,6 +171,26 @@ impl Bot {
                 .into(),
             ));
         }
+        if settings.pickup_others != self.fight.pickup_others {
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.pickup_others {
+                    true => "Bật nhặt cả đồ người khác: sau mỗi trận thắng, tự nhặt đồ nhặt thêm đồ người khác bỏ lại trong khu từ 18 giây tuổi, khi túi còn chỗ",
+                    false => "Tắt nhặt đồ người khác: chỉ nhặt đồ của mình",
+                }
+                .into(),
+            ));
+        }
+        if settings.pickup_own_element != self.fight.pickup_own_element {
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.pickup_own_element {
+                    true => "Bật chỉ nhặt trang bị đúng hệ: trang bị khác hệ nhân vật sẽ để lại dưới đất",
+                    false => "Tắt chỉ nhặt trang bị đúng hệ: nhặt trang bị mọi hệ",
+                }
+                .into(),
+            ));
+        }
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,
@@ -188,7 +208,8 @@ impl Bot {
     /// Tự nhặt đồ, at the end of the won battle `won` (13-drops-items.md#g2): its own drops came just before the end, in
     /// the same read, and a few may come just after, so every item fallen within LOOT of it, before or after, is picked
     /// up with c2s/1188 from where the character stands; the server does not check the distance. A stranger's item in
-    /// that window is refused for its first 16 s ("Không thể nhặt vật phẩm của người khác"), which costs nothing.
+    /// that window is refused for its first 16 s ("Không thể nhặt vật phẩm của người khác"), which costs nothing. Then,
+    /// with Nhặt cả đồ người khác, what others left on the ground (loot_others).
     pub(super) fn loot(&mut self, won: &BattleRecord, now: Instant, out: &mut Vec<Out>) {
         self.loot_until = Some(now + LOOT);
         self.loot_from = Some(LootFrom {
@@ -208,29 +229,82 @@ impl Bot {
         for fallen in own {
             self.pick(fallen, now, out);
         }
-    }
-    /// Queues an item for c2s/1188, once; one goes out every PICK_GAP. Gear the character cannot wear stays on the ground
-    /// when Nhặt cả đồ khác giới tính is off, said once.
-    pub(super) fn pick(&mut self, fallen: Fallen, now: Instant, out: &mut Vec<Out>) {
-        if self.asked.contains(&fallen.uuid) || self.to_pick.iter().any(|p| p.uuid == fallen.uuid) {
-            return;
+        if self.fight.pickup_others {
+            self.loot_others(now, out);
         }
-        if !self.fight.pickup_other_gender {
-            let def = book().get(fallen.item.item_id);
-            if let Some(why) = def.and_then(|d| crate::items::misfit(d.gender, self.snap.gender)) {
-                self.asked.insert(fallen.uuid.clone());
-                return out.push(Out::Log(
-                    LogKind::Item,
-                    format!("Bỏ qua {}: {why}", fallen.item.label()),
-                ));
+    }
+    /// Nhặt cả đồ người khác: the items of the zone's ground that fell OTHERS_AGE ago or more, oldest first, at most
+    /// OTHERS_PER_WIN, after the own drops. Money goes to the wallet; anything else only while the bag has a free slot
+    /// for it, counting the own drops asked for (an item that would stack is not counted on: not measured).
+    fn loot_others(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let wallet = |f: &Fallen| crate::mail::money_item(f.item.item_id).is_some();
+        let free = self
+            .snap
+            .bag
+            .as_ref()
+            .map_or(0, |b| (b.capacity - b.items.len() as i32).max(0) as usize);
+        // The own drops asked for: those still queued, and the one already sent.
+        let own = (self.to_pick.iter().chain(&self.unanswered))
+            .filter(|f| !wallet(f))
+            .count();
+        let mut room = free.saturating_sub(own);
+        let mut ready: Vec<Fallen> = (self.ground.iter())
+            .filter(|g| now.saturating_duration_since(g.at) >= OTHERS_AGE)
+            .filter(|g| {
+                !self.asked.contains(&g.uuid) && !self.to_pick.iter().any(|p| p.uuid == g.uuid)
+            })
+            .cloned()
+            .collect();
+        ready.sort_by_key(|g| g.at);
+        let mut queued = 0;
+        for g in ready {
+            if queued == OTHERS_PER_WIN {
+                break;
             }
+            let money = wallet(&g);
+            if !money && room == 0 {
+                continue;
+            }
+            if self.pick(g, now, out) {
+                queued += 1;
+                room -= usize::from(!money);
+            }
+        }
+    }
+    /// Queues an item for c2s/1188, once; one goes out every PICK_GAP. True when it was queued. Gear the character cannot
+    /// wear stays on the ground when Nhặt cả đồ khác giới tính is off, and gear of another element with Chỉ nhặt trang bị
+    /// đúng hệ, said once (another's is not looked at again).
+    pub(super) fn pick(&mut self, fallen: Fallen, now: Instant, out: &mut Vec<Out>) -> bool {
+        if self.asked.contains(&fallen.uuid) || self.to_pick.iter().any(|p| p.uuid == fallen.uuid) {
+            return false;
+        }
+        let def = book().get(fallen.item.item_id);
+        let gender = (!self.fight.pickup_other_gender)
+            .then(|| def.and_then(|d| crate::items::misfit(d.gender, self.snap.gender)))
+            .flatten();
+        let element = (self.fight.pickup_own_element)
+            .then(|| crate::items::off_element(fallen.element, self.snap.element))
+            .flatten();
+        if let Some(why) = gender.or(element) {
+            self.asked.insert(fallen.uuid.clone());
+            self.ground.retain(|g| g.uuid != fallen.uuid);
+            out.push(Out::Log(
+                LogKind::Item,
+                format!("Bỏ qua {}: {why}", fallen.item.label()),
+            ));
+            return false;
         }
         self.to_pick.push_back(fallen);
         if self.pick_at.is_none() {
             self.pick_next(now, out);
         }
+        true
     }
     pub(super) fn pick_next(&mut self, now: Instant, out: &mut Vec<Out>) {
+        // Another's item waits for the next won battle while one is played: picking up in a battle is not measured.
+        if self.battle.is_some() {
+            self.to_pick.retain(|f| !f.other);
+        }
         let Some(fallen) = self.to_pick.pop_front() else {
             self.pick_at = None;
             return;
@@ -252,7 +326,7 @@ impl Bot {
     /// quantity if one does. A refusal is a Vật phẩm line. What was picked up is not: it counts in the fight job or quest
     /// run its battle was played for, and goes out as Out::Pickup, which the app shows under the line of that battle and
     /// keeps for Thống kê.
-    pub(super) fn pick_answer(&mut self, text: String, out: &mut Vec<Out>) {
+    pub(super) fn pick_answer(&mut self, text: String, now: Instant, out: &mut Vec<Out>) {
         let got = text.contains("nhận được");
         let find = |says: &dyn Fn(&Picked) -> String| {
             self.unanswered
@@ -277,6 +351,15 @@ impl Bot {
         };
         let item = fallen.item;
         if !got {
+            // Another's item asked too early (its age guessed from the ground of a zone entered) waits OTHERS_AGE again;
+            // one refused otherwise is not asked for again in this zone.
+            if fallen.other {
+                let early = text.contains("người khác");
+                match self.ground.iter_mut().find(|g| g.uuid == fallen.uuid) {
+                    Some(g) if early => g.at = now,
+                    _ => self.ground.retain(|g| g.uuid != fallen.uuid),
+                }
+            }
             return out.push(Out::Log(
                 LogKind::Item,
                 format!("Không nhặt được {}: {text}", item.label()),
@@ -289,6 +372,13 @@ impl Bot {
         };
         if let Some(list) = run {
             add_picked(list, &item);
+        }
+        // Not this battle's drop: a line of its own, kept out of the drops of the mob (Thống kê).
+        if fallen.other {
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Nhặt được đồ người khác bỏ lại: {}", item.label()),
+            ));
         }
         out.push(Out::Pickup(Box::new(PickupRecord {
             character: self.snap.name.clone(),

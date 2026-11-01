@@ -23,9 +23,10 @@ pub struct Account {
     /// How potential points are spent on their own (Bot::set_stats); set from the Chỉ số card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stats: Option<StatPlan>,
-    /// Cài đặt đánh: Tự sửa đồ, Tự nhặt đồ (Bot::set_fight), set from the Cài đặt tab; and the numbers last chosen in the
-    /// Đánh quái and Nhiệm vụ tabs.
-    #[serde(default, skip_serializing_if = "FightSettings::is_default")]
+    /// Cài đặt đánh: Tự sửa đồ, Tự nhặt đồ and what it picks up (Bot::set_fight), set from the Cài đặt tab; and the
+    /// numbers last chosen in the Đánh quái and Nhiệm vụ tabs. Always written whole, so that Xuất JSON shows every one of
+    /// them to change before Nhập; one left out of a file reads as its default.
+    #[serde(default)]
     pub fight: FightSettings,
     /// The target last chosen in the Đánh quái tab on each map (mapId → mob or boss), which the tab chooses again back on
     /// that map. The session never reads it.
@@ -139,6 +140,8 @@ mod tests {
                 repair: true,
                 pickup: false,
                 pickup_other_gender: false,
+                pickup_others: false,
+                pickup_own_element: true,
                 fight_count: 30,
                 fight_losses: 4,
                 quest_losses: 2,
@@ -164,13 +167,14 @@ mod tests {
             assert_eq!(mode & 0o777, 0o600);
         }
         assert!(!dir.join("accounts.json.tmp").exists());
-        // Tự nhặt đồ and Nhặt cả đồ khác giới tính are on, and the tabs offer 5 battles and 1 loss, for an account saved
-        // before they existed, or with only Tự sửa đồ set.
+        // Tự nhặt đồ, Nhặt cả đồ khác giới tính and Nhặt cả đồ người khác are on, Chỉ nhặt trang bị đúng hệ off, and the
+        // tabs offer 5 battles and 1 loss, for an account saved before they existed, or with only Tự sửa đồ set.
         std::fs::write(&path, r#"{"accounts":[{"username":"a","password":"x"},{"username":"b","password":"y","fight":{"repair":true}}]}"#).unwrap();
         let old = load(&path).unwrap();
         assert_eq!(old[0].fight, FightSettings::default());
         assert!(old[0].fight.pickup && old[1].fight.pickup && old[1].fight.repair);
         assert!(old[0].fight.pickup_other_gender && old[1].fight.pickup_other_gender);
+        assert!(old[1].fight.pickup_others && !old[1].fight.pickup_own_element);
         let b = old[1].fight;
         assert_eq!((b.fight_count, b.fight_losses, b.quest_losses), (5, 1, 1));
         std::fs::remove_dir_all(&dir).unwrap();

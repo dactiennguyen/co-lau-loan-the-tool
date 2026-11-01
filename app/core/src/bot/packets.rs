@@ -179,17 +179,21 @@ impl Bot {
                     format!("Không đọc được ô túi vừa nhận đồ (s2c/51): {e}"),
                 )),
             },
-            // An item fell in the map, anyone's: kept a moment, as a won battle's own drops come just before its end.
+            // An item fell in the map, anyone's: kept a moment, as a won battle's own drops come just before its end, and
+            // on the ground of the zone for Nhặt cả đồ người khác.
             1182 => {
                 let g = ground_item_add(payload)?;
-                let fallen = Fallen {
-                    item: Picked::of(g.item.item_id, g.item.quantity.max(1) as i64),
-                    uuid: g.item.uuid,
-                    at: now,
-                };
+                let fallen = Fallen::of(&g.item, now, false);
                 self.drops
                     .retain(|d| now.saturating_duration_since(d.at) < DROPS_KEPT);
                 self.drops.push(fallen.clone());
+                if g.map_id == self.snap.map_id {
+                    self.ground.retain(|d| d.uuid != fallen.uuid);
+                    self.ground.push(Fallen {
+                        other: true,
+                        ..fallen.clone()
+                    });
+                }
                 if self.loot_until.is_some_and(|t| now < t) {
                     self.pick(fallen, now, out);
                 }
@@ -198,6 +202,19 @@ impl Bot {
             1183 => {
                 let (_, uuid) = ground_item_remove(payload)?;
                 self.drops.retain(|d| d.uuid != uuid);
+                self.ground.retain(|d| d.uuid != uuid);
+            }
+            // The ground of the zone just entered: when each item fell, from when it expires (GROUND_LIFE after).
+            1184 => {
+                let epoch = epoch_ms() as i64;
+                self.ground = ground_items(payload)?
+                    .iter()
+                    .map(|g| {
+                        let left = Duration::from_millis((g.expires_at - epoch).max(0) as u64);
+                        let age = GROUND_LIFE.saturating_sub(left);
+                        Fallen::of(&g.item, now.checked_sub(age).unwrap_or(now), true)
+                    })
+                    .collect();
             }
             // The whole bag, also after Sắp xếp: within 5 s of it, the bag sorted (it comes for rewards and repairs too).
             // Kind 4 is the one item just added (Chế tạo trang bị), kind 2 what is left in one slot (Đập Trứng Gà). A
@@ -315,6 +332,7 @@ impl Bot {
                 s.zones = None;
                 s.bosses.clear();
                 self.zone.clear();
+                self.ground.clear();
                 // NPCs and portals. A map this decoder cannot read leaves them unknown, not an empty map in the atlas;
                 // the quest run, which talks to NPCs and takes portals, stops there. A fight job needs only the mobs.
                 match map_data(payload) {
@@ -585,7 +603,7 @@ impl Bot {
                     || self.item_wait.is_some()
                     || self.zoning.is_some();
                 if picking && (about || !waiting) {
-                    self.pick_answer(text, out);
+                    self.pick_answer(text, now, out);
                     return Ok(());
                 }
                 out.push(Out::Log(LogKind::Server, text.clone()));

@@ -102,8 +102,9 @@ export interface Api {
     worn: boolean,
     charm: boolean,
   ): Promise<void>;
-  /** Chế tạo trang bị: the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make that tier. */
-  smithCraft(id: number, kind: number, tier: number | null): Promise<void>;
+  /** Chế tạo trang bị: the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make `times`
+   * items of that tier, one after another (1 when left out). */
+  smithCraft(id: number, kind: number, tier: number | null, times?: number): Promise<void>;
   /** Đổi Băng Tâm lấy bình rỗng: line `option` (0 one bottle, 1 five, 2 all). */
   smithIce(id: number, option: number): Promise<void>;
   /** Điểm năng động of Hương Lão, reading only; Cách tính điểm too with `rules`. */
@@ -240,7 +241,7 @@ const tauri: Api = {
   mergeForecast: (id, options) => invoke("merge_forecast", { id, options }),
   smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn, charm) =>
     invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn, charm }),
-  smithCraft: (id, kind, tier) => invoke("smith_craft", { id, kind, tier }),
+  smithCraft: (id, kind, tier, times = 1) => invoke("smith_craft", { id, kind, tier, times }),
   smithIce: (id, option) => invoke("smith_ice", { id, option }),
   elderPoints: (id, rules) => invoke("elder_points", { id, rules }),
   elderDaily: (id, action) => invoke("elder_daily", { id, action }),

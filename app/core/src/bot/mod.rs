@@ -9,8 +9,8 @@ use crate::battle::{battle_setup, mob_block, Strategy};
 use crate::battle_record::{BattleData, Recorder};
 use crate::items::{
     bag_after, bag_slot, book, character_extra, character_gear, character_tail, currencies,
-    gear_durability, gear_update, ground_item_add, ground_item_remove, inventory, Bag, Currencies,
-    ItemRecord, SlotLeft,
+    gear_durability, gear_update, ground_item_add, ground_item_remove, ground_items, inventory,
+    Bag, Currencies, ItemRecord, SlotLeft,
 };
 use crate::mail::{MailBody, MailHeader};
 use crate::market::{MarketPage, MarketTabs};
@@ -104,13 +104,33 @@ const DROPS_KEPT: Duration = Duration::from_secs(2);
 const LOOT: Duration = Duration::from_millis(300);
 const PICK_GAP: Duration = Duration::from_millis(200);
 const PICK_ANSWER: Duration = Duration::from_secs(2);
+/// Nhặt cả đồ người khác (13-drops-items.md#k3): the server keeps an item for whoever dropped it 16–17 s, so another's is
+/// asked for from OTHERS_AGE after it fell, at most OTHERS_PER_WIN after a won battle (one every PICK_GAP, within the rest
+/// before the next). An item lies GROUND_LIFE in all, which gives the age of those already there on entering a zone.
+const OTHERS_AGE: Duration = Duration::from_secs(18);
+const OTHERS_PER_WIN: usize = 8;
+const GROUND_LIFE: Duration = Duration::from_secs(601);
 
-/// An item fallen in the map (s2c/1182), for Tự nhặt đồ: its uuid on the ground, what it is and how many, when it fell.
+/// An item fallen in the map (s2c/1182, s2c/1184), for Tự nhặt đồ: its uuid on the ground, what it is and how many, its
+/// element (0xff for an item that is not gear), when it fell, and whether it is another's (Nhặt cả đồ người khác).
 #[derive(Debug, Clone)]
 struct Fallen {
     uuid: String,
     item: Picked,
+    element: u8,
     at: Instant,
+    other: bool,
+}
+impl Fallen {
+    fn of(item: &ItemRecord, at: Instant, other: bool) -> Self {
+        Self {
+            uuid: item.uuid.clone(),
+            item: Picked::of(item.item_id, item.quantity.max(1) as i64),
+            element: item.element,
+            at,
+            other,
+        }
+    }
 }
 /// The won battle whose drops Tự nhặt đồ picks up, for the PickupRecord of each.
 #[derive(Debug, Clone)]
@@ -292,6 +312,8 @@ pub struct Bot {
     /// battle; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
     /// when the last c2s/1188 went; the ones it sent that the server has not answered yet, oldest first.
     drops: Vec<Fallen>,
+    /// Nhặt cả đồ người khác: the items lying on the ground of the zone (s2c/1184, s2c/1182 less s2c/1183), anyone's.
+    ground: Vec<Fallen>,
     loot_until: Option<Instant>,
     loot_from: Option<LootFrom>,
     to_pick: VecDeque<Fallen>,
@@ -365,6 +387,7 @@ impl Bot {
             repair_failed: HashSet::new(),
             repair_warned: false,
             drops: vec![],
+            ground: vec![],
             loot_until: None,
             loot_from: None,
             to_pick: VecDeque::new(),

@@ -1,8 +1,9 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { api } from "@/api";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
 import { Hint } from "@/components/Hint";
+import { Stepper } from "@/components/Stepper";
 import { num, timeOfDay } from "@/utils/format";
 import { CRAFT_KINDS, ICE, knownRecipes, materialHeld, materialIcon, roman } from "@/game/shops";
 import type { Character, Item, Recipe } from "@/api/types";
@@ -34,12 +35,26 @@ function lacks(c: Character, r: Recipe) {
   return { materials, why };
 }
 
+/** How many of a recipe can be made one after another: each material from one stack at a time (the game takes one
+ * stack per material, the bot the largest), the Xu, and a free slot for each item. 0 below its level. */
+function most(c: Character, r: Recipe) {
+  if (c.level < r.level) return 0;
+  const items = c.bag?.items ?? [];
+  const free = c.bag ? c.bag.capacity - c.bag.items.length : 0;
+  const xu = c.currencies?.xu ?? 0;
+  const runs = r.materials.map((m) =>
+    items.filter((i) => i.name === m.name).reduce((n, i) => n + Math.floor(i.quantity / m.count), 0),
+  );
+  return Math.max(0, Math.min(free, r.xu > 0 ? Math.floor(xu / r.xu) : free, ...runs));
+}
+
 /**
  * Chế tạo of Pháp sư (16-upgrade.md#chế-tạo, J3, O1). Chế tạo trang bị as a table at once: Nón, Áo, Vũ khí, Nhẫn by
  * Bậc I, II, III, each with its two materials (held / needed), its Xu and its level, framed in green when it can be made,
  * and what it lacks said in words; the recipes are those Pháp sư's menus said (knownRecipes) until Xem ở Pháp sư reads
- * them again. Chế tạo makes one (SmithTask::Craft), the bot reading the menu and checking again first; it puts each
- * material with its whole stack, as the phone, and the server takes the count. Đổi Băng Tâm lấy bình rỗng: 8 Băng Tâm
+ * them again. Chế tạo makes as many as the number beside it says (SmithTask::Craft), one after another, the bot reading
+ * the menu and checking again before each and stopping at the first that lacks something; it puts each material with
+ * its whole stack, as the phone, and the server takes the count. Đổi Băng Tâm lấy bình rỗng: 8 Băng Tâm
  * for a Bình Huyết Linh (Rỗng), exchanged as soon as its line is picked. Every spend asks once more.
  */
 export function ShopCraft({ account, why, ask, track }: ShopContext) {
@@ -47,13 +62,19 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
   const items = c.bag?.items ?? [];
   const xu = c.currencies?.xu ?? 0;
   const free = c.bag ? c.bag.capacity - c.bag.items.length : 0;
+  // How many of each recipe to make, by "kind-tier"; 1 until changed, never above what can be made.
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const rows = CRAFT_KINDS.map((name, kind) => {
     const read = c.recipes.find((r) => r.kind === kind && r.recipes.length > 0) ?? null;
-    const recipes = (read?.recipes ?? knownRecipes(kind)).map((r) => ({ ...r, ...lacks(c, r) }));
+    const recipes = (read?.recipes ?? knownRecipes(kind)).map((r) => ({ ...r, ...lacks(c, r), most: most(c, r) }));
     const worn = c.gear.find((g): g is Item => g?.kind === kind) ?? null;
     return { name, kind, read, recipes, worn };
   });
-  const ready = rows.flatMap((row) => row.recipes.filter((r) => r.why.length === 0).map((r) => `${row.name} Bậc ${roman(r.tier)}`));
+  const ready = rows.flatMap((row) =>
+    row.recipes
+      .filter((r) => r.why.length === 0)
+      .map((r) => `${row.name} Bậc ${roman(r.tier)}${r.most > 1 ? ` (tối đa ${r.most} món)` : ""}`),
+  );
   const tiers = rows[0].recipes;
   const ice = items.filter((i) => i.id === ICE.iceId).reduce((n, i) => n + i.quantity, 0);
   const bottles = items.filter((i) => i.id === ICE.bottleId).reduce((n, i) => n + i.quantity, 0);
@@ -70,7 +91,8 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
             I cần nhân vật cấp 21 và ra đồ bậc 21 (nâng tới +8), Bậc II cấp 51 ra bậc 51 (+12), Bậc III cấp 101 ra bậc 101 (+16);
             cửa hàng không bán đồ bậc 101. Món ra có hệ và phẩm chất ngẫu nhiên, đúng hệ nhân vật thì thêm chỉ số. Nguyên liệu (Da,
             Quặng, Gỗ, Linh Thạch) rơi từ quái, bot nhặt khi Tự đánh hay Tự làm nhiệm vụ. Chế tạo không thất bại; nguyên liệu và Xu
-            không lấy lại được.
+            không lấy lại được. Ô số bên nút Chế tạo là số món muốn chế: bot chế lần lượt từng món, trước mỗi món hỏi lại Pháp sư công
+            thức, món nào thiếu gì thì dừng ở đó; bấm Dừng thì dừng sau món đang chế.
           </Hint>
           <span className="ml-auto text-11 text-fg-3">
             Cấp {c.level} · {num(xu)} Xu · túi trống {free} ô
@@ -120,6 +142,9 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
               {row.recipes.map((r) => {
                 const ok = r.why.length === 0;
                 const low = c.level < r.level;
+                const key = `${row.kind}-${r.tier}`;
+                const n = Math.min(counts[key] ?? 1, Math.max(1, r.most));
+                const label = `${row.name} Bậc ${roman(r.tier)}`;
                 return (
                   <div key={r.tier} role="cell" className={cn(CELL, ok && "border-good", low && "opacity-60")}>
                     <b className="text-12 text-fg @min-[860px]:hidden">
@@ -141,25 +166,38 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
                       <b className={cn(SHOP.costFig, xu < r.xu && SHOP.costShort)}>{num(r.xu)}</b>
                     </span>
                     {!ok && <span className={cn("leading-[1.4]", low ? "text-fg-3" : "text-danger")}>{r.why.join("; ")}</span>}
-                    <Button
-                      small
-                      kind={ok ? "primary" : "outline"}
-                      icon="flame"
-                      className="justify-self-start mt-0.5"
-                      disabled={!!why || !ok}
-                      title={why ?? (r.why.join("; ") || undefined)}
-                      onClick={() =>
-                        ask({
-                          title: `Chế tạo ${row.name} Bậc ${roman(r.tier)}`,
-                          message: `Pháp sư lấy ${r.materials.map((m) => `${m.count} ${m.name}`).join(", ")} và ${num(r.xu)} Xu, cho 1 ${row.name} bậc ${r.level} có hệ và phẩm chất ngẫu nhiên. Không lấy lại được nguyên liệu. Bot hỏi lại Pháp sư công thức trước khi đặt.`,
-                          confirm: `Chế tạo, ${num(r.xu)} Xu`,
-                          icon: "flame",
-                          run: () => api.smithCraft(account.id, row.kind, r.tier),
-                        })
-                      }
-                    >
-                      Chế tạo
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                      {ok && r.most > 1 && (
+                        <Stepper
+                          value={n}
+                          onChange={(v) => setCounts((m) => ({ ...m, [key]: v }))}
+                          min={1}
+                          max={r.most}
+                          label={`số ${label} cần chế`}
+                        />
+                      )}
+                      <Button
+                        small
+                        kind={ok ? "primary" : "outline"}
+                        icon="flame"
+                        disabled={!!why || !ok}
+                        title={why ?? (r.why.join("; ") || (r.most > 1 ? `Chế được tối đa ${r.most} món` : undefined))}
+                        onClick={() =>
+                          ask({
+                            title: n > 1 ? `Chế tạo ${n} ${label}` : `Chế tạo ${label}`,
+                            message:
+                              n > 1
+                                ? `Pháp sư lấy ${r.materials.map((m) => `${num(n * m.count)} ${m.name}`).join(", ")} và ${num(n * r.xu)} Xu, cho ${n} ${row.name} bậc ${r.level}, mỗi món có hệ và phẩm chất ngẫu nhiên. Không lấy lại được nguyên liệu. Bot chế lần lượt, trước mỗi món hỏi lại Pháp sư công thức; món nào thiếu gì thì dừng ở đó.`
+                                : `Pháp sư lấy ${r.materials.map((m) => `${m.count} ${m.name}`).join(", ")} và ${num(r.xu)} Xu, cho 1 ${row.name} bậc ${r.level} có hệ và phẩm chất ngẫu nhiên. Không lấy lại được nguyên liệu. Bot hỏi lại Pháp sư công thức trước khi đặt.`,
+                            confirm: n > 1 ? `Chế tạo ${n} món, ${num(n * r.xu)} Xu` : `Chế tạo, ${num(r.xu)} Xu`,
+                            icon: "flame",
+                            run: () => api.smithCraft(account.id, row.kind, r.tier, n),
+                          })
+                        }
+                      >
+                        {n > 1 ? `Chế tạo ${n}` : "Chế tạo"}
+                      </Button>
+                    </div>
                   </div>
                 );
               })}

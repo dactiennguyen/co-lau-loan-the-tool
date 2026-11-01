@@ -108,6 +108,9 @@ function decoders() {
     add('groundItemAdd', w[k].hex, pick(decodeEvent('s2c', 1182, bytes(w[k].hex)).fields as any, ['mapId', 'itemId', 'uuid', 'quantity', 'x', 'y', 'expiresAt']));
   }
   add('groundItemRemove', w['s2c/1183'].hex, decodeEvent('s2c', 1183, bytes(w['s2c/1183'].hex)).fields);
+  // Every item on the ground of M1 on entering it (s2c/1184), for Nhặt cả đồ người khác.
+  add('groundItems', w['s2c/1184'].hex, (decodeEvent('s2c', 1184, bytes(w['s2c/1184'].hex)).fields as any).items.map((i: any) =>
+    pick(i, ['itemId', 'uuid', 'quantity', 'element', 'x', 'y', 'expiresAt'])));
   const slot51 = 'ffffffff0000000001060000019c0000002434336363626635352d356439372d346434312d393838342d32656263663039396366356300000000ffffffff0000000100ff00000000000000';
   add('bagSlot', slot51, (decodeEvent('s2c', 51, bytes(slot51)).fields as any).item);
   // The skill step (docs/app/events/12-skills-items.md): the tree of s2c/30, the skill list of the s2c/9 tail, s2c/10 kind 32.
