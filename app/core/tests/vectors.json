@@ -3067,6 +3067,30 @@
    "action": { "kind": "visit", "place": "vùng đất ", "mapId": "M5" }
   },
   {
+   "text": "Gây 1.000 sát thương lên Tướng Thiết Hổ",
+   "npcId": -1,
+   "param": 95,
+   "action": { "kind": "damage", "mob": "Tướng Thiết Hổ", "amount": 1000 }
+  },
+  {
+   "text": "Tiêu diệt 1.000 Gà Điên",
+   "npcId": -1,
+   "param": 0,
+   "action": { "kind": "kill", "mob": "Gà Điên" }
+  },
+  {
+   "text": "Gây 10.00 sát thương lên Tướng Thiết Hổ",
+   "npcId": -1,
+   "param": 0,
+   "action": { "kind": "unknown" }
+  },
+  {
+   "text": "Gây 1.0000 sát thương lên Tướng Thiết Hổ",
+   "npcId": -1,
+   "param": 0,
+   "action": { "kind": "unknown" }
+  },
+  {
    "text": "Đạt cấp độ 2",
    "npcId": -1,
    "param": 2,
@@ -3185,6 +3209,36 @@
    "npcId": 143,
    "param": 90,
    "action": { "kind": "talk", "npcId": 143 }
+  },
+  {
+   "text": "Báo cáo với Tướng Quân Lê Viễn",
+   "npcId": 162,
+   "param": 162,
+   "action": { "kind": "talk", "npcId": 162 }
+  },
+  {
+   "text": "Đạt cấp độ 60",
+   "npcId": -1,
+   "param": 60,
+   "action": { "kind": "level", "level": 60 }
+  },
+  {
+   "text": "Tiêu diệt Gà Trống Yêu Tinh",
+   "npcId": -1,
+   "param": 21,
+   "action": { "kind": "kill", "mob": "Gà Trống Yêu Tinh" }
+  },
+  {
+   "text": "Đánh bại Tiên phong Bạch Nham",
+   "npcId": 109,
+   "param": 99,
+   "action": { "kind": "talk", "npcId": 109 }
+  },
+  {
+   "text": "Đánh bại Tướng Thiết Kích",
+   "npcId": -1,
+   "param": 100,
+   "action": { "kind": "kill", "mob": "Tướng Thiết Kích" }
   },
   {
    "text": "Báo cáo với Tướng Quân Lê Viễn",
@@ -3579,6 +3633,92 @@
      ],
      "stopped": false,
      "current": 1
+    }
+   ],
+   "portals": {}
+  },
+  {
+   "name": "B8: the boss of a kill step falls, s2c/34 alone ends the step, on to the report",
+   "atlas": null,
+   "steps": [
+    {
+     "packet": [ 29, "000000066d616e696e61000000024d3800000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 1177, "000000024d38000000000c6d6f623130313130303030370000001654c6b0e1bb9b6e6720546869e1babf74204bc3ad63680000004102000000090000000101010000000900000010" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "0000001c000000164368e1bab7742047c3a379204dc5a969204769c3a16f0000008d4d75e1bb916e206cc3a06d207375792079e1babf75207175c3a26e20c491e1bb8b63682c207472c6b0e1bb9b63207469c3aa6e207068e1baa369206c6fe1baa1692062e1bb8f2063c3a16320c491c6a16e2076e1bb8b207469c3aa6e2070686f6e672076c3a0206368e1bb8920687579207469e1bb816e20747579e1babf6e2063e1bba761206368c3ba6e672e000000046d61696e0000000300000000000000050000000000000015c490e1baa1742063e1baa57020c491e1bb992036300000003c00000001ffffffff00000001000000225469c3aa75206469e1bb87742047c3a0205472e1bb916e672059c3aa752054696e68000000150000000affffffff0000000200000024c490c3a16e682062e1baa169205469c3aa6e2070686f6e672042e1baa16368204e68616d00000063000000010000006d0000000300000023c490c3a16e682062e1baa1692054c6b0e1bb9b6e6720546869e1babf74204bc3ad63680000006400000001ffffffff000000040000002942c3a16f2063c3a16f2076e1bb9b692054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e000000a200000001000000a2" ],
+     "sent": [],
+     "stopped": false,
+     "current": 3
+    },
+    {
+     "start": true,
+     "sent": [
+      [ 1178, "0000000c6d6f6231303131303030303700000000" ]
+     ],
+     "stopped": false,
+     "current": 3
+    },
+    {
+     "packet": [ 34, "00000000000000097375627461736b20310000001c00000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": 3
+    },
+    {
+     "next": true,
+     "sent": [
+      [ 13, "000000024d38000000a2" ]
+     ],
+     "stopped": false,
+     "current": 4
+    }
+   ],
+   "portals": {}
+  },
+  {
+   "name": "kill step naming a boss (\"Đánh bại Tướng Thiết Kích\", B8): c2s/1178 too",
+   "atlas": null,
+   "steps": [
+    {
+     "packet": [ 29, "000000066d616e696e61000000024d3100000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 43, "000000024d3103000000096d6f62383732363030000000144368e1bb89204875792053c6a16e2054e1bab7630000000a00000000060000000100" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 1177, "000000024d31000000000b6d6f623836313030303031000000165468e1bba7204cc4a96e682053c6a16e2054e1bab7630000000b00000000090000000101010000005500000005" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "0000001c000000164368e1bab7742047c3a379204dc5a969204769c3a16f00000000000000046d61696e0000000000000000000000010000000000000023c490c3a16e682062e1baa169205468e1bba7204cc4a96e682053c6a16e2054e1bab7630000000000000001ffffffff" ],
+     "sent": [],
+     "stopped": false,
+     "current": 0
+    },
+    {
+     "start": true,
+     "sent": [
+      [ 1178, "0000000b6d6f62383631303030303100000000" ]
+     ],
+     "stopped": false,
+     "current": 0
     }
    ],
    "portals": {}

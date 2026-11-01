@@ -684,6 +684,20 @@ impl Bot {
                 {
                     self.awaiting_reply = false;
                     self.advance("Server đã trả lời", out);
+                } else if let Some(q) = self.snap.quest.as_mut().filter(|q| q.id == p.quest_id) {
+                    // A kill or damage step can be done by s2c/34 alone, with no s2c/1201: "Đánh bại Tướng Thiết Kích" of
+                    // quest 28 as the boss falls (B8). Its count is set to reached, so quest_next moves it on once,
+                    // whether s2c/1201 came or not.
+                    let reached = q.steps.get(q.current.max(0) as usize).and_then(|step| {
+                        match step_action(&step.text, step.npc_id, step.param) {
+                            StepAction::Kill { .. } => Some(step.required),
+                            StepAction::Damage { amount, .. } => Some(amount),
+                            _ => None,
+                        }
+                    });
+                    if let Some(n) = reached {
+                        q.progress = q.progress.max(n);
+                    }
                 }
                 if self.quest_running() && self.battle.is_none() {
                     self.timer = Some((now + Duration::from_millis(1500), Wake::Next));

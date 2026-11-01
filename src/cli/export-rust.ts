@@ -29,6 +29,7 @@ import { pointsText } from '../protocol/shops.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 import { g1Packets } from '../../test/fixtures-g1.ts';
 import { q17Packets } from '../../test/fixtures-q17.ts';
+import { b8Packets } from '../../test/fixtures-b8.ts';
 import { claimedCount, dailyQuest, dailyTaken, dailyText, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
 import { Items } from '../protocol/items.ts';
 import { market, marketBuyRequest, marketDone, marketExtendRequest, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from '../protocol/market.ts';
@@ -277,9 +278,10 @@ function stepActions() {
   const steps: [string, number, number?][] = [['Tiêu diệt Heo Mọi', -1], ['Tiêu diệt 1 Sói Xám', -1], ['Đánh bại Kẻ Gây Rối', -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1],
     ['Đạt cấp độ 8', -1], ['Nâng điểm tiềm năng', -1], ['Báo cáo với Bà Tư Hạnh', 103], ['Bàn bạc với Thành Chủ Nguyễn Khang', 129], ['Gặp Trại Chủ Phạm Hùng', 127],
     ['Sử dụng điểm kỹ năng', -1], ['Trinh sát Thành Hồng Giang', -1, 3], ['Trinh sát Thành Hồng Giang', 162, 3], ['Trinh sát Thành ', -1, 3], ['Thu thập 5 Da Heo', -1],
-    ['Đến Cửu Phong', -1, 9], ['Đến vùng đất Lạc Cốc', -1, 4], ['Đến Cửu Phong', 145, 9], ['Đến Cửu Phong', -1, -1], ['Đến ', -1, 9], ['Đến vùng đất ', -1, 4]];
+    ['Đến Cửu Phong', -1, 9], ['Đến vùng đất Lạc Cốc', -1, 4], ['Đến Cửu Phong', 145, 9], ['Đến Cửu Phong', -1, -1], ['Đến ', -1, 9], ['Đến vùng đất ', -1, 4],
+    ['Gây 1.000 sát thương lên Tướng Thiết Hổ', -1, 95], ['Tiêu diệt 1.000 Gà Điên', -1], ['Gây 10.00 sát thương lên Tướng Thiết Hổ', -1], ['Gây 1.0000 sát thương lên Tướng Thiết Hổ', -1]];
   // Every step of every s2c/39 captured live (quests 3, 4, 12, 14, 17): the words and numbers as the server sent them.
-  const captured = [fixtures.quest['s2c/39 quest3'], fixtures.quest['s2c/39 quest4'], fixtures.quest['s2c/39 quest12'], fixtures.quest['s2c/39 quest14'], q17Packets['s2c/39 quest17']]
+  const captured = [fixtures.quest['s2c/39 quest3'], fixtures.quest['s2c/39 quest4'], fixtures.quest['s2c/39 quest12'], fixtures.quest['s2c/39 quest14'], q17Packets['s2c/39 quest17'], b8Packets['s2c/39 quest28']]
     .flatMap(h => questData(bytes(h)).steps.map((s): [string, number, number] => [s.text, s.npcId, s.param]));
   return [...steps, ...captured].map(([text, npcId, param = 0]) => ({ text, npcId, param, action: stepAction({ text, npcId, param }) }));
 }
@@ -379,6 +381,10 @@ function questReplays() {
   const pointsLeft = (left: number) => p(10, new Writer().i32(8).string('manina').i32(left).i32(16).i32(0).i32(21).string('421').string('125').build());
   const scenarios: [string, Ev[], Atlas?][] = [
     ['damage step: the boss of s2c/1177 with c2s/1178', [at('M1'), p(43, mobsPacket('M1', [['mob872600', 'Chỉ Huy Sơn Tặc', 10]])), boss(0), quest7, { start: true }]],
+    ['B8: the boss of a kill step falls, s2c/34 alone ends the step, on to the report', [at('M8'), p(1177, bytes(b8Packets['s2c/1177 Tướng Thiết Kích'])), p(39, bytes(b8Packets['s2c/39 quest28'])), { start: true },
+      p(34, bytes(b8Packets['s2c/34 hạ Tướng Thiết Kích'])), { next: true }]],
+    ['kill step naming a boss ("Đánh bại Tướng Thiết Kích", B8): c2s/1178 too', [at('M1'), p(43, mobsPacket('M1', [['mob872600', 'Chỉ Huy Sơn Tặc', 10]])), boss(0),
+      quest(28, 'Chặt Gãy Mũi Giáo', 0, 0, [['Đánh bại Thủ Lĩnh Sơn Tặc', 0, 1, -1]]), { start: true }]],
     ['a boss changing tiles is waited for in its map', [p(11, mapPacket('M1', 'Làng Thanh Khê', [[1015, 'Vân Sơn', 0]])), p(43, mobsPacket('M1', [])), boss(0), boss(1), quest7, { start: true }, boss(0), { next: true }]],
     ['talk step, the NPC reply, then the kill step', [at('M1'), p(43, mobsPacket('M1', [['mob10', 'Gà Điên', 7], ['mob2806', 'Heo Mọi', 7]])), p(39, bytes(q['s2c/39 quest4'])), { start: true },
       p(34, bytes(q['s2c/34 dialogue'])), { next: true }]],

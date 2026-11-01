@@ -49,19 +49,24 @@ impl StepAction {
     }
 }
 
-/// `text` without a leading run of digits and the space after it ("15 Cóc Xanh" → "Cóc Xanh"), if there is one.
+/// `text` without a leading number and the space after it ("15 Cóc Xanh" → "Cóc Xanh"), if there is one.
 fn skip_count(text: &str) -> &str {
-    let digits = text.len() - text.trim_start_matches(|c: char| c.is_ascii_digit()).len();
-    match text[digits..].strip_prefix(' ') {
-        Some(rest) if digits > 0 && !rest.is_empty() => rest,
+    match text.split_once(' ') {
+        Some((n, rest)) if number(n).is_some() && !rest.is_empty() => rest,
         _ => text,
     }
 }
 
-/// A whole number of ASCII digits.
+/// A whole number as quest steps write it: ASCII digits, with a dot between thousands from 1.000 on ("Gây 1.000 sát
+/// thương lên Tướng Thiết Hổ", wangpt, 02/11).
 fn number(text: &str) -> Option<i32> {
-    (!text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()))
-        .then(|| text.parse().ok())
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    let mut groups = text.split('.');
+    let first = groups.next().unwrap_or_default();
+    let rest: Vec<&str> = groups.collect();
+    let grouped = first.len() <= 3 && rest.iter().all(|g| g.len() == 3 && digits(g));
+    (digits(first) && (rest.is_empty() || grouped))
+        .then(|| text.replace('.', "").parse().ok())
         .flatten()
 }
 

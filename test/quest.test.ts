@@ -1,5 +1,6 @@
 import test from 'node:test';
 import { q17Packets } from './fixtures-q17.ts';
+import { b8Packets } from './fixtures-b8.ts';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { Reader, Writer, characterSkills } from '../src/protocol/protocol.ts';
@@ -53,6 +54,10 @@ test('stepAction: every step text of quests 3–8, the scout step of quest 14, a
     // Quest 17 of wangpt (Q17, s2c/39): an NPC to fight through its dialog, not a mob of s2c/43.
     ['Đánh bại Tiên phong Hồng Giang', 143, { kind: 'talk', npcId: 143 }, 90],
     ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1, { kind: 'damage', mob: 'Thủ Lĩnh Sơn Tặc', amount: 500 }],
+    // A dot between thousands (wangpt, 02/11); one in the wrong place is not a number.
+    ['Gây 1.000 sát thương lên Tướng Thiết Hổ', -1, { kind: 'damage', mob: 'Tướng Thiết Hổ', amount: 1000 }, 95],
+    ['Tiêu diệt 1.000 Gà Điên', -1, { kind: 'kill', mob: 'Gà Điên' }],
+    ['Gây 10.00 sát thương lên Tướng Thiết Hổ', -1, { kind: 'unknown' }],
     ['Đạt cấp độ 8', -1, { kind: 'level', level: 8 }],
     ['Nâng điểm tiềm năng', -1, { kind: 'stat' }],
     ['Sử dụng điểm kỹ năng', -1, { kind: 'skill' }],
@@ -76,6 +81,34 @@ test('quest bot: a damage step challenges the boss of s2c/1177 with c2s/1178, no
   bot.onPacket(39, quest7());
   bot.onReady(recorder(sent));
   assert.deepEqual(sent.at(-1), { opcode: 1178, hex: new Writer().string('mob86100001').i32(0).build().toString('hex') });
+  (bot as any).stop('test done');
+});
+
+test('quest bot: a kill step naming a boss ("Đánh bại Tướng Thiết Kích", B8) challenges it with c2s/1178 too', () => {
+  const sent: { opcode: number; hex: string }[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: () => {} });
+  bot.onPacket(29, new Writer().string('symap').string('M1').i32(0).build());
+  bot.onPacket(43, new Writer().string('M1').u8(3).string('mob872600').string('Chỉ Huy Sơn Tặc').i32(10).u8(2).i32(6).i32(1).u8(2).build());
+  bot.onPacket(1177, bossPacket(0));
+  bot.onPacket(39, new Writer().i32(28).string('Chặt Gãy Mũi Giáo').string('').string('main').i32(0).i32(0).i32(1)
+    .i32(0).string('Đánh bại Thủ Lĩnh Sơn Tặc').i32(0).i32(1).i32(-1).build());
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 1178, hex: new Writer().string('mob86100001').i32(0).build().toString('hex') });
+  (bot as any).stop('test done');
+});
+
+test('quest bot: B8, the boss of a kill step falls and s2c/34 alone ends the step; on to the report', () => {
+  const sent: { opcode: number; hex: string }[] = [];
+  const b8 = (key: string) => Buffer.from(b8Packets[key], 'hex');
+  const bot = new QuestBot({ maxFights: 2, log: () => {} });
+  bot.onPacket(29, new Writer().string('symap').string('M8').i32(0).build());
+  bot.onPacket(1177, b8('s2c/1177 Tướng Thiết Kích'));
+  bot.onPacket(39, b8('s2c/39 quest28'));
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 1178, hex: new Writer().string('mob101100007').i32(0).build().toString('hex') });
+  bot.onPacket(34, b8('s2c/34 hạ Tướng Thiết Kích'));
+  bot.next();
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M8').i32(162).build().toString('hex') });
   (bot as any).stop('test done');
 });
 

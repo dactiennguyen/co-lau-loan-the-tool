@@ -219,12 +219,14 @@ impl Bot {
                 .collect()
         };
         match action {
+            // The boss of s2c/1177 ignores c2s/15; the game challenges it with c2s/1178 (B4). A kill step can name one
+            // too: "Đánh bại Tướng Thiết Kích" of quest 28 (B8).
             StepAction::Kill { mob } => {
                 let targets = named(&mob);
                 let doing = format!("Đánh {mob} ({}/{})", q.progress, step.required);
-                self.quest_fight(targets, doing, 15, now, out)
+                let opcode = if self.is_boss(&mob) { 1178 } else { 15 };
+                self.quest_fight(targets, doing, opcode, now, out)
             }
-            // The boss of s2c/1177 ignores c2s/15; the game challenges it with c2s/1178 (B4).
             StepAction::Damage { mob, amount } => {
                 let targets = named(&mob);
                 let doing = format!("Đánh boss {mob} ({}/{amount} sát thương)", q.progress);

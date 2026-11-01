@@ -18,7 +18,7 @@ Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/b
 | Làm một bước nhiệm vụ bằng gói gì? | Nói chuyện / báo cáo: `c2s/13 (mapId, npcId)`. Diệt quái: đánh trận như [07-auto-battle](07-auto-battle.md), mỗi trận thắng tính 1 con. Server trả `s2c/34` (lời thoại, tiến độ) và `s2c/35` (hoàn thành, phần thưởng). [Đo] |
 | Code TS mô phỏng làm nhiệm vụ chạy được chưa? | **Được, không cần điện thoại.** Bot TS làm xong nhiệm vụ 4, 5, 6, 8 và bước báo cáo của 7, tự đi qua cổng sang M2 và đang làm nhiệm vụ 9. Điện thoại chỉ dùng để bắt gói khi điều tra (B4: gói đánh boss, B5: gói qua cổng). [Đo] |
 | Đánh quái nhanh nhất thế nào? | Trận tính giờ (Sơn Tặc), 0,5 s/nước, dùng Hỏa Cầu Thuật: ~15 s/trận, **~500 EXP/phút**, gấp ~3 lần đánh theo lượt. EXP = 2 × (2 × sao + giọt nước) + phần cộng theo quái; xu = 2 × vàng. Xem [Đánh nhanh hay ăn sao](#đánh-nhanh-hay-ăn-sao). [Đo] |
-| Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`. HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
+| Bước boss làm sao? | Boss đánh bằng `c2s/1178 (mobId, 0)`, không phải `c2s/15`, cả ở bước "Đánh bại <boss>" ([B8](#đánh-bại-boss)). HP boss dùng chung giữa các trận; thua boss không mất EXP; tiến độ là tổng sát thương (`s2c/1201`). Xem [Bước boss](#boss). [Đo] |
 | Sang map khác thế nào? | `c2s/13 (mapId hiện tại, id cổng)`, cùng opcode với nói chuyện NPC. Id cổng lấy ở cuối `s2c/11`. Cổng chưa mở thì server trả `s2c/1256` "Bạn phải đạt cấp N mới vào được X" hoặc "Bạn cần hoàn thành nhiệm vụ trước khi tới đây". Ở cấp 19 chỉ vào được M1, M2, M25. Xem [Đi qua cổng](#cổng) và [Bản đồ đã quét](06-map-mobs.md#atlas). [Đo] |
 | Bước "Tỷ thí với X" làm sao? | Vẫn là `c2s/13 (mapId, npcId)` như nói chuyện, nhưng server không trả `s2c/34` mà trả hộp thoại **`s2c/57`** "Cậu đã sẵn sàng chiến đấu chưa." (0 "Đồng ý", 1 "Từ chối"). Đồng ý là `c2s/57 (0, mapId, npcId)`; server trả **`s2c/1180`** với quái riêng của trận (`mob880`, Võ Quan cấp 20), client thách đấu nó bằng **`c2s/1181 (mobId, 0, npcId)`**, rồi server mở trận. Thắng thì `s2c/34` đưa nhiệm vụ sang bước sau. Bot TS và app Rust làm đủ chuỗi này; bot TS đã thắng Võ Quan ở N4. Xem [Bước Tỷ thí](#tỷ-thí). [Đo N1–N4] |
 | Bước "Trinh sát Thành X" hay "Đến X" làm sao? | Chỉ cần **vào map X**. Bước này không có NPC (`npcId` -1); `thamSố` là thứ tự map trong bản đồ thế giới (3 là M4 "Hồng Giang"). Qua cổng Hồng Giang (1016) từ M25 thì ngay khi vào map server gửi `s2c/34` "Quan sát doanh trại địch…" và nhiệm vụ sang bước sau. Bot TS (N5) và app Rust (manina2) đã làm thật bước này. "Đến Cửu Phong" của nhiệm vụ 19 có `thamSố` 9, và M10 là Cửu Phong: bot coi là cùng loại, kiểm tên map trước khi đi. Xem [Bước Trinh sát](#trinh-sát). [Đo N5; "Đến X" là Suy luận, chưa chạy thật] |
@@ -96,6 +96,7 @@ Khi trả nhiệm vụ 4 (Q2), các gói đến trong 2 ms: `s2c/1187` (vật ph
 | 15 "Giao Tranh Bìa Rừng" | 162 Tướng Quân Lê Viễn (M25) | Đạt cấp 24 → diệt 10 Chim Điên → diệt Hỏa Hầu → báo cáo với Tướng Quân | Chim Điên cấp 25 ở M4 Hồng Giang. wangpt và manina2 đang ở bước này (app Rust, 31/10) |
 | 17 "Giao Tranh Đầu Tiên" | 143 Tiên phong Hồng Giang (M4), 162 Tướng Quân Lê Viễn (M25) | Đạt cấp 28 → diệt 5 Huyết Lang → **đánh bại Tiên phong Hồng Giang** (NPC, hộp thoại rồi trận, [Q17](#đánh-bại-npc)) → báo cáo với Tướng Quân Lê Viễn | wangpt (cấp 37): bot TS thắng Tiên phong ở Q17, nhiệm vụ sang bước báo cáo |
 | 23 "Đột Kích Lạc Cốc" | 162 Tướng Quân Lê Viễn (M25) | Đến vùng đất Lạc Cốc → đạt cấp 43 → diệt Heo Tím → diệt Báo Đốm → báo cáo với Tướng Quân Lê Viễn | symap (Tiheo1, cấp 42) đang ở bước "Đạt cấp độ 43" (R3) |
+| 28 "Chặt Gãy Mũi Giáo" | 162 Tướng Quân Lê Viễn (M25), 109 Tiên phong Bạch Nham (M8) | Đạt cấp 60 → diệt 10 Gà Trống Yêu Tinh → **đánh bại Tiên phong Bạch Nham** (NPC, [Q17](#đánh-bại-npc)) → **đánh bại Tướng Thiết Kích** (boss của M8, `c2s/1178`, [B8](#đánh-bại-boss)) → báo cáo với Tướng Quân Lê Viễn | symap (Tiheo1) kẹt ở bước "Đánh bại Tướng Thiết Kích" ngày 02/11 vì app 0.9.0 gửi `c2s/15` |
 
 Mọi NPC của nhiệm vụ 3–7 đều ở M1 và `c2s/13` với mapId `"M1"` luôn được nhận. Từ nhiệm vụ 8, NPC và quái ở M2 "Trại Vân Sơn": phải [đi qua cổng](#cổng). Bước "Bàn bạc với X" làm như "Nói chuyện với X". Bước "Gây N sát thương lên X" nhắm vào boss của map; boss đến qua `s2c/1177` ngay sau `s2c/43`, mã đổi theo khu (`mob86100001` ở khu 0, `mob86100101` ở khu 1).
 
@@ -168,12 +169,17 @@ Ngày 01/11, app Rust của wangpt dừng ở bước 3 của nhiệm vụ 17 v�
 **Bot xếp loại bước theo `s2c/39` trước, chữ sau** (`stepAction` trong [src/bot/quest.ts](../../../src/bot/quest.ts), `step_action` trong `app/core/src/quest.rs`):
 
 1. `npcId` ≥ 0: bước NPC, dù chữ là "Nói chuyện", "Báo cáo", "Gặp", "Tỷ thí" hay "Đánh bại". Bot gửi `c2s/13` rồi làm theo gói server trả: `s2c/34` là xong; `s2c/57` có "Đồng ý" thì chọn dòng đó, rồi `s2c/1180` là trận đấu ([Bước Tỷ thí](#tỷ-thí)). Hộp thoại không có "Đồng ý" thì bot dừng, không chọn gì.
-2. `npcId` = -1: đọc chữ. "Tiêu diệt/Đánh bại X" là quái tên X; "Gây N sát thương lên X" là boss; "Đạt cấp độ N"; "Nâng điểm tiềm năng"; "Sử dụng điểm kỹ năng"; "Trinh sát Thành X"; "Đến X" hay "Đến vùng đất X".
+2. `npcId` = -1: đọc chữ:
+   - "Tiêu diệt/Đánh bại X" là quái tên X. Nếu X là boss của map thì vẫn thách đấu bằng `c2s/1178` ([B8](#đánh-bại-boss)).
+   - "Gây N sát thương lên X" là boss.
+   - "Đạt cấp độ N", "Nâng điểm tiềm năng", "Sử dụng điểm kỹ năng", "Trinh sát Thành X", "Đến X" hay "Đến vùng đất X".
+
+   Từ 1.000 trở lên, số có dấu chấm ngăn hàng nghìn: "Gây 1.000 sát thương lên Tướng Thiết Hổ" (thamSố 95, cần 1000) của wangpt, 02/11. App 0.9.0 không đọc được số này và dừng ở "Bot chưa biết làm bước". Nay hai bot đọc "1.000" thành 1000. [Đo]
 3. Còn lại: bot dừng và ghi chữ cùng ba số của bước (app: "Bot chưa biết làm bước "…" (thamSố …, cần …, npcId …)"), để thêm loại mới chỉ từ nhật ký.
 
 Bot vẫn tìm quái theo tên, không theo `thamSố`. `mobId` ghép mã loại với số thứ tự không có dấu ngăn: `mob132600` của Huyết Lang (mã 13) cũng bắt đầu bằng `mob1` của Gà Điên. Vì vậy mã loại không tách được chắc chắn.
 
-Test chung TS và Rust: `npm run export:rust` đưa vào `stepActions` mọi bước của mọi `s2c/39` đã bắt (nhiệm vụ 3, 4, 12, 14, 17) và một lần phát lại trận đấu của nhiệm vụ 17 (`questReplays`, [test/fixtures-q17.ts](../../../test/fixtures-q17.ts)). `app/core/tests/parity.rs` kiểm app Rust làm giống hệt.
+Test chung TS và Rust: `npm run export:rust` đưa vào `stepActions` mọi bước của mọi `s2c/39` đã bắt (nhiệm vụ 3, 4, 12, 14, 17, 28), một lần phát lại trận đấu của nhiệm vụ 17 và bước boss của nhiệm vụ 28 (`questReplays`, [test/fixtures-q17.ts](../../../test/fixtures-q17.ts), [test/fixtures-b8.ts](../../../test/fixtures-b8.ts)). `app/core/tests/parity.rs` kiểm app Rust làm giống hệt.
 
 <a id="trinh-sát"></a>
 
@@ -360,6 +366,17 @@ Trận boss (B4, Thủ Lĩnh Sơn Tặc cấp 11, manina cấp 17 với 2 món �
 - Đủ 500 thì server gửi `s2c/34` với lời boss: "Các ngươi nghĩ giết ta là kết thúc sao? Ngoài kia còn nhiều thế lực lớn hơn rất nhiều". Báo cáo Thành Chủ (Q14, bot TS) nhận 1190 kinh nghiệm, 2130 Xu khoá. [Đo]
 - Khi nhân vật còn đứng đè lên boss, app tự gửi lại `c2s/1178` ngay sau mỗi trận, nên trận 3 bắt đầu dù đã xong bước. Tắt app giữa trận không bị trừ EXP (như Q4); để app tự rời trận thì bị trừ. [Đo]
 - Bot TS: bước "Gây N sát thương" gửi `c2s/1178`, đánh tiếp sau khi thua boss, và lấy tiến độ từ `s2c/1201`. Đã có test với gói thật. B6 (bot TS, symap cấp 79) đánh boss thật hai trận: `c2s/1178` từ xa vẫn được nhận, không cần đi tới boss; HP boss dùng chung với người chơi khác; hạ boss thì 13 s sau boss hiện lại đầy HP ([đánh boss](06-map-mobs.md#đánh-boss)).
+<a id="đánh-bại-boss"></a>
+- **Bước "Đánh bại <boss>" (B8, 02/11).** Nhiệm vụ 28 "Chặt Gãy Mũi Giáo" có bước "Đánh bại Tướng Thiết Kích". Đây là bước diệt quái (`npcId` −1, như "Đánh bại Kẻ Gây Rối"), nhưng con quái ấy là boss của M8 Bạch Nham (cấp 65, 80.000 HP, `mob101100007` ở khu 0).
+  - App 0.9.0 coi mọi bước diệt quái là quái thường, nên với symap (Tiheo1) nó gửi `c2s/15` sáu lần. Lần nào server cũng im lặng, và nhật ký ghi "Server không mở trận với Tướng Thiết Kích sau 8 s". Gói tin nằm trong báo lỗi của app (`faults`, 05:36). [Đo]
+  - Bot TS đã sửa (gửi `c2s/1178`), chạy với symap cấp 86: server mở trận ngay. symap thắng 6/6 trận, mỗi trận gây khoảng 81.000 sát thương trong 49–80 s, hạ boss. Mỗi trận được 0 EXP, 0 Xu. [Đo]
+  - **Bước xong chỉ báo bằng `s2c/34`.** Hạ boss lần đầu, server gửi `s2c/34` ("subtask 1", nhiệm vụ 28, không có lời), không có `s2c/1201`. Năm lần hạ sau không có `s2c/34` nào. `s2c/34` này giống hệt gói đến lúc xong bước "Tiêu diệt Gà Trống Yêu Tinh" và bước Tỷ thí ngay trước. Vì vậy bước xong ở lần hạ đầu. [Đo; bước 5 có hiện ở `s2c/39` lần đăng nhập sau không thì chưa xem]
+  - Bản cũ của bot TS chỉ coi `s2c/34` là lời đáp của bước nói chuyện. Nó không thấy bước đã xong nên đánh thêm 5 trận. Mất độ bền đồ, không mất gì khác. [Đo]
+  - **Đã sửa ở bot TS và app Rust:**
+    - Bước diệt quái thách đấu bằng `c2s/1178` khi con quái là boss của map: có trong `s2c/1177`, hoặc atlas ghi nó là boss của map này.
+    - `s2c/34` của nhiệm vụ đang làm, ở bước diệt quái hay gây sát thương, đặt tiến độ thành đủ, nên bước sang bước sau đúng một lần, dù `s2c/1201` có đến hay không.
+
+    Test chạy bằng ba gói thật ở `test/fixtures-b8.ts`.
 - Thao tác bàn cờ trên app qua ADB: vuốt chậm 400 ms, sau khi lượt bắt đầu 3 s. Chạm hai lần hay vuốt nhanh thường bị bỏ qua. [Đo]
 
 **Thử trước đó (B3, Q13).**

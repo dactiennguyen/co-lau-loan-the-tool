@@ -32,8 +32,9 @@ export type StepAction =
 export function stepAction(step: Pick<QuestStep, 'text' | 'npcId' | 'param'>): StepAction {
   if (step.npcId >= 0) return { kind: 'talk', npcId: step.npcId };
   let m: RegExpExecArray | null;
-  if ((m = /^(?:Tiêu diệt|Đánh bại) (?:\d+ )?(.+)$/.exec(step.text))) return { kind: 'kill', mob: m[1] };
-  if ((m = /^Gây (\d+) sát thương lên (.+)$/.exec(step.text))) return { kind: 'damage', mob: m[2], amount: Number(m[1]) };
+  // Numbers have a dot between thousands: "Gây 1.000 sát thương lên Tướng Thiết Hổ" (wangpt, 02/11).
+  if ((m = /^(?:Tiêu diệt|Đánh bại) (?:(?:\d{1,3}(?:\.\d{3})+|\d+) )?(.+)$/.exec(step.text))) return { kind: 'kill', mob: m[1] };
+  if ((m = /^Gây (\d{1,3}(?:\.\d{3})+|\d+) sát thương lên (.+)$/.exec(step.text))) return { kind: 'damage', mob: m[2], amount: Number(m[1].replaceAll('.', '')) };
   if ((m = /^Đạt cấp độ (\d+)$/.exec(step.text))) return { kind: 'level', level: Number(m[1]) };
   if (/^Nâng điểm tiềm năng/.test(step.text)) return { kind: 'stat' };
   if (/^Sử dụng điểm kỹ năng/.test(step.text)) return { kind: 'skill' };
@@ -293,6 +294,13 @@ export class QuestBot implements WorldSession {
         this.log('quest_progress', { questId: p.questId, text: p.text.slice(0, 120) });
         // A talk step is answered by s2c/34 alone (no new s2c/39), so the step is advanced here (L1 capture).
         if (this.awaitingReply && this.quest?.id === p.questId) { this.awaitingReply = false; this.upgrading = undefined; this.advance('server answered'); }
+        // A kill or damage step can be done by s2c/34 alone, with no s2c/1201: "Đánh bại Tướng Thiết Kích" of quest 28 as
+        // the boss falls (B8). Its count is set to reached, so next() moves it on once, whether s2c/1201 came or not.
+        else if (this.quest?.id === p.questId) {
+          const step = this.quest.steps[this.quest.current], action = step && stepAction(step);
+          if (action?.kind === 'kill') this.quest.progress = Math.max(this.quest.progress, step.required);
+          if (action?.kind === 'damage') this.quest.progress = Math.max(this.quest.progress, action.amount);
+        }
         if (this.api && !this.battle) this.later(1500);
         break;
       }
@@ -479,8 +487,9 @@ export class QuestBot implements WorldSession {
     if (action.kind !== 'stat' && this.allot()) return;
     if (this.elsewhere(action, step.text)) return;
     switch (action.kind) {
-      case 'kill': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text);
-      // The boss of s2c/1177 ignores c2s/15; the game challenges it with c2s/1178 (B4).
+      // The boss of s2c/1177 ignores c2s/15; the game challenges it with c2s/1178 (B4). A kill step can name one too:
+      // "Đánh bại Tướng Thiết Kích" of quest 28 (B8).
+      case 'kill': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text, this.isBoss(action.mob) ? 1178 : 15);
       case 'damage': return this.fight(this.mobs.filter(m => m.name === action.mob), step.text, 1178);
       case 'level':
         if (this.level < action.level) return this.fight(this.grindTargets(), `${step.text} (cấp ${this.level})`);
@@ -569,12 +578,17 @@ export class QuestBot implements WorldSession {
    * waited for (6 × 5 s) while it changes tiles, as the atlas or an earlier s2c/1177 puts it in this map. */
   private farm(name: string): void {
     const targets = this.mobs.filter(m => m.name === name);
-    const boss = targets.some(m => this.bosses.has(m.id)) || !!this.atlas.maps[this.mapId]?.bosses.some(b => b.name === name);
+    const boss = this.isBoss(name);
     if (!targets.length && boss && this.waits < 6) {
       this.waits++; this.log('waiting_for_mob', { mob: name, wait: this.waits });
       return this.later(5000);
     }
     return this.fight(targets, `farm ${name}`, boss ? 1178 : 15);
+  }
+
+  /** A boss of this map: one of s2c/1177 by that name, or one the atlas puts here (it may be changing tiles). */
+  private isBoss(name: string) {
+    return this.mobs.some(m => m.name === name && this.bosses.has(m.id)) || !!this.atlas.maps[this.mapId]?.bosses.some(b => b.name === name);
   }
 
   /** True when the mob or NPC of the step is not in this map and the bot waits for it or travels. */
