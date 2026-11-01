@@ -1,3 +1,4 @@
+@layer legacy {
 /* Below the menus (Menu.css), over the page; only the toasts take the pointer. */
 .toaster {
   position: fixed;
@@ -8,4 +9,5 @@
   justify-items: end;
   gap: var(--space-2);
   pointer-events: none;
+}
 }

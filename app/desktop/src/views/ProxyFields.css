@@ -1,3 +1,4 @@
+@layer legacy {
 /* The proxy of the account form: a switch row, then (on) a dark plate with the paste field, the kind, the address and
    the check; off, one line on what the account does instead. */
 .proxy { display: grid; gap: var(--space-3); margin: 0; padding: 0; border: 0; min-width: 0; min-inline-size: 0; }
@@ -85,3 +86,4 @@
 .proxy__result { display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-size: 11px; line-height: 1.4; color: var(--fg-3); overflow-wrap: anywhere; }
 .proxy__result--ok { color: var(--good); font-weight: 600; }
 .proxy__result--fail { color: var(--danger); }
+}

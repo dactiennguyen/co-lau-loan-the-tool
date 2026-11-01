@@ -1,3 +1,4 @@
+@layer legacy {
 .avatar {
   position: relative;
   flex: none;
@@ -24,4 +25,5 @@
   min-width: 8px;
   min-height: 8px;
   border: 2px solid var(--ink);
+}
 }

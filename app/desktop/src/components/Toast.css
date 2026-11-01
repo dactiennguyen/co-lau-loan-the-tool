@@ -1,3 +1,4 @@
+@layer legacy {
 .toast {
   --tone: var(--s-fighting);
   display: flex;
@@ -31,4 +32,5 @@
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(18px); }
+}
 }

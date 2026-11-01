@@ -1,3 +1,4 @@
+@layer legacy {
 .sidebar {
   position: relative;
   display: flex;
@@ -41,4 +42,5 @@
   color: var(--danger);
   font-size: 11px;
   overflow-wrap: anywhere;
+}
 }

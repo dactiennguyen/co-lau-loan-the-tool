@@ -1,3 +1,4 @@
+@layer legacy {
 /* Kỹ năng, a modal as tall as what it holds: the bar (learnt, Tự cộng) over the tree (the game's background, 288 × 347,
    with the icons in its boxes; SkillsModal shrinks it when the window is short) beside the detail panel, at least 240 px
    wide. The form stops at its max-height and the body scrolls; a narrow window puts the panel under the tree. */
@@ -100,4 +101,5 @@
 @container (max-width: 420px) {
   .sk__body { grid-template-columns: minmax(0, 1fr); }
   .sk__tree { justify-self: center; }
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 /* A timed effect beside the element tag of the hero card: in the colour of EXP, its time left in pixel digits. */
 .boost {
   display: inline-flex;
@@ -13,3 +14,4 @@
   white-space: nowrap;
 }
 .boost time { font-size: 10px; font-weight: 600; color: var(--fg-2); }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 /* Labels never wrap: a narrow bar drops the icons and some padding, and scrolls sideways when still too narrow. */
 .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; container-type: inline-size; }
 .tabs button {
@@ -31,3 +32,4 @@
 .tabs__busy { width: 6px; height: 6px; background: var(--s-fighting); animation: pill-blink 1s steps(2, jump-none) infinite; }
 /* The panel holds one card and passes its row on to it: the card shrinks with the window and scrolls inside. */
 .tabs__panel { display: grid; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+}

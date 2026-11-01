@@ -1,3 +1,5 @@
+// The theme and the utilities; the order of the layers is set in index.html.
+import "./styles/tailwind.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";

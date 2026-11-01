@@ -1,3 +1,4 @@
+@layer legacy {
 .btn {
   display: inline-flex;
   align-items: center;
@@ -31,3 +32,4 @@
 .btn--ghost:not(:disabled):hover { background: var(--card-2); color: var(--fg); filter: none; }
 .btn--danger { background: var(--accent-deep); color: var(--fg); box-shadow: inset -2px -2px 0 #6a3533; }
 .btn--glass { background: var(--bg-2); color: var(--fg); }
+}

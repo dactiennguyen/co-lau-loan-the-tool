@@ -1,3 +1,4 @@
+@layer legacy {
 /* Segmented bar: 6 px blocks with 2 px gaps on a dark well. */
 .bar { height: 10px; padding: 2px; background: var(--ink); }
 .bar--thin { height: 8px; }
@@ -5,4 +6,5 @@
   height: 100%;
   background: repeating-linear-gradient(90deg, var(--fill, var(--primary)) 0 6px, transparent 6px 8px);
   transition: width var(--slow) var(--step);
+}
 }

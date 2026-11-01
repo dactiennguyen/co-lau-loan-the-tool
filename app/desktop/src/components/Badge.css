@@ -1,3 +1,4 @@
+@layer legacy {
 /* A pixel tag: tone background, dark text; its text is ASCII (LV 21, BOSS) in the pixel face. */
 .badge {
   display: inline-flex;
@@ -9,4 +10,5 @@
   font: 400 11px/1 var(--font-pixel);
   white-space: nowrap;
   box-shadow: inset -2px -2px 0 rgb(0 0 0 / 0.25);
+}
 }

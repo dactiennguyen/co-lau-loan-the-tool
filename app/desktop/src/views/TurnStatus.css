@@ -1,3 +1,4 @@
+@layer legacy {
 /* The latest result of a battle, under its line in the log: a stripe of the side that moved, the move's number, the
    move in words with the pieces as coloured chips, then both sides' HP on the right (own green, the mob's red, as the
    stripe). */
@@ -81,4 +82,5 @@
 @keyframes turn-blink {
   from { opacity: 1; }
   to { opacity: 0.25; }
+}
 }

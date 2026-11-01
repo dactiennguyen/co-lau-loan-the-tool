@@ -1,3 +1,4 @@
+@layer legacy {
 .tile {
   display: flex;
   gap: var(--space-4);
@@ -32,3 +33,4 @@
 }
 .stat__value small { font: 600 12px/1 var(--font-ui); color: var(--fg-3); }
 .stat__caption { font-size: 11px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}

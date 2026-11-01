@@ -1,3 +1,4 @@
+@layer legacy {
 .fight__grid { display: grid; grid-template-columns: minmax(0, 1fr) 208px; gap: var(--space-3); }
 .targets {
   list-style: none;
@@ -52,4 +53,5 @@
   .fight__controls { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-4); }
   .fight__row { justify-content: flex-start; }
   .fight__label { min-width: 72px; }
+}
 }

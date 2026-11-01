@@ -1,3 +1,4 @@
+@layer legacy {
 /* The three ways to spend potential points, as radio rows: a dark plate each, the chosen one with a gold stripe. */
 .plan-opts { display: grid; gap: 6px; }
 .plan-opt {
@@ -22,3 +23,4 @@
 .plan-weights { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
 .plan-weights li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .plan-weights li > span { font-size: 12px; font-weight: 600; color: var(--fg-2); white-space: nowrap; }
+}

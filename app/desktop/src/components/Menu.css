@@ -1,3 +1,4 @@
+@layer legacy {
 /* Context menu: a pixel panel over everything, one row per item. */
 .menu {
   position: fixed;
@@ -32,3 +33,4 @@
 .menu__item:disabled { cursor: default; color: var(--fg-3); }
 .menu__item--danger:not(:disabled), .menu__item--danger:not(:disabled) svg { color: var(--danger); }
 .menu__sep { height: 2px; margin: 4px 2px; background: var(--line); }
+}

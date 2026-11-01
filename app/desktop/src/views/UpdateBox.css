@@ -1,3 +1,4 @@
+@layer legacy {
 /* The version and its check button: one quiet line, the reason of a failed check under it. */
 .upd-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-1); min-height: 26px; font-size: 11px; color: var(--fg-3); }
 .upd-line__text { flex: 1; min-width: 0; }
@@ -38,3 +39,4 @@
 .upd__notes { max-height: 150px; padding-right: 4px; font-size: 11px; line-height: 1.45; color: var(--fg-2); }
 .upd__notes p { margin: 0 0 4px; }
 .upd__error { color: var(--danger); font-size: 11px; overflow-wrap: anywhere; }
+}

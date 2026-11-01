@@ -1,3 +1,4 @@
+@layer legacy {
 /* Thống kê, a large modal: the filters and the sub-tabs stay, the body scrolls. A fixed height, so the sub-tabs do not
    make it jump. Inside a part, a column of blocks that keep their height. */
 .dialog.statsmodal { width: min(1120px, 95vw); height: min(860px, 94vh); max-width: none; max-height: none; }
@@ -115,4 +116,5 @@
   .bstats__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bstats__list li { grid-template-columns: 74px minmax(0, 1fr) 56px; }
   .bstats__where, .bstats__facts { grid-column: 2 / -1; }
+}
 }

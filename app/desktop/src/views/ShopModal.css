@@ -1,3 +1,4 @@
+@layer legacy {
 /* Tiện ích: a large modal. The top (money, where, the work of Pháp sư) and the sub-tabs stay; the body scrolls. */
 .dialog.shopmodal { width: min(1180px, 96vw); height: min(880px, 94vh); max-width: none; max-height: none; }
 .shopmodal form { height: 100%; box-sizing: border-box; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
@@ -142,3 +143,4 @@
 .smerge__plan { display: grid; gap: 6px; }
 /* A worn item in the list of Nâng cấp. */
 .sline__worn { display: block; font-size: 10.5px; font-weight: 600; color: var(--primary); }
+}

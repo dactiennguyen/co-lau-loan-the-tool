@@ -1,3 +1,4 @@
+@layer legacy {
 /* A small coloured chip that fits a summary row of 11–12 px text without making it taller. */
 .details {
   display: inline-flex;
@@ -17,3 +18,4 @@
 .details:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 .details__chev { transition: transform var(--fast) steps(2); }
 .details__chev--open { transform: rotate(180deg); }
+}

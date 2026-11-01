@@ -1,3 +1,4 @@
+@layer legacy {
 /* Page-wide defaults; layout lives in App.css and each view's CSS. */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -38,4 +39,5 @@ h1, h2, p { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
 }

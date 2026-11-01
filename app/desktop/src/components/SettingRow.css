@@ -1,3 +1,4 @@
+@layer legacy {
 /* One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it, Bật/Tắt; the card
    or dialog stacks them. A setting that is on gets a green edge, as the proxy of the account form does. */
 .setting { display: grid; background: var(--ink); container-type: inline-size; }
@@ -57,3 +58,4 @@
 .setting__fact b { font-size: 13px; color: var(--points); }
 .setting__fact--bad { color: var(--danger); }
 .setting__fact--bad svg { color: var(--danger); }
+}

@@ -88,10 +88,7 @@
   --space-5: 16px;
   --space-6: 20px;
 
-  --font-ui: "Be Vietnam Pro", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --font-display: "Be Vietnam Pro", var(--font-ui);
-  --font-pixel: "Silkscreen", ui-monospace, Menlo, monospace;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  /* The faces (--font-ui, --font-display, --font-pixel, --font-mono) are in the theme of tailwind.css. */
 
   /* Motion in steps, as sprites move. */
   --step: steps(3, end);

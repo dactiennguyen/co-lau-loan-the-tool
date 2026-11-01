@@ -1,2 +1,4 @@
+@layer legacy {
 .elapsed { display: inline-flex; align-items: center; gap: 3px; color: var(--fg-2); vertical-align: -1px; }
 .elapsed time { font-size: 10.5px; }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 /* Đổi khu / map: the zones of the map as the game's Khu vực panel (number, players of 20, red when crowded), scrolling
    within the dialog; then one row per map with the portals to take. */
 .dialog.place { width: 520px; }
@@ -45,3 +46,4 @@
 .place__name b { font-size: 13px; color: var(--fg); }
 .place__name small { font-size: 11px; color: var(--fg-3); }
 .place__way { font-size: 11px; color: var(--fg-2); white-space: nowrap; }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 /* Túi đồ: the gear (two columns of slots around the character) beside the bag grid, then the shown item. Narrow cards
    put the bag under the gear. */
 .inv .card__body { display: grid; align-content: start; gap: var(--space-3); container-type: inline-size; overflow: auto; }
@@ -33,3 +34,4 @@
 .inv__why { font-size: 11px; color: var(--danger); text-align: right; }
 .inv__ask { font-size: 11px; color: var(--fg); text-align: right; }
 .inv__hint { max-width: 160px; font-size: 11px; color: var(--fg-3); text-align: right; }
+}

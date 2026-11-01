@@ -1,3 +1,4 @@
+@layer legacy {
 .count {
   min-width: 26px;
   height: 22px;
@@ -14,3 +15,4 @@
 .players li:hover { background: var(--card-2); }
 .players__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .players__empty { margin: 0; color: var(--fg-3); font-size: 12px; }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 .acard {
   position: relative;
   display: flex;
@@ -40,3 +41,4 @@
 .acard__bottom { display: flex; align-items: center; gap: var(--space-2); margin-top: 2px; }
 .acard__hp { flex: 1; min-width: 24px; }
 .acard__people { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--fg-3); }
+}

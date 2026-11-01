@@ -1,3 +1,4 @@
+@layer legacy {
 /* Cài đặt of the app: the tabs Server game and Dữ liệu trận over one panel. Both pages sit in the same grid cell, the
    hidden one invisible, so the dialog is as tall as the taller page and does not jump when the tab changes. */
 .dialog.app-settings { width: min(560px, 92vw); }
@@ -16,3 +17,4 @@
 .app-settings__export p.app-settings__done { color: var(--good); }
 .app-settings__export p.app-settings__done b { color: var(--fg); font-weight: 700; }
 .app-settings__export p.app-settings__fail { color: var(--danger); }
+}

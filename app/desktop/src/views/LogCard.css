@@ -1,3 +1,4 @@
+@layer legacy {
 .log__aside { display: flex; align-items: center; gap: 8px; }
 .log__count { font-size: 11px; color: var(--fg-3); white-space: nowrap; }
 /* The kinds, then "Chỉ lỗi" after a rule; they wrap on a narrow card. */
@@ -47,3 +48,4 @@
 }
 .log__more button:hover:not(:disabled) { border-color: var(--exp); color: var(--fg); }
 .log__more button:disabled { cursor: default; opacity: 0.6; }
+}

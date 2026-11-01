@@ -1,3 +1,4 @@
+@layer legacy {
 /* A square of the bag or the gear: a dark well, the 96 × 96 icon drawn smaller, the quantity bottom right, the element
    top left, cường hoá top right. Worn-out gear gets a red tint; the shown item a gold ring. Element colours: Hỏa red, Lôi yellow, Thủy blue. */
 .slot {
@@ -49,4 +50,4 @@ button.slot:hover { border-color: var(--line-strong); background: var(--bg-2); }
 .slot__wear { position: absolute; left: 3px; right: 3px; bottom: 2px; height: 3px; background: var(--bg-2); }
 .slot__wear span { display: block; height: 100%; background: var(--good); }
 .slot--broken .slot__wear { background: var(--hp); }
-
+}

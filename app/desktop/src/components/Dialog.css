@@ -1,3 +1,4 @@
+@layer legacy {
 .dialog {
   width: 400px;
   padding: 0;
@@ -16,3 +17,4 @@
 .dialog__note { margin: 0; padding: 8px 10px; background: var(--ink); font-size: 11px; color: var(--fg-2); }
 .dialog__error { margin: 0; font-size: 11px; color: var(--danger); }
 .dialog footer { display: flex; justify-content: flex-end; gap: var(--space-2); }
+}

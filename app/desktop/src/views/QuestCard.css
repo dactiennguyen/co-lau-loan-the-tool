@@ -1,3 +1,4 @@
+@layer legacy {
 .quest { --frame: var(--primary); }
 .quest__step { font-size: 13px; color: var(--primary); }
 /* Takes what the card has left and scrolls when the window is short. */
@@ -40,3 +41,4 @@
 .quest__losses { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: auto; font-size: 11px; font-weight: 700; color: var(--fg-2); }
 .quest__hint { margin: 0; font-size: 10.5px; color: var(--fg-3); }
 .quest__hint--busy { color: var(--primary); }
+}

@@ -1,0 +1,103 @@
+/* Tailwind CSS v4: the theme of the app ("Pixel RPG", tokens.css) as utilities. The layers, lowest first (index.html
+   declares them before any stylesheet loads): Tailwind's @property fallbacks and theme variables, `base` kept for
+   Tailwind's reset, the stylesheets not moved to utilities yet, base.css included (`legacy`: among them the cascade
+   is the one they always had), the utilities. So a utility always wins over a stylesheet rule, whatever its
+   specificity. Only the classes found in the .ts and .tsx files of src/ are generated. */
+@layer properties, theme, base, legacy, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../**/*.{ts,tsx}";
+
+/* Windows and Linux keep a native title bar: the strips that drag the window hide there (not-mac:hidden). */
+@custom-variant not-mac (:root:not([data-os="mac"]) &);
+
+/* The faces: Silkscreen (pixel, no Vietnamese marks) only for numbers and ASCII labels, Be Vietnam Pro for the rest.
+   Static: the stylesheets not moved yet read them as var(--font-ui)… too. */
+@theme static {
+  --font-*: initial;
+  --font-ui: "Be Vietnam Pro", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Be Vietnam Pro", var(--font-ui);
+  --font-pixel: "Silkscreen", ui-monospace, Menlo, monospace;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* tokens.css holds the values; these names make utilities of them: bg-card, text-fg-2, border-line, font-pixel… The
+   palette of Tailwind is dropped, so only the app's colours exist. */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-muted: var(--muted);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-primary: var(--primary);
+  --color-primary-shade: var(--primary-shade);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-good: var(--good);
+  --color-good-shade: var(--good-shade);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-hp: var(--hp);
+  --color-exp: var(--exp);
+  --color-coin: var(--coin);
+  --color-points: var(--points);
+  --color-s-offline: var(--s-offline);
+  --color-s-connecting: var(--s-connecting);
+  --color-s-online: var(--s-online);
+  --color-s-fighting: var(--s-fighting);
+  --color-s-error: var(--s-error);
+  --color-c-attack: var(--c-attack);
+  --color-c-defence: var(--c-defence);
+  --color-c-accuracy: var(--c-accuracy);
+  --color-c-dodge: var(--c-dodge);
+  --color-c-critical: var(--c-critical);
+  --color-piece-sword: var(--piece-sword);
+  --color-piece-heart: var(--piece-heart);
+  --color-piece-yinyang: var(--piece-yinyang);
+  --color-piece-peach: var(--piece-peach);
+  --color-piece-drop: var(--piece-drop);
+  --color-piece-star: var(--piece-star);
+  --color-piece-gold: var(--piece-gold);
+
+  /* The sizes the app uses, font-size only (the line height stays inherited): text-11 is 11px. Halves are written
+     text-[11.5px]. */
+  --text-*: initial;
+  --text-9: 9px;
+  --text-10: 10px;
+  --text-11: 11px;
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-16: 16px;
+  --text-18: 18px;
+  --text-20: 20px;
+
+  --ease-step: var(--step);
+}
+
+/* The pixel frame: the corners cut by a clip, and the bevel shading the lower right inside. */
+@utility notch {
+  clip-path: var(--notch);
+}
+@utility notch-sm {
+  clip-path: var(--notch-sm);
+}
+@utility bevel {
+  box-shadow: var(--bevel);
+}
+@utility bevel-sm {
+  box-shadow: var(--bevel-sm);
+}

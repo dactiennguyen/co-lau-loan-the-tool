@@ -1,3 +1,4 @@
+@layer legacy {
 /* A square "?" in the pixel frame, quieter than the text beside it until pointed at. */
 .hint {
   flex: none;
@@ -41,4 +42,5 @@
 .hint__bubble.is-open { visibility: visible; opacity: 1; pointer-events: auto; transition: opacity 120ms steps(2, jump-none); }
 @media (prefers-reduced-motion: reduce) {
   .hint__bubble.is-open { transition: none; }
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 /* A filter toggle: outlined in its tone, filled when on. */
 .fchip {
   --fchip: var(--primary);
@@ -13,3 +14,4 @@
 .fchip:hover { border-color: var(--fchip); color: var(--fg); }
 .fchip:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 .fchip--on { background: var(--fchip); border-color: var(--fchip); color: var(--ink); }
+}

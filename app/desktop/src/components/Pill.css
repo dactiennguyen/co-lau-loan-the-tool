@@ -1,3 +1,4 @@
+@layer legacy {
 /* Status: a square light and the text, in the status colour on a dark plate. */
 .pill {
   display: inline-flex;
@@ -15,4 +16,5 @@
 @keyframes pill-blink {
   from { opacity: 1; }
   to { opacity: 0.25; }
+}
 }

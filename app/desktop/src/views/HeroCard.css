@@ -1,3 +1,4 @@
+@layer legacy {
 .hero {
   position: relative;
   display: grid;
@@ -74,3 +75,4 @@
 .hero__map { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .hero__map .btn.btn--icon { flex: none; width: 22px; height: 22px; }
 .hero__moving { color: var(--primary); }
+}

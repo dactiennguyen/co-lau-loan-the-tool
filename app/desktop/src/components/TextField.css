@@ -1,3 +1,4 @@
+@layer legacy {
 .field { display: grid; gap: 5px; }
 .field label { font-size: 11px; font-weight: 700; color: var(--fg-2); }
 .field input {
@@ -14,3 +15,4 @@
 .field input::placeholder { color: var(--fg-3); }
 .field input:focus { border-color: var(--ring); }
 .field small { font-size: 10px; color: var(--fg-3); }
+}
