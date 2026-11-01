@@ -3002,6 +3002,132 @@
    "npcId": -1,
    "param": 0,
    "action": { "kind": "unknown" }
+  },
+  {
+   "text": "Đạt cấp độ 2",
+   "npcId": -1,
+   "param": 2,
+   "action": { "kind": "level", "level": 2 }
+  },
+  {
+   "text": "Nói chuyện với Hương Lão Trần Bá",
+   "npcId": 102,
+   "param": 102,
+   "action": { "kind": "talk", "npcId": 102 }
+  },
+  {
+   "text": "Nâng điểm tiềm năng",
+   "npcId": -1,
+   "param": 0,
+   "action": { "kind": "stat" }
+  },
+  {
+   "text": "Sử dụng điểm kỹ năng",
+   "npcId": -1,
+   "param": 0,
+   "action": { "kind": "skill" }
+  },
+  {
+   "text": "Tiêu diệt Gà Điên",
+   "npcId": -1,
+   "param": 0,
+   "action": { "kind": "kill", "mob": "Gà Điên" }
+  },
+  {
+   "text": "Báo cáo với Hương Lão Trần Bá",
+   "npcId": 102,
+   "param": 102,
+   "action": { "kind": "talk", "npcId": 102 }
+  },
+  {
+   "text": "Đạt cấp độ 4",
+   "npcId": -1,
+   "param": 4,
+   "action": { "kind": "level", "level": 4 }
+  },
+  {
+   "text": "Nói chuyện với Bà Tư Hạnh",
+   "npcId": 103,
+   "param": 103,
+   "action": { "kind": "talk", "npcId": 103 }
+  },
+  {
+   "text": "Tiêu diệt Heo Mọi",
+   "npcId": -1,
+   "param": 1,
+   "action": { "kind": "kill", "mob": "Heo Mọi" }
+  },
+  {
+   "text": "Báo cáo với Bà Tư Hạnh",
+   "npcId": 103,
+   "param": 103,
+   "action": { "kind": "talk", "npcId": 103 }
+  },
+  {
+   "text": "Đạt cấp độ 18",
+   "npcId": -1,
+   "param": 18,
+   "action": { "kind": "level", "level": 18 }
+  },
+  {
+   "text": "Gặp Trại Chủ Phạm Hùng",
+   "npcId": 127,
+   "param": 127,
+   "action": { "kind": "talk", "npcId": 127 }
+  },
+  {
+   "text": "Tỷ thí với Võ Quan Đinh Mộc",
+   "npcId": 141,
+   "param": 87,
+   "action": { "kind": "talk", "npcId": 141 }
+  },
+  {
+   "text": "Báo cáo với Trại Chủ Phạm Hùng",
+   "npcId": 127,
+   "param": 127,
+   "action": { "kind": "talk", "npcId": 127 }
+  },
+  {
+   "text": "Gặp Tướng Quân Lê Viễn (đường đi: Vân Sơn - Rìa Hồng Giang)",
+   "npcId": 162,
+   "param": 162,
+   "action": { "kind": "talk", "npcId": 162 }
+  },
+  {
+   "text": "Trinh sát Thành Hồng Giang",
+   "npcId": -1,
+   "param": 3,
+   "action": { "kind": "visit", "place": "Hồng Giang", "mapId": "M4" }
+  },
+  {
+   "text": "Báo cáo với Tướng Quân Lê Viễn",
+   "npcId": 162,
+   "param": 162,
+   "action": { "kind": "talk", "npcId": 162 }
+  },
+  {
+   "text": "Đạt cấp độ 28",
+   "npcId": -1,
+   "param": 28,
+   "action": { "kind": "level", "level": 28 }
+  },
+  {
+   "text": "Tiêu diệt Huyết Lang",
+   "npcId": -1,
+   "param": 12,
+   "action": { "kind": "kill", "mob": "Huyết Lang" }
+  },
+  {
+   "text": "Đánh bại Tiên phong Hồng Giang",
+   "npcId": 143,
+   "param": 90,
+   "action": { "kind": "talk", "npcId": 143 }
+  },
+  {
+   "text": "Báo cáo với Tướng Quân Lê Viễn",
+   "npcId": 162,
+   "param": 162,
+   "action": { "kind": "talk", "npcId": 162 }
   }
  ],
  "atlas": {
@@ -4574,6 +4700,68 @@
      "sent": [],
      "stopped": true,
      "current": 4
+    }
+   ],
+   "portals": {}
+  },
+  {
+   "name": "an NPC to defeat: its dialog, Đồng ý, the duel of s2c/1180, then s2c/34",
+   "atlas": null,
+   "steps": [
+    {
+     "packet": [ 11, "01000000024d340000000c48e1bb936e67204769616e6700000000400000014000000000000000010000000100000000000000000000000000000001000000000000000000000002000004000000001152c3ac612048e1bb936e67204769616e6700000000000000000000000020000000200000000000000000000000008f000000185469c3aa6e2070686f6e672048e1bb936e67204769616e670200000000000000000000002000000020000000000000000000000000000000000000000000" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 43, "000000024d3403000000096d6f623133323630300000000c487579e1babf74204c616e670000002800000000060000000100" ],
+     "sent": [],
+     "stopped": false,
+     "current": null
+    },
+    {
+     "packet": [ 39, "00000011000000174769616f205472616e6820c490e1baa775205469c3aa6e000000845175c3a26e207469c3aa6e2070686f6e672063e1bba76120c491e1bb9169207068c6b0c6a16e6720c491c3a3207875e1baa574206869e1bb876e2e20c490c3a279206cc3a0207472e1baad6e20c491c3a16e68207468e1bbb1632073e1bbb120c491e1baa775207469c3aa6e206769e1bbaf6120686169207468e1babf206ce1bbb1632e000000046d61696e0000000200000000000000040000000000000015c490e1baa1742063e1baa57020c491e1bb992032380000001c00000001ffffffff00000001000000195469c3aa75206469e1bb877420487579e1babf74204c616e670000000c00000005ffffffff0000000200000025c490c3a16e682062e1baa169205469c3aa6e2070686f6e672048e1bb936e67204769616e670000005a000000010000008f000000030000002942c3a16f2063c3a16f2076e1bb9b692054c6b0e1bb9b6e67205175c3a26e204cc3aa205669e1bb856e000000a200000001000000a2" ],
+     "sent": [],
+     "stopped": false,
+     "current": 2
+    },
+    {
+     "start": true,
+     "once": true,
+     "sent": [
+      [ 13, "000000024d340000008f" ]
+     ],
+     "stopped": false,
+     "current": 2
+    },
+    {
+     "packet": [ 57, "00000002000000185469c3aa6e2070686f6e672048e1bb936e67204769616e670000002454e1bb9b6920c491c3a27920636869e1babf6e20c491e1baa5752076e1bb9b692074612e000000000ac490e1bb936e6720c3bd010000000b54e1bbab206368e1bb9169" ],
+     "sent": [
+      [ 57, "00000000024d340000008f" ]
+     ],
+     "stopped": false,
+     "current": 2
+    },
+    {
+     "packet": [ 1180, "000000024d340000008f000000066d6f62393130000000185469c3aa6e2070686f6e672048e1bb936e67204769616e670000001c020000000600000001000200000001" ],
+     "sent": [
+      [ 1181, "000000066d6f62393130000000000000008f" ]
+     ],
+     "stopped": false,
+     "current": 2
+    },
+    {
+     "packet": [ 34, "00000000000000097375627461736b2031000000110000002d48e1bb936e67204769616e672073e1babd206e676869e1bb816e206ec3a1742063c3a163206e67c6b0c6a1692e" ],
+     "sent": [],
+     "stopped": false,
+     "current": 3
+    },
+    {
+     "next": true,
+     "sent": [],
+     "stopped": true,
+     "current": 3
     }
    ],
    "portals": {}

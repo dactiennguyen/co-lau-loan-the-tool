@@ -1,5 +1,7 @@
-//! What a quest step asks for, read from its text: stepAction of src/bot/quest.ts (the steps of quests 3–9 in
-//! docs/app/events/10-quests.md). The bot plays the step in bot/quest.rs.
+//! What a quest step asks for: stepAction of src/bot/quest.ts (docs/app/events/10-quests.md#s2c-39). The fields of s2c/39
+//! decide first: a step with an npcId is played at that NPC whatever its words ("Nói chuyện với", "Tỷ thí với", "Đánh bại
+//! Tiên phong Hồng Giang" of quest 17, Q17); only the steps without one are read from their text. The bot plays the step
+//! in bot/quest.rs.
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -29,7 +31,7 @@ pub enum StepAction {
         #[serde(rename = "mapId")]
         map_id: String,
     },
-    /// "Nói chuyện với X", "Báo cáo với X": any other step that names an NPC.
+    /// Any step with an npcId: talk, report, or fight the NPC through its dialog (Đồng ý, then the duel of s2c/1180).
     Talk {
         #[serde(rename = "npcId")]
         npc_id: i32,
@@ -64,6 +66,9 @@ fn number(text: &str) -> Option<i32> {
 }
 
 pub fn step_action(text: &str, npc_id: i32, param: i32) -> StepAction {
+    if npc_id >= 0 {
+        return StepAction::Talk { npc_id };
+    }
     for verb in ["Tiêu diệt ", "Đánh bại "] {
         if let Some(rest) = text.strip_prefix(verb).filter(|r| !r.is_empty()) {
             return StepAction::Kill {
@@ -96,16 +101,12 @@ pub fn step_action(text: &str, npc_id: i32, param: i32) -> StepAction {
             .strip_prefix("Thành ")
             .filter(|p| !p.is_empty())
             .unwrap_or(rest);
-        if !place.is_empty() && npc_id < 0 && param >= 0 {
+        if !place.is_empty() && param >= 0 {
             return StepAction::Visit {
                 place: place.into(),
                 map_id: format!("M{}", param + 1),
             };
         }
     }
-    if npc_id >= 0 {
-        StepAction::Talk { npc_id }
-    } else {
-        StepAction::Unknown
-    }
+    StepAction::Unknown
 }

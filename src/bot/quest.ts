@@ -15,7 +15,10 @@ import { BattleRecorder } from './battle-record.ts';
 import { DAILY_DONE, DAILY_PROGRESS, dailyQuest, dailyText } from '../protocol/mail.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
-/** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
+/** What a quest step asks for (10-quests.md#s2c-39). The fields of s2c/39 decide first: a step with an npcId is played at
+ * that NPC, whatever its words ("Nói chuyện với", "Báo cáo với", "Tỷ thí với", "Đánh bại Tiên phong Hồng Giang" of quest
+ * 17, Q17); its c2s/13 is answered by s2c/34, or by a dialog whose Đồng ý opens a duel (s2c/1180). Only the steps without
+ * one are read from their text. */
 export type StepAction =
   | { kind: 'kill'; mob: string }                   // "Tiêu diệt Heo Mọi", "Tiêu diệt 1 Sói Xám", "Đánh bại Kẻ Gây Rối": each won battle counts 1
   | { kind: 'damage'; mob: string; amount: number } // "Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc": damage to a boss of s2c/1177, won or lost
@@ -23,19 +26,23 @@ export type StepAction =
   | { kind: 'stat' }                                // "Nâng điểm tiềm năng"
   | { kind: 'skill' }                               // "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191)
   | { kind: 'visit'; place: string; mapId: string } // "Trinh sát Thành Hồng Giang" (param 3): walk into map M4, the param + 1 (N5)
-  | { kind: 'talk'; npcId: number }                 // "Nói chuyện với X", "Báo cáo với X": any other step that names an NPC
+  | { kind: 'talk'; npcId: number }                 // any step with an npcId: talk, report, or fight the NPC through its dialog
   | { kind: 'unknown' };
 
 export function stepAction(step: Pick<QuestStep, 'text' | 'npcId' | 'param'>): StepAction {
+  if (step.npcId >= 0) return { kind: 'talk', npcId: step.npcId };
   let m: RegExpExecArray | null;
   if ((m = /^(?:Tiêu diệt|Đánh bại) (?:\d+ )?(.+)$/.exec(step.text))) return { kind: 'kill', mob: m[1] };
   if ((m = /^Gây (\d+) sát thương lên (.+)$/.exec(step.text))) return { kind: 'damage', mob: m[2], amount: Number(m[1]) };
   if ((m = /^Đạt cấp độ (\d+)$/.exec(step.text))) return { kind: 'level', level: Number(m[1]) };
   if (/^Nâng điểm tiềm năng/.test(step.text)) return { kind: 'stat' };
   if (/^Sử dụng điểm kỹ năng/.test(step.text)) return { kind: 'skill' };
-  if ((m = /^Trinh sát (?:Thành )?(.+)$/.exec(step.text)) && step.npcId < 0 && step.param >= 0) return { kind: 'visit', place: m[1], mapId: `M${step.param + 1}` };
-  return step.npcId >= 0 ? { kind: 'talk', npcId: step.npcId } : { kind: 'unknown' };
+  if ((m = /^Trinh sát (?:Thành )?(.+)$/.exec(step.text)) && step.param >= 0) return { kind: 'visit', place: m[1], mapId: `M${step.param + 1}` };
+  return { kind: 'unknown' };
 }
+
+/** A step as s2c/39 has it, for the reason of a stop: the words and the three numbers that decide what it is. */
+export const rawStep = (s: QuestStep) => ({ step: s.text, param: s.param, required: s.required, npcId: s.npcId });
 
 /** --stats: "auto", or stat keys of POTENTIALS with an optional weight, "than" or "cuong:3,than:1"; the weights come out
  * by c2s/10 index. */
@@ -487,7 +494,7 @@ export class QuestBot implements WorldSession {
       case 'talk':
         this.log('talk', { step: step.text, mapId: this.mapId, npcId: action.npcId });
         return this.ask(13, buildRequest(13, { mapId: this.mapId, npcId: action.npcId }), 'npc did not answer', { npcId: action.npcId });
-      default: return this.stop('step needs an action this bot does not know', { step: step.text });
+      default: return this.stop('step needs an action this bot does not know', rawStep(step));
     }
   }
 

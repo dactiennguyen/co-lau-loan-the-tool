@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { q17Packets } from './fixtures-q17.ts';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { Reader, Writer, characterSkills } from '../src/protocol/protocol.ts';
@@ -44,11 +45,13 @@ test('ranking s2c/1254: tab list, top 100 with the own rank, faction tab', () =>
   assert.deepEqual([factions.rows.map((r: any) => r.name), factions.own.rank], [['Thiên Tôn', 'WATER7', 'CỜ LAU', 'ALIBABA'], -1]);
 });
 
-test('stepAction: every step text of quests 3–8, and the scout step of quest 14', () => {
+test('stepAction: every step text of quests 3–8, the scout step of quest 14, and the NPC duel of quest 17', () => {
   const steps: [string, number, unknown, number?][] = [
     ['Tiêu diệt Heo Mọi', -1, { kind: 'kill', mob: 'Heo Mọi' }],
     ['Tiêu diệt 1 Sói Xám', -1, { kind: 'kill', mob: 'Sói Xám' }],
     ['Đánh bại Kẻ Gây Rối', -1, { kind: 'kill', mob: 'Kẻ Gây Rối' }],
+    // Quest 17 of wangpt (Q17, s2c/39): an NPC to fight through its dialog, not a mob of s2c/43.
+    ['Đánh bại Tiên phong Hồng Giang', 143, { kind: 'talk', npcId: 143 }, 90],
     ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1, { kind: 'damage', mob: 'Thủ Lĩnh Sơn Tặc', amount: 500 }],
     ['Đạt cấp độ 8', -1, { kind: 'level', level: 8 }],
     ['Nâng điểm tiềm năng', -1, { kind: 'stat' }],
@@ -559,6 +562,46 @@ test('quest bot: a dialog without Đồng ý stops without answering; so does a 
   again.bot.onPacket(57, Buffer.from(q['s2c/57 duel'], 'hex'));
   assert.deepEqual(again.sent.map(s => s.opcode), [13]);
   assert.deepEqual([again.events.at(-1)?.event, again.events.at(-1)?.reason], ['stop', '3 duels and the step did not move']);
+});
+
+/** Quest 17 at "Đánh bại Tiên phong Hồng Giang" (90, 1, NPC 143), as wangpt was in M4 at Q17: Huyết Lang about, no mob of
+ * that name. */
+const q17 = (key: string) => Buffer.from(q17Packets[key], 'hex');
+test('quest 17 (Q17): "Đánh bại" with an npcId is the NPC\'s duel: c2s/13, Đồng ý, c2s/1181 for the mob of s2c/1180, then s2c/34', () => {
+  const quest = questData(q17('s2c/39 quest17'));
+  assert.deepEqual([quest.id, quest.current, quest.steps[2]], [17, 2, { index: 2, text: 'Đánh bại Tiên phong Hồng Giang', param: 90, required: 1, npcId: 143 }]);
+  // Every step of the real s2c/39: the duel is played at its NPC, the kill step of quest 17 stays a kill.
+  assert.deepEqual(quest.steps.map(stepAction), [{ kind: 'level', level: 28 }, { kind: 'kill', mob: 'Huyết Lang' }, { kind: 'talk', npcId: 143 }, { kind: 'talk', npcId: 162 }]);
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 10, restMs: 60000, log: e => events.push(e) });
+  bot.onPacket(29, new Writer().string('wangpt').string('M4').i32(0).build());
+  bot.onPacket(43, mobsPacket('M4', [['mob132600', 'Huyết Lang', 40]]));
+  bot.onPacket(39, q17('s2c/39 quest17'));
+  bot.onReady(recorder(sent));
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: q17Packets['c2s/13 Tiên phong'] });
+  bot.onPacket(57, q17('s2c/57 Tiên phong'));
+  assert.deepEqual(sent.at(-1), { opcode: 57, hex: q17Packets['c2s/57 Đồng ý Tiên phong'] });
+  bot.onPacket(1180, q17('s2c/1180 Tiên phong'));
+  assert.deepEqual(sent.at(-1), { opcode: 1181, hex: q17Packets['c2s/1181 Tiên phong'] });
+  assert.deepEqual([bot.fights, bot.target?.id, bot.target?.name], [1, 'mob910', 'Tiên phong Hồng Giang']);
+  (bot as any).onBattleEnd({ won: true, actor: 'wangpt', exp: 232, coin: 2, myTurns: 6, hp: 331, mobId: 'mob910', damage: 854 });
+  bot.onPacket(34, q17('s2c/34 thắng Tiên phong'));
+  assert.deepEqual([bot.quest!.current, bot.duels, bot.awaitingReply], [3, 0, false]);
+  assert.ok(!events.some(e => e.event === 'stop'), 'no "no mob of this step" stop as the app had');
+  clearTimeout((bot as any).wait);
+  (bot as any).stop('test done');
+});
+
+test('quest bot: a step it cannot play stops with the words and the three numbers of s2c/39', () => {
+  const events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: e => events.push(e) });
+  bot.onPacket(29, new Writer().string('wangpt').string('M1').i32(0).build());
+  bot.onPacket(43, mobsPacket('M1', []));
+  const w = new Writer().i32(99).string('Thử').string('').string('main').i32(0).i32(0).i32(1).i32(0).string('Thu thập 5 Da Heo').i32(7).i32(5).i32(-1);
+  bot.onPacket(39, w.build());
+  bot.onReady(recorder([]));
+  const stop = events.find(e => e.event === 'stop')!;
+  assert.deepEqual([stop.reason, stop.step, stop.param, stop.required, stop.npcId], ['step needs an action this bot does not know', 'Thu thập 5 Da Heo', 7, 5, -1]);
 });
 
 const M25_PLACES: [number, string, number][] = [[1016, 'Hồng Giang', 0], [1015, 'Vân Sơn', 0], [162, 'Tướng Quân Lê Viễn', 2]];

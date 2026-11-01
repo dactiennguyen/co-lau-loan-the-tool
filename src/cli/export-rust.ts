@@ -24,6 +24,7 @@ import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, tra
   mergeForecast, upgradeStones, putRequest, startRequest } from '../protocol/npc.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 import { g1Packets } from '../../test/fixtures-g1.ts';
+import { q17Packets } from '../../test/fixtures-q17.ts';
 import { claimedCount, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
 import { Items } from '../protocol/items.ts';
 
@@ -170,7 +171,10 @@ function stepActions() {
   const steps: [string, number, number?][] = [['Tiêu diệt Heo Mọi', -1], ['Tiêu diệt 1 Sói Xám', -1], ['Đánh bại Kẻ Gây Rối', -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1],
     ['Đạt cấp độ 8', -1], ['Nâng điểm tiềm năng', -1], ['Báo cáo với Bà Tư Hạnh', 103], ['Bàn bạc với Thành Chủ Nguyễn Khang', 129], ['Gặp Trại Chủ Phạm Hùng', 127],
     ['Sử dụng điểm kỹ năng', -1], ['Trinh sát Thành Hồng Giang', -1, 3], ['Trinh sát Thành Hồng Giang', 162, 3], ['Trinh sát Thành ', -1, 3], ['Thu thập 5 Da Heo', -1]];
-  return steps.map(([text, npcId, param = 0]) => ({ text, npcId, param, action: stepAction({ text, npcId, param }) }));
+  // Every step of every s2c/39 captured live (quests 3, 4, 12, 14, 17): the words and numbers as the server sent them.
+  const captured = [fixtures.quest['s2c/39 quest3'], fixtures.quest['s2c/39 quest4'], fixtures.quest['s2c/39 quest12'], fixtures.quest['s2c/39 quest14'], q17Packets['s2c/39 quest17']]
+    .flatMap(h => questData(bytes(h)).steps.map((s): [string, number, number] => [s.text, s.npcId, s.param]));
+  return [...steps, ...captured].map(([text, npcId, param = 0]) => ({ text, npcId, param, action: stepAction({ text, npcId, param }) }));
 }
 
 /** Three maps of the live scan S1 (M1 ↔ M2 ↔ M25) with every kind of portal answer; `seen` (the day) is left out. */
@@ -308,6 +312,12 @@ function questReplays() {
     ['one step: the NPC reply ends it before the kill step', [at('M1'), p(43, mobsPacket('M1', [['mob10', 'Gà Điên', 7], ['mob2806', 'Heo Mọi', 7]])), p(39, bytes(q['s2c/39 quest4'])),
       { start: true, once: true }, p(34, bytes(q['s2c/34 dialogue'])), { next: true }]],
     ['one step: a kill count reached ends it before the report', [p(11, mapPacket('M2', m2[1], m2[2])), p(43, mobsPacket('M2', m2[3])), quest9(3, 15), { start: true, once: true }]],
+    // Quest 17 (Q17): "Đánh bại Tiên phong Hồng Giang" has npcId 143, so the bot talks to the NPC instead of looking for a
+    // mob of that name; Đồng ý in its dialog, c2s/1181 for the mob of s2c/1180, and the s2c/34 after the battle moves the
+    // step (the battle itself is left out, as in every replay).
+    ['an NPC to defeat: its dialog, Đồng ý, the duel of s2c/1180, then s2c/34', [p(11, mapPacket('M4', 'Hồng Giang', [[1024, 'Rìa Hồng Giang', 0], [143, 'Tiên phong Hồng Giang', 2]])),
+      p(43, mobsPacket('M4', [['mob132600', 'Huyết Lang', 40]])), p(39, bytes(q17Packets['s2c/39 quest17'])), { start: true, once: true },
+      p(57, bytes(q17Packets['s2c/57 Tiên phong'])), p(1180, bytes(q17Packets['s2c/1180 Tiên phong'])), p(34, bytes(q17Packets['s2c/34 thắng Tiên phong'])), { next: true }]],
   ];
   return scenarios.map(([name, events, atlas]) => {
     const sent: [number, string][] = [];

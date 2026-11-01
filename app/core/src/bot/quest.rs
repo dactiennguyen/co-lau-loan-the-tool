@@ -284,7 +284,11 @@ impl Bot {
                 self.visit(&q, &step.text, &place, &map_id, now, out)
             }
             StepAction::Unknown => {
-                let reason = format!("Bot chưa biết làm bước \"{}\"", step.text);
+                // The words and the three numbers of s2c/39, so a new kind of step can be added from the log alone.
+                let reason = format!(
+                    "Bot chưa biết làm bước \"{}\" (thamSố {}, cần {}, npcId {})",
+                    step.text, step.param, step.required, step.npc_id
+                );
                 self.finish_quest(&reason, out)
             }
         }

@@ -47,6 +47,7 @@ Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), [src/b
 | "Tiêu diệt X", "Đánh bại X" | loại quái (Gà Điên 0, Heo Mọi 1) | số con (1, 10, 10) | -1 | Đánh trận với quái tên X, đếm số trận thắng |
 | "Gây N sát thương lên X" (nhiệm vụ 7) | | N (500) | -1 | Thách đấu boss X của `s2c/1177`, cộng dồn sát thương. Server chưa nhận ([bước boss](#boss)) |
 | "Nâng điểm tiềm năng" | 0 | 1 | -1 | Bot gửi `c2s/10 (0, 1)` (Cường Lực), hoặc chỉ số mà `--stats` chọn ([12-skills-items](12-skills-items.md#điểm-tiềm-năng)). Chưa gặp bước này khi chạy thật |
+| "Đánh bại X" với `npcId` ≥ 0 (nhiệm vụ 17) | 90 | 1 | id NPC | Như Tỷ thí: X là NPC, không phải quái của `s2c/43`. Bot đi đường NPC: hộp thoại, Đồng ý, rồi trận ([Q17](#đánh-bại-npc)) |
 | "Tỷ thí với X" (nhiệm vụ 12) | 87 | 1 | id NPC | `c2s/13` → hộp thoại `s2c/57` → `c2s/57 (0, mapId, npcId)` "Đồng ý" → `s2c/1180` (quái của trận) → `c2s/1181 (mobId, 0, npcId)` → trận → `s2c/34` sang bước sau ([Bước Tỷ thí](#tỷ-thí)) |
 | "Trinh sát Thành X" (nhiệm vụ 14) | thứ tự map (3 = M4) | 1 | -1 | Đi tới map `M{thamSố + 1}` qua cổng tên X, hoặc qua cổng từng dẫn tới map đó; `s2c/34` lúc vào map đưa bước sang ([Bước Trinh sát](#trinh-sát)) |
 | "Sử dụng điểm kỹ năng" | 0 | 1 | -1 | `c2s/1191 (mãKỹNăng, 1)` cho kỹ năng đầu tiên của cây `s2c/30` lên được một cấp. Server trả `s2c/10` kiểu 32, `s2c/1191`, `s2c/34` ([12-skills-items](12-skills-items.md#c2s-1191)) [Đo K1: nick thứ hai học Băng Tiễn Thuật 4000] |
@@ -92,6 +93,7 @@ Khi trả nhiệm vụ 4 (Q2), các gói đến trong 2 ms: `s2c/1187` (vật ph
 | 13 "Loạn Động Vân Sơn" | 127 Trại Chủ Phạm Hùng (M2) | … → gây 600 sát thương lên Hào Trưởng phía Bắc → gây 600 sát thương lên Hào Trưởng phía Nam → báo cáo với Trại Chủ | 3190 kinh nghiệm, 2900 Xu khóa (wangpt, manina2, app Rust ngày 31/10; các bước đầu không có trong log) |
 | 14 "Trinh Sát Hồng Giang" | 162 Tướng Quân Lê Viễn (M25) | Gặp Tướng Quân (đường đi: Vân Sơn - Rìa Hồng Giang) → **trinh sát Thành Hồng Giang** (vào M4, [Bước Trinh sát](#trinh-sát)) → báo cáo với Tướng Quân | 1200 kinh nghiệm, 1220 Xu khóa (wangpt bằng bot TS ở N5; manina2 bằng app Rust) |
 | 15 "Giao Tranh Bìa Rừng" | 162 Tướng Quân Lê Viễn (M25) | Đạt cấp 24 → diệt 10 Chim Điên → diệt Hỏa Hầu → báo cáo với Tướng Quân | Chim Điên cấp 25 ở M4 Hồng Giang. wangpt và manina2 đang ở bước này (app Rust, 31/10) |
+| 17 "Giao Tranh Đầu Tiên" | 143 Tiên phong Hồng Giang (M4), 162 Tướng Quân Lê Viễn (M25) | Đạt cấp 28 → diệt 5 Huyết Lang → **đánh bại Tiên phong Hồng Giang** (NPC, hộp thoại rồi trận, [Q17](#đánh-bại-npc)) → báo cáo với Tướng Quân Lê Viễn | wangpt (cấp 37): bot TS thắng Tiên phong ở Q17, nhiệm vụ sang bước báo cáo |
 | 23 "Đột Kích Lạc Cốc" | 162 Tướng Quân Lê Viễn (M25) | Đến vùng đất Lạc Cốc → đạt cấp 43 → diệt Heo Tím → diệt Báo Đốm → báo cáo với Tướng Quân Lê Viễn | symap (Tiheo1, cấp 42) đang ở bước "Đạt cấp độ 43" (R3) |
 
 Mọi NPC của nhiệm vụ 3–7 đều ở M1 và `c2s/13` với mapId `"M1"` luôn được nhận. Từ nhiệm vụ 8, NPC và quái ở M2 "Trại Vân Sơn": phải [đi qua cổng](#cổng). Bước "Bàn bạc với X" làm như "Nói chuyện với X". Bước "Gây N sát thương lên X" nhắm vào boss của map; boss đến qua `s2c/1177` ngay sau `s2c/43`, mã đổi theo khu (`mob86100001` ở khu 0, `mob86100101` ở khu 1).
@@ -148,6 +150,29 @@ Trên điện thoại (N3) không ai đánh: quái đi 10 nước trong 5 phút 
 Nhật ký của app có thêm hai dòng: "Võ Quan Đinh Mộc: Cậu đã sẵn sàng chiến đấu chưa. → Đồng ý" (Nhiệm vụ) và "Trận 1: tỷ thí với Võ Quan Đinh Mộc cấp 20 (mob880)" (Trận). Log của bot TS có `npc_menu`, `duel`, `duel_invite`, rồi `challenge` với `opcode: 1181`.
 
 **Còn chưa rõ:** thua Võ Quan có mất EXP không (N4 thắng); nghĩa của hai trường cuối của `s2c/1180`; app Rust chưa chạy thật bước này (bot TS đã chạy ở N4).
+
+<a id="đánh-bại-npc"></a>
+
+### Bước "Đánh bại" một NPC (Q17)
+
+Ngày 01/11, app Rust của wangpt dừng ở bước 3 của nhiệm vụ 17 với "Không thấy quái của bước này ở khu này". Nguyên nhân: bot xếp bước theo chữ, mà "Đánh bại X" luôn bị coi là diệt quái tên X. Bot TS đăng nhập wangpt (người dùng đồng ý) và đọc được [Đo Q17]:
+
+- `s2c/39`: bước `stt 2` "Đánh bại Tiên phong Hồng Giang", `thamSố 90; cần 1; npcId 143`. Giống bước Tỷ thí (`thamSố 87; npcId 141`); các bước diệt quái đều có `npcId -1`. `s2c/43` của M4 không có quái tên này.
+- `c2s/13 ("M4", 143)` → `s2c/57` "Tiên phong Hồng Giang": "Tới đây chiến đấu với ta." với 0 Đồng ý, 1 Từ chối.
+- Đồng ý → `s2c/1180`: quái riêng `mob910` "Tiên phong Hồng Giang" cấp 28. Bot gửi `c2s/1181 ("mob910", 0, 143)`, trận mở sau 2,7 s; Tiên phong có 556 HP.
+- wangpt cấp 37, 384 HP: thắng sau 6 lượt của mình trong 16 s, 3 lần Xích Lôi Công, còn 331 HP; +232 EXP, +2 xu, rơi 2 Gỗ Bậc 1. Cùng lúc server gửi `s2c/34` "Hồng Giang sẽ nghiền nát các ngươi." và bước sang "Báo cáo với Tướng Quân Lê Viễn" (NPC 162 ở M25).
+
+`thamSố` 90 có lẽ là loại quái của Tiên phong, như 87 của Võ Quan [Suy luận].
+
+**Bot xếp loại bước theo `s2c/39` trước, chữ sau** (`stepAction` trong [src/bot/quest.ts](../../../src/bot/quest.ts), `step_action` trong `app/core/src/quest.rs`):
+
+1. `npcId` ≥ 0: bước NPC, dù chữ là "Nói chuyện", "Báo cáo", "Gặp", "Tỷ thí" hay "Đánh bại". Bot gửi `c2s/13` rồi làm theo gói server trả: `s2c/34` là xong; `s2c/57` có "Đồng ý" thì chọn dòng đó, rồi `s2c/1180` là trận đấu ([Bước Tỷ thí](#tỷ-thí)). Hộp thoại không có "Đồng ý" thì bot dừng, không chọn gì.
+2. `npcId` = -1: đọc chữ. "Tiêu diệt/Đánh bại X" là quái tên X; "Gây N sát thương lên X" là boss; "Đạt cấp độ N"; "Nâng điểm tiềm năng"; "Sử dụng điểm kỹ năng"; "Trinh sát Thành X".
+3. Còn lại: bot dừng và ghi chữ cùng ba số của bước (app: "Bot chưa biết làm bước "…" (thamSố …, cần …, npcId …)"), để thêm loại mới chỉ từ nhật ký.
+
+Bot vẫn tìm quái theo tên, không theo `thamSố`. `mobId` ghép mã loại với số thứ tự không có dấu ngăn: `mob132600` của Huyết Lang (mã 13) cũng bắt đầu bằng `mob1` của Gà Điên. Vì vậy mã loại không tách được chắc chắn.
+
+Test chung TS và Rust: `npm run export:rust` đưa vào `stepActions` mọi bước của mọi `s2c/39` đã bắt (nhiệm vụ 3, 4, 12, 14, 17) và một lần phát lại trận đấu của nhiệm vụ 17 (`questReplays`, [test/fixtures-q17.ts](../../../test/fixtures-q17.ts)). `app/core/tests/parity.rs` kiểm app Rust làm giống hệt.
 
 <a id="trinh-sát"></a>
 
