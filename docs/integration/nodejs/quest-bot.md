@@ -120,3 +120,15 @@ Chỉ ghi những gì server đã gửi. Cổng bị từ chối vì cấp chỉ
 | `portal`, `portal_refused` | Qua được cổng (map đích, khu); bị từ chối (lời server) |
 | `ground_items` | Đồ đang nằm trên đất lúc vào map (`s2c/1184`), theo tên kèm toạ độ, ví dụ `"Xu khóa ×123 @1391,640"` |
 | `done`, `stop` | Quét xong (các map đã đi, đã về map đầu chưa); dừng giữa chừng (lý do) |
+
+<a id="việc-cần-làm"></a>
+
+## Việc cần làm (TODO)
+
+Đã điều tra đủ gói ở G1 (01/11), chưa viết vào bot TS:
+
+- **Nhập mã quà tặng:** gửi thẳng `c2s/1223` (chữ hoa, cắt dấu cách, tối đa 32 ký tự), đọc `s2c/1223` và `s2c/1222`. Gặp "Bạn nhập mã quá nhanh…" thì chờ 5 phút; tự đếm số lần sai liền, dừng trước lần thứ 10 ([Mã quà tặng](../../app/events/14-npc.md#mã-quà-tặng)).
+- **Hòm thư:** danh sách `c2s/1215`, xem `c2s/1216`, Nhận `c2s/1217`, Nhận hết `c2s/1218`, cập nhật tiền theo `s2c/46` và túi theo `s2c/1187`; đếm ô trống trước khi nhận; chỉ xoá thư đã nhận bằng `c2s/1219`, **không bao giờ** gửi `c2s/1221` ([Làm bằng bot TS](../../app/events/14-npc.md#hòm-thư-bot)).
+- **Nhiệm vụ ngày:** Nhận và Hủy qua menu Hương Lão (`c2s/13` rồi `c2s/57` theo đúng `s2c/57` vừa nhận), đọc nhiệm vụ đang làm trong `s2c/1195`. Hoàn thành nhiệm vụ và phần thưởng chưa đo: cần đánh trận cho xong một nhiệm vụ trước ([Nhiệm vụ hàng ngày](../../app/events/14-npc.md#nhiệm-vụ-hàng-ngày)).
+- **Catalog** `src/protocol/events.ts`: `s2c/1195` đang là `flag_1195` (`u8`), phải là nhiệm vụ ngày; thêm các gói thư và mã quà (`c2s/1216`–`1223`, `s2c/1216`–`1223`) với bố cục đã đo; `s2c/1215` hết là "chưa thấy bản ghi".
+- **`s2c/0`:** bot đang coi mọi `s2c/0` là lỗi và ngắt phiên, trong khi Hương Lão → Cách tính điểm trả lời bằng gói này ([s2c/0](../../app/events/14-npc.md#s2c-0)).

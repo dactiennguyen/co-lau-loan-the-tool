@@ -49,7 +49,7 @@ Mỗi phần của app đã được kiểm bằng test nào và đã chạy th�
 - **Windows và Linux:** mới kiểm tra `cargo check` chéo của `cllt-core` cho `x86_64-pc-windows-msvc` và `x86_64-unknown-linux-gnu`. Phần Tauri chưa chạy thử trên hai hệ này; [build-matrix.yml](release.md#cicd-và-phát-hành) sẽ là lần build đầu tiên.
 - **Kỹ năng:** bảng chi tiết của kỹ năng đã tối đa là suy luận; game chưa chụp được. Hệ Lôi số 2 cũng là suy luận, vì chưa có nhân vật Lôi để đo ([12-skills-items](../../app/events/12-skills-items.md#chưa-rõ)).
 - **Nhiệm vụ:**
-  - Server chưa gửi nhiệm vụ phụ hay hằng ngày. Nhiệm vụ hằng ngày phải tự nhận ở Hương Lão Trần Bá (Cẩm nang), gói chưa bắt.
+  - Nhiệm vụ hằng ngày phải tự nhận ở Hương Lão Trần Bá; gói Nhận, Hủy và `s2c/1195` đã bắt ở G1 ([Nhiệm vụ hàng ngày](../../app/events/14-npc.md#nhiệm-vụ-hàng-ngày)), Hoàn thành chưa. Cả TS lẫn Rust chưa làm; việc phía TS ở [Việc cần làm](../nodejs/quest-bot.md#việc-cần-làm).
   - HP chỉ hồi đầy sau một trận thua; bot chưa dùng Hoàn Linh Dược (gói chưa biết). Đồ hỏng được sửa nếu bật [Tự sửa đồ](features.md#tự-sửa-đồ).
   - Bước Tỷ thí (nhiệm vụ 12): bot TS đã thắng Võ Quan với cùng chuỗi gói (N4), app Rust mới chạy trong test. Chưa biết thua có mất EXP không ([Bước Tỷ thí](../../app/events/10-quests.md#s2c-1180)). Bot vào trận với HP đang có, chưa tự hồi máu trước.
   - Bước Trinh sát (nhiệm vụ 14): bot TS (N5) và app Rust (manina2, 31/10) đều đã làm thật. Mới thấy một bước loại này ([Bước Trinh sát](../../app/events/10-quests.md#trinh-sát)).
