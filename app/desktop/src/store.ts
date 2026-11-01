@@ -17,9 +17,11 @@ export type Dialog =
   | { kind: "stats"; id: number }
   /** Kỹ năng (SkillsModal): the skill tree, Nâng cấp and Tự cộng. */
   | { kind: "skills"; id: number }
+  /** Thống kê (StatsModal): the battle history of the account, opened from its header. */
+  | { kind: "battles"; id: number }
   /** Đổi khu / map of the Vị trí card. */
   | { kind: "place"; id: number }
-  /** Cửa hàng (ShopModal): the 14 shops, Pháp sư, Hương Lão; with the item to pick first in Dược phẩm (Mua búa: 2). */
+  /** Tiện ích (ShopModal): the 14 shops, Pháp sư, Hương Lão; with the item to pick first in Dược phẩm (Mua búa: 2). */
   | { kind: "shop"; id: number; item?: number }
   /** Khởi động lại để cập nhật while accounts are in the game. */
   | { kind: "update" }

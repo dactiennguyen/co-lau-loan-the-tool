@@ -6,7 +6,6 @@ import { selectedLog, useStore } from "../store";
 import type { Account } from "../types";
 import { useFightSetting } from "../useFightSetting";
 import { FightCard, type FightChoice } from "./FightCard";
-import { BattleStatsCard } from "./BattleStatsCard";
 import { FightSettingsCard } from "./FightSettingsCard";
 import { HeroCard } from "./HeroCard";
 import { InventoryCard } from "./InventoryCard";
@@ -18,9 +17,10 @@ import { Button } from "../components/Button";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
-// Kỹ năng is a modal of the Chỉ số card (SkillsModal); a tab kept as "skills" opens Nhiệm vụ.
-type Task = "quest" | "fight" | "settings" | "bag" | "stats";
-const TASKS: Task[] = ["quest", "fight", "settings", "bag", "stats"];
+// Kỹ năng is a modal of the Chỉ số card (SkillsModal), Thống kê one of the header (StatsModal); a tab kept as "skills"
+// or "stats" opens Nhiệm vụ.
+type Task = "quest" | "fight" | "settings" | "bag";
+const TASKS: Task[] = ["quest", "fight", "settings", "bag"];
 /** localStorage keys (remember.ts): the open tab of an account, and the tab last opened on any account. */
 const tabKey = (id: number) => `tab.${id}`;
 const LAST_TAB = "tab.last";
@@ -77,6 +77,7 @@ export function AccountPage({ account }: { account: Account }) {
         onLogout={() => api.logout(id)}
         onRemove={() => open({ kind: "remove", id })}
         onPlace={() => open({ kind: "place", id })}
+        onStats={() => open({ kind: "battles", id })}
       />
       <MetricRow character={c} />
       <div className="page__columns">
@@ -99,20 +100,19 @@ export function AccountPage({ account }: { account: Account }) {
               tabs={[
                 { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
                 { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
-                { key: "settings", label: "Cài đặt", icon: "settings" },
+                { key: "settings", label: "Cài đặt đánh", icon: "settings" },
                 { key: "bag", label: "Túi đồ", icon: "gem" },
-                { key: "stats", label: "Thống kê", icon: "chart" },
               ]}
             />
-            {/* Cửa hàng opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng (ShopModal). */}
+            {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng (ShopModal). */}
             <Button
               kind="outline"
               small
-              icon="cart"
+              icon="grid"
               className={c?.smith && c.smith.done == null ? "page__shop page__shop--busy" : "page__shop"}
               onClick={() => open({ kind: "shop", id })}
             >
-              Cửa hàng
+              Tiện ích
             </Button>
           </div>
           <TabPanel id={tabs} value={task}>
@@ -120,8 +120,6 @@ export function AccountPage({ account }: { account: Account }) {
               <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
             ) : task === "bag" ? (
               <InventoryCard account={account} onAction={(action, slot) => api.itemAction(id, action, slot)} />
-            ) : task === "stats" ? (
-              <BattleStatsCard account={account} />
             ) : task === "settings" ? (
               <FightSettingsCard account={account} />
             ) : (

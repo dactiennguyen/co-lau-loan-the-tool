@@ -1,4 +1,4 @@
-//! Pháp sư and Hương Lão for the Cửa hàng tab: Gộp đá, Nâng cấp, Tách đá, Chuyển hoá and Đổi lượng
+//! Pháp sư and Hương Lão for Tiện ích: Gộp đá, Nâng cấp, Tách đá, Chuyển hoá and Đổi lượng
 //! (docs/app/events/16-upgrade.md#tính-năng, 15-shops.md#đổi-lượng). One task at a time, step by step as the game does:
 //! c2s/13 to the NPC, c2s/57 down its menus, the window (s2c/96, s2c/99), c2s/97 for each item put in and the price and
 //! odds the window says (s2c/90, s2c/92, s2c/1260), c2s/91 for Bắt đầu and its result (s2c/91, s2c/93). The server sends no
@@ -241,7 +241,7 @@ impl Bot {
         }
     }
 
-    /// Starts a task of the Cửa hàng tab (SmithTask). Refused, with the reason in the log and nothing sent: busy (a
+    /// Starts a task of Tiện ích (SmithTask). Refused, with the reason in the log and nothing sent: busy (a
     /// battle, a job or quest run, a move, a step of a shop or of another task), away from M1, before the bag and the
     /// money are known, while an item action, a repair or a pickup waits for its answer, or for an item the task cannot
     /// take.

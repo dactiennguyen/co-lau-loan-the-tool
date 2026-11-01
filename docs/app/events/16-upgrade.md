@@ -451,7 +451,7 @@ Tiền trước và sau J3: Xu 13.755.600 → 13.755.598; Xu khóa 7.952.514 →
 
 ## Trong app
 
-Modal **Cửa hàng** của app Rust làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#cửa-hàng)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
+Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
 
 <a id="todo"></a>
 

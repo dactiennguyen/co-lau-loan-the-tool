@@ -1,5 +1,5 @@
 // cllt.db beside accounts.json: every log line, every battle and every item picked up, by account username (lower case),
-// for the filters of the Nhật ký card and the Thống kê tab (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
+// for the filters of the Nhật ký card and the Thống kê modal (docs/integration/rust/features.md#nhật-ký-và-thống-kê). One connection behind a
 // mutex: in WAL mode with synchronous=NORMAL a write does not wait for the disk. PRAGMA user_version is the number of
 // MIGRATIONS applied; a change of the tables is a new entry at the end, never an edit of an old one.
 use crate::settings::BattleDataSize;
@@ -220,7 +220,51 @@ pub struct MobTotals {
     pub totals: Totals,
 }
 
-/// The Thống kê tab: the totals, then each mob, most battles first, then each item picked up, most times first.
+/// The totals of one map, or of the battles that ended in one hour.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupTotals {
+    /// The map's name, or the hour as "2026-11-01 13" (local time of this computer).
+    pub key: String,
+    #[serde(flatten)]
+    pub totals: Totals,
+}
+
+/// The totals of one source (Đánh quái, Nhiệm vụ, other).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceTotals {
+    pub source: BattleSource,
+    #[serde(flatten)]
+    pub totals: Totals,
+}
+
+/// The battles that ended at one level of the character.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LevelTotals {
+    pub level: i32,
+    /// When the level was reached, in ms since 1970: the end of the last battle kept at a lower level. A battle is kept
+    /// at the level it started with (s2c/10 with the new level comes after its end), so that is the battle whose EXP
+    /// brought the level; for a level a quest reward brought, the level came at that time or later. None when no
+    /// battle at a lower level is kept, so the level may be older than its first battle.
+    pub reached_at: Option<u64>,
+    #[serde(flatten)]
+    pub totals: Totals,
+}
+
+/// Wins in a row: the longest, and the run at the end (`last` battles in a row with the result `last_result`).
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Streak {
+    pub best: u32,
+    pub last: u32,
+    pub last_result: Option<BattleResult>,
+}
+
+/// The Thống kê modal: the totals, then each mob, most battles first, then each item picked up, most times first; each
+/// hour, map, source and level; the streaks, the time the bot was at it, the HP the wins cost, the closest win and the
+/// last losses.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BattleStats {
@@ -228,7 +272,29 @@ pub struct BattleStats {
     pub totals: Totals,
     pub mobs: Vec<MobTotals>,
     pub picked: Vec<PickedItem>,
+    /// Each hour with a battle, oldest first; the chart adds them up by day.
+    pub hours: Vec<GroupTotals>,
+    /// Each map, most battles first.
+    pub maps: Vec<GroupTotals>,
+    /// Each source, most battles first.
+    pub sources: Vec<SourceTotals>,
+    /// Each level, lowest first, of every source: a level is the character's, whatever the filter's source.
+    pub levels: Vec<LevelTotals>,
+    pub streak: Streak,
+    /// The time the bot was at it: the battles, and the waits and walks between two of them shorter than RUN_GAP_MS.
+    pub run_ms: i64,
+    /// The HP the wins cost, summed: HP at the start less HP at the end (less than 0 when the battle healed more).
+    pub won_hp_lost: i64,
+    /// The win that ended with the least HP for its max HP.
+    pub closest: Option<StoredBattle>,
+    /// The last losses, newest first, at most LOSSES.
+    pub losses: Vec<StoredBattle>,
 }
+
+/// A wait between two battles longer than this is the bot stopped, not part of its run (BattleStats::run_ms).
+pub const RUN_GAP_MS: i64 = 10 * 60_000;
+/// The losses BattleStats lists.
+const LOSSES: u32 = 5;
 
 /// Which battles a query takes, or the items picked up after them: of one account, ended since a time, played for one
 /// source.
@@ -580,10 +646,117 @@ impl Store {
         let picked = q
             .query_map(params_from_iter(args), |r| picked_item(r, 0))?
             .collect::<rusqlite::Result<_>>()?;
+
+        let (sql, args) = f.sql("ended_at");
+        // The totals by one key, a column or an expression, the groups in the order `order`.
+        let groups = |key: &str, order: &str| -> rusqlite::Result<Vec<GroupTotals>> {
+            db.prepare(&format!(
+                "SELECT {key}, {TOTALS} FROM battles WHERE {sql} GROUP BY 1 ORDER BY {order}"
+            ))?
+            .query_map(params_from_iter(args.clone()), |r| {
+                Ok(GroupTotals {
+                    key: r.get(0)?,
+                    totals: totals(r, 1)?,
+                })
+            })?
+            .collect()
+        };
+        let hours = groups(
+            "strftime('%Y-%m-%d %H', ended_at / 1000, 'unixepoch', 'localtime')",
+            "1",
+        )?;
+        let maps = groups("map_name", "COUNT(*) DESC, 1")?;
+        let sources = groups("source", "COUNT(*) DESC")?
+            .into_iter()
+            .map(|g| SourceTotals {
+                source: BattleSource::from_key(&g.key).unwrap_or(BattleSource::Other),
+                totals: g.totals,
+            })
+            .collect();
+        // The level of every source; when it was reached, from all the battles kept (LevelTotals::reached_at).
+        let (all_sql, all_args) = BattleFilter { source: None, ..f }.sql("ended_at");
+        let levels = db
+            .prepare(&format!(
+                "SELECT level, \
+                 (SELECT MAX(p.ended_at) FROM battles p WHERE p.username = b.username AND p.level < b.level), \
+                 {TOTALS} FROM battles b WHERE {all_sql} GROUP BY level ORDER BY level"
+            ))?
+            .query_map(params_from_iter(all_args), |r| {
+                Ok(LevelTotals {
+                    level: r.get(0)?,
+                    reached_at: r.get::<_, Option<i64>>(1)?.map(|t| t as u64),
+                    totals: totals(r, 2)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+
+        // One pass, oldest first: the streaks and the run.
+        let (mut streak, mut run_ms, mut last_end) = (Streak::default(), 0i64, None::<i64>);
+        let mut wins = 0;
+        let mut q = db.prepare(&format!(
+            "SELECT started_at, ended_at, result FROM battles WHERE {sql} ORDER BY ended_at, id"
+        ))?;
+        let mut rows = q.query(params_from_iter(args.clone()))?;
+        while let Some(r) = rows.next()? {
+            let (start, end, result): (i64, i64, String) = (r.get(0)?, r.get(1)?, r.get(2)?);
+            let result = BattleResult::from_key(&result).unwrap_or(BattleResult::Lost);
+            wins = if result == BattleResult::Won {
+                wins + 1
+            } else {
+                0
+            };
+            streak.best = streak.best.max(wins);
+            if streak.last_result == Some(result) {
+                streak.last += 1;
+            } else {
+                (streak.last, streak.last_result) = (1, Some(result));
+            }
+            run_ms += (end - start).max(0);
+            if let Some(gap) = last_end.map(|e| start - e) {
+                if (0..RUN_GAP_MS).contains(&gap) {
+                    run_ms += gap;
+                }
+            }
+            last_end = Some(last_end.map_or(end, |e| e.max(end)));
+        }
+        drop(rows);
+
+        let won_hp_lost = db.query_row(
+            &format!(
+                "SELECT COALESCE(SUM(hp_before - hp_after), 0) FROM battles WHERE {sql} AND result = 'won'"
+            ),
+            params_from_iter(args.clone()),
+            |r| r.get(0),
+        )?;
+        let closest = db
+            .prepare(&format!(
+                "SELECT {BATTLE} FROM battles WHERE {sql} AND result = 'won' AND max_hp > 0 \
+                 ORDER BY hp_after * 1.0 / max_hp, ended_at DESC LIMIT 1"
+            ))?
+            .query_map(params_from_iter(args.clone()), battle)?
+            .next()
+            .transpose()?;
+        let mut losses_args = args;
+        losses_args.push(Value::from(LOSSES as i64));
+        let losses = db
+            .prepare(&format!(
+                "SELECT {BATTLE} FROM battles WHERE {sql} AND result = 'lost' ORDER BY ended_at DESC, id DESC LIMIT ?"
+            ))?
+            .query_map(params_from_iter(losses_args), battle)?
+            .collect::<rusqlite::Result<_>>()?;
         Ok(BattleStats {
             totals: totals_of,
             mobs,
             picked,
+            hours,
+            maps,
+            sources,
+            levels,
+            streak,
+            run_ms,
+            won_hp_lost,
+            closest,
+            losses,
         })
     }
 
@@ -780,6 +953,107 @@ mod tests {
         );
         let next = s.battles(all, Some(page[1].id), 10).unwrap();
         assert_eq!(next.len(), 3);
+    }
+
+    #[test]
+    fn stats_add_hours_maps_sources_levels_streaks_the_run_and_the_closest_win() {
+        let s = Store::memory().unwrap();
+        let day = 1_793_400_000_000;
+        use BattleResult::*;
+        use BattleSource::*;
+        // Each battle lasts 30 s; the first four 30 s apart, the last one an hour later (the bot stopped between).
+        for (level, result, source, at, hp_after, map) in [
+            (20, Won, Fight, day, 200, "Trại Vân Sơn"),
+            (20, Won, Fight, day + 60_000, 200, "Trại Vân Sơn"),
+            (21, Lost, Quest, day + 120_000, 0, "Trại Vân Sơn"),
+            (21, Won, Quest, day + 180_000, 20, "Trại Vân Sơn"),
+            (21, Won, Fight, day + 3_600_000, 200, "Hồng Giang"),
+        ] {
+            let mut b = record("Cóc Xanh", 13, result, source, at);
+            (b.level, b.hp_after, b.map_name) = (level, hp_after, map.into());
+            s.add_battle("manina2", &b).unwrap();
+        }
+        let all = BattleFilter {
+            username: "manina2",
+            since: None,
+            source: None,
+        };
+        let st = s.stats(all).unwrap();
+        assert_eq!(st.hours.iter().map(|h| h.totals.battles).sum::<u32>(), 5);
+        assert!(st.hours.windows(2).all(|w| w[0].key < w[1].key));
+        let maps: Vec<_> = st
+            .maps
+            .iter()
+            .map(|m| (m.key.as_str(), m.totals.battles))
+            .collect();
+        assert_eq!(maps, [("Trại Vân Sơn", 4), ("Hồng Giang", 1)]);
+        let sources: Vec<_> = st
+            .sources
+            .iter()
+            .map(|t| (t.source, t.totals.battles, t.totals.won))
+            .collect();
+        assert_eq!(sources, [(Fight, 3, 3), (Quest, 2, 1)]);
+        // Level 20 has no lower level kept, so when it was reached is not known. 21 came with the last battle kept at
+        // 20: a battle is kept at the level it started with.
+        let levels: Vec<_> = st
+            .levels
+            .iter()
+            .map(|l| (l.level, l.reached_at, l.totals.battles))
+            .collect();
+        assert_eq!(levels, [(20, None, 2), (21, Some(day + 60_000), 3)]);
+        assert_eq!(
+            st.streak,
+            Streak {
+                best: 2,
+                last: 2,
+                last_result: Some(Won)
+            }
+        );
+        // Five battles of 30 s, the three waits of 30 s; not the hour.
+        assert_eq!(st.run_ms, 5 * 30_000 + 3 * 30_000);
+        assert_eq!(st.won_hp_lost, 3 * 38 + 218);
+        assert_eq!(st.closest.map(|b| b.record.ended_at), Some(day + 180_000));
+        assert_eq!(
+            st.losses
+                .iter()
+                .map(|b| b.record.ended_at)
+                .collect::<Vec<_>>(),
+            [day + 120_000]
+        );
+        // The source filters the rest, never the levels: a level is the character's.
+        let quests = s
+            .stats(BattleFilter {
+                source: Some(Quest),
+                ..all
+            })
+            .unwrap();
+        assert_eq!((quests.totals.battles, quests.levels.len()), (2, 2));
+        assert_eq!(quests.levels[1].totals.battles, 3);
+        assert_eq!((quests.streak.best, quests.streak.last), (1, 1));
+        // Since a time: the levels before it are left out, but when 21 was reached still comes from all the battles.
+        let late = s
+            .stats(BattleFilter {
+                since: Some(day + 150_000),
+                ..all
+            })
+            .unwrap();
+        assert_eq!(
+            late.levels
+                .iter()
+                .map(|l| (l.level, l.reached_at, l.totals.battles))
+                .collect::<Vec<_>>(),
+            [(21, Some(day + 60_000), 2)]
+        );
+        let none = s
+            .stats(BattleFilter {
+                username: "nobody",
+                ..all
+            })
+            .unwrap();
+        assert_eq!(
+            (none.run_ms, none.streak, none.closest, none.levels.len()),
+            (0, Streak::default(), None, 0)
+        );
     }
 
     fn pickup(battle: &BattleRecord, item_id: i32, name: &str, quantity: i64) -> PickupRecord {

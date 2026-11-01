@@ -154,7 +154,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               </span>
               {mine.preview && (
                 <span className="sup__preview">
-                  +{mine.preview.plus}: {mine.preview.stats.join(", ")}
+                  +{mine.preview.plus}: <Stats stats={mine.preview.stats} />
                 </span>
               )}
             </div>
@@ -294,7 +294,7 @@ function GearRow({ item, worn, on, onPick }: { item: Item; worn: boolean; on: bo
           {item.name} <span className="sline__plus px">+{item.plus}</span>
         </b>
         <small>
-          {item.kindName} · cấp {item.level} · {item.stats.join(", ")}
+          {item.kindName} · <b className="sline__lv">cấp {item.level}</b> · <Stats stats={item.stats} />
         </small>
       </span>
       <span className="sline__price">
@@ -303,4 +303,23 @@ function GearRow({ item, worn, on, onPick }: { item: Item; worn: boolean; on: bo
       </span>
     </button>
   );
+}
+
+/** The stats of a piece of gear ("+16 sức tấn công"), the numbers green as in the item detail, the names plain. */
+function Stats({ stats }: { stats: string[] }) {
+  return stats.map((s, i) => {
+    const [, value, name] = /^([+-]?[\d.,]+%?)\s*(.*)$/.exec(s) ?? [s, "", s];
+    return (
+      <span key={i}>
+        {i > 0 && ", "}
+        {value ? (
+          <>
+            <b className="sline__stat">{value}</b> {name}
+          </>
+        ) : (
+          s
+        )}
+      </span>
+    );
+  });
 }

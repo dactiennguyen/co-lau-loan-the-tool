@@ -54,4 +54,4 @@ Mỗi phần của app đã được kiểm bằng test nào và đã chạy th�
   - Bước Tỷ thí (nhiệm vụ 12): bot TS đã thắng Võ Quan với cùng chuỗi gói (N4), app Rust mới chạy trong test. Chưa biết thua có mất EXP không ([Bước Tỷ thí](../../app/events/10-quests.md#s2c-1180)). Bot vào trận với HP đang có, chưa tự hồi máu trước.
   - Bước Trinh sát (nhiệm vụ 14): bot TS (N5) và app Rust (manina2, 31/10) đều đã làm thật. Mới thấy một bước loại này ([Bước Trinh sát](../../app/events/10-quests.md#trinh-sát)).
 - **Tự cập nhật:** mới thử trọn vòng trên macOS Apple Silicon với một server trên máy (xem [Đã kiểm chứng](#đã-kiểm-chứng)). Bản cài Windows, Linux, macOS Intel và lần chạy thật với GitHub Releases chỉ có khi phát hành bản kế tiếp có tính năng này.
-- **Chưa port:** Bùa bảo vệ và nâng trên +4, Chế tạo trang bị ([Cửa hàng](features.md#cửa-hàng), TODO); không bán, không chat. Quét map và ghi `data/maps.json` vẫn chỉ có bên TS.
+- **Chưa port:** Bùa bảo vệ và nâng trên +4, Chế tạo trang bị ([Tiện ích](features.md#tiện-ích), TODO); không bán, không chat. Quét map và ghi `data/maps.json` vẫn chỉ có bên TS.

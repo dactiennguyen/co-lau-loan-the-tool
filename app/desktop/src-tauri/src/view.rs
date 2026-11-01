@@ -210,9 +210,9 @@ pub struct CharacterView<'a> {
     pub back_to: Option<&'a str>,
     /// The maps of the atlas, nearest first, with the portals to take.
     pub maps: &'a [MapChoice],
-    /// The shop s2c/1190 last listed (Cửa hàng tab, Mua búa); None until opened, and again once off M1.
+    /// The shop s2c/1190 last listed (Tiện ích, Mua búa); None until opened, and again once off M1.
     pub shop: Option<ShopView<'a>>,
-    /// The work of Pháp sư or Hương Lão under way or last done (Cửa hàng tab).
+    /// The work of Pháp sư or Hương Lão under way or last done (Tiện ích).
     pub smith: Option<SmithView<'a>>,
 }
 
@@ -262,7 +262,7 @@ impl<'a> SmithView<'a> {
     }
 }
 
-/// A shop of the Cửa hàng tab and dialog: each line named from data/items.json, with its price and money.
+/// A shop of Tiện ích: each line named from data/items.json, with its price and money.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShopView<'a> {

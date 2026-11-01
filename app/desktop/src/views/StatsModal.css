@@ -1,0 +1,118 @@
+/* Thống kê, a large modal: the filters and the sub-tabs stay, the body scrolls. A fixed height, so the sub-tabs do not
+   make it jump. Inside a part, a column of blocks that keep their height. */
+.dialog.statsmodal { width: min(1120px, 95vw); height: min(860px, 94vh); max-width: none; max-height: none; }
+.statsmodal form { height: 100%; box-sizing: border-box; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
+.statsmodal__body { min-height: 0; overflow-y: auto; padding-right: 6px; container-type: inline-size; }
+.statsmodal .tabs__panel { display: block; }
+.bstats__stack { display: flex; flex-direction: column; gap: var(--space-3); }
+.bstats__stack > * { flex: none; }
+.bstats__note { margin: 0; font-size: 11px; line-height: 1.5; color: var(--fg-3); }
+.bstats__dim { font-size: 11px; color: var(--fg-3); }
+.bstats__filters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px var(--space-4); }
+.bstats__filters > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.bstats__none { margin: 0; font-size: 12px; color: var(--fg-3); }
+.bstats__error { margin: 0 0 var(--space-3); font-size: 12px; color: var(--danger); }
+
+.bstats__tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.bstats__tiles > div { display: grid; gap: 3px; align-content: start; min-width: 0; padding: 8px 10px; background: var(--ink); }
+.bstats__tiles dt { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-3); }
+.bstats__tiles dd { margin: 0; font-size: 18px; font-weight: 800; color: var(--fg); white-space: nowrap; }
+.bstats__tiles dd:not(.px) { font-size: 14px; line-height: 1.5; }
+.bstats__tiles small { font-size: 11px; line-height: 1.4; color: var(--fg-2); }
+.bstats__tiles .win { color: var(--s-online); }
+.bstats__tiles .loss { color: var(--danger); }
+
+.bstats__h { margin: 4px 0 0; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.bstats__wrap { overflow-x: auto; }
+.bstats__table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bstats__table th, .bstats__table td { padding: 5px 8px; text-align: right; white-space: nowrap; }
+.bstats__table thead th { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-3); border-bottom: 1px solid var(--line); }
+.bstats__table thead th:first-child, .bstats__table tbody th { text-align: left; }
+.bstats__table tbody tr:nth-child(odd) { background: var(--ink); }
+.bstats__table tbody th { display: grid; gap: 1px; font-weight: 700; color: var(--fg); }
+.bstats__table tbody th small { font-size: 10.5px; font-weight: 500; color: var(--fg-3); }
+.bstats__mob { display: inline-flex; align-items: center; gap: 6px; }
+.bstats__item { display: inline-flex; align-items: center; gap: 6px; }
+.bstats__loot { max-width: 520px; }
+.bstats__rate { display: inline-grid; grid-template-columns: 40px 60px; align-items: center; gap: 6px; }
+
+/* The battles, a row each; the modal's body scrolls. */
+.bstats__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.bstats__list li {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1.2fr) minmax(0, 1fr) 64px minmax(0, 1.6fr);
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 4px 8px;
+  background: var(--ink);
+  font-size: 12px;
+}
+.bstats__list time { font-size: 10px; color: var(--fg-3); }
+.bstats__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--fg); }
+.bstats__name small { font-weight: 500; color: var(--fg-3); }
+.bstats__where, .bstats__facts { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); }
+.bstats__result { font-size: 11.5px; }
+/* What the battle brought, on a line of its own under the rest. */
+.bstats__picked { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; font-size: 11px; color: var(--coin); }
+.bstats__picked > span { display: inline-flex; align-items: center; gap: 3px; }
+.bstats__more {
+  align-self: center;
+  padding: 4px 14px;
+  background: none;
+  border: 1px dashed var(--line);
+  font: 600 11px/1.4 var(--font-ui);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.bstats__more:hover:not(:disabled) { border-color: var(--exp); color: var(--fg); }
+.bstats__more:disabled { cursor: default; opacity: 0.6; }
+
+/* The closest win beside the last losses. */
+.bstats__pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--space-4); }
+.bstats__pair > section { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.bstats__closest { display: grid; gap: 3px; margin: 0; padding: 8px 10px; background: var(--ink); font-size: 12px; color: var(--fg-2); }
+.bstats__closest > b { color: var(--fg); }
+.bstats__closest small { font-size: 11px; color: var(--fg-3); }
+.bstats__closest > b small { font-weight: 500; }
+.bstats__closest .loss { color: var(--danger); }
+.bstats__losses { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.bstats__losses li { display: grid; grid-template-columns: 82px minmax(0, 1fr) minmax(0, 1.6fr); align-items: baseline; gap: var(--space-3); padding: 4px 8px; background: var(--ink); font-size: 12px; }
+.bstats__losses time { font-size: 10px; color: var(--fg-3); }
+
+/* Lên cấp: how long the next level should take. */
+.bstats__eta { display: flex; align-items: center; gap: var(--space-3); padding: 10px 12px; background: var(--ink); border-left: 3px solid var(--exp); font-size: 12.5px; line-height: 1.5; color: var(--fg-2); }
+.bstats__eta > svg { flex: none; color: var(--exp); }
+.bstats__eta b { color: var(--fg); }
+
+/* The chart: one column a day (an hour for Hôm nay), the measure picked by the chips; the readout over it says what
+   the column under the pointer or the focus holds, else the last one. Columns at most 24 px, 2 px apart, from one
+   baseline; a hairline at the top value. */
+.dchart { display: grid; gap: 6px; padding: 10px 12px; background: var(--ink); }
+.dchart__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px var(--space-3); }
+.dchart__head > div { display: flex; gap: 4px; }
+.dchart__head .bstats__h { margin: 0; }
+.dchart__readout { display: flex; flex-wrap: wrap; gap: 2px 8px; min-height: 18px; margin: 0; font-size: 12px; color: var(--fg-2); }
+.dchart__readout > b { color: var(--fg); }
+.dchart__exp { color: var(--exp); }
+.dchart__coin { color: var(--coin); }
+.dchart__plot { position: relative; display: grid; gap: 4px; padding-top: 16px; }
+.dchart__max { position: absolute; top: 0; left: 0; font-size: 10px; color: var(--fg-3); }
+.dchart__cols { display: flex; align-items: flex-end; gap: 2px; height: 140px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line-strong); }
+.dchart__col { display: flex; flex: 1 1 0; align-items: flex-end; justify-content: center; min-width: 0; height: 100%; padding: 0; background: none; border: 0; cursor: default; }
+.dchart__col:hover, .dchart__col.is-on { background: rgb(255 255 255 / 0.04); }
+.dchart__col:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.dchart__bar { width: 100%; max-width: 24px; min-height: 0; background: var(--dchart); border-radius: 2px 2px 0 0; }
+.dchart__col.is-on .dchart__bar { filter: brightness(1.25); }
+.dchart__labels { display: flex; gap: 2px; }
+.dchart__labels span { flex: 1 1 0; min-width: 0; overflow: visible; font-size: 10px; text-align: center; white-space: nowrap; color: var(--fg-3); }
+
+@container (max-width: 860px) {
+  .bstats__tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bstats__pair { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container (max-width: 560px) {
+  .bstats__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bstats__list li { grid-template-columns: 74px minmax(0, 1fr) 56px; }
+  .bstats__where, .bstats__facts { grid-column: 2 / -1; }
+}

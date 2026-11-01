@@ -1,4 +1,4 @@
-// The NPC services of Làng Thanh Khê as the Cửa hàng tab offers them (npc.rs, docs/app/events/15-shops.md, 16-upgrade.md).
+// The NPC services of Làng Thanh Khê as the Tiện ích modal offers them (npc.rs, docs/app/events/15-shops.md, 16-upgrade.md).
 import { itemIcon } from "./itemIcons";
 import type { Character, Item } from "./types";
 

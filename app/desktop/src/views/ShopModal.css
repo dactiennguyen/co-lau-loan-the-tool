@@ -1,4 +1,4 @@
-/* Cửa hàng: a large modal. The top (money, where, the work of Pháp sư) and the sub-tabs stay; the body scrolls. */
+/* Tiện ích: a large modal. The top (money, where, the work of Pháp sư) and the sub-tabs stay; the body scrolls. */
 .dialog.shopmodal { width: min(1180px, 96vw); height: min(880px, 94vh); max-width: none; max-height: none; }
 .shopmodal form { height: 100%; box-sizing: border-box; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
 .shopmodal__top { display: grid; gap: var(--space-2); }
@@ -89,6 +89,10 @@
 .sline__name { display: grid; min-width: 0; }
 .sline__name b { font-size: 12.5px; }
 .sline__name small { overflow: hidden; color: var(--fg-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+/* The level and the stats of a piece of gear stand out of the grey line: the level blue, the numbers green (as the item detail). */
+.sline__name small b, .sup__preview b { font-size: inherit; font-weight: 700; }
+.sline__lv { color: var(--exp); }
+.sline__stat { color: var(--good); }
 .sline__plus { margin-left: 4px; font-size: 10px; color: var(--primary); }
 .sline__price { font-size: 11.5px; color: var(--fg-2); white-space: nowrap; }
 .sline__price b { font-size: 11px; color: var(--fg); }

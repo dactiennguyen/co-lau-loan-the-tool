@@ -146,7 +146,7 @@ fn requests_97_and_91_are_what_the_phone_sent() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The bot's tasks of the Cửa hàng tab, step by step against the answers of J3 (16-upgrade.md#j3).
+// The bot's tasks of Tiện ích, step by step against the answers of J3 (16-upgrade.md#j3).
 
 use cllt_core::atlas::Atlas;
 use cllt_core::bot::{Bot, BotOptions, Out, SmithTask};

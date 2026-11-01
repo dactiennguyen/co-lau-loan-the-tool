@@ -119,7 +119,7 @@ export function PlaceDialog({ account, onClose }: Props) {
         </>
       )}
       <footer>
-        <Button kind="ghost" onClick={onClose}>
+        <Button onClick={onClose}>
           Đóng
         </Button>
       </footer>

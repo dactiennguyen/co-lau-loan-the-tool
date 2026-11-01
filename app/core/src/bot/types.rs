@@ -120,7 +120,7 @@ impl BattleResult {
     }
 }
 
-/// One battle for the history of the account (the Thống kê tab): who, where, against what, and what it brought.
+/// One battle for the history of the account (the Thống kê modal): who, where, against what, and what it brought.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BattleRecord {
@@ -152,7 +152,7 @@ pub struct BattleRecord {
     pub coin: i32,
 }
 
-/// An item Tự nhặt đồ picked up (the server said "Bạn vừa nhận được …"), for the Thống kê tab: what, how many, and the
+/// An item Tự nhặt đồ picked up (the server said "Bạn vừa nhận được …"), for the Thống kê modal: what, how many, and the
 /// battle it fell from.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -363,7 +363,7 @@ pub struct QuestRun {
     pub ended_at: Option<u64>,
 }
 
-/// What the Cửa hàng tab asks of Pháp sư or Hương Lão (Bot::smith, 16-upgrade.md#tính-năng). Each press of Bắt đầu
+/// What Tiện ích asks of Pháp sư or Hương Lão (Bot::smith, 16-upgrade.md#tính-năng). Each press of Bắt đầu
 /// costs money or items; the UI asks before sending any but `Upgrade` with `quote`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SmithTask {
@@ -392,7 +392,7 @@ pub enum SmithTask {
     Exchange { option: u8, times: u32 },
 }
 
-/// The work of Pháp sư or Hương Lão under way or last done, for the Cửa hàng tab.
+/// The work of Pháp sư or Hương Lão under way or last done, for Tiện ích.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SmithRun {

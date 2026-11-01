@@ -12,7 +12,7 @@
 }
 .hero .avatar__dot { border-color: var(--card); }
 .hero__who { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
-.hero__id { min-width: 0; display: grid; gap: 4px; }
+.hero__id { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .hero__name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hero__name h1 {
   margin: 0;
@@ -39,7 +39,9 @@
   white-space: nowrap;
 }
 .hero__meta { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 11px; color: var(--fg-2); }
-.hero__meta > span:last-child { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hero__meta > span:last-of-type { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Thống kê at the end of the status line, under the name: the bottom right of who the account is. */
+.hero__stats { flex: none; margin-left: auto; }
 .hero__error { color: var(--danger); }
 .hero__block {
   display: grid;

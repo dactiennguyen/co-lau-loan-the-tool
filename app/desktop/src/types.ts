@@ -110,10 +110,49 @@ export interface MobTotals extends Totals {
   mapName: string;
 }
 
-/** The Thống kê tab: totals, then each mob and map, most battles first, then each item picked up, most times first. */
+/** The totals of one map, or of the battles that ended in one hour ("2026-11-01 13", local time) (GroupTotals of store.rs). */
+export interface GroupTotals extends Totals {
+  key: string;
+}
+
+export interface SourceTotals extends Totals {
+  source: BattleSource;
+}
+
+/** The battles that ended at one level (LevelTotals of store.rs). */
+export interface LevelTotals extends Totals {
+  level: number;
+  /** When the level was reached (the end of its first battle kept), ms since 1970; null when it may be older. */
+  reachedAt: number | null;
+}
+
+/** Wins in a row: the longest, and the run at the end (`last` battles in a row with `lastResult`). */
+export interface Streak {
+  best: number;
+  last: number;
+  lastResult: BattleResult | null;
+}
+
+/**
+ * Thống kê (StatsModal): totals, then each mob and map, most battles first, then each item picked up, most times first;
+ * each hour (oldest first), map and source (most battles first) and level (lowest first, of every source); the streaks,
+ * the time the bot was at it, the HP the wins cost, the closest win and the last losses (BattleStats of store.rs).
+ */
 export interface BattleStats extends Totals {
   mobs: MobTotals[];
   picked: PickedItem[];
+  hours: GroupTotals[];
+  maps: GroupTotals[];
+  sources: SourceTotals[];
+  levels: LevelTotals[];
+  streak: Streak;
+  /** The battles and the waits between them shorter than 10 minutes (RUN_GAP_MS). */
+  runMs: number;
+  /** HP the wins cost, summed. */
+  wonHpLost: number;
+  closest: StoredBattle | null;
+  /** The last losses, newest first, at most 5. */
+  losses: StoredBattle[];
 }
 
 /** What one result of a battle did (Turn of cllt-core's runner.rs). */
@@ -309,13 +348,13 @@ export interface Character {
   zones: Zone[] | null;
   /** A zone change or a trip to another map under way ("Sang khu 4", "Đi tới Rìa Hồng Giang"). */
   moving: string | null;
-  /** Where the bot walks back to once the Cửa hàng is closed ("Hồng Giang khu 3"), after "Mua xong quay về chỗ cũ". */
+  /** Where the bot walks back to once Tiện ích is closed ("Hồng Giang khu 3"), after "Mua xong quay về chỗ cũ". */
   backTo: string | null;
   /** The maps of the atlas, nearest first, with the portals to take. */
   maps: MapChoice[];
   /** The shop s2c/1190 last listed (`kind` says which); null again off M1. */
   shop: Shop | null;
-  /** The work of Pháp sư or Hương Lão under way or last done (Cửa hàng tab). */
+  /** The work of Pháp sư or Hương Lão under way or last done (Tiện ích). */
   smith: SmithRun | null;
 }
 

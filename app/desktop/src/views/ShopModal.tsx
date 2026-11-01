@@ -57,7 +57,7 @@ interface Props {
 }
 
 /**
- * Cửa hàng (16-upgrade.md#tính-năng), a large modal: the money and the bag's room, where the character stands (the NPCs
+ * Tiện ích (16-upgrade.md#tính-năng), a large modal: the money and the bag's room, where the character stands (the NPCs
  * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and four
  * sub-tabs: Mua at the 14 shops, Gộp đá, Nâng cấp (with Tách đá and Chuyển hoá), Đổi lượng. Every spend asks once more.
  * Closing it, however it closes, walks the character back after a trip with "Xong việc quay về chỗ cũ" (Bot::shop_closed).
@@ -105,7 +105,7 @@ export function ShopModal({ account, item, onClose }: Props) {
 
   return (
     <Dialog
-      title="Cửa hàng"
+      title="Tiện ích"
       subtitle={`${account.label} · Lái Buôn, Bà Tư Hạnh, Pháp sư, Hương Lão · Làng Thanh Khê`}
       className="shopmodal"
       onClose={close}
@@ -187,7 +187,7 @@ export function ShopModal({ account, item, onClose }: Props) {
         </TabPanel>
       </div>
       <footer>
-        <Button kind="ghost" icon={c?.backTo ? "swap" : undefined} onClick={close}>
+        <Button icon={c?.backTo ? "swap" : undefined} onClick={close}>
           {c?.backTo ? `Quay lại ${c.backTo}` : "Đóng"}
         </Button>
       </footer>

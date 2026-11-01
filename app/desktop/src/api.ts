@@ -66,15 +66,15 @@ export interface Api {
   changeZone(id: number, zone: number): Promise<void>;
   /** Another map, through the portals of the atlas; the log tells how it went. */
   goToMap(id: number, mapId: string): Promise<void>;
-  /** Cửa hàng: "Đi tới Làng Thanh Khê"; with `back` the bot walks back to where it started once the dialog closes. */
+  /** Tiện ích: "Đi tới Làng Thanh Khê"; with `back` the bot walks back to where it started once the dialog closes. */
   shopTrip(id: number, back: boolean): Promise<void>;
-  /** Cửa hàng: the dialog closed; after a trip with `back` the bot walks back. */
+  /** Tiện ích: the dialog closed; after a trip with `back` the bot walks back. */
   shopClosed(id: number): Promise<void>;
-  /** Cửa hàng: opens the Dược phẩm shop of Lái Buôn (on M1); the account's `shop` then lists it. */
+  /** Tiện ích: opens the Dược phẩm shop of Lái Buôn (on M1); the account's `shop` then lists it. */
   openShop(id: number): Promise<void>;
   /** Mua: `quantity` of the shop line `shopId`; the log tells how it went. */
   buy(id: number, shopId: number, quantity: number): Promise<void>;
-  /** Cửa hàng tab: opens shop `kind` of the 14 (on M1); the account's `shop` then lists it. */
+  /** Tiện ích, Mua: opens shop `kind` of the 14 (on M1); the account's `shop` then lists it. */
   openShopKind(id: number, kind: number): Promise<void>;
   /** Gộp đá: every set of 4 stones of a level at 100%, up to Đá cấp `upTo`; unlocked stones too with `unlocked`. */
   smithMerge(id: number, upTo: number, unlocked: boolean): Promise<void>;

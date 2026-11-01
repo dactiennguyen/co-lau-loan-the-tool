@@ -16,12 +16,15 @@ interface Props {
   onRemove: () => void;
   /** Đổi khu / map. */
   onPlace: () => void;
+  /** Thống kê (StatsModal). */
+  onStats: () => void;
 }
 
-/** The selected account: who (name, level, element, timed effects such as x2 EXP, status) and where (map, zone, coordinates as text, and the icon
+/** The selected account: who (name, level, element, timed effects such as x2 EXP, status, and Thống kê at the end of the
+ * status line, which opens the battle history in a modal) and where (map, zone, coordinates as text, and the icon
  * button after the map name that moves to another zone or map). Its money is in the tiles under it (MetricRow), the other players of the zone in their
  * card. */
-export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace }: Props) {
+export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onStats }: Props) {
   const c = a.character;
   const connected = isConnected(a.status);
   return (
@@ -53,6 +56,9 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace }: P
             ) : (
               <span>{a.username}</span>
             )}
+            <Button kind="outline" small icon="chart" className="hero__stats" onClick={onStats}>
+              Thống kê
+            </Button>
           </div>
         </div>
       </div>

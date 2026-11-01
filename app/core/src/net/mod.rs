@@ -71,7 +71,7 @@ pub enum Command {
     OpenShop,
     /// One of the 14 shops of npc::SHOPS by its kind (Bot::open_shop_kind).
     OpenShopKind(u8),
-    /// A task of Pháp sư or Hương Lão of the Cửa hàng tab (Bot::smith).
+    /// A task of Pháp sư or Hương Lão of Tiện ích (Bot::smith).
     Smith(SmithTask),
     /// Buys a line of that shop: its shop id and how many (Bot::buy).
     Buy {

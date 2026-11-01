@@ -108,6 +108,7 @@ const paths = {
   swap: <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16" />,
   chevron: <path d="m6 9 6 6 6-6" />,
   chart: <path d="M3 21h18M6 17v-5M11 17V7M16 17v-8M21 17V4" />,
+  grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
   eraser: <path d="m7 21-4.3-4.3a2.4 2.4 0 0 1 0-3.4l9.6-9.6a2.4 2.4 0 0 1 3.4 0l5.6 5.6a2.4 2.4 0 0 1 0 3.4L13 21M22 21H7M5 11l9 9" />,
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,

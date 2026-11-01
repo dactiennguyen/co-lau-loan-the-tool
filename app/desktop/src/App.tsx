@@ -7,6 +7,7 @@ import { ConfirmDialog } from "./views/ConfirmDialog";
 import { PlaceDialog } from "./views/PlaceDialog";
 import { SettingsDialog } from "./views/SettingsDialog";
 import { SkillsModal } from "./views/SkillsModal";
+import { StatsModal } from "./views/StatsModal";
 import { ShopModal } from "./views/ShopModal";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
@@ -35,7 +36,7 @@ export default function App() {
   );
 }
 
-/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Cửa hàng, Khởi động
+/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Tiện ích, Khởi động
  * lại để cập nhật while accounts play, and the Cài đặt of the app; nothing once the account it is about is gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
@@ -71,6 +72,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "skills" && account) {
     return <SkillsModal account={account} onClose={close} />;
+  }
+  if (dialog?.kind === "battles" && account) {
+    return <StatsModal account={account} onClose={close} />;
   }
   if (dialog?.kind === "shop" && account) {
     return <ShopModal account={account} item={dialog.item} onClose={close} />;

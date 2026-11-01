@@ -7,7 +7,7 @@ Mốc: APK 1.0.3, server Thanh Khê, nhân vật symap (cấp 79, hệ Hỏa). N
 - **J3** (01/11, người dùng đồng ý): bot TS mua 1 Đá cấp 6 (2 Lượng) và 1 Chuyển hoá trang bị sơ cấp (30 Lượng), đổi 50 Lượng lấy 55.000 Xu khóa, và gặp túi đầy ([16-upgrade](16-upgrade.md#j3)).
 - **Cẩm nang** của game (`cam-nang.json`, chép từ máy ngày 01/11): trang Tiền tệ, Trang bị, Hệ và bộ trang bị.
 
-App Rust mua được ở cả 14 cửa hàng trong modal Cửa hàng ([features](../../integration/rust/features.md#cửa-hàng)).
+App Rust mua được ở cả 14 cửa hàng trong modal Tiện ích ([features](../../integration/rust/features.md#tiện-ích)).
 
 Mọi bảng dưới đây được sinh từ byte của gói, không chép tay. Dữ liệu thô ở `captures/n1-2026-11-01/` và `captures/n2-2026-11-01/` (chỉ có trên máy, không vào git).
 

@@ -126,7 +126,7 @@ fn manina_bag() -> Vec<ItemRecord> {
     ]
 }
 
-/// kiemkhach's bag for the Cửa hàng tab: stones of several levels, locked or not, a ring at +1 and spare gear at +0.
+/// kiemkhach's bag for Tiện ích: stones of several levels, locked or not, a ring at +1 and spare gear at +0.
 fn kiemkhach_bag() -> Vec<ItemRecord> {
     let with = |mut i: ItemRecord, plus: i32, locked: bool| {
         (i.field0, i.field1) = (plus, if locked { 0 } else { 1 });
@@ -548,21 +548,27 @@ pub fn fill(app: &mut App) {
     }
 }
 
-/// A week of battles of the first account (username manina) in an in-memory cllt.db, for the Thống kê tab: Cóc Xanh
-/// of the fight job won but for one loss in eight, Kẻ Quấy Phá lost one in three, Sói Xám and a boss of the quest run,
-/// one battle left with Đầu hàng; Xu khóa after half the battles won, now and then a stone, a ring or an egg.
+/// A week of battles of the first account (username manina) in an in-memory cllt.db, for Thống kê: a run of ten a day,
+/// one every few minutes, at level 19 six days ago up to 21 now. Cóc Xanh of the fight job won but for one loss in
+/// eight, Kẻ Quấy Phá (on Hồng Giang) lost one in three, Sói Xám and a boss of the quest run, one battle left with Đầu
+/// hàng; Xu khóa after half the battles won, now and then a stone, a ring or an egg.
 fn store() -> Result<Store, String> {
     let s = Store::memory().map_err(|e| e.to_string())?;
     let battle = |i: u64, mob: &str, level: i32, boss: bool, source, result| {
-        let ended_at = ago(i * 2_900 + 120);
+        let ended_at = ago((i / 10) * 86_400 + (i % 10) * 200 + 120);
         let won = result == BattleResult::Won;
+        let (map_id, map_name) = if mob == "Kẻ Quấy Phá" {
+            ("M3", "Hồng Giang")
+        } else {
+            ("M2", "Trại Vân Sơn")
+        };
         BattleRecord {
             character: "manina".into(),
-            level: 21,
+            level: 21 - (i / 25) as i32,
             started_at: ended_at - 25_000 - (i % 7) * 4_000,
             ended_at,
-            map_id: "M2".into(),
-            map_name: "Trại Vân Sơn".into(),
+            map_id: map_id.into(),
+            map_name: map_name.into(),
             zone: (i % 3) as i32,
             mob_id: format!("mob{}", 61_000 + i % 5),
             mob_name: mob.into(),
@@ -648,7 +654,7 @@ pub fn dump(out: &Path) -> Result<(), String> {
         .map(|e| (e.id.to_string(), json!(e.log)))
         .collect();
     let views: Vec<_> = entries.iter().map(view::account).collect();
-    // The Thống kê tab of the first account: what battle_stats and battle_history answer with no filter.
+    // The Thống kê modal of the first account: what battle_stats and battle_history answer with no filter.
     let s = store()?;
     let all = BattleFilter {
         username: "manina",

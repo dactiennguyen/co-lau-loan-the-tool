@@ -200,7 +200,7 @@ pub fn open_shop(shared: State<Shared>, id: u64) {
     shared.with(|app| app.send(id, Command::OpenShop));
 }
 
-/// Cửa hàng tab: opens shop `kind` of npc::SHOPS (on M1); the account's `shop` then lists it.
+/// Tiện ích, Mua: opens shop `kind` of npc::SHOPS (on M1); the account's `shop` then lists it.
 #[tauri::command]
 pub fn open_shop_kind(shared: State<Shared>, id: u64, kind: u8) {
     shared.with(|app| app.send(id, Command::OpenShopKind(kind)));
