@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 112 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 106 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 124 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 95 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -32,6 +32,9 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | Bảng chức năng: thư, bạn bè, xếp hạng, Bảo Điển, sứ quân | [11-panels](11-panels.md) |
 | Kỹ năng (`1191`, bảng `30`), điểm tiềm năng, túi đồ (`42`, `1187`), mặc, cởi, vứt (`1186`, `37`, `83`), dùng (`84`, trong trận `44`), mua ở Lái Buôn (`57`, `1190`), sửa đồ (`48`), x2 EXP (đuôi `9`), luật trong Cẩm nang | [12-skills-items](12-skills-items.md) |
 | Đồ rơi, nhặt đồ (`1188`), bảng vật phẩm và mã chỉ số của game | [13-drops-items](13-drops-items.md) |
+| NPC: hộp thoại của 20 NPC (`13`, `57`), Hương Lão, Chợ trời (`1192`), `s2c/0` là thông báo chung | [14-npc](14-npc.md) |
+| Cửa hàng NPC: 14 cửa hàng, 193 dòng hàng với giá, bản ghi 33 và 49 byte (`1190`), mua bằng Xu, Xu khóa, Lượng, Đổi lượng, đồ khoá giao dịch | [15-shops](15-shops.md) |
+| Pháp sư: nâng cấp thường và cẩn thận (`96`, `97`, `90`, `1258`, `91`), tỉ lệ và phí, thất bại, bùa, luyện đá (`99`, `92`, `93`), tách đá, chuyển hoá (`1260`), chế tạo, túi đầy, kết quả bấm thật | [16-upgrade](16-upgrade.md) |
 | Mọi gói client gửi được: hàm dựng, opcode, kiểu từng trường | [c2s-builders](../c2s-builders.md) |
 
 ## Danh sách gói
@@ -79,13 +82,25 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/1186 | equip_item | world | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | c2s/1257 | bag_sort | world | [Sắp xếp túi](12-skills-items.md#sắp-xếp) |
 | c2s/84 | use_item | world | [Dùng vật phẩm](12-skills-items.md#c2s-84) |
-| s2c/57 | npc_menu | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
-| c2s/57 | npc_menu_choice | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
-| s2c/1190 | shop_list | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| s2c/57 | npc_menu | world | [Hộp thoại NPC](14-npc.md#hộp-thoại), [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
+| c2s/57 | npc_menu_choice | world | [Hộp thoại NPC](14-npc.md#hộp-thoại), [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
+| s2c/1190 | shop_list | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [14 cửa hàng](15-shops.md) |
 | s2c/1111 | empty_ack | world | [Sắp xếp túi](12-skills-items.md#sắp-xếp), [Bước Tỷ thí](10-quests.md#tỷ-thí) |
 | s2c/1180 | duel_invite | world | [Bước Tỷ thí](10-quests.md#s2c-1180) |
 | c2s/1181 | duel_challenge | world | [Bước Tỷ thí](10-quests.md#s2c-1180) |
-| c2s/1190 | shop_buy | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190) |
+| c2s/1190 | shop_buy | world | [Mua ở Lái Buôn](12-skills-items.md#c2s-1190), [mua ở mọi cửa hàng](15-shops.md#mua) |
+| s2c/96 | service_window | world | [Các cửa sổ của Pháp sư](16-upgrade.md#cửa-sổ) |
+| s2c/99 | craft_window | world | [Các cửa sổ của Pháp sư](16-upgrade.md#cửa-sổ) |
+| c2s/97 | service_put | world | [Nâng cấp](16-upgrade.md#gói) |
+| s2c/90 | service_slot | world | [Nâng cấp](16-upgrade.md#gói) |
+| s2c/1258 | service_preview | world | [Nâng cấp](16-upgrade.md#gói) |
+| s2c/92 | stone_slot | world | [Luyện đá](16-upgrade.md#luyện-đá) |
+| s2c/93 | stone_result | world | [Luyện đá](16-upgrade.md#luyện-đá), [kết quả J3](16-upgrade.md#j3) |
+| s2c/1260 | transmute_target | world | [Chuyển hoá](16-upgrade.md#chuyển-hoá) |
+| c2s/91 | service_start | world | [Nâng cấp](16-upgrade.md#gói) |
+| s2c/91 | service_result | world | [Nâng cấp](16-upgrade.md#gói) |
+| s2c/1192 | market | world | [Ngọc Nga](14-npc.md#ngọc-nga) |
+| s2c/1224 | gift_code_prompt | world | [Hương Lão](14-npc.md#hương-lão) |
 | c2s/44 | battle_use_item | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | s2c/44 | battle_item_result | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | c2s/1215 | mail_request | world | [Các bảng chức năng](11-panels.md) |

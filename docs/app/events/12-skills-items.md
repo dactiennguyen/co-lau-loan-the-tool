@@ -33,8 +33,8 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Ngôi sao xanh "x2" ở góc trái là gì? | Nhân đôi EXP thắng trận của vật phẩm **Tăng Kinh Nghiệm (mã 7)**, 24 giờ, trôi cả lúc offline. Không phải mặc định: server gửi nó trong đuôi `s2c/9` (`"ef7"`, tỉ lệ 200000, ms còn lại), chỉ nick đã dùng món mới có. Xem [x2 EXP](#x2-exp). [Đo] |
 | Sửa đồ bằng gói gì? | **`c2s/48 (u8; i32)`**: sửa chiếc nón đang đội là `00 00000000`. Mỗi lần sửa tốn 1 Búa sửa chữa (mã 2), không tốn Xu. Server trả `s2c/1187` (túi đã mất búa) rồi `s2c/48`. Xem [Sửa đồ](#c2s-48). [Đo] |
 | Hồi máu thế nào? | Hoàn Linh Dược (mã 0, manina có 4 bình) hồi 30% sinh lực tối đa, chỉ dùng được **trong trận**: nút Túi đồ → chạm bình gửi **`c2s/44 (uuidTrận; 0; ô túi)`**, P5 đo hồi +36 (31 → 67 trên 145) ([Dùng trong trận](#c2s-44)). Ngoài trận nút Sử dụng gửi `c2s/84 (i32 ô túi)` nhưng server từ chối bình: "Vật phẩm không thể sử dụng!" ([Dùng vật phẩm](#c2s-84), P4). Từ cấp 11, máu mang sang trận sau; thua vì hết máu thì được hồi đầy (C1, khớp Q16, Q19). |
-| Mua đồ ở NPC thế nào? | Lái Buôn (NPC 106, M1): `c2s/13 (M1, 106)` → `s2c/57` (hộp thoại 3 dòng) → `c2s/57 (1, M1, 106)` chọn Dược phẩm → `s2c/1190` (8 món, mỗi món có mã ô cửa hàng, giá và loại tiền) → **`c2s/1190 (0; ô cửa hàng; số lượng)`**. Server trả câu báo `s2c/1256`, rồi cả túi (`s2c/42`, món mới ở ô trống đầu tiên) và tiền (`s2c/46`). Bình máu bán hai giá: 109 Xu (ô 0) hoặc 120 Xu khóa (ô 4); Búa Sửa Chữa 73 Xu hoặc 80 Xu khóa. Bot gửi thẳng được, không cần đứng gần NPC, nhưng **phải đang ở M1**: từ map khác server trả "Không thể thực hiện". Xem [Mua ở Lái Buôn](#c2s-1190). [Đo P5, B1] |
-| Nhiệm vụ hằng ngày lấy ở đâu? | Gặp Hương Lão Trần Bá (NPC 102, M1) → "Nhiệm vụ hằng ngày" → "Nhận nhiệm vụ". Tối đa 3 nhiệm vụ một ngày, làm từng cái một (C1). Gói chưa bắt. |
+| Mua đồ ở NPC thế nào? | Lái Buôn (NPC 106, M1): `c2s/13 (M1, 106)` → `s2c/57` (hộp thoại 3 dòng) → `c2s/57 (1, M1, 106)` chọn Dược phẩm → `s2c/1190` (8 món, mỗi món có mã ô cửa hàng, giá và loại tiền) → **`c2s/1190 (0; ô cửa hàng; số lượng)`**. Server trả câu báo `s2c/1256`, rồi cả túi (`s2c/42`, món mới ở ô trống đầu tiên) và tiền (`s2c/46`). Bình máu bán hai giá: 109 Xu (ô 0) hoặc 120 Xu khóa (ô 4); Búa Sửa Chữa 73 Xu hoặc 80 Xu khóa. Bot gửi thẳng được, không cần đứng gần NPC, nhưng **phải đang ở M1**: từ map khác server trả "Không thể thực hiện". Xem [Mua ở Lái Buôn](#c2s-1190). Vũ khí, Cửa hàng [Lượng] và đồ của Bà Tư Hạnh mua bằng cùng gói, chỉ khác ô ([14 cửa hàng](15-shops.md)). [Đo P5, B1, J1] |
+| Nhiệm vụ hằng ngày lấy ở đâu? | Gặp Hương Lão Trần Bá (NPC 102, M1) → "Nhiệm vụ hằng ngày" → "Nhận nhiệm vụ". Tối đa 3 nhiệm vụ một ngày, làm từng cái một (C1). Hộp thoại đã đo ("Hôm nay con đã nhận 0/3 nhiệm vụ hàng ngày.", [Hương Lão](14-npc.md#hương-lão)); gói nhận nhiệm vụ chưa bắt. |
 
 <a id="c2s-1191"></a>
 
@@ -293,7 +293,7 @@ u8 ô (0xfe: trên đất); i32 mãVậtPhẩm; string uuid; i32 field0; i32 đ�
 u8 field1; u8 hệ (1 Hỏa, 2 Lôi, 4 Thủy; 0xff ở vật phẩm thường); i32 field2; u8 field3; u8 field4; u8 n; n × {i32 chỉSố; i32 giáTrị}
 ```
 
-Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0` là cấp cường hoá: 8 ở đồ "+8" của symap, 0 ở đồ của manina ([x2 EXP](#x2-exp)). `field2`, `field3` bằng 0 ở mọi mẫu. `field4` bằng 1 ở mọi trang bị, 0 ở thú cưng; có lẽ là phẩm chất. [Đo giá trị; field4 Suy luận]
+Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0` là cấp cường hoá: 8 ở đồ "+8" của symap, 0 ở đồ của manina ([x2 EXP](#x2-exp)). `field1` là cờ khoá giao dịch: 1 chưa khoá, 0 đã khoá: mua bằng Xu khóa, vừa nâng cấp thành công [Đo J2, J3], hay đã mặc lần đầu [Cẩm nang] ([15-shops](15-shops.md#khoá)). `field2`, `field3` bằng 0 ở mọi mẫu. `field4` bằng 1 ở mọi trang bị, 0 ở thú cưng; có lẽ là phẩm chất. [Đo giá trị; field4 Suy luận]
 
 | Gói | Khi nào | Bố cục | Mẫu |
 |---|---|---|---|
@@ -364,7 +364,7 @@ Bot TS ghi dạng chữ ([src/protocol/items.ts](../../../src/protocol/items.ts)
 - Trang bị đang mặc: `"0: Nón Âu Lạc (+4 phòng thủ, +58 sinh lực), hệ Lôi, độ bền 55/60"`, trong sự kiện `gear` lúc đăng nhập.
 
 Cẩm nang về trang bị (C1):
-- Nón, Áo, Vũ khí, Nhẫn chia bậc theo cấp mặc (1, 21, 51, 101, 151, 201). Cường hoá ở NPC Pháp Sư: bậc 1 tới +4, bậc 21 tới +8.
+- Nón, Áo, Vũ khí, Nhẫn chia bậc theo cấp mặc (1, 21, 51, 101, 151, 201). Cường hoá ở NPC Pháp Sư: bậc 1 tới +4, bậc 21 tới +8, bậc 51 tới +12, từ bậc 101 và cánh tới +16 (đọc lại `cam-nang.json` ở J2). Gói của cửa sổ Nâng cấp ở [14-npc](16-upgrade.md#nâng-cấp).
 - Độ bền giảm khi đánh và bị đánh (trừ đấu với người chơi). Hết độ bền thì món mất tác dụng, cần Sửa chữa.
 - Đúng hệ nhân vật thì chỉ số của món được +5%. Đủ 4 món cùng hệ thì được thêm +8% tấn công và +8% sinh lực.
 
@@ -589,9 +589,9 @@ Hộp thoại của bước "Tỷ thí với Võ Quan Đinh Mộc" cũng là `s2
 | Giá một món | i32 | 120 | |
 | Độ bền | i32 | -1 | -1 = không có |
 | Số lượng | i32 | 1 | |
-| (cờ) | u8 | 0 | 1 ở mọi món giá Xu, 0 ở món giá Xu khóa. Món mua về có `field1` 0 trong túi, nên có lẽ đây là cờ khoá của món [Suy luận] |
+| (cờ) | u8 | 0 | 1 ở mọi món giá Xu và Lượng, 0 ở món giá Xu khóa. Món mua về có `field1` bằng cờ này: đó là cờ khoá giao dịch ([15-shops](15-shops.md#khoá)) [Đo J2] |
 | Hệ | u8 | 0xff | Không có hệ |
-| | 10 byte | 0 | Chưa rõ |
+| | 10 byte | 0 | `i32 0; u8 0; u8 0; i32 0`: field2, field3, field4 và số dòng chỉ số. Trang bị có thêm dòng chỉ số, bản ghi dài 49 byte ([15-shops](15-shops.md#bản-ghi)) |
 
 **`c2s/1190`** = `u8 0; i32 ôCửaHàng; i32 sốLượng`, hàm dựng `sqlq.h87(ô, sốLượng)`. P5: `00 00000004 00000001` (mua được), `00 00000000 00000001` (ô 0, thiếu Xu). Byte đầu luôn 0 ở hai lần đo. [Đo; nghĩa byte đầu Chưa rõ]
 
