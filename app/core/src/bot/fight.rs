@@ -128,7 +128,7 @@ impl Bot {
     }
 
     pub(super) fn next(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if self.battle.is_some() || self.allotting {
+        if self.battle.is_some() || self.allotting || self.skilling.is_some() {
             return;
         }
         if self.trip.is_some() {
@@ -141,8 +141,9 @@ impl Bot {
         if self.quest_running() {
             return self.quest_next(now, out);
         }
-        // Between the battles of a job, or with nothing to do, the stat plan spends the points there are first.
-        if self.allot(now, out) {
+        // Between the battles of a job, or with nothing to do, the stat plan and Tự cộng kỹ năng spend the points there
+        // are first.
+        if self.allot(now, out) || self.auto_skill(now, out) {
             return;
         }
         let Some(job) = self.snap.job.clone().filter(|j| j.done.is_none()) else {

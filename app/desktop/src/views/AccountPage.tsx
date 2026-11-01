@@ -15,12 +15,12 @@ import { MetricRow } from "./MetricRow";
 import { PlayersCard } from "./PlayersCard";
 import { QuestCard } from "./QuestCard";
 import { Button } from "../components/Button";
-import { SkillsCard } from "./SkillsCard";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
-type Task = "quest" | "fight" | "settings" | "bag" | "skills" | "stats";
-const TASKS: Task[] = ["quest", "fight", "settings", "bag", "skills", "stats"];
+// Kỹ năng is a modal of the Chỉ số card (SkillsModal); a tab kept as "skills" opens Nhiệm vụ.
+type Task = "quest" | "fight" | "settings" | "bag" | "stats";
+const TASKS: Task[] = ["quest", "fight", "settings", "bag", "stats"];
 /** localStorage keys (remember.ts): the open tab of an account, and the tab last opened on any account. */
 const tabKey = (id: number) => `tab.${id}`;
 const LAST_TAB = "tab.last";
@@ -81,7 +81,12 @@ export function AccountPage({ account }: { account: Account }) {
       <MetricRow character={c} />
       <div className="page__columns">
         <div className="page__stack">
-          <StatsCard account={account} onAdd={(stat) => api.addStat(id, stat)} onPlan={() => open({ kind: "stats", id })} />
+          <StatsCard
+            account={account}
+            onAdd={(stat) => api.addStat(id, stat)}
+            onPlan={() => open({ kind: "stats", id })}
+            onSkills={() => open({ kind: "skills", id })}
+          />
           <PlayersCard character={c} />
         </div>
         <div className="page__stack page__stack--tasks">
@@ -96,7 +101,6 @@ export function AccountPage({ account }: { account: Account }) {
                 { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
                 { key: "settings", label: "Cài đặt", icon: "settings" },
                 { key: "bag", label: "Túi đồ", icon: "gem" },
-                { key: "skills", label: "Kỹ năng", icon: "bolt" },
                 { key: "stats", label: "Thống kê", icon: "chart" },
               ]}
             />
@@ -116,8 +120,6 @@ export function AccountPage({ account }: { account: Account }) {
               <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
             ) : task === "bag" ? (
               <InventoryCard account={account} onAction={(action, slot) => api.itemAction(id, action, slot)} />
-            ) : task === "skills" ? (
-              <SkillsCard account={account} onUpgrade={(skill) => api.upgradeSkill(id, skill)} />
             ) : task === "stats" ? (
               <BattleStatsCard account={account} />
             ) : task === "settings" ? (

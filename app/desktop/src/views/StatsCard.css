@@ -56,3 +56,19 @@
 @media (max-width: 1120px) {
   .potentials { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Kỹ năng, top right of the card: the skill points not spent yet in a gold badge; lit green while Tự cộng spends them. */
+.stats__skills { margin-left: auto; }
+.stats__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  padding: 0 4px;
+  background: var(--primary);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1;
+}
+.stats__skills.is-on { border-color: var(--good); color: var(--good); }

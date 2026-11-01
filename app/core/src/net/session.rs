@@ -241,7 +241,10 @@ pub(super) async fn session(
                     Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
-                    Some(Command::FightSettings(settings)) => bot.set_fight(settings, &mut out),
+                    Some(Command::FightSettings(settings)) => {
+                        bot.set_fight(settings, &mut out);
+                        bot.spend_points(now, &mut out);
+                    }
                     Some(Command::LossesLeft(left)) => bot.set_losses_left(left, &mut out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),

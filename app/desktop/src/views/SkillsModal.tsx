@@ -1,30 +1,53 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { api } from "../api";
 import { Button } from "../components/Button";
-import { Card } from "../components/Card";
+import { Dialog } from "../components/Dialog";
 import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
+import { Hint } from "../components/Hint";
 import { Icon } from "../components/Icon";
 import { num } from "../format";
 import { skillIcon, TREE } from "../skillIcons";
-import type { Account, Skill, SkillLevel } from "../types";
-import "./SkillsCard.css";
+import type { Account, FightSettings, Skill, SkillLevel } from "../types";
+import "./SkillsModal.css";
 
 /** Nội lực of one "thành" (12-skills-items.md#bảng-kỹ-năng). */
 const THANH = 25;
 /** A Nâng cấp the server has not answered in this long is let go, and the button comes back. */
 const ANSWER_MS = 8000;
-/** The narrowest the detail panel gets beside the tree, and the gap between them (SkillsCard.css). */
+/** The narrowest the detail panel gets beside the tree, and the gap between them (SkillsModal.css). */
 const PANEL_MIN = 240;
 const GAP = 16;
 
 const mana = (l: SkillLevel) => `Tiêu hao ${(l.mana / THANH).toLocaleString("vi-VN")} thành nội lực`;
 
 /**
- * Kỹ năng tab, as the game's Bản thân → Kỹ năng: the 9 skills of the element on the tree background (s2c/30), colour
- * once learned, grey before, with the level; the picked one on the right with its current and next level, what the next
- * one needs, and Nâng cấp (c2s/1191, one level a click). The skill that can take a level first is shown at the start.
+ * Kỹ năng, a modal opened from the Chỉ số card, as the game's Bản thân → Kỹ năng: the 9 skills of the element on the tree
+ * background (s2c/30), colour once learned, grey before, with the level; the picked one on the right with its current
+ * and next level, what the next one needs, and Nâng cấp (c2s/1191, one level a click). The skill that can take a level
+ * first is shown at the start. Over the tree, how many are learnt and Tự cộng (FightSettings.autoSkills, off unless
+ * turned on): the bot spends the points itself, the lowest level first (Bot::auto_skill).
  */
-export function SkillsCard({ account, onUpgrade }: { account: Account; onUpgrade: (skill: number) => void }) {
+export function SkillsModal({ account, onClose }: { account: Account; onClose: () => void }) {
   const c = account.character;
+  const onUpgrade = (skill: number) => api.upgradeSkill(account.id, skill);
+  const hint = useId();
+  // Tự cộng: shown at once, saved to accounts.json; kept until the account comes back with it.
+  const saved = account.fightSettings;
+  const [saving, setSaving] = useState<FightSettings | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (saving && saving.autoSkills === saved.autoSkills) setSaving(null);
+  }, [saving, saved]);
+  const settings = saving ?? saved;
+  const setAuto = (autoSkills: boolean) => {
+    const next = { ...settings, autoSkills };
+    setSaving(next);
+    setError(null);
+    api.setFight(account.id, next).catch((err) => {
+      setSaving(null);
+      setError(String(err?.message ?? err));
+    });
+  };
   const [picked, setPicked] = useState<number | null>(null);
   // The skill and level of the last Nâng cấp, until s2c/10 kind 32 changes that level or ANSWER_MS goes by.
   const [sent, setSent] = useState<{ id: number; level: number } | null>(null);
@@ -33,69 +56,102 @@ export function SkillsCard({ account, onUpgrade }: { account: Account; onUpgrade
     const t = setTimeout(() => setSent(null), ANSWER_MS);
     return () => clearTimeout(t);
   }, [sent]);
-  // The tree shrinks (0.6 to 1) to stay as tall as the card and leave PANEL_MIN beside it.
-  const body = useRef<HTMLDivElement>(null);
+  // The modal is as tall as what it holds, up to the form's max-height (SkillsModal.css). The tree shrinks (0.6 to 1) to
+  // fit the room the form leaves its body, and to leave PANEL_MIN beside it. The room is the max-height less the rest
+  // of the form (title, bar, footer), so it does not follow the tree's own size and grows back with the window.
+  const frame = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const drawn = !!c?.skills.length;
   useLayoutEffect(() => {
-    const box = body.current?.parentElement; // the card body, which scrolls
-    if (!box) return;
+    const box = frame.current; // the modal's body, which scrolls past the max-height
+    const form = box?.parentElement;
+    if (!box || !form) return;
     const fit = () => {
       const s = getComputedStyle(box), px = (v: string) => parseFloat(v) || 0;
-      const h = box.clientHeight - px(s.paddingTop) - px(s.paddingBottom);
+      const most = px(getComputedStyle(form).maxHeight) || Math.min(720, innerHeight * 0.92);
+      const h = most - (form.offsetHeight - box.offsetHeight) - px(s.paddingTop) - px(s.paddingBottom);
       const w = box.clientWidth - px(s.paddingLeft) - px(s.paddingRight);
       setZoom(Math.max(0.6, Math.min(1, h / TREE.height, (w - PANEL_MIN - GAP) / TREE.width)));
     };
     const watch = new ResizeObserver(fit);
-    watch.observe(box);
-    return () => watch.disconnect();
+    watch.observe(form);
+    addEventListener("resize", fit);
+    return () => {
+      watch.disconnect();
+      removeEventListener("resize", fit);
+    };
   }, [drawn]);
 
-  if (!c || !c.skills.length) {
-    return (
-      <Card title="Kỹ năng" icon="bolt" className="sk">
-        <p className="sk__none">
-          {c ? "Server chưa gửi cây kỹ năng (s2c/30)." : "Đăng nhập để xem kỹ năng: server chỉ gửi cây kỹ năng lúc vào game."}
-        </p>
-      </Card>
-    );
-  }
-  const skills = c.skills;
+  const skills = c?.skills ?? [];
   const shown = skills.find((k) => k.id === picked) ?? skills.find((k) => !k.blockers.length) ?? skills[0];
   const learned = skills.filter((k) => k.level > 0).length;
-  const element = c.element != null ? ELEMENT_NAME[c.element] : undefined;
+  const element = c?.element != null ? ELEMENT_NAME[c.element] : undefined;
   const waiting = !!sent && skills.find((k) => k.id === sent.id)?.level === sent.level;
   return (
-    <Card
+    <Dialog
       title="Kỹ năng"
-      icon="bolt"
-      className="sk"
-      subtitle={`${element ? `Hệ ${element} · ` : ""}${num(c.skillPoints ?? 0)} điểm kỹ năng`}
-      aside={<span className="sk__count">{learned}/{skills.length} đã học</span>}
+      subtitle={`${account.label}${element ? ` · Hệ ${element}` : ""}${c ? ` · ${num(c.skillPoints ?? 0)} điểm kỹ năng` : ""}`}
+      className="skmodal"
+      onClose={onClose}
+      onSubmit={(e) => e.preventDefault()}
     >
-      <div className="sk__body" ref={body}>
-        <div
-          className="sk__tree"
-          role="group"
-          aria-label={`Cây kỹ năng${element ? ` hệ ${element}` : ""}`}
-          style={{ width: TREE.width, height: TREE.height, zoom, backgroundImage: TREE.url ? `url(${TREE.url})` : undefined }}
-        >
-          {skills.map((k) => k.place && <SkillBox key={k.id} skill={k} active={k.id === shown.id} onPick={() => setPicked(k.id)} />)}
-        </div>
-        <SkillPanel
-          skill={shown}
-          level={c.level}
-          points={c.skillPoints ?? 0}
-          busy={c.battle ? "đang đánh, đợi hết trận" : waiting ? "đang đợi server trả lời" : null}
-          onUpgrade={() => {
-            // Kept on the panel: the skill shown by default may not be the first that can take a level once upgraded.
-            setPicked(shown.id);
-            setSent({ id: shown.id, level: shown.level });
-            onUpgrade(shown.id);
-          }}
-        />
+      <div className="skmodal__bar">
+        {skills.length > 0 && (
+          <span className="sk__count">
+            {learned}/{skills.length} đã học
+          </span>
+        )}
+        <label className="skmodal__auto">
+          <input type="checkbox" checked={settings.autoSkills} disabled={!!saving} onChange={(e) => setAuto(e.target.checked)} />
+          <span className="skmodal__box" aria-hidden="true">
+            <Icon name="check" size={11} />
+          </span>
+          Tự cộng
+        </label>
+        <Hint label="Tự cộng kỹ năng là gì?" id={`${hint}-auto`}>
+          Bật thì bot tự cộng điểm kỹ năng ngay khi cộng được, mỗi lần 1 cấp, vào kỹ năng có cấp nhỏ nhất trong những kỹ năng
+          nâng được lúc đó (chưa học thì trước, bằng cấp thì theo thứ tự trong cây), cho tới khi hết điểm hay không còn kỹ năng
+          nào đủ điều kiện. Bot cộng giữa các trận và khi nick rảnh, không cộng lúc đang đánh, và chừa điểm cho bước nhiệm vụ
+          "Sử dụng điểm kỹ năng". Mặc định tắt; lưu theo nick.
+        </Hint>
+        {error && <span className="sk__why">{error}</span>}
       </div>
-    </Card>
+      <div className="skmodal__body scroll" ref={frame}>
+        {!c || !shown ? (
+          <p className="sk__none">
+            {c ? "Server chưa gửi cây kỹ năng (s2c/30)." : "Đăng nhập để xem kỹ năng: server chỉ gửi cây kỹ năng lúc vào game."}
+          </p>
+        ) : (
+          <div className="sk__body">
+            <div
+              className="sk__tree"
+              role="group"
+              aria-label={`Cây kỹ năng${element ? ` hệ ${element}` : ""}`}
+              style={{ width: TREE.width, height: TREE.height, zoom, backgroundImage: TREE.url ? `url(${TREE.url})` : undefined }}
+            >
+              {skills.map((k) => k.place && <SkillBox key={k.id} skill={k} active={k.id === shown.id} onPick={() => setPicked(k.id)} />)}
+            </div>
+            <SkillPanel
+              skill={shown}
+              level={c.level}
+              points={c.skillPoints ?? 0}
+              busy={c.battle ? "đang đánh, đợi hết trận" : waiting ? "đang đợi server trả lời" : null}
+              onUpgrade={() => {
+                // Kept on the panel: the skill shown by default may not be the first that can take a level once upgraded.
+                setPicked(shown.id);
+                setSent({ id: shown.id, level: shown.level });
+                onUpgrade(shown.id);
+              }}
+            />
+          </div>
+        )}
+      </div>
+      <footer>
+        <Button onClick={onClose}>
+          Đóng
+        </Button>
+      </footer>
+    </Dialog>
   );
 }
 

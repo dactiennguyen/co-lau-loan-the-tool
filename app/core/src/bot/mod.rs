@@ -176,6 +176,8 @@ enum Wake {
     Silence(&'static str),
     /// A point of the stat plan the server did not answer in 8 s.
     StatSilence,
+    /// A level of Tự cộng kỹ năng the server did not answer in 8 s.
+    SkillSilence,
 }
 
 pub struct Bot {
@@ -241,6 +243,10 @@ pub struct Bot {
     allotting: bool,
     allot_failed: bool,
     plan_warned: bool,
+    /// Tự cộng kỹ năng (FightSettings::auto_skills): `skilling`, the skill points when its c2s/1191 went, while it waits
+    /// for s2c/1191; `skills_failed` once one went unanswered or spent no point, until it is turned on again.
+    skilling: Option<i32>,
+    skills_failed: bool,
     upgrading: Option<Upgrade>,
     item_wait: Option<ItemWait>,
     /// The zone of c2s/1173 until s2c/43 of it (change_zone).
@@ -318,6 +324,8 @@ impl Bot {
             spent: [0; 4],
             allotting: false,
             allot_failed: false,
+            skilling: None,
+            skills_failed: false,
             plan_warned: false,
             upgrading: None,
             item_wait: None,
@@ -557,6 +565,16 @@ impl Bot {
                     } else if self.job_running() {
                         self.finish(reason, out);
                     }
+                }
+                // The run goes on without it: a skill level is not worth stopping a job or a quest for.
+                Wake::SkillSilence => {
+                    (self.skilling, self.skills_failed) = (None, true);
+                    out.push(Out::Log(
+                        LogKind::Character,
+                        "Server không trả lời khi tự cộng kỹ năng; thôi tự cộng tới lần bật sau"
+                            .into(),
+                    ));
+                    self.next(now, out);
                 }
             }
         }

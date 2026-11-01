@@ -536,6 +536,9 @@ export interface FightSettings {
   fightCount: number;
   fightLosses: number;
   questLosses: number;
+  /** Tự cộng kỹ năng, off unless turned on (the Kỹ năng modal): points go to the skill of the lowest level that can take
+   * one, unlearnt ones first, between battles and with nothing running. */
+  autoSkills: boolean;
 }
 
 /** Settings of settings.rs: the Cài đặt of the app, the same for every account. */

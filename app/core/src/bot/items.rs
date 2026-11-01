@@ -150,6 +150,17 @@ impl Bot {
                 .into(),
             ));
         }
+        if settings.auto_skills != self.fight.auto_skills {
+            out.push(Out::Log(
+                LogKind::Character,
+                match settings.auto_skills {
+                    true => "Bật tự cộng kỹ năng: điểm kỹ năng vào kỹ năng cấp thấp nhất nâng được, chưa học trước",
+                    false => "Tắt tự cộng kỹ năng",
+                }
+                .into(),
+            ));
+            self.skills_failed = false;
+        }
         self.fight = settings;
     }
 

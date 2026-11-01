@@ -5,7 +5,13 @@ use super::*;
 impl Bot {
     /// The game has let the character in (net/session.rs): the stat plan spends what points there are.
     pub fn on_ready(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if self.stat_plan.is_some() && self.idle() {
+        self.spend_points(now, out);
+    }
+
+    /// With nothing running, the stat plan and Tự cộng kỹ năng spend what points there are now: at login, and once Cài
+    /// đặt đánh changed (net/session.rs).
+    pub fn spend_points(&mut self, now: Instant, out: &mut Vec<Out>) {
+        if (self.stat_plan.is_some() || self.fight.auto_skills) && self.idle() {
             self.next(now, out);
         }
     }
@@ -64,10 +70,12 @@ impl Bot {
         Self::send(out, 10, ctx);
     }
 
-    /// No battle, job, quest run or timer: what `next` would do is the stat plan only.
+    /// No battle, job, quest run, trip or timer: what `next` would do is the stat plan and Tự cộng kỹ năng only (a trip
+    /// would send its portal again).
     pub(super) fn idle(&self) -> bool {
         self.battle.is_none()
             && self.timer.is_none()
+            && self.trip.is_none()
             && !self.job_running()
             && !self.quest_running()
     }
@@ -88,10 +96,11 @@ impl Bot {
     /// s2c/10 kind 8, the points left. It comes last of the three that answer c2s/10 (P1), so a point of the plan goes
     /// on to the next in 250 ms; points that came with a level while nothing runs go out the same way.
     pub(super) fn points_changed(&mut self, now: Instant) {
+        let skills = self.fight.auto_skills && !self.skills_failed;
         if self.allotting {
             self.allotting = false;
             self.timer = Some((now + Duration::from_millis(250), Wake::Next));
-        } else if self.stat_plan.is_some() && !self.allot_failed && self.idle() {
+        } else if ((self.stat_plan.is_some() && !self.allot_failed) || skills) && self.idle() {
             self.timer = Some((now + Duration::from_millis(250), Wake::Next));
         }
     }
@@ -159,8 +168,77 @@ impl Bot {
     }
 }
 
-/// Skill levels: the quest step "Sử dụng điểm kỹ năng" and Nâng cấp of the Kỹ năng tab, both c2s/1191 (id, 1).
+/// Skill levels: the quest step "Sử dụng điểm kỹ năng", Nâng cấp of the Kỹ năng modal and Tự cộng kỹ năng, all c2s/1191
+/// (id, 1).
 impl Bot {
+    /// Tự cộng kỹ năng (FightSettings::auto_skills): one level of the skill with the lowest level of those that can take
+    /// one now, unlearnt ones first, then the order of the tree; the next once s2c/1191 answers (skill_answered), so
+    /// levels go out between battles only. Points for the "Sử dụng điểm kỹ năng" steps still ahead in the quest are kept
+    /// for them. True when a level was asked for.
+    pub(super) fn auto_skill(&mut self, now: Instant, out: &mut Vec<Out>) -> bool {
+        if !self.fight.auto_skills
+            || self.skills_failed
+            || self.skilling.is_some()
+            || self.battle.is_some()
+        {
+            return false;
+        }
+        let keep = self.snap.quest.as_ref().map_or(0, |q| {
+            q.steps
+                .iter()
+                .skip(q.current.max(0) as usize)
+                .filter(|s| matches!(step_action(&s.text, s.npc_id, s.param), StepAction::Skill))
+                .count() as i32
+        });
+        let points = self.snap.skill_points.unwrap_or(0) - keep;
+        if points <= 0 {
+            return false;
+        }
+        let nodes = skill_tree(
+            &self.snap.skills,
+            &self.snap.skill_levels,
+            self.snap.level,
+            points,
+        );
+        let Some(id) = nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.blockers.is_empty())
+            .min_by_key(|&(i, n)| (n.level, i))
+            .map(|(_, n)| n.skill.id)
+        else {
+            return false;
+        };
+        self.upgrade(Some(id), now, out);
+        if !self
+            .upgrading
+            .as_ref()
+            .is_some_and(|u| u.id == id && u.at == now)
+        {
+            return false;
+        }
+        self.skilling = Some(self.snap.skill_points.unwrap_or(0));
+        self.timer = Some((now + Duration::from_secs(8), Wake::SkillSilence));
+        true
+    }
+
+    /// s2c/1191 answered a level of Tự cộng kỹ năng with `points` left: the next one, or the run, goes on in 250 ms. An
+    /// answer that spent no point stops Tự cộng until it is turned on again, or the same level would be asked for again
+    /// and again.
+    pub(super) fn skill_answered(&mut self, points: i32, now: Instant, out: &mut Vec<Out>) {
+        let Some(before) = self.skilling.take() else {
+            return;
+        };
+        if points >= before {
+            self.skills_failed = true;
+            out.push(Out::Log(
+                LogKind::Character,
+                format!("Server không nâng kỹ năng (vẫn còn {points} điểm); thôi tự cộng tới lần bật sau"),
+            ));
+        }
+        self.timer = Some((now + Duration::from_millis(250), Wake::Next));
+    }
+
     /// Nâng cấp on skill `id`: one level now, when the tab would allow it. Not in a battle, nor while another c2s/1191
     /// waits for its answer.
     pub fn upgrade_skill(&mut self, id: i32, now: Instant, out: &mut Vec<Out>) {

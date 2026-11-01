@@ -84,8 +84,14 @@ impl Bot {
                     )),
                 }
             }
+            // The tree comes at login, after the points: Tự cộng kỹ năng can only choose once it is in.
             30 => match skill_table(payload) {
-                Ok(t) => s.skills = Arc::new(t.skills),
+                Ok(t) => {
+                    s.skills = Arc::new(t.skills);
+                    if self.fight.auto_skills && !self.skills_failed && self.idle() {
+                        self.timer = Some((now + Duration::from_millis(250), Wake::Next));
+                    }
+                }
                 Err(e) => out.push(Out::Log(
                     LogKind::Character,
                     format!("Không đọc được cây kỹ năng (s2c/30): {e}"),
@@ -113,6 +119,7 @@ impl Bot {
                         ));
                     }
                 }
+                self.skill_answered(skill_points, now, out);
             }
             // The bag and the money are shown, never acted on: one that does not read is logged and left as it was.
             // Also the answer to the c2s/42 a task of Pháp sư sends after each press, and the bag after it took a worn

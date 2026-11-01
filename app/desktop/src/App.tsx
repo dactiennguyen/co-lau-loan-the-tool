@@ -6,6 +6,7 @@ import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
 import { PlaceDialog } from "./views/PlaceDialog";
 import { SettingsDialog } from "./views/SettingsDialog";
+import { SkillsModal } from "./views/SkillsModal";
 import { ShopModal } from "./views/ShopModal";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
@@ -67,6 +68,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "place" && account) {
     return <PlaceDialog account={account} onClose={close} />;
+  }
+  if (dialog?.kind === "skills" && account) {
+    return <SkillsModal account={account} onClose={close} />;
   }
   if (dialog?.kind === "shop" && account) {
     return <ShopModal account={account} item={dialog.item} onClose={close} />;

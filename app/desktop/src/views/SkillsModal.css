@@ -1,6 +1,19 @@
-/* Kỹ năng: the tree (the game's background, 288 × 347, with the icons in its boxes; SkillsCard shrinks it to fit the card)
-   beside the detail panel, at least 240 px wide. Very narrow cards put the panel under the tree. */
-.sk .card__body { display: grid; align-content: start; container-type: inline-size; overflow: auto; }
+/* Kỹ năng, a modal as tall as what it holds: the bar (learnt, Tự cộng) over the tree (the game's background, 288 × 347,
+   with the icons in its boxes; SkillsModal shrinks it when the window is short) beside the detail panel, at least 240 px
+   wide. The form stops at its max-height and the body scrolls; a narrow window puts the panel under the tree. */
+.dialog.skmodal { width: min(860px, 94vw); max-width: none; max-height: none; }
+.skmodal form { max-height: min(720px, 92vh); box-sizing: border-box; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
+.skmodal__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.skmodal__bar .sk__count { margin-left: 0; }
+.skmodal__body { min-height: 0; overflow: auto; container-type: inline-size; }
+/* Tự cộng: a pixel check box, green when on, as the setting rows. */
+.skmodal__auto { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12px; font-weight: 600; color: var(--fg-2); cursor: pointer; }
+.skmodal__auto input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.skmodal__box { display: grid; place-items: center; flex: none; width: 16px; height: 16px; color: transparent; background: var(--bg-2); box-shadow: inset 0 0 0 2px var(--line-strong); }
+.skmodal__auto input:checked + .skmodal__box { color: var(--ink); background: var(--good); box-shadow: inset -2px -2px 0 var(--good-shade); }
+.skmodal__auto input:focus-visible + .skmodal__box { outline: 2px solid var(--ring); outline-offset: 2px; }
+.skmodal__auto:hover { color: var(--fg); }
+.skmodal__auto:has(input:disabled) { opacity: 0.6; cursor: wait; }
 .sk__none { margin: 0; font-size: 12px; color: var(--fg-3); }
 .sk__count {
   margin-left: auto;

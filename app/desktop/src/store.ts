@@ -15,6 +15,8 @@ export type Dialog =
   | { kind: "stop"; id: number }
   /** How potential points are spent on their own. */
   | { kind: "stats"; id: number }
+  /** Kỹ năng (SkillsModal): the skill tree, Nâng cấp and Tự cộng. */
+  | { kind: "skills"; id: number }
   /** Đổi khu / map of the Vị trí card. */
   | { kind: "place"; id: number }
   /** Cửa hàng (ShopModal): the 14 shops, Pháp sư, Hương Lão; with the item to pick first in Dược phẩm (Mua búa: 2). */

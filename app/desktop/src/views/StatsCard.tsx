@@ -23,13 +23,16 @@ interface Props {
   onAdd: (stat: number) => void;
   /** Opens the choice of how points are spent on their own. */
   onPlan: () => void;
+  /** Opens the Kỹ năng modal. */
+  onSkills: () => void;
 }
 
 /** Combat stats, then the potential stats with the points left to spend on them (s2c/9, s2c/10 kind 8) and a + on each;
  * the gear after Tiềm năng opens how the bot spends them on its own, lit while it does. The main stat of the element
  * (Hỏa Cường lực, Thủy Nội lực, Lôi Thân pháp) is framed and lit in the element's colour, so a point does not go to
- * another one by mistake. The skill points are on the Kỹ năng tab. */
-export function StatsCard({ account, onAdd, onPlan }: Props) {
+ * another one by mistake. Kỹ năng, top right, opens the skill tree in a modal; it shows the skill points not spent yet
+ * (none at 0), and is lit while Tự cộng spends them. */
+export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
   const c = account.character;
   // A point goes out between battles only, as Bot::add_stat requires.
   const canAdd = account.status >= 2 && account.status <= 3 && (c?.statPoints ?? 0) > 0 && !c?.battle;
@@ -39,8 +42,24 @@ export function StatsCard({ account, onAdd, onPlan }: Props) {
   const element = c?.element ?? null;
   const main = mainStat(element);
   const elementName = element != null ? ELEMENT_NAME[element] : undefined;
+  const skillPoints = c?.skillPoints ?? 0;
+  const auto = account.fightSettings.autoSkills;
+  const skills = (
+    <Button
+      kind="outline"
+      small
+      icon="star"
+      className={`stats__skills${auto ? " is-on" : ""}`}
+      aria-label={`Kỹ năng${skillPoints > 0 ? `: ${num(skillPoints)} điểm chưa cộng` : ""}${auto ? ", đang tự cộng" : ""}`}
+      aria-haspopup="dialog"
+      onClick={onSkills}
+    >
+      Kỹ năng
+      {skillPoints > 0 && <b className="stats__badge px">{num(skillPoints)}</b>}
+    </Button>
+  );
   return (
-    <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? "Chiến đấu và tiềm năng" : "Đăng nhập để xem chỉ số"}>
+    <Card title="Chỉ số" icon="bolt" tone="var(--coin)" subtitle={c ? undefined : "Đăng nhập để xem chỉ số"} aside={skills}>
       <ul className="combat">
         {COMBAT.map((s, i) => (
           <li key={s.label}>

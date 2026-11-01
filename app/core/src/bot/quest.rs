@@ -187,6 +187,9 @@ impl Bot {
         if !matches!(action, StepAction::Stat) && self.allot(now, out) {
             return;
         }
+        if !matches!(action, StepAction::Skill) && self.auto_skill(now, out) {
+            return;
+        }
         if self.elsewhere(&action, &q, &step.text, now, out) {
             return;
         }
