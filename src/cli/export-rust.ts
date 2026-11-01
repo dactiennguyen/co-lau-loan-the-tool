@@ -11,7 +11,7 @@ import { buildRequest, decodeEvent } from '../protocol/events.ts';
 import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, duelInvite, skillTable,
   characterExtra, characterGear, characterTail, inventory, currencies, gearUpdate, zoneList } from '../protocol/world.ts';
 import { N, swap, settle, bestMove, fighter, unknownMob, battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, STRATEGIES, type Fighter } from '../battle/battle.ts';
-import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, destination, portalsOf, route } from '../bot/atlas.ts';
+import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefusal, recordWorld, destination, portalsOf, route } from '../bot/atlas.ts';
 import { QuestBot, stepAction } from '../bot/quest.ts';
 // The v2 search and the v3 choice of an own turn (battleV3 below).
 import { readFileSync } from 'node:fs';
@@ -125,6 +125,18 @@ function scanAtlas(): Atlas {
   return atlas;
 }
 
+/** scanAtlas() with the world map of S1 and M5 Lạc Cốc, entered by a level 42 (S2): the maps shown more than one level
+ * above the character are left out of the way, and portal 1013 keeps the 40 it asked for. */
+function gateAtlas(): Atlas {
+  const atlas = scanAtlas();
+  recordMap(atlas, mapData(mapPacket('M5', 'Lạc Cốc', [[1014, 'Làng Thanh Khê', 0], [1015, 'Vân Sơn', 0]])));
+  delete (atlas.maps.M5 as Partial<Atlas['maps'][string]>).seen;
+  recordPortal(atlas, 1013, { name: 'Lạc Cốc', mapId: 'M5' });
+  recordWorld(atlas, [['M1', 0, false], ['M2', 10, false], ['M4', 20, true], ['M5', 40, true], ['M25', 20, false]]
+    .map(([mapId, levelRequired, locked]) => ({ mapId: mapId as string, levelRequired: levelRequired as number, locked: locked as boolean })));
+  return atlas;
+}
+
 type Wanted = { npc: number } | { mob: string } | { map: string };
 const wants = (w: Wanted) => (m: Atlas['maps'][string]) => 'npc' in w ? m.places.some(p => p.type === 2 && p.id === w.npc)
   : 'mob' in w ? m.mobs.some(k => k.name === w.mob) || m.bosses.some(b => b.name === w.mob) : m.mapId === w.map;
@@ -140,6 +152,16 @@ function atlasCases() {
     routes: routes.map(([from, wanted, level, skip]) => ({ from, wanted, level, skip, portal: route(atlas, from, wants(wanted), level, new Set(skip))?.id ?? null })),
     destinations: destinations.map(([id, name, from]) => ({ id, name, from, mapId: destination(atlas, { id, name }, from) ?? null })),
     portalsOf: [['M1', 21], ['M1', 50], ['M1', 200], ['M2', 21]].map(([mapId, level]) => ({ mapId, level, portals: portalsOf(atlas, mapId as string, level as number).map(p => p.id) })),
+    gate: gateCases(),
+  };
+}
+function gateCases() {
+  const atlas = gateAtlas();
+  const routes: [string, Wanted, number, number[]][] = [['M1', { npc: 162 }, 18, []], ['M1', { npc: 162 }, 19, []], ['M2', { map: 'M5' }, 39, []], ['M2', { map: 'M5' }, 40, []]];
+  return {
+    atlas,
+    routes: routes.map(([from, wanted, level, skip]) => ({ from, wanted, level, skip, portal: route(atlas, from, wants(wanted), level, new Set(skip))?.id ?? null })),
+    portalsOf: [['M1', 0], ['M1', 8], ['M1', 9], ['M1', 39], ['M1', 40], ['M2', 18], ['M2', 19], ['M5', 40]].map(([mapId, level]) => ({ mapId, level, portals: portalsOf(atlas, mapId as string, level as number).map(p => p.id) })),
   };
 }
 

@@ -163,11 +163,13 @@ impl Atlas {
         b.ids.insert(zone.to_string(), mob.id.clone());
         b.tile = Some(Seen { zone, at: tile });
     }
-    /// What a portal answered; one that let the character through drops its earlier refusal.
+    /// What a portal answered. One that let the character through drops a quest refusal but keeps the level it asked for:
+    /// the server asks that level of every character, and the atlas is shared (the scan S2 by a level 42 had dropped the
+    /// 40 of Lạc Cốc).
     pub fn record_portal(&mut self, id: i32, fields: Portal) {
         let p = self.portals.entry(id.to_string()).or_default();
         if fields.map_id.is_some() {
-            (p.level, p.refused) = (None, None);
+            p.refused = None;
         }
         p.name = fields.name;
         p.map_id = fields.map_id.or(p.map_id.take());
@@ -205,8 +207,33 @@ impl Atlas {
             .or_else(|| others().find(|m| m.name.contains(name)))
             .map(|m| m.map_id.clone())
     }
-    /// Portals of a map the character may try: not the "Bản đồ" button, not one that asked for a higher level, not in
-    /// `skip`.
+    /// The level the world map (c2s/11 "M99") shows for a map.
+    pub fn world_level(&self, map_id: &str) -> Option<i32> {
+        self.world
+            .iter()
+            .find(|w| w.map_id == map_id)
+            .map(|w| w.level)
+    }
+    /// The level the world map shows for `map_id` when it is more than one above `level`. One level less still gets in:
+    /// M25 is shown 20 and let a level 19 in (S1); Lạc Cốc, shown 40, refused a level 19 with "phải đạt cấp 40". Level 0
+    /// is a level not known yet (it comes with s2c/10) and leaves no map out.
+    pub fn above_level(&self, map_id: &str, level: i32) -> Option<i32> {
+        self.world_level(map_id)
+            .filter(|&w| level > 0 && w - 1 > level)
+    }
+    /// The level a character of `level` lacks to enter `map_id`, for "Đổi map": the one its portal asked for (a portal id
+    /// names its map), else the world map's (above_level).
+    pub fn needs_level(&self, map_id: &str, level: i32) -> Option<i32> {
+        self.portals
+            .values()
+            .filter(|p| p.map_id.as_deref() == Some(map_id))
+            .filter_map(|p| p.level)
+            .filter(|&l| l > level)
+            .max()
+            .or_else(|| self.above_level(map_id, level))
+    }
+    /// Portals of a map the character may try: not the "Bản đồ" button, not one that asked for a higher level, not one to a
+    /// map above the character's level (above_level), not in `skip`.
     pub fn portals_of(&self, map_id: &str, level: i32, skip: &HashSet<i32>) -> Vec<&Place> {
         self.maps.get(map_id).map_or(vec![], |m| {
             m.places
@@ -220,6 +247,9 @@ impl Atlas {
                             .and_then(|r| r.level)
                             .unwrap_or(0)
                             <= level
+                        && self
+                            .destination(p.id, &p.name, map_id)
+                            .is_none_or(|to| self.above_level(&to, level).is_none())
                         && !skip.contains(&p.id)
                 })
                 .collect()

@@ -45,7 +45,7 @@ npm run quest -- --fights=40
 | "Nâng điểm tiềm năng" | `c2s/10 (0, 1)`: cộng 1 điểm vào Cường Lực; với `--stats` là chỉ số tới lượt theo lựa chọn đó |
 | "Sử dụng điểm kỹ năng" | `c2s/1191 (mã, 1)` cho kỹ năng đầu tiên trong cây `s2c/30` lên được một cấp ngay: đã học kỹ năng đứng trước, đủ cấp, đủ điểm. Nhân vật mới thì là kỹ năng gốc (1000 Hỏa Cầu Thuật, 4000 Băng Tiễn Thuật). Server trả `s2c/10` kiểu 32, `s2c/1191`, rồi `s2c/34` sang bước sau. Có `s2c/1191` mà không có lời nhiệm vụ trong 8 s thì dừng. Không kỹ năng nào lên được thì dừng với `no skill can take a level now` ([12-skills-items](../../app/events/12-skills-items.md#c2s-1191)) |
 | "Gây N sát thương lên X" | `c2s/1178` với boss X từ `s2c/1177`; thua vẫn đánh tiếp, tiến độ là tổng sát thương ([10-quests](../../app/events/10-quests.md#boss)) |
-| NPC hoặc quái của bước không có ở map này | Đi qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Chọn cổng đầu tiên trên đường ngắn nhất (theo `data/maps.json`) tới map có NPC/quái đó, nếu không thì cổng mà tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 lần cho mỗi bước. Cổng bị từ chối (`s2c/1256`: thiếu cấp, chưa xong nhiệm vụ) được ghi lại và bỏ qua ([10-quests](../../app/events/10-quests.md#cổng)) |
+| NPC hoặc quái của bước không có ở map này | Đi qua cổng: `c2s/13 (mapId, id cổng)` → `s2c/13` → `c2s/11` → `c2s/43`. Chọn cổng đầu tiên trên đường ngắn nhất (theo `data/maps.json`) tới map có NPC/quái đó, nếu không thì cổng mà tên nhiệm vụ nhắc tới, nếu không thì cổng tới map chưa đi; tối đa 6 lần cho mỗi bước. Cổng bị từ chối (`s2c/1256`: thiếu cấp, chưa xong nhiệm vụ) được ghi lại và bỏ qua ([10-quests](../../app/events/10-quests.md#cổng)). Đường đi không qua map mà bản đồ thế giới ghi cấp cao hơn cấp nhân vật quá 1 (`aboveLevel`) |
 | Khác | Dừng với `step needs an action this bot does not know` |
 
 App Rust port đúng bảng này thành nút "Tự làm nhiệm vụ" ([App Rust](../rust/features.md#tự-làm-nhiệm-vụ)); `npm run export:rust` xuất các kịch bản để hai bên gửi đúng cùng gói.
@@ -112,7 +112,7 @@ npm run scan
 | `maps.<mapId>.bosses` | Boss: `mobId` theo khu, ô đứng lần cuối thấy | `s2c/1177` |
 | `portals.<id>` | Cổng dẫn tới map nào (`mapId`), hoặc cần cấp (`level`), hoặc lời từ chối khác (`refused`) | `s2c/13`, `s2c/1256` |
 
-Chỉ ghi những gì server đã gửi. Cổng bị từ chối vì cấp chỉ được thử lại khi nhân vật đủ cấp; cổng bị từ chối vì nhiệm vụ được thử lại ở mỗi lần quét. Bot nhiệm vụ ghi vào cùng file, nên mỗi lần chạy bot hay quét đều làm file đầy thêm.
+Chỉ ghi những gì server đã gửi. Cổng bị từ chối vì cấp chỉ được thử lại khi nhân vật đủ cấp, và giữ cấp đó cả khi nhân vật cấp cao hơn đã đi qua (file dùng chung cho mọi tài khoản); cổng bị từ chối vì nhiệm vụ được thử lại ở mỗi lần quét. Bot nhiệm vụ ghi vào cùng file, nên mỗi lần chạy bot hay quét đều làm file đầy thêm.
 
 | `event` (`kind: "scan"`) | Khi nào |
 |---|---|

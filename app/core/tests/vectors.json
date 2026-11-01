@@ -3180,7 +3180,179 @@
     "level": 21,
     "portals": [ 1014, 1024 ]
    }
-  ]
+  ],
+  "gate": {
+   "atlas": {
+    "world": [
+     { "mapId": "M1", "level": 0, "locked": false },
+     { "mapId": "M2", "level": 10, "locked": false },
+     { "mapId": "M4", "level": 20, "locked": true },
+     { "mapId": "M5", "level": 40, "locked": true },
+     { "mapId": "M25", "level": 20, "locked": false }
+    ],
+    "maps": {
+     "M1": {
+      "mapId": "M1",
+      "name": "Làng Thanh Khê",
+      "places": [
+       { "id": 0, "name": "Bản đồ", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1010, "name": "Cổ Phong", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1013, "name": "Lạc Cốc", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1015, "name": "Vân Sơn", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 129, "name": "Thành Chủ Nguyễn Khang", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 103, "name": "Bà Tư Hạnh", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [
+       {
+        "name": "Gà Điên",
+        "level": 1,
+        "ids": {
+         "0": [ "mob18" ]
+        }
+       },
+       {
+        "name": "Heo Mọi",
+        "level": 7,
+        "ids": {
+         "0": [ "mob2806" ]
+        }
+       }
+      ],
+      "bosses": []
+     },
+     "M2": {
+      "mapId": "M2",
+      "name": "Trại Vân Sơn",
+      "places": [
+       { "id": 1, "name": "Bản đồ", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1013, "name": "Lạc Cốc", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1014, "name": "Làng Thanh Khê", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1024, "name": "Rìa Hồng Giang", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 127, "name": "Trại Chủ Phạm Hùng", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 141, "name": "Võ Quan Đinh Mộc", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [
+       {
+        "name": "Kẻ Quấy Phá",
+        "level": 20,
+        "ids": {
+         "0": [ "mob80" ]
+        }
+       },
+       {
+        "name": "Cóc Xanh",
+        "level": 13,
+        "ids": {
+         "0": [ "mob61000" ]
+        }
+       }
+      ],
+      "bosses": []
+     },
+     "M25": {
+      "mapId": "M25",
+      "name": "Rìa Hồng Giang",
+      "places": [
+       { "id": 1016, "name": "Hồng Giang", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1015, "name": "Vân Sơn", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 162, "name": "Tướng Quân Lê Viễn", "type": 2, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [],
+      "bosses": []
+     },
+     "M5": {
+      "mapId": "M5",
+      "name": "Lạc Cốc",
+      "places": [
+       { "id": 1014, "name": "Làng Thanh Khê", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 },
+       { "id": 1015, "name": "Vân Sơn", "type": 0, "x": 0, "y": 0, "w": 32, "h": 32 }
+      ],
+      "mobs": [],
+      "bosses": []
+     }
+    },
+    "portals": {
+     "1010": { "name": "Cổ Phong", "level": 130 },
+     "1013": { "name": "Lạc Cốc", "level": 40, "mapId": "M5" },
+     "1014": { "name": "Làng Thanh Khê", "mapId": "M1" },
+     "1015": { "name": "Vân Sơn", "mapId": "M2" },
+     "1016": { "name": "Hồng Giang", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+     "1024": { "name": "Rìa Hồng Giang", "mapId": "M25" }
+    }
+   },
+   "routes": [
+    {
+     "from": "M1",
+     "wanted": { "npc": 162 },
+     "level": 18,
+     "skip": [],
+     "portal": null
+    },
+    {
+     "from": "M1",
+     "wanted": { "npc": 162 },
+     "level": 19,
+     "skip": [],
+     "portal": 1015
+    },
+    {
+     "from": "M2",
+     "wanted": { "map": "M5" },
+     "level": 39,
+     "skip": [],
+     "portal": null
+    },
+    {
+     "from": "M2",
+     "wanted": { "map": "M5" },
+     "level": 40,
+     "skip": [],
+     "portal": 1013
+    }
+   ],
+   "portalsOf": [
+    {
+     "mapId": "M1",
+     "level": 0,
+     "portals": [ 1015 ]
+    },
+    {
+     "mapId": "M1",
+     "level": 8,
+     "portals": []
+    },
+    {
+     "mapId": "M1",
+     "level": 9,
+     "portals": [ 1015 ]
+    },
+    {
+     "mapId": "M1",
+     "level": 39,
+     "portals": [ 1015 ]
+    },
+    {
+     "mapId": "M1",
+     "level": 40,
+     "portals": [ 1013, 1015 ]
+    },
+    {
+     "mapId": "M2",
+     "level": 18,
+     "portals": [ 1014 ]
+    },
+    {
+     "mapId": "M2",
+     "level": 19,
+     "portals": [ 1014, 1024 ]
+    },
+    {
+     "mapId": "M5",
+     "level": 40,
+     "portals": [ 1014, 1015 ]
+    }
+   ]
+  }
  },
  "questReplays": [
   {

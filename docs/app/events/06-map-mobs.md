@@ -5,6 +5,7 @@ Mốc: APK 1.0.3, bản đồ M1 "Làng Thanh Khê". Nguồn:
 - Phiên **B2** (29/10/2026, attach vào cùng tiến trình, khu 20): hook packet như [05-battle](05-battle.md), cộng hook tại các hàm dựng gói trong `com.mh.sqlq`, và đọc object quái trong bộ nhớ bằng reflection qua JNI.
 - Phiên **S1** (30/10/2026, bot Node, không cần điện thoại): thử xin dữ liệu map khác, thử từng cổng, rồi quét mọi map vào được bằng `npm run scan` ([Bản đồ đã quét](#atlas)).
 - Phiên **Z1** (31/10/2026, bot TS `npm run zone`, manina ở M2): xem danh sách khu, đổi sang khu 4, đăng nhập lại ([Đổi khu](#đổi-khu-vực-trong-cùng-map)).
+- Phiên **S2** (01/11/2026, `npm run scan` với tiheo1 = symap cấp 42, đứng ở M5 Lạc Cốc): quét lại, học thêm M4 Hồng Giang và M5 Lạc Cốc, cập nhật M10 Cửu Phong ([Bản đồ đã quét](#atlas)).
 
 Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
@@ -12,7 +13,7 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 | Câu hỏi | Trả lời |
 |---|---|
-| Map có những quái nào? | `c2s/43 (mapId)` → `s2c/43`: danh sách đủ `mobId`, tên, cấp của **khu hiện tại**. M1 có 5 loại, 33 con mỗi khu; M2 có 6 loại, 31 con; M25 không có quái ([Bản đồ đã quét](#atlas)). [Đo] |
+| Map có những quái nào? | `c2s/43 (mapId)` → `s2c/43`: danh sách đủ `mobId`, tên, cấp của **khu hiện tại**. M1 có 5 loại, 33 con mỗi khu; M2 có 6 loại, 31 con; M4 có 6 loại, 31 con; M5 có 5 loại, 26 con; M10 có 5 loại, 30 con; M25 không có quái ([Bản đồ đã quét](#atlas)). [Đo] |
 | Xem được map chưa vào không? | **Không.** Server chỉ trả map đang đứng: `c2s/11` với map khác bị từ chối ("Không thể chuyển khu vực"), `c2s/43` với map khác vẫn trả quái của map đang đứng. Muốn biết NPC, cổng, quái của map nào thì phải vào map đó qua cổng. [Đo S1] |
 | Vị trí quái? | Server **không gửi** cho quái thường. Client tự đặt và cho quái đi lại. Muốn có toạ độ phải đọc trong bộ nhớ: `sqhz.J.e` chứa mọi entity. Boss thì có ô đứng trong `s2c/1177`; NPC và cổng có toạ độ trong `s2c/11`. [Đo] |
 | Di chuyển? | Client tự di chuyển trên lưới va chạm của `s2c/11` và báo vị trí bằng `c2s/1169` (x, y, trạng thái). Server nhận cả vị trí do bot Node tự gửi và lưu lại. Sang bản đồ khác: đứng ở cổng, bấm "Vào" → `c2s/13 (mapId, id cổng)` ([10-quests](10-quests.md#cổng)). [Đo] |
@@ -77,9 +78,13 @@ Toạ độ đổi về đơn vị server (= bộ nhớ ÷ 1,5). Đây là một
 
 <a id="atlas"></a>
 
-## Bản đồ đã quét (S1)
+## Bản đồ đã quét (S1, S2)
 
 **Kết luận: ở cấp 19 chỉ vào được 3 map: M1, M2, M25.** Mọi cổng khác bị server từ chối: hoặc vì cấp, hoặc vì chưa xong nhiệm vụ. Server cũng không trả dữ liệu của map mình chưa đứng trong đó, nên chưa lấy được NPC, cổng, quái của 22 map còn lại. [Đo S1]
+
+**Ở cấp 42 (symap, nhiệm vụ 23) vào được 6 map: M1, M2, M4, M5, M10, M25.** Atlas có thêm M4 Hồng Giang và M5 Lạc Cốc. Ba cổng còn khoá theo nhiệm vụ (Bạch Nham 1011, Phong Nguyên 1012, Tiên Cốc 1021), bốn cổng khoá theo cấp (Tam Khê 80, Nguyệt Đàm 100, Tân Trạch 110, Cổ Phong 130). Bot không thử lại cổng đã biết cần cấp cao hơn nhân vật. Quét mất 16 giây. [Đo S2]
+
+**Cấp trên bản đồ thế giới và cấp cổng đòi.** Ở S1 (cấp 19), `s2c/11 "M99"` ghi M25 cấp 20 mà không khoá, và cổng Rìa Hồng Giang vẫn cho vào; M4 (cấp 20) thì khoá vì nhiệm vụ. Ở S2 (cấp 42), M10 (30) và M4 hết khoá, M8 (50) còn khoá. Lạc Cốc (40), Tam Khê (80), Nguyệt Đàm (100), Tân Trạch (110), Cổ Phong (130): cấp trong lời từ chối của cổng bằng đúng cấp trên bản đồ thế giới. Vì vậy bot TS và app Rust không đi qua map mà bản đồ thế giới ghi cấp cao hơn cấp nhân vật quá 1. Cổng cũng giữ cấp nó từng đòi, cả khi nhân vật cấp cao hơn đã đi qua: atlas dùng chung cho mọi tài khoản, mà S2 đã xoá mất cấp 40 của Lạc Cốc (đã ghi lại vào [data/maps.json](../../../data/maps.json)). Hộp Đổi map hiện "Cần cấp N" cho những map đó ([features](../../integration/rust/features.md)). [Đo S1, S2; giới hạn "quá 1" chỉ dựa vào M25]
 
 Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#quét-map)) đăng nhập, xin bản đồ thế giới `c2s/11 "M99"`, rồi đi lần lượt qua từng cổng vào được. Ở mỗi map nó xin `c2s/11` (map, NPC, cổng) và `c2s/43` (quái), nhận `s2c/1177` (boss), rồi quay về map ban đầu. Kết quả ghi vào [data/maps.json](../../../data/maps.json); bot nhiệm vụ đọc file này để biết đường đi qua các lần chạy ([src/bot/atlas.ts](../../../src/bot/atlas.ts)). Lệnh chỉ gửi `c2s/11`, `c2s/13`, `c2s/43`: không đánh, không chat, không mua bán.
 
@@ -94,15 +99,21 @@ Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#q
 
 Id cổng là id của **map đích**, giống nhau ở mọi map: 1013 là Lạc Cốc ở cả M1 và M2, 1015 là Vân Sơn ở cả M1 và M25. [Đo]
 
-| Cổng | Tên | Kết quả ở cấp 19 |
-|---:|---|---|
-| 1010 | Cổ Phong | Cần cấp 130 |
-| 1013 | Lạc Cốc | Cần cấp 40 |
-| 1014 | Làng Thanh Khê | → M1 |
-| 1015 | Vân Sơn | → M2 |
-| 1016 | Hồng Giang | Cần xong nhiệm vụ; ở nhiệm vụ 14 thì → M4 ([N5](10-quests.md#trinh-sát)) |
-| 1017 | Tân Trạch | Cần cấp 110 |
-| 1024 | Rìa Hồng Giang | → M25 (bản đồ thế giới ghi cấp 20, nhưng cấp 19 vẫn vào được) |
+| Cổng | Tên | Kết quả ở cấp 19 (S1) | Kết quả ở cấp 42 (S2) |
+|---:|---|---|---|
+| 1010 | Cổ Phong | Cần cấp 130 | Không thử lại (cần cấp 130) |
+| 1011 | Bạch Nham | Chưa thấy | Cần xong nhiệm vụ (cổng ở M5 và M10) |
+| 1012 | Phong Nguyên | Chưa thấy | Cần xong nhiệm vụ (cổng ở M10) |
+| 1013 | Lạc Cốc | Cần cấp 40 | → M5 |
+| 1014 | Làng Thanh Khê | → M1 | → M1 |
+| 1015 | Vân Sơn | → M2 | → M2 |
+| 1016 | Hồng Giang | Cần xong nhiệm vụ; ở nhiệm vụ 14 thì → M4 ([N5](10-quests.md#trinh-sát)) | → M4 |
+| 1017 | Tân Trạch | Cần cấp 110 | Không thử lại (cần cấp 110) |
+| 1018 | Nguyệt Đàm | Chưa thấy | Cần cấp 100 (cổng ở M4) |
+| 1020 | Cửu Phong | Chưa thấy | → M10 |
+| 1021 | Tiên Cốc | Chưa thấy | Cần xong nhiệm vụ (cổng ở M10) |
+| 1022 | Tam Khê | Chưa thấy | Cần cấp 80 (cổng ở M10) |
+| 1024 | Rìa Hồng Giang | → M25 (bản đồ thế giới ghi cấp 20, nhưng cấp 19 vẫn vào được) | → M25 |
 
 ### NPC và cổng
 
@@ -113,7 +124,9 @@ Toạ độ là góc trên-trái của ô, đơn vị server (ô 32). Cổng "B�
 | M1 Làng Thanh Khê | 102 Hương Lão Trần Bá (336, 576); 103 Bà Tư Hạnh (700, 608); 104 Ngọc Nga (915, 544); 106 Lái Buôn (576, 416); 111 Vệ Binh Lê Dũng (1167, 672); 129 Thành Chủ Nguyễn Khang (1472, 416); 161 Pháp sư (712, 512) | 1010 Cổ Phong (34, 336); 1013 Lạc Cốc (4960, 336); 1015 Vân Sơn (4960, 656) |
 | M2 Trại Vân Sơn | 127 Trại Chủ Phạm Hùng (1600, 800); 141 Võ Quan Đinh Mộc (1730, 800); 142 Dân Phu Vân Sơn (1830, 736) | 1013 Lạc Cốc (32, 624); 1014 Làng Thanh Khê (32, 464); 1017 Tân Trạch (2848, 304); 1024 Rìa Hồng Giang (2848, 880) |
 | M25 Rìa Hồng Giang | 162 Tướng Quân Lê Viễn (960, 352) | 1015 Vân Sơn (32, 400); 1016 Hồng Giang (1504, 624) |
-| M4 Hồng Giang (N5, chưa ghi toạ độ) | 143 Tiên phong Hồng Giang; 131 Lính Hồng Giang (hai NPC); 121 Tướng Xích Vũ; 144 Phó Tướng Hồng Giang | 3 Bản đồ; 1020 Cửu Phong; 1024 Rìa Hồng Giang; 1017 Tân Trạch; 1018 Nguyệt Đàm |
+| M4 Hồng Giang | 143 Tiên phong Hồng Giang (1008, 352); 131 Lính Hồng Giang (1072, 352); 121 Tướng Xích Vũ (1936, 160); 144 Phó Tướng Hồng Giang (2032, 160); 131 Lính Hồng Giang (2128, 160) | 1020 Cửu Phong (32, 144); 1024 Rìa Hồng Giang (32, 400); 1017 Tân Trạch (3808, 176); 1018 Nguyệt Đàm (3808, 656); nút Bản đồ id 3 |
+| M5 Lạc Cốc | 146 Tướng quân Lạc Cốc (1494, 256); 133 Lính Lạc Cốc (1219, 160), (1697, 224), (950, 384) | 1014 Làng Thanh Khê (34, 112); 1015 Vân Sơn (34, 560); 1017 Tân Trạch (4959, 144); 1011 Bạch Nham (4959, 592) |
+| M10 Cửu Phong | 145 Tướng phe Thiết Hổ (2448, 224); 132 Lính Cửu Phong (2032, 224), (2192, 448) | 1011 Bạch Nham (32, 624); 1012 Phong Nguyên (32, 176); 1016 Hồng Giang (4960, 624); 1021 Tiên Cốc (4960, 112); 1022 Tam Khê (4960, 400) |
 
 ### Quái và boss của M2
 
@@ -135,6 +148,35 @@ Quái của M1 ở [bảng trên](#quái-của-m1). M25 không có quái và kh�
 | Hào Trưởng phía Nam | M2 | 21 | `mob90100003` | `mob90100103` | (14, 30) ở khu 0 |
 
 Boss đổi ô sau mỗi lần rời đi (`s2c/1177` field 1 rồi field 0 với ô mới, [04-push](04-push.md#s2c-1177)), nên ô chỉ đúng tại lúc quét. [Đo]
+
+### Quái và boss của M4, M5, M10 (S2)
+
+Chỉ có khu 0: bot quét không đổi khu. Chim Điên và Hỏa Hầu của nhiệm vụ 15 ở M4; Heo Tím và Báo Đốm của nhiệm vụ 23 ở M5 ([10-quests](10-quests.md)). [Đo S2]
+
+| Map | Loại | Cấp | Số con/khu | mobId khu 0 |
+|---|---|---:|---:|---|
+| M4 | Sơn Tặc | 9 | 5 | `mob40`…`mob44` |
+| M4 | Chim Điên | 25 | 5 | `mob9500`…`mob9504` |
+| M4 | Hỏa Hầu | 29 | 5 | `mob101000`…`mob101004` |
+| M4 | Cá Sấu | 31 | 6 | `mob111500`…`mob111505` |
+| M4 | Cóc Tía | 35 | 5 | `mob122100`…`mob122104` |
+| M4 | Huyết Lang | 40 | 5 | `mob132600`…`mob132604` |
+| M5 | Báo Đốm | 51 | 6 | `mob45500`…`mob45505` |
+| M5 | Heo Tím | 51 | 5 | `mob172100`…`mob172104` |
+| M5 | Hổ Vằn | 53 | 5 | `mob570`…`mob574` |
+| M5 | Voi Mập | 56 | 5 | `mob181100`…`mob181104` |
+| M5 | Tiểu Yêu Dê | 58 | 5 | `mob411600`…`mob411604` |
+| M10 | Thỏ Hồng | 39 | 6 | `mob491800`…`mob491805` |
+| M10 | Huyết Lang | 40 | 6 | `mob132400`…`mob132405` |
+| M10 | Heo Lửa | 46 | 6 | `mob150`…`mob155` |
+| M10 | Báo Đốm | 51 | 6 | `mob451200`…`mob451205` |
+| M10 | Thỏ Xanh | 53 | 6 | `mob50600`…`mob50605` |
+
+| Boss | Map | Cấp | mobId khu 0 | Ô đứng lúc quét (cột, hàng) |
+|---|---|---:|---|---|
+| Tướng Xích Vũ | M4 | 35 | `mob93100004` | (49, 19) |
+| Tướng Thiết Hổ | M10 | 45 | `mob96100005` | (41, 12) |
+| Tướng Hùng Liệt | M5 | 55 | `mob98100006` | (126, 3) |
 
 <a id="mã-quái"></a>
 

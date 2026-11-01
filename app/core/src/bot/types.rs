@@ -367,6 +367,8 @@ pub struct MapChoice {
     pub level: Option<i32>,
     /// Portals on the shortest known way: 0 for the map the character is on, None when no known way leads there.
     pub hops: Option<u32>,
+    /// The level the character lacks to enter it (Atlas::needs_level); no way leads there then.
+    pub need: Option<i32>,
 }
 
 /// A boss of this zone and the tile (column, row) it was last seen on; `moving` between s2c/1177 field 1 and field 0.

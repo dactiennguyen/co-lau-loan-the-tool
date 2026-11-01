@@ -107,9 +107,9 @@ export function PlaceDialog({ account, onClose }: Props) {
                     </small>
                   </div>
                   <span className="place__way">
-                    {m.hops === 0 ? "Đang ở đây" : m.hops == null ? "Chưa có đường" : `${m.hops} cổng`}
+                    {m.hops === 0 ? "Đang ở đây" : m.need != null ? `Cần cấp ${m.need}` : m.hops == null ? "Chưa có đường" : `${m.hops} cổng`}
                   </span>
-                  <Button kind="tonal" small disabled={!!why || !m.hops} onClick={() => go(m.mapId)}>
+                  <Button kind="tonal" small disabled={!!why || !m.hops || m.need != null} onClick={() => go(m.mapId)}>
                     Đi tới
                   </Button>
                 </li>

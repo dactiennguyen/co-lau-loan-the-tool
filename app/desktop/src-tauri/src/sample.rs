@@ -161,6 +161,8 @@ fn map(id: &str, name: &str, level: i32, hops: Option<u32>) -> MapChoice {
         name: name.into(),
         level: Some(level),
         hops,
+        // The sample character is level 21: one level less than the world map shows still gets in.
+        need: (level - 1 > 21).then_some(level),
     }
 }
 

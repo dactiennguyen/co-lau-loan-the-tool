@@ -43,6 +43,7 @@ impl Bot {
                     .find(|w| &w.map_id == id)
                     .map(|w| w.level),
                 hops: hops.get(id).copied(),
+                need: self.atlas.needs_level(id, self.snap.level),
             })
             .collect();
         out.sort_by_key(|m| m.hops.unwrap_or(u32::MAX));
@@ -93,8 +94,8 @@ impl Bot {
     }
 
     /// "Đổi map": walks through portals (c2s/13 with the portal id, B5) to the map by the shortest way the atlas knows,
-    /// at most 6 portals, a portal the server refuses left out. Refused while busy, for the map the character is on, and
-    /// for one no known way leads to.
+    /// at most 6 portals, a portal the server refuses left out. Refused while busy, for the map the character is on, for
+    /// one above the character's level (Atlas::needs_level), and for one no known way leads to.
     pub fn go_to(&mut self, map_id: &str, now: Instant, out: &mut Vec<Out>) {
         let name = self
             .atlas
@@ -107,6 +108,8 @@ impl Bot {
                 .hops(&self.snap.map_id, self.snap.level, &HashSet::new());
             if map_id == self.snap.map_id {
                 Some("đang ở map này".into())
+            } else if let Some(level) = self.atlas.needs_level(map_id, self.snap.level) {
+                Some(format!("cần cấp {level}"))
             } else if !ways.contains_key(map_id) {
                 Some("chưa biết đường qua cổng tới đó".into())
             } else {

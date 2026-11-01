@@ -1453,6 +1453,23 @@ fn ids(v: &Value) -> HashSet<i32> {
 fn atlas_finds_the_way_atlas_ts_finds() {
     let all = v();
     let a = &all["atlas"];
+    // The scan S1, then the same maps with the world map and Lạc Cốc (maps above the character's level left out).
+    for a in [a, &a["gate"]] {
+        atlas_cases(a);
+    }
+    let atlas: Atlas = serde_json::from_value(a["atlas"].clone()).unwrap();
+    for d in a["destinations"].as_array().unwrap() {
+        let got = atlas.destination(
+            d["id"].as_i64().unwrap() as i32,
+            d["name"].as_str().unwrap(),
+            d["from"].as_str().unwrap(),
+        );
+        assert_eq!(got.as_deref(), d["mapId"].as_str(), "destination {d}");
+    }
+}
+
+/// route and portals_of on the atlas of an atlasCases group of export-rust.ts.
+fn atlas_cases(a: &Value) {
     let atlas: Atlas = serde_json::from_value(a["atlas"].clone()).unwrap();
     for r in a["routes"].as_array().unwrap() {
         let got = atlas
@@ -1464,14 +1481,6 @@ fn atlas_finds_the_way_atlas_ts_finds() {
             )
             .map(|p| p.id as i64);
         assert_eq!(got, r["portal"].as_i64(), "route {r}");
-    }
-    for d in a["destinations"].as_array().unwrap() {
-        let got = atlas.destination(
-            d["id"].as_i64().unwrap() as i32,
-            d["name"].as_str().unwrap(),
-            d["from"].as_str().unwrap(),
-        );
-        assert_eq!(got.as_deref(), d["mapId"].as_str(), "destination {d}");
     }
     for c in a["portalsOf"].as_array().unwrap() {
         let got: Vec<i64> = atlas
@@ -2188,25 +2197,37 @@ fn doi_map_walks_the_portals_of_the_atlas_and_ends_on_the_map_or_when_no_way_is_
         &mut out,
     )
     .unwrap();
-    let hops = |bot: &Bot, id: &str| {
+    let choice = |bot: &Bot, id: &str| {
         bot.snapshot()
             .maps
             .into_iter()
             .find(|m| m.map_id == id)
-            .and_then(|m| m.hops)
+            .map(|m| (m.hops, m.need))
     };
-    // From M2: M1 and M25 one portal away; Cửu Phong only behind Hồng Giang, which the atlas has no way through.
+    // Level not known yet (no s2c/10): no map is left out for it, Cửu Phong three portals away behind Hồng Giang.
+    assert_eq!(choice(&bot, "M10"), Some((Some(3), None)));
+    // s2c/10 kind 2: level 22.
+    let level = (0..10).fold(Writer::new().i32(2).string("manina").i32(22), |w, _| {
+        w.i32(0)
+    });
+    bot.on_packet(10, &level.build(), now, &mut out).unwrap();
+    // From M2: M1 and M25 one portal away, Hồng Giang two. Cửu Phong is shown 30 on the world map and Lạc Cốc's portal
+    // asked for 40 (S1, kept when a level 42 went through in S2): no way to either.
     assert_eq!(
-        ["M2", "M1", "M25", "M10"].map(|id| hops(&bot, id)),
-        [Some(0), Some(1), Some(1), None]
+        ["M2", "M1", "M25", "M4", "M10", "M5"].map(|id| choice(&bot, id)),
+        [
+            Some((Some(0), None)),
+            Some((Some(1), None)),
+            Some((Some(1), None)),
+            Some((Some(2), None)),
+            Some((None, Some(30))),
+            Some((None, Some(40)))
+        ]
     );
     bot.go_to("M2", now, &mut out);
     assert!(logged(&out, "Chưa đi tới Trại Vân Sơn: đang ở map này"));
     bot.go_to("M10", now, &mut out);
-    assert!(logged(
-        &out,
-        "Chưa đi tới Cửu Phong: chưa biết đường qua cổng tới đó"
-    ));
+    assert!(logged(&out, "Chưa đi tới Cửu Phong: cần cấp 30"));
     out.clear();
     bot.go_to("M1", now, &mut out);
     // c2s/13 (M2, portal 1014 Làng Thanh Khê), then the map the portal led to.

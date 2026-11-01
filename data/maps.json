@@ -3,27 +3,27 @@
   { "mapId": "M1", "level": 0, "locked": false },
   { "mapId": "M2", "level": 10, "locked": false },
   { "mapId": "M3", "level": 130, "locked": true },
-  { "mapId": "M4", "level": 20, "locked": true },
-  { "mapId": "M5", "level": 40, "locked": true },
+  { "mapId": "M4", "level": 20, "locked": false },
+  { "mapId": "M5", "level": 40, "locked": false },
   { "mapId": "M6", "level": 110, "locked": true },
   { "mapId": "M7", "level": 100, "locked": true },
   { "mapId": "M8", "level": 50, "locked": true },
   { "mapId": "M9", "level": 120, "locked": true },
-  { "mapId": "M10", "level": 30, "locked": true },
+  { "mapId": "M10", "level": 30, "locked": false },
   { "mapId": "M11", "level": 70, "locked": true },
   { "mapId": "M12", "level": 80, "locked": true },
   { "mapId": "M13", "level": 60, "locked": true },
   { "mapId": "M14", "level": 90, "locked": true },
-  { "mapId": "M15", "level": 30, "locked": true },
+  { "mapId": "M15", "level": 30, "locked": false },
   { "mapId": "M16", "level": 0, "locked": true },
   { "mapId": "M17", "level": 0, "locked": true },
-  { "mapId": "M18", "level": 30, "locked": true },
-  { "mapId": "M19", "level": 30, "locked": true },
-  { "mapId": "M20", "level": 30, "locked": true },
-  { "mapId": "M21", "level": 30, "locked": true },
-  { "mapId": "M22", "level": 30, "locked": true },
-  { "mapId": "M23", "level": 30, "locked": true },
-  { "mapId": "M24", "level": 30, "locked": true },
+  { "mapId": "M18", "level": 30, "locked": false },
+  { "mapId": "M19", "level": 30, "locked": false },
+  { "mapId": "M20", "level": 30, "locked": false },
+  { "mapId": "M21", "level": 30, "locked": false },
+  { "mapId": "M22", "level": 30, "locked": false },
+  { "mapId": "M23", "level": 30, "locked": false },
+  { "mapId": "M24", "level": 30, "locked": false },
   { "mapId": "M25", "level": 20, "locked": false }
  ],
  "maps": {
@@ -92,7 +92,7 @@
      "ids": { "0": "mob86100001", "1": "mob86100101" },
      "tile": {
       "zone": 0,
-      "at": [ 41, 14 ]
+      "at": [ 125, 12 ]
      }
     }
    ],
@@ -168,7 +168,7 @@
      "ids": { "0": "mob90100003", "1": "mob90100103" },
      "tile": {
       "zone": 0,
-      "at": [ 25, 28 ]
+      "at": [ 70, 21 ]
      }
     },
     {
@@ -177,7 +177,7 @@
      "ids": { "0": "mob89100002", "1": "mob89100102" },
      "tile": {
       "zone": 0,
-      "at": [ 58, 12 ]
+      "at": [ 41, 6 ]
      }
     }
    ],
@@ -252,7 +252,142 @@
      "ids": { "0": "mob96100005" },
      "tile": {
       "zone": 0,
-      "at": [ 8, 13 ]
+      "at": [ 41, 12 ]
+     }
+    }
+   ],
+   "seen": "2026-10-31"
+  },
+  "M5": {
+   "mapId": "M5",
+   "name": "Lạc Cốc",
+   "places": [
+    { "id": 1017, "name": "Tân Trạch", "type": 0, "x": 4959, "y": 144, "w": 32, "h": 32 },
+    { "id": 1011, "name": "Bạch Nham", "type": 0, "x": 4959, "y": 592, "w": 32, "h": 32 },
+    { "id": 146, "name": "Tướng quân Lạc Cốc", "type": 2, "x": 1494, "y": 256, "w": 32, "h": 32 },
+    { "id": 133, "name": "Lính Lạc Cốc", "type": 2, "x": 1219, "y": 160, "w": 32, "h": 32 },
+    { "id": 133, "name": "Lính Lạc Cốc", "type": 2, "x": 1697, "y": 224, "w": 32, "h": 32 },
+    { "id": 133, "name": "Lính Lạc Cốc", "type": 2, "x": 950, "y": 384, "w": 32, "h": 32 },
+    { "id": 1014, "name": "Làng Thanh Khê", "type": 0, "x": 34, "y": 112, "w": 32, "h": 32 },
+    { "id": 1015, "name": "Vân Sơn", "type": 0, "x": 34, "y": 560, "w": 32, "h": 32 }
+   ],
+   "mobs": [
+    {
+     "name": "Hổ Vằn",
+     "level": 53,
+     "ids": {
+      "0": [ "mob570", "mob571", "mob572", "mob573", "mob574" ]
+     }
+    },
+    {
+     "name": "Báo Đốm",
+     "level": 51,
+     "ids": {
+      "0": [ "mob45500", "mob45501", "mob45502", "mob45503", "mob45504", "mob45505" ]
+     }
+    },
+    {
+     "name": "Voi Mập",
+     "level": 56,
+     "ids": {
+      "0": [ "mob181100", "mob181101", "mob181102", "mob181103", "mob181104" ]
+     }
+    },
+    {
+     "name": "Tiểu Yêu Dê",
+     "level": 58,
+     "ids": {
+      "0": [ "mob411600", "mob411601", "mob411602", "mob411603", "mob411604" ]
+     }
+    },
+    {
+     "name": "Heo Tím",
+     "level": 51,
+     "ids": {
+      "0": [ "mob172100", "mob172101", "mob172102", "mob172103", "mob172104" ]
+     }
+    }
+   ],
+   "bosses": [
+    {
+     "name": "Tướng Hùng Liệt",
+     "level": 55,
+     "ids": { "0": "mob98100006" },
+     "tile": {
+      "zone": 0,
+      "at": [ 126, 3 ]
+     }
+    }
+   ],
+   "seen": "2026-10-31"
+  },
+  "M4": {
+   "mapId": "M4",
+   "name": "Hồng Giang",
+   "places": [
+    { "id": 3, "name": "Bản đồ", "type": 0, "x": 32, "y": 656, "w": 64, "h": 32 },
+    { "id": 1020, "name": "Cửu Phong", "type": 0, "x": 32, "y": 144, "w": 32, "h": 32 },
+    { "id": 1024, "name": "Rìa Hồng Giang", "type": 0, "x": 32, "y": 400, "w": 32, "h": 32 },
+    { "id": 1017, "name": "Tân Trạch", "type": 0, "x": 3808, "y": 176, "w": 32, "h": 32 },
+    { "id": 1018, "name": "Nguyệt Đàm", "type": 0, "x": 3808, "y": 656, "w": 32, "h": 32 },
+    { "id": 143, "name": "Tiên phong Hồng Giang", "type": 2, "x": 1008, "y": 352, "w": 32, "h": 32 },
+    { "id": 131, "name": "Lính Hồng Giang", "type": 2, "x": 1072, "y": 352, "w": 32, "h": 32 },
+    { "id": 121, "name": "Tướng Xích Vũ", "type": 2, "x": 1936, "y": 160, "w": 32, "h": 32 },
+    { "id": 144, "name": "Phó Tướng Hồng Giang", "type": 2, "x": 2032, "y": 160, "w": 32, "h": 32 },
+    { "id": 131, "name": "Lính Hồng Giang", "type": 2, "x": 2128, "y": 160, "w": 32, "h": 32 }
+   ],
+   "mobs": [
+    {
+     "name": "Sơn Tặc",
+     "level": 9,
+     "ids": {
+      "0": [ "mob40", "mob41", "mob42", "mob43", "mob44" ]
+     }
+    },
+    {
+     "name": "Chim Điên",
+     "level": 25,
+     "ids": {
+      "0": [ "mob9500", "mob9501", "mob9502", "mob9503", "mob9504" ]
+     }
+    },
+    {
+     "name": "Hỏa Hầu",
+     "level": 29,
+     "ids": {
+      "0": [ "mob101000", "mob101001", "mob101002", "mob101003", "mob101004" ]
+     }
+    },
+    {
+     "name": "Cá Sấu",
+     "level": 31,
+     "ids": {
+      "0": [ "mob111500", "mob111501", "mob111502", "mob111503", "mob111504", "mob111505" ]
+     }
+    },
+    {
+     "name": "Cóc Tía",
+     "level": 35,
+     "ids": {
+      "0": [ "mob122100", "mob122101", "mob122102", "mob122103", "mob122104" ]
+     }
+    },
+    {
+     "name": "Huyết Lang",
+     "level": 40,
+     "ids": {
+      "0": [ "mob132600", "mob132601", "mob132602", "mob132603", "mob132604" ]
+     }
+    }
+   ],
+   "bosses": [
+    {
+     "name": "Tướng Xích Vũ",
+     "level": 35,
+     "ids": { "0": "mob93100004" },
+     "tile": {
+      "zone": 0,
+      "at": [ 49, 19 ]
      }
     }
    ],
@@ -261,11 +396,17 @@
  },
  "portals": {
   "1010": { "name": "Cổ Phong", "level": 130 },
-  "1013": { "name": "Lạc Cốc", "level": 40 },
+  "1011": { "name": "Bạch Nham", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+  "1012": { "name": "Phong Nguyên", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+  "1013": { "name": "Lạc Cốc", "level": 40, "mapId": "M5" },
   "1014": { "name": "Làng Thanh Khê", "mapId": "M1" },
   "1015": { "name": "Vân Sơn", "mapId": "M2" },
-  "1016": { "name": "Hồng Giang", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+  "1016": { "name": "Hồng Giang", "mapId": "M4" },
   "1017": { "name": "Tân Trạch", "level": 110 },
+  "1018": { "name": "Nguyệt Đàm", "level": 100 },
+  "1020": { "name": "Cửu Phong", "mapId": "M10" },
+  "1021": { "name": "Tiên Cốc", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+  "1022": { "name": "Tam Khê", "level": 80 },
   "1024": { "name": "Rìa Hồng Giang", "mapId": "M25" }
  }
 }

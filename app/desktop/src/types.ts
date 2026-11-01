@@ -351,6 +351,8 @@ export interface MapChoice {
   level: number | null;
   /** Portals on the shortest known way: 0 for the map the character is on, null when no known way leads there. */
   hops: number | null;
+  /** The level the character lacks to enter it; no way leads there then. */
+  need: number | null;
 }
 
 /** One level of a skill (s2c/30): skill points, character level, nội lực (25 = 1 thành). */

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fixtures } from './fixtures.ts';
 import { Reader, Writer } from '../src/protocol/protocol.ts';
 import { mapData, mapEntities } from '../src/protocol/world.ts';
-import { emptyAtlas, loadAtlas, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, portalRefusal, destination, route } from '../src/bot/atlas.ts';
+import { emptyAtlas, loadAtlas, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, recordWorld, portalRefusal, destination, portalsOf, route } from '../src/bot/atlas.ts';
 import { MapScanner } from '../src/bot/map-scan.ts';
 import { mapPacket, mobsPacket, noticePacket } from './support/packets.ts';
 
@@ -47,6 +47,32 @@ test('atlas: portal refusals (level, quest), where a portal leads, and the short
   const npc162 = (m: { places: { id: number }[] }) => m.places.some(p => p.id === 162);
   assert.deepEqual(route(atlas, 'M1', npc162, 19), { id: 1015, name: 'Vân Sơn', type: 0, x: 0, y: 0, w: 32, h: 32 }); // M1 → M2 → M25
   assert.equal(route(atlas, 'M1', m => m.mapId === 'M2', 19, new Set([1015])), undefined);
+});
+
+test('atlas: no way through a map the world map shows more than one level above the character; a portal keeps its level', () => {
+  const atlas = emptyAtlas();
+  recordMap(atlas, mapData(mapPacket('M1', 'Làng Thanh Khê', [[1013, 'Lạc Cốc', 0], [1015, 'Vân Sơn', 0]])));
+  recordMap(atlas, mapData(mapPacket('M2', 'Trại Vân Sơn', [[1014, 'Làng Thanh Khê', 0], [1024, 'Rìa Hồng Giang', 0]])));
+  recordMap(atlas, mapData(mapPacket('M25', 'Rìa Hồng Giang', [[1015, 'Vân Sơn', 0], [162, 'Tướng Quân Lê Viễn', 2]])));
+  recordMap(atlas, mapData(mapPacket('M5', 'Lạc Cốc', [[1014, 'Làng Thanh Khê', 0]])));
+  recordWorld(atlas, [{ mapId: 'M1', levelRequired: 0, locked: false }, { mapId: 'M2', levelRequired: 10, locked: false },
+    { mapId: 'M5', levelRequired: 40, locked: true }, { mapId: 'M25', levelRequired: 20, locked: false }]);
+  const ids = (mapId: string, level: number) => portalsOf(atlas, mapId, level).map(p => p.id);
+  assert.deepEqual(ids('M1', 8), []); // M5 shown 40, M2 shown 10
+  assert.deepEqual(ids('M1', 0), [1013, 1015]); // level not known yet
+  assert.deepEqual(ids('M1', 9), [1015]); // one level less gets in
+  assert.deepEqual(ids('M1', 39), [1013, 1015]);
+  assert.deepEqual(ids('M2', 18), [1014]);
+  assert.deepEqual(ids('M2', 19), [1014, 1024]); // S1: a level 19 entered M25, shown 20
+  const npc162 = (m: { places: { id: number }[] }) => m.places.some(p => p.id === 162);
+  assert.equal(route(atlas, 'M1', npc162, 18), undefined);
+  assert.equal(route(atlas, 'M1', npc162, 19)?.id, 1015);
+  recordRefusal(atlas, { id: 1013, name: 'Lạc Cốc' }, 'Bạn phải đạt cấp 40 mới vào được Lạc Cốc');
+  assert.deepEqual(ids('M1', 39), [1015]);
+  recordPortal(atlas, 1013, { name: 'Lạc Cốc', mapId: 'M5' }); // a level 42 went through (S2)
+  assert.deepEqual(atlas.portals[1013], { name: 'Lạc Cốc', level: 40, mapId: 'M5' });
+  assert.deepEqual(ids('M1', 22), [1015]);
+  assert.deepEqual(ids('M1', 42), [1013, 1015]);
 });
 
 /** Three maps of the live scan S1: M2 ↔ M1, M2 ↔ M25, and the three kinds of answer to c2s/13. */

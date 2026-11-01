@@ -57,10 +57,11 @@ export function recordBoss(atlas: Atlas, mapId: string, zone: number, mob: Mob, 
   if (!b) m.bosses.push(b = { name: mob.name, level: mob.level, ids: {} });
   b.level = mob.level; b.ids[zone] = mob.id; b.tile = { zone, at: tile };
 }
-/** A portal that let the character through drops its earlier refusal. */
+/** A portal that let the character through drops a quest refusal but keeps the level it asked for: the server asks that
+ * level of every character, and the atlas is shared (the scan S2 by a level 42 had dropped the 40 of Lạc Cốc). */
 export function recordPortal(atlas: Atlas, id: number, fields: Atlas['portals'][string]) {
   const before = { ...atlas.portals[id] };
-  if (fields.mapId) { delete before.level; delete before.refused; }
+  if (fields.mapId) delete before.refused;
   atlas.portals[id] = { ...before, ...fields };
 }
 /** Records the answer s2c/1256 to c2s/13 through a portal; returns the level it asked for, if any. */
@@ -81,9 +82,17 @@ export function destination(atlas: Atlas, p: Pick<Place, 'id' | 'name'>, from: s
   const others = Object.values(atlas.maps).filter(m => m.mapId !== from);
   return atlas.portals[p.id]?.mapId ?? (others.find(m => m.name === p.name) ?? others.find(m => m.name.includes(p.name)))?.mapId;
 }
-/** Portals of a map the character may try: not the "Bản đồ" button, not one that asked for a higher level, not `skip`. */
+/** The level the world map (c2s/11 "M99") shows for a map. */
+export const worldLevel = (atlas: Atlas, mapId: string | undefined) => atlas.world.find(w => w.mapId === mapId)?.level;
+/** A map the world map shows more than one level above the character. One level less still gets in: M25 is shown 20 and
+ * let a level 19 in (S1); Lạc Cốc, shown 40, refused a level 19 with "phải đạt cấp 40". Level 0 is a level not known yet
+ * (it comes with s2c/10) and leaves no map out. */
+export const aboveLevel = (atlas: Atlas, mapId: string | undefined, level: number) => level > 0 && (worldLevel(atlas, mapId) ?? 0) - 1 > level;
+/** Portals of a map the character may try: not the "Bản đồ" button, not one that asked for a higher level, not one to a map
+ * above the character's level (aboveLevel), not `skip`. */
 export const portalsOf = (atlas: Atlas, mapId: string, level: number, skip: ReadonlySet<number> = new Set()) =>
-  (atlas.maps[mapId]?.places ?? []).filter(p => p.type === 0 && p.name !== 'Bản đồ' && !((atlas.portals[p.id]?.level ?? 0) > level) && !skip.has(p.id));
+  (atlas.maps[mapId]?.places ?? []).filter(p => p.type === 0 && p.name !== 'Bản đồ' && !((atlas.portals[p.id]?.level ?? 0) > level)
+    && !aboveLevel(atlas, destination(atlas, p, mapId), level) && !skip.has(p.id));
 
 /** First portal on the shortest known way from `from` to another map where `wanted` holds; undefined when none is known. */
 export function route(atlas: Atlas, from: string, wanted: (m: MapRecord) => boolean, level: number, skip?: ReadonlySet<number>) {
