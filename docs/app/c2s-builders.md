@@ -45,7 +45,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 14 | h73 | (int) | string (trường e); i32 | có |
 | 15 | a67 | (Object, boolean) | string; u8 | có |
 | 16 | a68 | (Object, Object, boolean, long, boolean, boolean) | string; string; i64; bool; bool; bool |  |
-| 17 | a69 | (boolean, Object, Object) | bool; string; string |  |
+| 17 | a69 | (boolean, Object, Object) | bool; string; string | Trả lời lời mời của người chơi khác (`s2c/17`): CT1 thấy `(false, uuid lời mời, "")` khi hộp mời đóng lại [Suy luận] |
 | 18 | y104 | () | string (trường e) | có |
 | 19 | a74 | (int, int, int, int, int) | chưa đọc được | có |
 | 20 | f75 | (int, int) | string (trường e); i32; i32 | có |
@@ -86,11 +86,11 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 96 | n110 | (Object) | string |  |
 | 97 | a107 | (Object, byte, int) | string; u8; i32; i32; i32 |  |
 | 97 | a108 | (Object, byte, int, int) | chưa đọc được |  |
-| 112 | a81 | (int, int, long) | chưa đọc được |  |
-| 112 | g80 | (Object) | u8; string |  |
-| 113 | h82 | (Object) | string |  |
-| 115 | i84 | (Object) | string |  |
-| 116 | t83 | () | rỗng |  |
+| 112 | a81 | (int, int, long) | chưa đọc được | Đăng bán ở Chợ trời: trên dây `u8 1; i32 ôTúi; i32 sốLượng; i64 giá` (CT1, [Đăng bán](events/14-npc.md#đăng-bán)) |
+| 112 | g80 | (Object) | u8; string | Cùng opcode với Đăng bán, theo uuid; có lẽ là Gia hạn [Suy luận] |
+| 113 | h82 | (Object) | string | Thu hồi món đang bán: uuid trong Đang bán (CT1, [Thu hồi](events/14-npc.md#thu-hồi)) |
+| 115 | i84 | (Object) | string | Mua ở Chợ trời: uuid của món (CT1, [Mua](events/14-npc.md#mua)) |
+| 116 | t83 | () | rỗng | Cửa sổ Chợ trời mở ra, xin danh sách mục (CT1) |
 | 126 | q70 | () | rỗng |  |
 | 131 | a101 | (Object, Object, Object, Object, Object) | string; string; string; string; string |  |
 | 1169 | a115 | (int, mảng) | i32; i32; i32; u8; u8; u8; u8; u8 … | có |
@@ -105,7 +105,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1189 | j123 | (int, int) | u8; i32 |  |
 | 1190 | h87 | static (int, int) | u8; i32; i32 | có |
 | 1191 | e52 | (int, int) | i32; i32 | có |
-| 1192 | m144 | (int, int) | u8; i32; i32 |  |
+| 1192 | m144 | (int, int) | u8; i32; i32 | Một trang Chợ trời: `0; mục; trang`, mục -1 là Đang bán (CT1) |
 | 1193 | k124 | (int, int) | i32; u8 |  |
 | 1194 | E125 | () | rỗng |  |
 | 1196 | F126 | () | rỗng | có |

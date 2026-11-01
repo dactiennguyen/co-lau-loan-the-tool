@@ -18,7 +18,8 @@ Mở từ menu "Chức năng" và các biểu tượng góc phải. Bảng nào 
 | Tin nhắn (Thế giới, Sứ quân) | không | Lịch sử là các tin `s2c/1205` từ lúc đăng nhập; ô nhập "Nhập để chat (5 lượng)" |
 | Cẩm nang | không | Luật trận đấu, xem [05-battle](05-battle.md#bàn-chơi) |
 | Cộng đồng | không | Link Fanpage, nhóm Facebook, Zalo từ `s2c/1271` |
-| Tích lũy, Chợ trời, Sự kiện, Lôi đài, Nạp đầu, Tài khoản | chưa kiểm | Game tắt giữa lượt U1 (dưới); Lôi đài, Nạp đầu, Tài khoản cố ý bỏ qua |
+| Chợ trời | `c2s/1192 (0, mục, 1)` thẳng, không qua Ngọc Nga | Như cửa sổ của Ngọc Nga ([Chợ trời](14-npc.md#cửa-sổ-chợ-trời), CT1) |
+| Tích lũy, Sự kiện, Lôi đài, Nạp đầu, Tài khoản | chưa kiểm | Game tắt giữa lượt U1 (dưới); Lôi đài, Nạp đầu, Tài khoản cố ý bỏ qua |
 
 Gói `s2c/1265` lúc đăng nhập (30 byte, byte đầu `0x64` = 100) trước đây ghi là "config_1265". Nó cùng opcode với gói sứ quân, byte đầu là lệnh con. Chữ `"WATER7"` trong bản ghi người chơi ([09](09-players-chat.md#player-record)) là **tên sứ quân**. [Đo]
 
@@ -42,5 +43,5 @@ Lượt bắt U1 hết hạn 20 phút và script Frida tự gỡ ra lúc 06:48:0
 ## Chưa rõ
 
 - Từng trường của danh sách sứ quân trong `s2c/1265`.
-- Gói của Tích lũy, Chợ trời, Sự kiện (chưa mở được vì game tắt giữa U1).
+- Gói của Tích lũy, Sự kiện (chưa mở được vì game tắt giữa U1). Chợ trời đã đo ở CT1 ([Ngọc Nga](14-npc.md#ngọc-nga)).
 - Nguyên nhân game tắt sau khi gỡ script Frida.

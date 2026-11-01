@@ -197,7 +197,7 @@ Lý do dừng thường gặp:
 ## Trạng thái
 
 - **Kiểm offline:** `npm test` chạy luồng của bot với một server giả, server này trả các gói thật đã bắt ở O1 (Nâng cấp có bùa, Chế tạo, Đổi Băng Tâm). Test có cả trường hợp dừng.
-- **Chưa chạy với server thật.** Các gói giống hệt gói mà probe O1 (`captures/o1-2026-11-01/probe.ts`) đã gửi và được server nhận. Lần chạy thật đầu tiên cần người dùng đồng ý; nên chạy thử không có `--confirm` trước.
+- **Đã chạy thật: Gộp đá** (CT1, 01/11, manina2, người dùng nhờ dọn túi). Chạy thử trước báo 8 lần, 708 Xu khóa, dọn 24 ô; `--merge --confirm` làm đủ 8/8 lần, phí từng lần 7, 7, 26, 26, 26, 103, 103, 410 Xu khóa, khớp kế hoạch. Nâng cấp, Tách đá, Chuyển hoá, Chế tạo, Đổi Băng Tâm của bot TS **chưa chạy với server thật**; gói của chúng giống hệt gói mà probe O1 (`captures/o1-2026-11-01/probe.ts`) đã gửi và được server nhận. Lần chạy thật đầu tiên cần người dùng đồng ý; nên chạy thử không có `--confirm` trước.
 - **Không làm:**
   - nâng đồ đang mặc (app Rust tự cởi ra rồi mặc lại);
   - Chế tạo cánh và Chế Băng Kiếm: chưa có nguyên liệu để đo;

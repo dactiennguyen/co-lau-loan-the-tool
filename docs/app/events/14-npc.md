@@ -250,15 +250,100 @@ Không cần điện thoại hay NPC: mọi gói ở trên gửi được ngay s
 
 ## Ngọc Nga (Chợ trời)
 
-Cả ba dòng đều trả `s2c/1192`; byte đầu cho biết loại. [Đo J1]
+Ngọc Nga (104, M1) có ba dòng, nhãn đúng như server gửi: 0 "Chợ trời", 1 "Bán\nvật phẩm" (có xuống dòng), 2 "Đang bán". Cả ba trả `s2c/1192`; byte đầu cho biết loại. Chọn dòng chỉ mở bảng, không tốn gì. Trên máy, cả ba dòng mở cùng một cửa sổ Chợ trời, ở tab tương ứng. [Đo J1, CT1]
 
 | Dòng | `s2c/1192` |
 |---|---|
-| 0 Chợ trời | Byte đầu 1, 2664 byte: tên mục "Vũ Khí", rồi các món đang bán, mỗi món có uuid, tên người bán và giá. Bố cục từng món chưa giải hết [Chưa rõ] |
-| 1 Bán vật phẩm | Byte đầu 0, rồi `string`: "Phí đăng bán 1.000 Xu, bán trong 24 giờ, phí chợ 5% khi bán được. Tiền bán được và vật phẩm hết hạn gửi về hộp thư." |
-| 2 Đang bán | 13 byte `02 00000001 00000001 00000000`: byte đầu 2, rồi ba số i32 (1, 1, 0). Có lẽ là trang, số trang và số món đang bán [Suy luận] |
+| 0 Chợ trời | Loại 1: một trang của một mục. CT1: mục 0 "Vũ Khí", trang 1/9, 20 món, 2638 byte ([bố cục](#bố-cục-chợ-trời)) |
+| 1 Bán vật phẩm | Loại 0, rồi `string`: "Phí đăng bán 1.000 Xu, bán trong 24 giờ, phí chợ 5% khi bán được. Tiền bán được và vật phẩm hết hạn gửi về hộp thư." |
+| 2 Đang bán | Loại 2: `i32 sốTrang; i32 trang; i32 n`, rồi n món cùng bố cục với loại 1. Không bán gì thì là (1, 1, 0), 13 byte ([Thu hồi](#thu-hồi)) |
 
-`c2s/1192` có hàm dựng `sqlq.m144(int, int)` = `u8; i32; i32` ([c2s-builders](../c2s-builders.md)); có lẽ đó là gói lật trang hay chọn mục, nhưng chưa đo. [Chưa rõ]
+### Cửa sổ Chợ trời
+
+CT1 (01/11), điện thoại có Frida với manina2, chỉ xem: [Đo CT1]
+
+- Cửa sổ có ba tab **Mua**, **Bán**, **Đang bán**. Tab Mua có 9 mục, danh sách 20 món mỗi trang, dòng "Trang 1/9" với mũi tên, và nút **Làm mới**. Dưới cùng là Xu, Xu khóa, Lượng.
+- Cửa sổ vừa mở thì client gửi `c2s/116` (rỗng). Server trả `s2c/116`: 9 mục kèm số món mỗi mục, luật bán, rồi 5 số (đọc hết 378/378 byte):
+
+  ```text
+  s2c/116: i32 n; n × {i32 mục; string tên; i32 sốMón}; string luật;
+           i32 phí (1000); i32 a (1000); i32 sốGiờ (24); i32 b (1000); i32 giáCaoNhất (100.000.000)
+  ```
+
+  | Mục | 0 Vũ Khí | 1 Nón Nam | 2 Nón Nữ | 3 Giáp Nam | 4 Giáp Nữ | 5 Nhẫn | 6 Vật Phẩm Khác | 7 Đá Quý | 8 Vật Dụng |
+  |---|---|---|---|---|---|---|---|---|---|
+  | Số món (CT1) | 169 | 102 | 9 | 50 | 9 | 77 | 139 | 16 | 23 |
+
+  `a`, `b` chưa rõ. Một trong hai có lẽ là giá thấp nhất: món rẻ nhất trong 592 món đúng 1.000 Xu [Suy luận].
+- **Đổi mục, lật trang, Làm mới, tab Đang bán** đều là `c2s/1192 (u8 0; i32 mục; i32 trang)`, server trả `s2c/1192`. Làm mới gửi lại gói của trang đang xem. Tab Đang bán là mục **-1**: `00 ffffffff 00000001`. Ví dụ Nón Nam trang 2: `00 00000001 00000002`.
+- **Nút Chợ trời của thanh công cụ** (góc phải trên) mở cửa sổ ở mục xem lần trước bằng `c2s/1192 (0, 6, 1)` thẳng, không qua `c2s/13`/`c2s/57` của Ngọc Nga. Server vẫn trả danh sách, nên chợ không cần đứng cạnh NPC.
+- Bot TS gửi lại đúng `c2s/1192` đó cho 9 mục và mọi trang của chúng (33 trang, sau khi mở dòng 0 của Ngọc Nga): đọc được 592 món, không bị từ chối.
+- Chạm một món chỉ mở bảng chi tiết trên máy, không gửi gói: giá, thời gian còn, người bán, phẩm chất, yêu cầu cấp, độ bền (vd. "60/60"), chỉ số, và nút **Mua**.
+
+### Bố cục Chợ trời
+
+```text
+s2c/1192 loại 1: u8 1; u8 sốMục (9); u8 mục; string tênMục ("Vũ Khí"); i32 sốTrang; i32 trang; i32 n; n × món
+món: i32 mãVậtPhẩm; i32 mãVậtPhẩm (lặp lại); string uuid; string ngườiBán;
+     i32 độBền; i32 field0; i32 phẩmChất; i64 hếtHạn (ms); u8 loạiTiền; i32 giá;
+     i32 field2; i32 sốLượng; u8 field1; i32 m; m × {i32 chỉSố; i32 giáTrị; i32 giáTrị2}
+```
+
+CT1 đọc hết 20 món, đúng 2638/2638 byte, rồi cả 33 trang của 9 mục (592 món); J1 (bản ghi chỉ giữ 2048 byte đầu) cũng khớp ở 15 món đầu. Các trường giống bản ghi vật phẩm của túi ([12-skills-items](12-skills-items.md#túi-đồ)) nhưng khác thứ tự, và vài trường u8 thành i32. [Đo CT1]
+
+- **Mã vật phẩm** có hai lần, luôn giống nhau. Mục "Vũ Khí" chỉ có loại 2 (vũ khí) trong `data/items.json`.
+- **Độ bền** 60 ở đồ cấp 21 và 51, 300 ở đồ cấp 101; -1 ở món không có độ bền (thú cưng, đá, vật dụng). Bảng chi tiết ghi "Độ bền: 60/60".
+- **Phẩm chất**: 1, 2 hoặc 3 ở đồ mặc, 0 ở mọi món khác. Bảng chi tiết: 1 là "Hiếm" (tên màu xanh lá), 3 là "Sử Thi" (tên màu tím). Món có 2 chưa mở xem [Chưa rõ]. Trước CT1 trường này bị đoán là hệ; sai.
+- **field0** luôn 0. Trong túi field0 là cấp cường hoá (+N); chưa thấy món đã cường hoá nào [Chưa rõ].
+- **Hết hạn**: giờ hết hạn bằng mili giây, khoảng 24 giờ sau lúc đăng. Danh sách xếp theo giờ đăng, mới nhất trước.
+- **Loại tiền** luôn 0, tức Xu, như loại tiền 0 của cửa hàng ([15-shops](15-shops.md)). **Giá** từ 1.000 tới 50.000.000 Xu.
+- **Số lượng** 1 ở 586/592 món; đá và vật dụng có món 99, 109, 900, 999. **field1** luôn 1 (trong túi, 1 là chưa khoá), **field2** luôn 0.
+- **Chỉ số**: mỗi chỉ số có hai giá trị, ở mọi món đều bằng nhau. Mã chỉ số như ở túi (5 là sức tấn công, 6 phòng thủ, 9 sinh lực).
+
+<a id="mua"></a>
+
+### Mua
+
+Người dùng cho thử mua món rẻ nhất (Thú cưng Slime +16 thể lực, 1.000 Xu, mục Vật Phẩm Khác trang 4) và cho dọn túi. [Đo CT1]
+
+1. Bảng chi tiết → **Mua**. Game hỏi "Mua Thú cưng Slime với giá 1.000 Xu?" với OK và Hủy; chưa gửi gì.
+2. **OK** → `c2s/115 (string uuid)`: chỉ uuid của món trong `s2c/1192`, không có giá hay mục.
+3. Lần đầu túi manina đầy, server trả ngay `s2c/1256` "Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa". Không mất Xu.
+4. Sau khi Gộp đá (bot TS, 8 lần, 708 Xu khóa, túi còn 24 ô trống), mua lại được. Server trả trong 60 ms:
+   - `s2c/46`: Xu 5.053.600 → 5.052.600.
+   - `s2c/115`: đúng uuid đã gửi.
+   - `s2c/1187`: cả túi. Slime nằm ở ô 2, **chưa khoá** (field1 1), với **uuid mới** (khác uuid của món trên chợ).
+
+   Game hiện "Mua vật phẩm thành công!" và bỏ món khỏi danh sách; không có `s2c/1256`, cũng không xin lại trang.
+
+<a id="đăng-bán"></a>
+
+### Đăng bán
+
+- Tab **Bán** hiện túi đồ ngay trên máy, không gửi gói: ô "Vật phẩm bán", ô "Nhập giá" (Xu), luật bán và nút **Đăng bán**.
+- Chạm một món trong túi mở bảng chi tiết với nút **Chọn**. Món đã khoá (biểu tượng ổ khoá) thì Chọn báo "Vật phẩm không thể rao bán!" ngay trên máy, không gửi gói. Mọi món manina có trước CT1 đều đã khoá; Slime vừa mua thì không.
+- Chọn Slime, nhập giá 1000000, **Đăng bán**. Game hỏi "Đăng bán Thú cưng Slime với giá 1.000.000 Xu? Phí đăng bán 1.000 Xu." OK thì gửi:
+
+  ```text
+  c2s/112: u8 1; i32 ôTúi (2); i32 sốLượng (1); i64 giá (1.000.000)   01 00000002 00000001 00000000000f4240
+  ```
+
+- Server trả `s2c/46` (Xu 5.052.600 → 5.051.600: phí 1.000), `s2c/112` (`i32 1; i32 ôTúi; i32 sốLượng` = 1, 2, 1), `s2c/1256` "Rao bán vật phẩm thành công". [Đo CT1]
+- Hàm dựng của `c2s/112` là `a81(int, int, long)`; cùng opcode còn `g80(Object)` = `u8; string`, có lẽ là Gia hạn theo uuid [Suy luận].
+
+<a id="thu-hồi"></a>
+
+### Đang bán và Thu hồi
+
+- Tab **Đang bán**: `c2s/1192 (0, -1, 1)` → `s2c/1192` loại 2. Khi chưa bán gì: (1, 1, 0) và "Bạn chưa ký gửi vật phẩm nào." Có Slime: 1 trang, 1 món cùng bố cục với loại 1, người bán là chính mình, uuid **khác** uuid trong túi. [Đo CT1]
+- Chạm món đang bán mở bảng chi tiết với hai nút **Gia hạn** và **Thu hồi**.
+- **Thu hồi** → "Thu hồi Thú cưng Slime về hành trang?" → OK → `c2s/113 (string uuid)`, với uuid của món trong Đang bán. Server trả `s2c/1187` (cả túi: Slime về ô 2, chưa khoá, lại có uuid mới), `s2c/113` (đúng uuid đã gửi), `s2c/1256` "Đã nhận lại vật phẩm Thú cưng Slime". Không hoàn phí đăng bán. [Đo CT1]
+
+Chưa đo: Gia hạn (có lẽ tốn phí), món bán được (tiền về hòm thư, trừ 5%), món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/1192` vẫn chưa thấy trên dây: `c2s/1193` `k124(int, int)` = `i32; u8`; `c2s/1194` `E125()` rỗng; `c2s/1197`, `c2s/1198` `(int)` = `i32`; `c2s/1199` `b129(int, Object)` = `i32; string` ([c2s-builders](../c2s-builders.md)). Chưa rõ chúng có thuộc chợ hay không [Chưa rõ].
+
+### Lời mời của người chơi khác
+
+Trong CT1, một người chơi khác gửi lời mời (`s2c/17`, 73 byte: `string uuid; string tên; …`) khi cửa sổ Chợ trời đang mở. Lần chạm kế tiếp của ADB (vào nút một mục) bị hộp mời lấy mất. Client gửi `c2s/17 (false, uuid, "")`, có lẽ là từ chối, và không có gì xảy ra. Loại lời mời chưa rõ [Chưa rõ]. Cũng như lời mời giao dịch ở I1, phải xem ảnh màn hình trước mỗi lần chạm.
 
 <a id="s2c-0"></a>
 

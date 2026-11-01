@@ -104,7 +104,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [env.ts](../../../src/net/env.ts) | Nạp `.env` và dựng option kết nối cho các CLI |
 | [proxy.ts](../../../src/net/proxy.ts) | Đọc `CLLT_PROXY`; bắt tay SOCKS5/HTTP CONNECT không I/O (`ProxyTunnel`) mà `client.ts` chạy trước seed ([proxy](#proxy)) |
 | [client.ts](../../../src/net/client.ts) | Socket thật, luồng đăng nhập `FLOW`, log event, `result.user`, heartbeat, deadline, `session` |
-| [events.ts](../../../src/protocol/events.ts) | Catalog 135 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
+| [events.ts](../../../src/protocol/events.ts) | Catalog 144 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
 | [protocol.ts](../../../src/protocol/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR; đọc gói nhân vật/vị trí/map |
 | [world.ts](../../../src/protocol/world.ts) | Đọc gói thế giới: quái của map, khu, người chơi, chat, vật phẩm, chỉ số, nhiệm vụ, xếp hạng |
 | [battle.ts](../../../src/battle/battle.ts), [battle-runner.ts](../../../src/battle/battle-runner.ts) | Mô hình bàn 8×8 và gói trận; chạy một trận không giao diện |
@@ -115,6 +115,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [buy-run.ts](../../../src/cli/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm hay Cửa hàng [Lượng] (`--shop=luong`) của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; món không chồng được thì mua từng cái; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
 | [smith.ts](../../../src/bot/smith.ts), [smith-run.ts](../../../src/cli/smith-run.ts), [npc.ts](../../../src/protocol/npc.ts) | Pháp sư và lệnh `npm run smith`: mỗi lần một việc, dừng trước Bắt đầu khi không có `--confirm` ([Pháp sư](smith.md)) |
 | [mail.ts](../../../src/protocol/mail.ts), [bot/mail.ts](../../../src/bot/mail.ts), [daily.ts](../../../src/bot/daily.ts), [gift-run.ts](../../../src/cli/gift-run.ts), [gift-state.ts](../../../src/cli/gift-state.ts), [mail-run.ts](../../../src/cli/mail-run.ts), [daily-run.ts](../../../src/cli/daily-run.ts) | Gói và lệnh `npm run gift`, `npm run mail`, `npm run daily` ([mã quà, hòm thư, nhiệm vụ ngày](mail.md)); số mã sai liền của từng nick giữa các lần chạy (`.cache/gift-codes.json`, chỉ ở máy) |
+| [market.ts](../../../src/protocol/market.ts) | Đọc `s2c/1192` của Ngọc Nga: danh sách Chợ trời (món, người bán, giá, hạn, chỉ số), luật bán, món đang bán ([Ngọc Nga](../../app/events/14-npc.md#ngọc-nga)). Chưa có lệnh mua bán |
 | [steps.ts](../../../src/bot/steps.ts), [run-session.ts](../../../src/cli/run-session.ts) | Phần chung của các bot từng bước (smith, gift, mail, daily): gửi một gói rồi chờ câu trả lời, đi menu NPC, giữ túi và tiền; tham số, đăng nhập và dòng tổng kết của CLI |
 | [accounts.ts](../../../src/net/accounts.ts) | `--account=<tên>` của `npm run smith`, `gift`, `mail`, `daily`, `buy`: lấy tài khoản trong `app/accounts.json` (chỉ ở máy, không in mật khẩu) |
 | [zone-run.ts](../../../src/cli/zone-run.ts) | Lệnh `npm run zone`: đăng nhập, in số người của từng khu (`c2s/1172`); `--zone=N` thì sang khu N như bảng Khu vực trong game rồi in quái và người của khu mới ([đổi khu](../../app/events/06-map-mobs.md#bot-ts-đổi-khu-z1)) |

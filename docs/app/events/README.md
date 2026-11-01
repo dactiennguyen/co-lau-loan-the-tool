@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 135 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 88 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 144 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 83 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -100,6 +100,15 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/91 | service_start | world | [Nâng cấp](16-upgrade.md#gói) |
 | s2c/91 | service_result | world | [Nâng cấp](16-upgrade.md#gói) |
 | s2c/1192 | market | world | [Ngọc Nga](14-npc.md#ngọc-nga) |
+| c2s/116 | market_tabs_request | world | [Cửa sổ Chợ trời](14-npc.md#cửa-sổ-chợ-trời) |
+| s2c/116 | market_tabs | world | [Cửa sổ Chợ trời](14-npc.md#cửa-sổ-chợ-trời) |
+| c2s/1192 | market_page | world | [Cửa sổ Chợ trời](14-npc.md#cửa-sổ-chợ-trời) |
+| c2s/115 | market_buy | world | [Mua](14-npc.md#mua) |
+| s2c/115 | market_bought | world | [Mua](14-npc.md#mua) |
+| c2s/112 | market_sell | world | [Đăng bán](14-npc.md#đăng-bán) |
+| s2c/112 | market_listed | world | [Đăng bán](14-npc.md#đăng-bán) |
+| c2s/113 | market_withdraw | world | [Thu hồi](14-npc.md#thu-hồi) |
+| s2c/113 | market_withdrawn | world | [Thu hồi](14-npc.md#thu-hồi) |
 | s2c/1224 | gift_code_prompt | world | [Hương Lão](14-npc.md#hương-lão) |
 | c2s/44 | battle_use_item | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | s2c/44 | battle_item_result | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |

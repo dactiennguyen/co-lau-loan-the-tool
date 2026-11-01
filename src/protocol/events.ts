@@ -5,6 +5,7 @@ import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveR
   zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
 import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
+import { market, marketBuyRequest, marketDone, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from './market.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from '../battle/battle.ts';
 
 export type Direction = 'c2s' | 's2c';
@@ -85,7 +86,16 @@ event('s2c', 1260, 'transmute_target', 'world', 'Trả c2s/97 trong cửa sổ C
 event('s2c', 1258, 'service_preview', 'world', 'Sau c2s/97 đặt trang bị, và sau s2c/91', 'Không có', 'u8 0; string uuid; i32 cấpHiệnTại; bản ghi vật phẩm của món sau một lần nâng nữa', 'Đọc hết 127 byte (J1, J2): giáp +0 cho bản ghi +1 (phòng thủ 19, cường lực 11); lên +1 rồi thì bản ghi +2 (23, 14); ba nhẫn +0 (J2)');
 event('c2s', 91, 'service_start', 'world', 'Bấm Bắt đầu trong mọi cửa sổ của Pháp sư: Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá (sqlq.m109)', 'Nâng cấp: s2c/91, s2c/1258, s2c/46 (Cẩn thận thêm s2c/46 Lượng ở đầu). Luyện đá: s2c/93, s2c/46. Tách đá, Chuyển hoá: s2c/91. Không đủ điều kiện: s2c/1256. Không có túi mới', 'string "" (rỗng)', 'Đo J1 1 lần trên máy; J3 bot TS 14 lần: 3 Nâng cấp (1 thất bại), 7 Luyện đá (6 thành công, 1 bị từ chối dưới 40%), 1 gửi key "abcd1002" sau khi đã luyện xong, 2 Tách đá (lần đầu bị từ chối vì túi đầy), 1 Chuyển hoá');
 event('s2c', 91, 'service_result', 'world', 'Trả c2s/91 ở Nâng cấp, Tách đá, Chuyển hoá', 'Không có; túi không được gửi lại (xin bằng c2s/42)', 'string tên; u8 kếtQuả (1 thành công, 0 thất bại); bản ghi món sau đó; i32 n; n * bản ghi món nhận được (đá của Tách đá); Chuyển hoá thêm bản ghi món đích', 'Đọc hết byte (J1, J3): Nâng cấp 96 byte n 0, kếtQuả 0 khi thất bại ở 16%; Tách đá 228 byte n 2 (Đá cấp 1); Chuyển hoá 178 byte n 0 rồi Anh Hùng Nhẫn +1');
-event('s2c', 1192, 'market', 'world', 'Sau c2s/57 chọn Chợ trời, Bán vật phẩm hay Đang bán ở Ngọc Nga', 'Chưa đo', 'u8 loại (1 danh sách món, 0 lời giải thích, 2 đang bán); loại 0: string; loại 2: i32; i32; i32', 'J1: loại 1 2664 byte "Vũ Khí" chưa giải hết; loại 0 "Phí đăng bán 1.000 Xu…"; loại 2 13 byte (1, 1, 0)');
+event('s2c', 1192, 'market', 'world', 'Sau c2s/57 chọn Chợ trời, Bán vật phẩm hay Đang bán ở Ngọc Nga', 'Đọc danh sách món đang bán, luật bán, món của mình đang bán; chưa đo mua, đăng bán', 'u8 loại; loại 1 (Chợ trời): u8 sốMục; u8 mục; string tênMục; i32 sốTrang; i32 trang; i32 n; n × món {i32 mãVậtPhẩm; i32 mãVậtPhẩm; string uuid; string ngườiBán; i32 độBền; i32 field0; i32 hệ; i64 hếtHạn; u8 loạiTiền; i32 giá; i32 field2; i32 sốLượng; u8 field1; i32 m; m × {i32 chỉSố; i32 giáTrị; i32 giáTrị2}}; loại 0 (Bán vật phẩm): string luật; loại 2 (Đang bán): i32 sốTrang; i32 trang; i32 n; n × món', 'J1, CT1: loại 1 "Vũ Khí" 20 món đọc hết 2638/2638 byte; loại 0 "Phí đăng bán 1.000 Xu…"; loại 2 khi không bán gì: (1, 1, 0)');
+event('c2s', 116, 'market_tabs_request', 'world', 'Cửa sổ Chợ trời mở ra (sau s2c/1192 của Ngọc Nga, hay nút Chợ trời của thanh công cụ)', 's2c/116', 'Rỗng', 'CT1 (01/11) trên máy có Frida');
+event('s2c', 116, 'market_tabs', 'world', 'Trả c2s/116', 'Cửa sổ vẽ các mục; c2s/1192 cho từng trang', 'i32 n; n × {i32 mục; string tên; i32 sốMón}; string luật; i32 phí (1000); i32 a (1000); i32 sốGiờ (24); i32 b (1000); i32 giáCaoNhất (100.000.000)', 'CT1: 9 mục, 594 món, đọc hết 378/378 byte; a, b chưa rõ (một trong hai có lẽ là giá thấp nhất)');
+event('c2s', 1192, 'market_page', 'world', 'Bấm một mục, mũi tên trang, Làm mới hay tab Đang bán trong cửa sổ Chợ trời; nút Chợ trời của thanh công cụ gửi thẳng gói này, không qua Ngọc Nga', 's2c/1192 loại 1 (một mục), loại 2 (mục -1: Đang bán)', 'u8 0; i32 mục (0–8 của s2c/116, -1 là Đang bán); i32 trang (từ 1)', 'CT1: 9 mục, đủ mọi trang trên máy và bằng bot TS; chỉ đọc');
+event('c2s', 115, 'market_buy', 'world', 'Bấm Mua ở bảng chi tiết một món, rồi OK ở "Mua … với giá … Xu?"', 'Mua được: s2c/46, s2c/115, s2c/1187; túi đầy: s2c/1256 "Rương đã đầy…"', 'string uuid (của món trong s2c/1192)', 'CT1: một lần bị từ chối (túi đầy, không mất Xu), một lần mua được Slime 1.000 Xu');
+event('s2c', 115, 'market_bought', 'world', 'Trả c2s/115 khi mua được, sau s2c/46', 's2c/1187 (cả túi; món có uuid mới); máy hiện "Mua vật phẩm thành công!"', 'string uuid (như c2s/115)', 'CT1: một lần');
+event('c2s', 112, 'market_sell', 'world', 'Tab Bán: chọn món chưa khoá, nhập giá, Đăng bán, rồi OK ở "Đăng bán … với giá … Xu? Phí đăng bán 1.000 Xu."', 's2c/46 (trừ phí), s2c/112, s2c/1256 "Rao bán vật phẩm thành công"', 'u8 1; i32 ôTúi; i32 sốLượng; i64 giá', 'CT1: một lần, Slime ở ô 2 giá 1.000.000 Xu; hàm dựng a81(int, int, long). Hàm dựng thứ hai g80 (u8; string) của cùng opcode chưa thấy');
+event('s2c', 112, 'market_listed', 'world', 'Trả c2s/112 khi đăng được', 's2c/1256 "Rao bán vật phẩm thành công"', 'i32 a (1); i32 ôTúi; i32 sốLượng', 'CT1: một lần (1, 2, 1)');
+event('c2s', 113, 'market_withdraw', 'world', 'Tab Đang bán: chạm món, Thu hồi, rồi OK ở "Thu hồi … về hành trang?"', 's2c/1187, s2c/113, s2c/1256 "Đã nhận lại vật phẩm …"', 'string uuid (của món trong s2c/1192 loại 2, khác uuid trong túi)', 'CT1: một lần');
+event('s2c', 113, 'market_withdrawn', 'world', 'Trả c2s/113 khi thu hồi được, sau s2c/1187', 's2c/1256 "Đã nhận lại vật phẩm …"', 'string uuid (như c2s/113)', 'CT1: một lần');
 event('s2c', 1224, 'gift_code_prompt', 'world', 'Sau c2s/57 chọn Mã quà tặng ở Hương Lão', 'Có lẽ client mở ô nhập mã', 'Rỗng', 'J1: 0 byte');
 event('c2s', 44, 'battle_use_item', 'battle', 'Trong trận: nút Túi đồ rồi chạm món (sqlq.g76(slot, 0))', 's2c/83 (số còn lại trong ô), s2c/44 (HP mới)', 'string battleUuid; i32 0; i32 bagSlot', 'Đo P5 1 lần trong trận tính giờ với Sơn Tặc: Hoàn Linh Dược ở ô 4, HP 31 → 67');
 event('s2c', 44, 'battle_item_result', 'battle', 'Sau c2s/44', 'Trận đi tiếp', 'i32 seq; i32 0; u32 seed; i32 0; i32 bagSlot; i32; i32 n; u8[n] refill; u8 m; m * {string name; i32 damage; u8; i32 hp; i32; i32}; u8 flags[4]; string actor; u8 end', 'Đọc hết 75 byte (P5): Ttuananh hp 67 sau Hoàn Linh Dược');
@@ -192,6 +202,10 @@ export interface RequestContext {
   kind?: number;
   /** c2s/1216, c2s/1217, c2s/1219: the mail; c2s/1223: the gift code. */
   mailId?: number; code?: string;
+  /** c2s/1192: the Chợ trời tab (-1 Đang bán) and page. c2s/115 takes the listing's uuid. */
+  tab?: number; page?: number;
+  /** c2s/112: the price in Xu (slot and quantity as above). */
+  price?: number;
 }
 function required<T>(value: T | undefined, name: string): T {
   if (value === undefined) throw new Error(`Missing request field: ${name}`);
@@ -201,7 +215,11 @@ function required<T>(value: T | undefined, name: string): T {
 export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
   const w = new Writer();
   switch (opcode) {
-    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: return w.build();
+    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: case 116: return w.build();
+    case 1192: return marketPageRequest(required(ctx.tab, 'tab'), ctx.page ?? 1);
+    case 115: return marketBuyRequest(required(ctx.uuid, 'uuid'));
+    case 113: return marketWithdrawRequest(required(ctx.uuid, 'uuid'));
+    case 112: return marketSellRequest(required(ctx.slot, 'slot'), ctx.quantity ?? 1, required(ctx.price, 'price'));
     // Hòm thư and Mã quà tặng (G1). No c2s/1221 (Xóa hết): it deletes gifts not taken too.
     case 1216: case 1217: case 1219: return mailIdRequest(required(ctx.mailId, 'mailId'));
     case 1223: return giftCodeRequest(required(ctx.code, 'code'));
@@ -257,6 +275,10 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1218: case 1221: break;
       case 1216: case 1217: case 1219: fields = { mailId: Number(r.take(8).readBigInt64BE()) }; break;
       case 1223: fields = { code: r.string() }; break;
+      case 1192: fields = { mode: r.u8(), tab: r.i32(), page: r.i32() }; break;
+      case 115: case 113: fields = { uuid: r.string() }; break;
+      case 116: fields = {}; break;
+      case 112: fields = r.data[0] === 1 ? { kind: r.u8(), slot: r.i32(), quantity: r.i32(), price: Number(r.take(8).readBigInt64BE()) } : { kind: r.u8(), uuid: r.string() }; break;
       case 13: fields = { mapId: r.string(), npcId: r.i32() }; break;
       case 1173: fields = { zone: r.u8() }; break;
       case 15: fields = { mobId: r.string(), flag: r.u8() }; break;
@@ -300,6 +322,11 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1209: fields = { flag: r.u8() }; break;
       case 1220: fields = { unread: r.u8() === 1 }; break;
       case 1195: fields = dailyQuest(payload); r.take(payload.length); break;
+      case 1192: fields = market(payload); r.take(payload.length); break;
+      case 116: fields = marketTabs(payload); r.take(payload.length); break;
+      case 112: fields = marketListed(payload); r.take(payload.length); break;
+      case 113: fields = marketDone(payload, 113); r.take(payload.length); break;
+      case 115: fields = marketDone(payload, 115); r.take(payload.length); break;
       case 1216: fields = mailBody(payload); r.take(payload.length); break;
       case 1217: case 1219: fields = mailAck(payload, opcode); r.take(payload.length); break;
       case 1222: fields = newMail(payload); r.take(payload.length); break;
