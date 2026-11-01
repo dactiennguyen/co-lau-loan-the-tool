@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "./api";
-import type { Account, FightSettings } from "./types";
+import { api } from "@/api";
+import type { Account, FightSettings } from "@/api/types";
 
 /** The numbers of Cài đặt đánh that the Đánh quái and Nhiệm vụ tabs offer again. */
 type Key = "fightCount" | "fightLosses" | "questLosses";

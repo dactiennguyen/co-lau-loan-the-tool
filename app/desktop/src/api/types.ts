@@ -42,7 +42,7 @@ export type UpdateState =
 /** Tự cập nhật: the version running, then where its update stands. */
 export type UpdateView = { current: string } & UpdateState;
 
-/** What a log line is about (LogKind of cllt-core's bot/types.rs); logKinds.ts names them. */
+/** What a log line is about (LogKind of cllt-core's bot/types.rs); game/logKinds.ts names them. */
 export type LogKind = "connection" | "battle" | "quest" | "travel" | "character" | "item" | "server";
 
 /** What a battle was played for, and how it ended (bot/types.rs). */

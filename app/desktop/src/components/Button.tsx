@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes } from "react";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 import { Icon, type IconName } from "./Icon";
 
 export type ButtonKind = "primary" | "tonal" | "outline" | "ghost" | "danger" | "glass";

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 
 /**
  * A small toggle of a filter row ("Trận", "7 ngày"), in the UI face so Vietnamese marks show: outlined in its `tone` on

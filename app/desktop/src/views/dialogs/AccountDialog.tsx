@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { DIALOG, Dialog } from "../components/Dialog";
-import { PasswordField } from "../components/PasswordField";
-import { TextField } from "../components/TextField";
-import { isConnected } from "../format";
-import type { Account, AccountForm, ProxyForm, ProxyInfo } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import { PasswordField } from "@/components/PasswordField";
+import { TextField } from "@/components/TextField";
+import { isConnected } from "@/utils/format";
+import type { Account, AccountForm, ProxyForm, ProxyInfo } from "@/api/types";
 import { ProxyFields, defaultPort } from "./ProxyFields";
 
 interface Props {

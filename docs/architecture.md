@@ -63,7 +63,7 @@ Phụ thuộc đi một chiều: `cli` → `bot` → `battle` và `net` → `pro
 
 ## Giao diện
 
-`app/desktop/src` là React + TypeScript (Vite). `api.ts` gọi lệnh Tauri và nghe sự kiện, `store.ts` (zustand) giữ nick, nhật ký và hộp thoại đang mở. `views/` là các phần của app, `components/` là thành phần dùng chung không biết gì về game. Kiểu dữ liệu trong `types.ts` là bản sao viết tay của `view.rs` và `bot/types.rs`: đổi một bên thì đổi bên kia.
+`app/desktop/src` là React + TypeScript (Vite). `api/` gọi lệnh Tauri và nghe sự kiện, `store/` (zustand) giữ nick, nhật ký và hộp thoại đang mở. `views/` là các phần của app, `components/` là thành phần dùng chung không biết gì về game. Kiểu dữ liệu trong `api/types.ts` là bản sao viết tay của `view.rs` và `bot/types.rs`: đổi một bên thì đổi bên kia.
 
 ## Kiểm thử
 
@@ -80,5 +80,5 @@ CI chạy cả ba, cùng `cargo fmt` và `cargo clippy -D warnings`, cho mỗi l
 1. Điều tra và ghi vào `docs/app` trước.
 2. Viết bên TypeScript vào đúng thư mục: bộ giải vào `src/protocol`, cách đánh vào `src/battle`, việc bot làm vào `src/bot`, lệnh mới vào `src/cli` và `package.json`. Test bằng gói thật, chạy thật với server, ghi kết quả vào docs.
 3. `npm run export:rust` nếu đổi bộ giải hay bảng opcode; viết bên Rust vào file cùng vai trò (`bot/<việc>.rs`, `world.rs`…) cho tới khi `cargo test` khớp.
-4. Giao diện chỉ hiển thị: thêm trường vào `view.rs` và `types.ts`, rồi `views/`.
+4. Giao diện chỉ hiển thị: thêm trường vào `view.rs` và `api/types.ts`, rồi `views/`.
 5. Một loại dòng nhật ký mới, một bảng SQLite mới: theo quy tắc ở [Loại dòng nhật ký](integration/rust/features.md#loại-dòng-nhật-ký) và [Nhật ký và thống kê](integration/rust/features.md#nhật-ký-và-thống-kê) (bảng đổi thì thêm một bước vào `MIGRATIONS`).

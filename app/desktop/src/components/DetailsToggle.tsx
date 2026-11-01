@@ -1,4 +1,4 @@
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 import { Icon } from "./Icon";
 
 /** "Chi tiết ▾" after the title of a summary row: shows or hides what is under it (`controls`, the id of that part). A

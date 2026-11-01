@@ -1,10 +1,10 @@
 import { useId, useState } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { FilterChip } from "../components/FilterChip";
-import { Hint } from "../components/Hint";
-import { Stepper } from "../components/Stepper";
-import { num } from "../format";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { FilterChip } from "@/components/FilterChip";
+import { Hint } from "@/components/Hint";
+import { Stepper } from "@/components/Stepper";
+import { num } from "@/utils/format";
 import { SHOP, type ShopContext } from "./ShopModal";
 
 const LUONG = 50;

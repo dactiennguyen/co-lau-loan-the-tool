@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { api } from "./api";
-import { selectedId, useStore } from "./store";
-import type { LogLine } from "./types";
-import { append, listenThenLoad } from "./updates";
+import { api } from "@/api";
+import { selectedId, useStore } from "@/store";
+import type { LogLine } from "@/api/types";
+import { append, listenThenLoad } from "@/store/sync";
 
 /** Keeps the store in step with src-tauri: every account, the log of the selected one, and the update of the app.
  * Mounted once, in App. */

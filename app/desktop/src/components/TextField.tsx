@@ -1,5 +1,5 @@
 import { useId, type InputHTMLAttributes } from "react";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 
 /** The parts of a labelled field, TextField's and PasswordField's: the label over a dark input that lights its frame
  * while it has the focus, a hint under it. */

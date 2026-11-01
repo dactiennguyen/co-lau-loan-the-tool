@@ -1,14 +1,14 @@
 import { useEffect, useId, useState } from "react";
-import { api } from "../api";
-import { cn } from "../cn";
-import { Button } from "../components/Button";
-import { Hint } from "../components/Hint";
-import { Icon } from "../components/Icon";
-import { Stepper } from "../components/Stepper";
-import { num } from "../format";
-import { recalled, remember } from "../remember";
-import { stoneCounts } from "../shops";
-import type { MergeForecast } from "../types";
+import { api } from "@/api";
+import { cn } from "@/utils/cn";
+import { Button } from "@/components/Button";
+import { Hint } from "@/components/Hint";
+import { Icon } from "@/components/Icon";
+import { Stepper } from "@/components/Stepper";
+import { num } from "@/utils/format";
+import { recalled, remember } from "@/utils/remember";
+import { stoneCounts } from "@/game/shops";
+import type { MergeForecast } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 import { Stone, STONES } from "./Stone";
 

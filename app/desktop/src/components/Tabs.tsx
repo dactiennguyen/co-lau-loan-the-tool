@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 import { Icon, type IconName } from "./Icon";
 
 export interface Tab<K extends string> {

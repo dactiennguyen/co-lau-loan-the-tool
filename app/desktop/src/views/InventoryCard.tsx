@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { Avatar } from "../components/Avatar";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { ElementTag } from "../components/ElementTag";
-import type { IconName } from "../components/Icon";
-import { ItemSlot } from "../components/ItemSlot";
-import { Menu, type MenuItem } from "../components/Menu";
-import { num } from "../format";
-import type { Account, Item, ItemAction } from "../types";
+import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { ElementTag } from "@/components/ElementTag";
+import type { IconName } from "@/components/Icon";
+import { ItemSlot } from "@/components/ItemSlot";
+import { Menu, type MenuItem } from "@/components/Menu";
+import { num } from "@/utils/format";
+import type { Account, Item, ItemAction } from "@/api/types";
 import { ItemDetail } from "./ItemDetail";
-import { useStore } from "../store";
+import { useStore } from "@/store";
 
 /** The body of the card: a column of parts that keep their height, scrolling inside; narrow ones a container. */
 const BODY = "grid [align-content:start] gap-2.5 @container overflow-auto";

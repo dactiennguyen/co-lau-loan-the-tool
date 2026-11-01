@@ -1,4 +1,4 @@
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 import { Icon, type IconName } from "./Icon";
 
 /** Elements as the character (field01 of s2c/9), its skills (id / 1000) and items number them: 1 Hỏa, 2 Lôi, 4 Thủy. */

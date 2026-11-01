@@ -1,14 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { api } from "../api";
-import { cn } from "../cn";
-import { Button } from "../components/Button";
-import { DIALOG, Dialog } from "../components/Dialog";
-import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
-import { Hint } from "../components/Hint";
-import { Icon } from "../components/Icon";
-import { num } from "../format";
-import { skillIcon, TREE } from "../skillIcons";
-import type { Account, FightSettings, Skill, SkillLevel } from "../types";
+import { api } from "@/api";
+import { cn } from "@/utils/cn";
+import { Button } from "@/components/Button";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import { ELEMENT_ICON, ELEMENT_NAME } from "@/components/ElementTag";
+import { Hint } from "@/components/Hint";
+import { Icon } from "@/components/Icon";
+import { num } from "@/utils/format";
+import { skillIcon, TREE } from "@/game/skillIcons";
+import type { Account, FightSettings, Skill, SkillLevel } from "@/api/types";
 
 /** Nội lực of one "thành" (12-skills-items.md#bảng-kỹ-năng). */
 const THANH = 25;

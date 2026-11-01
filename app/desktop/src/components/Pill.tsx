@@ -1,6 +1,6 @@
-import { cn } from "../cn";
-import { statusTone } from "../format";
-import type { Status } from "../types";
+import { cn } from "@/utils/cn";
+import { statusTone } from "@/utils/format";
+import type { Status } from "@/api/types";
 
 /** Status chip: a square light (blinking while connecting or fighting) and the status text, in the status colour on a dark plate. */
 export function Pill({ id, status, text }: { id?: string; status: Status; text: string }) {

@@ -26,7 +26,7 @@
 
 [docs.test.ts](docs.test.ts) không dùng fixture: nó kiểm mọi link/anchor trong tài liệu, bảng gói của [events/README](../docs/app/events/README.md) và các mục event 01–04 khớp catalog trong `src/protocol/events.ts`, và các con số "đã ghi N gói", "N opcode chưa thấy" khớp catalog và danh sách trong [opcode-map](../docs/app/opcode-map.md#unseen).
 
-[desktop-updates.test.ts](desktop-updates.test.ts) kiểm cách giao diện desktop theo kịp app Rust ([updates.ts](../app/desktop/src/updates.ts), các hàm thuần mà store zustand dùng): đăng ký sự kiện trước rồi mới lấy `state`, bỏ cập nhật có revision không mới hơn cái đang hiện, giữ nguyên object của nick không đổi, và nối nhật ký theo số dòng.
+[desktop-updates.test.ts](desktop-updates.test.ts) kiểm cách giao diện desktop theo kịp app Rust ([store/sync.ts](../app/desktop/src/store/sync.ts), các hàm thuần mà store zustand dùng): đăng ký sự kiện trước rồi mới lấy `state`, bỏ cập nhật có revision không mới hơn cái đang hiện, giữ nguyên object của nick không đổi, và nối nhật ký theo số dòng.
 
 [rust-export.test.ts](rust-export.test.ts) kiểm `app/core/src/opcodes.rs` và `app/core/tests/vectors.json` đúng là những gì `npm run export:rust` ([src/cli/export-rust.ts](../src/cli/export-rust.ts)) sinh ra từ code TS hiện tại. Vector gồm các fixture trên, kết quả decoder TS trên gói thật, byte của request, 3 trận replay và nước `bestMove`. `cargo test` trong `app/` so phần Rust với vector này ([App Rust](../docs/integration/rust/status.md#đã-kiểm-chứng)).
 

@@ -1,4 +1,4 @@
-import { Button } from "../components/Button";
+import { Button } from "@/components/Button";
 import appIcon from "../../app-icon.png";
 
 /** Shown before the first account is added. */

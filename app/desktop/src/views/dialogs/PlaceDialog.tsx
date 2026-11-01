@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { DIALOG, Dialog } from "../components/Dialog";
-import { cn } from "../cn";
-import type { Account, Character, Zone } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import { cn } from "@/utils/cn";
+import type { Account, Character, Zone } from "@/api/types";
 
 interface Props {
   account: Account;

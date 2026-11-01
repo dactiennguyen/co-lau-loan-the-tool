@@ -1,13 +1,13 @@
 import { useState, type ClipboardEvent } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { cn } from "../cn";
-import { Icon } from "../components/Icon";
-import { PasswordField } from "../components/PasswordField";
-import { TextField } from "../components/TextField";
-import { num } from "../format";
-import { PROXY_FORMATS, parseProxyText, type ParsedProxy } from "../proxyText";
-import type { ProxyForm, ProxyInfo, ProxyKind } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { cn } from "@/utils/cn";
+import { Icon } from "@/components/Icon";
+import { PasswordField } from "@/components/PasswordField";
+import { TextField } from "@/components/TextField";
+import { num } from "@/utils/format";
+import { PROXY_FORMATS, parseProxyText, type ParsedProxy } from "@/utils/proxyText";
+import type { ProxyForm, ProxyInfo, ProxyKind } from "@/api/types";
 
 interface Props {
   value: ProxyForm;
@@ -35,7 +35,7 @@ export const proxyLabel = (p: ProxyForm) => `${p.kind} ${p.host.includes(":") ? 
 
 /**
  * The proxy of the add and edit form: on or off (saved either way), type, address, port, username, password. A pasted
- * proxy string fills them all (proxyText.ts). Kiểm tra reaches the game server through it; Lưu does the same before
+ * proxy string fills them all (utils/proxyText.ts). Kiểm tra reaches the game server through it; Lưu does the same before
  * saving a proxy turned on or changed.
  */
 export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {

@@ -1,15 +1,15 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { cn } from "../cn";
-import { DIALOG, Dialog } from "../components/Dialog";
-import { Icon } from "../components/Icon";
-import { SETTING_FACT, SettingRow } from "../components/SettingRow";
-import { TabPanel, Tabs, type Tab } from "../components/Tabs";
-import { TextField } from "../components/TextField";
-import { num, size } from "../format";
-import { inGame, useStore } from "../store";
-import type { Exported, Settings, SettingsView } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { cn } from "@/utils/cn";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import { Icon } from "@/components/Icon";
+import { SETTING_FACT, SettingRow } from "@/components/SettingRow";
+import { TabPanel, Tabs, type Tab } from "@/components/Tabs";
+import { TextField } from "@/components/TextField";
+import { num, size } from "@/utils/format";
+import { inGame, useStore } from "@/store";
+import type { Exported, Settings, SettingsView } from "@/api/types";
 
 type Page = "server" | "data";
 const PAGES: Tab<Page>[] = [

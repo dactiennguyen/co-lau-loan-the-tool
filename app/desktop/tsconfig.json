@@ -14,6 +14,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* @/ is src/: a file of another folder is imported as @/store, @/components/Button; one of the same folder as ./X.
+       Vite reads these paths too (resolve.tsconfigPaths in vite.config.ts). */
+    "paths": { "@/*": ["./src/*"] },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

@@ -1,20 +1,20 @@
-import { api } from "./api";
-import { useSync } from "./hooks";
-import { selectedAccount, useStore } from "./store";
-import { AccountDialog } from "./views/AccountDialog";
-import { AccountPage } from "./views/AccountPage";
-import { ConfirmDialog } from "./views/ConfirmDialog";
-import { PlaceDialog } from "./views/PlaceDialog";
-import { SettingsDialog } from "./views/SettingsDialog";
-import { SkillsModal } from "./views/SkillsModal";
-import { StatsModal } from "./views/StatsModal";
-import { ShopModal } from "./views/ShopModal";
-import { EmptyState } from "./views/EmptyState";
-import { Sidebar } from "./views/Sidebar";
-import { StatPlanDialog } from "./views/StatPlanDialog";
-import { StopDialog } from "./views/StopDialog";
-import { Toaster } from "./views/Toaster";
-import { UpdateDialog } from "./views/UpdateDialog";
+import { api } from "@/api";
+import { useSync } from "@/hooks/useSync";
+import { selectedAccount, useStore } from "@/store";
+import { AccountDialog } from "@/views/dialogs/AccountDialog";
+import { AccountPage } from "@/views/AccountPage";
+import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
+import { PlaceDialog } from "@/views/dialogs/PlaceDialog";
+import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
+import { SkillsModal } from "@/views/SkillsModal";
+import { StatsModal } from "@/views/StatsModal";
+import { ShopModal } from "@/views/shop/ShopModal";
+import { EmptyState } from "@/views/EmptyState";
+import { Sidebar } from "@/views/Sidebar";
+import { StatPlanDialog } from "@/views/dialogs/StatPlanDialog";
+import { StopDialog } from "@/views/dialogs/StopDialog";
+import { Toaster } from "@/views/Toaster";
+import { UpdateDialog } from "@/views/dialogs/UpdateDialog";
 
 /** Sidebar of accounts, the selected account, the dialog the store says is open, and the toasts. */
 export default function App() {

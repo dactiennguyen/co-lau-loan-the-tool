@@ -1,4 +1,4 @@
-import type { Character, Status } from "./types";
+import type { Character, Status } from "@/api/types";
 
 const numbers = new Intl.NumberFormat("vi-VN");
 const percents = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });

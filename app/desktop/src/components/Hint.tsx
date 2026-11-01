@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 
 interface Props {
   /** Name of the "?" for screen readers, as "Tự sửa đồ là gì?". */

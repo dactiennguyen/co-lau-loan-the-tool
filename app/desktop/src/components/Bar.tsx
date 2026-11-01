@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import { cn } from "../cn";
-import { clamp01 } from "../format";
+import { cn } from "@/utils/cn";
+import { clamp01 } from "@/utils/format";
 
 /**
  * Segmented progress bar, `value` 0..1: 6 px blocks with 2 px gaps on a dark well, in the colour `fill` (a tokens.css

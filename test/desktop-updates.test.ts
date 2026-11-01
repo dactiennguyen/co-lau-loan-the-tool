@@ -1,8 +1,8 @@
-// The desktop UI's updates (app/desktop/src/updates.ts, kept in the zustand store of store.ts): the race of an
+// The desktop UI's updates (app/desktop/src/store/sync.ts, kept in the zustand store of store/index.ts): the race of an
 // "accounts" event and the `state` reply, the merge by revision, and the log lines by number.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { accountsOf, append, listenThenLoad, merge, type Accounts } from '../app/desktop/src/updates.ts';
+import { accountsOf, append, listenThenLoad, merge, type Accounts } from '../app/desktop/src/store/sync.ts';
 
 const acc = (id: number, status: number) => ({ id, status }) as any;
 const state = (rev: number, accounts: any[]) => ({ rev, accounts, accountsError: null });

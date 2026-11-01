@@ -1,8 +1,8 @@
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { DIALOG, Dialog } from "../components/Dialog";
-import { num } from "../format";
-import type { Account } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import { num } from "@/utils/format";
+import type { Account } from "@/api/types";
 
 interface Props {
   account: Account;

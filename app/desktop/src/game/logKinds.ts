@@ -1,6 +1,6 @@
 // The kinds of log line (LogKind of cllt-core's bot/types.rs) as the Nhật ký filters name them. A new kind goes here, in
 // bot/types.rs and in the table of docs/integration/rust/features.md#nhật-ký-và-thống-kê; the root tests check the three agree.
-import type { LogKind } from "./types";
+import type { LogKind } from "@/api/types";
 
 /** In the order of the filter row; `tone` colours the chip and the tag of each line. */
 export const LOG_KINDS: { kind: LogKind; label: string; tone: string }[] = [

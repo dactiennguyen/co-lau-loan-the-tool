@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { api } from "../api";
-import { Bar } from "../components/Bar";
-import { Button } from "../components/Button";
-import { Icon } from "../components/Icon";
-import { cn } from "../cn";
-import { paragraphs } from "../format";
-import { inGame, useStore } from "../store";
+import { api } from "@/api";
+import { Bar } from "@/components/Bar";
+import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
+import { cn } from "@/utils/cn";
+import { paragraphs } from "@/utils/format";
+import { inGame, useStore } from "@/store";
 
 const MB = 1_048_576;
 const mb = (n: number) => (n / MB).toFixed(1).replace(".", ",");

@@ -1,11 +1,12 @@
-// The UI's state in one zustand store: the accounts src-tauri sends (kept by revision, updates.ts), the account the
-// user picked, the dialog that is open, the log of the selected account and the toasts the updates brought (toasts.ts). hooks.ts fills it from the Tauri events;
-// components read what they need with a selector, so an update re-renders only what shows the changed part.
+// The UI's state in one zustand store: the accounts src-tauri sends (kept by revision, sync.ts), the account the
+// user picked, the dialog that is open, the log of the selected account and the toasts the updates brought
+// (toasts.ts). hooks/useSync.ts fills it from the Tauri events; components read what they need with a selector, so
+// an update re-renders only what shows the changed part.
 // Short-lived state of one view (the open tab, a menu's position, a form) stays in that view.
 import { create } from "zustand";
 import { addToasts, errorToasts, questToasts, updateToast, type ToastItem } from "./toasts";
-import type { Account, AccountsUpdate, AppState, LogLine, UpdateView } from "./types";
-import { accountsOf, append, merge, type Accounts } from "./updates";
+import type { Account, AccountsUpdate, AppState, LogLine, UpdateView } from "@/api/types";
+import { accountsOf, append, merge, type Accounts } from "./sync";
 
 export type Dialog =
   | { kind: "add" }

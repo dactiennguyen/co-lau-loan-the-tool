@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 
 /** Small pixel tag (LV 21, BOSS): `tone` background, dark text; keep its text ASCII, the pixel face has no Vietnamese marks. */
 export function Badge({ tone = "var(--primary)", className, children }: { tone?: string; className?: string; children: ReactNode }) {

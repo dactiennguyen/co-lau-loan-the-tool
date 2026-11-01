@@ -1,7 +1,7 @@
-// The proxy text the add and edit form of the desktop app reads (app/desktop/src/proxyText.ts).
+// The proxy text the add and edit form of the desktop app reads (app/desktop/src/utils/proxyText.ts).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseProxyText } from '../app/desktop/src/proxyText.ts';
+import { parseProxyText } from '../app/desktop/src/utils/proxyText.ts';
 
 const p = (kind: string | undefined, host: string, port: number, username = '', password = '') => ({ kind, host, port, username, password });
 
@@ -30,7 +30,7 @@ test('text that is no proxy is null, and SOCKS4 or an unknown scheme says why', 
 });
 
 test('an account that falls into an error (a proxy that fails) brings one toast; a quest run it cut off has its own', async () => {
-  const { errorToasts, questToasts } = await import('../app/desktop/src/toasts.ts');
+  const { errorToasts, questToasts } = await import('../app/desktop/src/store/toasts.ts');
   const account = (status: number, error = '', questRun: unknown = null) =>
     ({ id: 1, label: 'Nick farm', status, statusText: '', error, character: questRun ? { questRun } : null }) as never;
   const why = 'Proxy http 198.51.100.21:3128: proxy từ chối tài khoản hoặc mật khẩu';

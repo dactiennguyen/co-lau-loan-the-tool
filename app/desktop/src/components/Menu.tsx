@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 import { Icon, type IconName } from "./Icon";
 
 export interface MenuItem {

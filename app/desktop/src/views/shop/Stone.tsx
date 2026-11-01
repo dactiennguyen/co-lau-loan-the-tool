@@ -1,5 +1,5 @@
-import { cn } from "../cn";
-import { stoneIcon } from "../shops";
+import { cn } from "@/utils/cn";
+import { stoneIcon } from "@/game/shops";
 
 /** A row of stones (or of the Chuyển hoá item) as chips: each one given `chip`. */
 export const STONES = "flex flex-wrap items-center gap-1.5";

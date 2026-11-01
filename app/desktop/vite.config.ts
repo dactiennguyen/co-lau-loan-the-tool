@@ -8,6 +8,8 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
+  // The @/ alias of tsconfig.json (paths), so that it is written in one place.
+  resolve: { tsconfigPaths: true },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -29,7 +31,7 @@ export default defineConfig(() => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
-    // The item icons stay in data/icons of the repository (itemIcons.ts); the build copies them into dist.
+    // The item icons stay in data/icons of the repository (game/itemIcons.ts); the build copies them into dist.
     fs: { allow: [".", "../../data/icons"] },
   },
 }));

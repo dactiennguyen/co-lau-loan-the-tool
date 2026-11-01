@@ -68,20 +68,27 @@ app/
     index.html, vite.config.ts, tsconfig.json
     app-icon.png            nguồn icon mẫu số 4 (xanh rêu, bông lau giấy màu kem), dùng chung cho logo giao diện;
                             `npm run tauri icon app-icon.png` sinh bộ icon nền tảng trong src-tauri/icons
-    src/                    giao diện React + TypeScript
-      main.tsx, App.tsx       gốc: thanh bên, trang nick, hộp thêm nick
-      types.ts                kiểu dữ liệu Rust gửi sang (bản sao của src-tauri/src/view.rs)
-      api.ts                  gọi lệnh Tauri và nghe sự kiện "accounts", "log"; ngoài Tauri thì đọc public/sample.json
-      store.ts                store zustand: nick theo id và thứ tự, nick đang chọn, hộp thoại đang mở, nhật ký;
-                              các selector selectedAccount, selectedLog, inGame
-      hooks.ts                useSync: đổ sự kiện Tauri vào store (mọi nick, rồi nhật ký của nick đang chọn)
-      updates.ts              hàm thuần cho store: nghe trước rồi mới lấy state, gộp cập nhật theo revision, nối nhật ký
-                              theo số dòng
-      format.ts               số kiểu Việt (14.238), màu trạng thái, tiến độ cấp
+    src/                    giao diện React + TypeScript; @/ là src/ (paths của tsconfig.json, Vite đọc theo):
+                            file khác thư mục import bằng @/store, @/components/Button, cùng thư mục bằng ./X
+      main.tsx, App.tsx       gốc: thanh bên, trang nick, hộp thoại đang mở
+      api/                    nói chuyện với src-tauri: index.ts gọi lệnh Tauri và nghe sự kiện "accounts", "log" (ngoài
+                              Tauri thì đọc public/sample.json); types.ts là kiểu dữ liệu Rust gửi sang (bản sao của
+                              src-tauri/src/view.rs)
+      store/                  index.ts: store zustand (nick theo id và thứ tự, nick đang chọn, hộp thoại đang mở, nhật
+                              ký) và các selector selectedAccount, selectedLog, inGame; sync.ts: hàm thuần nghe trước
+                              rồi mới lấy state, gộp cập nhật theo revision, nối nhật ký theo số dòng; toasts.ts: toast
+                              sinh ra từ một lần cập nhật nick
+      hooks/                  useSync (đổ sự kiện Tauri vào store, gắn một lần ở App), useFightSetting (một số của Cài
+                              đặt đánh, lưu sau khi thôi gõ)
+      utils/                  cn.ts (gộp class Tailwind bằng tailwind-merge, class sau thắng class trước cùng loại),
+                              format.ts (số kiểu Việt 14.238, màu trạng thái, tiến độ cấp), remember.ts (lựa chọn giữ
+                              trong localStorage), proxyText.ts (đọc chuỗi proxy dán vào)
+      game/                   điều app biết về game, hằng số đi cùng luật: shops.ts (cửa hàng, đá, trần cường hoá),
+                              potentials.ts (tiềm năng, chỉ số chính theo hệ), logKinds.ts (tên và màu các loại nhật
+                              ký), itemIcons.ts và skillIcons.ts (icon của data/icons, Vite gom vào bản build)
       styles/                 tailwind.css (Tailwind CSS v4: thứ tự layer, theme lấy từ tokens.css, tiện ích notch/bevel,
                               preflight và mặc định của trang, px/scroll), tokens.css (màu, khung pixel, nhịp chuyển
                               động, @font-face)
-      cn.ts                   cn(): gộp class Tailwind (tailwind-merge), class sau thắng class trước cùng loại
       components/             thành phần dùng chung, không biết gì về game, mỗi cái một .tsx, style bằng class Tailwind;
                               nhận className (gộp bằng cn()) để màn hình chỉnh từ ngoài:
                               Button, Icon, Badge, Pill, Bar, Avatar, Card, Stepper (ô số gõ được), StatTile, Tabs, TextField, Hint (dấu ? có lời giải thích),
@@ -90,9 +97,11 @@ app/
       views/                  các phần của app, style bằng class Tailwind ngay trong .tsx: Sidebar, AccountCard,
                               AccountPage, HeroCard, MetricRow, StatsCard, PlayersCard, QuestCard, FightCard,
                               FightSettingsCard (Cài đặt đánh), InventoryCard và ItemDetail (Túi đồ), SkillsModal (Kỹ năng),
-                              StatsModal (Thống kê), ShopModal (Tiện ích), LogCard, AccountDialog (thêm và sửa nick),
-                              ConfirmDialog (hỏi trước khi xoá), SettingsDialog (Cài đặt của app), EmptyState
-      itemIcons.ts, skillIcons.ts  icon vật phẩm và kỹ năng của data/icons, Vite gom vào bản build
+                              StatsModal (Thống kê), LogCard, EmptyState
+        shop/                 modal Tiện ích: ShopModal và các trang ShopBuy, ShopMerge, ShopUpgrade, ShopExchange, Stone
+        dialogs/              hộp thoại: AccountDialog (thêm và sửa nick) với ProxyFields, ConfirmDialog (hỏi trước khi
+                              xoá), StopDialog, PlaceDialog, SettingsDialog (Cài đặt của app), StatPlanDialog,
+                              UpdateDialog
       assets/fonts/           Silkscreen (chữ pixel cho số) và Be Vietnam Pro (chữ tiếng Việt), cả hai OFL
     src-tauri/              crate cllt-desktop
       tauri.conf.json         cửa sổ, CSP, bundle (mọi định dạng của hệ đang build), khoá công khai và địa chỉ của

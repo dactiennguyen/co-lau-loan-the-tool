@@ -1,16 +1,16 @@
 import { useEffect, useId, useState } from "react";
-import { api } from "../api";
-import { cn } from "../cn";
-import { Button } from "../components/Button";
-import { FilterChip } from "../components/FilterChip";
-import { Hint } from "../components/Hint";
-import { Stepper } from "../components/Stepper";
-import { num } from "../format";
-import { itemIcon } from "../itemIcons";
-import { recalled, remember } from "../remember";
-import { CATEGORIES, MONEY, shopKind, type Category, type Gender, type Money } from "../shops";
-import { selectedLog, useStore } from "../store";
-import type { ShopLine } from "../types";
+import { api } from "@/api";
+import { cn } from "@/utils/cn";
+import { Button } from "@/components/Button";
+import { FilterChip } from "@/components/FilterChip";
+import { Hint } from "@/components/Hint";
+import { Stepper } from "@/components/Stepper";
+import { num } from "@/utils/format";
+import { itemIcon } from "@/game/itemIcons";
+import { recalled, remember } from "@/utils/remember";
+import { CATEGORIES, MONEY, shopKind, type Category, type Gender, type Money } from "@/game/shops";
+import { selectedLog, useStore } from "@/store";
+import type { ShopLine } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 
 /** The lines Bot::buy and the server leave in the log for a purchase. */

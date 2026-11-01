@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { Menu, type MenuItem } from "../components/Menu";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { Menu, type MenuItem } from "@/components/Menu";
 import appIcon from "../../app-icon.png";
-import { inGame, useStore, type Dialog } from "../store";
-import type { Account } from "../types";
+import { inGame, useStore, type Dialog } from "@/store";
+import type { Account } from "@/api/types";
 import { AccountCard } from "./AccountCard";
 import { UpdateBox } from "./UpdateBox";
 

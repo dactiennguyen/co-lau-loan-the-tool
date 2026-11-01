@@ -16,7 +16,7 @@ test('log kinds: bot/types.rs, logKinds.ts and the docs table name the same kind
   const fromRust = arms('key').map((key, i) => ({ key, label: arms('label')[i] }));
   assert.equal(fromRust.length, 7);
 
-  const ui = [...read('app/desktop/src/logKinds.ts').matchAll(/\{ kind: "(\w+)", label: "([^"]+)"/g)].map(m => ({ key: m[1], label: m[2] }));
+  const ui = [...read('app/desktop/src/game/logKinds.ts').matchAll(/\{ kind: "(\w+)", label: "([^"]+)"/g)].map(m => ({ key: m[1], label: m[2] }));
   assert.deepEqual(ui, fromRust, 'LOG_KINDS of logKinds.ts');
 
   const docs = read('docs/integration/rust/features.md');

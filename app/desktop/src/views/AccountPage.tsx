@@ -1,10 +1,10 @@
 import { useId, useState } from "react";
-import { api } from "../api";
-import { TabPanel, Tabs } from "../components/Tabs";
-import { recalled, remember } from "../remember";
-import { selectedLog, useStore } from "../store";
-import type { Account } from "../types";
-import { useFightSetting } from "../useFightSetting";
+import { api } from "@/api";
+import { TabPanel, Tabs } from "@/components/Tabs";
+import { recalled, remember } from "@/utils/remember";
+import { selectedLog, useStore } from "@/store";
+import type { Account } from "@/api/types";
+import { useFightSetting } from "@/hooks/useFightSetting";
 import { FightCard, type FightChoice } from "./FightCard";
 import { FightSettingsCard } from "./FightSettingsCard";
 import { HeroCard } from "./HeroCard";
@@ -13,15 +13,15 @@ import { LogCard } from "./LogCard";
 import { MetricRow } from "./MetricRow";
 import { PlayersCard } from "./PlayersCard";
 import { QuestCard } from "./QuestCard";
-import { cn } from "../cn";
-import { Button } from "../components/Button";
+import { cn } from "@/utils/cn";
+import { Button } from "@/components/Button";
 import { StatsCard } from "./StatsCard";
 
 // Kỹ năng is a modal of the Chỉ số card (SkillsModal), Thống kê one of the header (StatsModal); a tab kept as "skills"
 // or "stats" opens Nhiệm vụ.
 type Task = "quest" | "fight" | "settings" | "bag";
 const TASKS: Task[] = ["quest", "fight", "settings", "bag"];
-/** localStorage keys (remember.ts): the open tab of an account, and the tab last opened on any account. */
+/** localStorage keys (utils/remember.ts): the open tab of an account, and the tab last opened on any account. */
 const tabKey = (id: number) => `tab.${id}`;
 const LAST_TAB = "tab.last";
 
@@ -33,7 +33,7 @@ function keptTask(id: number): Task {
 
 /**
  * Everything about the selected account; its log comes from the store. Mounted per account (key). The open tab comes
- * back as last opened on that account (localStorage, remember.ts); the target chosen on each map, Số trận and Thua tối
+ * back as last opened on that account (localStorage, utils/remember.ts); the target chosen on each map, Số trận and Thua tối
  * đa come back from accounts.json (fightTargets, useFightSetting), so a switch of account, of map or a start of the app
  * keeps them.
  */

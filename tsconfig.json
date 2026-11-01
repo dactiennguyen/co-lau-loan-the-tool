@@ -1,7 +1,8 @@
 {
   // Type-check of src/ and test/ (npm run typecheck, also run by npm test and CI). Node runs these files as they are
   // (--experimental-strip-types), so nothing is emitted and only syntax Node can strip is allowed. The desktop files the
-  // tests import resolve as in app/desktop, which has its own tsconfig; .mjs scripts get the types TypeScript infers.
+  // tests import resolve as in app/desktop, which has its own tsconfig: their @/ is app/desktop/src (they import only
+  // types through it, which Node strips); .mjs scripts get the types TypeScript infers.
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024", "DOM"],
@@ -15,7 +16,8 @@
     "resolveJsonModule": true,
     "allowJs": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": { "@/*": ["./app/desktop/src/*"] }
   },
   "include": ["src", "test"]
 }

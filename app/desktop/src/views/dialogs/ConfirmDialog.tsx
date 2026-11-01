@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { Button } from "../components/Button";
-import { DIALOG, Dialog } from "../components/Dialog";
-import type { IconName } from "../components/Icon";
+import { Button } from "@/components/Button";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import type { IconName } from "@/components/Icon";
 
 interface Props {
   title: string;

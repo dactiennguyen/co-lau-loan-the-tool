@@ -1,12 +1,12 @@
-import { cn } from "../cn";
-import { Bar } from "../components/Bar";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { ELEMENT_ICON, ELEMENT_NAME, elementVar } from "../components/ElementTag";
-import { Icon, type IconName } from "../components/Icon";
-import { num } from "../format";
-import { mainStat, planText, POTENTIALS } from "../potentials";
-import type { Account } from "../types";
+import { cn } from "@/utils/cn";
+import { Bar } from "@/components/Bar";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { ELEMENT_ICON, ELEMENT_NAME, elementVar } from "@/components/ElementTag";
+import { Icon, type IconName } from "@/components/Icon";
+import { num } from "@/utils/format";
+import { mainStat, planText, POTENTIALS } from "@/game/potentials";
+import type { Account } from "@/api/types";
 
 // Labels of the game's character panel, in the order of `combat` and `stats`; both measured against the panel by the
 // P1 capture (docs/app/user-data.md). c2s/10 numbers the potentials in another order (12-skills-items.md).
@@ -107,7 +107,7 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
       <div className="grid grid-cols-4 gap-1.5 narrow:grid-cols-2">
         {POTENTIALS.map((p, i) => {
           // Without an element whose main stat is known, the four look alike. The main stat of the element (mainStat of
-          // potentials.ts; --el from elementVar) is framed and tinted in the element's colour, the element's icon in the
+          // game/potentials.ts; --el from elementVar) is framed and tinted in the element's colour, the element's icon in the
           // corner. The tint sits behind the content (isolation), so the + keeps its own colour.
           const isMain = main != null && p.index === main;
           return (

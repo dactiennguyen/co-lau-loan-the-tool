@@ -1,5 +1,5 @@
-import { api } from "../api";
-import { inGame, useStore } from "../store";
+import { api } from "@/api";
+import { inGame, useStore } from "@/store";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 /** Khởi động lại để cập nhật while accounts are in the game: they are logged out and their battles cut short. */

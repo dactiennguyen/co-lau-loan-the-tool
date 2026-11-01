@@ -1,13 +1,13 @@
 import { useEffect, useId, useState } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { Icon } from "../components/Icon";
-import { SETTING_FACT, SETTING_FACT_BAD, SettingRow } from "../components/SettingRow";
-import { cn } from "../cn";
-import { num } from "../format";
-import { useStore } from "../store";
-import type { Account, FightSettings, Item } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { Icon } from "@/components/Icon";
+import { SETTING_FACT, SETTING_FACT_BAD, SettingRow } from "@/components/SettingRow";
+import { cn } from "@/utils/cn";
+import { num } from "@/utils/format";
+import { useStore } from "@/store";
+import type { Account, FightSettings, Item } from "@/api/types";
 
 /** Item id of the Búa Sửa Chữa. */
 const HAMMER = 2;

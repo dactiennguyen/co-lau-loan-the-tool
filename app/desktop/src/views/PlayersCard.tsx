@@ -1,7 +1,7 @@
-import { Avatar } from "../components/Avatar";
-import { Badge } from "../components/Badge";
-import { Card } from "../components/Card";
-import type { Character } from "../types";
+import { Avatar } from "@/components/Avatar";
+import { Badge } from "@/components/Badge";
+import { Card } from "@/components/Card";
+import type { Character } from "@/api/types";
 
 /** Level tag colour against the own level: stronger players red, the same gold, weaker green. */
 const levelTone = (level: number, own: number) =>

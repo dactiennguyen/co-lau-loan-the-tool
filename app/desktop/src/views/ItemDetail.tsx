@@ -1,11 +1,11 @@
-import { cn } from "../cn";
-import { Icon } from "../components/Icon";
-import { ELEMENT_ICON, elementText } from "../components/ElementTag";
-import { num } from "../format";
-import { itemIcon } from "../itemIcons";
-import { plusOf } from "../shops";
+import { cn } from "@/utils/cn";
+import { Icon } from "@/components/Icon";
+import { ELEMENT_ICON, elementText } from "@/components/ElementTag";
+import { num } from "@/utils/format";
+import { itemIcon } from "@/game/itemIcons";
+import { plusOf } from "@/game/shops";
 import type { ReactNode } from "react";
-import type { Item } from "../types";
+import type { Item } from "@/api/types";
 
 /** The shown item, a strip under the bag: the icon in a well on the left; then its name, element and facts on one line,
  * and the durability (red when worn out), the stats as chips and the description on the next. */

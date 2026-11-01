@@ -9,7 +9,7 @@
 //   --dump-sample=FILE writes the sample accounts as the UI receives them (the UI reads it in a plain browser).
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
-// UI is sent (../src/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
+// UI is sent (../src/api/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
 // update.rs updates the installed app from the GitHub releases; settings.rs is the Cài đặt of the app (settings.json).
 mod app;
 mod commands;

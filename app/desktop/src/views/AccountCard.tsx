@@ -1,14 +1,14 @@
 import { memo, useId, useRef } from "react";
-import { api } from "../api";
-import { Avatar } from "../components/Avatar";
-import { Badge } from "../components/Badge";
-import { Bar } from "../components/Bar";
-import { Button } from "../components/Button";
-import { Icon } from "../components/Icon";
-import { Pill } from "../components/Pill";
-import { cn } from "../cn";
-import { isConnected } from "../format";
-import { selectedId, useStore } from "../store";
+import { api } from "@/api";
+import { Avatar } from "@/components/Avatar";
+import { Badge } from "@/components/Badge";
+import { Bar } from "@/components/Bar";
+import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
+import { Pill } from "@/components/Pill";
+import { cn } from "@/utils/cn";
+import { isConnected } from "@/utils/format";
+import { selectedId, useStore } from "@/store";
 
 interface Props {
   id: number;

@@ -1,7 +1,7 @@
-import { itemIcon } from "../itemIcons";
-import { plusOf } from "../shops";
-import type { Item } from "../types";
-import { cn } from "../cn";
+import { itemIcon } from "@/game/itemIcons";
+import { plusOf } from "@/game/shops";
+import type { Item } from "@/api/types";
+import { cn } from "@/utils/cn";
 import { ELEMENT_ICON, elementText } from "./ElementTag";
 import { Icon, type IconName } from "./Icon";
 

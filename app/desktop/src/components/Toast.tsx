@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { ToastTone } from "../toasts";
+import type { ToastTone } from "@/store/toasts";
 import { Button } from "./Button";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 import { Icon, type IconName } from "./Icon";
 
 const ICON: Record<ToastTone, IconName> = { info: "play", good: "check", warn: "flag" };

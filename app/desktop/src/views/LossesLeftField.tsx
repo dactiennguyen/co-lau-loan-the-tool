@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
-import { Stepper } from "../components/Stepper";
+import { api } from "@/api";
+import { Stepper } from "@/components/Stepper";
 
 /** How many more losses end a run that allows `max` and has lost `losses` (Bot: a loss that brings the losses to `max`
  * ends it); at least one, as a loss to a boss counts but never ends it. */

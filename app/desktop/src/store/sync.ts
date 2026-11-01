@@ -1,7 +1,8 @@
 // How the UI keeps up with src-tauri/src/app.rs, without React or the store: listen before loading, and drop what is
-// older than what is shown. store.ts keeps the result; hooks.ts runs the listeners.
+// older than what is shown. The store (index.ts) keeps the result; hooks/useSync.ts runs the listeners. The root tests
+// run this file under Node, which cannot resolve @/: only types are imported through it.
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import type { Account, AccountsUpdate, AppState, LogLine } from "./types";
+import type { Account, AccountsUpdate, AppState, LogLine } from "@/api/types";
 
 /** Lines of log kept per account, as in src-tauri/src/app.rs. */
 export const LOG_LINES = 500;

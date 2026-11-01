@@ -1,6 +1,7 @@
 // A proxy pasted into the add and edit form, in the shapes proxy sellers hand out: a URL, ip:port:user:pass and its
-// variants. Without React, like toasts.ts; the root test suite checks it (test/desktop-proxy.test.ts).
-import type { ProxyKind } from "./types";
+// variants. Without React, like store/toasts.ts; the root test suite checks it (test/desktop-proxy.test.ts),
+// under Node, which cannot resolve @/: only types are imported through it.
+import type { ProxyKind } from "@/api/types";
 
 export interface ParsedProxy {
   /** Only when the text names it (a scheme); the form keeps its choice otherwise. */

@@ -51,7 +51,7 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      # The tests import app/desktop/src/updates.ts and toasts.ts, which take types from the desktop's packages
+      # The tests import app/desktop/src/store/sync.ts and store/toasts.ts, which take types from the desktop's packages
       # (@tauri-apps/api): the type-check needs them installed as the app has them.
       - name: npm ci (app/desktop)
         run: npm ci

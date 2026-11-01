@@ -1,6 +1,6 @@
-import { Bar } from "../components/Bar";
-import { num } from "../format";
-import type { Battle } from "../types";
+import { Bar } from "@/components/Bar";
+import { num } from "@/utils/format";
+import type { Battle } from "@/api/types";
 
 /** A side: the name (cut short) and HP/max over the bar. */
 const SIDE = "grid grid-cols-[1fr_auto] gap-y-1 gap-x-2 text-11 min-w-0";

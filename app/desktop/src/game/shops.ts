@@ -1,6 +1,6 @@
 // The NPC services of Làng Thanh Khê as the Tiện ích modal offers them (npc.rs, docs/app/events/15-shops.md, 16-upgrade.md).
 import { itemIcon } from "./itemIcons";
-import type { Character, Item } from "./types";
+import type { Character, Item } from "@/api/types";
 
 /** Lái Buôn, Bà Tư Hạnh, Hương Lão and Pháp sư stand in Làng Thanh Khê; the server serves them only on that map (B1). */
 export const NPC_MAP = "M1";

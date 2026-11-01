@@ -1,5 +1,5 @@
-import { Toast } from "../components/Toast";
-import { useStore } from "../store";
+import { Toast } from "@/components/Toast";
+import { useStore } from "@/store";
 
 /** The toasts of the store over the lower right corner, newest at the bottom. Always in the page, so a screen reader
  * hears each toast added to it. */

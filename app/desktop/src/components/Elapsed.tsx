@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { clock } from "../format";
+import { clock } from "@/utils/format";
 import { Icon } from "./Icon";
 
 /** Time from `from` to `to` (ms since 1970) as "4:05" or "1:02:03" by a clock; while `to` is null it counts up every second. */

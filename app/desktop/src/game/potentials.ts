@@ -1,7 +1,7 @@
 // The four potential stats as the Chỉ số card shows them, in the order of `stats` (s2c/9), each with its c2s/10 index:
 // the index "Cộng +1" sends and the weights of a stat plan go by (potentials.rs of cllt-core). The two orders differ
-// (docs/app/events/12-skills-items.md#điểm-tiềm-năng). Without React, like toasts.ts.
-import type { StatPlan } from "./types";
+// (docs/app/events/12-skills-items.md#điểm-tiềm-năng). Without React, like store/toasts.ts.
+import type { StatPlan } from "@/api/types";
 
 export const POTENTIALS = [
   { name: "Cường lực", index: 0 },

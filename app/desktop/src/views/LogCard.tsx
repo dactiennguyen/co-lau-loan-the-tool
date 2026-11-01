@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { api } from "../api";
-import { cn } from "../cn";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { FilterChip } from "../components/FilterChip";
-import { LOG_KINDS, kindOf } from "../logKinds";
-import { useStore } from "../store";
-import type { LogKind, LogLine, Tone } from "../types";
+import { api } from "@/api";
+import { cn } from "@/utils/cn";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { FilterChip } from "@/components/FilterChip";
+import { LOG_KINDS, kindOf } from "@/game/logKinds";
+import { useStore } from "@/store";
+import type { LogKind, LogLine, Tone } from "@/api/types";
 import { LootRow } from "./LootRow";
 import { TurnStatus } from "./TurnStatus";
 
@@ -38,7 +38,7 @@ interface Props {
  * What happened to the selected account, newest at the bottom; follows new lines while scrolled to the end. The line a
  * battle opened on shows the battle's latest result under it, live while `fighting`. Chips filter by kind (several at
  * once, none for all) and to the red lines; "Xem dòng cũ hơn" brings older lines of the filter from cllt.db. "Xoá màn
- * hình" only hides the lines on show (store.ts logCleared): the log and cllt.db keep them, and "Hiện lại" brings them back.
+ * hình" only hides the lines on show (store/index.ts logCleared): the log and cllt.db keep them, and "Hiện lại" brings them back.
  */
 export function LogCard({ id, lines, fighting }: Props) {
   const list = useRef<HTMLOListElement>(null);
@@ -61,7 +61,7 @@ export function LogCard({ id, lines, fighting }: Props) {
     setOlder([]);
     setEnd(false);
   }, [id, kinds, bad]);
-  // The UI keeps the last 500 lines (updates.ts): with older lines on show, those that drop off the top go below them,
+  // The UI keeps the last 500 lines (store/sync.ts): with older lines on show, those that drop off the top go below them,
   // so the card never skips lines between the two.
   useEffect(() => {
     const was = prev.current;

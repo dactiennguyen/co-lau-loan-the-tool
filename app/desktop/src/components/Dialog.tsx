@@ -1,5 +1,5 @@
 import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
-import { cn } from "../cn";
+import { cn } from "@/utils/cn";
 
 /** The parts views put in a Dialog: a line of text (its <b> brighter), a note on a dark plate, an error, the footer of
  * buttons at the right. */

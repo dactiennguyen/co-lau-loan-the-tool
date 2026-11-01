@@ -1,7 +1,7 @@
-import { cn } from "../cn";
-import { itemIcon } from "../itemIcons";
-import { num } from "../format";
-import type { Picked } from "../types";
+import { cn } from "@/utils/cn";
+import { itemIcon } from "@/game/itemIcons";
+import { num } from "@/utils/format";
+import type { Picked } from "@/api/types";
 
 /** "Xu khóa ×431", "Đá cấp 2". */
 export const pickedLabel = (p: Picked) => (p.quantity > 1 ? `${p.name} ×${num(p.quantity)}` : p.name);

@@ -1,7 +1,7 @@
-import { Bar } from "../components/Bar";
-import { STAT, Stat, StatTile, StatTop } from "../components/StatTile";
-import { levelProgress, num, pct } from "../format";
-import type { Character } from "../types";
+import { Bar } from "@/components/Bar";
+import { STAT, Stat, StatTile, StatTop } from "@/components/StatTile";
+import { levelProgress, num, pct } from "@/utils/format";
+import type { Character } from "@/api/types";
 
 /** Vàng turns into 10.000 Xu khoá when the bar is full (Cẩm nang). */
 const GOLD_BAR = 10000;

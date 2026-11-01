@@ -1,11 +1,11 @@
-import { Avatar } from "../components/Avatar";
-import { Badge } from "../components/Badge";
-import { Button } from "../components/Button";
-import { ElementTag } from "../components/ElementTag";
-import { Icon } from "../components/Icon";
-import { Pill } from "../components/Pill";
-import { isConnected } from "../format";
-import type { Account } from "../types";
+import { Avatar } from "@/components/Avatar";
+import { Badge } from "@/components/Badge";
+import { Button } from "@/components/Button";
+import { ElementTag } from "@/components/ElementTag";
+import { Icon } from "@/components/Icon";
+import { Pill } from "@/components/Pill";
+import { isConnected } from "@/utils/format";
+import type { Account } from "@/api/types";
 import { BoostTag } from "./BoostTag";
 
 /** The block of where the character is (Vị trí), a line on its left; its label, and the line under the map name. */

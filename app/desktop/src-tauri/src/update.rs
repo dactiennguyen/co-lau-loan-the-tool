@@ -19,7 +19,7 @@ const PROGRESS: Duration = Duration::from_millis(250);
 /// Longest the app waits, once its window is gone, for the update to install on quit.
 const ON_QUIT: Duration = Duration::from_secs(30);
 
-/// Where the update stands, as the UI shows it (UpdateView in ../src/types.ts).
+/// Where the update stands, as the UI shows it (UpdateView in ../src/api/types.ts).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(
     tag = "state",

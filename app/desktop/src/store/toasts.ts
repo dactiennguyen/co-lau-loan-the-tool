@@ -1,8 +1,9 @@
 // The toasts an "accounts" update brings: a quest run that started and one that ended (▶ on a step, or "Tự làm nhiệm
 // vụ"), told apart from the run shown before by its id, or cut off when the account left the game; and an account that
 // fell into an error. Without React, like
-// updates.ts; store.ts keeps the list and components/Toast.tsx shows each one.
-import type { Account } from "./types";
+// sync.ts; the store (index.ts) keeps the list and components/Toast.tsx shows each one. The root tests run this file
+// under Node, which cannot resolve @/: only types are imported through it.
+import type { Account } from "@/api/types";
 
 export type ToastTone = "info" | "good" | "warn";
 

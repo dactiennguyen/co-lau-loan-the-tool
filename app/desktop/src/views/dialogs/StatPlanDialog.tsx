@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { api } from "../api";
-import { Button } from "../components/Button";
-import { cn } from "../cn";
-import { DIALOG, Dialog } from "../components/Dialog";
-import { Stepper } from "../components/Stepper";
-import { num } from "../format";
-import { autoText, MAIN_TEXT, mainStat, POTENTIALS } from "../potentials";
-import type { Account, StatPlan } from "../types";
+import { api } from "@/api";
+import { Button } from "@/components/Button";
+import { cn } from "@/utils/cn";
+import { DIALOG, Dialog } from "@/components/Dialog";
+import { Stepper } from "@/components/Stepper";
+import { num } from "@/utils/format";
+import { autoText, MAIN_TEXT, mainStat, POTENTIALS } from "@/game/potentials";
+import type { Account, StatPlan } from "@/api/types";
 
 type Mode = "off" | "auto" | "weights";
 type Weights = [number, number, number, number];

@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from "react";
-import { cn } from "../cn";
-import { Bar } from "../components/Bar";
-import { Icon, type IconName } from "../components/Icon";
-import { num } from "../format";
-import type { Turn } from "../types";
+import { cn } from "@/utils/cn";
+import { Bar } from "@/components/Bar";
+import { Icon, type IconName } from "@/components/Icon";
+import { num } from "@/utils/format";
+import type { Turn } from "@/api/types";
 
 /** The board's pieces by kind (docs/app/events/05-battle.md); `tone` sets the chip's colour (--piece). */
 const PIECES: Record<number, { name: string; icon: IconName; tone: string }> = {

@@ -1,6 +1,6 @@
-import { cn } from "../cn";
-import { hue, initial, statusTone } from "../format";
-import type { Status } from "../types";
+import { cn } from "@/utils/cn";
+import { hue, initial, statusTone } from "@/utils/format";
+import type { Status } from "@/api/types";
 
 /** The tile colours, by hue(name). */
 const TILE = ["bg-tile-0", "bg-tile-1", "bg-tile-2", "bg-tile-3", "bg-tile-4", "bg-tile-5"];

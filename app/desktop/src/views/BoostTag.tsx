@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Icon } from "../components/Icon";
-import { clock } from "../format";
-import type { Boost } from "../types";
+import { Icon } from "@/components/Icon";
+import { clock } from "@/utils/format";
+import type { Boost } from "@/api/types";
 
 /** "x2 EXP" for the effect of Tăng Kinh Nghiệm (Boost::label of cllt-core); the key for one not known yet. */
 export const boostLabel = (b: Boost) => (b.key === "ef7" ? `x${b.rate / 100_000} EXP` : `Hiệu ứng ${b.key}`);
