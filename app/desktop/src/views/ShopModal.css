@@ -1,7 +1,5 @@
 @layer legacy {
 /* Tiện ích: a large modal. The top (money, where, the work of Pháp sư) and the sub-tabs stay; the body scrolls. */
-.dialog.shopmodal { width: min(1180px, 96vw); height: min(880px, 94vh); max-width: none; max-height: none; }
-.shopmodal form { height: 100%; box-sizing: border-box; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
 .shopmodal__top { display: grid; gap: var(--space-2); }
 .shopmodal__wallet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 8px 12px; font-size: 12px; color: var(--fg-2); background: var(--bg-2); border: 2px solid var(--line); }
 .shopmodal__wallet span { display: inline-flex; align-items: center; gap: 5px; }
@@ -10,7 +8,6 @@
 .shopmodal__luong, .shopmodal__luong b { color: var(--accent); }
 .shopmodal__where { margin-left: auto; }
 .shopmodal__body { min-height: 0; overflow-y: auto; padding-right: 6px; container-type: inline-size; }
-.shopmodal .tabs__panel { display: block; }
 .shoptab__note { margin: 0; font-size: 12px; color: var(--fg-3); line-height: 1.5; }
 .shoptab__note b { color: var(--fg); }
 .shoptab__why { margin: 0; font-size: 12px; color: var(--danger); }

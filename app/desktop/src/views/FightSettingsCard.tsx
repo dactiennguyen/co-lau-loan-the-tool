@@ -3,7 +3,8 @@ import { api } from "../api";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Icon } from "../components/Icon";
-import { SettingRow } from "../components/SettingRow";
+import { SETTING_FACT, SETTING_FACT_BAD, SettingRow } from "../components/SettingRow";
+import { cn } from "../cn";
 import { num } from "../format";
 import { useStore } from "../store";
 import type { Account, FightSettings, Item } from "../types";
@@ -54,11 +55,11 @@ export function FightSettingsCard({ account }: { account: Account }) {
       >
         {c && (
           <>
-            <span className="setting__fact">
+            <span className={SETTING_FACT}>
               <Icon name="hammer" size={12} />
               Búa trong túi <b className="px">{num(hammers)}</b>
             </span>
-            <span className={`setting__fact${broken.length ? " setting__fact--bad" : ""}`}>
+            <span className={cn(SETTING_FACT, broken.length > 0 && SETTING_FACT_BAD)}>
               <Icon name={broken.length ? "close" : "check"} size={12} />
               {broken.length ? `Đang hỏng: ${broken.map((g) => `${g.name} 0/${g.durability[1]}`).join(", ")}` : "Không có món nào hỏng"}
             </span>

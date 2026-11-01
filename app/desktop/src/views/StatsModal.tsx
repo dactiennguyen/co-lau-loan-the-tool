@@ -3,7 +3,7 @@ import { api } from "../api";
 import { Badge } from "../components/Badge";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { FilterChip } from "../components/FilterChip";
 import { Icon, type IconName } from "../components/Icon";
 import { TabPanel, Tabs } from "../components/Tabs";
@@ -262,7 +262,8 @@ export function StatsModal({ account, onClose }: { account: Account; onClose: ()
     <Dialog
       title="Thống kê"
       subtitle={`${c?.name ?? account.label} · theo nick ${account.username}, từ lịch sử trận lưu trong cllt.db (90 ngày)`}
-      className="statsmodal"
+      className="w-[min(1120px,95vw)] h-[min(860px,94vh)] max-w-none max-h-none"
+      formClassName="h-full box-border grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
       onClose={onClose}
       onSubmit={(e) => e.preventDefault()}
     >
@@ -284,7 +285,7 @@ export function StatsModal({ account, onClose }: { account: Account; onClose: ()
       </div>
       <Tabs<Sub> id={tabs} label="Phần thống kê" value={sub} onChange={pick} tabs={SUBS} />
       <div className="statsmodal__body scroll">
-        <TabPanel id={tabs} value={sub}>
+        <TabPanel id={tabs} value={sub} className="block">
           {error && <p className="bstats__error">Không đọc được lịch sử trận: {error}</p>}
           {t === undefined ? (
             !error && <p className="bstats__none">Đang tải…</p>
@@ -305,7 +306,7 @@ export function StatsModal({ account, onClose }: { account: Account; onClose: ()
           )}
         </TabPanel>
       </div>
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button onClick={onClose}>Đóng</Button>
       </footer>
     </Dialog>

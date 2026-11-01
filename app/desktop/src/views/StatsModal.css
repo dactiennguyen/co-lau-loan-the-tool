@@ -1,10 +1,7 @@
 @layer legacy {
 /* Thống kê, a large modal: the filters and the sub-tabs stay, the body scrolls. A fixed height, so the sub-tabs do not
    make it jump. Inside a part, a column of blocks that keep their height. */
-.dialog.statsmodal { width: min(1120px, 95vw); height: min(860px, 94vh); max-width: none; max-height: none; }
-.statsmodal form { height: 100%; box-sizing: border-box; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
 .statsmodal__body { min-height: 0; overflow-y: auto; padding-right: 6px; container-type: inline-size; }
-.statsmodal .tabs__panel { display: block; }
 .bstats__stack { display: flex; flex-direction: column; gap: var(--space-3); }
 .bstats__stack > * { flex: none; }
 .bstats__note { margin: 0; font-size: 11px; line-height: 1.5; color: var(--fg-3); }

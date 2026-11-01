@@ -1,5 +1,5 @@
 import { Icon } from "../components/Icon";
-import { ELEMENT_ICON } from "../components/ElementTag";
+import { ELEMENT_ICON, elementText } from "../components/ElementTag";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
 import { plusOf } from "../shops";
@@ -42,7 +42,7 @@ export function ItemDetail({ item, where, element, actions }: Props) {
             {plus > 0 && <span className="detail__plus px"> +{plus}</span>}
           </b>
           {item.element != null && item.elementName && (
-            <span className={`detail__el el el--${item.element}`}>
+            <span className={`detail__el ${elementText(item.element)}`}>
               {ELEMENT_ICON[item.element] && <Icon name={ELEMENT_ICON[item.element]} size={11} />} {item.elementName}
             </span>
           )}

@@ -80,7 +80,9 @@ app/
       format.ts               số kiểu Việt (14.238), màu trạng thái, tiến độ cấp
       styles/                 tailwind.css (Tailwind CSS v4: thứ tự layer, theme lấy từ tokens.css, tiện ích notch/bevel),
                               tokens.css (màu, font, bo góc), base.css
-      components/             thành phần dùng chung, không biết gì về game, mỗi cái một .tsx + .css:
+      cn.ts                   cn(): gộp class Tailwind (tailwind-merge), class sau thắng class trước cùng loại
+      components/             thành phần dùng chung, không biết gì về game, mỗi cái một .tsx, style bằng class Tailwind;
+                              nhận className (gộp bằng cn()) để màn hình chỉnh từ ngoài:
                               Button, Icon, Badge, Pill, Bar, Avatar, Card, Stepper (ô số gõ được), StatTile, Tabs, TextField, Hint (dấu ? có lời giải thích),
                               ItemSlot (một ô túi đồ), Dialog (khung hộp thoại), Menu (menu chuột phải),
                               SettingRow (một dòng bật/tắt có dấu ?)

@@ -14,6 +14,9 @@ import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
 import "./FightCard.css";
 
+/** In place of the Thua tối đa field of a fight job against a boss: "Thua boss không tính", as tall as the field. */
+const LOSSES_LEFT = "inline-flex items-center gap-1 h-[30px] text-[11.5px] font-semibold text-fg-2 whitespace-nowrap [&_b]:text-13 [&_b]:text-danger";
+
 export interface FightChoice {
   target: string;
   count: number;
@@ -78,7 +81,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           {/* While the job goes on, the losses it may still take, changed in place (against a boss, which never ends it, a
               word instead); after Dừng Thua tối đa again, as saved. */}
           {running && bossJob ? (
-            <span className="losses-left">Thua boss không tính</span>
+            <span className={LOSSES_LEFT}>Thua boss không tính</span>
           ) : running ? (
             <>
               <span className="fight__label" title={LOSSES_LEFT_HINT}>
@@ -94,10 +97,10 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           )}
         </div>
         <div className="fight__buttons">
-          <Button kind="primary" icon="play" disabled={account.status !== 2 || !choice.target || questing} onClick={onStart}>
+          <Button kind="primary" icon="play" className="flex-1" disabled={account.status !== 2 || !choice.target || questing} onClick={onStart}>
             Bắt đầu
           </Button>
-          <Button kind="danger" icon="stop" disabled={!running && !battle} onClick={onStop}>
+          <Button kind="danger" icon="stop" className="flex-1" disabled={!running && !battle} onClick={onStop}>
             Dừng
           </Button>
         </div>

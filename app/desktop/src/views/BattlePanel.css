@@ -3,7 +3,6 @@
 .battle__side { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 11px; min-width: 0; }
 .battle__side span { color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .battle__side b { font-size: 11px; font-weight: 400; }
-.battle__side .bar { grid-column: 1 / -1; }
 .battle__vs { display: grid; justify-items: center; font-size: 13px; color: var(--accent); }
 .battle__vs small { font: 600 10px/1.4 var(--font-ui); color: var(--fg-3); }
 }

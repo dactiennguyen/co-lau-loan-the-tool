@@ -2,8 +2,6 @@
 /* Kỹ năng, a modal as tall as what it holds: the bar (learnt, Tự cộng) over the tree (the game's background, 288 × 347,
    with the icons in its boxes; SkillsModal shrinks it when the window is short) beside the detail panel, at least 240 px
    wide. The form stops at its max-height and the body scrolls; a narrow window puts the panel under the tree. */
-.dialog.skmodal { width: min(860px, 94vw); max-width: none; max-height: none; }
-.skmodal form { max-height: min(720px, 92vh); box-sizing: border-box; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
 .skmodal__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .skmodal__bar .sk__count { margin-left: 0; }
 .skmodal__body { min-height: 0; overflow: auto; container-type: inline-size; }

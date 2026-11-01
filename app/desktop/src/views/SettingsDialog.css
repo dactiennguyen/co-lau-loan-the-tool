@@ -1,14 +1,11 @@
 @layer legacy {
 /* Cài đặt of the app: the tabs Server game and Dữ liệu trận over one panel. Both pages sit in the same grid cell, the
    hidden one invisible, so the dialog is as tall as the taller page and does not jump when the tab changes. */
-.dialog.app-settings { width: min(560px, 92vw); }
 .app-settings__pages { display: grid; min-width: 0; }
 .app-settings__page { grid-area: 1 / 1; display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
 .app-settings__page[inert] { visibility: hidden; }
 /* Address and port on one line; the inputs shrink with their column. */
 .app-settings__server { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: var(--space-3); }
-.app-settings .field { min-width: 0; }
-.app-settings .field input { width: 100%; min-width: 0; }
 .app-settings__default { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 26px; font-size: 11px; color: var(--fg-3); }
 .app-settings__default b { color: var(--fg-2); font-weight: 700; }
 /* The export: its button, then what it does or what it wrote, on a dark plate. */

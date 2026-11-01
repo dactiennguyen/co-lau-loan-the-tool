@@ -11,7 +11,6 @@
   clip-path: var(--notch);
   box-shadow: var(--bevel);
 }
-.hero .avatar__dot { border-color: var(--card); }
 .hero__who { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
 .hero__id { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .hero__name { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -23,8 +22,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hero__name .badge { height: 20px; font-size: 12px; padding: 0 6px; }
-.hero__name .eltag { height: 20px; padding: 0 6px; border: 1px solid var(--el); }
 .hero__proxy {
   display: inline-flex;
   align-items: center;
@@ -73,6 +70,5 @@
 .hero__actions { display: flex; gap: var(--space-2); }
 /* Đổi khu / map as an icon after the map name, no taller than the name. */
 .hero__map { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.hero__map .btn.btn--icon { flex: none; width: 22px; height: 22px; }
 .hero__moving { color: var(--primary); }
 }

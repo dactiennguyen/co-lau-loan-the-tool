@@ -70,6 +70,12 @@
   --color-piece-drop: var(--piece-drop);
   --color-piece-star: var(--piece-star);
   --color-piece-gold: var(--piece-gold);
+  --color-tile-0: var(--tile-0);
+  --color-tile-1: var(--tile-1);
+  --color-tile-2: var(--tile-2);
+  --color-tile-3: var(--tile-3);
+  --color-tile-4: var(--tile-4);
+  --color-tile-5: var(--tile-5);
 
   /* The sizes the app uses, font-size only (the line height stays inherited): text-11 is 11px. Halves are written
      text-[11.5px]. */
@@ -86,6 +92,21 @@
   --text-20: 20px;
 
   --ease-step: var(--step);
+}
+
+/* Motion in steps, as sprites move: a light that blinks (a live status, a tab at work), a toast coming in. */
+@theme {
+  --animate-*: initial;
+  --animate-blink: blink 1s steps(2, jump-none) infinite;
+  --animate-toast-in: toast-in var(--slow) var(--step);
+
+  @keyframes blink {
+    from { opacity: 1; }
+    to { opacity: 0.25; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(18px); }
+  }
 }
 
 /* The pixel frame: the corners cut by a clip, and the bevel shading the lower right inside. */

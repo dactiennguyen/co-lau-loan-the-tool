@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import type { IconName } from "../components/Icon";
 
 interface Props {
@@ -37,13 +37,13 @@ export function ConfirmDialog({ title, message, confirm, icon = "trash", onConfi
         }
       }}
     >
-      <p className="dialog__text">{message}</p>
+      <p className={DIALOG.text}>{message}</p>
       {error && (
-        <p className="dialog__error" role="alert">
+        <p className={DIALOG.error} role="alert">
           {error}
         </p>
       )}
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button kind="ghost" onClick={onClose}>
           Huỷ
         </Button>

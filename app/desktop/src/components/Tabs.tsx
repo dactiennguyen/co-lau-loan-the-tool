@@ -1,6 +1,6 @@
 import type { KeyboardEvent, ReactNode } from "react";
+import { cn } from "../cn";
 import { Icon, type IconName } from "./Icon";
-import "./Tabs.css";
 
 export interface Tab<K extends string> {
   key: K;
@@ -13,11 +13,32 @@ export interface Tab<K extends string> {
 const tabId = (id: string, key: string) => `${id}-tab-${key}`;
 const panelId = (id: string) => `${id}-panel`;
 
+/** A tab: the small notched frame, the selected one lighter with a gold line along its bottom. Labels never wrap: a bar
+ * narrower than 600 px drops the icons and some padding, and scrolls sideways when still too narrow. */
+const TAB =
+  "relative inline-flex flex-none items-center gap-1.5 h-[30px] px-3 py-0 border-2 border-ink notch-sm bg-bg-2 text-fg-3 font-extrabold text-12 tracking-[0.04em] uppercase whitespace-nowrap cursor-pointer bevel-sm " +
+  "@max-[600px]:gap-1 @max-[600px]:px-[7px] @max-[600px]:tracking-[0.02em] hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-5 " +
+  "aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[inset_0_-3px_0_var(--primary)]";
+
 /**
  * Tab buttons over one panel, as WAI-ARIA tabs: only the selected tab is in the tab order; arrow keys, Home and End pick
  * another and move focus to it. `id` ties them to the <TabPanel> that shows the panel of `value`.
  */
-export function Tabs<K extends string>({ id, tabs, value, onChange, label }: { id: string; tabs: Tab<K>[]; value: K; onChange: (k: K) => void; label: string }) {
+export function Tabs<K extends string>({
+  id,
+  tabs,
+  value,
+  onChange,
+  label,
+  className,
+}: {
+  id: string;
+  tabs: Tab<K>[];
+  value: K;
+  onChange: (k: K) => void;
+  label: string;
+  className?: string;
+}) {
   const keys = (e: KeyboardEvent) => {
     const i = tabs.findIndex((t) => t.key === value);
     const next = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 } as Record<string, number>)[e.key];
@@ -28,7 +49,7 @@ export function Tabs<K extends string>({ id, tabs, value, onChange, label }: { i
     document.getElementById(tabId(id, tab.key))?.focus();
   };
   return (
-    <div className="tabs" role="tablist" aria-label={label} onKeyDown={keys}>
+    <div className={cn("@container flex gap-1.5 overflow-x-auto [scrollbar-width:none]", className)} role="tablist" aria-label={label} onKeyDown={keys}>
       {tabs.map((t) => (
         <button
           key={t.key}
@@ -38,21 +59,24 @@ export function Tabs<K extends string>({ id, tabs, value, onChange, label }: { i
           aria-selected={t.key === value}
           aria-controls={panelId(id)}
           tabIndex={t.key === value ? 0 : -1}
+          className={TAB}
           onClick={() => onChange(t.key)}
         >
-          <Icon name={t.icon} size={14} />
+          <Icon name={t.icon} size={14} className="@max-[600px]:hidden" />
           {t.label}
-          {t.busy && <i className="tabs__busy" role="img" aria-label="đang chạy" />}
+          {/* Something runs behind that tab. */}
+          {t.busy && <i className="size-1.5 bg-s-fighting animate-blink" role="img" aria-label="đang chạy" />}
         </button>
       ))}
     </div>
   );
 }
 
-/** The one panel of the <Tabs> with the same `id`, labelled by the selected tab. */
-export function TabPanel({ id, value, children }: { id: string; value: string; children: ReactNode }) {
+/** The one panel of the <Tabs> with the same `id`, labelled by the selected tab. By default it holds one card and passes
+ * its row on to it: the card shrinks with the window and scrolls inside. */
+export function TabPanel({ id, value, className, children }: { id: string; value: string; className?: string; children: ReactNode }) {
   return (
-    <div className="tabs__panel" role="tabpanel" id={panelId(id)} aria-labelledby={tabId(id, value)}>
+    <div className={cn("grid grid-rows-[minmax(0,1fr)] min-h-0", className)} role="tabpanel" id={panelId(id)} aria-labelledby={tabId(id, value)}>
       {children}
     </div>
   );

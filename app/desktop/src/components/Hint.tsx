@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import "./Hint.css";
+import { cn } from "../cn";
 
 interface Props {
   /** Name of the "?" for screen readers, as "Tự sửa đồ là gì?". */
@@ -54,7 +54,12 @@ export function Hint({ label, id, children }: Props) {
       <button
         ref={mark}
         type="button"
-        className={`hint${at ? " is-open" : ""}`}
+        className={cn(
+          // A square "?" in the pixel frame, quieter than the text beside it until pointed at.
+          "flex-none grid place-items-center size-[18px] p-0 border-0 notch-sm bg-card-2 text-fg-3 font-pixel font-normal text-11 leading-none cursor-help bevel-sm",
+          "hover:bg-line hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
+          at && "bg-line text-fg",
+        )}
         aria-label={label}
         aria-describedby={id}
         onMouseEnter={show}
@@ -77,7 +82,14 @@ export function Hint({ label, id, children }: Props) {
         <span
           role="tooltip"
           id={id}
-          className={`hint__bubble${at ? " is-open" : ""}${at?.up ? " is-up" : ""}`}
+          // Under the "?" (above it when up); it shows in two steps, as the rest of the app moves. Hidden, it stays in the
+          // page for aria-describedby.
+          className={cn(
+            "fixed z-60 left-0 top-0 w-max max-w-[300px] px-2.5 py-2 bg-ink shadow-[inset_0_0_0_2px_var(--line-strong),3px_3px_0_rgb(0_0_0/0.35)]",
+            "text-fg-2 text-[11.5px] font-medium leading-[1.5] invisible opacity-0 pointer-events-none",
+            at?.up && "[transform:translateY(-100%)]",
+            at && "visible opacity-100 pointer-events-auto transition-opacity duration-120 ease-[steps(2,jump-none)] motion-reduce:transition-none",
+          )}
           style={at ? { left: at.left, top: at.top } : undefined}
           onMouseEnter={() => window.clearTimeout(timer.current)}
           onMouseLeave={() => hide()}

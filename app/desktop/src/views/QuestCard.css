@@ -17,7 +17,6 @@
 .step--current .step__mark { border: 0; background: var(--primary); box-shadow: inset -3px -3px 0 var(--primary-shade); }
 /* ▶ at the end of a step to do (■ while that step plays); empty on steps done, so the counts line up. */
 .step__slot { flex: none; display: grid; place-items: center; width: 24px; height: 24px; }
-.step__play.btn--small.btn--icon { width: 24px; height: 24px; }
 .step__body { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .step__line { display: flex; justify-content: space-between; gap: 10px; }
 .step__text { font-size: 12px; font-weight: 600; color: var(--fg-3); }

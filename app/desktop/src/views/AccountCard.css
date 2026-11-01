@@ -15,7 +15,6 @@
 .acard--active { background: var(--card-2); border-color: var(--primary); }
 .acard__body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 /* Login/logout sits in the corner beside the name, so the place and the status row below get the whole width. */
-.acard > .btn { position: absolute; top: 3px; right: 3px; z-index: 1; width: 24px; height: 24px; }
 .acard__top { display: flex; align-items: center; gap: 6px; min-width: 0; padding-right: 26px; }
 /* The name is the card's select button; its focus ring goes around the whole card where :has() works. */
 .acard__select {

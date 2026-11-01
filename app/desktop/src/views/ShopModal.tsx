@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { Hint } from "../components/Hint";
 import { Icon, type IconName } from "../components/Icon";
 import { TabPanel, Tabs } from "../components/Tabs";
@@ -107,7 +107,8 @@ export function ShopModal({ account, item, onClose }: Props) {
     <Dialog
       title="Tiện ích"
       subtitle={`${account.label} · Lái Buôn, Bà Tư Hạnh, Pháp sư, Hương Lão · Làng Thanh Khê`}
-      className="shopmodal"
+      className="w-[min(1180px,96vw)] h-[min(880px,94vh)] max-w-none max-h-none"
+      formClassName="h-full box-border grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
       onClose={close}
       onSubmit={(e) => e.preventDefault()}
     >
@@ -172,7 +173,7 @@ export function ShopModal({ account, item, onClose }: Props) {
       </div>
       <Tabs<ShopSub> id={tabs} label="Việc ở cửa hàng" value={sub} onChange={pick} tabs={SUBS} />
       <div className="shopmodal__body scroll">
-        <TabPanel id={tabs} value={sub}>
+        <TabPanel id={tabs} value={sub} className="block">
           {!c ? (
             <p className="shoptab__note">Nick chưa vào game.</p>
           ) : sub === "buy" ? (
@@ -186,7 +187,7 @@ export function ShopModal({ account, item, onClose }: Props) {
           )}
         </TabPanel>
       </div>
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button icon={c?.backTo ? "swap" : undefined} onClick={close}>
           {c?.backTo ? `Quay lại ${c.backTo}` : "Đóng"}
         </Button>

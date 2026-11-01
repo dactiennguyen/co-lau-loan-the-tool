@@ -13,6 +13,7 @@ import { LogCard } from "./LogCard";
 import { MetricRow } from "./MetricRow";
 import { PlayersCard } from "./PlayersCard";
 import { QuestCard } from "./QuestCard";
+import { cn } from "../cn";
 import { Button } from "../components/Button";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
@@ -93,6 +94,7 @@ export function AccountPage({ account }: { account: Account }) {
         <div className="page__stack page__stack--tasks">
           <div className="page__tasks">
             <Tabs<Task>
+              className="flex-auto min-w-0"
               id={tabs}
               label="Việc của nick"
               value={task}
@@ -109,7 +111,8 @@ export function AccountPage({ account }: { account: Account }) {
               kind="outline"
               small
               icon="grid"
-              className={c?.smith && c.smith.done == null ? "page__shop page__shop--busy" : "page__shop"}
+              // A line of the fighting colour along its bottom while Pháp sư works.
+              className={cn("page__shop", c?.smith && c.smith.done == null && "shadow-[inset_0_-3px_0_var(--s-fighting)]")}
               onClick={() => open({ kind: "shop", id })}
             >
               Tiện ích

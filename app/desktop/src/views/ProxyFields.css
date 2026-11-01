@@ -3,8 +3,6 @@
    the check; off, one line on what the account does instead. */
 .proxy { display: grid; gap: var(--space-3); margin: 0; padding: 0; border: 0; min-width: 0; min-inline-size: 0; }
 /* Inputs in the rows below shrink with their column instead of keeping their default width. */
-.proxy .field { min-width: 0; }
-.proxy .field input { width: 100%; min-width: 0; }
 
 .proxy__switch {
   display: grid;
@@ -47,7 +45,6 @@
 
 .proxy__body { display: grid; gap: var(--space-3); padding: 10px; background: var(--bg-2); box-shadow: inset 3px 0 0 var(--good); }
 .proxy__paste { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-2); }
-.proxy__paste .btn { height: 34px; }
 .proxy__note { margin: -4px 0 0; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .proxy__note--ok { color: var(--good); }
 .proxy__note--bad { color: var(--danger); }

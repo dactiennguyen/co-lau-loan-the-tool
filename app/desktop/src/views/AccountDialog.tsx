@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { PasswordField } from "../components/PasswordField";
 import { TextField } from "../components/TextField";
 import { isConnected } from "../format";
@@ -100,13 +100,13 @@ export function AccountDialog({ account, onSave, onClose }: Props) {
         onChange={(e) => setForm({ ...form, serverId: Number(e.target.value) })}
       />
       <ProxyFields value={form.proxy} onChange={(proxy) => setForm({ ...form, proxy })} saved={account?.proxy} accountId={account?.id} />
-      {account && isConnected(account.status) && <p className="dialog__note">Nick đang đăng nhập: thay đổi có hiệu lực từ lần đăng nhập sau.</p>}
+      {account && isConnected(account.status) && <p className={DIALOG.note}>Nick đang đăng nhập: thay đổi có hiệu lực từ lần đăng nhập sau.</p>}
       {error && (
-        <p className="dialog__error" role="alert">
+        <p className={DIALOG.error} role="alert">
           {error}
         </p>
       )}
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button kind="ghost" onClick={onClose}>
           Huỷ
         </Button>

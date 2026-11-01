@@ -94,7 +94,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
       {p.enabled && (
         <div className="proxy__body">
           <div className="proxy__paste">
-            <TextField
+            <TextField className="min-w-0" inputClassName="w-full min-w-0"
               label="Dán proxy"
               placeholder="vd. 1.2.3.4:8080:user:pass"
               value={paste}
@@ -107,7 +107,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
                 }
               }}
             />
-            <Button kind="outline" small onClick={() => fill(paste)} disabled={!paste.trim()}>
+            <Button kind="outline" small className="h-[34px]" onClick={() => fill(paste)} disabled={!paste.trim()}>
               Điền
             </Button>
           </div>
@@ -140,8 +140,8 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
             ))}
           </div>
           <div className="proxy__row">
-            <TextField label="Địa chỉ proxy" placeholder="vd. 1.2.3.4" value={p.host} onPaste={onPaste} onChange={(e) => set({ host: e.target.value })} />
-            <TextField
+            <TextField className="min-w-0" inputClassName="w-full min-w-0" label="Địa chỉ proxy" placeholder="vd. 1.2.3.4" value={p.host} onPaste={onPaste} onChange={(e) => set({ host: e.target.value })} />
+            <TextField className="min-w-0" inputClassName="w-full min-w-0"
               label="Cổng"
               type="number"
               min={1}
@@ -151,8 +151,8 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
             />
           </div>
           <div className="proxy__row proxy__row--even">
-            <TextField label="Tài khoản (tuỳ chọn)" value={p.username} onChange={(e) => set({ username: e.target.value })} />
-            <PasswordField
+            <TextField className="min-w-0" inputClassName="w-full min-w-0" label="Tài khoản (tuỳ chọn)" value={p.username} onChange={(e) => set({ username: e.target.value })} />
+            <PasswordField className="min-w-0"
               label="Mật khẩu"
               placeholder={keepsPassword ? "Để trống nếu không đổi" : ""}
               disabled={!p.username.trim()}

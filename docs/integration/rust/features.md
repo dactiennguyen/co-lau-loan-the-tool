@@ -52,7 +52,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 - **Chuẩn code:**
   - Rust qua `cargo fmt` (cấu hình mặc định) và `cargo clippy -D warnings` trên mọi target, kể cả test. `core/src/opcodes.rs` do TS sinh ra nên được đánh dấu `#[rustfmt::skip]`.
   - TypeScript `strict`, `noUnusedLocals`, `noUnusedParameters` (tsconfig của template), kiểm bằng `npm run build`.
-  - Mỗi component một file `.tsx`, có một dòng chú thích nói nó làm gì. Đang chuyển sang Tailwind: component đã chuyển viết style bằng class Tailwind ngay trong `.tsx`; component chưa chuyển còn một file `.css` cùng tên, nằm trong `@layer legacy`.
+  - Mỗi component một file `.tsx`, có một dòng chú thích nói nó làm gì. Đang chuyển sang Tailwind: component đã chuyển viết style bằng class Tailwind ngay trong `.tsx`; component chưa chuyển còn một file `.css` cùng tên, nằm trong `@layer legacy`. Các thành phần dùng chung (`src/components`) đã chuyển hết: mỗi cái nhận `className` (Card thêm `bodyClassName`, Dialog thêm `formClassName`, TextField thêm `inputClassName`, Avatar `dotClassName`), gộp bằng `cn()` của `src/cn.ts` (tailwind-merge: class màn hình truyền vào thắng class cùng loại của component). Phần màn hình tự vẽ mà cần giống component thì dùng hằng số component xuất ra: `DIALOG.text/note/error/footer`, `FIELD`, `STAT`, `SETTING_FACT`, `elementText()`/`elementVar()` (màu theo hệ). Không đặt class Tailwind ngay trước `${` trong template literal (Tailwind không đọc ra), dùng `cn()`.
 
 ## Túi đồ và trang bị
 

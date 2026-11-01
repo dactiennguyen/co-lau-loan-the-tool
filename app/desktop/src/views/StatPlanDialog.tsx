@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { autoText, MAIN_TEXT, mainStat, POTENTIALS } from "../potentials";
@@ -44,7 +44,7 @@ export function StatPlanDialog({ account, onClose }: Props) {
   );
   return (
     <Dialog
-      className="plan"
+      className="w-[440px]"
       title="Tự cộng điểm tiềm năng"
       subtitle={account.label}
       onClose={onClose}
@@ -69,7 +69,7 @@ export function StatPlanDialog({ account, onClose }: Props) {
         </ul>
       )}
       {next && (
-        <p className="dialog__note">
+        <p className={DIALOG.note}>
           {points > 0 ? (
             <>
               Còn <b>{num(points)}</b> điểm chưa cộng: bot cộng ngay khi rảnh,{" "}
@@ -81,8 +81,8 @@ export function StatPlanDialog({ account, onClose }: Props) {
           nhiệm vụ. Điểm đã cộng không lấy lại được (trừ khi dùng Tẩy Tủy Đan).
         </p>
       )}
-      {error && <p className="dialog__error">{error}</p>}
-      <footer>
+      {error && <p className={DIALOG.error}>{error}</p>}
+      <footer className={DIALOG.footer}>
         <Button kind="ghost" onClick={onClose}>
           Huỷ
         </Button>

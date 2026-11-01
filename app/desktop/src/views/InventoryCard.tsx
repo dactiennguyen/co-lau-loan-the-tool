@@ -12,6 +12,9 @@ import { ItemDetail } from "./ItemDetail";
 import { useStore } from "../store";
 import "./InventoryCard.css";
 
+/** The body of the card: a column of parts that keep their height, scrolling inside; narrow ones a container. */
+const BODY = "grid [align-content:start] gap-2.5 @container overflow-auto";
+
 /** The 8 gear slots around the character, as the Bản thân panel lays them out: 0, 1, 2, 3 and 5 are measured (manina,
  * symap), 4 and 7 follow the item types (12-skills-items.md#ô-trang-bị). */
 const GEAR: Record<number, { label: string; icon: IconName }> = {
@@ -72,7 +75,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
   }, [sent]);
   if (!c) {
     return (
-      <Card title="Túi đồ" icon="gem" className="inv">
+      <Card title="Túi đồ" icon="gem" className="inv" bodyClassName={BODY}>
         <p className="inv__none">Đăng nhập để xem trang bị và túi đồ: server chỉ gửi chúng lúc vào game.</p>
       </Card>
     );
@@ -95,6 +98,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       label={label}
       placeholder={placeholder}
       wear={wear}
+      className={k.startsWith("gear-") ? "[--size:46px]" : undefined}
       active={shownKey === k}
       onShow={(on) => setHover((h) => (on ? k : h === k ? null : h))}
       onPick={() => setPinned((p) => (p === k ? null : k))}
@@ -235,6 +239,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       title="Túi đồ"
       icon="gem"
       className="inv"
+      bodyClassName={BODY}
       subtitle={bag ? `${num(bag.items.length)}/${num(bag.capacity)} ô · ${worn} món đang mặc` : "Chưa nhận túi đồ"}
       aside={
         <div className="inv__aside">

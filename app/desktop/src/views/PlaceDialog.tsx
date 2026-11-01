@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
+import { cn } from "../cn";
 import type { Account, Character, Zone } from "../types";
 import "./PlaceDialog.css";
 
@@ -49,11 +50,11 @@ export function PlaceDialog({ account, onClose }: Props) {
     <Dialog
       title="Đổi khu / map"
       subtitle={c ? `${account.label} · ${c.mapName}, khu ${c.zone}` : account.label}
-      className="place"
+      className="w-[520px]"
       onClose={onClose}
       onSubmit={(e) => e.preventDefault()}
     >
-      {why && <p className="dialog__note place__why">{why}</p>}
+      {why && <p className={cn(DIALOG.note, "text-fg")}>{why}</p>}
       {c && (
         <>
           <section className="place__sec" aria-labelledby="place-zones">
@@ -64,7 +65,7 @@ export function PlaceDialog({ account, onClose }: Props) {
                   {c.zones.reduce((n, z) => n + z.players, 0)} người, {c.zones.filter((z) => !z.players).length} khu trống
                 </span>
               )}
-              <Button kind="ghost" small icon="refresh" aria-label="Làm mới số người" onClick={() => api.listZones(account.id)} />
+              <Button kind="ghost" small icon="refresh" className={c.zones ? undefined : "ml-auto"} aria-label="Làm mới số người" onClick={() => api.listZones(account.id)} />
             </div>
             {c.zones ? (
               <div className="place__zones">
@@ -118,7 +119,7 @@ export function PlaceDialog({ account, onClose }: Props) {
           </section>
         </>
       )}
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button onClick={onClose}>
           Đóng
         </Button>

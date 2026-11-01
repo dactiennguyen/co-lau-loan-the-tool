@@ -14,7 +14,7 @@ export function BattlePanel({ battle, id }: { battle: Battle; id?: string }) {
         <b className="px">
           {num(Math.round(battle.hp))}/{num(Math.round(battle.maxHp))}
         </b>
-        <Bar value={battle.hp / Math.max(1, battle.maxHp)} fill="var(--hp)" thin label="Máu của bạn" />
+        <Bar value={battle.hp / Math.max(1, battle.maxHp)} fill="var(--hp)" thin label="Máu của bạn" className="col-span-full" />
       </div>
       <span className="battle__vs px">
         VS
@@ -23,7 +23,7 @@ export function BattlePanel({ battle, id }: { battle: Battle; id?: string }) {
       <div className="battle__side">
         <span title={battle.mobName}>{battle.mobName}</span>
         <b className="px">{mobKnown ? `${num(Math.round(battle.mobHp!))}/${num(Math.round(battle.mobMaxHp!))}` : "?"}</b>
-        <Bar value={mobKnown ? battle.mobHp! / battle.mobMaxHp! : 0} fill="var(--accent)" thin label={`Máu của ${battle.mobName}`} />
+        <Bar value={mobKnown ? battle.mobHp! / battle.mobMaxHp! : 0} fill="var(--accent)" thin label={`Máu của ${battle.mobName}`} className="col-span-full" />
       </div>
     </div>
   );

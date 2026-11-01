@@ -30,12 +30,12 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
   return (
     <section className="hero">
       <div className="hero__who">
-        <Avatar name={a.username} status={a.status} size={46} />
+        <Avatar name={a.username} status={a.status} size={46} dotClassName="border-card" />
         <div className="hero__id">
           <div className="hero__name">
             <h1>{c?.name ?? a.label}</h1>
-            {c && <Badge>LV {c.level}</Badge>}
-            {c && <ElementTag element={c.element} />}
+            {c && <Badge className="h-5 text-12 px-1.5">LV {c.level}</Badge>}
+            {c && <ElementTag element={c.element} className="h-5 px-1.5 border border-current" />}
             {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}
             {a.proxy?.enabled && (
               <span className="hero__proxy" title={`Kết nối qua proxy ${a.proxy.label}`}>
@@ -73,7 +73,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
               <span className="hero__big" title={c.mapName}>
                 {c.mapName}
               </span>
-              <Button kind="outline" small icon="swap" aria-label="Đổi khu / map" disabled={!!c.moving} onClick={onPlace} />
+              <Button kind="outline" small icon="swap" className="flex-none w-[22px] h-[22px]" aria-label="Đổi khu / map" disabled={!!c.moving} onClick={onPlace} />
             </div>
             <span className="hero__sub">
               {c.moving ? (

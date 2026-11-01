@@ -1,14 +1,10 @@
 @layer legacy {
 /* Đổi khu / map: the zones of the map as the game's Khu vực panel (number, players of 20, red when crowded), scrolling
    within the dialog; then one row per map with the portals to take. */
-.dialog.place { width: 520px; }
-.place__why { color: var(--fg); }
 .place__sec { display: grid; gap: var(--space-2); min-width: 0; }
 .place__head { display: flex; align-items: center; gap: var(--space-2); }
 .place__head h3 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
 .place__sum { margin-left: auto; font-size: 11px; color: var(--fg-3); }
-.place__head .btn { margin-left: auto; }
-.place__head .place__sum + .btn { margin-left: 0; }
 
 .place__zones {
   display: grid;

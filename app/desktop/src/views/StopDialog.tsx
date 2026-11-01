@@ -1,6 +1,6 @@
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { num } from "../format";
 import type { Account } from "../types";
 
@@ -32,7 +32,7 @@ export function StopDialog({ account, onClose }: Props) {
         stop(false);
       }}
     >
-      <p className="dialog__text">
+      <p className={DIALOG.text}>
         {b ? (
           <>
             Đang đánh <b>{b.mobName}</b>: HP mình {num(b.hp)}/{num(b.maxHp)}
@@ -47,11 +47,11 @@ export function StopDialog({ account, onClose }: Props) {
           <>Trận vừa xong. Việc của nick sẽ dừng.</>
         )}
       </p>
-      <p className="dialog__note">
+      <p className={DIALOG.note}>
         <b>Đợi xong trận</b>: bot đánh nốt, trận vẫn được tính. <b>Đầu hàng</b>: rời trận ngay như nút Đầu hàng trong game, mất
         một ít EXP (29 EXP ở lần đo B3) và trang bị mòn thêm; trận không được tính.
       </p>
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button kind="ghost" onClick={onClose}>
           Huỷ
         </Button>

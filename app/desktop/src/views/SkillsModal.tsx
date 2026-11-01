@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
 import { Hint } from "../components/Hint";
 import { Icon } from "../components/Icon";
@@ -91,7 +91,8 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
     <Dialog
       title="Kỹ năng"
       subtitle={`${account.label}${element ? ` · Hệ ${element}` : ""}${c ? ` · ${num(c.skillPoints ?? 0)} điểm kỹ năng` : ""}`}
-      className="skmodal"
+      className="w-[min(860px,94vw)] max-w-none max-h-none"
+      formClassName="max-h-[min(720px,92vh)] box-border grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
       onClose={onClose}
       onSubmit={(e) => e.preventDefault()}
     >
@@ -146,7 +147,7 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
           </div>
         )}
       </div>
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button onClick={onClose}>
           Đóng
         </Button>

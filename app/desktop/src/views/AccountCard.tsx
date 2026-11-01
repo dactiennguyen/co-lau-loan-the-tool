@@ -84,6 +84,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
       <Button
         kind={connected ? "ghost" : "tonal"}
         small
+        className="absolute top-[3px] right-[3px] z-1 w-6 h-6"
         icon={connected ? "logout" : "login"}
         aria-label={connected ? "Đăng xuất" : "Đăng nhập"}
         disabled={a.status === 1}

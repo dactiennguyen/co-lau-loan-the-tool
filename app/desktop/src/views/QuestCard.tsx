@@ -95,13 +95,13 @@ export function QuestCard({ account, onStart, onStop }: Props) {
               </div>
               <span className="step__slot">
                 {s.state === "done" ? null : playing === s.at ? (
-                  <Button kind="danger" small icon="stop" className="step__play" aria-label={`Dừng bước "${s.text}"`} onClick={onStop} />
+                  <Button kind="danger" small icon="stop" className="w-6 h-6" aria-label={`Dừng bước "${s.text}"`} onClick={onStop} />
                 ) : (
                   <Button
                     kind={s.state === "current" ? "primary" : "tonal"}
                     small
                     icon="play"
-                    className="step__play"
+                    className="w-6 h-6"
                     aria-label={`Làm bước "${s.text}"`}
                     // Button's own title repeats the label; a later step says why it cannot be played instead.
                     {...(s.state === "todo" && { title: "Làm xong các bước trước đã" })}

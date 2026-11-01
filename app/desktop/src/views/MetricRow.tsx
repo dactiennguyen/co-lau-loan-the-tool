@@ -1,5 +1,5 @@
 import { Bar } from "../components/Bar";
-import { Stat, StatTile, StatTop } from "../components/StatTile";
+import { STAT, Stat, StatTile, StatTop } from "../components/StatTile";
 import { levelProgress, num, pct } from "../format";
 import type { Character } from "../types";
 import "./MetricRow.css";
@@ -40,7 +40,7 @@ export function MetricRow({ character: c }: { character: Character | null }) {
         />
       </StatTile>
       <StatTile>
-        <div className="stat">
+        <div className={STAT}>
           <StatTop label="Tiền" icon="wallet" fill="var(--coin)" aside={`Vàng đủ ${num(GOLD_BAR)} thì thành Xu khoá`} />
           <dl className="money">
             <div title={`Vàng: đủ ${num(GOLD_BAR)} thì thành ${num(GOLD_BAR)} Xu khoá`}>

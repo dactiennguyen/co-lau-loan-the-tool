@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "../cn";
 import { Icon, type IconName } from "./Icon";
-import "./Menu.css";
 
 export interface MenuItem {
   label: string;
@@ -25,7 +25,7 @@ interface Props {
 }
 
 /**
- * Context menu, drawn on the body so no clipped frame hides it. Arrow keys, Home and End move; Enter picks; Escape gives
+ * Context menu, a pixel panel over everything with one row per item, drawn on the body so no clipped frame hides it. Arrow keys, Home and End move; Enter picks; Escape gives
  * focus back to what opened it. A click or a wheel turn elsewhere, resizing or leaving the window closes it; a scroll
  * the page does by itself (a log line coming in, the quest list following its step) does not.
  */
@@ -69,14 +69,26 @@ export function Menu({ x, y, label, items, onClose }: Props) {
     buttons[(next + buttons.length) % buttons.length].focus();
   };
   return createPortal(
-    <div ref={menu} className="menu" role="menu" aria-label={label} style={at} onKeyDown={keys} onContextMenu={(e) => e.preventDefault()}>
+    <div
+      ref={menu}
+      className="fixed z-50 min-w-[184px] grid p-1 bg-card border-2 border-line-strong notch-sm bevel-sm"
+      role="menu"
+      aria-label={label}
+      style={at}
+      onKeyDown={keys}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {items.map((item) => (
         <Fragment key={item.label}>
-          {item.separated && <div className="menu__sep" role="separator" />}
+          {item.separated && <div className="h-0.5 mx-0.5 my-1 bg-line" role="separator" />}
           <button
             type="button"
             role="menuitem"
-            className={`menu__item${item.danger ? " menu__item--danger" : ""}`}
+            className={cn(
+              "grid grid-cols-[14px_1fr] items-center gap-x-2 min-h-7 px-2 py-1 border-0 bg-transparent text-fg text-12 font-semibold text-left cursor-pointer [&_svg]:text-fg-3",
+              "enabled:hover:bg-card-2 focus-visible:outline-none focus-visible:bg-card-2 focus-visible:shadow-[inset_0_0_0_2px_var(--ring)] disabled:cursor-default disabled:text-fg-3",
+              item.danger && "enabled:text-danger enabled:[&_svg]:text-danger",
+            )}
             disabled={item.disabled}
             onClick={() => {
               onClose();
@@ -85,7 +97,7 @@ export function Menu({ x, y, label, items, onClose }: Props) {
           >
             <Icon name={item.icon} size={13} />
             <span>{item.label}</span>
-            {item.disabled && item.hint && <small>{item.hint}</small>}
+            {item.disabled && item.hint && <small className="col-start-2 text-10 font-medium text-fg-3">{item.hint}</small>}
           </button>
         </Fragment>
       ))}

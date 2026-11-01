@@ -1,7 +1,8 @@
+import { cn } from "../cn";
 import { Bar } from "../components/Bar";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { ELEMENT_ICON, ELEMENT_NAME } from "../components/ElementTag";
+import { ELEMENT_ICON, ELEMENT_NAME, elementVar } from "../components/ElementTag";
 import { Icon, type IconName } from "../components/Icon";
 import { num } from "../format";
 import { mainStat, planText, POTENTIALS } from "../potentials";
@@ -49,7 +50,8 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
       kind="outline"
       small
       icon="star"
-      className={`stats__skills${auto ? " is-on" : ""}`}
+      // Lit green while Tự cộng spends the points.
+      className={cn("ml-auto", auto && "border-good text-good")}
       aria-label={`Kỹ năng${skillPoints > 0 ? `: ${num(skillPoints)} điểm chưa cộng` : ""}${auto ? ", đang tự cộng" : ""}`}
       aria-haspopup="dialog"
       onClick={onSkills}
@@ -83,7 +85,7 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
           kind="ghost"
           small
           icon="settings"
-          className={`potentials__plan${account.statPlan ? " is-on" : ""}`}
+          className={cn("w-[22px] h-[22px]", account.statPlan && "text-points bg-ink shadow-[inset_0_0_0_2px_var(--points)]")}
           aria-label={plan}
           aria-haspopup="dialog"
           onClick={onPlan}
@@ -101,7 +103,7 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
       <div className="potentials">
         {POTENTIALS.map((p, i) => {
           // Without an element whose main stat is known, the four look alike.
-          const kind = main == null ? "" : p.index === main ? ` potential--main el--${element}` : " potential--other";
+          const kind = main == null ? "" : p.index === main ? ` potential--main ${elementVar(element)}` : " potential--other";
           return (
             <div key={p.name} className={`potential${kind}`}>
               {p.index === main && element != null && (
@@ -115,7 +117,12 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
                 kind="tonal"
                 small
                 icon="plus"
-                className="potential__add"
+                className={cn(
+                  "h-5 w-full mt-[3px]",
+                  // The main stat's in the element's colour; the others' dimmed until pointed at.
+                  main != null && p.index === main && "bg-(--el) text-ink brightness-108 enabled:hover:brightness-122",
+                  main != null && p.index !== main && "enabled:opacity-55 enabled:hover:opacity-100 enabled:focus-visible:opacity-100",
+                )}
                 aria-label={
                   p.index === main
                     ? `Cộng 1 điểm vào ${p.name}, chỉ số chính của hệ ${elementName}`

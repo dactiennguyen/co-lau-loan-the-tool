@@ -1,9 +1,9 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { Dialog } from "../components/Dialog";
+import { DIALOG, Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
-import { SettingRow } from "../components/SettingRow";
+import { SETTING_FACT, SettingRow } from "../components/SettingRow";
 import { TabPanel, Tabs, type Tab } from "../components/Tabs";
 import { TextField } from "../components/TextField";
 import { num, size } from "../format";
@@ -85,9 +85,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const data = view?.battleData;
 
   return (
-    <Dialog title="Cài đặt" subtitle="Dùng chung cho mọi nick" onSubmit={submit} onClose={onClose} className="app-settings">
+    <Dialog title="Cài đặt" subtitle="Dùng chung cho mọi nick" onSubmit={submit} onClose={onClose} className="w-[min(560px,92vw)]">
       {!form ? (
-        <p className="dialog__text">{error ? "" : "Đang đọc cài đặt…"}</p>
+        <p className={DIALOG.text}>{error ? "" : "Đang đọc cài đặt…"}</p>
       ) : (
         <>
           <Tabs id={`${id}tabs`} tabs={PAGES} value={page} onChange={setPage} label="Mục cài đặt" />
@@ -95,13 +95,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <div className="app-settings__pages">
               <div className="app-settings__page" inert={page !== "server"}>
                 <div className="app-settings__server">
-                  <TextField
+                  <TextField className="min-w-0" inputClassName="w-full min-w-0"
                     label="Địa chỉ"
                     placeholder={defaults?.server.host}
                     value={form.server.host}
                     onChange={(e) => set({ server: { ...form.server, host: e.target.value } })}
                   />
-                  <TextField
+                  <TextField className="min-w-0" inputClassName="w-full min-w-0"
                     label="Cổng"
                     type="number"
                     min={1}
@@ -123,7 +123,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   </div>
                 )}
                 {saved && !sameServer(form, saved) && playing > 0 && (
-                  <p className="dialog__note">
+                  <p className={DIALOG.note}>
                     {playing} nick đang trong game giữ kết nối cũ; địa chỉ mới dùng từ lần đăng nhập sau.
                   </p>
                 )}
@@ -140,7 +140,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   hint="Mỗi trận của mọi nick được lưu vào cllt.db: chỉ số, hệ, kỹ năng, đồ của nhân vật, quái và hệ của quái, mọi gói tin của trận và kết quả, khoảng 4–5 KB một trận. Dùng để học thuật toán đánh. Không lưu mật khẩu, chat hay người chơi khác; không bị xoá sau 90 ngày như lịch sử trận. Bật/tắt có hiệu lực ngay từ trận sau khi bấm Lưu."
                 >
                   {data && (
-                    <span className="setting__fact">
+                    <span className={SETTING_FACT}>
                       <Icon name="list" size={12} />
                       Đã lưu <b className="px">{num(data.battles)}</b> trận · {size(data.bytes)}
                     </span>
@@ -178,11 +178,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </>
       )}
       {error && (
-        <p className="dialog__error" role="alert">
+        <p className={DIALOG.error} role="alert">
           {error}
         </p>
       )}
-      <footer>
+      <footer className={DIALOG.footer}>
         <Button kind="ghost" onClick={onClose}>
           Huỷ
         </Button>
