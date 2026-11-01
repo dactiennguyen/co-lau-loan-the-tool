@@ -6,7 +6,7 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, GiftCode, GiftLimits,
-    GiftRun, Job, LogKind, Mailbox, MapChoice, MarketState, Picked, PickupRecord, QuestRun,
+    GiftRun, Job, LogKind, Mailbox, MapChoice, MapMob, MarketState, Picked, PickupRecord, QuestRun,
     SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
@@ -362,6 +362,28 @@ fn zones(players: &[(i32, i32)]) -> Vec<Zone> {
 }
 
 fn map(id: &str, name: &str, level: i32, hops: Option<u32>) -> MapChoice {
+    // The kinds of mobs of data/maps.json (M25 has none).
+    let mobs: &[(&str, i32)] = match id {
+        "M1" => &[
+            ("Gà Điên", 1),
+            ("Heo Mọi", 7),
+            ("Kẻ Gây Rối", 7),
+            ("Sơn Tặc", 9),
+        ],
+        "M2" => &[
+            ("Kẻ Quấy Phá", 20),
+            ("Cua Càng", 15),
+            ("Cóc Xanh", 13),
+            ("Sói Xám", 11),
+        ],
+        "M10" => &[
+            ("Heo Lửa", 46),
+            ("Thỏ Xanh", 53),
+            ("Thỏ Hồng", 39),
+            ("Huyết Lang", 40),
+        ],
+        _ => &[],
+    };
     MapChoice {
         map_id: id.into(),
         name: name.into(),
@@ -369,6 +391,14 @@ fn map(id: &str, name: &str, level: i32, hops: Option<u32>) -> MapChoice {
         hops,
         // The sample character is level 21: one level less than the world map shows still gets in.
         need: (level - 1 > 21).then_some(level),
+        mobs: mobs
+            .iter()
+            .map(|&(name, level)| MapMob {
+                name: name.into(),
+                level,
+                boss: false,
+            })
+            .collect(),
     }
 }
 

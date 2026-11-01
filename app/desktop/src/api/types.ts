@@ -587,6 +587,8 @@ export interface MapChoice {
   hops: number | null;
   /** The level the character lacks to enter it; no way leads there then. */
   need: number | null;
+  /** The kinds of mobs and the bosses the atlas saw there; empty for a map with none (M25 Rìa Hồng Giang). */
+  mobs: { name: string; level: number; boss: boolean }[];
 }
 
 /** One level of a skill (s2c/30): skill points, character level, nội lực (25 = 1 thành). */

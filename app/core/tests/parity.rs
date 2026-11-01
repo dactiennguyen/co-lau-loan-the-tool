@@ -2206,6 +2206,23 @@ fn doi_map_walks_the_portals_of_the_atlas_and_ends_on_the_map_or_when_no_way_is_
     };
     // Level not known yet (no s2c/10): no map is left out for it, Cửu Phong three portals away behind Hồng Giang.
     assert_eq!(choice(&bot, "M10"), Some((Some(3), None)));
+    // The kinds of mobs and bosses of each map, for the Tự đánh list of a zone without any: none in Rìa Hồng Giang.
+    let mobs = |bot: &Bot, id: &str| {
+        let m = bot
+            .snapshot()
+            .maps
+            .into_iter()
+            .find(|m| m.map_id == id)
+            .unwrap();
+        m.mobs
+            .iter()
+            .map(|k| (k.name.clone(), k.level, k.boss))
+            .collect::<Vec<_>>()
+    };
+    assert!(mobs(&bot, "M25").is_empty());
+    let m4 = mobs(&bot, "M4");
+    assert!(m4.contains(&("Huyết Lang".into(), 40, false)), "{m4:?}");
+    assert!(m4.contains(&("Tướng Xích Vũ".into(), 35, true)), "{m4:?}");
     // s2c/10 kind 2: level 22.
     let level = (0..10).fold(Writer::new().i32(2).string("manina").i32(22), |w, _| {
         w.i32(0)

@@ -569,6 +569,17 @@ pub struct MapChoice {
     pub hops: Option<u32>,
     /// The level the character lacks to enter it (Atlas::needs_level); no way leads there then.
     pub need: Option<i32>,
+    /// The kinds of mobs and the bosses the atlas saw there; empty for a map with none, such as M25 Rìa Hồng Giang. The
+    /// Tự đánh list offers the nearest maps with mobs when the zone has none.
+    pub mobs: Vec<MapMob>,
+}
+
+/// A kind of mob or a boss of a map of the atlas, with its level.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct MapMob {
+    pub name: String,
+    pub level: i32,
+    pub boss: bool,
 }
 
 /// A boss of this zone and the tile (column, row) it was last seen on; `moving` between s2c/1177 field 1 and field 0.

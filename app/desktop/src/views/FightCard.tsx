@@ -10,7 +10,8 @@ import { Stepper } from "@/components/Stepper";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { useStore } from "@/store";
-import type { Account } from "@/api/types";
+import { api } from "@/api";
+import type { Account, Character, MapChoice } from "@/api/types";
 import { BattlePanel } from "./BattlePanel";
 import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
@@ -20,6 +21,53 @@ function TargetIcon({ name, boss }: { name: string; boss: boolean }) {
   const src = mobIcon(name);
   if (!src) return <Icon name={boss ? "crown" : "sword"} size={13} />;
   return <img src={src} alt="" draggable={false} className="w-[22px] h-[22px] object-contain" />;
+}
+
+/** The kinds of mobs of a map to name for a character of `level`: the strongest not above it, up to three; the weakest
+ * when all are above. */
+function fitting(map: MapChoice, level: number) {
+  const kinds = map.mobs.filter((k) => !k.boss);
+  const fit = kinds.filter((k) => k.level <= level).sort((a, b) => b.level - a.level).slice(0, 3);
+  return fit.length ? fit : kinds.sort((a, b) => a.level - b.level).slice(0, 1);
+}
+
+/** When the zone has no mob: whether the atlas says the map has none at all (M25 Rìa Hồng Giang), and the two nearest
+ * maps a known way leads to, without a level missing, that have mobs. */
+function elsewhere(c: Character) {
+  const here = c.maps.find((m) => m.mapId === c.mapId);
+  const none = !here || here.mobs.every((k) => k.boss);
+  const near = c.maps.filter((m) => m.mapId !== c.mapId && m.hops != null && m.need == null && m.mobs.some((k) => !k.boss));
+  return { none, near: none ? near.slice(0, 2) : [] };
+}
+
+/** The list when the zone has no mob: why, and where to go with Đi tới (Đổi map). */
+function NoMobs({ account, busy }: { account: Account; busy: boolean }) {
+  const c = account.character!;
+  const { none, near } = elsewhere(c);
+  return (
+    <div className={cn(LIST, "gap-1.5 px-2 py-1.5")} role="status">
+      <p className="m-0 text-12 text-fg-3">
+        {none ? `${c.mapName} không có quái ở khu nào.` : "Không có quái ở khu này."}
+        {near.length > 0 && " Map gần có quái:"}
+      </p>
+      {near.map((m) => (
+        <div key={m.mapId} className="flex items-center gap-2 px-1.5 py-1 bg-bg-2">
+          <span className="flex-1 min-w-0">
+            <b className="text-12 text-fg">{m.name}</b>
+            <span className="text-11 text-fg-3"> · {m.hops} cổng</span>
+            <span className="block truncate text-11 text-fg-2">
+              {fitting(m, c.level)
+                .map((k) => `${k.name} ${k.level}`)
+                .join(", ")}
+            </span>
+          </span>
+          <Button small icon="swap" disabled={busy} title={`Đổi map tới ${m.name}`} onClick={() => void api.goToMap(account.id, m.mapId)}>
+            Đi tới
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** In place of the Thua tối đa field of a fight job against a boss: "Thua boss không tính", as tall as the field. */
@@ -74,9 +122,12 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
   return (
     <Card title="Tự đánh" icon="sword" tone="var(--accent)" subtitle="Quái và boss ở khu đang đứng">
       <div className={GRID}>
+      {c && targets.length === 0 ? (
+        <NoMobs account={account} busy={running || questing || !!battle} />
+      ) : (
       <ul className={LIST} role="listbox" aria-label="Chọn quái hoặc boss">
         {targets.length === 0 && (
-          <li className={cn(TARGET, "cursor-default text-fg-3 justify-center")}>{c ? "Không có quái ở khu này" : "Đăng nhập để thấy quái và boss"}</li>
+          <li className={cn(TARGET, "cursor-default text-fg-3 justify-center")}>Đăng nhập để thấy quái và boss</li>
         )}
         {targets.map((t) => (
           <li
@@ -103,6 +154,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           </li>
         ))}
       </ul>
+      )}
 
       <div className={CONTROLS}>
         <div className={ROW}>

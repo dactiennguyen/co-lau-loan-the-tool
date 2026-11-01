@@ -52,6 +52,14 @@ impl Bot {
                     .map(|w| w.level),
                 hops: hops.get(id).copied(),
                 need: self.atlas.needs_level(id, self.snap.level),
+                mobs: (m.mobs.iter().map(|k| (&k.name, k.level, false)))
+                    .chain(m.bosses.iter().map(|b| (&b.name, b.level, true)))
+                    .map(|(name, level, boss)| MapMob {
+                        name: name.clone(),
+                        level,
+                        boss,
+                    })
+                    .collect(),
             })
             .collect();
         out.sort_by_key(|m| m.hops.unwrap_or(u32::MAX));
