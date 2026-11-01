@@ -17,13 +17,24 @@ import { ItemChip, Stone } from "./Stone";
  * aim for and the level to reach. Hỏi giá asks Pháp sư the price and odds of the next level and presses nothing. Nâng
  * cấp puts the cheapest stones one by one until the odds are reached, as the server takes every stone put in, and goes
  * on level by level up to +4 (below it a failure keeps the level; Bùa bảo vệ is not measured yet). Tách đá and Chuyển
- * hoá work on the same item. Every press asks once more.
+ * hoá work on the same item. Gear worn is listed too: the game's window takes items of the bag only, so the bot takes it
+ * off, upgrades it and wears it again (SmithTask::Upgrade `worn`). Every press asks once more.
  */
 export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   const c = account.character!;
-  const gear = (c.bag?.items ?? []).filter(isGear).sort((a, b) => b.plus - a.plus || (b.level ?? 0) - (a.level ?? 0));
-  const [slot, setSlot] = useState<number | null>(null);
-  const item = gear.find((i) => i.slot === slot) ?? null;
+  // The gear worn and the gear of the bag; an item is followed by its uuid, as a worn one goes to the bag and back.
+  const isWorn = (i: Item) => c.gear.some((g) => g?.uuid === i.uuid);
+  const gear = [...c.gear.filter((g): g is Item => g != null && isGear(g)), ...(c.bag?.items ?? []).filter(isGear)].sort(
+    (a, b) => b.plus - a.plus || (b.level ?? 0) - (a.level ?? 0),
+  );
+  const [picked, setPicked] = useState<string | null>(null);
+  const item = gear.find((i) => i.uuid === picked) ?? null;
+  // While the bot upgrades a worn item, the item is in the bag: the task says it is the worn one all the same.
+  const run = c.smith;
+  const upgrading = run != null && run.done == null && run.worn && run.item?.uuid === item?.uuid;
+  const worn = item != null && (isWorn(item) || upgrading);
+  const full = c.bag != null && c.bag.items.length >= c.bag.capacity;
+  const wornWhy = worn && full ? "Túi đầy: cần 1 ô trống để cởi món ra nâng cấp." : null;
   const [careful, setCareful] = useState(false);
   const [rate, setRate] = useState(100);
   const [unlocked, setUnlocked] = useState(false);
@@ -32,28 +43,27 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   const [toLevel, setToLevel] = useState(1);
   useEffect(() => {
     if (item) setToLevel(Math.min(top, item.plus + 1));
-  }, [item?.slot, item?.plus, top]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [item?.uuid, item?.plus, top]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stones = (c.bag?.items ?? []).filter((i) => stoneLevel(i.id) && (unlocked || i.locked));
   // The stones by level, as the bot will put them: the cheapest first.
   const stoneRow = stoneCounts(c.bag?.items ?? [])
     .map(([locked, free], level): [number, number] => [level, locked + (unlocked ? free : 0)])
     .filter(([level, n]) => level > 0 && n > 0);
-  const run = c.smith;
-  const mine = run && item && run.item?.slot === item.slot ? run : null;
+  const mine = run && item && run.item?.uuid === item.uuid ? run : null;
 
   // Chuyển hoá: the targets the bot accepts, and the item that moves this level.
   const [targets, setTargets] = useState<number[]>([]);
   const [target, setTarget] = useState<number | null>(null);
   useEffect(() => {
     let live = true;
-    if (item && item.plus > 0) api.transmuteTargets(account.id, item.slot).then((t) => live && setTargets(t));
+    if (item && item.plus > 0 && !worn) api.transmuteTargets(account.id, item.slot).then((t) => live && setTargets(t));
     else setTargets([]);
     setTarget(null);
     return () => {
       live = false;
     };
-  }, [account.id, item?.slot, item?.plus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [account.id, item?.uuid, item?.slot, item?.plus, worn]); // eslint-disable-line react-hooks/exhaustive-deps
   const stuff = item ? TRANSMUTE_ITEMS.find((t) => t.upTo >= item.plus && c.bag?.items.some((i) => i.id === t.id)) : undefined;
   const stuffItem = stuff ? c.bag?.items.find((i) => i.id === stuff.id) : undefined;
   const byslot = (s: number) => c.bag?.items.find((i) => i.slot === s);
@@ -66,15 +76,15 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
         <Hint label="Nâng cấp là gì?" id={`${hint}-what`}>
           Pháp sư nâng món lên từng cấp (+1, +2…) bằng đá và Xu khóa. Tỉ lệ thành công theo tổng sức của đá đặt vào. Thành công
           thì chỉ số tăng (khoảng 20% chỉ số chính) và món bị khoá giao dịch; thất bại thì mất đá và phí, dưới +4 không tụt cấp.
-          Chỉ món trong túi: đồ đang mặc phải cởi ra trước.
+          Cửa sổ của game chỉ nhận món trong túi, nên với đồ đang mặc bot tự cởi ra túi (cần 1 ô trống), nâng, rồi mặc lại.
         </Hint>
       </div>
       {gear.length === 0 ? (
-        <p className="shoptab__note">Túi không có Nón, Áo, Vũ khí, Nhẫn hay Cánh nào. Đồ đang mặc phải cởi ra túi mới nâng được.</p>
+        <p className="shoptab__note">Không có Nón, Áo, Vũ khí, Nhẫn hay Cánh nào, trong túi hay đang mặc.</p>
       ) : (
         <div className="sup__gear" role="radiogroup" aria-label="Món nâng cấp">
           {gear.map((i) => (
-            <GearRow key={i.slot} item={i} on={i.slot === slot} onPick={() => setSlot(i.slot)} />
+            <GearRow key={i.uuid} item={i} worn={isWorn(i)} on={i.uuid === picked} onPick={() => setPicked(i.uuid)} />
           ))}
         </div>
       )}
@@ -153,25 +163,25 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
             <Button
               kind="outline"
               icon="eye"
-              disabled={!!why || item.plus >= cap || stones.length === 0}
+              disabled={!!why || !!wornWhy || item.plus >= cap || stones.length === 0}
               onClick={() => {
                 track();
-                api.smithUpgrade(account.id, item.slot, careful, rate, item.plus + 1, unlocked, true);
+                api.smithUpgrade(account.id, item.slot, careful, rate, item.plus + 1, unlocked, true, worn);
               }}
             >
-              Hỏi giá (miễn phí)
+              {worn ? "Hỏi giá (miễn phí; cởi ra rồi mặc lại)" : "Hỏi giá (miễn phí)"}
             </Button>
             <Button
               kind="primary"
               icon="hammer"
-              disabled={!!why || item.plus >= top || stones.length === 0}
+              disabled={!!why || !!wornWhy || item.plus >= top || stones.length === 0}
               onClick={() =>
                 ask({
                   title: `Nâng cấp ${item.name}`,
-                  message: `Nâng ${item.name} từ +${item.plus} tới +${toLevel}${careful ? " (Cẩn thận, mỗi lần +5 Lượng)" : ""}, mỗi lần đặt đá tới tỉ lệ ${rate}% hoặc tới trần. Mỗi lần nâng tốn đá và Xu khóa, thất bại thì mất cả hai nhưng không tụt cấp dưới +4; thành công thì món bị khoá giao dịch.`,
+                  message: `Nâng ${item.name} từ +${item.plus} tới +${toLevel}${careful ? " (Cẩn thận, mỗi lần +5 Lượng)" : ""}, mỗi lần đặt đá tới tỉ lệ ${rate}% hoặc tới trần. Mỗi lần nâng tốn đá và Xu khóa, thất bại thì mất cả hai nhưng không tụt cấp dưới +4; thành công thì món bị khoá giao dịch.${worn ? " Món đang mặc: bot cởi ra túi trước, xong (hay dừng giữa chừng) thì mặc lại." : ""}`,
                   confirm: "Nâng cấp",
                   icon: "hammer",
-                  run: () => api.smithUpgrade(account.id, item.slot, careful, rate, toLevel, unlocked, false),
+                  run: () => api.smithUpgrade(account.id, item.slot, careful, rate, toLevel, unlocked, false, worn),
                 })
               }
             >
@@ -179,10 +189,18 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
             </Button>
             <Hint label="Hỏi giá khác Nâng cấp thế nào?" id={`${hint}-quote`}>
               Hỏi giá mở cửa sổ Nâng cấp, đặt đá để xem phí và tỉ lệ Pháp sư báo cho cấp sau, rồi đóng lại: không bấm Bắt đầu nên
-              không tốn gì. Nâng cấp làm thật, tốn đá và Xu khóa (Cẩn thận thêm Lượng); app hỏi lại một lần trước khi bắt đầu.
+              không tốn gì. Nâng cấp làm thật, tốn đá và Xu khóa (Cẩn thận thêm Lượng); app hỏi lại một lần trước khi bắt đầu. Với
+              đồ đang mặc, cả hai đều cởi món ra túi trước (cần 1 ô trống) rồi mặc lại sau, vì cửa sổ chỉ nhận món trong túi.
             </Hint>
           </div>
-          {item.plus > 0 && (
+          {worn && (
+            <p className="shoptab__note">
+              Đang mặc: bot cởi {item.name} ra túi, nâng, rồi mặc lại vào ô cũ; xong, lỗi hay bấm Dừng đều mặc lại.
+              {item.plus > 0 && " Tách đá và Chuyển hoá thì cởi món ra túi trước."}
+            </p>
+          )}
+          {wornWhy && <p className="shoptab__why">{wornWhy}</p>}
+          {item.plus > 0 && !worn && (
             <div className="sup__more">
               <div className="sup__part">
                 <div className="shoptab__lead">
@@ -231,7 +249,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
                   <div className="sup__gear" role="radiogroup" aria-label="Món đích">
                     {targets.map((s) => {
                       const t = byslot(s);
-                      return t ? <GearRow key={s} item={t} on={s === target} onPick={() => setTarget(s)} /> : null;
+                      return t ? <GearRow key={s} item={t} worn={false} on={s === target} onPick={() => setTarget(s)} /> : null;
                     })}
                   </div>
                 )}
@@ -266,7 +284,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   );
 }
 
-function GearRow({ item, on, onPick }: { item: Item; on: boolean; onPick: () => void }) {
+function GearRow({ item, worn, on, onPick }: { item: Item; worn: boolean; on: boolean; onPick: () => void }) {
   const icon = itemIcon(item.icon);
   return (
     <button type="button" role="radio" aria-checked={on} className={on ? "sline sline--on" : "sline"} onClick={onPick}>
@@ -279,7 +297,10 @@ function GearRow({ item, on, onPick }: { item: Item; on: boolean; onPick: () => 
           {item.kindName} · cấp {item.level} · {item.stats.join(", ")}
         </small>
       </span>
-      <span className="sline__price">{item.locked ? "khoá" : "chưa khoá"}</span>
+      <span className="sline__price">
+        {worn && <b className="sline__worn">đang mặc</b>}
+        {item.locked ? "khoá" : "chưa khoá"}
+      </span>
     </button>
   );
 }

@@ -520,6 +520,7 @@ pub fn entries() -> Vec<Entry> {
             quote: None,
             preview: None,
             item: None,
+            worn: false,
             spent_xu: 0,
             spent_xu_khoa: 820,
             spent_luong: 0,

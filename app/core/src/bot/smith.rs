@@ -29,6 +29,55 @@ pub(super) enum Stage {
     Refresh,
     /// Đổi lượng: c2s/57 of the exchange sent: "Bạn vừa nhận được …" (s2c/1256) next.
     Exchange,
+    /// Nâng cấp of a worn item: Cởi ra (c2s/1186 action 1) sent; s2c/37, then s2c/42 with the item in the bag next.
+    Unequip,
+    /// The task ended with a worn item still in the bag: Mặc (c2s/1186 action 0) sent; s2c/37, then s2c/42 next.
+    Rewear,
+}
+
+/// A worn item taken off for Nâng cấp: its gear slot, its uuid (to find it in the bag), its name, and why the task ended
+/// while it is worn again.
+#[derive(Debug, Clone)]
+pub(super) struct Wear {
+    gear: u8,
+    uuid: String,
+    name: String,
+    ended: Option<String>,
+    /// A notice (s2c/1256) that came while Cởi ra or Mặc waited: the reason, if the item does not move.
+    notice: Option<String>,
+}
+
+/// The level Nâng cấp goes up to for an item worn from level `wear`: its cap, or with no `quote` npc::SAFE_LEVEL and
+/// `to_level` too.
+fn upgrade_top(wear: i32, quote: bool, to_level: i32) -> i32 {
+    match quote {
+        true => npc::upgrade_cap(wear),
+        false => npc::upgrade_cap(wear).min(npc::SAFE_LEVEL).min(to_level),
+    }
+}
+
+/// The NPC of a task, for its log lines.
+fn npc_who(npc: i32) -> &'static str {
+    match npc {
+        npc::ELDER => "Hương Lão",
+        _ => "Pháp sư",
+    }
+}
+
+/// Why Cởi ra or Mặc did not end as it should, for the end of the task: the server's notice, else its silence.
+fn wear_failed(w: &Wear, stage: Stage) -> String {
+    let why = w
+        .notice
+        .clone()
+        .unwrap_or_else(|| format!("server không trả lời sau {} s", SMITH_WAIT.as_secs()));
+    match stage {
+        Stage::Unequip => format!("không cởi được {}: {why}", w.name),
+        _ => format!(
+            "{}; chưa mặc lại được {}: {why}",
+            w.ended.clone().unwrap_or_default(),
+            w.name
+        ),
+    }
 }
 
 pub(super) struct Smith {
@@ -57,6 +106,8 @@ pub(super) struct Smith {
     times: u32,
     /// Stop was pressed during a press: the task ends once its result is in.
     stopping: bool,
+    /// Nâng cấp of a worn item: worn again once the task ends.
+    wear: Option<Wear>,
 }
 
 /// "1.639".
@@ -106,6 +157,20 @@ impl Bot {
             .flat_map(|b| b.items.iter().map(BagItem::from))
             .collect()
     }
+    fn gear_record(&self, slot: u8) -> Option<ItemRecord> {
+        self.snap
+            .gear
+            .get(slot as usize)
+            .and_then(Option::as_ref)
+            .cloned()
+    }
+    fn bag_uuid(&self, uuid: &str) -> Option<ItemRecord> {
+        self.snap
+            .bag
+            .as_ref()
+            .and_then(|b| b.items.iter().find(|i| i.uuid == uuid))
+            .cloned()
+    }
     fn bag_record(&self, slot: i32) -> Option<ItemRecord> {
         self.snap
             .bag
@@ -129,28 +194,35 @@ impl Bot {
                 |i| item_name(i.item_id),
             )
         };
+        let worn_name = |slot: u8| {
+            self.gear_record(slot).map_or_else(
+                || format!("ô trang bị {slot}"),
+                |i| format!("{} (đang mặc)", item_name(i.item_id)),
+            )
+        };
         match task {
             SmithTask::Merge(o) => ("merge", format!("Gộp đá tới Đá cấp {}", o.up_to.min(12))),
             SmithTask::Upgrade {
                 slot,
                 quote: true,
                 careful,
+                worn,
                 ..
             } => {
                 let how = if *careful { " [Cẩn thận]" } else { "" };
-                ("quote", format!("Hỏi giá nâng cấp{how} {}", name(*slot)))
+                let item = if *worn { worn_name(*slot) } else { name(*slot) };
+                ("quote", format!("Hỏi giá nâng cấp{how} {item}"))
             }
             SmithTask::Upgrade {
                 slot,
                 careful,
                 to_level,
+                worn,
                 ..
             } => {
                 let how = if *careful { " [Cẩn thận]" } else { "" };
-                (
-                    "upgrade",
-                    format!("Nâng cấp{how} {} tới +{to_level}", name(*slot)),
-                )
+                let item = if *worn { worn_name(*slot) } else { name(*slot) };
+                ("upgrade", format!("Nâng cấp{how} {item} tới +{to_level}"))
             }
             SmithTask::Separate { slot } => ("separate", format!("Tách đá {}", name(*slot))),
             SmithTask::Transmute { source, target } => (
@@ -202,6 +274,39 @@ impl Bot {
                     .then(|| "chưa có túi đồ và tiền của nick".into())
             })
             .or_else(|| match &task {
+                // Checked before it is taken off, so a task that cannot run leaves the gear as it is.
+                SmithTask::Upgrade {
+                    slot,
+                    worn: true,
+                    quote,
+                    to_level,
+                    unlocked,
+                    ..
+                } => match self.gear_record(*slot) {
+                    None => Some(format!("không mặc món nào ở ô trang bị {slot}")),
+                    Some(i) if book().get(i.item_id).is_none_or(|d| d.kind > 4) => {
+                        Some("chỉ Nón, Áo, Vũ khí, Nhẫn và Cánh nâng cấp được".into())
+                    }
+                    Some(_)
+                        if self
+                            .snap
+                            .bag
+                            .as_ref()
+                            .is_some_and(|b| b.items.len() as i32 >= b.capacity) =>
+                    {
+                        Some("túi đồ đầy: cần 1 ô trống để cởi món ra nâng cấp".into())
+                    }
+                    Some(i) => {
+                        let wear = book().get(i.item_id).map_or(1, |d| d.level as i32);
+                        if i.field0 >= upgrade_top(wear, *quote, *to_level) {
+                            Some(format!("{} đã +{}", item_name(i.item_id), i.field0))
+                        } else if upgrade_stones(&self.bag_items(), *unlocked).is_empty() {
+                            Some("hết đá nâng cấp trong túi".into())
+                        } else {
+                            None
+                        }
+                    }
+                },
                 SmithTask::Upgrade { slot, .. } | SmithTask::Separate { slot } => match item(*slot) {
                     None => Some(format!("không có món nào ở ô túi {}", *slot as u32 + 1)),
                     Some(i) if book().get(i.item_id).is_none_or(|d| d.kind > 4) => {
@@ -245,6 +350,9 @@ impl Bot {
             return out.push(Out::Log(LogKind::Item, format!("Chưa {title}: {why}")));
         }
         let shown = match &task {
+            SmithTask::Upgrade {
+                slot, worn: true, ..
+            } => self.gear_record(*slot),
             SmithTask::Upgrade { slot, .. } | SmithTask::Separate { slot } => item(*slot),
             SmithTask::Transmute { source, .. } => item(*source),
             _ => None,
@@ -261,6 +369,7 @@ impl Bot {
             quote: None,
             preview: None,
             item: shown,
+            worn: matches!(task, SmithTask::Upgrade { worn: true, .. }),
             spent_xu: 0,
             spent_xu_khoa: 0,
             spent_luong: 0,
@@ -291,12 +400,118 @@ impl Bot {
             makes: None,
             times,
             stopping: false,
+            wear: None,
         });
+        match self.smith.as_ref().map(|s| &s.task) {
+            Some(SmithTask::Upgrade {
+                slot, worn: true, ..
+            }) => {
+                let gear = *slot;
+                self.smith_unequip(gear, now, out)
+            }
+            _ => self.smith_next(now, out),
+        }
+    }
+
+    /// Nâng cấp of a worn item: Cởi ra (c2s/1186 action 1, as the button of Túi đồ), since the window of Pháp sư takes
+    /// items of the bag only (J1). The upgrade starts once the item is in the bag and off its gear slot (smith_worn).
+    fn smith_unequip(&mut self, gear: u8, now: Instant, out: &mut Vec<Out>) {
+        let Some(item) = self.gear_record(gear) else {
+            return self.smith_finish(format!("không mặc món nào ở ô trang bị {gear}"), now, out);
+        };
+        let name = item_name(item.item_id);
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Cởi {name} (ô trang bị {gear}) ra túi để nâng cấp"),
+        ));
+        if let Some(r) = self.snap.smith.as_mut() {
+            r.doing = format!("Cởi {name} ra túi");
+        }
+        let sm = self.smith.as_mut().unwrap();
+        sm.wear = Some(Wear {
+            gear,
+            uuid: item.uuid,
+            name,
+            ended: None,
+            notice: None,
+        });
+        (sm.stage, sm.until) = (Stage::Unequip, now + SMITH_WAIT);
+        Self::gear_action(out, 1, gear as i32);
+    }
+
+    /// Cởi ra or Mặc of a worn item, judged on the gear and the bag as the server sent them last (s2c/37, s2c/42,
+    /// s2c/1186), never on which packet came: the upgrade goes on once the item is in the bag and off its gear slot; the
+    /// task ends once it is back in its gear slot. A bag of before (the answer to c2s/42 of a press) or a notice leaves
+    /// it waiting, up to SMITH_WAIT (smith_timer).
+    pub(super) fn smith_worn(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let Some((stage, wear)) = self
+            .smith
+            .as_ref()
+            .filter(|s| matches!(s.stage, Stage::Unequip | Stage::Rewear))
+            .and_then(|s| s.wear.clone().map(|w| (s.stage, w)))
+        else {
+            return;
+        };
+        let worn = self
+            .gear_record(wear.gear)
+            .is_some_and(|g| g.uuid == wear.uuid);
+        if stage == Stage::Rewear {
+            if worn {
+                let ended = wear.ended.unwrap_or_default();
+                self.smith_end(format!("{ended}; đã mặc lại {}", wear.name), out);
+            }
+            return;
+        }
+        let Some(i) = self.bag_uuid(&wear.uuid).filter(|_| !worn) else {
+            return;
+        };
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Đã cởi {} (ô túi {})", wear.name, i.slot as u32 + 1),
+        ));
+        if let Some(SmithTask::Upgrade { slot, worn, .. }) =
+            self.smith.as_mut().map(|s| &mut s.task)
+        {
+            (*slot, *worn) = (i.slot, false);
+        }
         self.smith_next(now, out);
     }
 
-    /// Ends the task, with the reason in the log and on the tab.
-    pub(super) fn smith_finish(&mut self, reason: impl Into<String>, out: &mut Vec<Out>) {
+    /// Ends the task, with the reason in the log and on the tab. A worn item taken off for it is worn again first
+    /// (Mặc, c2s/1186 action 0 on its bag slot); the task ends once it is back in its gear slot, with both said
+    /// (smith_worn).
+    pub(super) fn smith_finish(
+        &mut self,
+        reason: impl Into<String>,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        let reason = reason.into();
+        let back = self
+            .smith
+            .as_ref()
+            .and_then(|s| s.wear.as_ref().filter(|w| w.ended.is_none()))
+            .and_then(|w| self.bag_uuid(&w.uuid).map(|i| (i.slot, w.name.clone())));
+        if let Some((slot, name)) = back {
+            out.push(Out::Log(
+                LogKind::Item,
+                format!("Mặc lại {name} (ô túi {})", slot as u32 + 1),
+            ));
+            if let Some(r) = self.snap.smith.as_mut() {
+                r.doing = format!("Mặc lại {name}");
+            }
+            let sm = self.smith.as_mut().unwrap();
+            if let Some(w) = sm.wear.as_mut() {
+                (w.ended, w.notice) = (Some(reason), None);
+            }
+            (sm.stage, sm.until) = (Stage::Rewear, now + SMITH_WAIT);
+            return Self::gear_action(out, 0, slot as i32);
+        }
+        self.smith_end(reason, out);
+    }
+
+    /// Ends the task now, with the reason in the log and on the tab.
+    fn smith_end(&mut self, reason: impl Into<String>, out: &mut Vec<Out>) {
         let reason = reason.into();
         self.smith = None;
         if let Some(r) = self.snap.smith.as_mut().filter(|r| r.done.is_none()) {
@@ -331,7 +546,7 @@ impl Bot {
             return;
         };
         if stopping {
-            return self.smith_finish("Đã dừng", out);
+            return self.smith_finish("Đã dừng", now, out);
         }
         let steps = self.snap.smith.as_ref().map_or(0, |r| r.steps);
         let bag = self.bag_items();
@@ -356,7 +571,7 @@ impl Bot {
                         0 => "không có 4 viên đá cùng cấp nào để gộp",
                         _ => "đã gộp hết",
                     };
-                    return self.smith_finish(why, out);
+                    return self.smith_finish(why, now, out);
                 };
                 let (pay, money) = match set.locked {
                     true => (xu_khoa + xu, "Xu khóa"),
@@ -368,7 +583,7 @@ impl Bot {
                         set.level + 1,
                         grouped(set.fee)
                     );
-                    return self.smith_finish(why, out);
+                    return self.smith_finish(why, now, out);
                 }
                 self.smith.as_mut().unwrap().makes = Some(set.level + 1);
                 let doing = format!(
@@ -387,14 +602,14 @@ impl Bot {
                 ..
             } => {
                 let Some(item) = self.bag_record(slot as i32) else {
-                    return self
-                        .smith_finish(format!("không còn món ở ô túi {}", slot as u32 + 1), out);
+                    return self.smith_finish(
+                        format!("không còn món ở ô túi {}", slot as u32 + 1),
+                        now,
+                        out,
+                    );
                 };
                 let wear = book().get(item.item_id).map_or(1, |d| d.level as i32);
-                let top = match quote {
-                    true => npc::upgrade_cap(wear),
-                    false => npc::upgrade_cap(wear).min(npc::SAFE_LEVEL).min(to_level),
-                };
+                let top = upgrade_top(wear, quote, to_level);
                 if let Some(r) = self.snap.smith.as_mut() {
                     r.item = Some(item.clone());
                 }
@@ -408,14 +623,14 @@ impl Bot {
                         (true, _) => "đã có giá".into(),
                         _ => format!("{} đã +{}", item_name(item.item_id), item.field0),
                     };
-                    return self.smith_finish(why, out);
+                    return self.smith_finish(why, now, out);
                 }
                 let stones: Vec<i32> = upgrade_stones(&bag, unlocked)
                     .iter()
                     .map(|i| i.slot)
                     .collect();
                 if stones.is_empty() {
-                    return self.smith_finish("hết đá nâng cấp trong túi", out);
+                    return self.smith_finish("hết đá nâng cấp trong túi", now, out);
                 }
                 let sm = self.smith.as_mut().unwrap();
                 (sm.stones, sm.tried, sm.rates, sm.exact) = (stones, vec![], vec![], None);
@@ -434,7 +649,7 @@ impl Bot {
             }
             SmithTask::Separate { slot } => {
                 if steps > 0 {
-                    return self.smith_finish("đã tách xong", out);
+                    return self.smith_finish("đã tách xong", now, out);
                 }
                 let doing = "Đặt món vào Tách đá".to_string();
                 open(
@@ -448,12 +663,15 @@ impl Bot {
             }
             SmithTask::Transmute { source, target } => {
                 if steps > 0 {
-                    return self.smith_finish("đã chuyển hoá xong", out);
+                    return self.smith_finish("đã chuyển hoá xong", now, out);
                 }
                 let level = self.bag_record(source as i32).map_or(0, |i| i.field0);
                 let Some(stuff) = transmute_item(&bag, level) else {
-                    return self
-                        .smith_finish(format!("thiếu vật phẩm Chuyển hoá cho món +{level}"), out);
+                    return self.smith_finish(
+                        format!("thiếu vật phẩm Chuyển hoá cho món +{level}"),
+                        now,
+                        out,
+                    );
                 };
                 let doing = format!("Đặt món nguồn, món đích và {}", item_name(stuff.item_id));
                 open(
@@ -468,7 +686,7 @@ impl Bot {
             SmithTask::Exchange { option, .. } => {
                 let sm = self.smith.as_mut().unwrap();
                 if sm.times == 0 {
-                    return self.smith_finish("đã đổi xong", out);
+                    return self.smith_finish("đã đổi xong", now, out);
                 }
                 (sm.npc, sm.left) = (npc::ELDER, vec![npc::EXCHANGE_PATH, option]);
                 (sm.stage, sm.until) = (Stage::Talk, now + SMITH_WAIT);
@@ -520,7 +738,7 @@ impl Bot {
         };
         if !menu.options.iter().any(|o| o.0 == option) {
             let why = format!("{} không có dòng {option} trong menu", menu.npc);
-            self.smith_finish(why, out);
+            self.smith_finish(why, now, out);
             return true;
         }
         sm.left.remove(0);
@@ -594,7 +812,7 @@ impl Bot {
                             sm.tried.len(),
                             last.unwrap_or(0)
                         );
-                        return self.smith_finish(why, out);
+                        return self.smith_finish(why, now, out);
                     }
                     None => {}
                 }
@@ -696,7 +914,7 @@ impl Bot {
             })
         };
         if let Some(why) = why {
-            return self.smith_finish(why, out);
+            return self.smith_finish(why, now, out);
         }
         let rate = q.rate.map_or(String::new(), |r| format!(", tỉ lệ {r}%"));
         let doing = self
@@ -706,7 +924,7 @@ impl Bot {
             .map_or(String::new(), |r| r.doing.clone());
         if quote_only {
             let line = format!("{doing}: {}{rate}", fee_text(&q));
-            return self.smith_finish(line, out);
+            return self.smith_finish(line, now, out);
         }
         let sm = self.smith.as_mut().unwrap();
         (sm.stage, sm.until) = (Stage::Start, now + SMITH_WAIT);
@@ -804,12 +1022,10 @@ impl Bot {
 
     /// The whole bag (s2c/42) after a press: the task goes on.
     pub(super) fn smith_bag(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if self
-            .smith
-            .as_ref()
-            .is_some_and(|s| s.stage == Stage::Refresh)
-        {
-            self.smith_next(now, out);
+        match self.smith.as_ref().map(|s| s.stage) {
+            Some(Stage::Refresh) => self.smith_next(now, out),
+            Some(Stage::Unequip | Stage::Rewear) => self.smith_worn(now, out),
+            _ => {}
         }
     }
 
@@ -829,16 +1045,21 @@ impl Bot {
                 r.doing = text.to_string();
             }
             match stopping {
-                true => self.smith_finish("Đã dừng", out),
+                true => self.smith_finish("Đã dừng", now, out),
                 false => self.smith_next(now, out),
             }
             return true;
         }
-        let who = match sm.npc {
-            npc::ELDER => "Hương Lão",
-            _ => "Pháp sư",
-        };
-        self.smith_finish(format!("{who} từ chối: {text}"), out);
+        // While Cởi ra or Mặc waits, a notice is kept as the reason in case the item does not move; it ends nothing, as
+        // it may be another's (a broadcast, a late answer).
+        if matches!(sm.stage, Stage::Unequip | Stage::Rewear) {
+            if let Some(w) = sm.wear.as_mut() {
+                w.notice = Some(text.to_string());
+            }
+            return true;
+        }
+        let who = npc_who(sm.npc);
+        self.smith_finish(format!("{who} từ chối: {text}"), now, out);
         true
     }
 
@@ -847,21 +1068,31 @@ impl Bot {
         let Some(sm) = self.smith.as_ref().filter(|s| s.until <= now) else {
             return;
         };
-        let who = match sm.npc {
-            npc::ELDER => "Hương Lão",
-            _ => "Pháp sư",
-        };
+        // Cởi ra that did not show: if the item is in the bag after all, smith_finish wears it again.
+        if let (stage @ (Stage::Unequip | Stage::Rewear), Some(w)) = (sm.stage, sm.wear.clone()) {
+            let line = wear_failed(&w, stage);
+            return match stage {
+                Stage::Unequip => self.smith_finish(line, now, out),
+                _ => self.smith_end(line, out),
+            };
+        }
+        let who = npc_who(sm.npc);
         self.smith_finish(
             format!("{who} không trả lời sau {} s", SMITH_WAIT.as_secs()),
+            now,
             out,
         );
     }
 
     /// Dừng: the task ends now, or once the press waiting for its result is in.
-    pub(super) fn smith_stop(&mut self, out: &mut Vec<Out>) {
+    pub(super) fn smith_stop(&mut self, now: Instant, out: &mut Vec<Out>) {
         match self.smith.as_mut() {
-            Some(sm) if matches!(sm.stage, Stage::Start | Stage::Exchange) => sm.stopping = true,
-            Some(_) => self.smith_finish("Đã dừng", out),
+            Some(sm) if matches!(sm.stage, Stage::Start | Stage::Exchange | Stage::Unequip) => {
+                sm.stopping = true
+            }
+            // Worn again already: the task ends on the answer.
+            Some(sm) if sm.stage == Stage::Rewear => {}
+            Some(_) => self.smith_finish("Đã dừng", now, out),
             None => {}
         }
     }

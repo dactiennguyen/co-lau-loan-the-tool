@@ -224,8 +224,8 @@ pub fn merge_forecast(
     shared.with(|app| app.merge_forecast(id, MergeOptions { up_to, unlocked }))
 }
 
-/// Nâng cấp the item of bag slot `slot` up to +`to_level` with stones up to `rate` % each level ([Cẩn thận] with
-/// `careful`); `quote` only asks the price and odds of the next level.
+/// Nâng cấp the item of bag slot `slot` (gear slot with `worn`: taken off first, worn again after) up to +`to_level` with
+/// stones up to `rate` % each level ([Cẩn thận] with `careful`); `quote` only asks the price and odds of the next level.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub fn smith_upgrade(
@@ -237,6 +237,7 @@ pub fn smith_upgrade(
     to_level: i32,
     unlocked: bool,
     quote: bool,
+    worn: Option<bool>,
 ) {
     let task = SmithTask::Upgrade {
         slot,
@@ -245,6 +246,7 @@ pub fn smith_upgrade(
         to_level,
         unlocked,
         quote,
+        worn: worn.unwrap_or(false),
     };
     shared.with(|app| app.send(id, Command::Smith(task)));
 }

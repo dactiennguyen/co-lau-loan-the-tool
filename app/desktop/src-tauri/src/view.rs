@@ -230,6 +230,7 @@ pub struct SmithView<'a> {
     pub quote: Option<&'a Quote>,
     pub preview: Option<ItemView>,
     pub item: Option<ItemView>,
+    pub worn: bool,
     pub spent_xu: i64,
     pub spent_xu_khoa: i64,
     pub spent_luong: i64,
@@ -250,6 +251,7 @@ impl<'a> SmithView<'a> {
             quote: r.quote.as_ref(),
             preview: r.preview.as_ref().map(ItemView::of),
             item: r.item.as_ref().map(ItemView::of),
+            worn: r.worn,
             spent_xu: r.spent_xu,
             spent_xu_khoa: r.spent_xu_khoa,
             spent_luong: r.spent_luong,
@@ -358,6 +360,8 @@ pub struct SkillView<'a> {
 pub struct ItemView {
     pub slot: u8,
     pub id: i32,
+    /// The server's id of this one item: the same in the bag and in a gear slot (Nâng cấp of a worn item follows it).
+    pub uuid: String,
     pub name: String,
     /// data/icons/i<icon>.webp
     pub icon: Option<i32>,
@@ -390,6 +394,7 @@ impl ItemView {
         ItemView {
             slot: i.slot,
             id: i.item_id,
+            uuid: i.uuid.clone(),
             name: def.map_or_else(|| format!("#{}", i.item_id), |d| d.name.clone()),
             icon: def.map(|d| d.icon).filter(|&n| n >= 0),
             kind: def.map(|d| d.kind),

@@ -16,6 +16,7 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]**, **[Cẩm nang]**.
 | Có hợp nhất đá không? | Có: **Luyện đá** ở Pháp sư. Đặt 2 đến 24 viên đá; server tính ra một viên cấp cao hơn, kèm tỉ lệ và phí. 4 viên cùng cấp k thành 1 viên cấp k+1 chắc chắn (100%), 2 viên 50%, 3 viên 75%. Tỉ lệ phải **trên 40%** mới được bấm. Bắt đầu là `c2s/91 ""`, kết quả là `s2c/93` ([Luyện đá](#luyện-đá)). [Đo J2, J3] |
 | Đá cấp nào nâng được gì? | Không thấy giới hạn cấp đá theo cấp món: Đá cấp 1, 3, 4, 5, 6, 9 đều đặt được ở mọi lần nâng đã thử; cấp đá chỉ làm đổi tỉ lệ. Mỗi viên Đá cấp k có giá trị bằng 4^(k−1) viên Đá cấp 1 ([các loại đá](#các-loại-đá)). Đá cấp 2, 7, 8, 10–12 chưa đặt thử ở Nâng cấp. [Đo + Suy luận] |
 | Tỉ lệ thành công tính sao? | Server báo sẵn trong `s2c/90` mỗi khi đặt thêm món: "Tỉ lệ thành công: 75%". Có trần theo cấp: +0→+1 là 80%, +1→+2 là 75%. Đặt thêm đá khi đã chạm trần không tăng nữa ([bảng đo](#bảng-đo-nâng-cấp)). [Đo] |
+| Nâng đồ đang mặc được không? | Trong game thì phải cởi ra trước: cửa sổ Nâng cấp chỉ có tab Hành trang (túi đồ) để chọn món, và `c2s/97` gửi số ô túi (J1). Server có nhận đồ đang mặc qua một dạng khác của `c2s/97` hay không thì chưa đo. App tự cởi ra túi, nâng, rồi mặc lại ([đồ đang mặc](#đồ-đang-mặc)). [Đo J1; Chưa rõ: dạng khác của gói] |
 | Thường khác Cẩn thận chỗ nào? | Cẩn thận tốn thêm **5 Lượng** và tỉ lệ ×1,5 (tối đa 100%): cùng một viên Đá cấp 5 cho 75% ở Thường, 100% ở Cẩn thận. Phí Xu khóa như nhau ([Cẩn thận](#cẩn-thận)). [Đo] |
 | Thất bại mất gì? | Đo ở +0: `s2c/91` kếtQuả 0, mất đá và phí, món giữ +0 và **không bị khoá**. [Cẩm nang] cấp tụt về mốc gần nhất +4, +8, +12 hoặc +14; dưới +4 giữ nguyên ([thất bại](#thất-bại-và-bùa)). [Đo J3 + Cẩm nang] |
 | Bùa bảo vệ? | Giữ cấp khi thất bại. Server **không nhận bùa** ở lần nâng +1→+2 ("Vật phẩm không phù hợp"), khớp với luật dưới +4 không tụt cấp. Mức nào thì nhận: chưa đo ([bùa](#thất-bại-và-bùa)). [Đo + Cẩm nang] |
@@ -274,6 +275,23 @@ S→C 46    "update Xu", Xu 13.755.900, Xu khóa 7.952.514, Lượng 16.675     
 
 Kết quả: Giáp Đại Tướng (đồ nữ, bậc 51) lên +1; mất 1 Đá cấp 5 và 12 Xu khóa (7.952.526 → 7.952.514); `field1` của giáp thành 0 (khoá giao dịch, đúng luật "khóa khi nâng cấp thành công"). [Đo J1, J2]
 
+<a id="đồ-đang-mặc"></a>
+
+### Đồ đang mặc
+
+- **Trong game:** cửa sổ "Nâng cấp [thường]" chỉ có hai tab, Nâng cấp và **Hành trang** (túi đồ). Món được chọn từ Hành trang bằng nút **Chọn**. Không có tab hay nút nào cho đồ đang mặc, nên người chơi phải cởi món ra túi trước ([trên máy](#trên-máy)). [Đo J1]
+- **Gói:** `c2s/97` mang số **ô túi** (`"", 0, 0, ôTúi, 1`); mọi lần đặt món ở J1, J2, J3 đều từ túi. Byte thứ hai (luôn 0) có thể là nơi lấy món. Client còn hàm dựng thứ hai cùng opcode, `sqlq.a108(Object, byte, int, int)`, chưa đọc được ([c2s-builders](../c2s-builders.md)). Gửi `c2s/97` với byte đó khác 0 và số ô trang bị thì server làm gì: chưa đo. Script thử miễn phí (chỉ đặt món, không bấm) đã viết sẵn cho lần đo K1. [Đo J1–J3; Chưa rõ]
+- **App:** việc Nâng cấp một món đang mặc (`SmithTask::Upgrade { worn: true }`, ô là ô trang bị) làm như người chơi:
+  1. Cởi món ra túi bằng `c2s/1186 (1, ô trang bị)`, như nút Cởi ra; server trả `s2c/37`, `s2c/42`, `s2c/1186` ([mặc và cởi](12-skills-items.md#c2s-1186)).
+  2. Tìm món trong túi theo uuid của bản ghi rồi nâng như món trong túi.
+  3. Khi việc kết thúc (xong, hết đá, thiếu tiền, Pháp sư từ chối, im lặng 8 s, hay bấm Dừng), mặc lại bằng `c2s/1186 (0, ô túi)`.
+
+  Món đã khoá từ lần mặc đầu, nên mặc lại không làm mất gì thêm. Bot từ chối trước khi cởi khi túi đầy (cởi ra cần 1 ô trống), khi món đã tới cấp cần nâng, hay khi túi không có đá. Mất kết nối giữa chừng thì món nằm lại trong túi. [Đo các gói Cởi, Mặc ở P4; luồng ghép trong app đã có test, chưa chạy thật]
+
+  Bot không coi gói nào là "câu trả lời" của Cởi ra hay Mặc, mà xem ô trang bị (`s2c/37`) và túi (`s2c/42`) mới nhất. Cởi xong là khi món có trong túi và rời ô trang bị. Mặc xong là khi món về đúng ô trang bị cũ. Gói túi của lần bấm trước (trả cho `c2s/42`) hay một câu báo `s2c/1256` đến giữa chừng không làm việc kết thúc; câu báo chỉ được giữ làm lý do nếu 8 giây sau món vẫn chưa đổi chỗ ("không cởi được Nhẫn Trơn: …", "…; chưa mặc lại được Nhẫn Trơn: …").
+
+  **Chưa đo:** mặc lại một món vừa được đặt vào cửa sổ của Pháp sư mà chưa bấm Bắt đầu (Hỏi giá, Dừng giữa chừng, Pháp sư từ chối). Đóng cửa sổ không gửi gói nào (J1), nên với server cửa sổ có thể vẫn giữ món. Nếu server không cho mặc lúc đó, việc dừng sau 8 giây với "chưa mặc lại được …" và món nằm ở túi để mặc tay. Lần đo K1 sẽ thử đúng trường hợp này.
+
 <a id="luyện-đá"></a>
 
 ## Luyện đá (hợp nhất đá)
@@ -433,7 +451,7 @@ Tiền trước và sau J3: Xu 13.755.600 → 13.755.598; Xu khóa 7.952.514 →
 
 ## Trong app
 
-Modal **Cửa hàng** của app Rust làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#cửa-hàng)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
+Modal **Cửa hàng** của app Rust làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#cửa-hàng)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
 
 <a id="todo"></a>
 

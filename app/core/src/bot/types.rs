@@ -366,7 +366,9 @@ pub enum SmithTask {
     Merge(MergeOptions),
     /// Nâng cấp the item of bag slot `slot` up to +`to_level` (npc::SAFE_LEVEL at most until Bùa is measured), each level
     /// with the cheapest stones that bring the odds to `rate` %, or as far as they go; [Cẩn thận] with `careful`. With
-    /// `quote` only the price and odds of the next level are asked: nothing is pressed or spent.
+    /// `quote` only the price and odds of the next level are asked: nothing is pressed or spent. With `worn`, `slot` is a
+    /// gear slot: the game's window takes items of the bag only (J1), so the item is taken off first (c2s/1186) and worn
+    /// again once the task ends, however it ends.
     Upgrade {
         slot: u8,
         careful: bool,
@@ -374,6 +376,7 @@ pub enum SmithTask {
         to_level: i32,
         unlocked: bool,
         quote: bool,
+        worn: bool,
     },
     /// Tách đá of the item of bag slot `slot`.
     Separate { slot: u8 },
@@ -404,6 +407,8 @@ pub struct SmithRun {
     /// Nâng cấp: the item one level up (s2c/1258), and the item as it is now.
     pub preview: Option<ItemRecord>,
     pub item: Option<ItemRecord>,
+    /// Nâng cấp of a worn item: it is taken off for the task and worn again after, so while it runs it is in the bag.
+    pub worn: bool,
     /// What the presses cost in all.
     pub spent_xu: i64,
     pub spent_xu_khoa: i64,

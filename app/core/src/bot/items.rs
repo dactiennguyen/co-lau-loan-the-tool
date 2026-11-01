@@ -77,29 +77,33 @@ impl Bot {
             ));
         }
         out.push(Out::Log(LogKind::Item, format!("{verb} {name} ({place})")));
-        let ctx = match act {
-            ItemAct::Equip(_) | ItemAct::Unequip(_) | ItemAct::Discard(_) => Ctx {
-                action: Some(match act {
-                    ItemAct::Equip(_) => 0,
-                    ItemAct::Unequip(_) => 1,
-                    _ => 2,
-                }),
-                slot: Some(slot as i32),
-                ..Ctx::default()
-            },
-            _ => Ctx {
-                slot: Some(slot as i32),
-                place: Some(0),
-                ..Ctx::default()
-            },
+        let place = Ctx {
+            slot: Some(slot as i32),
+            place: Some(0),
+            ..Ctx::default()
         };
-        let opcode = match act {
-            ItemAct::Use(_) => 84,
-            ItemAct::Repair(_) => 48,
-            _ => 1186,
-        };
-        Self::send(out, opcode, ctx);
+        match act {
+            ItemAct::Equip(_) => Self::gear_action(out, 0, slot as i32),
+            ItemAct::Unequip(_) => Self::gear_action(out, 1, slot as i32),
+            ItemAct::Discard(_) => Self::gear_action(out, 2, slot as i32),
+            ItemAct::Use(_) => Self::send(out, 84, place),
+            _ => Self::send(out, 48, place),
+        }
         self.item_wait = Some(ItemWait { act, name, at: now });
+    }
+
+    /// c2s/1186: `action` 0 wears the item of bag slot `slot`, 1 takes off the one of gear slot `slot`, 2 throws the
+    /// item of bag slot `slot` away (12-skills-items.md#c2s-1186).
+    pub(super) fn gear_action(out: &mut Vec<Out>, action: i32, slot: i32) {
+        Self::send(
+            out,
+            1186,
+            Ctx {
+                action: Some(action),
+                slot: Some(slot),
+                ..Ctx::default()
+            },
+        );
     }
 
     /// Sắp xếp (I1): c2s/1257, and the server sends the whole bag again (s2c/1187), its items moved up over the empty

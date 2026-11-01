@@ -622,7 +622,7 @@ impl Bot {
                 format!("Kết thúc: thôi đi tới {name}"),
             ));
         }
-        self.smith_stop(out);
+        self.smith_stop(now, out);
         if surrender {
             self.surrender(now, out);
         }

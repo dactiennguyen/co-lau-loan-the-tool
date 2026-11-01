@@ -81,7 +81,8 @@ export interface Api {
   /** What Gộp đá would do on the bag as it is now; null without a bag. */
   mergeForecast(id: number, upTo: number, unlocked: boolean): Promise<MergeForecast | null>;
   /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
-  smithUpgrade(id: number, slot: number, careful: boolean, rate: number, toLevel: number, unlocked: boolean, quote: boolean): Promise<void>;
+  /** `worn`: `slot` is a gear slot; the bot takes the item off, upgrades it and wears it again. */
+  smithUpgrade(id: number, slot: number, careful: boolean, rate: number, toLevel: number, unlocked: boolean, quote: boolean, worn: boolean): Promise<void>;
   /** Tách đá of the item of bag slot `slot`. */
   smithSeparate(id: number, slot: number): Promise<void>;
   /** Chuyển hoá from bag slot `source` to bag slot `target`. */
@@ -159,8 +160,8 @@ const tauri: Api = {
   openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
   smithMerge: (id, upTo, unlocked) => invoke("smith_merge", { id, upTo, unlocked }),
   mergeForecast: (id, upTo, unlocked) => invoke("merge_forecast", { id, upTo, unlocked }),
-  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote) =>
-    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote }),
+  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn) =>
+    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn }),
   smithSeparate: (id, slot) => invoke("smith_separate", { id, slot }),
   smithTransmute: (id, source, target) => invoke("smith_transmute", { id, source, target }),
   transmuteTargets: (id, source) => invoke("transmute_targets", { id, source }),

@@ -370,6 +370,8 @@ export interface SmithRun {
   /** Nâng cấp: the item one level up, and the item as it is now. */
   preview: Item | null;
   item: Item | null;
+  /** Nâng cấp of a worn item: taken off for the task (so in the bag while it runs), worn again after. */
+  worn: boolean;
   spentXu: number;
   spentXuKhoa: number;
   spentLuong: number;
@@ -440,6 +442,8 @@ export interface Item {
   /** Its slot in the bag, or the gear slot. */
   slot: number;
   id: number;
+  /** The server's id of this one item, the same in the bag and in a gear slot. */
+  uuid: string;
   name: string;
   /** data/icons/i<icon>.webp; null when the table lacks the item. */
   icon: number | null;

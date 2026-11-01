@@ -115,7 +115,8 @@ impl Bot {
                 }
             }
             // The bag and the money are shown, never acted on: one that does not read is logged and left as it was.
-            // Also the answer to the c2s/42 a task of Pháp sư sends after each press (smith_bag).
+            // Also the answer to the c2s/42 a task of Pháp sư sends after each press, and the bag after it took a worn
+            // item off or put it on again (smith_bag).
             42 => {
                 match character_extra(payload) {
                     Ok(x) => s.bag = Some(x.bag),
@@ -237,13 +238,17 @@ impl Bot {
                 }
             }
             // The gear after Trang bị or Cởi ra; s2c/42 brings the bag, s2c/1186 the action.
-            37 => match gear_update(payload) {
-                Ok(g) => s.gear = g.gear,
-                Err(e) => out.push(Out::Log(
-                    LogKind::Item,
-                    format!("Không đọc được trang bị (s2c/37): {e}"),
-                )),
-            },
+            // A task of Pháp sư on a worn item reads it too (smith_worn).
+            37 => {
+                match gear_update(payload) {
+                    Ok(g) => s.gear = g.gear,
+                    Err(e) => out.push(Out::Log(
+                        LogKind::Item,
+                        format!("Không đọc được trang bị (s2c/37): {e}"),
+                    )),
+                }
+                self.smith_worn(now, out);
+            }
             1186 | 48 => {
                 let done = match (opcode, self.item_wait.as_ref().map(|w| w.act)) {
                     (1186, Some(ItemAct::Equip(_))) => Some("Đã mặc"),
@@ -266,6 +271,9 @@ impl Bot {
                 // The repair of Tự sửa đồ: the run goes on.
                 if opcode == 48 && self.repairing.take().is_some() {
                     self.timer = Some((now + Duration::from_millis(500), Wake::Next));
+                }
+                if opcode == 1186 {
+                    self.smith_worn(now, out);
                 }
             }
             46 => match currencies(payload) {

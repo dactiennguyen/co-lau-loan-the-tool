@@ -403,6 +403,7 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
         to_level: 4,
         unlocked: true,
         quote: false,
+        worn: false,
     };
     bot.smith(task, now, &mut out);
     let open = |bot: &mut Bot, out: &mut Vec<Out>| {
@@ -543,6 +544,7 @@ fn nang_cap_out_of_stones_under_the_rate_presses_nothing() {
             to_level: 4,
             unlocked: true,
             quote: false,
+            worn: false,
         },
         now,
         &mut out,
@@ -606,6 +608,7 @@ fn hoi_gia_says_the_price_and_odds_and_presses_nothing() {
             to_level: 4,
             unlocked: true,
             quote: true,
+            worn: false,
         },
         now,
         &mut out,
@@ -768,6 +771,7 @@ fn a_refusal_or_silence_ends_the_task_and_tach_da_reads_the_stones_it_gave() {
             to_level: 4,
             unlocked: true,
             quote: true,
+            worn: false,
         },
         now,
         &mut out,
@@ -925,4 +929,335 @@ fn every_shop_opens_down_its_path_and_buys_for_xu_xu_khoa_or_luong() {
         "{out:?}"
     );
     assert_eq!(bot.snapshot().shop.unwrap().items[0].ranges.len(), 1);
+}
+
+/// One item record (12-skills-items.md#bản-ghi-vật-phẩm): slot, item, uuid, +level, field1.
+fn record(w: Writer, slot: u8, id: i32, uuid: &str, plus: i32, f1: u8) -> Writer {
+    w.u8(slot)
+        .i32(id)
+        .string(uuid)
+        .i32(plus)
+        .i32(-1)
+        .i32(1)
+        .u8(f1)
+        .u8(255)
+        .i32(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+}
+/// s2c/42 holding (slot, item, uuid, +level, field1) items.
+fn bag_of(items: &[(u8, i32, &str, i32, u8)]) -> Vec<u8> {
+    let mut w = Writer::new()
+        .string("test dong 1")
+        .i32(42)
+        .i32(3)
+        .u8(2)
+        .i32(54)
+        .i32(items.len() as i32);
+    for &(slot, id, uuid, plus, f1) in items {
+        w = record(w, slot, id, uuid, plus, f1);
+    }
+    w.build()
+}
+/// s2c/37, the 8 gear slots: (gear slot, item, uuid, +level) worn, the others empty.
+fn gear_of(worn: &[(u8, i32, &str, i32)]) -> Vec<u8> {
+    let mut w = Writer::new().i32(0).u8(0x40).string("symap").i32(8);
+    for slot in 0..8u8 {
+        w = match worn.iter().find(|g| g.0 == slot) {
+            Some(&(_, id, uuid, plus)) => record(w, slot, id, uuid, plus, 0),
+            None => w.u8(0xff),
+        };
+    }
+    w.build()
+}
+fn worn_ring(rate: i32, to_level: i32) -> SmithTask {
+    SmithTask::Upgrade {
+        slot: 3,
+        careful: false,
+        rate,
+        to_level,
+        unlocked: false,
+        quote: false,
+        worn: true,
+    }
+}
+
+#[test]
+fn nang_cap_do_dang_mac_coi_ra_nang_roi_mac_lai() {
+    // Nhẫn Trơn +0 worn in gear slot 3, a locked Đá cấp 5 in bag slot 15.
+    let (mut bot, mut out, now) = symap(&[(15, 415, 0, 0)]);
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.smith(worn_ring(80, 1), now, &mut out);
+    assert!(
+        logged(&out, "Nâng cấp Nhẫn Trơn (đang mặc) tới +1"),
+        "{out:?}"
+    );
+    assert!(
+        logged(&out, "Cởi Nhẫn Trơn (ô trang bị 3) ra túi để nâng cấp"),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 1186), ["0100000003"], "Cởi ra, gear slot 3");
+    assert!(sent(&out, 13).is_empty(), "not to Pháp sư before it is off");
+
+    // Taken off: s2c/37 without it, s2c/42 with it in bag slot 20.
+    out.clear();
+    bot.on_packet(37, &gear_of(&[]), now, &mut out).unwrap();
+    bot.on_packet(
+        42,
+        &bag_of(&[(15, 415, "stone", 0, 0), (20, 306, "ring", 0, 0)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(logged(&out, "Đã cởi Nhẫn Trơn (ô túi 21)"), "{out:?}");
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+
+    // The window, the ring of bag slot 20, the stone (80%), Bắt đầu.
+    out.clear();
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu(
+            "Pháp sư",
+            &[
+                "Nâng cấp [Thường]",
+                "Nâng cấp [Cẩn thận]",
+                "Chuyển hoá trang bị",
+            ],
+        ),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        96,
+        &captured("serviceWindow", "title", "Nâng cấp [thường]".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(sent(&out, 97), [tohex(&npc::put_request(20))]);
+    let price = "Cần: 19 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 80%";
+    for answer in [
+        slot90(
+            true,
+            20,
+            "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+            false,
+        ),
+        slot90(false, 15, price, true),
+    ] {
+        out.clear();
+        bot.on_packet(90, &answer, now, &mut out).unwrap();
+    }
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
+
+    // It worked; the bag again: the ring +1 in slot 20, the stone gone. It is worn again.
+    out.clear();
+    bot.on_packet(
+        91,
+        &captured("serviceResult", "ok", true.into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(42, &bag_of(&[(20, 306, "ring", 1, 0)]), now, &mut out)
+        .unwrap();
+    assert!(logged(&out, "Mặc lại Nhẫn Trơn (ô túi 21)"), "{out:?}");
+    assert_eq!(sent(&out, 1186), ["0000000014"], "Mặc, bag slot 20");
+    assert!(
+        bot.snapshot().smith.unwrap().done.is_none(),
+        "not over before it is worn"
+    );
+
+    out.clear();
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 1)]), now, &mut out)
+        .unwrap();
+    bot.on_packet(42, &bag_of(&[]), now, &mut out).unwrap();
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn (đang mặc) tới +1: Nhẫn Trơn đã +1; đã mặc lại Nhẫn Trơn (1 lần, tốn 19 Xu khóa)"
+        ),
+        "{out:?}"
+    );
+    let run = bot.snapshot().smith.unwrap();
+    assert_eq!((run.steps, run.ok, run.spent_xu_khoa), (1, 1, 19));
+    assert_eq!(bot.deadline(), None);
+}
+
+#[test]
+fn nang_cap_do_dang_mac_tui_day_thi_khong_coi_va_dung_thi_van_mac_lai() {
+    // A full bag (54 of 54): nothing is taken off.
+    let full: Vec<(u8, i32, i32, u8)> = (0..54).map(|s| (s, 415, 0, 0)).collect();
+    let (mut bot, mut out, now) = symap(&full);
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.smith(worn_ring(100, 4), now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Chưa Nâng cấp Nhẫn Trơn (đang mặc) tới +4: túi đồ đầy: cần 1 ô trống để cởi món ra nâng cấp"
+        ),
+        "{out:?}"
+    );
+    assert!(sent(&out, 1186).is_empty());
+
+    // Dừng while it is being taken off: once it is in the bag, it is worn again and the task ends.
+    let (mut bot, mut out, now) = symap(&[(15, 415, 0, 0)]);
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    bot.smith(worn_ring(100, 4), now, &mut out);
+    out.clear();
+    bot.stop(false, now, &mut out);
+    assert!(
+        sent(&out, 1186).is_empty(),
+        "waits for the answer of Cởi ra"
+    );
+    bot.on_packet(37, &gear_of(&[]), now, &mut out).unwrap();
+    bot.on_packet(
+        42,
+        &bag_of(&[(15, 415, "stone", 0, 0), (7, 306, "ring", 0, 0)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(sent(&out, 13).is_empty(), "not to Pháp sư after Dừng");
+    assert_eq!(sent(&out, 1186), ["0000000007"], "Mặc, bag slot 7");
+    out.clear();
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    bot.on_packet(42, &bag_of(&[(15, 415, "stone", 0, 0)]), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn (đang mặc) tới +4: Đã dừng; đã mặc lại Nhẫn Trơn"
+        ),
+        "{out:?}"
+    );
+}
+
+/// From the bag after Cởi ra (the ring in bag slot 20, a Đá cấp 5 in 15) to Bắt đầu and its result: the bot then asks for
+/// the bag (c2s/42, Stage::Refresh).
+fn upgrade_ring_in_slot_20(bot: &mut Bot, out: &mut Vec<Out>, now: Instant) {
+    bot.on_packet(57, &root(), now, out).unwrap();
+    bot.on_packet(
+        57,
+        &menu(
+            "Pháp sư",
+            &[
+                "Nâng cấp [Thường]",
+                "Nâng cấp [Cẩn thận]",
+                "Chuyển hoá trang bị",
+            ],
+        ),
+        now,
+        out,
+    )
+    .unwrap();
+    bot.on_packet(
+        96,
+        &captured("serviceWindow", "title", "Nâng cấp [thường]".into()),
+        now,
+        out,
+    )
+    .unwrap();
+    let price = "Cần: 19 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 80%";
+    for answer in [
+        slot90(
+            true,
+            20,
+            "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+            false,
+        ),
+        slot90(false, 15, price, true),
+    ] {
+        bot.on_packet(90, &answer, now, out).unwrap();
+    }
+    bot.on_packet(91, &captured("serviceResult", "ok", false.into()), now, out)
+        .unwrap();
+}
+
+#[test]
+fn nang_cap_do_dang_mac_chi_tin_o_trang_bi_va_tui_that() {
+    let (mut bot, mut out, now) = symap(&[(15, 415, 0, 0)]);
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    bot.smith(worn_ring(80, 4), now, &mut out);
+
+    // A notice while Cởi ra waits ends nothing; the gear and the bag of Cởi ra go on with the upgrade.
+    out.clear();
+    bot.on_packet(
+        1256,
+        &notice("Bạn vừa nhận được 137 Xu khóa"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(bot.snapshot().smith.unwrap().done.is_none(), "{out:?}");
+    bot.on_packet(37, &gear_of(&[]), now, &mut out).unwrap();
+    assert!(
+        sent(&out, 13).is_empty(),
+        "the bag has not shown the ring yet"
+    );
+    bot.on_packet(
+        42,
+        &bag_of(&[(15, 415, "stone", 0, 0), (20, 306, "ring", 0, 0)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+
+    // Failed at 80%; Dừng while the bag of that press is on its way: Mặc goes out at once.
+    out.clear();
+    upgrade_ring_in_slot_20(&mut bot, &mut out, now);
+    assert!(
+        logged(&out, "Nâng cấp thất bại: Nhẫn Trơn còn +0"),
+        "{out:?}"
+    );
+    out.clear();
+    bot.stop(false, now, &mut out);
+    assert_eq!(sent(&out, 1186), ["0000000014"], "Mặc, bag slot 20");
+    // The bag of the press comes then, the ring still in it: that is no answer to Mặc.
+    bot.on_packet(42, &bag_of(&[(20, 306, "ring", 0, 0)]), now, &mut out)
+        .unwrap();
+    assert!(bot.snapshot().smith.unwrap().done.is_none(), "{out:?}");
+    // Mặc: the ring is back in gear slot 3.
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn (đang mặc) tới +4: Đã dừng; đã mặc lại Nhẫn Trơn (1 lần, tốn 19 Xu khóa)"
+        ),
+        "{out:?}"
+    );
+
+    // Cởi ra refused: the ring never moves, and the task ends on the server's words after SMITH_WAIT.
+    let (mut bot, mut out, now) = symap(&[(15, 415, 0, 0)]);
+    bot.on_packet(37, &gear_of(&[(3, 306, "ring", 0)]), now, &mut out)
+        .unwrap();
+    bot.smith(worn_ring(80, 4), now, &mut out);
+    bot.on_packet(1256, &notice("Không thể thực hiện"), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_timer(now + Duration::from_secs(9), &mut out);
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn (đang mặc) tới +4: không cởi được Nhẫn Trơn: Không thể thực hiện"
+        ),
+        "{out:?}"
+    );
+    assert!(
+        sent(&out, 1186).is_empty(),
+        "still worn: nothing to wear again"
+    );
+    assert_eq!(bot.deadline(), None);
 }

@@ -27,6 +27,8 @@
 //              --transmute=SRC:DST | --exchange=OPT:TIMES] --confirm
 //                                                       Gộp đá, Nâng cấp, Tách đá, Chuyển hoá, Đổi lượng: spends money
 //                                                       and stones; without --confirm only what it would do is printed
+//                                                       --worn: SLOT of --quote, --upgrade is a gear slot; the item is
+//                                                       taken off, upgraded, then worn again
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
 // --account=NAME also finds the one of .env when the file lacks it, and CLLT_USERNAME/CLLT_PASSWORD of the process
 // environment come first of all.
@@ -107,6 +109,7 @@ fn slug(text: &str) -> String {
 fn smith_task(
     arg: &dyn Fn(&str) -> Option<String>,
     careful: bool,
+    worn: bool,
 ) -> Result<Option<SmithTask>, String> {
     let int = |k: &str| -> Result<Option<i32>, String> {
         arg(k)
@@ -141,6 +144,7 @@ fn smith_task(
             to_level: 16,
             unlocked: true,
             quote: true,
+            worn,
         }));
     }
     if let Some(slot) = slot("upgrade")? {
@@ -151,6 +155,7 @@ fn smith_task(
             to_level: int("to")?.unwrap_or(4),
             unlocked: false,
             quote: false,
+            worn,
         }));
     }
     if let Some(up_to) = int("merge")? {
@@ -170,7 +175,7 @@ fn smith_task(
     Ok(pair("exchange")?.map(|(option, times)| SmithTask::Exchange { option, times }))
 }
 
-/// The stones (by level, locked or not) and the gear (+level) of the bag, for `cllt smith`.
+/// The stones (by level, locked or not), the gear (+level) of the bag and the gear worn, for `cllt smith`.
 fn stones_and_gear(s: &Snapshot) -> Vec<String> {
     let Some(bag) = &s.bag else {
         return vec!["Chưa có túi đồ".into()];
@@ -190,6 +195,18 @@ fn stones_and_gear(s: &Snapshot) -> Vec<String> {
             gear.push(format!("ô {} {} +{}{lock}", i.slot, name, i.field0));
         }
     }
+    let worn: Vec<String> = s
+        .gear
+        .iter()
+        .flatten()
+        .filter(|i| b.get(i.item_id).is_some_and(|d| d.kind <= 4))
+        .map(|i| {
+            let name = b
+                .get(i.item_id)
+                .map_or_else(|| format!("#{}", i.item_id), |d| d.name.clone());
+            format!("ô {} {} +{}", i.slot, name, i.field0)
+        })
+        .collect();
     let stones: Vec<String> = (1..13)
         .filter(|&l| counts[l][0] + counts[l][1] > 0)
         .map(|l| {
@@ -218,6 +235,13 @@ fn stones_and_gear(s: &Snapshot) -> Vec<String> {
                 "không có".into()
             } else {
                 gear.join("; ")
+            }
+        ),
+        format!(
+            "Đang mặc (ô trang bị, cho --worn): {}",
+            match worn.is_empty() {
+                true => "không có".into(),
+                false => worn.join("; "),
             }
         ),
     ]
@@ -410,7 +434,8 @@ fn main() {
     let confirm = args.iter().any(|a| a == "--confirm");
     let fight = command == Some("fight") || quest;
     let smith = command == Some("smith");
-    let smith_task = match smith_task(&arg, args.iter().any(|a| a == "--careful")) {
+    let flag = |f: &str| args.iter().any(|a| a == f);
+    let smith_task = match smith_task(&arg, flag("--careful"), flag("--worn")) {
         Ok(t) => t,
         Err(e) if smith => {
             eprintln!("{e}");
