@@ -266,7 +266,34 @@ Cẩm nang (C1):
 - Mỗi lần lên cấp nhận 4 điểm tiềm năng, 1 điểm kỹ năng và tự cộng 1 Thể Lực.
 - Chỉ số chính tăng Tấn Công: hệ Hỏa là Cường Lực, hệ Lôi là Thân Pháp, hệ Thủy là Nội Lực. Nick thứ hai (hệ Thủy) lại khởi đầu với Thân Pháp 20 (`stats` `[10, 20, 10, 11]`), nên chỉ số khởi đầu không phải chỉ số chính. [Đo]
 - Thân Pháp tăng P.Thủ, Chính Xác, Né Tránh và Chí Mạng. Thể Lực tăng Sinh Lực và lượng máu Tim hồi. Cường Lực và Nội Lực giúp Đào và Âm dương nạp nhiều hơn.
-- Đo được (31/10): **HP gốc = 6 × Thể Lực**. manina Thể Lực 30 → 180, cấp 22 (Thể Lực 31) → 186; Tiheo2 Thể Lực 25 → 150. Nón Âu Lạc cộng thêm 58. **Tấn Công = Cường Lực** ở manina (hệ Hỏa): cả hai bằng 32 từ cấp 8 tới 22. Mô phỏng các cách cộng 71 điểm của manina ở [07-auto-battle](07-auto-battle.md#cộng-điểm). [Đo]
+- Đo được (31/10): HP gốc của manina bằng 6 × Thể Lực (Thể Lực 30 → 180, cấp 22 với Thể Lực 31 → 186), và Tấn Công bằng Cường Lực (cả hai là 32 từ cấp 8 tới 22). F2 (01/11) cho thấy hai điều này chỉ đúng với hệ Hỏa; xem bảng dưới. [Đo]
+
+<a id="chỉ-số-theo-tiềm-năng"></a>
+
+**Chỉ số theo tiềm năng (F2, 01/11).** Bảng này rút từ 66 lần chụp chỉ số ở đầu các trận đã ghi: điểm tiềm năng, đồ đang mặc, và năm chỉ số của `s2c/9` hoặc `s2c/10` kiểu 4. Có ba nhân vật: manina (Hỏa), Ttuananh (Thủy), wangpt (Lôi). Script là `captures/f2-2026-11-01/stats.py`. [Đo]
+
+Cường Lực, Thân Pháp, Nội Lực, Thể Lực dưới đây đã gồm cả phần đồ cộng (mã chỉ số 1, 3, 2, 4 của đồ). "Đồ" là phần đồ cộng thẳng vào chỉ số đó: sức tấn công (5), phòng thủ (6), né tránh (7), % chí mạng (8), sinh lực (9), chính xác (16).
+
+| Chỉ số | Hỏa | Thủy | Lôi |
+|---|---|---|---|
+| Tấn công | Cường Lực + đồ | ⌊1,3 × Nội Lực⌋ + đồ | ≈ 0,8125 × Thân Pháp + 3,5 + đồ (lệch ≤1) |
+| HP tối đa | 6 × Thể Lực + đồ | 5 × Thể Lực + đồ | 4 × Thể Lực + đồ |
+| P.Thủ | ⌊Thân Pháp / 2⌋ + đồ | như Hỏa | như Hỏa |
+| Chính xác | 3 × Thân Pháp | 2 × Thân Pháp | 3 × Thân Pháp |
+| Né tránh | 2 × Thân Pháp | 3 × Thân Pháp | ⌊1,5 × Thân Pháp⌋ |
+| Chí mạng | ⌊5 + Thân Pháp / 9⌋ + đồ | ⌊5 + Thân Pháp / 8⌋ + đồ | ⌊5 + Thân Pháp / 8⌋ + đồ |
+
+- Ví dụ: manina cấp 34 có Cường Lực 151, Thân Pháp 11 + 34 của đồ, sức tấn công 29 của đồ. Tấn công là 180, P.Thủ 22 + 11 = 33, Chính xác 135, Né tránh 90.
+- Ví dụ: wangpt cấp 39 có Thể Lực 48 và sinh lực 200 của đồ, nên HP là 4 × 48 + 200 = 392.
+- Món có độ bền 0 không cộng gì. Ví dụ Ttuananh cấp 22–25 hỏng vũ khí (Nội Lực −10, sức tấn công −9), Tấn công tụt từ 94 xuống 77. [Đo]
+- Số cũ "Tiheo2 Thể Lực 25 → HP 150" (nhân 6) không khớp với hệ Thủy. Ttuananh (Tiheo2) ở cả 20 lần chụp đều khớp 5 × Thể Lực, ví dụ cấp 18 chưa mặc đồ: Thể Lực 32, HP 160. [Đo]
+- Một viên nạp bao nhiêu, đo theo hàng 3 viên: [Đo; công thức là Suy luận]
+  - Tim hồi khoảng 0,35 × Thể Lực HP, ở cả ba hệ. manina Thể Lực 31 hồi 11, Thể Lực 42 hồi 15.
+  - Đào nạp khoảng 12,4 + Cường Lực / 10,3 sức mạnh: Cường Lực 27 nạp 15, Cường Lực 151 nạp 27.
+  - Âm dương nạp khoảng 1,86 × √Nội Lực nội lực: Nội Lực 10 nạp 6, Nội Lực 104 nạp 19.
+
+  Đây là điều cẩm nang nói: Thể Lực tăng máu tim hồi, Cường Lực và Nội Lực giúp đào và âm dương nạp nhiều hơn.
+- Mô phỏng các cách cộng điểm với các công thức này ở [07-auto-battle](07-auto-battle.md#cộng-điểm).
 - Tẩy Tủy Đan trả lại toàn bộ điểm tiềm năng đã cộng; Tẩy Kinh Đan trả lại toàn bộ điểm kỹ năng.
 
 **Bot TS**: không có `--stats` thì bot chỉ cộng 1 điểm vào Cường Lực ở bước "Nâng điểm tiềm năng". Có `--stats` thì bot cộng hết điểm theo lựa chọn ([quest-bot](../../integration/nodejs/quest-bot.md#chạy)):

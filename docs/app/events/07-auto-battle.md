@@ -22,10 +22,11 @@ Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bướ
 | Có những kiểu trận nào? | **Theo lượt** (`s2c/18` byte 4 = 0: quái đi trước, mỗi lượt có `s2c/24`) và **tính giờ** (= 1, Sơn Tặc: người chơi đi liên tục, quái đánh mỗi ~30 s qua `s2c/21`). | [05-battle](05-battle.md#trận-tính-giờ) [Đo Q6–Q12] |
 | Người chơi dùng kỹ năng được không? | **Được**: `c2s/20 (uuid, seq, skillId)`, Hỏa Cầu Thuật gây 62. | [05-battle](05-battle.md#c2s-20) [Đo Q9] |
 | Cách nhanh nhất? | Trận tính giờ, 0,5 s/nước, dùng kỹ năng: ~500 EXP/phút. | [10-quests](10-quests.md#đánh-nhanh-hay-ăn-sao) [Đo] |
-| Sát thương tính thế nào? | Nước thường: `W × số kiếm ăn được`, gấp đôi khi thanh sức mạnh đầy. Kỹ năng: `W × (3 + số kiếm nó phá) + K`. `W` là sát thương một viên kiếm của bên đánh với bên bị đánh. | [Công thức sát thương](#công-thức-sát-thương) [Đo, 128 lần dùng kỹ năng] |
+| Sát thương tính thế nào? | Nước thường: `W × số kiếm ăn được`, gấp đôi khi thanh sức mạnh đầy. Kỹ năng: `W × (3 + số kiếm nó phá) + K`. `W` là một phần ba của `Tấn công × (1 + 0,0175 × chênh cấp) × 200 / (200 + P.Thủ bên bị đánh)`. | [Công thức sát thương](#công-thức-sát-thương), [W theo chỉ số](#công-thức-theo-chỉ-số) [Đo, 176 nhóm đòn của 1033 trận] |
 | Quái chọn nước thế nào? | Không chọn nước tốt nhất. Nó bốc thăm, nghiêng về nước ăn tim, kiếm, âm dương, nước được thêm lượt và nước nó gặp đầu tiên khi quét bàn. Có đủ nội lực thì một nửa số lượt nó dùng kỹ năng. | [Cách quái chọn nước](#cách-quái-chọn-nước) [Đo, 1011 nước] |
 | Bot đánh bằng thuật toán nào? | `--goal=win` (thắng nhiều nhất) hoặc `--goal=farm` (nhiều EXP nhất), thuật toán v2. Trên mô phỏng đã khớp trận thật, v2 thắng thêm 10% số trận mỗi giờ và `farm` thêm 33% EXP mỗi giờ so với cách cũ. | [Thuật toán v2](#thuật-toán-v2) [Mô phỏng] |
 | Bot có tự dùng kỹ năng, hồi máu, bình không? | **Có** (v3). Mỗi lượt bot so nước đổi chỗ, từng kỹ năng đã học đủ nội lực, và bình nếu được phép, tính hết ra HP. Hiệu ứng đọc từ mô tả kỹ năng trong `s2c/30` (cả 540 mô tả). Nội lực tiêu đi bị trừ đúng giá trị của nó, nên kỹ năng chỉ được dùng khi lượt này có lợi hơn để dành. Trên mô phỏng v3 thắng thêm 1,1–1,4 trận mỗi giờ so với v2. Chạy thật thắng 13/13 trận. | [Chọn hành động](#chọn-hành-động) [Mô phỏng; Đo A2] |
+| Nên cộng điểm tiềm năng vào đâu? | Tuỳ hệ. Theo mô phỏng với công thức F2 (01/11): manina (Hỏa) nên cộng Nội Lực, vì nội lực đang nạp quá chậm; Ttuananh (Thủy) chia đôi Nội Lực và Thể Lực; wangpt (Lôi) giữ Thân Pháp. | [Cộng điểm theo chỉ số](#cộng-điểm-f2) [Mô phỏng] |
 | Nên cộng điểm kỹ năng nào? | Kỹ năng gốc (Băng Tiễn, Hỏa Cầu) trước: nó cho nhiều sát thương nhất trên mỗi điểm nội lực. Tiheo2 nâng Băng Tiễn lên cấp 4 thì thắng thêm khoảng 13% trận mỗi giờ với quái khó. Hồi 11–12% máu gần như không được dùng. | [Kỹ năng và điểm kỹ năng](#chọn-hành-động) [Mô phỏng] |
 
 ## Online hay offline
@@ -180,8 +181,54 @@ Kỹ năng:      W × (3 + S) × 2 nếu sức mạnh = 100  +  K
 | 3 | 8 (được lại 17) | 2 |
 
   Một hàng 3 âm dương rơi theo chuỗi chỉ cho 6. Quái cũng vậy: Cóc Xanh được lại 8–10 cho 1 viên bị phá. Hệ quả: kỹ năng phá nhiều ô còn hồi nội lực, nên thuật toán phải tính phần này. [Đo]
-- `W` theo chỉ số: trong mọi trace, Tấn công của manina luôn là 32, từ cấp 8 tới cấp 21. `W` chỉ đổi theo cấp, ví dụ đòn 3 kiếm đánh Sơn Tặc = 26 + ⌊cấp/2⌋. Vì vậy chưa tách được phần do Tấn công. Cần ít nhất một trận với Tấn công khác: nhân vật khác (Tiheo2), hoặc mặc đồ cộng Tấn công. Trace P3/P4 của symap không có trận nào. [Đo]
-- Chưa rõ: `W` đổi theo Tấn công / Phòng thủ thế nào, và `K` ở kỹ năng cấp 2, 3 (mô tả ghi 19, …). [Chưa rõ]
+- `W` theo chỉ số: đến 31/10, Tấn công của manina luôn là 32, nên chưa tách được phần do Tấn công. F2 (01/11) đã tách được nhờ 847 trận của app với ba nhân vật: xem [W theo chỉ số](#công-thức-theo-chỉ-số) ngay dưới. `K` đúng như mô tả ở mọi cấp kỹ năng đã dùng (tới cấp 8). [Đo]
+
+<a id="công-thức-theo-chỉ-số"></a>
+
+### W theo chỉ số (F2, 01/11)
+
+Dữ liệu là 1033 trận đã ghi (`npm run battles`): 847 trận app chơi bằng v3 từ 19h ngày 31/10 tới 21h ngày 01/11, cộng các trace bot TS. Có ba nhân vật: Ttuananh (Thủy) cấp 18–34, manina (Hỏa) cấp 8–34, wangpt (Lôi) cấp 25–39. Tấn công từ 32 tới 180, P.Thủ từ 5 tới 85, đánh 18 loại quái. Script nằm ở `captures/f2-2026-11-01/` (`hits.py`, `fit.py`, `rates.py`, `missfit.py`, `gains.py`, `mobs.py`), chỉ có trên máy.
+
+```text
+Đòn 3 kiếm  H = Tấn công × (1 + 0,0175 × (cấp bên đánh − cấp bên bị đánh)) × 200 / (200 + P.Thủ bên bị đánh)
+W = H / 3;  n kiếm ≈ n × W;  kỹ năng = W × (3 + S) + K như trên
+```
+
+- **Cách khớp:** nhóm các đòn 3 kiếm không gấp đôi theo cặp (bên đánh với Tấn công và cấp, bên bị đánh với P.Thủ và cấp), rồi lấy giá trị hay gặp nhất của mỗi nhóm. Cách này bỏ được chí mạng và đánh hụt. Có 94 nhóm mình đánh quái và 82 nhóm quái đánh mình. Mỗi quái có một Tấn công và một P.Thủ riêng, khớp cùng lúc với hai hệ số chung. [Đo]
+- **Độ khớp:** công thức trên lệch trung bình 0,68 sát thương, với đòn từ 10 tới 200. [Đo]
+  - Thay phần P.Thủ bằng `1 − P.Thủ/292`: lệch 0,72.
+  - Tính cấp theo tỉ lệ `(38 + cấp bên đánh) / (38 + cấp bên bị đánh)`: lệch 0,96.
+  - Trừ thẳng P.Thủ khỏi Tấn công: lệch 15.
+- **Ví dụ:**
+  - Ttuananh, Tấn công 160, cấp 34, đánh Cá Sấu cấp 31: đòn 3 kiếm 150. Công thức cũ `Tấn công + ⌊cấp/2⌋ − 6` cho 171.
+  - manina, Tấn công 158, cấp 32: đòn 3 kiếm đánh Sơn Tặc 9, Cua Càng 15, Hỏa Hầu 29, Cá Sấu 31, Cóc Tía 35 lần lượt là 201, 185, 152, 144, 130.
+  - Cá Sấu cấp 31 đánh manina (P.Thủ 24, cấp 29): 100. Đánh wangpt (P.Thủ 81, cấp 37): 68.
+
+  Mỗi cấp chênh làm đòn đổi 1,75%. Một điểm P.Thủ bớt khoảng 0,4% đòn của quái. [Đo]
+- **Tấn công không chỉ là Cường Lực**: mỗi hệ một chỉ số chính, hệ số khác nhau, và đồ cộng thêm ([Điểm tiềm năng](12-skills-items.md#điểm-tiềm-năng)). [Đo]
+- **Chí mạng ×1,5 chỉ có ở mình**: quái không chí mạng lần nào trong 1644 đòn kiếm của chúng. Tỉ lệ chí mạng của mình xấp xỉ chỉ số Chí mạng tính theo %: manina (6–10) 4–7%, Ttuananh (9–10) khoảng 10%, wangpt (12–23) 12–25%. [Đo]
+- **Đánh hụt** (kiếm gây 0) khớp với `1 / (1 + e^(−(Né tránh bên bị đánh − Chính xác bên đánh) / 130))`, mỗi quái có Né tránh và Chính xác riêng. [Đo; mô hình là Suy luận]
+  - Mình đánh hụt 4% với wangpt (Chính xác 177–369), 7,5% với manina, 12% với Ttuananh (Chính xác 64).
+  - Quái đánh hụt mình 16–28%. Hỏa Hầu đánh hụt wangpt 22% khi Né tránh 88 và 31–35% khi Né tránh 118–130.
+- Khoảng 12% số đòn cao hơn giá trị hay gặp 2–3% (140 → 144, 89 → 91, 78 → 80), ở mọi số kiếm và không theo thanh sức mạnh. Có thể là ngẫu nhiên, hoặc là "đánh xuyên giáp". [Chưa rõ]
+- `K` của kỹ năng vẫn đúng ở cấp cao: Băng Tiễn cấp 6, Xích Lôi Công cấp 5–8, Bách Lôi Uy Vũ cấp 4, Tuyết Sơn Áp Đỉnh cấp 4 đều khớp `W × (3 + S) + K` ở 60–75% số lần. 10–20% số lần mất `K`, còn lại là chí mạng. [Đo]
+- Bot vẫn ước `W` ban đầu bằng `Tấn công + ⌊cấp/2⌋ − 6` (`swordPrior` trong [battle-actions.ts](../../../src/battle/battle-actions.ts) và bản Rust), rồi học `W` thật sau vài nước. Chưa đổi sang công thức mới. [Đo code]
+
+Thông số quái khớp được (Tấn công và P.Thủ theo công thức trên; tim tính bằng HP mỗi viên):
+
+| Quái | Cấp | HP | Tấn công | P.Thủ | Tim mỗi viên | EXP mỗi trận thắng |
+|---|---:|---:|---:|---:|---:|---:|
+| Kẻ Quấy Phá | 20 | 526 | 50 | 19 | 9,7 | 162 |
+| Chim Điên | 25 | 491 | 35 | 28 | 13 | 212 |
+| Hỏa Hầu | 29 | 766 | 69 | 19 | 13,7 | 271 |
+| Cá Sấu | 31 | 577 | 109 | 24 | 12 | 264 |
+| Cóc Tía | 35 | 661 | 126 | 30 | 13,7 | 333 |
+| Thỏ Hồng | 39 | 755 | 154 | 29 | 15,3 | 383 |
+| Huyết Lang | 40 | 1080 | 107 | 29 | 19 | 425 |
+| Heo Lửa (4 trận) | 46 | 1270 | 132 | 39 | 21,7 | 532 |
+| Hào Trưởng phía Bắc / Nam (boss) | 21 | 20.000 | 94–96 | 38–39 | 0 | |
+
+Hai boss Hào Trưởng có 20.000 HP: thua cả 13/13 trận là do HP, không phải do thuật toán.
 
 <a id="đo-trên-máy-a1"></a>
 
@@ -531,6 +578,8 @@ Thông số đo được (script `plan/replay-any.ts`, `plan/calib.ts` trong scr
 
 ### Cộng điểm tiềm năng và kỹ năng cho manina (mô phỏng, 31/10)
 
+> Mô hình ở mục này đã cũ. F2 (01/11) đo được rằng Tấn công, HP và `W` tính khác với giả định dưới đây: [W theo chỉ số](#công-thức-theo-chỉ-số). Kết quả mới ở [Cộng điểm theo chỉ số](#cộng-điểm-f2). Thực tế cả ba nick đã cộng mọi điểm vào chỉ số chính, đúng như mục này đề xuất.
+
 Mô hình chỉ số rút từ số đo:
 - **Tấn công = Cường Lực** với hệ Hỏa: manina có cả hai bằng 32, không đổi từ cấp 8 tới 22 ([12-skills-items](12-skills-items.md#điểm-tiềm-năng)). [Đo, 1 nhân vật]
 - **Đòn 3 kiếm tăng khoảng 1 cho mỗi điểm Tấn công**: Tiheo2 (23) và manina (32) chênh 9 Tấn công thì chênh 10 sát thương ([A1](#đo-trên-máy-a1)). Mô phỏng coi `W = (Tấn công + ⌊cấp/2⌋ − 6 − phần của quái) / 3` đúng cả khi Tấn công lên gấp 3. Đây là chỗ yếu nhất của mô hình. [Suy luận]
@@ -554,6 +603,78 @@ Script `plan/run-plan.ts` trong scratchpad (dùng `sim2.ts`, bot v3, HP mang san
 - Cường Lực cho nhiều trận thắng nhất: gấp 2,3 lần với Cóc Xanh, 5 lần với Kẻ Quấy Phá. Thêm Thể Lực bớt trận thua nhưng bớt cả trận thắng. [Mô phỏng]
 - **Điểm kỹ năng:** ở cấp 22 chỉ học thêm được Hỏa Cầu Thuật cấp 5 (1 điểm), Hỏa Kiếm Thuật tới cấp 3, Liệt Hỏa Chi Kiếm và Thiên Hỏa Kích tới cấp 3 (2 điểm mỗi cấp). Mọi tổ hợp 15 điểm cho kết quả y như chỉ nâng Hỏa Cầu Thuật cấp 5. Bot không bao giờ dùng các kỹ năng 50 nội lực: nội lực vừa đủ 25 là Hỏa Cầu Thuật đã đáng dùng hơn (khoảng 92 sát thương cho 25 nội lực, Liệt Hỏa Chi Kiếm cấp 3 khoảng 112 cho 50). [Mô phỏng]
 - Cách làm an toàn: cộng một phần Cường Lực trước (ví dụ 21, Tấn công 53), đánh khoảng 10 trận để đo `W` mới (dự đoán đòn 3 kiếm vào Kẻ Quấy Phá ≈ 50). Nếu khớp thì cộng phần còn lại. Cộng điểm thì không lấy lại được, trừ khi dùng Tẩy Tủy Đan. Chưa cộng điểm nào.
+
+<a id="cộng-điểm-f2"></a>
+
+### Cộng điểm theo chỉ số (mô phỏng F2, 01/11)
+
+Mô phỏng v2 được chuyển sang `captures/f2-2026-11-01/sim/` và dùng mọi công thức của F2:
+- chỉ số tính từ tiềm năng và đồ ([bảng](12-skills-items.md#chỉ-số-theo-tiềm-năng));
+- `W` của cả hai bên ([W theo chỉ số](#công-thức-theo-chỉ-số));
+- đánh hụt theo Né tránh và Chính xác, chí mạng bằng Chí mạng %;
+- tim, đào, âm dương nạp theo Thể Lực, Cường Lực, Nội Lực;
+- thông số quái lấy từ bảng ở trên.
+
+Bot là v3, chơi như app (`win`, không dùng bình). HP mang sang trận sau, giống app: chỉ 39% số trận thật bắt đầu với máu đầy. Các file: `model.ts` (mô hình), `calib.ts` (đối chiếu), `plan.ts` và `robust.ts` (kế hoạch).
+
+**Đối chiếu với trận thật** (`calib.ts`): lấy 28 nhóm (nick, cấp, quái) có từ 12 trận thật trở lên, mỗi nhóm cho chơi 40 trận mô phỏng. Tỉ lệ thắng lệch trung bình 6,9 điểm %, và mô phỏng lạc quan hơn thật trung bình khoảng 4 điểm. Phần lớn độ lệch nằm trong sai số của 12–42 trận thật mỗi nhóm. Ví dụ: [Mô phỏng]
+
+| Nhóm | Thật | Mô phỏng |
+|---|---:|---:|
+| Ttuananh cấp 33 với Cá Sấu | 74% (38 trận) | 80% |
+| manina cấp 33 với Cá Sấu | 59% (41 trận) | 63% |
+| wangpt cấp 35 với Cá Sấu | 76% (42 trận) | 80% |
+| wangpt cấp 32 với Hỏa Hầu | 96% (24 trận) | 93% |
+
+**Cách so:** mỗi nick ở cấp hiện tại được thêm 20 điểm tiềm năng (5 cấp) vào một chỗ, rồi đánh liên tục 2 giờ với mỗi quái (`plan.ts`). Các phương án sát nhau được chạy lại 3 giờ với hạt ngẫu nhiên khác (`robust.ts`). EXP mỗi giờ tính bằng số trận thắng × EXP mỗi trận thắng, trừ số trận thua × 2 × cấp. Lượng EXP mất khi thua là ước lượng, vì bản ghi trận không có số này. Hai lần chạy lệch nhau khoảng 10% ở cùng một ô, nhưng thứ hạng các phương án giữ nguyên. [Mô phỏng]
+
+Số là EXP mỗi giờ (nghìn). Ô có hai số là lần chạy 2 giờ / lần chạy 3 giờ với hạt khác; ô một số chỉ có lần chạy đầu. Trong ngoặc là số trận thua mỗi giờ, lấy từ lần chạy sau nếu có.
+
+| manina (Hỏa, cấp 34, Tấn công 180, HP 316) | Cá Sấu 31 | Cóc Tía 35 | Huyết Lang 40 |
+|---|---|---|---|
+| Như hiện tại | 23,1 / 25,9 (42) | 19,8 / 21,7 (68) | 18,6 / 19,1 (44) |
+| +20 Cường Lực (chỉ số chính) | 25,4 / 28,0 (45) | 22,8 / 25,2 (65) | 23,1 / 22,8 (42) |
+| **+20 Nội Lực** | **28,7 / 31,0** (40) | **27,8 / 27,1** (66) | **24,9 / 26,6** (41) |
+| +10 Nội Lực, +10 Thể Lực | – / 29,2 (35) | – / 27,5 (56) | – / 24,9 (34) |
+| +20 Thể Lực | 27,3 / 28,9 (29) | 23,9 / 25,9 (50) | 23,0 / 24,6 (26) |
+| +20 Thân Pháp | 25,3 (40) | 21,2 (66) | 22,4 (37) |
+
+| Ttuananh (Thủy, cấp 34, Tấn công 160, HP 304) | Cá Sấu 31 | Cóc Tía 35 | Huyết Lang 40 |
+|---|---|---|---|
+| Như hiện tại | 35,9 / 36,0 (39) | 34,6 / 35,2 (61) | 37,1 / 38,3 (34) |
+| +20 Nội Lực (chỉ số chính) | 38,2 / 39,4 (38) | 37,1 / 39,4 (60) | 39,8 / 43,4 (35) |
+| **+10 Nội Lực, +10 Thể Lực** | **38,9 / 40,6** (29) | **38,7 / 38,6** (53) | **43,8 / 42,7** (28) |
+| +20 Thể Lực | 38,1 / 40,1 (24) | 38,4 / 40,4 (41) | 42,9 / 43,1 (19) |
+| +20 Thân Pháp | 37,6 (34) | 34,6 (59) | 39,6 (30) |
+
+| wangpt (Lôi, cấp 39, Tấn công 126, HP 392) | Cá Sấu 31 | Thỏ Hồng 39 | Huyết Lang 40 | Heo Lửa 46 |
+|---|---|---|---|---|
+| Như hiện tại | 36,5 (16) | 33,4 (38) | 36,6 (13) | 26,2 (36) |
+| **+20 Thân Pháp (chỉ số chính)** | **40,5** (14) | **38,7** (32) | **40,5** (12) | **34,3** (27) |
+| +20 Nội Lực | 39,6 (17) | 38,9 (35) | 39,8 (15) | 33,8 (34) |
+| +10 Thân Pháp, +10 Thể Lực | 39,8 (11) | 37,9 (30) | 40,0 (8) | 31,9 (28) |
+| +20 Thể Lực | 38,1 (8) | 36,7 (28) | 38,0 (7) | 30,5 (25) |
+
+**Kết luận.** [Mô phỏng]
+- **manina: cộng Nội Lực, không cộng Cường Lực nữa.** 20 Nội Lực cho thêm 10–16% EXP mỗi giờ so với 20 Cường Lực, ở cả ba quái và cả hai lần chạy. Lý do:
+  - Nội Lực của manina chỉ có 10, nên một hàng âm dương nạp 6 nội lực. Cộng 20 Nội Lực thì nạp khoảng 10.
+  - Nhờ vậy số lần dùng Hỏa Cầu Thuật cấp 6 mỗi trận tăng từ 0,23 lên 0,56.
+  - Trận thật cho thấy cùng hướng: lúc đồ còn cộng 10 Nội Lực (cấp 24–32), manina dùng kỹ năng 0,49 lần mỗi trận.
+
+  Gợi ý trong game nói hệ Hỏa "Không cần tăng nội lực". Số đo âm dương của hệ Hỏa mới có ở Nội Lực 10 và 20, nên điều cần kiểm là manina ở Nội Lực 30 có nạp khoảng 10 mỗi hàng không.
+- **Ttuananh: chia đôi Nội Lực và Thể Lực, hoặc dồn Thể Lực.** EXP mỗi giờ ngang với dồn hết Nội Lực, nhưng số trận thua giảm từ 38 xuống 24–29 mỗi giờ. Nguyên nhân là Thể Lực hệ Thủy cho 5 HP và hồi thêm máu ở mỗi viên tim.
+- **wangpt: giữ Thân Pháp.** Thân Pháp của hệ Lôi vừa tăng Tấn công, vừa tăng P.Thủ, Chính xác và Né tránh. Nội Lực đứng thứ hai, sát nút.
+- **Không đáng dùng Tẩy Tủy Đan để làm lại.** Chuyển 40 điểm chính sang Thể Lực bớt 30–60% số trận thua. Với manina, EXP mỗi giờ gần như giữ nguyên; với Ttuananh và wangpt, giảm 7–28%. Chuyển sang Thân Pháp làm cả ba mất EXP. Cộng đúng chỗ các điểm sắp có thì lợi hơn.
+- Theo mô phỏng, quái nhiều EXP mỗi giờ nhất ở cấp hiện tại:
+  - manina: Cá Sấu.
+  - Ttuananh và wangpt: Huyết Lang, gần bằng Cá Sấu.
+  - Cóc Tía và Thỏ Hồng thua nhiều mà không thêm EXP.
+- **Cách áp dụng:** trong app, mở khung Chỉ số → nút bánh răng cạnh Tiềm năng → **Tự cộng** → **Tỉ lệ** ([Tự cộng điểm tiềm năng](../../integration/rust/features.md#tự-cộng-điểm-tiềm-năng)).
+  - manina: Nội Lực 1, các ô khác 0. Thử trước vài cấp rồi đo âm dương.
+  - Ttuananh: Nội Lực 1, Thể Lực 1.
+  - wangpt: giữ **Theo hệ**.
+
+  Chưa đổi gì trên nick nào.
 
 <a id="ghi-trận"></a>
 
