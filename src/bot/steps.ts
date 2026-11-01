@@ -126,7 +126,7 @@ export class Holdings {
       this.bag = b.items; this.capacity = b.capacity;
     } else if (op === 1187) {
       const b = inventory(payload);
-      this.bag = bagAfter(this.bag, b.kind, b.items);
+      this.bag = bagAfter(this.bag, b);
       if (b.capacity >= 0) this.capacity = b.capacity;
     } else if (op === 46) {
       const m = currencies(payload);

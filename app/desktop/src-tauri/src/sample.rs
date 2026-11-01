@@ -542,6 +542,7 @@ fn main_character() -> Snapshot {
             kind: 1,
             capacity: 42,
             items: manina_bag(),
+            left: None,
         }),
         currencies: Some(Currencies {
             label: "update Xu".into(),
@@ -756,6 +757,7 @@ pub fn entries() -> Vec<Entry> {
             kind: 1,
             capacity: 42,
             items: kiemkhach_bag(),
+            left: None,
         }),
         currencies: Some(Currencies {
             label: "update Xu".into(),

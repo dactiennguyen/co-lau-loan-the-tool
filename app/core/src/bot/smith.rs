@@ -16,6 +16,23 @@ const STONE_SLOTS: usize = 18;
 /// bag may be the cap, so they are pressed although under the rate asked.
 const THUONG_CAP_LOW: i32 = 75;
 
+/// Why Nâng cấp may not press at `odds`: under the rate asked, unless Thường reached THUONG_CAP_LOW (odds that may be the
+/// cap of the level). The last check before Bắt đầu, whatever put the stones in; Hỏi giá presses nothing anyway.
+fn under_rate(task: &SmithTask, odds: Option<i32>) -> Option<String> {
+    let SmithTask::Upgrade {
+        rate,
+        careful,
+        quote: false,
+        ..
+    } = *task
+    else {
+        return None;
+    };
+    let odds = odds.unwrap_or(0);
+    (odds < rate && (careful || odds < THUONG_CAP_LOW))
+        .then(|| format!("tỉ lệ chỉ {odds}%, chưa tới {rate}% muốn đạt; không bấm"))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
     /// c2s/13 sent: the NPC's menu (s2c/57) next.
@@ -1103,9 +1120,11 @@ impl Bot {
     }
 
     /// The next item to put in (c2s/97), or Bắt đầu once all are in. Nâng cấp puts its stones one by one, cheapest first,
-    /// until the odds reach the task's rate; a stone that raised nothing shows the odds were at their cap without it, and
-    /// since the server takes every stone put in, the window opens again for the stones before it (putting is free). Out
-    /// of stones under the rate, the task ends without pressing, unless Thường reached THUONG_CAP_LOW.
+    /// until the odds reach the task's rate. A stone that raised nothing at odds a cap can be (Thường from
+    /// THUONG_CAP_LOW) shows the odds were at their cap without it, and since the server takes every stone put in, the
+    /// window opens again for the stones before it (putting is free). Under that, the stone added less than the 1% the
+    /// server rounds the odds down to (two Đá cấp 1 at +5 both say 0%), so the next stone goes in. Out of stones under the
+    /// rate, the task ends without pressing, unless Thường reached THUONG_CAP_LOW.
     fn smith_put(&mut self, now: Instant, out: &mut Vec<Out>) {
         let sm = self.smith.as_mut().unwrap();
         let mut next = sm.puts.pop_front();
@@ -1131,7 +1150,7 @@ impl Bot {
                         next = Some(put_one(sm.stones[sm.tried.len()]))
                     }
                     Some(_) => {}
-                    None if stalled => {
+                    None if stalled && capped => {
                         sm.exact = Some(sm.tried.len() - 1);
                         (sm.tried, sm.rates) = (vec![], vec![]);
                         sm.puts = VecDeque::from([put_one(slot as i32)]);
@@ -1232,6 +1251,8 @@ impl Bot {
                 "Pháp sư chưa cho bấm Bắt đầu: {}",
                 sm.text.replace('\n', "; ")
             ))
+        } else if let Some(low) = under_rate(&sm.task, q.rate) {
+            Some(low)
         } else if sm
             .makes
             .is_some_and(|l| q.stone.map(|s| s.level) != Some(l) || q.rate != Some(100))

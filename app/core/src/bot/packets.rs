@@ -200,14 +200,14 @@ impl Bot {
                 self.drops.retain(|d| d.uuid != uuid);
             }
             // The whole bag, also after Sắp xếp: within 5 s of it, the bag sorted (it comes for rewards and repairs too).
-            // Kind 4 is the one item just added (Chế tạo trang bị). Another kind does not read (the one after Đập Trứng
-            // Gà, 5 to 8 bytes, not measured): the line keeps it in Log lỗi, and c2s/42 asks the whole bag again (s2c/42,
-            // as at login and in J3), so the bag the app shows is never the one before.
+            // Kind 4 is the one item just added (Chế tạo trang bị), kind 2 what is left in one slot (Đập Trứng Gà). A
+            // kind not known yet does not read: the line keeps it in Log lỗi, and c2s/42 asks the whole bag again
+            // (s2c/42, as at login and in J3), so the bag the app shows is never the one before.
             1187 => match inventory(payload) {
                 Ok(b) => {
-                    // One item added is not the sorted bag: the wait stays for the whole bag.
+                    // A part of the bag is not the sorted bag: the wait stays for the whole bag.
                     let sorted = self.item_wait.take_if(|w| {
-                        b.kind != BAG_ADD
+                        b.is_whole()
                             && w.act == ItemAct::Sort
                             && now < w.at + Duration::from_secs(5)
                     });
@@ -243,15 +243,11 @@ impl Bot {
             83 => {
                 let mut r = Reader::new(payload);
                 let (slot, left) = (r.i32()?, r.i32()?);
-                if let Some(b) = s.bag.as_mut() {
-                    match left {
-                        ..=0 => b.items.retain(|i| i.slot as i32 != slot),
-                        _ => b
-                            .items
-                            .iter_mut()
-                            .filter(|i| i.slot as i32 == slot)
-                            .for_each(|i| i.quantity = left),
-                    }
+                if let (Some(b), Ok(at)) = (s.bag.as_mut(), u8::try_from(slot)) {
+                    b.set_left(SlotLeft {
+                        slot: at,
+                        quantity: left,
+                    });
                 }
                 let thrown = self.item_wait.take_if(|w| {
                     matches!(w.act, ItemAct::Discard(at) if at as i32 == slot)

@@ -24,6 +24,15 @@ pub fn accounts<R: Runtime>(paths: &PathResolver<R>) -> tauri::Result<PathBuf> {
     }
 }
 
+/// accounts.json of --sample, in a folder of its own under the system's temp folder: what the sample accounts save (a mob
+/// picked, a number changed, Sửa nick, Nhập, Lưu in Cài đặt, which writes settings.json beside it) never reaches the
+/// real accounts.json or settings.json, which the sample never read.
+pub fn sample_accounts() -> PathBuf {
+    std::env::temp_dir()
+        .join(format!("cllt-sample-{}", std::process::id()))
+        .join("accounts.json")
+}
+
 /// cllt.db, the log lines and battles of every account (store.rs), beside accounts.json.
 pub fn db(accounts: &Path) -> PathBuf {
     accounts.with_file_name("cllt.db")
@@ -39,5 +48,21 @@ pub fn atlas() -> Atlas {
         None => {
             serde_json::from_str(include_str!("../../../../data/maps.json")).unwrap_or_default()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// --sample saves into a temp folder of its own, never where the real accounts.json is.
+    #[test]
+    fn the_sample_saves_to_a_temp_folder_of_its_own() {
+        let p = super::sample_accounts();
+        assert!(p.starts_with(std::env::temp_dir()), "{}", p.display());
+        assert_eq!(
+            p.file_name().and_then(|n| n.to_str()),
+            Some("accounts.json")
+        );
+        let real = super::repo().map(|r| r.join("app/accounts.json"));
+        assert_ne!(Some(p), real);
     }
 }

@@ -6,7 +6,8 @@ import { flags, runSession, show, showCharacter } from './run-session.ts';
 
 // Mã quà tặng from the TS bot (docs/integration/nodejs/mail.md#nhập-mã-quà-tặng): c2s/1223 for each code, straight from
 // the world, no NPC. The gift goes to the mailbox (npm run mail -- --claim-all --confirm).
-//   npm run gift -- [--account=tiheo2] --code=ALPHATEST1,DENBU [--max-wrong=5] [--gap-ms=1500] [--reset-wrong] [--confirm]
+//   npm run gift -- [--account=tiheo2] --code=ALPHATEST1,DENBU [--max-wrong=5] [--gap-ms=10000] [--retry-ms=30000] [--reset-wrong]
+//   [--confirm]
 // Without --confirm it only says the codes it would send, and does not log in. It stops after --max-wrong codes refused in
 // a row (the server blocks every code for 5 minutes at 10), and at once when the server says it blocks. The server counts
 // across logins, so the count is kept per nick in .cache/gift-codes.json (local only); --reset-wrong forgets it, after a
@@ -23,7 +24,8 @@ const lockedFor = before?.lockedUntil ? before.lockedUntil - Date.now() : 0;
 let bot: GiftBot;
 try {
   bot = new GiftBot({ codes, wrongBefore: before?.wrong, maxWrong: has('max-wrong') ? int('max-wrong', { min: 1, max: 9 }) : undefined,
-    gapMs: has('gap-ms') ? int('gap-ms', { min: 0, max: 60000 }) : undefined, log: show });
+    gapMs: has('gap-ms') ? int('gap-ms', { min: 0, max: 60000 }) : undefined,
+    retryMs: has('retry-ms') ? int('retry-ms', { min: 0, max: 300000 }) : undefined, log: show });
 } catch (error) { usage((error as Error).message); }
 
 const kept = { wrongBefore: before?.wrong ?? 0, ...(before && { since: before.at, file: GIFT_STATE }) };

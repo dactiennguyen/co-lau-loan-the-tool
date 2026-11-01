@@ -93,10 +93,18 @@ test('gift codes: stop before the server blocks (--max-wrong), and at once when 
   const a = await play(wrong, [unknown(), unknown()], io => wrong.run(io));
   assert.deepEqual([a.errors, a.left.length], [[], 0]);
   assert.match(a.stop!, /2 mã bị từ chối liền nhau.*chưa gửi: A3$/);
-  const locked = new GiftBot({ codes: ['DENBU', 'B2'], gapMs: 0, waitMs: 300 });
-  const b = await play(locked, [{ op: 1223, reply: [r(1223, 's2c/1223 quá nhanh'), r(1256, 's2c/1256 quá nhanh')] }], io => locked.run(io));
-  assert.deepEqual([b.errors, b.left.length], [[], 0]);
+  // "Quá nhanh" short of 10 wrong in a row: the same code once more, not counted; said again, it is the lock.
+  const tooFast = (): Expect => ({ op: 1223, reply: [r(1223, 's2c/1223 quá nhanh'), r(1256, 's2c/1256 quá nhanh')] });
+  const fastLogs: any[] = [];
+  const locked = new GiftBot({ codes: ['DENBU', 'B2'], gapMs: 0, retryMs: 0, waitMs: 300, log: e => fastLogs.push(e) });
+  const b = await play(locked, [tooFast(), tooFast()], io => locked.run(io));
+  assert.deepEqual([b.errors, b.left.length, b.sent.length], [[], 0, 2]);
   assert.match(b.stop!, /chặn nhập mã 5 phút.*chưa gửi: B2$/);
+  assert.deepEqual(fastLogs.filter(e => e.event === 'too_fast').map(e => e.code), ['DENBU']);
+  // Manina3 on 02/11: the second code 1,5 s after a good one was "quá nhanh"; sent again later, it goes through.
+  const again = new GiftBot({ codes: ['ALPHATEST2'], gapMs: 0, retryMs: 0, settleMs: 5, waitMs: 300 });
+  const e = await play(again, [tooFast(), { op: 1223, reply: [r(1223, 's2c/1223 thành công'), r(1222, 's2c/1222 6273')] }], io => again.run(io));
+  assert.deepEqual([e.errors, e.stop, again.wrong, again.lockedAt, again.results.map(x => x.ok)], [[], undefined, 0, undefined, [true]]);
   assert.throws(() => new GiftBot({ codes: ['A'], maxWrong: 10 }), /maxWrong/);
   assert.ok(locked.lockedAt);
   // The server counts across logins: the codes refused before this run count, and a good code starts again from 0.

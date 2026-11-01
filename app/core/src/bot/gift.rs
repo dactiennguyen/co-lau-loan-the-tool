@@ -9,10 +9,14 @@ use std::sync::MutexGuard;
 /// on the phone are not in it, and nothing says how many tries are left (G1).
 pub const GIFT_MAX_WRONG: u32 = 5;
 /// How long a code waits for s2c/1223 (it took 27–85 ms in G1), how long a good one waits for its mail (s2c/1222), and
-/// the pause between two codes (`--gap-ms` of `npm run gift`).
+/// the pause between two codes (`--gap-ms` of `npm run gift`): 1,5 s after a good code the server said "Bạn nhập mã
+/// quá nhanh" (Log lỗi of 02/11, manina3), codes 8 s apart and more went through (manina2 the same day, G1).
 const GIFT_WAIT: Duration = Duration::from_secs(8);
 const GIFT_SETTLE: Duration = Duration::from_millis(500);
-const GIFT_GAP: Duration = Duration::from_millis(1500);
+const GIFT_GAP: Duration = Duration::from_secs(10);
+/// "Quá nhanh" while fewer than mail::WRONG_IN_A_ROW codes were refused in a row: the same code goes once more after
+/// this (`--retry-ms` of `npm run gift`).
+const GIFT_RETRY: Duration = Duration::from_secs(30);
 /// The server sends a refusal twice, in s2c/1223 and in a s2c/1256 with the same words: the notice within this long is
 /// not logged again.
 const GIFT_ECHO: Duration = Duration::from_secs(2);
@@ -26,12 +30,14 @@ pub(super) enum GiftStage {
 }
 
 /// The run under way: the code of Snapshot.gift it is on (`at`: the one sent, or in the pause the next one), what it
-/// waits for and until when, and whether Dừng was pressed while it waited.
+/// waits for and until when, whether Dừng was pressed while it waited, and whether that code was already sent again
+/// after "quá nhanh".
 pub(super) struct Gift {
     at: usize,
     stage: GiftStage,
     pub(super) until: Instant,
     stopping: bool,
+    retried: bool,
 }
 
 /// The GiftMemory of the account, also when a thread that held it panicked.
@@ -129,6 +135,7 @@ impl Bot {
             stage: GiftStage::Gap,
             until: now,
             stopping: false,
+            retried: false,
         });
         self.gift_send(now, out);
     }
@@ -203,6 +210,18 @@ impl Bot {
     /// towards GIFT_MAX_WRONG, and the server's lock ends the run at once. One that comes when no code waits (after
     /// GIFT_WAIT) is logged and counted only.
     pub(super) fn gift_answer(&mut self, a: GiftAnswer, now: Instant, out: &mut Vec<Out>) {
+        let first = self
+            .gift
+            .as_ref()
+            .filter(|g| g.stage == GiftStage::Answer && !g.retried)
+            .map(|g| g.at);
+        if let Some(at) = first.filter(|_| {
+            !a.ok
+                && mail::is_locked(&a.text)
+                && memory(&self.options.gift).wrong < mail::WRONG_IN_A_ROW
+        }) {
+            return self.gift_too_fast(at, &a.text, now, out);
+        }
         let locked = self.gift_count(&a, now);
         let Some(at) = self
             .gift
@@ -254,6 +273,36 @@ impl Bot {
         self.gift_next(now, out);
     }
 
+    /// "Bạn nhập mã quá nhanh" while fewer than mail::WRONG_IN_A_ROW codes were refused in a row: no lock of 10 wrong
+    /// codes, but a code sent too soon after the one before (1,5 s after a good code on 02/11). Not counted; the same code
+    /// goes once more after GIFT_RETRY, and the words again for it are the lock.
+    fn gift_too_fast(&mut self, at: usize, text: &str, now: Instant, out: &mut Vec<Out>) {
+        self.gift_echo = Some((text.to_string(), now));
+        let stopping = self.gift.as_ref().is_some_and(|g| g.stopping);
+        if stopping {
+            let line = format!("Đã dừng{}", self.gift_unsent(at));
+            return self.gift_end(line, out);
+        }
+        let Some(r) = self.snap.gift.as_mut() else {
+            return;
+        };
+        let code = r.codes[at].code.clone();
+        (r.doing, r.sending) = (
+            format!("Server báo nhập quá nhanh, đợi rồi gửi lại mã {code}"),
+            None,
+        );
+        out.push(Out::Log(
+            LogKind::Item,
+            format!(
+                "Mã {code}: server báo nhập quá nhanh, đợi {} giây rồi gửi lại",
+                GIFT_RETRY.as_secs()
+            ),
+        ));
+        if let Some(g) = self.gift.as_mut() {
+            (g.stage, g.until, g.retried) = (GiftStage::Gap, now + GIFT_RETRY, true);
+        }
+    }
+
     /// s2c/1222: a new mail, as the client says "Bạn có thư mới: …". While a good code waits for it, it is that
     /// code's, and the next code goes after GIFT_GAP.
     pub(super) fn gift_mail(&mut self, m: MailHeader, now: Instant, out: &mut Vec<Out>) {
@@ -298,7 +347,7 @@ impl Bot {
         }
         r.doing = format!("Đợi rồi gửi mã {}", r.codes[at + 1].code);
         if let Some(g) = self.gift.as_mut() {
-            (g.at, g.stage, g.until) = (at + 1, GiftStage::Gap, now + GIFT_GAP);
+            (g.at, g.stage, g.until, g.retried) = (at + 1, GiftStage::Gap, now + GIFT_GAP, false);
         }
     }
 

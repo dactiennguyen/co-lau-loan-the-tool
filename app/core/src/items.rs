@@ -60,12 +60,22 @@ pub fn item_record(r: &mut Reader) -> Result<ItemRecord> {
     })
 }
 
-/// The whole bag: `kind` 1 in s2c/1187, 2 in s2c/42; `capacity` the usable slots (42 of the 50 on the phone).
+/// The whole bag: `kind` 1 in s2c/1187, 2 in s2c/42; `capacity` the usable slots (42 of the 50 on the phone). A s2c/1187
+/// that changes the bag in part has `capacity` -1: kind 4 with the one item added, kind 2 with `left` and no items.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Bag {
     pub kind: u8,
     pub capacity: i32,
     pub items: Vec<ItemRecord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left: Option<SlotLeft>,
+}
+/// What is left in one bag slot: s2c/1187 kind 2 (`u8 slot; i32 quantity`), and s2c/83 (`i32 slot; i32 quantity`). 0
+/// leaves the slot empty.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SlotLeft {
+    pub slot: u8,
+    pub quantity: i32,
 }
 fn bag(r: &mut Reader) -> Result<Bag> {
     let kind = r.u8()?;
@@ -75,6 +85,7 @@ fn bag(r: &mut Reader) -> Result<Bag> {
             kind,
             capacity: -1,
             items: vec![item_record(r)?],
+            left: None,
         });
     }
     let capacity = r.i32()?;
@@ -84,29 +95,66 @@ fn bag(r: &mut Reader) -> Result<Bag> {
         kind,
         capacity,
         items,
+        left: None,
     })
 }
 /// The first byte of s2c/1187 when it carries one item added to the bag, not the whole bag (12-skills-items.md#túi-đồ).
 pub const BAG_ADD: u8 = 4;
-/// `bag` after the s2c/1187 `update`: kind 4 puts its one item in its slot, the other kinds are the whole bag (bagAfter
-/// of src/protocol/world.ts). Kind 4 before any bag is known leaves it unknown: the next whole bag brings it.
+/// The first byte of s2c/1187 when it carries what is left in one slot after Dùng, as Đập Trứng Gà (Log lỗi of 02/11).
+/// Only in s2c/1187: the bag of s2c/42 starts with 2 too, and is the whole bag.
+pub const BAG_LEFT: u8 = 2;
+impl Bag {
+    /// The whole bag, not a part of it (s2c/1187 kind 4 or 2).
+    pub fn is_whole(&self) -> bool {
+        self.kind != BAG_ADD && self.left.is_none()
+    }
+    /// `left.quantity` in `left.slot`, or that slot empty when none is left (s2c/83, s2c/1187 kind 2).
+    pub fn set_left(&mut self, left: SlotLeft) {
+        match left.quantity {
+            ..=0 => self.items.retain(|i| i.slot != left.slot),
+            n => self
+                .items
+                .iter_mut()
+                .filter(|i| i.slot == left.slot)
+                .for_each(|i| i.quantity = n),
+        }
+    }
+}
+/// `bag` after the s2c/1187 `update`: kind 4 puts its one item in its slot, kind 2 sets what is left in one slot, the
+/// other kinds are the whole bag (bagAfter of src/protocol/world.ts). A part before any bag is known leaves it unknown:
+/// the next whole bag brings it.
 pub fn bag_after(bag: Option<Bag>, update: Bag) -> Option<Bag> {
-    match (bag, update.kind) {
-        (Some(mut b), BAG_ADD) => {
+    if update.is_whole() {
+        return Some(update);
+    }
+    let mut b = bag?;
+    match update.left {
+        Some(left) => b.set_left(left),
+        None => {
             for item in update.items {
                 b.items.retain(|i| i.slot != item.slot);
                 b.items.push(item);
             }
-            Some(b)
         }
-        (None, BAG_ADD) => None,
-        (_, _) => Some(update),
     }
+    Some(b)
 }
-/// s2c/1187, whenever the bag changes (rewards, repair): the whole bag again; kind 4, the one item added.
+/// s2c/1187, whenever the bag changes (rewards, repair): the whole bag again; kind 4, the one item added; kind 2, what is
+/// left in one slot.
 pub fn inventory(p: &[u8]) -> Result<Bag> {
     let mut r = Reader::new(p);
-    let b = bag(&mut r)?;
+    let b = match p.first() {
+        Some(&BAG_LEFT) => Bag {
+            kind: r.u8()?,
+            capacity: -1,
+            items: vec![],
+            left: Some(SlotLeft {
+                slot: r.u8()?,
+                quantity: r.i32()?,
+            }),
+        },
+        _ => bag(&mut r)?,
+    };
     r.finish(b, "s2c/1187")
 }
 

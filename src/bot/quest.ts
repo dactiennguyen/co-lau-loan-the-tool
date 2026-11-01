@@ -10,7 +10,7 @@ import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
 import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, slotLeft, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
 import { DAILY_DONE, DAILY_PROGRESS, dailyQuest, dailyText } from '../protocol/mail.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
@@ -351,20 +351,20 @@ export class QuestBot implements WorldSession {
         // The whole bag after it changed: a quest reward, a repair, an item picked up.
         let bag: ReturnType<typeof inventory> | undefined;
         try { bag = inventory(payload); } catch { this.log('inventory', { payloadHex: payload.toString('hex') }); break; }
-        // Kind 4 adds one item (Chế tạo, O1): the log says that item and how many the bag holds now. The others are the
-        // whole bag.
+        // Kind 4 adds one item (Chế tạo, O1): the log says that item and how many the bag holds now. Kind 2 is what is
+        // left in one slot (Đập Trứng Gà). The others are the whole bag.
         const describe = (i: (typeof bag.items)[number]) => this.options.items?.describe(i) ?? `#${i.itemId} ×${i.quantity}`;
-        this.bag = bagAfter(this.bag, bag.kind, bag.items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity })));
-        this.log('inventory', bag.kind === BAG_ADD ? { kind: bag.kind, added: describe(bag.items[0]), slot: bag.items[0].slot, count: this.bag.length }
+        this.bag = bagAfter(this.bag, { ...bag, items: bag.items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity })) });
+        this.log('inventory', bag.left ? { kind: bag.kind, ...bag.left, count: this.bag.length }
+          : bag.kind === BAG_ADD ? { kind: bag.kind, added: describe(bag.items[0]), slot: bag.items[0].slot, count: this.bag.length }
           : { kind: bag.kind, capacity: bag.capacity, items: bag.items.map(describe) });
         break;
       }
       case 42: try { this.bag = characterExtra(payload).items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity })); } catch { /* the bag log of s2c/1187 covers it */ } break;
       // One bag slot after an item was used or thrown away: i32 slot; i32 quantity left (12-skills-items.md#c2s-44).
       case 83: {
-        const r = new Reader(payload), slot = r.i32(), quantity = r.i32(), item = this.bag.find(i => i.slot === slot);
-        if (item) item.quantity = quantity;
-        this.bag = this.bag.filter(i => i.quantity > 0);
+        const r = new Reader(payload);
+        this.bag = slotLeft(this.bag, { slot: r.i32(), quantity: r.i32() });
         break;
       }
       case 22: this.onSetup(payload); break;

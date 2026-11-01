@@ -316,11 +316,32 @@ export function bag(r: Reader) {
 }
 /** The first byte of s2c/1187 when it carries one item added to the bag, not the whole bag (12-skills-items.md#túi-đồ). */
 export const BAG_ADD = 4;
-/** The bag after s2c/1187: kind 4 puts its one item in its slot, the other kinds are the whole bag. */
-export function bagAfter<T extends { slot: number }>(bag: T[], kind: number, items: T[]): T[] {
+/** The first byte of s2c/1187 when it carries what is left in one bag slot after Dùng (Đập Trứng Gà): `u8 slot; i32
+ * quantity`, 0 for an empty slot. Only s2c/1187: the bag of s2c/42 starts with 2 too, and is the whole bag. */
+export const BAG_LEFT = 2;
+/** What is left in one bag slot (s2c/1187 kind 2, s2c/83). */
+export interface SlotLeft { slot: number; quantity: number }
+/** The bag after s2c/1187: kind 4 puts its one item in its slot, kind 2 sets what is left in one slot (none left empties
+ * it), the other kinds are the whole bag. */
+export function bagAfter<T extends { slot: number; quantity: number }>(bag: T[], update: { kind: number; items: T[]; left?: SlotLeft }): T[] {
+  const { kind, items, left } = update;
+  if (left) return slotLeft(bag, left);
   return kind === BAG_ADD ? [...bag.filter(i => i.slot !== items[0].slot), items[0]] : items;
 }
-export function inventory(payload: Uint8Array) { const r = new Reader(payload); return finish(r, bag(r), 's2c/1187'); }
+/** The bag with `left.quantity` in `left.slot`, or without that slot's item when none is left (s2c/83, s2c/1187 kind 2). */
+export function slotLeft<T extends { slot: number; quantity: number }>(bag: T[], left: SlotLeft): T[] {
+  return left.quantity <= 0 ? bag.filter(i => i.slot !== left.slot) : bag.map(i => (i.slot === left.slot ? { ...i, quantity: left.quantity } : i));
+}
+/** s2c/1187, whenever the bag changes: the whole bag (kind 1), one item added (kind 4), or what is left in one slot
+ * (kind 2: `left`, no items). */
+export function inventory(payload: Uint8Array): ReturnType<typeof bag> & { left?: SlotLeft } {
+  const r = new Reader(payload);
+  if (payload[0] === BAG_LEFT) {
+    const kind = r.u8(), left = { slot: r.u8(), quantity: r.i32() };
+    return finish(r, { kind, capacity: -1, items: [], left }, 's2c/1187');
+  }
+  return finish(r, bag(r), 's2c/1187');
+}
 
 /** s2c/46 after s2c/9 and whenever money changes (quest rewards): the three currencies of the Bản thân panel, as i64.
  * E1 (31/10): 500, 7370, 0 while the panel read 500 Xu, 7.370 Xu khoá, 0 Lượng. Vàng, the gold bar that turns into Xu

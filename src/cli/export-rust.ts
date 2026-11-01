@@ -24,6 +24,7 @@ import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, tra
   mergeForecast, upgradeStones, putRequest, startRequest, craftSlot, recipes, craftMaterials, iceHeld, failLevel, charmUseful, charmFor, itemCap,
   PUT_ITEM, PUT_STACK } from '../protocol/npc.ts';
 import { o1Packets } from '../../test/fixtures-o1.ts';
+import { eggPackets } from '../../test/fixtures-egg.ts';
 import { npcMenu } from '../protocol/world.ts';
 import { pointsText } from '../protocol/shops.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
@@ -93,6 +94,8 @@ function decoders() {
   add('inventory', si0['s2c/1187 after repair'], inventory(bytes(si0['s2c/1187 after repair'])));
   // Kind 4 (O1, Chế tạo trang bị): one item added, not the whole bag.
   add('inventory', o1Packets['s2c/1187 loại 4'], inventory(bytes(o1Packets['s2c/1187 loại 4'])));
+  // Kind 2 (Log lỗi of 02/11, Đập Trứng Gà): what is left in one slot.
+  add('inventory', eggPackets['s2c/1187 loại 2'], inventory(bytes(eggPackets['s2c/1187 loại 2'])));
   for (const h of [fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterGear', h, characterGear(bytes(h)));
   // The tail of s2c/9: symap's x2 EXP star "ef7" and faction (P4), and manina with no effect.
   for (const h of [fixtures.equip['s2c/9 symap'], fixtures.profile['s2c/9 level 21']] as string[]) add('characterTail', h, characterTail(bytes(h)));

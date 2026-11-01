@@ -838,6 +838,164 @@ fn nang_cap_out_of_stones_under_the_rate_presses_nothing() {
     assert!(run.done.is_some());
 }
 
+/// Nâng cấp [Thường] of Nhẫn Trơn up to +4 at `rate`, the window open and the ring put in: what comes after is the
+/// answer to the first stone.
+fn upgrade_window(items: &[(u8, i32, i32, u8)], rate: i32) -> (Bot, Vec<Out>, Instant) {
+    let (mut bot, mut out, now) = symap(items);
+    bot.smith(
+        SmithTask::Upgrade {
+            slot: 15,
+            careful: false,
+            rate,
+            to_level: 4,
+            unlocked: true,
+            quote: false,
+            worn: false,
+            charm: true,
+        },
+        now,
+        &mut out,
+    );
+    open_upgrade(&mut bot, &mut out, now);
+    (bot, out, now)
+}
+
+fn open_upgrade(bot: &mut Bot, out: &mut Vec<Out>, now: Instant) {
+    bot.on_packet(57, &root(), now, out).unwrap();
+    bot.on_packet(
+        57,
+        &menu(
+            "Pháp sư",
+            &[
+                "Nâng cấp [Thường]",
+                "Nâng cấp [Cẩn thận]",
+                "Chuyển hoá trang bị",
+            ],
+        ),
+        now,
+        out,
+    )
+    .unwrap();
+    bot.on_packet(
+        96,
+        &captured("serviceWindow", "title", "Nâng cấp [thường]".into()),
+        now,
+        out,
+    )
+    .unwrap();
+    bot.on_packet(
+        90,
+        &slot90(
+            true,
+            15,
+            "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+            false,
+        ),
+        now,
+        out,
+    )
+    .unwrap();
+}
+
+fn odds(rate: i32) -> String {
+    format!("Cần: 769 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: {rate}%")
+}
+
+/// The server rounds the odds down to a whole percent, so at +5 and up a Đá cấp 1 adds less than 1%: two of them both say
+/// 0%. That is no cap: the bot puts the next stone, and out of stones under the rate it presses nothing. It never opened
+/// the window again for one stone and pressed at 0% (review of 02/11).
+#[test]
+fn nang_cap_low_stones_that_round_to_the_same_odds_are_no_cap() {
+    let (mut bot, mut out, now) = upgrade_window(
+        &[
+            (15, 306, 0, 1),
+            (16, 411, 0, 1),
+            (17, 411, 0, 1),
+            (18, 411, 0, 1),
+        ],
+        80,
+    );
+    for (slot, next) in [(16, Some(17)), (17, Some(18)), (18, None)] {
+        out.clear();
+        bot.on_packet(90, &slot90(false, slot, &odds(0), true), now, &mut out)
+            .unwrap();
+        match next {
+            Some(s) => assert_eq!(
+                sent(&out, 97),
+                [tohex(&npc::put_request(s, 1, npc::PUT_ITEM))],
+                "{out:?}"
+            ),
+            None => assert!(sent(&out, 97).is_empty(), "{out:?}"),
+        }
+        assert!(sent(&out, 91).is_empty(), "nothing pressed: {out:?}");
+        assert!(sent(&out, 13).is_empty(), "no window again: {out:?}");
+    }
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn tới +4: đặt hết 3 viên đá chỉ được 0%, chưa tới 80% muốn đạt; thêm đá hoặc hạ tỉ lệ"
+        ),
+        "{out:?}"
+    );
+    let run = bot.snapshot().smith.unwrap();
+    assert_eq!((run.steps, run.spent_xu_khoa), (0, 0));
+
+    // A Đá cấp 3 after two that stayed at 1%: the odds reach the rate with all three, pressed without opening again.
+    let (mut bot, mut out, now) = upgrade_window(
+        &[
+            (15, 306, 0, 1),
+            (16, 411, 0, 1),
+            (17, 411, 0, 1),
+            (29, 413, 0, 1),
+        ],
+        80,
+    );
+    for (slot, rate) in [(16, 1), (17, 1), (29, 80)] {
+        out.clear();
+        bot.on_packet(90, &slot90(false, slot, &odds(rate), true), now, &mut out)
+            .unwrap();
+    }
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+}
+
+/// The window opened again for the stones before the cap says lower odds than the first time: Bắt đầu is not pressed
+/// under the rate asked, whatever put the stones in.
+#[test]
+fn nang_cap_never_presses_under_the_rate_unless_it_may_be_the_cap() {
+    let (mut bot, mut out, now) = upgrade_window(
+        &[
+            (15, 306, 0, 1),
+            (16, 411, 0, 1),
+            (29, 413, 0, 1),
+            (34, 414, 0, 0),
+        ],
+        100,
+    );
+    for (slot, rate) in [(16, 16), (29, 80), (34, 80)] {
+        out.clear();
+        bot.on_packet(90, &slot90(false, slot, &odds(rate), true), now, &mut out)
+            .unwrap();
+    }
+    // 80% twice: the cap; the window opens again for the two stones before Đá cấp 4.
+    assert_eq!(sent(&out, 13), [PHAP_SU.to_string()], "{out:?}");
+    out.clear();
+    open_upgrade(&mut bot, &mut out, now);
+    for (slot, rate) in [(16, 16), (29, 70)] {
+        out.clear();
+        bot.on_packet(90, &slot90(false, slot, &odds(rate), true), now, &mut out)
+            .unwrap();
+    }
+    assert!(sent(&out, 91).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn tới +4: tỉ lệ chỉ 70%, chưa tới 100% muốn đạt; không bấm"
+        ),
+        "{out:?}"
+    );
+}
+
 #[test]
 fn hoi_gia_says_the_price_and_odds_and_presses_nothing() {
     let (mut bot, mut out, now) = symap(&[(42, 366, 0, 0), (35, 415, 0, 0), (36, 415, 0, 0)]);

@@ -4,7 +4,8 @@ import { createCipheriv } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol/protocol.ts';
-import { characterExtra, characterGear, characterTail, currencies, gearUpdate, groundItems } from '../src/protocol/world.ts';
+import { bagAfter, characterExtra, characterGear, characterTail, currencies, gearUpdate, groundItems, inventory } from '../src/protocol/world.ts';
+import { eggPackets } from './fixtures-egg.ts';
 import { QuestBot } from '../src/bot/quest.ts';
 import { decodeAsset, Items, parseItemTable, parseStatTable, RETIRED } from '../src/protocol/items.ts';
 import { MapScanner } from '../src/bot/map-scan.ts';
@@ -125,6 +126,23 @@ test('K3 (bot TS, Tiheo2 at M1): far pickup to the bag (s2c/51), refusals, and V
   // Sắp xếp (I1): c2s/1257 carries nothing; the server sends the whole bag again (s2c/1187), its slots numbered anew.
   assert.equal(buildRequest(1257, {}).length, 0);
   assert.deepEqual(decodeEvent('c2s', 1257, Buffer.alloc(0)).fields, {});
+});
+
+test('Đập Trứng Gà (Log lỗi of 02/11): s2c/1187 kind 2 is what is left in one bag slot, as s2c/83', () => {
+  const egg = (k: string) => Buffer.from(eggPackets[k], 'hex');
+  assert.equal(buildRequest(84, { slot: 32 }).toString('hex'), eggPackets['c2s/84 Dùng ô 32']);
+  const left = inventory(egg('s2c/1187 loại 2'));
+  assert.deepEqual(left, { kind: 2, capacity: -1, items: [], left: { slot: 32, quantity: 2 } });
+  const bag = [{ slot: 31, itemId: 412, quantity: 1 }, { slot: 32, itemId: 3, quantity: 3 }];
+  assert.deepEqual(bagAfter(bag, left), [{ slot: 31, itemId: 412, quantity: 1 }, { slot: 32, itemId: 3, quantity: 2 }]);
+  // The last egg leaves the slot empty.
+  assert.deepEqual(bagAfter(bag, inventory(Buffer.from('022000000000', 'hex'))), [{ slot: 31, itemId: 412, quantity: 1 }]);
+  // What came out of it, and the fee.
+  assert.equal((decodeEvent('s2c', 1256, egg('s2c/1256 nhận Huyết Thạch')).fields as any).text, 'Bạn vừa nhận được 1 Huyết Thạch');
+  assert.equal((decodeEvent('s2c', 1256, egg('s2c/1256 đập trứng')).fields as any).text, 'Đập Trứng Gà thành công, trừ 500 Xu khóa');
+  // The bag of s2c/42 starts with 2 too, and is still read as the whole bag.
+  const login = characterExtra(Buffer.from(fixtures['skills-items']['s2c/42 login'], 'hex'));
+  assert.deepEqual([login.kind, login.capacity, login.items.length], [2, 42, 8]);
 });
 
 test('P5 on the phone (Tiheo2): Lái Buôn menu, the shop, buying for Xu khóa, and a potion used in battle (c2s/44)', () => {

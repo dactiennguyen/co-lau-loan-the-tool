@@ -16,8 +16,11 @@ export interface GiftOptions {
   maxWrong?: number;
   /** Codes refused in a row before this run: the server counts them across logins, the CLI keeps them per nick. */
   wrongBefore?: number;
-  /** Pause between two codes (default 1500 ms). */
+  /** Pause between two codes (default 10 s). 1,5 s after a good code the server said "Bạn nhập mã quá nhanh" (Log lỗi of
+   * 02/11, manina3); codes 8 s apart and more went through (manina2 the same day, G1). */
   gapMs?: number;
+  /** "Quá nhanh" short of the lock of 10 wrong codes: the same code goes once more after this (default 30 s). */
+  retryMs?: number;
   waitMs?: number;
   /** After a code taken, how long s2c/1222 (its mail) gets (default 500 ms). */
   settleMs?: number;
@@ -35,6 +38,7 @@ export class GiftBot {
   private readonly steps: Steps;
   private readonly maxWrong: number;
   private readonly gapMs: number;
+  private readonly retryMs: number;
   private readonly settleMs: number;
   private readonly log: Log;
   private mails: mail.MailHeader[] = [];
@@ -44,7 +48,8 @@ export class GiftBot {
     this.maxWrong = options.maxWrong ?? 5;
     if (!(this.maxWrong >= 1 && this.maxWrong < mail.GIFT.wrongInARow)) throw new Error(`maxWrong phải từ 1 tới ${mail.GIFT.wrongInARow - 1}`);
     this.wrong = options.wrongBefore ?? 0;
-    this.gapMs = options.gapMs ?? 1500;
+    this.gapMs = options.gapMs ?? 10_000;
+    this.retryMs = options.retryMs ?? 30_000;
     this.settleMs = options.settleMs ?? 500;
     this.log = options.log ?? (() => {});
     this.steps = new Steps(options.waitMs ?? 8000);
@@ -65,9 +70,18 @@ export class GiftBot {
     if (this.wrong >= this.maxWrong) throw new Stop(`nick đã có ${this.wrong} mã bị từ chối liền nhau (--max-wrong=${this.maxWrong}): chưa gửi mã nào`);
     for (const [k, code] of this.codes.entries()) {
       if (k) await sleep(this.gapMs);
-      const seen = this.mails.length;
+      let seen = this.mails.length;
       // A refused code gets s2c/1223 ok 0 and then the same words in a notice: the notice is no refusal of the step.
-      const r = mail.giftCodeResult((await this.steps.ask(1223, mail.giftCodeRequest(code), [1223], `kết quả mã ${code}`, { refuse: false })).payload);
+      const ask = async () => mail.giftCodeResult((await this.steps.ask(1223, mail.giftCodeRequest(code), [1223], `kết quả mã ${code}`, { refuse: false })).payload);
+      let r = await ask();
+      // "Quá nhanh" while fewer than 10 codes were refused in a row is no lock: the pause was too short. The same code goes
+      // once more, not counted; said again, it is the lock.
+      if (!r.ok && mail.GIFT.locked.test(r.text) && this.wrong < mail.GIFT.wrongInARow) {
+        this.log({ event: 'too_fast', code, text: r.text, retryMs: this.retryMs });
+        await sleep(this.retryMs);
+        seen = this.mails.length;
+        r = await ask();
+      }
       if (r.ok) await sleep(this.settleMs);
       const got = this.mails.slice(seen)[0];
       this.wrong = r.ok ? 0 : this.wrong + 1;

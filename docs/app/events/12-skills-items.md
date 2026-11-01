@@ -326,6 +326,7 @@ Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. B
 |---|---|---|---|
 | `s2c/42` | Trả `c2s/42 (string tênNhânVật)` lúc đăng nhập | `string "test dong 1"; i32 42; i32 3; u8 2; i32 sứcChứa; i32 n; n × bản ghi` | 608/608 byte, 8 món, sức chứa 42 |
 | `s2c/1187` | Mỗi khi túi đổi: sửa đồ (E2), trả nhiệm vụ (L1, Q2) | `u8 1; i32 sứcChứa; i32 n; n × bản ghi` (cả túi) | 519/519 byte, 7 món sau khi sửa |
+| `s2c/1187` byte đầu 2 | Dùng một món xếp chồng (`c2s/84`), như Đập Trứng Gà (Log lỗi 02/11, manina3) | `u8 2; u8 ô; i32 sốCònLại` (chỉ ô đó; 0 thì ô trống, như `s2c/83`) | 6/6 byte: `02 20 00000002`, ô 32 từ 3 còn 2 Trứng Gà ([fixtures-egg](../../../test/fixtures-egg.ts)). `inventory()` trả `kind` 2, `left` và không có món; bot sửa số của ô đó, giữ cả túi. Chỉ ở `s2c/1187`: túi của `s2c/42` cũng bắt đầu bằng 2 nhưng là cả túi |
 | `s2c/1187` byte đầu 4 | Chế tạo trang bị ở Pháp sư (O1) | `u8 4; bản ghi` (chỉ món mới thêm vào túi) | 83/83 byte: Nhẫn Thái Cực ở ô 19 ([16-upgrade](16-upgrade.md#chế-tạo)). `inventory()` trả `kind` 4 với một món; bot ghép món đó vào túi đang có, không thay cả túi |
 | Đuôi `s2c/9` | Lúc đăng nhập | Sau danh sách kỹ năng: `i32 8; 8 × (u8 0xff: ô trống \| bản ghi)`, byte `ô` của bản ghi bằng số ô | Ô 0 nón, ô 2 vũ khí, 6 ô trống ([Ô trang bị](#ô-trang-bị)) |
 

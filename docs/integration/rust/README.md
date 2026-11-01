@@ -36,7 +36,7 @@ npm install                                  # lần đầu
 npm run app                                  # đóng gói vào app/target/release/bundle (macOS: macos/colautool.app); về sau bấm đúp
 npm run tauri dev                            # cửa sổ app với Vite dev server: sửa src/ là thấy ngay; app tên CLLT Tool DEV
 npm run tauri dev -- -- --login-all          # mở và đăng nhập mọi nick luôn (cờ sau `-- --` đi vào app)
-npm run tauri dev -- -- --sample             # dữ liệu mẫu, không kết nối
+npm run tauri dev -- -- --sample             # dữ liệu mẫu, không kết nối; lưu vào thư mục tạm, không đụng accounts.json thật
 npm run sample && npm run dev                # xem giao diện trong trình duyệt (http://localhost:1420) với dữ liệu mẫu
 npm run build                                # tsc && vite build: kiểm kiểu TypeScript
 npm run icon:dev                             # làm lại icon DEV từ app-icon.png (cần ImageMagick), sau khi đổi icon

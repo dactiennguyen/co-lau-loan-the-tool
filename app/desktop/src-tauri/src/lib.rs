@@ -7,7 +7,8 @@
 //                                        identifier and icon, so it runs beside the installed app without looking like it
 //   npm run app                          the app in app/target/release/bundle: macos/colautool.app (only that,
 //                                        tauri.macos.conf.json), nsis/ and msi/ on Windows, deb/, rpm/, appimage/ on Linux
-//   flags after `--`: --login-all logs every account in at start; --sample shows sample accounts, no network;
+//   flags after `--`: --login-all logs every account in at start; --sample shows sample accounts, no network, and saves
+//   to a temp folder (paths::sample_accounts), never to the real accounts.json;
 //   --dump-sample=FILE writes the sample accounts as the UI receives them (the UI reads it in a plain browser).
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
@@ -66,7 +67,10 @@ pub fn run() {
                 })?)
             };
             let (wake, woken) = std::sync::mpsc::channel();
-            let accounts = paths::accounts(tauri_app.path())?;
+            let accounts = match sample {
+                true => paths::sample_accounts(),
+                false => paths::accounts(tauri_app.path())?,
+            };
             let mut app = App::new(manager, accounts.clone(), wake);
             app.apply_settings(settings::first_load(&app.settings_path(), &accounts));
             if sample {

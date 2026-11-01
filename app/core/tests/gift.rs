@@ -154,14 +154,14 @@ fn a_good_code_waits_for_its_mail_then_the_next_goes_and_a_refusal_is_logged_onc
     assert_eq!(run.codes[0].ok, Some(true));
     assert_eq!(run.codes[0].mail.as_deref(), Some("Quà Alpha Test Ngày 1"));
     assert_eq!(run.doing, "Đợi rồi gửi mã DENBU");
-    // 1,5 s between two codes.
-    assert_eq!(bot.deadline(), Some(now + Duration::from_millis(1500)));
+    // 10 s between two codes: 1,5 s after a good one the server said "quá nhanh" (02/11).
+    assert_eq!(bot.deadline(), Some(now + Duration::from_secs(10)));
     out.clear();
-    bot.on_timer(now + Duration::from_millis(1500), &mut out);
+    bot.on_timer(now + Duration::from_secs(10), &mut out);
     assert_eq!(sent(&out), [wire("DENBU")]);
 
     out.clear();
-    let later = now + Duration::from_secs(2);
+    let later = now + Duration::from_secs(11);
     bot.on_packet(1223, &g1("s2c/1223 đã dùng"), later, &mut out)
         .unwrap();
     // The notice with the same words is the same refusal: not logged again; another notice is.
@@ -204,6 +204,31 @@ fn the_servers_lock_ends_the_run_and_no_code_goes_for_five_minutes() {
     out.clear();
     bot.on_packet(1223, &g1("s2c/1223 quá nhanh"), now, &mut out)
         .unwrap();
+    // Fewer than 10 refused in a row: the code went too soon (02/11), no lock. Not counted; its notice is not logged
+    // again; the same code goes once more after 30 s.
+    bot.on_packet(
+        1256,
+        &notice("Bạn nhập mã quá nhanh, vui lòng thử lại sau"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        lines(&out),
+        ["Mã SAIMA2038: server báo nhập quá nhanh, đợi 30 giây rồi gửi lại"]
+    );
+    assert!(sent(&out).is_empty());
+    let limits = bot.snapshot().gift_limits;
+    assert_eq!((limits.wrong, limits.locked_until), (0, None));
+    assert_eq!(bot.deadline(), Some(now + Duration::from_secs(30)));
+    let t = now + Duration::from_secs(30);
+    out.clear();
+    bot.on_timer(t, &mut out);
+    assert_eq!(sent(&out), [wire("SAIMA2038")]);
+    // Said again for it: the lock.
+    out.clear();
+    bot.on_packet(1223, &g1("s2c/1223 quá nhanh"), t, &mut out)
+        .unwrap();
     assert_eq!(
         lines(&out),
         [
@@ -213,15 +238,85 @@ fn the_servers_lock_ends_the_run_and_no_code_goes_for_five_minutes() {
     );
     assert!(bot.snapshot().gift_limits.locked_until.is_some());
     out.clear();
-    bot.redeem(&codes(&["DENBU"]), now + Duration::from_secs(60), &mut out);
+    bot.redeem(&codes(&["DENBU"]), t + Duration::from_secs(60), &mut out);
     assert_eq!(
         lines(&out),
         ["Chưa nhập mã: server đang chặn nhập mã, còn 4 phút 00 giây"]
     );
     assert!(sent(&out).is_empty());
     out.clear();
-    bot.redeem(&codes(&["DENBU"]), now + Duration::from_secs(301), &mut out);
+    bot.redeem(&codes(&["DENBU"]), t + Duration::from_secs(301), &mut out);
     assert_eq!(sent(&out), [wire("DENBU")]);
+}
+
+/// Manina3 on 02/11: ALPHATEST1 went through, ALPHATEST2 went 1,5 s later and the server said "quá nhanh". Now the
+/// second code waits 10 s, and "quá nhanh" for it sends it again after 30 s instead of ending the run as a lock.
+#[test]
+fn quick_codes_wait_and_a_code_too_soon_goes_again() {
+    let fresh = bot;
+    let (mut bot, mut out, now) = fresh();
+    bot.redeem(&codes(&["ALPHATEST1", "ALPHATEST2"]), now, &mut out);
+    bot.on_packet(1223, &g1("s2c/1223 thành công"), now, &mut out)
+        .unwrap();
+    bot.on_packet(1222, &g1("s2c/1222 6273"), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_timer(now + Duration::from_millis(1500), &mut out);
+    assert!(sent(&out).is_empty(), "not 1,5 s after a good code");
+    bot.on_timer(now + Duration::from_secs(10), &mut out);
+    assert_eq!(sent(&out), [wire("ALPHATEST2")]);
+    let t = now + Duration::from_secs(10);
+    out.clear();
+    bot.on_packet(1223, &g1("s2c/1223 quá nhanh"), t, &mut out)
+        .unwrap();
+    assert_eq!(
+        bot.snap.gift.as_ref().map(|r| r.doing.as_str()),
+        Some("Server báo nhập quá nhanh, đợi rồi gửi lại mã ALPHATEST2")
+    );
+    out.clear();
+    bot.on_timer(t + Duration::from_secs(30), &mut out);
+    assert_eq!(sent(&out), [wire("ALPHATEST2")]);
+    out.clear();
+    bot.on_packet(
+        1223,
+        &answer(
+            true,
+            "Nhập mã thành công, phần thưởng đã được gửi vào hộp thư",
+        ),
+        t + Duration::from_secs(30),
+        &mut out,
+    )
+    .unwrap();
+    assert!(logged(
+        &out,
+        "Xong mã ALPHATEST2: Nhập mã thành công, phần thưởng đã được gửi vào hộp thư"
+    ));
+    let run = bot.snap.gift.clone().unwrap();
+    assert_eq!(
+        run.codes.iter().map(|c| c.ok).collect::<Vec<_>>(),
+        [Some(true), Some(true)]
+    );
+    assert_eq!(bot.snapshot().gift_limits.wrong, 0);
+
+    // Dừng in that wait: the code is not sent again, and is said as not sent.
+    let (mut stopped, mut out, now) = fresh();
+    stopped.redeem(&codes(&["ALPHATEST2", "DENBU"]), now, &mut out);
+    stopped
+        .on_packet(1223, &g1("s2c/1223 quá nhanh"), now, &mut out)
+        .unwrap();
+    out.clear();
+    stopped.stop(false, now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Kết thúc nhập mã: Đã dừng; chưa gửi: ALPHATEST2, DENBU"
+        ),
+        "{:?}",
+        lines(&out)
+    );
+    out.clear();
+    stopped.on_timer(now + Duration::from_secs(30), &mut out);
+    assert!(sent(&out).is_empty());
 }
 
 #[test]
@@ -241,7 +336,7 @@ fn five_refused_in_a_row_stop_the_run_before_the_servers_ten() {
                 &format!("Mã {code} bị từ chối: Mã không tồn tại")
             ));
             out.clear();
-            t += Duration::from_millis(1500);
+            t += Duration::from_secs(10);
             bot.on_timer(t, &mut out);
         }
     }
@@ -269,7 +364,7 @@ fn a_good_code_starts_the_count_again() {
     bot.redeem(&codes(&["A1", "A2", "A3"]), now, &mut out);
     bot.on_packet(1223, &answer(false, "Mã không tồn tại"), now, &mut out)
         .unwrap();
-    bot.on_timer(now + Duration::from_millis(1500), &mut out);
+    bot.on_timer(now + Duration::from_secs(10), &mut out);
     bot.on_packet(1223, &answer(true, "Nhập mã thành công"), now, &mut out)
         .unwrap();
     assert_eq!(bot.snapshot().gift_limits.wrong, 0);
@@ -277,7 +372,7 @@ fn a_good_code_starts_the_count_again() {
     out.clear();
     bot.on_timer(now + Duration::from_secs(3), &mut out);
     assert!(sent(&out).is_empty());
-    bot.on_timer(now + Duration::from_secs(5), &mut out);
+    bot.on_timer(now + Duration::from_secs(13), &mut out);
     assert_eq!(sent(&out), [wire("A3")]);
 }
 
@@ -380,7 +475,7 @@ fn sending_points_at_the_code_waiting_for_its_answer() {
     bot.on_packet(1223, &answer(false, "Mã không tồn tại"), now, &mut out)
         .unwrap();
     assert_eq!(bot.snap.gift.as_ref().unwrap().sending, None);
-    bot.on_timer(now + Duration::from_millis(1500), &mut out);
+    bot.on_timer(now + Duration::from_secs(10), &mut out);
     assert_eq!(bot.snap.gift.as_ref().unwrap().sending, Some(1));
     assert_eq!(bot.snapshot().gift_limits.max_wrong, 5);
 }
@@ -416,6 +511,12 @@ fn the_count_and_the_lock_outlive_the_session_until_dem_lai() {
     let (now, mut out) = (Instant::now(), vec![]);
     let mut first = session();
     first.redeem(&codes(&["A1"]), now, &mut out);
+    // "Quá nhanh", and again for the same code 30 s later: the lock.
+    first
+        .on_packet(1223, &g1("s2c/1223 quá nhanh"), now, &mut out)
+        .unwrap();
+    let now = now + Duration::from_secs(30);
+    first.on_timer(now, &mut out);
     first
         .on_packet(1223, &g1("s2c/1223 quá nhanh"), now, &mut out)
         .unwrap();

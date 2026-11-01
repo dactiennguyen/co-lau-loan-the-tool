@@ -34,7 +34,8 @@ npm run gift -- --account=tiheo2 --code=ALPHATEST1,DENBU --confirm  # nhập th�
 |---|---|---|
 | `--code=A,B,…` | bắt buộc | Các mã, cách nhau bằng dấu phẩy. Bot cắt dấu cách và đổi chữ hoa như client; bỏ mã trùng; mỗi mã tối đa 32 ký tự |
 | `--max-wrong=N` | 5 | Dừng sau N mã bị từ chối liền nhau, phải từ 1 tới 9. Tính cả số lần sai của các lần chạy trước (xem bước 3) |
-| `--gap-ms=N` | 1500 | Nghỉ giữa hai mã |
+| `--gap-ms=N` | 10000 | Nghỉ giữa hai mã. 1,5 s sau một mã đúng thì server báo "Bạn nhập mã quá nhanh" (Log lỗi 02/11, manina3); cách 8 s trở lên thì được (manina2 cùng ngày, G1) |
+| `--retry-ms=N` | 30000 | Bị báo "quá nhanh" khi chưa sai đủ 10 lần liền: đợi chừng này rồi gửi lại đúng mã đó một lần (bước 4) |
 | `--reset-wrong` | | Quên số lần sai đã lưu của nick, ví dụ sau khi đã nhập đúng một mã trên điện thoại |
 | `--confirm` | chạy thử | Gửi mã. Chạy thử không đăng nhập |
 
@@ -47,8 +48,9 @@ Với mỗi mã, bot làm như sau:
    - Server chặn khi sai 10 lần liền. Bot dừng sớm hơn nhiều, ở `--max-wrong`.
    - Server đếm qua nhiều lần đăng nhập, nên bot lưu số lần sai liền của từng nick vào `.cache/gift-codes.json` (chỉ ở máy, không vào git). Lần chạy sau cộng tiếp từ số đó. Nếu số đó đã tới `--max-wrong`, bot không gửi mã nào.
    - Bot chỉ biết các lần sai do chính nó gửi. Mã sai nhập trên điện thoại, hay trước khi có file này, thì không được đếm.
-4. **"Bạn nhập mã quá nhanh, vui lòng thử lại sau"**: server đang chặn **mọi** mã trong 5 phút, kể cả mã đúng.
-   - Bot dừng ngay, ghi các mã chưa gửi, và lưu giờ hết chặn. Chạy với `--confirm` trước giờ đó thì bot dừng luôn, không đăng nhập.
+4. **"Bạn nhập mã quá nhanh, vui lòng thử lại sau"**: server dùng cùng một lời cho hai việc. Gửi hai mã quá sát nhau thì bị báo vậy dù chưa sai mã nào. Sai 10 lần liền thì server chặn **mọi** mã trong 5 phút, kể cả mã đúng.
+   - Bot đếm chưa tới 10 lần sai liền: coi là gửi quá nhanh, không cộng vào số lần sai. Đợi `--retry-ms` rồi gửi lại đúng mã đó một lần (dòng log `too_fast`).
+   - Lần gửi lại vẫn bị báo vậy, hay đã sai đủ 10 lần liền: coi là bị chặn. Bot dừng ngay, ghi các mã chưa gửi, và lưu giờ hết chặn. Chạy với `--confirm` trước giờ đó thì bot dừng luôn, không đăng nhập.
    - Sau lần chặn, bot đặt số lần sai về 0. Chưa đo server có làm vậy không [Chưa rõ].
 
 Quà không tự vào túi: chạy `npm run mail -- --claim-all --confirm` để nhận, hay bấm Nhận hết ở tab Hòm thư của app ([app Rust](../rust/features.md#hòm-thư)).

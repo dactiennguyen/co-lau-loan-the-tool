@@ -104,7 +104,8 @@ export function ShopGift({ account, busy, ask, track }: ShopContext) {
             Server không báo còn mấy lần sai. Sai {SERVER_LOCK_AT} mã liền thì server chặn mọi mã trong 5 phút, kể cả mã đúng ("Bạn nhập
             mã quá nhanh"). App dừng sau {limits.maxWrong} mã bị từ chối liền nhau và nhớ số này cả khi đăng nhập lại; mã nhập
             trên điện thoại không được đếm. Mã đã dùng ("Nhân vật này đã dùng mã rồi") cũng tính là bị từ chối. Mỗi mã chỉ
-            dùng được một lần cho mỗi nhân vật.
+            dùng được một lần cho mỗi nhân vật. Server cũng báo "quá nhanh" khi hai mã gửi quá sát nhau, nên app gửi mỗi mã
+            cách nhau 10 giây; bị báo vậy khi chưa sai đủ {SERVER_LOCK_AT} mã thì app đợi 30 giây rồi gửi lại mã đó một lần.
           </Hint>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">

@@ -467,7 +467,7 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
         seen += 1;
     }
-    assert_eq!(seen, 10);
+    assert_eq!(seen, 11);
 }
 
 /// The x2 EXP of Tăng Kinh Nghiệm comes in the s2c/9 tail with the time it has left: the snapshot keeps when it ends and
@@ -3506,6 +3506,67 @@ fn a_bag_update_that_does_not_read_asks_the_whole_bag_again() {
     );
     // The bag of before stays until s2c/42 brings the new one.
     assert!(bot.snapshot().bag.is_some());
+}
+
+/// Đập Trứng Gà (Log lỗi of 02/11, manina3): s2c/1187 kind 2 is what is left in one bag slot. The rest of the bag stays,
+/// none left empties the slot, and nothing is logged or asked again. Before any bag is known it leaves the bag unknown.
+#[test]
+fn s2c_1187_kind_2_sets_what_is_left_in_one_slot() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str, n: usize| {
+        hex(cases.iter().filter(|c| c["fn"] == f).nth(n).unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let egg = items::inventory(&hex_of("inventory", 2)).unwrap();
+    assert_eq!(
+        (egg.kind, egg.capacity, egg.items.len(), egg.left),
+        (
+            items::BAG_LEFT,
+            -1,
+            0,
+            Some(items::SlotLeft {
+                slot: 32,
+                quantity: 2
+            })
+        )
+    );
+    assert!(!egg.is_whole());
+    let mut fresh = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    fresh
+        .on_packet(1187, &hex_of("inventory", 2), now, &mut out)
+        .unwrap();
+    assert!(fresh.snapshot().bag.is_none());
+
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    bot.on_packet(42, &hex_of("characterExtra", 0), now, &mut out)
+        .unwrap();
+    let before = bot.snapshot().bag.unwrap();
+    let slot = before.items.last().unwrap().slot;
+    out.clear();
+    bot.on_packet(1187, &[2, slot, 0, 0, 0, 5], now, &mut out)
+        .unwrap();
+    assert!(out.is_empty(), "{out:?}");
+    let after = bot.snapshot().bag.unwrap();
+    assert_eq!(
+        (after.capacity, after.items.len()),
+        (before.capacity, before.items.len())
+    );
+    assert_eq!(
+        after
+            .items
+            .iter()
+            .find(|i| i.slot == slot)
+            .map(|i| i.quantity),
+        Some(5)
+    );
+    bot.on_packet(1187, &[2, slot, 0, 0, 0, 0], now, &mut out)
+        .unwrap();
+    let empty = bot.snapshot().bag.unwrap();
+    assert_eq!(empty.items.len(), before.items.len() - 1);
+    assert!(empty.items.iter().all(|i| i.slot != slot));
 }
 
 /// Nhặt cả đồ khác giới tính, on by default: Tự nhặt đồ picks up Giáp Tiên Phong nữ for manina too. Off, gear the
