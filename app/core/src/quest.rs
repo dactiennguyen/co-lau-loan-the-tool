@@ -24,8 +24,8 @@ pub enum StepAction {
     Stat,
     /// "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191).
     Skill,
-    /// "Trinh sát Thành Hồng Giang" (param 3): walk into map M4, the param + 1; the s2c/34 as it is entered moves the step
-    /// on (N5).
+    /// "Trinh sát Thành Hồng Giang" (param 3), "Đến Cửu Phong" (param 9): walk into map M{param + 1}; the s2c/34 as it is
+    /// entered moves the step on (N5, wangpt's quest 19).
     Visit {
         place: String,
         #[serde(rename = "mapId")]
@@ -96,16 +96,20 @@ pub fn step_action(text: &str, npc_id: i32, param: i32) -> StepAction {
     if text.starts_with("Sử dụng điểm kỹ năng") {
         return StepAction::Skill;
     }
-    if let Some(rest) = text.strip_prefix("Trinh sát ") {
-        let place = rest
-            .strip_prefix("Thành ")
-            .filter(|p| !p.is_empty())
-            .unwrap_or(rest);
-        if !place.is_empty() && param >= 0 {
-            return StepAction::Visit {
-                place: place.into(),
-                map_id: format!("M{}", param + 1),
-            };
+    // "Đến Cửu Phong" of quest 19 has param 9, and M10 is Cửu Phong: the same kind as Trinh sát. "Đến vùng đất Lạc Cốc"
+    // (quest 23) is taken as one too; Bot::visit checks the name of the map against the place first.
+    for (verb, before) in [("Trinh sát ", "Thành "), ("Đến ", "vùng đất ")] {
+        if let Some(rest) = text.strip_prefix(verb) {
+            let place = rest
+                .strip_prefix(before)
+                .filter(|p| !p.is_empty())
+                .unwrap_or(rest);
+            if !place.is_empty() && param >= 0 {
+                return StepAction::Visit {
+                    place: place.into(),
+                    map_id: format!("M{}", param + 1),
+                };
+            }
         }
     }
     StepAction::Unknown

@@ -58,6 +58,10 @@ test('stepAction: every step text of quests 3–8, the scout step of quest 14, a
     ['Sử dụng điểm kỹ năng', -1, { kind: 'skill' }],
     ['Báo cáo với Bà Tư Hạnh', 103, { kind: 'talk', npcId: 103 }],
     ['Trinh sát Thành Hồng Giang', -1, { kind: 'visit', place: 'Hồng Giang', mapId: 'M4' }, 3],
+    // Quest 19 of wangpt (01/11): param 9 is M10, Cửu Phong. Quest 23 words its step "Đến vùng đất Lạc Cốc".
+    ['Đến Cửu Phong', -1, { kind: 'visit', place: 'Cửu Phong', mapId: 'M10' }, 9],
+    ['Đến vùng đất Lạc Cốc', -1, { kind: 'visit', place: 'Lạc Cốc', mapId: 'M5' }, 4],
+    ['Đến Cửu Phong', -1, { kind: 'unknown' }, -1],
     ['Thu thập 5 Da Heo', -1, { kind: 'unknown' }],
   ];
   for (const [text, npcId, action, param = 0] of steps) assert.deepEqual(stepAction({ text, npcId, param }), action, text);
@@ -633,6 +637,52 @@ test('quest 14 (N5): "Trinh sát Thành Hồng Giang" walks into M4 through the 
   bot.next(); // the report to NPC 162: back to M25
   assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M4').i32(1024).build().toString('hex') });
   (bot as any).stop('test done');
+});
+
+/** wangpt on quest 19 at "Đến Cửu Phong" (param 9), in M25; steps 1 and 3 are made up, step 2 is from the log of 01/11. */
+const quest19 = (param = 9) => {
+  const w = new Writer().i32(19).string('Thế Lực Tranh Hùng').string('').string('main').i32(1).i32(0).i32(3);
+  ([['Gặp Tướng Quân Lê Viễn', 162, 1, 162], ['Đến Cửu Phong', param, 1, -1], ['Báo cáo với Tướng Quân Lê Viễn', 162, 1, 162]] as const)
+    .forEach(([text, p, required, npc], i) => w.i32(i).string(text).i32(p).i32(required).i32(npc));
+  return w.build();
+};
+
+test('quest 19: "Đến Cửu Phong" goes through Hồng Giang to M4, into M10 through its portal Cửu Phong, and s2c/34 moves it on', () => {
+  const sent: { opcode: number; hex: string }[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: () => {} });
+  bot.onPacket(29, new Writer().string('wangpt').string('M25').i32(0).build());
+  bot.onPacket(11, mapPacket('M25', 'Rìa Hồng Giang', M25_PLACES));
+  bot.onPacket(43, new Writer().string('M25').u8(3).build());
+  bot.onPacket(39, quest19());
+  assert.deepEqual(stepAction(bot.quest!.steps[bot.quest!.current]), { kind: 'visit', place: 'Cửu Phong', mapId: 'M10' });
+  bot.onReady(recorder(sent));
+  // No portal of M25 is named Cửu Phong and M10 is not known: the portal not seen yet, Hồng Giang (1016).
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: q['c2s/13 portal 1016'] });
+  assert.equal((bot as any).awaitingReply, false);
+  bot.onPacket(13, hex(q['s2c/13 M4']));
+  bot.onPacket(11, mapPacket('M4', 'Hồng Giang', [[3, 'Bản đồ', 0], [1020, 'Cửu Phong', 0], [1024, 'Rìa Hồng Giang', 0]]));
+  bot.onPacket(43, new Writer().string('M4').u8(3).build());
+  clearTimeout((bot as any).wait);
+  bot.next();
+  assert.deepEqual(sent.at(-1), { opcode: 13, hex: new Writer().string('M4').i32(1020).build().toString('hex') });
+  assert.equal((bot as any).awaitingReply, true, 'the portal into the map waits for s2c/34');
+  bot.onPacket(13, new Writer().string('M10').i32(9).u8(0).u8(0xff).build());
+  bot.onPacket(11, mapPacket('M10', 'Cửu Phong', [[1016, 'Hồng Giang', 0]]));
+  bot.onPacket(34, new Writer().i32(0).string('subtask 2').i32(19).string('').build());
+  assert.equal(bot.quest!.current, 2);
+  (bot as any).stop('test done');
+});
+
+test('quest bot: a visit step whose map the atlas names otherwise stops before any portal', () => {
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 1, log: e => events.push(e) });
+  bot.onPacket(29, new Writer().string('wangpt').string('M25').i32(0).build());
+  bot.onPacket(11, mapPacket('M2', 'Trại Vân Sơn', [[1024, 'Rìa Hồng Giang', 0]]));
+  bot.onPacket(11, mapPacket('M25', 'Rìa Hồng Giang', M25_PLACES));
+  bot.onPacket(39, quest19(1)); // param 1 is M2, Trại Vân Sơn
+  bot.onReady(recorder(sent));
+  const stop = events.find(e => e.event === 'stop')!;
+  assert.deepEqual([sent.length, stop.reason, stop.mapId, stop.map, stop.place], [0, 'the map of the param is not the place of the step', 'M2', 'Trại Vân Sơn', 'Cửu Phong']);
 });
 
 test('quest bot: a visit step goes first to the map that has the portal; it stops at a refused portal, or in the map with no s2c/34', () => {

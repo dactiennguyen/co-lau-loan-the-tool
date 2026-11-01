@@ -25,7 +25,7 @@ export type StepAction =
   | { kind: 'level'; level: number }                // "Đạt cấp độ 8"
   | { kind: 'stat' }                                // "Nâng điểm tiềm năng"
   | { kind: 'skill' }                               // "Sử dụng điểm kỹ năng": a level of a skill (c2s/1191)
-  | { kind: 'visit'; place: string; mapId: string } // "Trinh sát Thành Hồng Giang" (param 3): walk into map M4, the param + 1 (N5)
+  | { kind: 'visit'; place: string; mapId: string } // "Trinh sát Thành Hồng Giang" (param 3), "Đến Cửu Phong" (param 9): walk into map M{param + 1} (N5, wangpt Q19)
   | { kind: 'talk'; npcId: number }                 // any step with an npcId: talk, report, or fight the NPC through its dialog
   | { kind: 'unknown' };
 
@@ -38,6 +38,9 @@ export function stepAction(step: Pick<QuestStep, 'text' | 'npcId' | 'param'>): S
   if (/^Nâng điểm tiềm năng/.test(step.text)) return { kind: 'stat' };
   if (/^Sử dụng điểm kỹ năng/.test(step.text)) return { kind: 'skill' };
   if ((m = /^Trinh sát (?:Thành )?(.+)$/.exec(step.text)) && step.param >= 0) return { kind: 'visit', place: m[1], mapId: `M${step.param + 1}` };
+  // "Đến Cửu Phong" of quest 19 has param 9, and M10 is Cửu Phong: the same kind as Trinh sát. "Đến vùng đất Lạc Cốc"
+  // (quest 23) is taken as one too; visit() checks the name of the map against the place first.
+  if ((m = /^Đến (?:vùng đất )?(.+)$/.exec(step.text)) && step.param >= 0) return { kind: 'visit', place: m[1], mapId: `M${step.param + 1}` };
   return { kind: 'unknown' };
 }
 
@@ -611,10 +614,14 @@ export class QuestBot implements WorldSession {
     return true;
   }
 
-  /** "Trinh sát Thành Hồng Giang": walks into the map of the step (M4 for param 3) through the portal named after it
-   * ("Hồng Giang" in M25) or one that led there before, else towards a map that has such a portal. The s2c/34 that comes
-   * as that map is entered moves the step on (N5), so the last portal waits for a reply as a talk does. */
+  /** "Trinh sát Thành Hồng Giang", "Đến Cửu Phong": walks into the map of the step (M4 for param 3, M10 for 9) through
+   * the portal named after it ("Hồng Giang" in M25) or one that led there before, else towards a map that has such a
+   * portal. The s2c/34 that comes as that map is entered moves the step on (N5), so the last portal waits for a reply as a
+   * talk does. The map of a param is known from two steps only: when the atlas names it otherwise than the step, it stops
+   * rather than walk to the wrong map. */
   private visit(action: { place: string; mapId: string }, text: string) {
+    const known = this.atlas.maps[action.mapId]?.name;
+    if (known !== undefined && known !== action.place) return this.stop('the map of the param is not the place of the step', { step: text, mapId: action.mapId, map: known, place: action.place });
     if (this.mapId === action.mapId) return this.stop('in the map of the step but the server did not advance it', { step: text, mapId: this.mapId });
     const led = new Set(Object.entries(this.atlas.portals).filter(([, p]) => p.mapId === action.mapId).map(([id]) => Number(id)));
     const isDoor = (p: Pick<Place, 'id' | 'name' | 'type'>) => p.type === 0 && (p.name === action.place || led.has(p.id));

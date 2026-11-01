@@ -202,7 +202,8 @@ function marketCases() {
 function stepActions() {
   const steps: [string, number, number?][] = [['Tiêu diệt Heo Mọi', -1], ['Tiêu diệt 1 Sói Xám', -1], ['Đánh bại Kẻ Gây Rối', -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1],
     ['Đạt cấp độ 8', -1], ['Nâng điểm tiềm năng', -1], ['Báo cáo với Bà Tư Hạnh', 103], ['Bàn bạc với Thành Chủ Nguyễn Khang', 129], ['Gặp Trại Chủ Phạm Hùng', 127],
-    ['Sử dụng điểm kỹ năng', -1], ['Trinh sát Thành Hồng Giang', -1, 3], ['Trinh sát Thành Hồng Giang', 162, 3], ['Trinh sát Thành ', -1, 3], ['Thu thập 5 Da Heo', -1]];
+    ['Sử dụng điểm kỹ năng', -1], ['Trinh sát Thành Hồng Giang', -1, 3], ['Trinh sát Thành Hồng Giang', 162, 3], ['Trinh sát Thành ', -1, 3], ['Thu thập 5 Da Heo', -1],
+    ['Đến Cửu Phong', -1, 9], ['Đến vùng đất Lạc Cốc', -1, 4], ['Đến Cửu Phong', 145, 9], ['Đến Cửu Phong', -1, -1], ['Đến ', -1, 9], ['Đến vùng đất ', -1, 4]];
   // Every step of every s2c/39 captured live (quests 3, 4, 12, 14, 17): the words and numbers as the server sent them.
   const captured = [fixtures.quest['s2c/39 quest3'], fixtures.quest['s2c/39 quest4'], fixtures.quest['s2c/39 quest12'], fixtures.quest['s2c/39 quest14'], q17Packets['s2c/39 quest17']]
     .flatMap(h => questData(bytes(h)).steps.map((s): [string, number, number] => [s.text, s.npcId, s.param]));
@@ -284,6 +285,8 @@ function questReplays() {
   };
   const boss = (field: 0 | 1) => p(1177, field === 1 ? new Writer().string('M1').u8(1).string('mob86100001').build()
     : new Writer().string('M1').u8(0).string('mob86100001').string('Thủ Lĩnh Sơn Tặc').i32(11).u8(0).i32(9).i32(1).u8(1).u8(1).i32(85).i32(5).build());
+  const quest19 = (current: number) => quest(19, 'Thế Lực Tranh Hùng', current, 0,
+    [['Gặp Tướng Quân Lê Viễn', 162, 1, 162], ['Đến Cửu Phong', 9, 1, -1], ['Báo cáo với Tướng Quân Lê Viễn', 162, 1, 162]]);
   const quest7 = quest(7, 'Quét Sạch Sơn Trại', 1, 0, [['Đánh bại Chỉ Huy Sơn Tặc', 87, 1, -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', 0, 500, -1]]);
   const quest9 = (current: number, progress: number) => quest(9, 'Thử Sức Tân Binh', current, progress,
     [['Đạt cấp độ 11', 11, 1, -1], ['Nói chuyện với Võ Quan Đinh Mộc', 141, 1, 141], ['Tiêu diệt Sói Xám', 4, 15, -1], ['Tiêu diệt Cóc Xanh', 5, 15, -1], ['Báo cáo với Võ Quan Đinh Mộc', 141, 1, 141]]);
@@ -329,6 +332,16 @@ function questReplays() {
     ['visit step: a refused portal stops it', [p(11, mapPacket('M25', 'Rìa Hồng Giang', WORLD[2][2])), p(39, bytes(q['s2c/39 quest14'])), { start: true },
       p(1256, noticePacket('Bạn cần hoàn thành nhiệm vụ trước khi tới đây')), { next: true }]],
     ['visit step: already in the map with no s2c/34 stops it', [p(11, mapPacket('M4', 'Hồng Giang', [[1024, 'Rìa Hồng Giang', 0]])), p(39, bytes(q['s2c/39 quest14'])), { start: true }]],
+    // Quest 19 "Thế Lực Tranh Hùng" of wangpt (01/11): "Đến Cửu Phong", param 9, is M10. No portal of M25 has the name, so
+    // through Hồng Giang to M4, whose portal Cửu Phong (1020) leads into M10; the s2c/34 as it enters moves the step on.
+    // Only step 2 is from the log: steps 1 and 3 are made up, the s2c/13 into M10 is laid out as the portal samples.
+    ['Đến step (Q19): to the map with the portal named after it, then into M10, moved on by s2c/34', [p(11, mapPacket('M25', 'Rìa Hồng Giang', WORLD[2][2])),
+      p(43, mobsPacket('M25', [])), quest19(1), { start: true }, p(13, bytes(q['s2c/13 M4'])),
+      p(11, mapPacket('M4', 'Hồng Giang', [[3, 'Bản đồ', 0], [1020, 'Cửu Phong', 0], [1024, 'Rìa Hồng Giang', 0], [143, 'Tiên phong Hồng Giang', 2]])), p(43, mobsPacket('M4', [])),
+      { next: true }, p(13, new Writer().string('M10').i32(9).u8(0).u8(0xff).build()), p(11, mapPacket('M10', 'Cửu Phong', [[1016, 'Hồng Giang', 0]])),
+      p(43, mobsPacket('M10', [])), p(34, new Writer().i32(0).string('subtask 2').i32(19).string('').build()), { next: true }]],
+    ['Đến step: a map of the param that the atlas names otherwise stops it, nothing sent', [p(11, mapPacket('M25', 'Rìa Hồng Giang', WORLD[2][2])),
+      quest(19, 'Thế Lực Tranh Hùng', 0, 0, [['Đến Cửu Phong', 1, 1, -1]]), { start: true }], scanAtlas()],
     ['skill step: a level of the first skill that can take one, then the reply', [p(9, bytes(fixtures.profile['s2c/9 level 21'])), skills, at('M1'), quest3(3),
       { start: true, once: true }, p(10, bytes(fixtures['skills-items']['s2c/10 kind 32'])), p(1191, bytes(fixtures['skills-items']['s2c/1191'])),
       p(34, new Writer().i32(0).string('subtask 1').i32(3).string('').build()), { next: true }]],

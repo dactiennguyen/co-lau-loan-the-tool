@@ -517,10 +517,11 @@ impl Bot {
         true
     }
 
-    /// "Trinh sát Thành Hồng Giang": walks into the map of the step (M4 for param 3) through the portal named after it
-    /// ("Hồng Giang" in M25) or one that led there before, else towards a map that has such a portal. The s2c/34 that comes
-    /// as that map is entered moves the step on (N5), so the last portal waits for a reply as a talk does. ← visit() of
-    /// quest.ts.
+    /// "Trinh sát Thành Hồng Giang", "Đến Cửu Phong": walks into the map of the step (M4 for param 3, M10 for 9) through
+    /// the portal named after it ("Hồng Giang" in M25) or one that led there before, else towards a map that has such a
+    /// portal. The s2c/34 that comes as that map is entered moves the step on (N5), so the last portal waits for a reply as
+    /// a talk does. The map of a param is known from two steps only: when the atlas names it otherwise than the step, it
+    /// stops rather than walk to the wrong map. ← visit() of quest.ts.
     pub(super) fn visit(
         &mut self,
         q: &Quest,
@@ -530,6 +531,13 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) {
+        if let Some(known) = self.atlas.maps.get(map_id).filter(|m| m.name != place) {
+            let reason = format!(
+                "Bước \"{text}\": thamSố chỉ tới {map_id} ({}), không phải {place}; bot không tự đi",
+                known.name
+            );
+            return self.finish_quest(&reason, out);
+        }
         if self.snap.map_id == map_id {
             let reason = format!("Đã ở {place} mà server chưa sang bước \"{text}\"");
             return self.finish_quest(&reason, out);
