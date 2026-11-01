@@ -230,15 +230,15 @@ fn five_refused_in_a_row_stop_the_run_before_the_servers_ten() {
     let all = ["A1", "A2", "A3", "A4", "A5", "A6", "A7"];
     bot.redeem(&codes(&all), now, &mut out);
     let mut t = now;
-    for k in 0..5 {
-        assert_eq!(sent(&out), [wire(all[k])], "code {k}");
+    for (k, code) in all.iter().enumerate().take(5) {
+        assert_eq!(sent(&out), [wire(code)], "code {k}");
         out.clear();
         bot.on_packet(1223, &g1("s2c/1223 không tồn tại"), t, &mut out)
             .unwrap();
         if k < 4 {
             assert!(logged(
                 &out,
-                &format!("Mã {} bị từ chối: Mã không tồn tại", all[k])
+                &format!("Mã {code} bị từ chối: Mã không tồn tại")
             ));
             out.clear();
             t += Duration::from_millis(1500);
