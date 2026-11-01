@@ -1,6 +1,6 @@
 # Di chuyển, người chơi khác, chat và vật phẩm rơi
 
-Mốc, nguồn **L1/W1/A1/B2** và nhãn như [08-server-map-zone](08-server-map-zone.md). Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts). Test với mẫu thật: [test/world.test.ts](../../../test/world.test.ts).
+Mốc, nguồn **L1/W1/A1/B2** và nhãn như [08-server-map-zone](08-server-map-zone.md); nói trong khu đo ở **CH1** (01/11). Bộ giải mã: [src/protocol/world.ts](../../../src/protocol/world.ts), `c2s/1174` và `s2c/1174` trong [src/protocol/events.ts](../../../src/protocol/events.ts). Test với mẫu thật: [test/world.test.ts](../../../test/world.test.ts), [test/events.test.ts](../../../test/events.test.ts).
 
 Mọi bố cục dưới đây đã được kiểm bằng cách đọc hết byte của mọi payload đã bắt:
 
@@ -18,6 +18,8 @@ Mọi bố cục dưới đây đã được kiểm bằng cách đọc hết by
 | `s2c/1183` | 139 |
 | `s2c/1184` | 5 |
 | `s2c/1205` | 3 |
+| `c2s/1174` | 2 |
+| `s2c/1174` | 2 |
 
 Không payload nào thiếu hoặc thừa byte.
 
@@ -29,7 +31,7 @@ Không payload nào thiếu hoặc thừa byte.
 | Người khác di chuyển nhận gì? | `s2c/1262` mỗi 100 ms, chỉ gồm những người vừa đổi vị trí. Bản ghi của chính mình cũng có trong đó. [Đo] |
 | Có ai vào/ra khu? | Vào: `s2c/1167` (đủ thông tin nhân vật). Ra: `s2c/1170` (id). Lúc vào khu nhận cả danh sách: `s2c/1263`. [Đo] |
 | Người khác đổi đồ, mất máu, lên cấp? | `s2c/1166` (trang bị), `s2c/1253` (cấp, HP), `s2c/1212` (hiệu ứng). [Đo] |
-| Chat? | Nhận chat Thế giới: `s2c/1205` (id, tên, nội dung). Gói **gửi** chat chưa bắt, vì gửi là đăng công khai và chat Thế giới tốn 5 lượng. |
+| Chat? | Nhận chat Thế giới: `s2c/1205` (id, tên, nội dung). Nút bong bóng góc trên bên phải là **nói trong khu**: `c2s/1174` (chữ) → `s2c/1174` (id, chữ đã che từ cấm), hiện thành bong bóng trên đầu nhân vật, không tốn Lượng ([nói trong khu](#c2s-1174), CH1). Gói **gửi** chat Thế giới (bảng Tin nhắn, 5 lượng) chưa bắt. |
 | Vật phẩm rơi? | `s2c/1182` (thêm), `s2c/1183` (xoá), `s2c/1184` (danh sách lúc vào map). [Đo bố cục; vai trò là Suy luận mạnh] |
 
 <a id="own-move"></a>
@@ -236,13 +238,37 @@ Người chơi NhinCaiGi lên cấp: `1253` đổi từ `(cấp 11, 216/216)` th
 
 | Loại | Chuỗi |
 |---|---|
-| Nút bong bóng góc phải | Mở hộp "Chat" (một ô nhập, OK / Đóng). Mở và đóng hộp **không gửi gói** nào. [Đo] |
+| Nút bong bóng góc phải | Mở hộp "Chat" (một ô nhập, OK / Đóng). Mở và đóng hộp **không gửi gói** nào; OK gửi `c2s/1174`, tức nói trong khu ([dưới](#c2s-1174)). [Đo] |
 | Thế giới | "Thế giới", "Nhập để chat (5 lượng)", "Chọn để ẩn/hiện chat thế giới". Mỗi tin tốn 5 lượng. |
 | Riêng | "Tin nhắn riêng @", "Chat với ", "Tin nhắn", "Chưa có tin nhắn nào." |
 | Khác | "Chat nhanh", " để chat ở Sảnh", "Nhập để chat sứ quân", "player_chat" |
 | Giới hạn | "Bạn chat quá nhanh", "Chưa nhập nội dung chat." |
 
-**Gửi chat chưa được bắt.** Bấm OK sẽ đăng tin công khai cho người chơi khác, chat Thế giới còn trừ 5 lượng, nên tôi không tự gửi. Muốn có gói gửi: chạy capture rồi tự gửi một tin. Agent sẽ ghi gói `c2s` mới, có chứa nội dung tin.
+**Gửi chat Thế giới chưa được bắt.** Ô nhập của nó ở bảng Tin nhắn ("Nhập để chat (5 lượng)", [11-panels](11-panels.md)); gửi là đăng công khai cho cả server và trừ Lượng, nên chưa thử. Nút bong bóng **không** phải chat Thế giới mà là nói trong khu (CH1, dưới). Muốn có gói chat Thế giới: chạy capture rồi gửi một tin ở bảng Tin nhắn; agent sẽ ghi gói `c2s` mới có chứa nội dung tin.
+
+<a id="c2s-1174"></a>
+
+### c2s/1174 và s2c/1174: nói trong khu (CH1)
+
+Đo ngày 01/11 trên điện thoại (manina cấp 34, Hồng Giang khu 0), agent Frida ghi hàm gửi và hàm đọc gói như G1. Hai tin "chao moi nguoi": một do người dùng bấm OK, một do adb chạm OK. adb chỉ gõ được chữ không dấu (`input text`), nên chưa thử chữ có dấu; chữ có dấu của các gói khác đều là UTF-8.
+
+| Thuộc tính | Điều tra được |
+|---|---|
+| Mở từ | Nút bong bóng ở góc trên bên phải, cạnh nút menu: hộp "Chat" với một ô nhập, OK và Đóng. Chạm vào ô thì bàn phím của điện thoại hiện lên. [Đo] |
+| Gửi | Bấm OK: `c2s/1174` `string chữ`, đúng chữ đã gõ (hàm dựng `sqlq.q120`, [c2s-builders](../c2s-builders.md)). Hộp đóng ngay. [Đo 2 lần] |
+| Server trả | `s2c/1174` `i32 idNgườiChơi; string chữ`, khoảng 25–30 ms sau. Id 155 là `numericId` của manina trong `s2c/9`, cũng là id của mình trong `s2c/1262`. [Đo] |
+| Lọc từ cấm | Chữ trả về đã bị che: "chao moi nguoi" thành "chao mo\*\*\*\*uoi". 4 ký tự "i ng" (cả dấu cách) bị thay bằng `*`; có lẽ bộ lọc bỏ dấu cách rồi mới so với danh sách từ cấm. [Đo chữ trả về; cách lọc là Suy luận] |
+| Hiển thị | Bong bóng xám trên đầu nhân vật với **chữ server trả** (đã che), khoảng 3 s rồi tắt (quay màn hình lúc gửi). Vì bong bóng hiện chữ đã che, client vẽ nó từ `s2c/1174`, không từ chữ đã gõ. Tin không vào bảng Tin nhắn. [Đo] |
+| Tốn gì | Không: sau hai tin không có `s2c/46` (tiền) nào. Khác chat Thế giới, 5 lượng mỗi tin. [Đo] |
+| Ai thấy | Có lẽ mọi người trong khu, như vị trí `s2c/1262`, nhờ id người nói. Trong khoảng 10 phút của CH1 chưa có `s2c/1174` của người khác. [Suy luận] |
+| Giới hạn | Hai tin cách nhau khoảng 2 phút, không bị "Bạn chat quá nhanh". Khoảng cách tối thiểu và độ dài tối đa chưa đo. [Chưa rõ] |
+
+```text
+c2s/1174  0000000e "chao moi nguoi"
+s2c/1174  0000009b 0000000e "chao mo****uoi"          id 155 = manina
+```
+
+Bot TS nói và nghe bằng `npm run chat` ([Nói trong khu](../../integration/nodejs/chat.md)): gửi `c2s/1174`, chờ `s2c/1174` mang id của mình, in chữ server trả lại. App Rust chưa có.
 
 <a id="ground-items"></a>
 

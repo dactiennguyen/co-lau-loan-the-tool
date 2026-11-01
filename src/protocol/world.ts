@@ -221,6 +221,21 @@ export function playersSnapshot(payload: Uint8Array) {
   return finish(r, { players }, 's2c/1263');
 }
 
+/** s2c/1174: a player of the zone says something, after c2s/1174 (the Chat box of the speech bubble button). The server
+ * stars out the words it forbids; the game shows that text above the speaker for about 3 s (CH1,
+ * 09-players-chat.md#c2s-1174). The own lines come back too, with the numericId of s2c/9; whether the others of the
+ * zone get them is not measured. */
+export function playerSay(payload: Uint8Array) {
+  const r = new Reader(payload);
+  return finish(r, { playerId: r.i32(), text: r.string() }, 's2c/1174');
+}
+
+/** s2c/1205: a line of the Thế giới channel, censored the same way. */
+export function worldChat(payload: Uint8Array) {
+  const r = new Reader(payload);
+  return finish(r, { senderId: r.i32(), name: r.string(), text: r.string() }, 's2c/1205');
+}
+
 export interface Nearby { id: number; name: string; level: number }
 
 /** The other players of the zone: s2c/1263 replaces the list (after c2s/43 and after a battle), s2c/1167 adds or

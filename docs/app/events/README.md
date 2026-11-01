@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 144 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 83 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 146 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 82 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -71,6 +71,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/43 | entities_data | world | [Byte, bố cục, nguồn quan sát](03-world.md#s2c-43) |
 | c2s/1169 | player_move | world | [Di chuyển của mình](09-players-chat.md#own-move) |
 | c2s/1173 | change_zone | world | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map) |
+| c2s/1174 | say | world | [Nói trong khu](09-players-chat.md#c2s-1174) |
 | s2c/13 | zone_changed | world | [Đổi khu vực](06-map-mobs.md#đổi-khu-vực-trong-cùng-map), [qua cổng](10-quests.md#cổng) |
 | c2s/1172 | zone_list_request | world | [Khu vực và số người](08-server-map-zone.md#zone-list) |
 | s2c/1172 | zone_list | world | [Khu vực và số người](08-server-map-zone.md#zone-list) |
@@ -184,6 +185,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1166 | player_gear | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1166) |
 | s2c/1212 | player_status | push | [Hiệu ứng người chơi](09-players-chat.md#s2c-1212) |
 | s2c/1205 | world_chat | push | [Chat](09-players-chat.md#chat) |
+| s2c/1174 | player_say | push | [Nói trong khu](09-players-chat.md#c2s-1174) |
 | s2c/45 | boss_broadcast | push | [Thông báo boss](06-map-mobs.md#thông-báo-boss-s2c45), [boss theo map](08-server-map-zone.md#25-map) |
 
 C→S và S→C là hướng truyền trên cùng socket. Thứ tự push/kích thước có thể đổi theo trạng thái thế giới; không dùng nguyên byte của phiên cũ làm giá trị cố định cho phiên mới.

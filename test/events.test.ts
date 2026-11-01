@@ -73,3 +73,12 @@ test('a final world snapshot cannot hide a missing intermediate response in the 
   assert.equal(result.ok, false);
   assert.ok(result.findings.some(f => f.code === 'PREVIOUS_RESPONSE_MISSING' && f.opcode === 4));
 });
+
+test('say (CH1): c2s/1174 is the text of the Chat box, s2c/1174 the bubble with the id and the text the server masked', () => {
+  // The two packets of CH1 (manina, numericId 155): "chao moi nguoi" goes out, the server sends it back masked.
+  const sent = '0000000e6368616f206d6f69206e67756f69', shown = '0000009b0000000e6368616f206d6f2a2a2a2a756f69';
+  assert.equal(buildRequest(1174, { text: 'chao moi nguoi' }).toString('hex'), sent);
+  assert.deepEqual(decodeEvent('c2s', 1174, Buffer.from(sent, 'hex')).fields, { text: 'chao moi nguoi' });
+  const bubble = decodeEvent('s2c', 1174, Buffer.from(shown, 'hex'));
+  assert.deepEqual([bubble.name, bubble.fields, bubble.opaqueBytes], ['player_say', { playerId: 155, text: 'chao mo****uoi' }, 0]);
+});

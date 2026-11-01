@@ -197,17 +197,17 @@ Nguồn: gọi com.tlgdx.twelvelord.sqq.a(int) rồi b(int) trong native; giữ 
 
 ## Opcode chưa thấy trên dây
 
-Bảng trên có 188 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (L1, W1, U1, A1, B2, run1–4, Q1–Q12, E1, E2, P3, P4, K3, P5, I1, N1–N4, J1–J3, G1, CT1), 83 opcode chưa từng xuất hiện ở cả hai chiều:
+Bảng trên có 188 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (L1, W1, U1, A1, B2, run1–4, Q1–Q12, E1, E2, P3, P4, K3, P5, I1, N1–N4, J1–J3, G1, CT1, CH1), 82 opcode chưa từng xuất hiện ở cả hai chiều:
 
 ```text
 6 7 8 16 23 25 27 31 32 33 41 47 49 52 55 56 58 59 86 95 98 100 101 125 126 128 129 130 131
-132 133 1112 1168 1171 1174 1175 1176 1179 1185 1189 1193 1194 1197 1198 1199 1202 1203 1204 1208 1210 1211 1213
+132 133 1112 1168 1171 1175 1176 1179 1185 1189 1193 1194 1197 1198 1199 1202 1203 1204 1208 1210 1211 1213
 1225 1226 1227 1228 1229 1230 1231 1232 1233 1234 1235 1236 1237 1238 1239 1242 1243
 1244 1245 1246 1247 1248 1249 1250 1251 1252 1255 1266 1267 1268 1270
 ```
 
 - `s2c/0` cũng không có trong capture Frida. Nó chỉ thấy khi client Node đăng nhập trong lúc tài khoản đang online, xem [02-login](events/02-login.md#s2c-0).
 - Chỉ một opcode có gợi ý nghĩa trong `.so`: chuỗi debug "F6: xin mở cửa sổ nâng cấp (gói 96)", tức 96 là xin mở cửa sổ nâng cấp trang bị. [Suy luận]
-- Các tính năng có trong game nhưng chưa bắt được gói, nhiều khả năng nằm trong dải trên: gửi chat, chat riêng, giao dịch, kết bạn, thách đấu người chơi, Lôi đài, mua bán ở Chợ trời, nhận nhiệm vụ hằng ngày, thú cưng. Đã tìm được: kỹ năng trong trận `c2s/20`, đánh boss `c2s/1178` ([05-battle](events/05-battle.md#c2s-1178)); qua cổng dùng lại `c2s/13` ([10-quests](events/10-quests.md#cổng)); nâng cấp kỹ năng `c2s/1191`, sửa đồ `c2s/48`, mặc, cởi, vứt bỏ `c2s/1186`, dùng vật phẩm `c2s/84` (trong trận `c2s/44`), mua ở NPC `c2s/57`, `c2s/1190` ([12-skills-items](events/12-skills-items.md)); nâng cấp trang bị ở Pháp sư `c2s/97`, `c2s/91`, luyện đá trả `s2c/92` và kết quả `s2c/93`, chuyển hoá trả `s2c/1260` ([16-upgrade](events/16-upgrade.md#gói)); nhặt đồ `c2s/1188` → `s2c/51` ([13-drops-items](events/13-drops-items.md#c2s-1188)). [Suy luận từ giao diện và chuỗi .so]
+- Các tính năng có trong game nhưng chưa bắt được gói, nhiều khả năng nằm trong dải trên: chat Thế giới, chat riêng, giao dịch, kết bạn, thách đấu người chơi, Lôi đài, mua bán ở Chợ trời, nhận nhiệm vụ hằng ngày, thú cưng. Đã tìm được: kỹ năng trong trận `c2s/20`, đánh boss `c2s/1178` ([05-battle](events/05-battle.md#c2s-1178)); qua cổng dùng lại `c2s/13` ([10-quests](events/10-quests.md#cổng)); nâng cấp kỹ năng `c2s/1191`, sửa đồ `c2s/48`, mặc, cởi, vứt bỏ `c2s/1186`, dùng vật phẩm `c2s/84` (trong trận `c2s/44`), mua ở NPC `c2s/57`, `c2s/1190` ([12-skills-items](events/12-skills-items.md)); nâng cấp trang bị ở Pháp sư `c2s/97`, `c2s/91`, luyện đá trả `s2c/92` và kết quả `s2c/93`, chuyển hoá trả `s2c/1260` ([16-upgrade](events/16-upgrade.md#gói)); nhặt đồ `c2s/1188` → `s2c/51` ([13-drops-items](events/13-drops-items.md#c2s-1188)); nói trong khu `c2s/1174` → `s2c/1174` ([09-players-chat](events/09-players-chat.md#c2s-1174), CH1). [Suy luận từ giao diện và chuỗi .so]
 - Kiểu từng trường của mọi gói client gửi được, kể cả gói chưa thấy, đọc được từ hàm dựng gói: [c2s-builders](c2s-builders.md). [Đo tĩnh]
 - Muốn gán nghĩa thì làm như U1 ([11-panels](events/11-panels.md)): bật capture rồi dùng tính năng đó trên máy. Agent ghi mọi opcode mới kèm payload.

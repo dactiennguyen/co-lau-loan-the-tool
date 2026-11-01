@@ -2,7 +2,8 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
-  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList } from './world.ts';
+  zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
+  playerSay, worldChat } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
 import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
 import { market, marketBuyRequest, marketDone, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from './market.ts';
@@ -57,6 +58,7 @@ event('c2s', 43, 'entities_request', 'world', 'Đã nhận map_data', 's2c/43 v�
 event('s2c', 43, 'entities_data', 'world', 'Trả entities_request', 'Đồng bộ push thế giới; không gửi ACK nguyên gói', 'string mapId; u8 field; tới hết payload: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}', 'Đọc hết byte: M1 khu 0 (1398 byte), khu 1 (bot Q2); ý nghĩa field, a..d chưa chốt; không có toạ độ quái');
 
 event('c2s', 1169, 'player_move', 'world', 'Nhân vật đang chạy/nhảy/rơi; ~110 ms một gói', 'Server phát lại trong s2c/1262', 'i32 x; i32 y; i32 state; u8 flags[5]', 'Đo bằng thao tác joystick: state 0 đứng, 1 chạy, 5 lên, 6 rơi, 7 chạm đất; flags[2] trái, flags[3] phải');
+event('c2s', 1174, 'say', 'world', 'Bấm OK trong hộp Chat của nút bong bóng góc trên bên phải', 's2c/1174 với id của mình và chữ đã che từ cấm', 'string text', 'Đo CH1: 2 tin "chao moi nguoi", không tốn Lượng; hàm dựng sqlq.q120');
 event('c2s', 1173, 'change_zone', 'world', 'Chọn khu trong bảng Khu vực', 's2c/13 rồi c2s/11, c2s/43 của khu mới', 'u8 zone', 'Đo B2: khu 20');
 event('s2c', 13, 'zone_changed', 'world', 'Trả change_zone (c2s/1173), hoặc c2s/13 với id cổng', 'c2s/11 với mapId, khu mới', 'Qua cổng: string mapId; i32 thứ tự map trong bản đồ thế giới (M1 0, M2 1, M25 24); u8 0; u8 0xff. Đổi khu: như qua cổng nhưng byte cuối là khu mới (Z1); bản B2: string mapId; i32 khu', 'Đo B2 (đổi khu, dạng ngắn), Z1 (bot TS sang khu 4 của M2, 26 ms: 000000024d32 00000001 00 04); qua cổng B5, Q16, S1: số sau mapId luôn khớp thứ tự map');
 event('c2s', 1172, 'zone_list_request', 'world', 'Mở bảng chọn khu', 's2c/1172', 'Rỗng');
@@ -174,6 +176,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1166, 'player_gear', 'Người chơi khác đổi trang bị', 'i32 id; i32 gear[6]', 'Đo: 6 số trùng gear trong player record; tháo đồ thì về 0'],
   [1212, 'player_status', 'Người chơi vào khu hoặc đổi trạng thái', 'i32 id; u8 mode; mode 2: u8 n; n * {u8; i32 effect; u8}; u8 / khác: {u8; i32 effect; u8}', 'Đọc hết byte; effect 9300..9302 chưa rõ nghĩa'],
   [1205, 'world_chat', 'Có người chat kênh Thế giới', 'i32 senderId; string name; string text', 'Đo 3 tin; server che từ cấm bằng *'],
+  [1174, 'player_say', 'Sau c2s/1174: chữ hiện thành bong bóng trên đầu nhân vật khoảng 3 s', 'i32 playerId; string text (từ cấm đã che bằng *)', 'Đo CH1: 2 tin của mình (id 155 = numericId của manina); tin của người khác chưa thấy'],
   [45, 'boss_broadcast', 'Vào map và định kỳ', 'string text ("BOSS … đang ở <map>: khu …")'],
 ];
 for (const [op, name, trigger, schema, confidence] of pushes) {
@@ -206,6 +209,8 @@ export interface RequestContext {
   tab?: number; page?: number;
   /** c2s/112: the price in Xu (slot and quantity as above). */
   price?: number;
+  /** c2s/1174: what the character says, as typed in the Chat box (09-players-chat.md#c2s-1174). */
+  text?: string;
 }
 function required<T>(value: T | undefined, name: string): T {
   if (value === undefined) throw new Error(`Missing request field: ${name}`);
@@ -238,6 +243,8 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     // Nâng cấp in the Kỹ năng tab: sqlq.e52(skillId, amount) writes two i32 like c2s/10 (E1).
     case 1191: return w.i32(required(ctx.skillId, 'skillId')).i32(required(ctx.amount, 'amount')).build();
     case 1173: return w.u8(required(ctx.zone, 'zone')).build();
+    // OK of the Chat box of the speech bubble button: sqlq.q120(text) (CH1).
+    case 1174: return w.string(required(ctx.text, 'text')).build();
     // Nhặt in the dialog of a chest on the ground: sqlq.c44(uuid) (P3).
     case 1188: return w.string(required(ctx.uuid, 'uuid')).build();
     case 1181: return w.string(required(ctx.mobId, 'mobId')).i32(0).i32(required(ctx.npcId, 'npcId')).build();
@@ -281,6 +288,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 112: fields = r.data[0] === 1 ? { kind: r.u8(), slot: r.i32(), quantity: r.i32(), price: Number(r.take(8).readBigInt64BE()) } : { kind: r.u8(), uuid: r.string() }; break;
       case 13: fields = { mapId: r.string(), npcId: r.i32() }; break;
       case 1173: fields = { zone: r.u8() }; break;
+      case 1174: fields = { text: r.string() }; break;
       case 15: fields = { mobId: r.string(), flag: r.u8() }; break;
       case 1178: fields = { mobId: r.string(), flag: r.i32() }; break;
       case 18: case 40: fields = { battleUuid: r.string() }; break;
@@ -400,7 +408,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1263: fields = playersSnapshot(payload); r.take(payload.length); break;
       case 1262: fields = positions(payload); r.take(payload.length); break;
       case 1172: fields = zoneList(payload); r.take(payload.length); break;
-      case 1205: fields = { senderId: r.i32(), name: r.string(), text: r.string() }; break;
+      case 1205: fields = worldChat(payload); r.take(payload.length); break;
+      case 1174: fields = playerSay(payload); r.take(payload.length); break;
       case 45: fields = { text: r.string() }; break;
     }
   }

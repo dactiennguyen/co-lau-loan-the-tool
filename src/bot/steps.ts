@@ -25,12 +25,12 @@ export const refusalText = (p: Packet) => (p.op === 0 ? serverText(p.payload) : 
 export class Steps {
   io?: Io;
   readonly waitMs: number;
-  private waiters: { ops: number[]; resolve: (p: Packet) => void; timer: ReturnType<typeof setTimeout> }[] = [];
+  private waiters: { ops: number[]; match?: (p: Packet) => boolean; resolve: (p: Packet) => void; timer: ReturnType<typeof setTimeout> }[] = [];
   constructor(waitMs = 8000) { this.waitMs = waitMs; }
 
   /** Every packet of the session goes through here: the step waiting for its opcode gets it. */
   take(op: number, payload: Buffer) {
-    const w = this.waiters.find(x => x.ops.includes(op));
+    const w = this.waiters.find(x => x.ops.includes(op) && (!x.match || x.match({ op, payload })));
     if (!w) return;
     this.waiters.splice(this.waiters.indexOf(w), 1);
     clearTimeout(w.timer);
@@ -43,19 +43,20 @@ export class Steps {
 
   /** Sends a packet and waits for one of `ops`, registered first: the answer may come in the same chunk as the packet
    * before it. With `refuse` (the default) a notice (s2c/1256) or a message box (s2c/0) that comes instead is a refusal;
-   * without it `ops` may list them. */
-  async ask(op: number, payload: Uint8Array, ops: number[], what: string, { refuse = true } = {}) {
-    const answer = this.wait(refuse ? [...ops, 1256, 0] : ops, what);
+   * without it `ops` may list them. With `match`, a packet of `ops` it says no to is not the answer (s2c/1174 of another
+   * player); it must not throw. */
+  async ask(op: number, payload: Uint8Array, ops: number[], what: string, { refuse = true, match }: { refuse?: boolean; match?: (p: Packet) => boolean } = {}) {
+    const answer = this.wait(refuse ? [...ops, 1256, 0] : ops, what, match && (p => !ops.includes(p.op) || match(p)));
     try { this.send(op, payload); } catch (error) { answer.cancel(); throw error; }
     const p = await answer.promise;
     if (!ops.includes(p.op)) throw new Stop(`${what}: server từ chối "${refusalText(p)}"`);
     return p;
   }
 
-  private wait(ops: number[], what: string) {
+  private wait(ops: number[], what: string, match?: (p: Packet) => boolean) {
     let cancel = () => {};
     const promise = new Promise<Packet>((resolve, reject) => {
-      const waiter = { ops, resolve, timer: setTimeout(() => {
+      const waiter = { ops, match, resolve, timer: setTimeout(() => {
         this.waiters = this.waiters.filter(w => w !== waiter);
         reject(new Stop(`server không trả lời ${what} sau ${this.waitMs / 1000} s`));
       }, this.waitMs) };

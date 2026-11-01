@@ -97,7 +97,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1169 | B116 | () | i32; i32; i32; u8; u8; u8; u8; u8 … | có |
 | 1172 | D118 | () | rỗng | có |
 | 1173 | b119 | (byte) | u8 | có |
-| 1174 | q120 | (Object) | string |  |
+| 1174 | q120 | (Object) | string | Nói trong khu: chữ của hộp Chat (nút bong bóng góc trên bên phải), server trả `s2c/1174` ([09](events/09-players-chat.md#c2s-1174), CH1) |
 | 1178 | b121 | (Object, boolean) | string; i32 | có |
 | 1181 | a122 | (Object, int, boolean) | string; i32; i32 | Thách đấu quái tỷ thí của `s2c/1180`: `string mobId; i32 0; i32 npcId`, client tự gửi từ hàm chạm `sqhz.a17` ([10](events/10-quests.md#s2c-1180), N3) |
 | 1186 | b45 | (int, int) | u8; i32 | có |
@@ -159,7 +159,7 @@ Ghi chú:
 - Kỹ năng và vật phẩm dùng các gói `1191` (nâng kỹ năng), `30` (cây kỹ năng theo hệ), `1186` (mặc, cởi), `84` (dùng), `48` (sửa), `44` (dùng trong trận), `57` và `1190` (mua ở NPC) ([12-skills-items](events/12-skills-items.md)); đo trên máy ở K1, P4, P5.
 - Đồ thị gọi JNI (T2) gán thêm nghĩa cho ba gói lúc đó chưa thấy trên dây ([13-drops-items](events/13-drops-items.md#c2s-1188)) [Đo tĩnh]:
   - `1188` (`c44`) là nhặt đồ trên đất (`string uuid`), gửi từ nút "Nhặt" của lớp bản đồ. P3 đã bắt được trên máy ([13-drops-items](events/13-drops-items.md#p3)).
-  - `1174` (`q120`) gửi chữ người chơi gõ trong một hộp nhập.
+  - `1174` (`q120`) gửi chữ người chơi gõ trong một hộp nhập. CH1 đã bắt được trên máy: đó là hộp Chat của nút bong bóng, chữ hiện thành bong bóng trên đầu nhân vật ([09-players-chat](events/09-players-chat.md#c2s-1174)).
   - `1181` (`a122`) là gói chạm vào một loại thực thể bản đồ, cùng chỗ với `c2s/15` và `c2s/1178`. N3 đã bắt được trên máy: đó là thách đấu quái tỷ thí của `s2c/1180` ([10-quests](events/10-quests.md#s2c-1180)).
 - Lời gọi hàm dựng đi qua JNI: method ID nằm trong mảng `cmethods` của lớp gọi, được tạo lần đầu bằng `GetMethodID`. Không có lệnh `BL` trực tiếp. Muốn biết ai gọi hàm dựng nào thì phải ghép call site với khối `GetMethodID` đã điền ô đó (T2).
 - `c2s/1265` (Sứ quân) có trên dây nhưng không có hàm dựng trong `sqlq`: được dựng ở lớp khác. [Đo]
