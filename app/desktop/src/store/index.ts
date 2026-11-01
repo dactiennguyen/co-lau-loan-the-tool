@@ -30,6 +30,9 @@ export type Dialog =
   | { kind: "update" }
   /** Cài đặt of the app: game server, Lưu and Xuất dữ liệu trận, what closing the window does. */
   | { kind: "settings" }
+  /** Nhập / Xuất JSON of the Tài khoản list (backup.rs), in two tabs: accounts pasted or read from a file, shown before
+   * they are added; the accounts with their passwords, copied or saved to a file. */
+  | { kind: "accountsJson" }
   /** Đóng cửa sổ: the close button was pressed and Cài đặt says to ask; `back` is the dialog it took the place of. */
   | { kind: "close"; back: Dialog | null };
 

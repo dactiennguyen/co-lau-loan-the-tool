@@ -118,7 +118,9 @@ app/
       src/view.rs             Snapshot → AccountView mà giao diện nhận
       src/paths.rs            accounts.json, data/maps.json
       src/settings.rs         Cài đặt của app (settings.json): server game, Lưu dữ liệu trận, khi đóng cửa sổ;
-                              tên file và Mở thư mục của Xuất dữ liệu trận
+                              tên file và Mở thư mục của Xuất dữ liệu trận và Xuất JSON
+      src/backup.rs           Nhập / Xuất JSON của danh sách nick: dựng JSON (kèm mật khẩu), đọc JSON nhập, xem trước,
+                              thêm mới hay ghi đè; xem Nhập / Xuất JSON
       src/tray.rs             icon ở khay (Mở cửa sổ, Thoát), nút đóng cửa sổ, App Nap trên macOS; xem
                               Thu nhỏ vào khay
       src/sample.rs           dữ liệu mẫu cho --sample, --dump-sample

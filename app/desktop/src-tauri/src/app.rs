@@ -1,6 +1,7 @@
 // Accounts and their sessions. Shared between the Tauri commands and the session events (tokio threads). A change marks
 // the account it touched and wakes the flusher thread, which sends the UI only the accounts that changed, at most every
 // FLUSH and with the revision they were read at, so the UI can drop what is older than what it shows.
+use crate::backup::{self, Imported, Step};
 use crate::settings::{self, Settings};
 use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
@@ -328,6 +329,52 @@ impl Shared {
         self.with(|app| app.drop_entry(id));
         Ok(())
     }
+
+    /// Nhập JSON (backup.rs): adds the accounts of the JSON the list has not got and, with `replace`, replaces those it
+    /// has, in one write of accounts.json; an account the JSON repeats counts once. Proxies are not tested: they were
+    /// when added on the machine that exported them, and Kiểm tra of Sửa nick tests one. A session already running goes
+    /// on as it logged in: a replaced account counts from its next login. Nothing changes when the file cannot be
+    /// written.
+    pub async fn import(&self, accounts: Vec<Account>, replace: bool) -> Result<Imported, String> {
+        let _turn = self.saving.lock().await;
+        let (path, list, steps) = self.with(|app| {
+            let steps = backup::plan(&accounts, replace, |a| app.find(a));
+            let (path, mut list) = app.saved(None, None)?;
+            for (step, account) in steps.iter().zip(&accounts) {
+                match step {
+                    Step::Add => list.push(account.clone()),
+                    Step::Replace(id) => {
+                        let at = app.entries.iter().position(|e| e.id == *id).unwrap();
+                        list[at] = backup::replacement(&app.entries[at].account, account.clone());
+                    }
+                    Step::Skip => {}
+                }
+            }
+            Ok::<_, String>((path, list, steps))
+        })?;
+        write(path, list.clone()).await?;
+        Ok(self.with(|app| {
+            let mut done = Imported::default();
+            for (step, account) in steps.into_iter().zip(accounts) {
+                match step {
+                    Step::Add => {
+                        let id = app.add(account);
+                        app.touch(id, true);
+                        done.added += 1;
+                    }
+                    Step::Replace(id) => {
+                        if let Some(at) = app.entries.iter().position(|e| e.id == id) {
+                            app.entries[at].account = list[at].clone();
+                            app.touch(id, false);
+                        }
+                        done.replaced += 1;
+                    }
+                    Step::Skip => done.skipped += 1,
+                }
+            }
+            done
+        }))
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -600,6 +647,23 @@ impl App {
             })
             .collect();
         Ok((self.path.clone(), list))
+    }
+
+    /// The account of the list that logs in as `account`: one username (case aside) on one server.
+    pub fn find(&self, account: &Account) -> Option<u64> {
+        self.entries
+            .iter()
+            .find(|e| backup::same(&e.account, account))
+            .map(|e| e.id)
+    }
+
+    /// Xuất JSON: the accounts `ids`, in the order of the list.
+    pub fn accounts_of(&self, ids: &[u64]) -> Vec<Account> {
+        self.entries
+            .iter()
+            .filter(|e| ids.contains(&e.id))
+            .map(|e| e.account.clone())
+            .collect()
     }
 
     /// Two sessions of one account on one server would log each other out.
@@ -1114,6 +1178,70 @@ mod tests {
             .unwrap_err()
             .contains("accounts.json đang lỗi"));
         assert_eq!(shared.with(|app| app.entries.len()), 1);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn an_import_adds_new_accounts_and_replaces_only_when_asked_in_one_write() {
+        let dir = std::env::temp_dir().join(format!("cllt-import-{}", std::process::id()));
+        let path = dir.join("accounts.json");
+        let shared = Shared::new(App::new(None, path.clone(), channel().0));
+        let id = block_on(shared.add(Account {
+            label: "Cũ".into(),
+            ..account("a")
+        }))
+        .unwrap();
+        let repair = FightSettings {
+            repair: true,
+            ..FightSettings::default()
+        };
+        let json = vec![
+            Account {
+                password: String::new(),
+                fight: repair,
+                ..account("A")
+            },
+            account("b"),
+            Account {
+                password: "y".into(),
+                ..account("B")
+            },
+        ];
+
+        // Without Ghi đè the account the list has stays as it was; "B" repeats "b" and counts once.
+        let done = block_on(shared.import(json.clone(), false)).unwrap();
+        assert_eq!((done.added, done.replaced, done.skipped), (1, 0, 2));
+        let saved = accounts::load(&path).unwrap();
+        assert_eq!(
+            saved
+                .iter()
+                .map(|a| a.username.as_str())
+                .collect::<Vec<_>>(),
+            ["a", "b"]
+        );
+        assert_eq!(saved[1].password, "x");
+        assert!(!saved[0].fight.repair);
+
+        // With it, "a" takes the settings of the JSON but keeps its label and password, which the JSON left empty.
+        let done = block_on(shared.import(json, true)).unwrap();
+        assert_eq!((done.added, done.replaced, done.skipped), (0, 2, 1));
+        let saved = accounts::load(&path).unwrap();
+        assert_eq!(
+            (
+                saved[0].label.as_str(),
+                saved[0].password.as_str(),
+                saved[0].fight.repair
+            ),
+            ("Cũ", "x", true)
+        );
+        assert_eq!(shared.with(|app| app.entries.len()), 2);
+        assert_eq!(shared.with(|app| app.find(&account("A"))), Some(id));
+        assert_eq!(shared.with(|app| app.accounts_of(&[id]).len()), 1);
+
+        // A file that did not read is never written over.
+        shared.with(|app| app.load_error = Some("bad".into()));
+        assert!(block_on(shared.import(vec![account("c")], false)).is_err());
+        assert_eq!(shared.with(|app| app.entries.len()), 2);
         std::fs::remove_dir_all(dir).ok();
     }
 

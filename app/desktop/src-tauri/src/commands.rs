@@ -2,6 +2,7 @@
 // change the App; the flusher of app.rs tells the UI. Adding and removing an account write accounts.json, so they are
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
+use crate::backup;
 use crate::settings::{self, Exported, OnClose, Settings, SettingsView};
 use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
@@ -699,6 +700,94 @@ pub fn reveal_export(path: String) -> Result<(), String> {
         return Err("Không còn thấy file đã xuất".into());
     }
     settings::reveal(&path).map_err(|e| format!("Không mở được thư mục: {e}"))
+}
+
+/// Xuất JSON: the accounts `ids` (in the order of the list) as backup.rs writes them, passwords included, and the
+/// Cài đặt of the app when `settings`. The dialog keeps it to copy at once on Sao chép JSON.
+#[tauri::command]
+pub fn export_accounts(
+    shared: State<Shared>,
+    ids: Vec<u64>,
+    settings: bool,
+) -> Result<String, String> {
+    exported_accounts(&shared, &ids, settings).map(|(text, _)| text)
+}
+
+/// The JSON of Xuất and how many accounts it holds; an error when none of `ids` is in the list.
+fn exported_accounts(
+    shared: &Shared,
+    ids: &[u64],
+    settings: bool,
+) -> Result<(String, usize), String> {
+    shared.with(|app| {
+        let accounts = app.accounts_of(ids);
+        if accounts.is_empty() {
+            return Err("Chọn ít nhất một nick".to_string());
+        }
+        let at = chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, false);
+        let text = backup::export(&accounts, settings.then(|| app.settings()), &at);
+        Ok((text, accounts.len()))
+    })
+}
+
+/// Lưu file of Xuất JSON: the same JSON into a new cllt-accounts-<time>.json in Downloads that only its owner can read.
+/// "Mở thư mục" shows it (reveal_export).
+#[tauri::command]
+pub async fn save_accounts(
+    app: AppHandle,
+    shared: State<'_, Shared>,
+    ids: Vec<u64>,
+    settings: bool,
+) -> Result<backup::Saved, String> {
+    let (text, accounts) = exported_accounts(&shared, &ids, settings)?;
+    let dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| format!("Không thấy thư mục Downloads: {e}"))?;
+    let time = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let path = settings::accounts_export_path(&dir, &time);
+        settings::write_private(&path, &text).map_err(|e| format!("Chưa lưu được: {e}"))?;
+        Ok(backup::Saved {
+            path: path.display().to_string(),
+            accounts,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Nhập JSON, before anything is saved: each account of the JSON, whether the list has it and whether it has a
+/// password (never the password). The error says what is wrong with the JSON.
+#[tauri::command]
+pub fn preview_import(
+    shared: State<Shared>,
+    text: String,
+) -> Result<backup::ImportPreview, String> {
+    let parsed = backup::parse(&text)?;
+    Ok(shared.with(|app| backup::preview(&parsed, |a| app.find(a))))
+}
+
+/// Nhập: adds the accounts of the JSON, replaces those the list has when `replace`, then applies the Cài đặt of the
+/// JSON when `settings` (Shared::import, Shared::set_settings). The error is shown in the dialog.
+#[tauri::command]
+pub async fn import_accounts(
+    shared: State<'_, Shared>,
+    text: String,
+    replace: bool,
+    settings: bool,
+) -> Result<backup::Imported, String> {
+    let parsed = backup::parse(&text)?;
+    let mut done = shared.import(parsed.accounts, replace).await?;
+    if let Some(s) = parsed.settings.filter(|_| settings) {
+        shared
+            .set_settings(s)
+            .await
+            .map_err(|e| format!("Đã nhập nick, nhưng chưa áp dụng được cài đặt: {e}"))?;
+        done.settings = true;
+    }
+    Ok(done)
 }
 
 /// The error is shown in the dialog that asked; the account then stays.

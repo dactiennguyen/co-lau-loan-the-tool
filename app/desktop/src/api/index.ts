@@ -17,6 +17,9 @@ import type {
   MergeOptions,
   ProxyForm,
   Exported,
+  ImportPreview,
+  Imported,
+  SavedAccounts,
   Secrets,
   OnClose,
   Settings,
@@ -176,6 +179,16 @@ export interface Api {
   exportBattles(): Promise<Exported>;
   /** The file of an export, selected in Finder or Explorer. */
   revealExport(path: string): Promise<void>;
+  /** Xuất JSON: the accounts `ids` with their passwords, and the Cài đặt of the app when `settings` (backup.rs). */
+  exportAccounts(ids: number[], settings: boolean): Promise<string>;
+  /** Lưu file of Xuất JSON: the same JSON into a new cllt-accounts-<time>.json in Downloads, readable by its owner only. */
+  saveAccounts(ids: number[], settings: boolean): Promise<SavedAccounts>;
+  /** Nhập JSON before anything is saved: each account, whether the list has it, whether it has a password; rejects
+   * with what is wrong with the JSON. */
+  previewImport(text: string): Promise<ImportPreview>;
+  /** Nhập: adds the new accounts, replaces those the list has when `replace`, applies the Cài đặt of the JSON when
+   * `settings`; rejects with a message to show. */
+  importAccounts(text: string, replace: boolean, settings: boolean): Promise<Imported>;
   /** Đóng cửa sổ: Thu nhỏ vào khay ("tray") or Thoát ứng dụng ("quit"), kept as what the close button does from now on
    * when `remember`. Rejects with a message to show when that cannot be saved; nothing happens then. */
   closeWindow(action: Exclude<OnClose, "ask">, remember: boolean): Promise<void>;
@@ -248,6 +261,10 @@ const tauri: Api = {
   setSettings: (settings) => invoke("set_settings", { settings }),
   exportBattles: () => invoke("export_battles"),
   revealExport: (path) => invoke("reveal_export", { path }),
+  exportAccounts: (ids, settings) => invoke("export_accounts", { ids, settings }),
+  saveAccounts: (ids, settings) => invoke("save_accounts", { ids, settings }),
+  previewImport: (text) => invoke("preview_import", { text }),
+  importAccounts: (text, replace, settings) => invoke("import_accounts", { text, replace, settings }),
   closeWindow: (action, remember) => invoke("close_window", { action, remember }),
   onCloseAsked: (handler) => listen("close-asked", () => handler()),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
@@ -336,6 +353,33 @@ const preview: Api = {
   setSettings: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu cài đặt")),
   exportBattles: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xuất được dữ liệu trận")),
   revealExport: nothing,
+  // The sample accounts without passwords, and a rough reading of a JSON against them: enough to see both dialogs.
+  exportAccounts: async (ids, settings) => {
+    const accounts = (await loadSample()).accounts.filter((a) => ids.includes(a.id)).map((a) => ({ label: a.ownLabel, username: a.username, password: "", serverId: a.serverId }));
+    return JSON.stringify({ app: "CLLT Tool", format: 1, exportedAt: new Date().toISOString(), accounts, ...(settings && { settings: {} }) }, null, 2);
+  },
+  saveAccounts: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu file")),
+  previewImport: async (text) => {
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch (err) {
+      throw new Error(`JSON không hợp lệ: ${err instanceof Error ? err.message : err}`);
+    }
+    const o = json as { accounts?: unknown; settings?: unknown; username?: unknown };
+    const list = (Array.isArray(json) ? json : Array.isArray(o.accounts) ? o.accounts : o.username ? [json] : []) as Record<string, any>[];
+    if (!list.length) throw new Error("Không thấy nick nào");
+    const have = (await loadSample()).accounts;
+    const key = (a: Record<string, any>) => `${a.serverId ?? 24}/${String(a.username ?? "").toLowerCase()}`;
+    return {
+      settings: !!o.settings,
+      accounts: list.map((a, i) => ({
+        label: a.label ?? "", username: a.username ?? "", serverId: a.serverId ?? 24, password: !!a.password, proxy: !!a.proxy?.enabled,
+        existing: have.find((h) => key(h) === key(a))?.id ?? null, repeated: list.slice(0, i).some((b) => key(b) === key(a)),
+      })),
+    };
+  },
+  importAccounts: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không nhập nick")),
   closeWindow: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có khay")),
   onCloseAsked: async () => () => {},
   onAccounts: async () => () => {},

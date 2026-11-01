@@ -80,7 +80,11 @@ export function Sidebar() {
           Không đọc được accounts.json, app sẽ không ghi đè file này. Sửa file rồi mở lại app. ({error})
         </p>
       )}
-      <div className="text-10 font-extrabold tracking-[0.1em] uppercase text-fg-3">Tài khoản</div>
+      {/* Nhập / Xuất JSON of the accounts (backup.rs): one button at the far right of the heading, like Cài đặt above. */}
+      <div className="flex items-center justify-between gap-1">
+        <div className="text-10 font-extrabold tracking-[0.1em] uppercase text-fg-3">Tài khoản</div>
+        <Button kind="ghost" small icon="inout" aria-label="Nhập / Xuất JSON" className="shrink-0 -my-1.5 -mr-1" onClick={() => open({ kind: "accountsJson" })} />
+      </div>
       {/* One column as wide as the sidebar: an auto column would grow to a card's longest line and clip its button. */}
       <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)] [align-content:start] gap-1.5 -mx-1 px-1 pb-1 scroll">
         {order.length === 0 && <p className="text-fg-3 text-12">Chưa có nick nào.</p>}

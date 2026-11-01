@@ -7,6 +7,7 @@ import { CloseDialog } from "@/views/dialogs/CloseDialog";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { PlaceDialog } from "@/views/dialogs/PlaceDialog";
 import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
+import { AccountsJsonDialog } from "@/views/dialogs/AccountsJsonDialog";
 import { SkillsModal } from "@/views/SkillsModal";
 import { StatsModal } from "@/views/StatsModal";
 import { ShopModal } from "@/views/shop/ShopModal";
@@ -62,6 +63,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "settings") {
     return <SettingsDialog onClose={close} />;
+  }
+  if (dialog?.kind === "accountsJson") {
+    return <AccountsJsonDialog onClose={close} />;
   }
   if (dialog?.kind === "close") {
     // Huỷ, or the window back from the tray, finds the dialog that was open.

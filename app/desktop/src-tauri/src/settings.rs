@@ -158,9 +158,18 @@ pub struct Exported {
 
 /// cllt-battles-<local time>.db in `dir`, with -2, -3… when a file of that name is there already.
 pub fn export_path(dir: &Path, time: &str) -> PathBuf {
+    free_path(dir, &format!("cllt-battles-{time}"), "db")
+}
+
+/// cllt-accounts-<local time>.json of Xuất JSON in `dir`, numbered the same way.
+pub fn accounts_export_path(dir: &Path, time: &str) -> PathBuf {
+    free_path(dir, &format!("cllt-accounts-{time}"), "json")
+}
+
+fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
     let name = |n: u32| match n {
-        1 => format!("cllt-battles-{time}.db"),
-        n => format!("cllt-battles-{time}-{n}.db"),
+        1 => format!("{stem}.{ext}"),
+        n => format!("{stem}-{n}.{ext}"),
     };
     (1..)
         .map(|n| dir.join(name(n)))
@@ -168,13 +177,22 @@ pub fn export_path(dir: &Path, time: &str) -> PathBuf {
         .unwrap()
 }
 
-/// A file Xuất dữ liệu trận wrote: only those are shown in Finder or Explorer.
+/// A file Xuất dữ liệu trận or Xuất JSON wrote: only those are shown in Finder or Explorer.
 pub fn is_export(path: &Path) -> bool {
     path.is_file()
-        && path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.starts_with("cllt-battles-") && n.ends_with(".db"))
+        && path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+            (n.starts_with("cllt-battles-") && n.ends_with(".db"))
+                || (n.starts_with("cllt-accounts-") && n.ends_with(".json"))
+        })
+}
+
+/// Writes a new file only its owner can read (Xuất JSON holds passwords); an existing file is never overwritten.
+pub fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    std::io::Write::write_all(&mut options.open(path)?, text.as_bytes())
 }
 
 /// Shows `path` selected in Finder or Explorer; on Linux, opens its folder.
@@ -339,6 +357,20 @@ mod tests {
         let other = dir.join("accounts.json");
         std::fs::write(&other, "").unwrap();
         assert!(!is_export(&other));
+        let json = accounts_export_path(&dir, "20261101-220000");
+        assert!(json.ends_with("cllt-accounts-20261101-220000.json"));
+        write_private(&json, "{}").unwrap();
+        assert!(is_export(&json));
+        assert!(write_private(&json, "{}").is_err(), "never overwrites");
+        #[cfg(unix)]
+        assert_eq!(
+            std::os::unix::fs::PermissionsExt::mode(
+                &std::fs::metadata(&json).unwrap().permissions()
+            ) & 0o777,
+            0o600
+        );
+        assert!(accounts_export_path(&dir, "20261101-220000")
+            .ends_with("cllt-accounts-20261101-220000-2.json"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -809,6 +809,39 @@ export interface Exported {
   bytes: number;
 }
 
+/** Lưu file of Xuất JSON (backup.rs): the cllt-accounts-<time>.json written to Downloads. */
+export interface SavedAccounts {
+  path: string;
+  accounts: number;
+}
+
+/** One account of the JSON of Nhập, before anything is saved; its password never comes back, only whether it has one. */
+export interface PreviewAccount {
+  label: string;
+  username: string;
+  serverId: number;
+  password: boolean;
+  proxy: boolean;
+  /** The account of the list with this username on this server: replaced with Ghi đè, else skipped. */
+  existing: number | null;
+  /** An earlier account of the JSON logs in the same: this one is skipped. */
+  repeated: boolean;
+}
+
+export interface ImportPreview {
+  accounts: PreviewAccount[];
+  /** The JSON has the Cài đặt of the app. */
+  settings: boolean;
+}
+
+/** What Nhập did. */
+export interface Imported {
+  added: number;
+  replaced: number;
+  skipped: number;
+  settings: boolean;
+}
+
 export interface AppState {
   /** Count of changes the reply was read at; an update with a count not above it is older. */
   rev: number;

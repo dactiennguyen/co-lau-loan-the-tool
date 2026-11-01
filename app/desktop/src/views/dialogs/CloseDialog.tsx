@@ -1,17 +1,12 @@
 import { useState } from "react";
 import { api } from "@/api";
 import { Button } from "@/components/Button";
+import { CheckRow } from "@/components/CheckRow";
 import { DIALOG, Dialog } from "@/components/Dialog";
 import { Icon, type IconName } from "@/components/Icon";
 import { cn } from "@/utils/cn";
 import { inGame, useStore } from "@/store";
 import type { OnClose } from "@/api/types";
-
-/** A pixel check box like the setting rows: the input hidden, the box after it green when on. */
-const CHECK_BOX =
-  "grid place-items-center flex-none size-4 text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +
-  "peer-checked:text-ink peer-checked:bg-good peer-checked:shadow-[inset_-2px_-2px_0_var(--good-shade)] " +
-  "peer-focus-visible:outline-2 peer-focus-visible:outline-ring peer-focus-visible:outline-offset-2";
 
 /**
  * Đóng cửa sổ, when the close button of the window is pressed and Cài đặt says to ask (tray.rs): Thu nhỏ vào khay hides
@@ -70,13 +65,9 @@ export function CloseDialog({ onClose }: { onClose: () => void }) {
           "bg-danger",
         )}
       </div>
-      <label className="inline-flex items-center gap-1.5 text-12 text-fg-2 cursor-pointer hover:text-fg">
-        <input className="peer absolute opacity-0 w-px h-px" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-        <span className={CHECK_BOX} aria-hidden="true">
-          <Icon name="check" size={11} />
-        </span>
+      <CheckRow checked={remember} onChange={setRemember}>
         Ghi nhớ lựa chọn của tôi và không hỏi lại
-      </label>
+      </CheckRow>
       {remember && <p className="-mt-1.5 m-0 text-11 text-fg-3">Đổi lại trong Cài đặt → Cửa sổ.</p>}
       {error && (
         <p className={DIALOG.error} role="alert">

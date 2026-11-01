@@ -15,7 +15,7 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
 
 | Vùng | Nội dung |
 |---|---|
-| Thanh bên | Logo, số nick và số nick đang trong game, "Thêm nick". Mỗi nick là một thẻ: avatar màu theo tên và chấm trạng thái, tên, cấp, map và khu (hoặc lời báo lỗi), chip trạng thái, thanh HP, số người trong khu, nút đăng nhập/thoát riêng. Bấm đăng nhập trên thẻ thì nick đó cũng được chọn, nên trang của nó hiện ngay trong lúc kết nối; bấm thoát thì giữ nick đang xem. **Chuột phải** (hoặc phím Menu, Shift+F10) mở menu của nick: Đăng nhập, Đăng xuất hoặc Huỷ đăng nhập tuỳ trạng thái; Sửa nick; Xoá nick (chỉ khi đã thoát, có hỏi lại). Dưới cùng: "Đăng nhập tất cả", thoát tất cả |
+| Thanh bên | Logo, số nick và số nick đang trong game, "Thêm nick". Sát phải chữ TÀI KHOẢN có một nút ⇅ mở [Nhập / Xuất JSON](#nhập-xuất-json). Mỗi nick là một thẻ: avatar màu theo tên và chấm trạng thái, tên, cấp, map và khu (hoặc lời báo lỗi), chip trạng thái, thanh HP, số người trong khu, nút đăng nhập/thoát riêng. Bấm đăng nhập trên thẻ thì nick đó cũng được chọn, nên trang của nó hiện ngay trong lúc kết nối; bấm thoát thì giữ nick đang xem. **Chuột phải** (hoặc phím Menu, Shift+F10) mở menu của nick: Đăng nhập, Đăng xuất hoặc Huỷ đăng nhập tuỳ trạng thái; Sửa nick; Xoá nick (chỉ khi đã thoát, có hỏi lại). Dưới cùng: "Đăng nhập tất cả", thoát tất cả |
 | Thẻ nhân vật | Tên, cấp, hệ; huy hiệu **x2 EXP** khi nhân vật đang có hiệu ứng của Tăng Kinh Nghiệm, với giờ còn lại đếm lùi từng giây ("x2 EXP 3:40:57"), mất khi hết giờ ([x2 EXP](#x2-exp)); trạng thái (Ngoại tuyến / Đang kết nối / Trực tuyến / Đang đánh / Làm nhiệm vụ / Lỗi), giờ vào game. **Vị trí**: tên map, mã map, khu, x/y; nút icon ⇄ **Đổi khu / map** đứng trước tên map (xem [Đổi khu và đổi map](#đổi-khu-và-đổi-map)); trong lúc đổi, dòng mã map thay bằng "Sang khu 4…" hay "Đi tới Làng Thanh Khê…". Cuối dòng trạng thái (góc dưới bên phải phần tên) là nút **Thống kê** có icon biểu đồ, mở modal Thống kê (hàng Thống kê (modal) bên dưới), kể cả khi nick chưa vào game. Tiền nằm ở ô Tiền bên dưới, số người trong khu ở thẻ Xung quanh. Luôn một hàng, kể cả cửa sổ hẹp. Nút Đăng nhập/Đăng xuất, Xoá nick (có hỏi lại) |
 | 2 ô | **HP và EXP** chung một ô, ngăn bằng vạch đứt: HP, kinh nghiệm (EXP / mốc cấp, %, còn bao nhiêu lên cấp). **Tiền**: **Vàng** / 10.000 có thanh (vàng ăn trong trận, `coin` của `s2c/9` và `s2c/10` kiểu 4; đủ 10.000 thì game tự đổi thành Xu khoá, ghi ở góc ô; trước đây ghi nhầm là "Xu"), rồi Xu, Xu khoá, Lượng (`s2c/46`); rê chuột lên từng loại thì hiện nó dùng vào việc gì. Số tiền lớn ở cửa sổ hẹp thì xuống dòng chứ không bị cắt |
 | Chỉ số | Tấn công, Phòng thủ, Chính xác, Né tránh, Chí mạng; số điểm tiềm năng chưa cộng ("68 điểm"), 4 tiềm năng Cường lực, Thân pháp, Nội lực, Thể lực (thứ tự đo ở P1, [user-data](../../app/user-data.md#đuôi-s2c9)), mỗi tiềm năng có nút **+** cộng 1 điểm (`c2s/10 (chỉ số, 1)` như nút "Cộng +1" của game; khoá khi đang đánh hay hết điểm). Chỉ số chính của hệ nhân vật (Hỏa Cường lực, Thủy Nội lực, Lôi Thân pháp; `mainStat` của `src/game/potentials.ts`) có viền và nền theo màu hệ (đỏ, xanh dương, vàng), tên tô màu, biểu tượng hệ ở góc, nút **+** tô màu hệ và sáng hơn; nút **+** của ba ô còn lại mờ đi (rê chuột hay Tab tới thì rõ lại, kèm gợi ý "không phải chỉ số chính của hệ …"), vẫn bấm được, để đỡ bấm nhầm. Chưa vào game hay hệ chưa biết chỉ số chính thì bốn ô như nhau; nút bánh răng bên phải chữ Tiềm năng mở hộp **Tự cộng** (Tắt / Theo hệ / Tỉ lệ; Theo hệ ghi rõ Hỏa → Cường lực, Thủy → Nội lực, Lôi → Thân pháp), sáng màu xanh lá khi đang bật; rê chuột lên nút thì thấy cách đang cộng, xem [Tự cộng điểm tiềm năng](#tự-cộng-điểm-tiềm-năng). Đầu thẻ không còn dòng phụ đề (chỉ "Đăng nhập để xem chỉ số" khi nick chưa vào game); góc phải là nút **★ Kỹ năng** kèm số điểm kỹ năng chưa cộng trong ô vàng (0 thì không có số), viền xanh lá khi Tự cộng kỹ năng đang bật; bấm thì mở modal Kỹ năng |
@@ -293,6 +293,47 @@ Giống [cockpit-tools](https://github.com/jlcodes99/cockpit-tools): app có ico
 - **macOS:** bấm icon ở Dock khi cửa sổ đang ẩn cũng mở lại cửa sổ (`RunEvent::Reopen`). App bắt đầu một activity của `NSProcessInfo` (`UserInitiatedAllowingIdleSystemSleep`) suốt lúc chạy để không bị App Nap. Khi không có cửa sổ trên màn hình, App Nap cho hẹn giờ của app chạy trễ, mà bot chỉ chờ trả lời 8 s và mỗi lượt có 34 s. Máy vẫn được ngủ khi để lâu không dùng, và khi máy ngủ thì các nick dừng như trước.
 - **Linux:** icon khay cần `libayatana-appindicator3` (CI đã cài khi build).
 - Thoát từ menu của icon hay từ hộp Đóng cửa sổ đều đi qua `AppHandle::exit`, nên bước cài bản cập nhật lúc thoát (`update::install_on_quit`) vẫn chạy.
+
+<a id="nhập-xuất-json"></a>
+
+## Nhập / Xuất JSON
+
+Nút ⇅ ở sát phải chữ TÀI KHOẢN trên thanh bên mở một hộp có hai tab **Nhập** và **Xuất**. Hộp mở ở tab Xuất nếu đã có nick, chưa có thì ở tab Nhập. Đổi tab không mất những gì đã dán hay đã tick. Dùng để chuyển nick sang máy khác, hoặc giữ một bản sao. Code: `desktop/src-tauri/src/backup.rs`, `views/dialogs/AccountsJsonDialog.tsx` (hộp và hai tab), `ExportAccountsPage.tsx`, `ImportAccountsPage.tsx`.
+
+**Xuất**
+
+- **Chọn nick:** mặc định là tất cả, kể cả nick vừa thêm bằng tab Nhập; có nút Chọn hết / Bỏ chọn hết. Ô **Kèm cài đặt của app** (server game, Lưu dữ liệu trận, khi đóng cửa sổ) mặc định bật.
+- **JSON luôn có mật khẩu** game và mật khẩu proxy. Đây là lựa chọn của người dùng, để nhập ở máy kia là đăng nhập được ngay. Hộp có dòng cảnh báo và không hiện JSON lên màn hình.
+- **Sao chép JSON** chép vào clipboard. JSON được dựng lại mỗi khi đổi lựa chọn trong lúc tab Xuất đang mở, nên bấm là chép ngay (WebKit từ chối chép nếu phải chờ sau cú bấm). Sang tab Nhập thì JSON đó bị bỏ.
+- **Lưu file** ghi `cllt-accounts-<ngày>-<giờ>.json` vào Downloads; trùng tên thì thêm `-2`. File mới tạo chỉ chủ máy đọc được (0600 trên macOS và Linux), và không bao giờ ghi đè file có sẵn. Có nút **Mở thư mục** như Xuất dữ liệu trận.
+
+Dạng JSON: mỗi nick có đúng các khoá của `accounts.json`, `settings` có đúng các khoá của `settings.json`.
+
+```json
+{"app": "CLLT Tool", "format": 1, "exportedAt": "2026-11-01T22:00:00+07:00",
+ "accounts": [{"label": "…", "username": "…", "password": "…", "serverId": 24, "stats": "auto", "fight": {…}, "proxy": {…}}],
+ "settings": {"server": {"host": "play.colauloanthe.vn", "port": 1688}, "record": true, "onClose": "ask"}}
+```
+
+**Nhập**
+
+- **Đầu vào:** dán JSON vào ô, hoặc **Chọn file…**.
+  - App nhận JSON do Xuất tạo, một `accounts.json` cũ, một danh sách nick, hay một nick lẻ có `username`.
+  - JSON của bản app mới hơn (`format` lớn hơn 1) bị từ chối, để không đọc dở dang.
+  - Nick thiếu `password` vẫn nhập được với mật khẩu trống; điền sau bằng Sửa nick.
+- **Xem trước:** app đọc lại JSON 300 ms sau lần gõ cuối, lỗi thì báo ngay dưới ô. Mỗi nick hiện việc sẽ làm:
+  - **Thêm mới**.
+  - **Đã có** (cùng tài khoản, không phân biệt hoa thường, cùng server): bỏ qua, trừ khi tick **Ghi đè nick đã có**.
+  - **Trùng trong JSON**: chỉ tính lần xuất hiện đầu.
+  - Kèm nhãn "thiếu mật khẩu" và "proxy" nếu có.
+- **Ghi đè** lấy mọi thứ trong JSON: cài đặt đánh, Tự cộng, quái đã chọn ở từng map, proxy. Riêng tên hiển thị, mật khẩu và mật khẩu proxy để trống thì giữ cái cũ. Nick đang trong game vẫn chơi tiếp như lúc đăng nhập; thay đổi có hiệu lực từ lần đăng nhập sau.
+- **Cài đặt app** trong JSON chỉ được áp dụng khi tick **Áp dụng cài đặt của app**. Nó đi qua đúng đường của nút Lưu trong [Cài đặt](#cài-đặt-của-app), nên địa chỉ server cũng được kiểm.
+- **Proxy không được kiểm khi nhập**, khác với Thêm nick. Kiểm bằng nút Kiểm tra trong Sửa nick.
+- **Ghi file:** cả đợt nhập ghi `accounts.json` đúng một lần (`Shared::import`). Ghi không được thì không đổi gì. Nếu `accounts.json` đang lỗi thì không nhập được, như khi thêm nick.
+
+**Không có trong JSON:** nhật ký và lịch sử trận (`cllt.db`); dùng [Xuất dữ liệu trận](#cài-đặt-của-app) cho phần đó.
+
+**Lưu ý an toàn:** JSON chứa mật khẩu ở dạng chữ thường. Ứng dụng khác trên máy đọc được clipboard. Không gửi file hay JSON này cho người khác.
 
 ## Proxy
 

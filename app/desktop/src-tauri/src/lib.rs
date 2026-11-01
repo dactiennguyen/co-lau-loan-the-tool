@@ -15,6 +15,7 @@
 // update.rs updates the installed app from the GitHub releases; settings.rs is the Cài đặt of the app (settings.json);
 // tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay).
 mod app;
+mod backup;
 mod commands;
 mod paths;
 mod sample;
@@ -162,6 +163,10 @@ pub fn run() {
             commands::set_settings,
             commands::export_battles,
             commands::reveal_export,
+            commands::export_accounts,
+            commands::save_accounts,
+            commands::preview_import,
+            commands::import_accounts,
             commands::update_status,
             commands::check_update,
             commands::install_update,
