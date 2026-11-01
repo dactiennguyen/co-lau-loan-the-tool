@@ -113,6 +113,8 @@ const paths = {
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
   cart: <path d="M3 4h2l2.2 10.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L19.5 8H6.2M9 20h.01M17 20h.01" />,
+  // A box with a ribbon and a bow: Mã quà tặng.
+  gift: <path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C10.5 4 7 3.5 7 6s3 2 5 2c2 0 5 .5 5-2s-3.5-2-5 2" />,
   settings: (
     <>
       <circle cx="12" cy="12" r="6" />

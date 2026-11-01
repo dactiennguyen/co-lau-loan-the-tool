@@ -44,6 +44,7 @@ impl Bot {
             || self.zoning.is_some()
             || self.shopping.is_some()
             || self.smith.is_some()
+            || self.gift.is_some()
             || self.battle.is_some()
         {
             return;

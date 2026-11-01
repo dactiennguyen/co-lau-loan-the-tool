@@ -16179,5 +16179,45 @@
    }
   ],
   "requests": { "put45": "0000000000000000000000002d00000001", "start": "00000000" }
+ },
+ "gift": {
+  "decoders": [
+   {
+    "fn": "giftCodeResult",
+    "key": "s2c/1223 thành công",
+    "hex": "010000004d4e68e1baad70206dc3a3207468c3a06e682063c3b46e672c207068e1baa76e207468c6b0e1bb9f6e6720c491c3a320c491c6b0e1bba3632067e1bbad692076c3a06f2068e1bb9970207468c6b0",
+    "expected": { "ok": true, "text": "Nhập mã thành công, phần thưởng đã được gửi vào hộp thư" }
+   },
+   {
+    "fn": "newMail",
+    "key": "s2c/1222 6273",
+    "hex": "000000000000188101000000175175c3a020416c7068612054657374204e67c3a07920310000000c48e1bb87205468e1bb916e67000100000001a195fbe9490000000000000000",
+    "expected": { "id": 6273, "kind": 1, "title": "Quà Alpha Test Ngày 1", "sender": "Hệ Thống", "read": false, "gift": true, "taken": false, "sentAt": 1793517676873, "last": 0 }
+   },
+   {
+    "fn": "giftCodeResult",
+    "key": "s2c/1223 đã dùng",
+    "hex": "00000000254e68c3a26e2076e1baad74206ec3a07920c491c3a32064c3b96e67206dc3a32072e1bb9369",
+    "expected": { "ok": false, "text": "Nhân vật này đã dùng mã rồi" }
+   },
+   {
+    "fn": "giftCodeResult",
+    "key": "s2c/1223 không tồn tại",
+    "hex": "00000000164dc3a3206b68c3b46e672074e1bb936e2074e1baa169",
+    "expected": { "ok": false, "text": "Mã không tồn tại" }
+   },
+   {
+    "fn": "giftCodeResult",
+    "key": "s2c/1223 quá nhanh",
+    "hex": "000000003642e1baa16e206e68e1baad70206dc3a3207175c3a1206e68616e682c20767569206cc3b26e67207468e1bbad206ce1baa16920736175",
+    "expected": { "ok": false, "text": "Bạn nhập mã quá nhanh, vui lòng thử lại sau" }
+   }
+  ],
+  "requests": [
+   { "typed": "ALPHATEST1", "hex": "0000000a414c5048415445535431" },
+   { "typed": "denbu", "hex": "0000000544454e4255" },
+   { "typed": "  DENBU  ", "hex": "0000000544454e4255" },
+   { "typed": "Saima2026", "hex": "000000095341494d4132303236" }
+  ]
  }
 }

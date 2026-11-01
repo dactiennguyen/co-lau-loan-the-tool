@@ -12,6 +12,9 @@ pub struct Manager {
     server: Server,
     /// Lưu dữ liệu trận of every session (set_record).
     record: bool,
+    /// Mã quà tặng of each username (lower case): the codes refused in a row and the server's lock, kept across its
+    /// sessions so a new login does not forget them (BotOptions::gift).
+    gifts: std::collections::HashMap<String, Arc<Mutex<GiftMemory>>>,
 }
 impl Manager {
     pub fn new(
@@ -29,6 +32,7 @@ impl Manager {
             emit: Arc::new(emit),
             server: Server::default(),
             record: true,
+            gifts: Default::default(),
         })
     }
     /// The game server of the logins from now on; the sessions running stay where they are.
@@ -56,11 +60,17 @@ impl Manager {
         let (tx, rx) = unbounded_channel();
         self.sessions.insert(id, tx);
         let emit = self.emit.clone();
+        let gift = self
+            .gifts
+            .entry(account.username.to_lowercase())
+            .or_default()
+            .clone();
         self.runtime.spawn(run(
             self.server.clone(),
             self.record,
             account,
             self.atlas.clone(),
+            gift,
             rx,
             Arc::new(move |e| emit(id, e)),
         ));

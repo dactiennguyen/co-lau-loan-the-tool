@@ -31,6 +31,12 @@ impl Bot {
                 "Đang làm việc ở Pháp sư hay Hương Lão: bấm Dừng rồi mới đánh quái".into(),
             ));
         }
+        if self.gift.is_some() {
+            return out.push(Out::Log(
+                LogKind::Battle,
+                "Đang nhập mã quà tặng: bấm Dừng rồi mới đánh quái".into(),
+            ));
+        }
         self.snap.job = Some(Job {
             target: target.into(),
             count,

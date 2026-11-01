@@ -91,6 +91,10 @@ export interface Api {
   transmuteTargets(id: number, source: number): Promise<number[]>;
   /** Đổi lượng: `times` × 50 Lượng for 50.000 Xu (option 0) or 55.000 Xu khóa (option 1). */
   exchangeLuong(id: number, option: number, times: number): Promise<void>;
+  /** Mã quà tặng: the codes as typed, sent one by one from wherever the character stands; rewards go to the mailbox. */
+  redeemCodes(id: number, codes: string[]): Promise<void>;
+  /** Mã quà tặng, Đếm lại từ 0: forgets the codes refused in a row (the server's lock stays). */
+  resetGiftCount(id: number): Promise<void>;
   /** Older lines of the Nhật ký from cllt.db, oldest first: before row `before`, of `kinds` (all when empty), only the
    * red ones with `bad`. Empty without the database. */
   logHistory(id: number, before: number | null, kinds: LogKind[], bad: boolean, limit: number): Promise<LogLine[]>;
@@ -166,6 +170,8 @@ const tauri: Api = {
   smithTransmute: (id, source, target) => invoke("smith_transmute", { id, source, target }),
   transmuteTargets: (id, source) => invoke("transmute_targets", { id, source }),
   exchangeLuong: (id, option, times) => invoke("exchange_luong", { id, option, times }),
+  redeemCodes: (id, codes) => invoke("redeem_codes", { id, codes }),
+  resetGiftCount: (id) => invoke("reset_gift_count", { id }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
   battleStats: (id, since, source) => invoke("battle_stats", { id, since, source }),
   battleHistory: (id, since, source, before, limit) => invoke("battle_history", { id, since, source, before, limit }),
@@ -232,6 +238,8 @@ const preview: Api = {
   smithTransmute: nothing,
   transmuteTargets: async () => [],
   exchangeLuong: nothing,
+  redeemCodes: nothing,
+  resetGiftCount: nothing,
   logHistory: async () => [],
   battleStats: async () => (await loadSample()).battleStats ?? null,
   battleHistory: async (_id, _since, _source, before) => (before == null ? ((await loadSample()).battleHistory ?? []) : []),

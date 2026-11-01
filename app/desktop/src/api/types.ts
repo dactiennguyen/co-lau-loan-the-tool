@@ -356,6 +356,41 @@ export interface Character {
   shop: Shop | null;
   /** The work of Pháp sư or Hương Lão under way or last done (Tiện ích). */
   smith: SmithRun | null;
+  /** Mã quà tặng under way or last done (Tiện ích). */
+  gift: GiftRun | null;
+  /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
+  giftLimits: GiftLimits;
+}
+
+/** The server's lock on gift codes as the app knows it (GiftMemory of the Rust core). */
+export interface GiftLimits {
+  /** Codes refused in a row (0 again after a good code, or Đếm lại từ 0). */
+  wrong: number;
+  /** How many the app allows before it stops sending (the server blocks every code for 5 minutes at 10). */
+  maxWrong: number;
+  /** Until when the server blocks every code (ms since 1970), after "Bạn nhập mã quá nhanh…"; null once past. */
+  lockedUntil: number | null;
+}
+
+/** Mã quà tặng under way or last done (Bot::redeem). */
+export interface GiftRun {
+  id: number;
+  /** The codes as they go out (trimmed, upper case, each once), in order. */
+  codes: GiftCode[];
+  /** The code (index in `codes`) waiting for the server's answer, if one is. */
+  sending: number | null;
+  doing: string;
+  /** Why it ended; null while it runs. */
+  done: string | null;
+  startedAt: number;
+  endedAt: number | null;
+}
+/** One code: `ok` null until the server answers it, then its words, and the title of the mail a good code brings. */
+export interface GiftCode {
+  code: string;
+  ok: boolean | null;
+  text: string;
+  mail: string | null;
 }
 
 /** A shop as s2c/1190 lists it (ShopView of view.rs): `kind` is one of the 14 shops (15-shops.md). */

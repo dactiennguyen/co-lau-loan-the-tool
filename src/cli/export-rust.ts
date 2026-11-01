@@ -23,6 +23,8 @@ import { shopList } from '../protocol/world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, quote, mergePlan,
   mergeForecast, upgradeStones, putRequest, startRequest } from '../protocol/npc.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
+import { g1Packets } from '../../test/fixtures-g1.ts';
+import { giftCodeRequest, giftCodeResult, newMail } from '../protocol/mail.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -125,6 +127,18 @@ function npcCases() {
     upgradeStones: [true, false].map(unlocked => ({ unlocked, slots: upgradeStones(symapBag, { unlocked }).map(i => i.slot) })),
     requests: { put45: hex(putRequest(45)), start: hex(startRequest()) },
   };
+}
+
+/** Mã quà tặng (test/fixtures-g1.ts, G1): what giftCodeResult and newMail read in the captured packets, and the bytes of
+ * c2s/1223 for codes as typed (app/core/tests/gift.rs). */
+function giftCases() {
+  const fns: Record<string, [string, (p: Uint8Array) => unknown]> = { 's2c/1223': ['giftCodeResult', giftCodeResult], 's2c/1222': ['newMail', newMail] };
+  const decoders = Object.entries(g1Packets).flatMap(([key, h]) => {
+    const f = fns[key.split(' ')[0]];
+    return f ? [{ fn: f[0], key, hex: h, expected: f[1](bytes(h)) }] : [];
+  });
+  const requests = ['ALPHATEST1', 'denbu', '  DENBU  ', 'Saima2026'].map(typed => ({ typed, hex: hex(giftCodeRequest(typed)) }));
+  return { decoders, requests };
 }
 
 function stepActions() {
@@ -454,7 +468,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
-    battleV3: battleV3(), npc: npcCases(),
+    battleV3: battleV3(), npc: npcCases(), gift: giftCases(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }

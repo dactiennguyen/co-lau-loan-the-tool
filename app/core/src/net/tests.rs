@@ -245,6 +245,7 @@ async fn login_via(
         true,
         account,
         Default::default(),
+        Default::default(),
         rx,
         emit,
     ));

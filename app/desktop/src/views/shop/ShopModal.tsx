@@ -15,19 +15,22 @@ import type { Account, SmithRun } from "@/api/types";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { ShopBuy } from "./ShopBuy";
 import { ShopExchange } from "./ShopExchange";
+import { ShopGift } from "./ShopGift";
 import { ShopMerge } from "./ShopMerge";
 import { ShopUpgrade } from "./ShopUpgrade";
 
-export type ShopSub = "buy" | "merge" | "upgrade" | "exchange";
+export type ShopSub = "buy" | "merge" | "upgrade" | "exchange" | "gift";
 const SUBS: { key: ShopSub; label: string; icon: IconName }[] = [
   { key: "buy", label: "Mua", icon: "cart" },
   { key: "merge", label: "Gộp đá", icon: "gem" },
   { key: "upgrade", label: "Nâng cấp", icon: "hammer" },
   { key: "exchange", label: "Đổi lượng", icon: "coin" },
+  { key: "gift", label: "Mã quà tặng", icon: "gift" },
 ];
 const SUB_KEY = "shop.sub";
-/** Bot::smith refused the task: "Chưa <title>: <why>", the title as Bot::smith_title writes it. */
-const REFUSED = /^Chưa (Gộp đá|Hỏi giá|Nâng cấp|Tách đá|Chuyển hoá|Đổi )/;
+/** Bot::smith refused the task: "Chưa <title>: <why>", the title as Bot::smith_title writes it; Bot::redeem refused the
+ * codes: "Chưa nhập mã: <why>". */
+const REFUSED = /^Chưa (Gộp đá|Hỏi giá|Nâng cấp|Tách đá|Chuyển hoá|Đổi |nhập mã)/;
 /** "Xong việc quay về chỗ cũ" is on until turned off. */
 const BACK = "shop.back";
 
@@ -85,11 +88,13 @@ export interface Ask {
   run: () => Promise<void>;
 }
 
-/** What the sub-tabs share: the account, why nothing can be done now (null when it can), the confirm box, and `track`
- * to call before a task sent without it (Hỏi giá), so the modal shows the bot's refusal of it. */
+/** What the sub-tabs share: the account, why nothing can be done now (null when it can), the same without the trip to
+ * Làng Thanh Khê for what works anywhere (Mã quà tặng), the confirm box, and `track` to call before a task sent without
+ * it (Hỏi giá, Mã quà tặng), so the modal shows the bot's refusal of it. */
 export interface ShopContext {
   account: Account;
   why: string | null;
+  busy: string | null;
   ask: (a: Ask) => void;
   track: () => void;
 }
@@ -103,8 +108,9 @@ interface Props {
 
 /**
  * Tiện ích (16-upgrade.md#tính-năng), a large modal: the money and the bag's room, where the character stands (the NPCs
- * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and four
- * sub-tabs: Mua at the 14 shops, Gộp đá, Nâng cấp (with Tách đá and Chuyển hoá), Đổi lượng. Every spend asks once more.
+ * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and five
+ * sub-tabs: Mua at the 14 shops, Gộp đá, Nâng cấp (with Tách đá and Chuyển hoá), Đổi lượng, Mã quà tặng (from anywhere).
+ * Every spend asks once more.
  * Closing it, however it closes, walks the character back after a trip with "Xong việc quay về chỗ cũ" (Bot::shop_closed).
  */
 export function ShopModal({ account, item, onClose }: Props) {
@@ -137,6 +143,7 @@ export function ShopModal({ account, item, onClose }: Props) {
   const ctx: ShopContext = {
     account,
     why,
+    busy,
     ask: (a) =>
       setAsk({
         ...a,
@@ -233,8 +240,10 @@ export function ShopModal({ account, item, onClose }: Props) {
             <ShopMerge {...ctx} />
           ) : sub === "upgrade" ? (
             <ShopUpgrade {...ctx} />
-          ) : (
+          ) : sub === "exchange" ? (
             <ShopExchange {...ctx} />
+          ) : (
+            <ShopGift {...ctx} />
           )}
         </TabPanel>
       </div>

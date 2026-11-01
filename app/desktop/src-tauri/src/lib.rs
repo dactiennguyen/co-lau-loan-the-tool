@@ -111,6 +111,8 @@ pub fn run() {
             commands::smith_transmute,
             commands::transmute_targets,
             commands::exchange_luong,
+            commands::redeem_codes,
+            commands::reset_gift_count,
             commands::log_history,
             commands::battle_stats,
             commands::battle_history,

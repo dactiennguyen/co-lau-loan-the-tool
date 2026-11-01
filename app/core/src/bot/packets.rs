@@ -549,6 +549,10 @@ impl Bot {
             }
             1256 => {
                 let text = notice(payload)?;
+                // A refused gift code comes twice: s2c/1223, then this with the same words (gift_answer logged it).
+                if self.gift_echo(&text, now) {
+                    return Ok(());
+                }
                 // The answer to c2s/1188 ("Bạn vừa nhận được 137 Xu khóa", "Không thể nhặt vật phẩm của người khác"),
                 // also when it comes during a portal trip: it is not that portal's refusal (13-drops-items.md#g2). While
                 // something else waits for its own s2c/1256 (a portal, a purchase, an item action such as Tự sửa đồ, a
@@ -558,6 +562,7 @@ impl Bot {
                 let waiting = self.travelling.is_some()
                     || self.shopping.is_some()
                     || self.smith.is_some()
+                    || self.gift.is_some()
                     || self.item_wait.is_some()
                     || self.zoning.is_some();
                 if picking && (about || !waiting) {
@@ -714,6 +719,15 @@ impl Bot {
                 self.left(1214, now, out);
             }
             22 => self.on_setup(payload, now, out)?,
+            // Mã quà tặng (gift.rs): the answer to c2s/1223, and the mail a good code brings.
+            1223 => {
+                let a = crate::mail::gift_code_result(payload)?;
+                self.gift_answer(a, now, out);
+            }
+            1222 => {
+                let m = crate::mail::new_mail(payload)?;
+                self.gift_mail(m, now, out);
+            }
             _ => {}
         }
         self.walk_back(now, out);

@@ -37,6 +37,8 @@ pub struct Ctx<'a> {
     pub quantity: Option<i32>,
     /// uuid of an item on the ground (s2c/1182, s2c/1184) for c2s/1188.
     pub uuid: Option<&'a str>,
+    /// A gift code of c2s/1223, already as the client sends it (mail::normalize_code).
+    pub code: Option<&'a str>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -126,6 +128,8 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .build(),
         15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),
         1188 => w.string(required(c.uuid, "uuid")?).build(),
+        // Mã quà tặng (G1): the code alone, from anywhere in the world.
+        1223 => w.string(required(c.code, "code")?).build(),
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),
         1181 => w
             .string(required(c.mob_id, "mobId")?)

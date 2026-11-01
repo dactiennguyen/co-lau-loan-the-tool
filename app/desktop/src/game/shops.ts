@@ -76,5 +76,6 @@ export function busyReason(c: Character): string | null {
   if (c.questRun && !c.questRun.done) return "Đang tự làm nhiệm vụ: bấm Dừng trước.";
   if (c.moving) return `${c.moving}…`;
   if (c.smith && !c.smith.done) return "Đang làm việc với Pháp sư hay Hương Lão.";
+  if (c.gift && !c.gift.done) return "Đang nhập mã quà tặng.";
   return null;
 }

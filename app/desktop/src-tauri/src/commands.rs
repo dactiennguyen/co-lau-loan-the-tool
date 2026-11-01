@@ -275,6 +275,19 @@ pub fn exchange_luong(shared: State<Shared>, id: u64, option: u8, times: u32) {
     shared.with(|app| app.send(id, Command::Smith(SmithTask::Exchange { option, times })));
 }
 
+/// Mã quà tặng: the codes as typed, sent one by one from wherever the character stands (Bot::redeem); the log and
+/// `character.gift` tell how each went.
+#[tauri::command]
+pub fn redeem_codes(shared: State<Shared>, id: u64, codes: Vec<String>) {
+    shared.with(|app| app.send(id, Command::Gift(codes)));
+}
+
+/// Mã quà tặng, Đếm lại từ 0: forgets the codes refused in a row of the account (Bot::gift_reset).
+#[tauri::command]
+pub fn reset_gift_count(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::GiftReset));
+}
+
 /// Mua: `quantity` of the shop line `shop_id`; the log tells how it went.
 #[tauri::command]
 pub fn buy(shared: State<Shared>, id: u64, shop_id: i32, quantity: i32) {

@@ -5,8 +5,8 @@ use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::battle_record::BattleData;
 use crate::bot::{
-    BattleRecord, Bot, BotOptions, FightSettings, ItemAct, LogKind, Out, PickupRecord, SmithTask,
-    Snapshot,
+    BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind, Out, PickupRecord,
+    SmithTask, Snapshot,
 };
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
@@ -16,7 +16,7 @@ use crate::protocol::{
 use crate::proxy::{open_tunnel, Proxy};
 use crate::requests::{build, Ctx};
 use crate::world::map_entities;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -78,6 +78,10 @@ pub enum Command {
         shop_id: i32,
         quantity: i32,
     },
+    /// Mã quà tặng: the codes as typed, sent one by one (Bot::redeem).
+    Gift(Vec<String>),
+    /// Đếm lại từ 0 of the codes refused in a row (Bot::gift_reset).
+    GiftReset,
     Logout,
 }
 

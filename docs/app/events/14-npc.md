@@ -187,6 +187,7 @@ Các trường hợp đã thử, theo thứ tự:
 - Server có phân biệt chữ hoa, chữ thường không: chưa thử được qua client, vì client luôn gửi chữ hoa. Cẩm nang ghi "không phân biệt chữ hoa, chữ thường".
 - Phần thưởng nằm trong hòm thư ([Hòm thư](#hòm-thư)).
 - **Bot TS gửi `c2s/1223` thẳng được:** 1,5 s sau khi vào game, nhân vật đứng ở M1 nhưng không mở Hương Lão hay Phúc lợi. Server trả `s2c/1223` và `s2c/1256` sau 52 ms, giống hệt khi bấm trên điện thoại [Đo G1].
+- App Rust làm cùng việc ở tab Mã quà tặng của Tiện ích: nhiều mã một lần, dừng sau 5 mã bị từ chối liền nhau và nhớ số đó qua các lần đăng nhập ([features](../../integration/rust/features.md#mã-quà-tặng)).
 - Gói của G1 (chỉ các gói ở trên và các bước bấm) giữ ở `captures/g1-2026-11-01/gift.jsonl` (điện thoại), `code-bot.jsonl` (bot TS) và `gift-lock.jsonl` (10 lần sai và lúc bị chặn), không đưa vào git.
 
 <a id="hòm-thư"></a>

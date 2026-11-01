@@ -5,8 +5,8 @@ use crate::store::{BattleFilter, Store};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, Job, LogKind, MapChoice,
-    Picked, PickupRecord, QuestRun, SmithRun, Snapshot, Target,
+    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, GiftCode, GiftLimits,
+    GiftRun, Job, LogKind, MapChoice, Picked, PickupRecord, QuestRun, SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::net::ConnState;
@@ -528,6 +528,42 @@ pub fn entries() -> Vec<Entry> {
             started_at: ago(5 * 60),
             ended_at: Some(ago(5 * 60 - 3)),
         }),
+        // The codes of G1 (14-npc.md#mã-quà-tặng), as Tiheo2 got them.
+        gift: Some(GiftRun {
+            id: 1,
+            codes: [
+                (
+                    "ALPHATEST1",
+                    true,
+                    "Nhập mã thành công, phần thưởng đã được gửi vào hộp thư",
+                    Some("Quà Alpha Test Ngày 1"),
+                ),
+                (
+                    "DENBU",
+                    true,
+                    "Nhập mã thành công, phần thưởng đã được gửi vào hộp thư",
+                    Some("Quà Đền bù AlphaTest"),
+                ),
+                ("SAIMA2026", false, "Mã không tồn tại", None),
+            ]
+            .into_iter()
+            .map(|(code, ok, text, mail)| GiftCode {
+                code: code.into(),
+                ok: Some(ok),
+                text: text.into(),
+                mail: mail.map(String::from),
+            })
+            .collect(),
+            doing: "đã gửi hết, 2 mã được, 1 mã bị từ chối".into(),
+            sending: None,
+            done: Some("đã gửi hết, 2 mã được, 1 mã bị từ chối".into()),
+            started_at: ago(2 * 60),
+            ended_at: Some(ago(2 * 60 - 5)),
+        }),
+        gift_limits: GiftLimits {
+            wrong: 1,
+            ..GiftLimits::default()
+        },
         ..Snapshot::default()
     };
 

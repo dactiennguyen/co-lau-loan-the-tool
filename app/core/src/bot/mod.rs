@@ -32,10 +32,11 @@ use crate::world::{
     NpcMenu, Place, Quest, ShopList, Zone, ZonePlayers,
 };
 use std::collections::{BTreeMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod fight;
+mod gift;
 mod items;
 mod packets;
 mod quest;
@@ -264,6 +265,12 @@ pub struct Bot {
     /// The task of Pháp sư or Hương Lão under way (smith.rs), and how many were started in this session.
     smith: Option<smith::Smith>,
     smith_runs: u32,
+    /// Mã quà tặng (gift.rs): the run under way, how many were started in this session, and the words of the last
+    /// refusal with when it came, so its s2c/1256 is not logged twice. The codes refused in a row and the server's lock
+    /// are in BotOptions::gift, which outlives the session.
+    gift: Option<gift::Gift>,
+    gift_runs: u32,
+    gift_echo: Option<(String, Instant)>,
     fight: FightSettings,
     /// The gear slot and item name of the repair auto_repair sent, until s2c/48 or a notice answers it. `repair_failed`
     /// holds the slots the server did not repair in this run, `repair_warned` whether the run said it has no hammer.
@@ -337,6 +344,9 @@ impl Bot {
             shopping: None,
             smith: None,
             smith_runs: 0,
+            gift: None,
+            gift_runs: 0,
+            gift_echo: None,
             fight,
             repairing: None,
             repair_failed: HashSet::new(),
@@ -374,6 +384,7 @@ impl Bot {
             .shop_back
             .as_ref()
             .map(|b| format!("{} khu {}", b.name, b.zone));
+        s.gift_limits = self.gift_limits();
         if let Some(b) = &self.battle {
             s.turn = self.turn_of(b);
         }
@@ -521,6 +532,7 @@ impl Bot {
             self.move_until,
             self.shopping.as_ref().map(|s| s.1),
             self.smith.as_ref().map(|s| s.until),
+            self.gift.as_ref().map(|g| g.until),
             self.pick_at,
         ]
         .into_iter()
@@ -590,6 +602,7 @@ impl Bot {
             ));
         }
         self.smith_timer(now, out);
+        self.gift_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
             if let Some(z) = self.zoning.take() {
@@ -646,6 +659,7 @@ impl Bot {
             ));
         }
         self.smith_stop(now, out);
+        self.gift_stop(out);
         if surrender {
             self.surrender(now, out);
         }

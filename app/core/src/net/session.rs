@@ -4,17 +4,29 @@ use super::connect::connect;
 use super::*;
 
 /// Runs the session of `account` on `server` until Logout, the server closing, or an error; reports through `emit`.
-/// `record` is Lưu dữ liệu trận (BotOptions::record).
+/// `record` is Lưu dữ liệu trận (BotOptions::record); `gift` the account's GiftMemory, which outlives the session
+/// (BotOptions::gift).
 pub async fn run(
     server: Server,
     record: bool,
     account: Account,
     atlas: Arc<Atlas>,
+    gift: Arc<Mutex<GiftMemory>>,
     mut commands: UnboundedReceiver<Command>,
     emit: Emit,
 ) {
     emit(Event::State(ConnState::Connecting));
-    let state = match session(server.addr(), record, &account, atlas, &mut commands, &emit).await {
+    let state = match session(
+        server.addr(),
+        record,
+        &account,
+        atlas,
+        gift,
+        &mut commands,
+        &emit,
+    )
+    .await
+    {
         Ok(()) => ConnState::Offline,
         Err(e) => ConnState::Error(e),
     };
@@ -66,6 +78,7 @@ pub(super) async fn session(
     record: bool,
     account: &Account,
     atlas: Arc<Atlas>,
+    gift: Arc<Mutex<GiftMemory>>,
     commands: &mut UnboundedReceiver<Command>,
     emit: &Emit,
 ) -> Result<(), Error> {
@@ -99,6 +112,7 @@ pub(super) async fn session(
         stats: account.stats,
         fight: account.fight,
         record,
+        gift,
         ..BotOptions::default()
     };
     let mut bot = Bot::new(options, atlas);
@@ -257,6 +271,8 @@ pub(super) async fn session(
                     Some(Command::OpenShopKind(kind)) => bot.open_shop_kind(kind, now, &mut out),
                     Some(Command::Smith(task)) => bot.smith(task, now, &mut out),
                     Some(Command::Buy { shop_id, quantity }) => bot.buy(shop_id, quantity, now, &mut out),
+                    Some(Command::Gift(codes)) => bot.redeem(&codes, now, &mut out),
+                    Some(Command::GiftReset) => bot.gift_reset(&mut out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),

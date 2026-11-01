@@ -230,6 +230,9 @@ pub struct BotOptions {
     /// Lưu dữ liệu trận, of the app's Cài đặt, the same for every account: every battle goes out as Out::BattleData
     /// (battle_record.rs, Bot::set_record).
     pub record: bool,
+    /// Mã quà tặng: codes refused in a row and the server's lock, shared by the sessions of the account so a new login
+    /// does not forget them (Manager keeps one per username).
+    pub gift: Arc<Mutex<GiftMemory>>,
 }
 impl Default for BotOptions {
     fn default() -> Self {
@@ -243,6 +246,7 @@ impl Default for BotOptions {
             stats: None,
             fight: FightSettings::default(),
             record: true,
+            gift: Arc::default(),
         }
     }
 }
@@ -425,6 +429,60 @@ pub struct SmithRun {
     pub ended_at: Option<u64>,
 }
 
+/// Mã quà tặng under way or last done (Bot::redeem), for Tiện ích.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GiftRun {
+    /// Number of the run in this session, so the UI tells a new one from the one before.
+    pub id: u32,
+    /// The codes as they go out (trimmed, upper case, each once), in order.
+    pub codes: Vec<GiftCode>,
+    /// The code (index in `codes`) waiting for the server's answer, if one is.
+    pub sending: Option<usize>,
+    /// What it does now, or did last.
+    pub doing: String,
+    /// Why it ended; None while it runs.
+    pub done: Option<String>,
+    pub started_at: u64,
+    pub ended_at: Option<u64>,
+}
+/// The server's lock on gift codes as the app knows it, kept across the sessions of an account (Manager keeps one per
+/// username, BotOptions::gift): codes refused in a row (0 again after a good code, or Đếm lại từ 0), and until when the
+/// server blocks every code (the instant, and the same in ms since 1970).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct GiftMemory {
+    pub wrong: u32,
+    pub locked: Option<(Instant, u64)>,
+}
+/// GiftMemory for the UI (Snapshot::gift_limits, filled by snapshot()): codes refused in a row, how many the bot allows
+/// (GIFT_MAX_WRONG), and until when the server blocks every code (ms since 1970), None once that is past.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GiftLimits {
+    pub wrong: u32,
+    pub max_wrong: u32,
+    pub locked_until: Option<u64>,
+}
+impl Default for GiftLimits {
+    fn default() -> Self {
+        Self {
+            wrong: 0,
+            max_wrong: super::gift::GIFT_MAX_WRONG,
+            locked_until: None,
+        }
+    }
+}
+/// One code of a GiftRun: `ok` None until s2c/1223 answers it, then the server's words, and the title of the mail a
+/// good code brings (s2c/1222).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GiftCode {
+    pub code: String,
+    pub ok: Option<bool>,
+    pub text: String,
+    pub mail: Option<String>,
+}
+
 /// A map of the atlas for "Đổi map": the level the world map asks for, and how many portals away it is.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -551,6 +609,10 @@ pub struct Snapshot {
     pub shop: Option<ShopList>,
     /// The work of Pháp sư or Hương Lão under way or last done (Bot::smith).
     pub smith: Option<SmithRun>,
+    /// Mã quà tặng under way or last done (Bot::redeem).
+    pub gift: Option<GiftRun>,
+    /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().
+    pub gift_limits: GiftLimits,
     /// Timed effects at login (the s2c/9 tail), such as x2 EXP; no packet is known yet to update them in the session.
     pub boosts: Vec<Boost>,
 }

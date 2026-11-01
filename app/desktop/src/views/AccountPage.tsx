@@ -111,13 +111,16 @@ export function AccountPage({ account }: { account: Account }) {
                 { key: "bag", label: "Túi đồ", icon: "gem" },
               ]}
             />
-            {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng (ShopModal). */}
+            {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng, Mã quà tặng (ShopModal). */}
             <Button
               kind="outline"
               small
               icon="grid"
-              // A line of the fighting colour along its bottom while Pháp sư works.
-              className={cn("flex-none", c?.smith && c.smith.done == null && "shadow-[inset_0_-3px_0_var(--s-fighting)]")}
+              // A line of the fighting colour along its bottom while Pháp sư works or gift codes go out.
+              className={cn(
+                "flex-none",
+                ((c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null)) && "shadow-[inset_0_-3px_0_var(--s-fighting)]",
+              )}
               onClick={() => open({ kind: "shop", id })}
             >
               Tiện ích

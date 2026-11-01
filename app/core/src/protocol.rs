@@ -103,6 +103,9 @@ impl<'a> Reader<'a> {
     pub fn i32(&mut self) -> Result<i32> {
         Ok(i32::from_be_bytes(self.take(4)?.try_into().unwrap()))
     }
+    pub fn i64(&mut self) -> Result<i64> {
+        Ok(i64::from_be_bytes(self.take(8)?.try_into().unwrap()))
+    }
     pub fn bytes(&mut self) -> Result<&'a [u8]> {
         let n = self.i32()?;
         if n < 0 {

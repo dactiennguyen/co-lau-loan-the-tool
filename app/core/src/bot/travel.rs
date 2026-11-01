@@ -21,6 +21,8 @@ impl Bot {
             Some("đang đổi chỗ")
         } else if self.smith.is_some() {
             Some("đang làm việc với Pháp sư hay Hương Lão, bấm Dừng trước")
+        } else if self.gift.is_some() {
+            Some("đang nhập mã quà tặng, bấm Dừng trước")
         } else {
             None
         }

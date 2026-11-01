@@ -19,6 +19,8 @@ impl Bot {
             Some("đang đợi server trả lời lần trước")
         } else if self.smith.is_some() {
             Some("đang làm việc ở Pháp sư hay Hương Lão")
+        } else if self.gift.is_some() {
+            Some("đang nhập mã quà tặng")
         } else {
             None
         };

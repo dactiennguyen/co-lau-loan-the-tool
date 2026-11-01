@@ -3,8 +3,8 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BattleView, Boost, BossTile, FightSettings, Job, LogKind, MapChoice, Picked, QuestRun,
-    SmithRun, Target,
+    BattleView, Boost, BossTile, FightSettings, GiftLimits, GiftRun, Job, LogKind, MapChoice,
+    Picked, QuestRun, SmithRun, Target,
 };
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
@@ -214,6 +214,10 @@ pub struct CharacterView<'a> {
     pub shop: Option<ShopView<'a>>,
     /// The work of Pháp sư or Hương Lão under way or last done (Tiện ích).
     pub smith: Option<SmithView<'a>>,
+    /// Mã quà tặng under way or last done (Tiện ích).
+    pub gift: Option<&'a GiftRun>,
+    /// Codes refused in a row, how many the bot allows, and the server's lock on codes.
+    pub gift_limits: &'a GiftLimits,
 }
 
 /// SmithRun with its items named and drawn as the bag draws them.
@@ -525,6 +529,8 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             zones: s.zones.as_deref(),
             shop: s.shop.as_ref().map(ShopView::of),
             smith: s.smith.as_ref().map(SmithView::of),
+            gift: s.gift.as_ref(),
+            gift_limits: &s.gift_limits,
             moving: s.moving.as_deref(),
             back_to: s.back_to.as_deref(),
             maps: &s.maps,
