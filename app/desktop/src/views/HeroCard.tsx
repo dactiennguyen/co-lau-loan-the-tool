@@ -2,6 +2,7 @@ import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ElementTag } from "@/components/ElementTag";
+import { GenderTag } from "@/components/GenderTag";
 import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
 import { isConnected } from "@/utils/format";
@@ -24,7 +25,7 @@ interface Props {
   onStats: () => void;
 }
 
-/** The selected account: who (name, level, element, timed effects such as x2 EXP, status, and Thống kê at the end of the
+/** The selected account: who (name, level, element, gender, timed effects such as x2 EXP, status, and Thống kê at the end of the
  * status line, which opens the battle history in a modal) and where (map, zone, coordinates as text, and the icon
  * button after the map name that moves to another zone or map). Its money is in the tiles under it (MetricRow), the other players of the zone in their
  * card. */
@@ -40,6 +41,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
             <h1 className="font-display font-extrabold text-20 leading-[1.1] text-fg truncate">{c?.name ?? a.label}</h1>
             {c && <Badge className="h-5 text-12 px-1.5">LV {c.level}</Badge>}
             {c && <ElementTag element={c.element} className="h-5 px-1.5 border border-current" />}
+            {c && <GenderTag gender={c.gender} className="h-5 px-1.5 border border-current" />}
             {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}
             {a.proxy?.enabled && (
               <span

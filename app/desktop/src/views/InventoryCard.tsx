@@ -3,8 +3,9 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { ElementTag } from "@/components/ElementTag";
-import { Icon, type IconName } from "@/components/Icon";
-import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, misfit } from "@/game/gender";
+import type { IconName } from "@/components/Icon";
+import { GenderTag } from "@/components/GenderTag";
+import { misfit } from "@/game/gender";
 import { ItemSlot } from "@/components/ItemSlot";
 import { Menu, type MenuItem } from "@/components/Menu";
 import { num } from "@/utils/format";
@@ -272,11 +273,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
             <b className="max-w-[110px] truncate text-13 text-fg">{c.name}</b>
             <span className="text-11 text-primary px">LV {c.level}</span>
             <ElementTag element={c.element} />
-            {c.gender != null && GENDER_ICON[c.gender] && (
-              <span className={`inline-flex items-center gap-[3px] text-11 font-bold ${GENDER_TEXT[c.gender]}`}>
-                <Icon name={GENDER_ICON[c.gender]} size={11} /> Nhân vật {GENDER_WORD[c.gender]}
-              </span>
-            )}
+            <GenderTag gender={c.gender} />
           </div>
           <div className={COL}>{RIGHT.map(gearSlot)}</div>
         </section>
