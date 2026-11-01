@@ -407,6 +407,46 @@ pub enum SmithTask {
     /// Điểm năng động of Hương Lão, reading only: the points of the week and the exchange limit to Snapshot.points, with
     /// Cách tính điểm (s2c/0) when `rules`. Đổi Xu is not measured: never picked.
     Points { rules: bool },
+    /// Nhiệm vụ hàng ngày of Hương Lão (line 2 of his menu): read how many were taken today, or Nhận, Hủy or Hoàn thành,
+    /// each checked against the menu and the quest held first (Snapshot.daily).
+    Daily { action: DailyAction },
+}
+
+/// What SmithTask::Daily does at Hương Lão's menu of daily quests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DailyAction {
+    /// Read only: how many were taken today.
+    Show,
+    /// Nhận nhiệm vụ: none held, fewer than 3 taken today.
+    Accept,
+    /// Hủy nhiệm vụ hiện tại: it still counts as one of the 3 of the day; not for a quest done.
+    Cancel,
+    /// Hoàn thành nhiệm vụ: the quest held is done; the rewards come (s2c/1195 kind 2).
+    Complete,
+}
+
+/// Nhiệm vụ hàng ngày: the quest held as s2c/1195 says it, how many were taken today as Hương Lão's menu said last, and
+/// the last one done.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyState {
+    /// The server said which quest is held (s2c/1195 comes at login): false until then.
+    pub known: bool,
+    pub quest: Option<crate::mail::DailyQuest>,
+    /// "Hôm nay con đã nhận 1/3": 1 and 3, and when it was read.
+    pub taken: Option<i32>,
+    pub max: Option<i32>,
+    pub read_at: Option<u64>,
+    pub done: Option<DailyDone>,
+}
+/// A daily quest done with Hoàn thành nhiệm vụ (s2c/1195 kind 2).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyDone {
+    pub name: String,
+    /// "727 kinh nghiệm", "590 xu khóa".
+    pub rewards: Vec<String>,
+    pub at: u64,
 }
 
 /// The recipes of an item kind of Chế tạo trang bị as its menu said them last (SmithTask::Recipes, Craft).
@@ -437,7 +477,7 @@ pub struct PointsRead {
 pub struct SmithRun {
     /// Number of the run in this session, so the UI tells a new one from the one before.
     pub id: u32,
-    /// "merge", "upgrade", "quote", "separate", "transmute", "exchange", "recipes", "craft", "ice" or "points".
+    /// "merge", "upgrade", "quote", "separate", "transmute", "exchange", "recipes", "craft", "ice", "points" or "daily".
     pub kind: &'static str,
     /// "Gộp đá tới Đá cấp 6", "Nâng cấp Nhẫn Trơn tới +4".
     pub title: String,
@@ -733,6 +773,8 @@ pub struct Snapshot {
     pub recipes: Vec<CraftRecipes>,
     /// Điểm năng động of Hương Lão as last read.
     pub points: Option<PointsRead>,
+    /// Nhiệm vụ hàng ngày: the quest held and how many were taken today.
+    pub daily: DailyState,
     /// Mã quà tặng under way or last done (Bot::redeem).
     pub gift: Option<GiftRun>,
     /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().

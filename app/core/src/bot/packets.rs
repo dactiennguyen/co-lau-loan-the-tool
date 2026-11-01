@@ -759,6 +759,11 @@ impl Bot {
                 self.mail_deleted(a, now, out);
             }
             1220 => self.snap.mailbox.unread = payload.first().map(|&b| b == 1),
+            // Nhiệm vụ hàng ngày (daily.rs): the quest held, done, or its progress; the answer to Nhận, Hủy, Hoàn thành.
+            1195 => {
+                let d = crate::mail::daily_quest(payload)?;
+                self.daily_update(d, now, out);
+            }
             // Chợ trời (bot/market.rs): the tabs, a page (also the answer to Gia hạn), Mua, Đăng bán, Thu hồi.
             116 => {
                 let tabs = crate::market::market_tabs(payload)?;

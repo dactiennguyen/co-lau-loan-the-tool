@@ -84,7 +84,7 @@ function Dialogs() {
     return <StatsModal account={account} onClose={close} />;
   }
   if (dialog?.kind === "shop" && account) {
-    return <ShopModal account={account} item={dialog.item} onClose={close} />;
+    return <ShopModal account={account} item={dialog.item} sub={dialog.sub} onClose={close} />;
   }
   if (dialog?.kind === "remove" && account) {
     return (

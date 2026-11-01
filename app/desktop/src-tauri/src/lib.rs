@@ -115,6 +115,7 @@ pub fn run() {
             commands::smith_craft,
             commands::smith_ice,
             commands::elder_points,
+            commands::elder_daily,
             commands::smith_separate,
             commands::smith_transmute,
             commands::transmute_targets,

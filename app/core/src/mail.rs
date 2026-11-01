@@ -1,10 +1,11 @@
-//! Mã quà tặng and Hòm thư (G1, 01/11/2026; docs/app/events/14-npc.md#mã-quà-tặng, #hòm-thư) ← src/protocol/mail.ts.
+//! Mã quà tặng, Hòm thư and Nhiệm vụ hàng ngày (G1, NP1, 01/11/2026; docs/app/events/14-npc.md#mã-quà-tặng, #hòm-thư,
+//! #nhiệm-vụ-hàng-ngày) ← src/protocol/mail.ts.
 //! c2s/1223 (string code) → s2c/1223 (u8 ok; string text); a good code then s2c/1222 (the gift's mail) and s2c/1220, a
 //! refused one s2c/1256 with the same text. The mailbox: c2s/1215 list, c2s/1216 open, c2s/1217 Nhận, c2s/1218 Nhận
 //! hết, c2s/1219 Xóa. All of them work from anywhere once in the world: no NPC, no window. c2s/1221 (Xóa hết) deletes
 //! every mail, gifts not taken too: requests::build has no arm for it, on purpose (DELETE_ALL).
 use crate::items::{book, item_record, ItemRecord};
-use crate::protocol::{Reader, Result};
+use crate::protocol::{err, Reader, Result};
 use serde::Serialize;
 use std::time::Duration;
 
@@ -210,5 +211,122 @@ pub fn slots_for(items: &[ItemRecord], bag: &[ItemRecord]) -> u32 {
     let bag: Vec<(i32, u8)> = bag.iter().map(|i| (i.item_id, i.field1)).collect();
     slots_needed(items.iter().map(|i| (i.item_id, i.field1)), &bag, |id| {
         book().get(id).map_or(1, |d| d.stack)
+    })
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Nhiệm vụ hàng ngày at Hương Lão (NPC 102 of M1): line 2 of his menu says "Hôm nay con đã nhận N/3 nhiệm vụ hàng ngày."
+// with one line 0, Nhận nhiệm vụ, or Hủy nhiệm vụ hiện tại while one is held; once the quest held is done, two lines: 0
+// Hoàn thành nhiệm vụ, 1 Hủy nhiệm vụ hiện tại (NP1). Each is done at once, without asking (DAILY of mail.ts).
+
+/// Line 2 of Hương Lão's menu.
+pub const DAILY_PATH: u8 = 2;
+/// "Nhận nhiệm vụ", line 0 while no quest is held.
+pub fn is_daily_accept(label: &str) -> bool {
+    label == "Nhận nhiệm vụ"
+}
+/// "Hủy nhiệm vụ hiện tại".
+pub fn is_daily_cancel(label: &str) -> bool {
+    label.starts_with("Hủy nhiệm vụ")
+}
+/// "Hoàn thành nhiệm vụ", line 0 once the quest held is done (NP1).
+pub fn is_daily_complete(label: &str) -> bool {
+    label.contains("Hoàn thành")
+}
+/// The notice of Nhận, before its s2c/1195: "Nhận nhiệm vụ hàng ngày thành công." (G1).
+pub fn is_daily_accepted(text: &str) -> bool {
+    text.starts_with("Nhận nhiệm vụ hàng ngày thành công")
+}
+
+/// A daily quest of s2c/1195 kind 1: `template` has %d where the progress goes ("Thu thập %d xu khóa từ đánh quái").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DailyQuest {
+    pub id: i32,
+    pub name: String,
+    pub template: String,
+    pub progress: i32,
+    pub target: i32,
+}
+impl DailyQuest {
+    /// "Thu thập 218/2100 xu khóa từ đánh quái", as the Phụ tab of the game draws it (dailyText).
+    pub fn text(&self) -> String {
+        self.template
+            .replacen("%d", &format!("{}/{}", self.progress, self.target), 1)
+    }
+    pub fn finished(&self) -> bool {
+        self.progress >= self.target
+    }
+}
+
+/// s2c/1195, the daily quest held (dailyQuest): at login, when one is taken or dropped, after Hoàn thành, and when its
+/// progress moves (right after a pickup of Xu khóa for Nhặt xu, NP1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Daily {
+    /// Kind 0: none held.
+    None,
+    /// Kind 1: the quest held.
+    Quest(DailyQuest),
+    /// Kind 2: done after Hoàn thành nhiệm vụ, its rewards ("727 kinh nghiệm", "590 xu khóa") already given by s2c/10 and
+    /// s2c/46 before it; none is held then.
+    Done { name: String, rewards: Vec<String> },
+    /// Kind 3: the progress of the quest held.
+    Progress { progress: i32, target: i32 },
+}
+pub fn daily_quest(p: &[u8]) -> Result<Daily> {
+    let mut r = Reader::new(p);
+    let d = match r.u8()? {
+        0 => Daily::None,
+        1 => Daily::Quest(DailyQuest {
+            id: r.i32()?,
+            name: r.string()?,
+            template: r.string()?,
+            progress: r.i32()?,
+            target: r.i32()?,
+        }),
+        2 => {
+            let name = r.string()?;
+            let n = r.i32()?;
+            let rewards = (0..n.max(0))
+                .map(|_| r.string())
+                .collect::<Result<Vec<_>>>()?;
+            Daily::Done { name, rewards }
+        }
+        3 => Daily::Progress {
+            progress: r.i32()?,
+            target: r.i32()?,
+        },
+        kind => {
+            return err(
+                "PAYLOAD_SCHEMA",
+                format!("s2c/1195: kind {kind} not seen yet"),
+            )
+        }
+    };
+    r.finish(d, "s2c/1195")
+}
+/// The quest held after a s2c/1195 (dailyAfter): the new one, none, or `held` with the progress of kind 3.
+pub fn daily_after(held: Option<&DailyQuest>, d: &Daily) -> Option<DailyQuest> {
+    match d {
+        Daily::None | Daily::Done { .. } => None,
+        Daily::Quest(q) => Some(q.clone()),
+        Daily::Progress { progress, target } => held.map(|q| DailyQuest {
+            progress: *progress,
+            target: *target,
+            ..q.clone()
+        }),
+    }
+}
+/// "Hôm nay con đã nhận 1/3 nhiệm vụ hàng ngày." → (1, 3) (dailyTaken).
+pub fn daily_taken(text: &str) -> Option<(i32, i32)> {
+    // The digits at the start of `s` as a number, and where they end.
+    let digits = |s: &str| -> Option<(i32, usize)> {
+        let end = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
+        s[..end].parse().ok().map(|n| (n, end))
+    };
+    text.match_indices("đã nhận ").find_map(|(i, pat)| {
+        let rest = &text[i + pat.len()..];
+        let (taken, end) = digits(rest)?;
+        let (max, _) = digits(rest[end..].strip_prefix('/')?)?;
+        Some((taken, max))
     })
 }

@@ -18548,6 +18548,114 @@
    { "text": "Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa", "count": 0 }
   ]
  },
+ "daily": {
+  "quests": [
+   {
+    "key": "s2c/1195 116 Sử dụng vật phẩm",
+    "hex": "01000000740000001853e1bbad2064e1bba56e672076e1baad74207068e1baa96d0000002f53e1bbad2064e1bba56e672025642076e1baad74207068e1baa96d2074726f6e67207472e1baad6e20c491e1baa5750000000000000003",
+    "expected": {
+     "kind": 1,
+     "quest": { "id": 116, "name": "Sử dụng vật phẩm", "template": "Sử dụng %d vật phẩm trong trận đấu", "progress": 0, "target": 3 }
+    },
+    "text": "Sử dụng 0/3 vật phẩm trong trận đấu"
+   },
+   {
+    "key": "s2c/1195 không có",
+    "hex": "00",
+    "expected": { "kind": 0, "quest": null },
+    "text": null
+   },
+   {
+    "key": "s2c/1195 113 Nhặt xu",
+    "hex": "0100000071000000094e68e1bab77420787500000028546875207468e1baad70202564207875206b68c3b3612074e1bbab20c491c3a16e68207175c3a1690000000000000802",
+    "expected": {
+     "kind": 1,
+     "quest": { "id": 113, "name": "Nhặt xu", "template": "Thu thập %d xu khóa từ đánh quái", "progress": 0, "target": 2050 }
+    },
+    "text": "Thu thập 0/2050 xu khóa từ đánh quái"
+   },
+   {
+    "key": "s2c/1195 tiến độ 218/2100",
+    "hex": "03000000da00000834",
+    "expected": { "kind": 3, "progress": 218, "target": 2100 },
+    "text": null
+   },
+   {
+    "key": "s2c/1195 113 Nhặt xu 2100/2100",
+    "hex": "0100000071000000094e68e1bab77420787500000028546875207468e1baad70202564207875206b68c3b3612074e1bbab20c491c3a16e68207175c3a1690000083400000834",
+    "expected": {
+     "kind": 1,
+     "quest": { "id": 113, "name": "Nhặt xu", "template": "Thu thập %d xu khóa từ đánh quái", "progress": 2100, "target": 2100 }
+    },
+    "text": "Thu thập 2100/2100 xu khóa từ đánh quái"
+   },
+   {
+    "key": "s2c/1195 xong Nhặt xu",
+    "hex": "02000000094e68e1bab7742078750000000200000011373237206b696e68206e676869e1bb876d0000000c353930207875206b68c3b361",
+    "expected": {
+     "kind": 2,
+     "quest": null,
+     "done": {
+      "name": "Nhặt xu",
+      "rewards": [ "727 kinh nghiệm", "590 xu khóa" ]
+     }
+    },
+    "text": null
+   }
+  ],
+  "menus": [
+   {
+    "key": "s2c/57 Hương Lão",
+    "hex": "000000040000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000004c4368c3a06f206de1bbab6e6720636f6e20c491e1babf6e2076e1bb9b69205468616e68204b68c3aa0a4ee1babf752063e1baa76e2067c3ac2068c3a3792074e1bb9b692074c3ac6d2074612e000000000f4dc3a3207175c3a02074e1bab76e67010000000fc490e1bb9569206cc6b0e1bba36e6702000000184e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0790300000015c49069e1bb836d206ec4836e6720c491e1bb996e67",
+    "taken": null,
+    "options": [
+     [ 0, "Mã quà tặng" ],
+     [ 1, "Đổi lượng" ],
+     [ 2, "Nhiệm vụ hàng ngày" ],
+     [ 3, "Điểm năng động" ]
+    ]
+   },
+   {
+    "key": "s2c/57 nhiệm vụ ngày 0/3 Nhận",
+    "hex": "000000010000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000003648c3b46d206e617920636f6e20c491c3a3206e68e1baad6e20302f33206e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0792e00000000134e68e1baad6e206e6869e1bb876d2076e1bba5",
+    "taken": { "taken": 0, "max": 3 },
+    "options": [
+     [ 0, "Nhận nhiệm vụ" ]
+    ]
+   },
+   {
+    "key": "s2c/57 nhiệm vụ ngày 1/3 Hủy",
+    "hex": "000000010000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000003648c3b46d206e617920636f6e20c491c3a3206e68e1baad6e20312f33206e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0792e000000001f48e1bba779206e6869e1bb876d2076e1bba5206869e1bb876e2074e1baa169",
+    "taken": { "taken": 1, "max": 3 },
+    "options": [
+     [ 0, "Hủy nhiệm vụ hiện tại" ]
+    ]
+   },
+   {
+    "key": "s2c/57 nhiệm vụ ngày 1/3 Nhận",
+    "hex": "000000010000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000003648c3b46d206e617920636f6e20c491c3a3206e68e1baad6e20312f33206e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0792e00000000134e68e1baad6e206e6869e1bb876d2076e1bba5",
+    "taken": { "taken": 1, "max": 3 },
+    "options": [
+     [ 0, "Nhận nhiệm vụ" ]
+    ]
+   },
+   {
+    "key": "s2c/57 nhiệm vụ ngày 1/3 Hoàn thành",
+    "hex": "000000020000001748c6b0c6a16e67204cc3a36f205472e1baa76e2042c3a10000003648c3b46d206e617920636f6e20c491c3a3206e68e1baad6e20312f33206e6869e1bb876d2076e1bba52068c3a06e67206e67c3a0792e0000000019486fc3a06e207468c3a06e68206e6869e1bb876d2076e1bba5010000001f48e1bba779206e6869e1bb876d2076e1bba5206869e1bb876e2074e1baa169",
+    "taken": { "taken": 1, "max": 3 },
+    "options": [
+     [ 0, "Hoàn thành nhiệm vụ" ],
+     [ 1, "Hủy nhiệm vụ hiện tại" ]
+    ]
+   }
+  ],
+  "packets": [
+   { "key": "s2c/1256 Nhận nhiệm vụ thành công", "hex": "010000002d4e68e1baad6e206e6869e1bb876d2076e1bba52068c3a06e67206e67c3a079207468c3a06e682063c3b46e672e" },
+   { "key": "s2c/1256 Hủy nhiệm vụ thành công", "hex": "010000001f48e1bba779206e6869e1bb876d2076e1bba5207468c3a06e682063c3b46e67" },
+   { "key": "s2c/10 sau Hoàn thành", "hex": "00000004000000066d616e696e610000010d000001360000e9ad0000e5490000fdea0000199e000027100000009a00000018000000510000003600000008" },
+   { "key": "s2c/46 sau Hoàn thành", "hex": "0000000975706461746520587500000000006b8d9800000000004cd0b80000000000001f0e" }
+  ]
+ },
  "market": {
   "decoders": [
    {

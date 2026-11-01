@@ -360,6 +360,8 @@ export interface Character {
   recipes: CraftRecipes[];
   /** Điểm năng động of Hương Lão as last read. */
   points: PointsRead | null;
+  /** Nhiệm vụ hàng ngày: the quest held and how many were taken today. */
+  daily: DailyState;
   /** Mã quà tặng under way or last done (Tiện ích). */
   gift: GiftRun | null;
   /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
@@ -562,10 +564,31 @@ export interface PointsRead {
   readAt: number;
 }
 
+/** A daily quest of Hương Lão (mail::DailyQuest): `template` has %d where the progress goes. */
+export interface DailyQuest {
+  id: number;
+  name: string;
+  template: string;
+  progress: number;
+  target: number;
+}
+/** Nhiệm vụ hàng ngày (DailyState of bot/types.rs): the quest held as s2c/1195 says it (`known` once the server said, at
+ * login), how many were taken today as Hương Lão's menu said last, and the last one done. */
+export interface DailyState {
+  known: boolean;
+  quest: DailyQuest | null;
+  taken: number | null;
+  max: number | null;
+  readAt: number | null;
+  done: { name: string; rewards: string[]; at: number } | null;
+}
+/** What Nhiệm vụ hàng ngày does at Hương Lão (SmithTask::Daily). */
+export type DailyAction = "show" | "accept" | "cancel" | "complete";
+
 /** The work of Pháp sư or Hương Lão under way or last done (SmithView of view.rs). */
 export interface SmithRun {
   id: number;
-  kind: "merge" | "upgrade" | "quote" | "separate" | "transmute" | "exchange" | "recipes" | "craft" | "ice" | "points";
+  kind: "merge" | "upgrade" | "quote" | "separate" | "transmute" | "exchange" | "recipes" | "craft" | "ice" | "points" | "daily";
   title: string;
   doing: string;
   steps: number;

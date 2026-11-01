@@ -8,7 +8,7 @@ use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BattleSource, FightSettings, ItemAct, LogKind, MailTask, MarketTask, SmithTask,
+    BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailTask, MarketTask, SmithTask,
 };
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
@@ -275,6 +275,21 @@ pub fn smith_ice(shared: State<Shared>, id: u64, option: u8) {
 #[tauri::command]
 pub fn elder_points(shared: State<Shared>, id: u64, rules: bool) {
     shared.with(|app| app.send(id, Command::Smith(SmithTask::Points { rules })));
+}
+
+/// Nhiệm vụ hàng ngày of Hương Lão: "show" reads how many were taken today; "accept", "cancel" or "complete" picks Nhận,
+/// Hủy or Hoàn thành once the menu and the quest held allow it.
+#[tauri::command]
+pub fn elder_daily(shared: State<Shared>, id: u64, action: String) -> Result<(), String> {
+    let action = match action.as_str() {
+        "show" => DailyAction::Show,
+        "accept" => DailyAction::Accept,
+        "cancel" => DailyAction::Cancel,
+        "complete" => DailyAction::Complete,
+        other => return Err(format!("không có việc nhiệm vụ ngày \"{other}\"")),
+    };
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Daily { action })));
+    Ok(())
 }
 
 /// Tách đá of the item of bag slot `slot`.

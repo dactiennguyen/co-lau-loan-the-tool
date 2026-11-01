@@ -37,6 +37,7 @@ use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod daily;
 mod fight;
 mod gift;
 mod items;

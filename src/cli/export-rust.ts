@@ -29,7 +29,7 @@ import { pointsText } from '../protocol/shops.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 import { g1Packets } from '../../test/fixtures-g1.ts';
 import { q17Packets } from '../../test/fixtures-q17.ts';
-import { claimedCount, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
+import { claimedCount, dailyQuest, dailyTaken, dailyText, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
 import { Items } from '../protocol/items.ts';
 import { market, marketBuyRequest, marketDone, marketExtendRequest, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from '../protocol/market.ts';
 import { ct1Packets } from '../../test/fixtures-ct1.ts';
@@ -198,6 +198,25 @@ function giftCases() {
   });
   const requests = ['ALPHATEST1', 'denbu', '  DENBU  ', 'Saima2026'].map(typed => ({ typed, hex: hex(giftCodeRequest(typed)) }));
   return { decoders, requests };
+}
+
+/** Nhiệm vụ hàng ngày (test/fixtures-g1.ts G1, test/fixtures-np1.ts NP1): what dailyQuest reads in every s2c/1195
+ * captured and the text the Phụ tab draws of a quest; Hương Lão's menus with how many were taken today (dailyTaken) and
+ * their lines; the other packets of Nhận, Hủy and Hoàn thành, for Bot::smith of SmithTask::Daily (app/core/tests/daily.rs). */
+function dailyCases() {
+  const all: Record<string, string> = { ...g1Packets, ...np1Packets };
+  const keys = (prefix: string) => Object.keys(all).filter(k => k.startsWith(prefix));
+  const quests = keys('s2c/1195').map(key => {
+    const expected = dailyQuest(bytes(all[key]));
+    return { key, hex: all[key], expected, text: expected.kind === 1 && expected.quest ? dailyText(expected.quest) : null };
+  });
+  const menus = keys('s2c/57').map(key => {
+    const m = npcMenu(bytes(all[key]));
+    return { key, hex: all[key], taken: dailyTaken(m.text) ?? null, options: m.options.map(o => [o.option, o.label]) };
+  });
+  const packets = ['s2c/1256 Nhận nhiệm vụ thành công', 's2c/1256 Hủy nhiệm vụ thành công', 's2c/10 sau Hoàn thành', 's2c/46 sau Hoàn thành']
+    .map(key => ({ key, hex: all[key] }));
+  return { quests, menus, packets };
 }
 
 /** Hòm thư (test/fixtures-g1.ts, G1): what mailList, mailBody and mailAck read in the captured packets, the bytes of
@@ -601,7 +620,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
-    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), market: marketCases(),
+    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), daily: dailyCases(), market: marketCases(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }

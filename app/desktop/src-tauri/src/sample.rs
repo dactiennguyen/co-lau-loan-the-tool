@@ -5,12 +5,12 @@ use crate::store::{BattleFilter, Store};
 use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, CraftRecipes, GiftCode,
-    GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MapMob, MarketState, Picked,
-    PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
+    BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, CraftRecipes,
+    DailyState, GiftCode, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MapMob,
+    MarketState, Picked, PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
-use cllt_core::mail::{MailBody, MailHeader};
+use cllt_core::mail::{DailyQuest, MailBody, MailHeader};
 use cllt_core::market::{MarketListing, MarketPage, MarketStat, MarketTab, MarketTabs};
 use cllt_core::net::ConnState;
 use cllt_core::npc;
@@ -567,6 +567,21 @@ fn main_character() -> Snapshot {
                 read_at: ago(1200),
             }
         }),
+        // Nhặt xu of NP1 under way, 1 of 3 taken today.
+        daily: DailyState {
+            known: true,
+            quest: Some(DailyQuest {
+                id: 113,
+                name: "Nhặt xu".into(),
+                template: "Thu thập %d xu khóa từ đánh quái".into(),
+                progress: 1462,
+                target: 2050,
+            }),
+            taken: Some(1),
+            max: Some(3),
+            read_at: Some(ago(900)),
+            done: None,
+        },
         ..Snapshot::default()
     }
 }

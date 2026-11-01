@@ -4,7 +4,7 @@ import { Button } from "@/components/Button";
 import { FilterChip } from "@/components/FilterChip";
 import { Hint } from "@/components/Hint";
 import { Stepper } from "@/components/Stepper";
-import { num } from "@/utils/format";
+import { num, timeOfDay } from "@/utils/format";
 import type { PointsRead } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 
@@ -13,9 +13,6 @@ const OPTIONS = [
   { option: 0, label: "50.000 Xu", xu: 50_000, xuKhoa: 0 },
   { option: 1, label: "55.000 Xu khóa", xu: 0, xuKhoa: 55_000 },
 ];
-
-/** "21:04". */
-const clock = (ms: number) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
 /**
  * Đổi lượng of Hương Lão (15-shops.md#đổi-lượng): 50 Lượng for 50.000 Xu or 55.000 Xu khóa, as many times as chosen. The
@@ -106,7 +103,7 @@ function Points({ points: p, why, read, hint }: { points: PointsRead | null; why
               · đổi được <b className="px text-fg">{num(p.xu)}</b> Xu (cần {num(p.xuKhoa ?? 0)} Xu khóa, cấp {p.level})
             </>
           )}
-          {p.slotsLeft != null && ` · còn ${num(p.slotsLeft)}/${num(p.slots ?? 0)} suất`} · đọc lúc {clock(p.readAt)}
+          {p.slotsLeft != null && ` · còn ${num(p.slotsLeft)}/${num(p.slots ?? 0)} suất`} · đọc lúc {timeOfDay(p.readAt)}
         </p>
       ) : (
         <p className={SHOP.note}>Chưa xem. Hương Lão ở Làng Thanh Khê, như Đổi lượng.</p>

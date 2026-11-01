@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import { addToasts, errorToasts, questToasts, updateToast, type ToastItem } from "./toasts";
 import type { Account, AccountsUpdate, AppState, LogLine, UpdateView } from "@/api/types";
+import type { ShopSub } from "@/views/shop/ShopModal";
 import { accountsOf, append, merge, type Accounts } from "./sync";
 
 export type Dialog =
@@ -22,8 +23,9 @@ export type Dialog =
   | { kind: "battles"; id: number }
   /** Đổi khu / map of the Vị trí card. */
   | { kind: "place"; id: number }
-  /** Tiện ích (ShopModal): the 14 shops, Pháp sư, Hương Lão; with the item to pick first in Dược phẩm (Mua búa: 2). */
-  | { kind: "shop"; id: number; item?: number }
+  /** Tiện ích (ShopModal): the 14 shops, Pháp sư, Hương Lão; with the item to pick first in Dược phẩm (Mua búa: 2), or
+   * the sub-tab to open on (Nhiệm vụ ngày). */
+  | { kind: "shop"; id: number; item?: number; sub?: ShopSub }
   /** Khởi động lại để cập nhật while accounts are in the game. */
   | { kind: "update" }
   /** Cài đặt of the app: game server, Lưu and Xuất dữ liệu trận, what closing the window does. */

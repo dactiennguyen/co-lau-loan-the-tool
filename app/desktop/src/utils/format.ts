@@ -22,6 +22,9 @@ export function clock(secs: number) {
   return h > 0 ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
 }
 
+/** A time in ms since 1970 as the clock on the wall: "21:04". */
+export const timeOfDay = (ms: number) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+
 /** CSS colour variable of a status (tokens.css). */
 export const statusTone = (s: Status) =>
   ["var(--s-offline)", "var(--s-connecting)", "var(--s-online)", "var(--s-fighting)", "var(--s-error)"][s];

@@ -8,6 +8,7 @@ import type {
   AppState,
   BattleSource,
   BattleStats,
+  DailyAction,
   FightSettings,
   ItemAction,
   LogKind,
@@ -102,6 +103,8 @@ export interface Api {
   smithIce(id: number, option: number): Promise<void>;
   /** Điểm năng động of Hương Lão, reading only; Cách tính điểm too with `rules`. */
   elderPoints(id: number, rules: boolean): Promise<void>;
+  /** Nhiệm vụ hàng ngày of Hương Lão: read how many were taken today, or Nhận, Hủy, Hoàn thành. */
+  elderDaily(id: number, action: DailyAction): Promise<void>;
   /** Tách đá of the item of bag slot `slot`. */
   smithSeparate(id: number, slot: number): Promise<void>;
   /** Chuyển hoá from bag slot `source` to bag slot `target`. */
@@ -215,6 +218,7 @@ const tauri: Api = {
   smithCraft: (id, kind, tier) => invoke("smith_craft", { id, kind, tier }),
   smithIce: (id, option) => invoke("smith_ice", { id, option }),
   elderPoints: (id, rules) => invoke("elder_points", { id, rules }),
+  elderDaily: (id, action) => invoke("elder_daily", { id, action }),
   smithSeparate: (id, slot) => invoke("smith_separate", { id, slot }),
   smithTransmute: (id, source, target) => invoke("smith_transmute", { id, source, target }),
   transmuteTargets: (id, source) => invoke("transmute_targets", { id, source }),
@@ -299,6 +303,7 @@ const preview: Api = {
   smithCraft: nothing,
   smithIce: nothing,
   elderPoints: nothing,
+  elderDaily: nothing,
   smithSeparate: nothing,
   smithTransmute: nothing,
   transmuteTargets: async () => [],

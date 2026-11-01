@@ -1,10 +1,12 @@
 //! Pháp sư and Hương Lão for Tiện ích: Gộp đá, Nâng cấp (with Bùa bảo vệ), Tách đá, Chuyển hoá, Chế tạo trang bị, Đổi
-//! Băng Tâm, Đổi lượng and Điểm năng động (docs/app/events/16-upgrade.md#tính-năng, 15-shops.md#đổi-lượng,
-//! 14-npc.md#điểm-năng-động). One task at a time, step by step as the game does:
+//! Băng Tâm, Đổi lượng, Điểm năng động and Nhiệm vụ hàng ngày (docs/app/events/16-upgrade.md#tính-năng,
+//! 15-shops.md#đổi-lượng, 14-npc.md#điểm-năng-động, #nhiệm-vụ-hàng-ngày). One task at a time, step by step as the game
+//! does:
 //! c2s/13 to the NPC, c2s/57 down its menus, the window (s2c/96, s2c/99), c2s/97 for each item put in and the price and
 //! odds the window says (s2c/90, s2c/92, s2c/1260), c2s/91 for Bắt đầu and its result (s2c/91, s2c/93). The server sends no
 //! bag after a press, so the bot asks for it (c2s/42 → s2c/42) before the next one.
 use super::*;
+use crate::mail::{self, DailyQuest};
 
 /// How long a step waits for the server (its answers came within 40 ms in J3).
 pub(super) const SMITH_WAIT: Duration = Duration::from_secs(8);
@@ -41,8 +43,11 @@ pub(super) enum Stage {
     IceDone,
     /// Điểm năng động: Cách tính điểm sent; s2c/0 with the rules next.
     Rules,
+    /// Nhiệm vụ hàng ngày: Nhận, Hủy or Hoàn thành sent; s2c/1195 next (Nhận: its notice first), or a refusal.
+    Daily,
     /// c2s/13 sent again so that the menu the server remembers is the NPC's first one, not one whose line 0 spends (Đổi
-    /// lượng, Đổi Băng Tâm, Đổi Xu of Điểm năng động; NP1, G1): its s2c/57 next, then the task ends.
+    /// lượng, Đổi Băng Tâm, Đổi Xu of Điểm năng động, Nhận or Hủy of Nhiệm vụ hàng ngày; NP1, G1): its s2c/57 next, then
+    /// the task ends.
     Reset,
 }
 
@@ -81,6 +86,17 @@ fn kind_level(item_id: i32) -> (u8, i32) {
 /// "Nhẫn", "item kind 7".
 fn craft_name(kind: u8) -> &'static str {
     npc::CRAFT_LABELS.get(kind as usize).copied().unwrap_or("?")
+}
+/// The kind of a task's log lines: Nhiệm vụ for the daily quests, Vật phẩm for the others.
+fn task_log(task: &SmithTask) -> LogKind {
+    match task {
+        SmithTask::Daily { .. } => LogKind::Quest,
+        _ => LogKind::Item,
+    }
+}
+/// "Nhặt xu (Thu thập 218/2100 xu khóa từ đánh quái)".
+fn daily_what(q: &DailyQuest) -> String {
+    format!("{} ({})", q.name, q.text())
 }
 
 /// The NPC of a task, for its log lines.
@@ -127,6 +143,8 @@ pub(super) struct Smith {
     /// the NPC again before it ends, and `ending` is why it ends once the NPC answered.
     reset: bool,
     ending: Option<String>,
+    /// Nhiệm vụ hàng ngày: the quest held when its line was picked, for the line of Hủy.
+    daily: Option<DailyQuest>,
     /// Nâng cấp: the stones to try, cheapest first (upgrade_stones), those put in this window and the odds after each,
     /// and how many to put when the window was opened again for exactly that many.
     stones: Vec<i32>,
@@ -292,6 +310,39 @@ impl Bot {
                 ("ice", format!("Đổi Băng Tâm lấy bình rỗng ({what})"))
             }
             SmithTask::Points { .. } => ("points", "Xem Điểm năng động".into()),
+            SmithTask::Daily { action } => (
+                "daily",
+                match action {
+                    DailyAction::Show => "Xem nhiệm vụ ngày",
+                    DailyAction::Accept => "Nhận nhiệm vụ ngày",
+                    DailyAction::Cancel => "Hủy nhiệm vụ ngày",
+                    DailyAction::Complete => "Hoàn thành nhiệm vụ ngày",
+                }
+                .into(),
+            ),
+        }
+    }
+
+    /// Why SmithTask::Daily cannot do `action` with the quest held (s2c/1195); the menu is checked again (smith_read).
+    fn daily_why(&self, action: DailyAction) -> Option<String> {
+        let d = &self.snap.daily;
+        match (action, d.quest.as_ref()) {
+            (DailyAction::Accept, Some(q)) => Some(format!(
+                "đang giữ nhiệm vụ {}: hoàn thành hoặc hủy trước",
+                daily_what(q)
+            )),
+            (DailyAction::Cancel | DailyAction::Complete, None) if d.known => {
+                Some("không giữ nhiệm vụ ngày nào".into())
+            }
+            (DailyAction::Cancel, Some(q)) if q.finished() => Some(format!(
+                "{} đã đủ {}/{}: Hoàn thành để nhận thưởng thay vì hủy",
+                q.name, q.progress, q.target
+            )),
+            (DailyAction::Complete, Some(q)) if !q.finished() => Some(format!(
+                "{} mới {}/{}: chưa xong",
+                q.name, q.progress, q.target
+            )),
+            _ => None,
         }
     }
 
@@ -419,9 +470,10 @@ impl Bot {
                         format!("cần {} Băng Tâm, túi có {held}", npc::ICE_PER_BOTTLE)
                     })
                 }
+                SmithTask::Daily { action } => self.daily_why(*action),
             });
         if let Some(why) = why {
-            return out.push(Out::Log(LogKind::Item, format!("Chưa {title}: {why}")));
+            return out.push(Out::Log(task_log(&task), format!("Chưa {title}: {why}")));
         }
         let shown = match &task {
             SmithTask::Upgrade {
@@ -451,7 +503,7 @@ impl Bot {
             started_at: epoch_ms(),
             ended_at: None,
         });
-        out.push(Out::Log(LogKind::Item, title));
+        out.push(Out::Log(task_log(&task), title));
         let times = match task {
             SmithTask::Exchange { times, .. } => times,
             _ => 0,
@@ -470,6 +522,7 @@ impl Bot {
             before: vec![],
             reset: false,
             ending: None,
+            daily: None,
             stones: vec![],
             tried: vec![],
             rates: vec![],
@@ -636,10 +689,11 @@ impl Bot {
                 (n, true) => format!(" ({n} lần)"),
                 (n, false) => format!(" ({n} lần, tốn {})", spent.join(", ")),
             };
-            out.push(Out::Log(
-                LogKind::Item,
-                format!("{}: {reason}{tally}", r.title),
-            ));
+            let kind = match r.kind {
+                "daily" => LogKind::Quest,
+                _ => LogKind::Item,
+            };
+            out.push(Out::Log(kind, format!("{}: {reason}{tally}", r.title)));
             (r.done, r.ended_at, r.doing) = (Some(reason), Some(epoch_ms()), String::new());
         }
     }
@@ -904,6 +958,15 @@ impl Bot {
                 out,
             ),
             SmithTask::Points { .. } if steps > 0 => self.smith_finish("đã đọc", now, out),
+            // It ends on the answer to its line (smith_daily) or on the menu (daily_read), never after a bag.
+            SmithTask::Daily { .. } => self.smith_talk(
+                npc::ELDER,
+                &[mail::DAILY_PATH],
+                true,
+                "Hỏi Hương Lão nhiệm vụ ngày",
+                now,
+                out,
+            ),
             SmithTask::Points { .. } => {
                 let path = [npc::POINTS_PATH];
                 self.smith_talk(
@@ -1008,7 +1071,8 @@ impl Bot {
                 SmithTask::Recipes { .. }
                 | SmithTask::Craft { .. }
                 | SmithTask::Ice { .. }
-                | SmithTask::Points { .. },
+                | SmithTask::Points { .. }
+                | SmithTask::Daily { .. },
             ) => Stage::Read,
             (true, _) => Stage::Window,
         };
@@ -1301,7 +1365,8 @@ impl Bot {
                 SmithTask::Exchange { .. }
                 | SmithTask::Recipes { .. }
                 | SmithTask::Ice { .. }
-                | SmithTask::Points { .. },
+                | SmithTask::Points { .. }
+                | SmithTask::Daily { .. },
                 true,
             ) => String::new(),
         };
@@ -1495,8 +1560,139 @@ impl Bot {
                 }
                 self.smith_finish(format!("{line}{limit}"), now, out);
             }
+            SmithTask::Daily { action } => self.daily_read(action, menu, now, out),
             _ => self.smith_finish("menu không như kế hoạch", now, out),
         }
+    }
+
+    /// Hương Lão's menu of daily quests (smith_read): how many were taken today, then the line of the action once the menu
+    /// and the quest held allow it, as npm run daily checks them (src/bot/daily.ts): Nhận only on line 0 "Nhận nhiệm vụ"
+    /// with fewer than 3 taken; Hủy only on line 0 "Hủy nhiệm vụ hiện tại", never for a quest done; Hoàn thành on its
+    /// line, the quest held done.
+    fn daily_read(
+        &mut self,
+        action: DailyAction,
+        menu: &NpcMenu,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        let taken = mail::daily_taken(&menu.text);
+        let d = &mut self.snap.daily;
+        if let Some((t, m)) = taken {
+            (d.taken, d.max, d.read_at) = (Some(t), Some(m), Some(epoch_ms()));
+        }
+        let held = d.quest.clone();
+        let label = |o: u8| {
+            (menu.options.iter())
+                .find(|(n, _)| *n == o)
+                .map(|(_, l)| l.as_str())
+        };
+        let line0 = label(0).unwrap_or("không có");
+        let complete = (menu.options.iter())
+            .find(|(_, l)| mail::is_daily_complete(l))
+            .map(|(o, _)| *o);
+        let pick = match action {
+            DailyAction::Show => {
+                let what = held
+                    .as_ref()
+                    .map_or("không giữ nhiệm vụ nào".into(), daily_what);
+                let today =
+                    taken.map_or(String::new(), |(t, m)| format!("; hôm nay đã nhận {t}/{m}"));
+                return self.smith_finish(format!("{what}{today}"), now, out);
+            }
+            DailyAction::Accept => match taken {
+                _ if complete.is_some() => Err(
+                    "menu có dòng Hoàn thành nhiệm vụ: hoàn thành nhiệm vụ đang giữ trước".into(),
+                ),
+                _ if !mail::is_daily_accept(line0) => Err(format!(
+                    "dòng 0 là \"{line0}\"{}",
+                    held.as_ref()
+                        .map_or(String::new(), |q| format!(" (đang giữ {})", q.name))
+                )),
+                Some((t, m)) if t >= m => Err(format!("hôm nay đã nhận {t}/{m} nhiệm vụ")),
+                _ => Ok(0),
+            },
+            DailyAction::Cancel => match complete {
+                Some(_) => Err("nhiệm vụ đã xong: Hoàn thành để nhận thưởng thay vì hủy".into()),
+                None if !mail::is_daily_cancel(line0) => {
+                    Err(format!("dòng 0 là \"{line0}\" (không giữ nhiệm vụ nào)"))
+                }
+                None => Ok(0),
+            },
+            DailyAction::Complete => match (complete, held.as_ref()) {
+                (None, _) => {
+                    let lines: Vec<String> = (menu.options.iter())
+                        .map(|(o, l)| format!("{o} {l}"))
+                        .collect();
+                    Err(format!(
+                        "menu không có dòng Hoàn thành nhiệm vụ ({})",
+                        match lines.is_empty() {
+                            true => "không có dòng nào".into(),
+                            false => lines.join(", "),
+                        }
+                    ))
+                }
+                (_, None) => Err("không giữ nhiệm vụ ngày nào".into()),
+                (_, Some(q)) if !q.finished() => Err(format!(
+                    "{} mới {}/{}: chưa xong",
+                    q.name, q.progress, q.target
+                )),
+                (Some(o), Some(_)) => Ok(o),
+            },
+        };
+        let option = match pick {
+            Ok(o) => o,
+            Err(why) => return self.smith_finish(why, now, out),
+        };
+        if let Some(r) = self.snap.smith.as_mut() {
+            r.doing = format!("Chọn \"{}\" ở Hương Lão", label(option).unwrap_or("?"));
+        }
+        let sm = self.smith.as_mut().unwrap();
+        sm.daily = held;
+        (sm.stage, sm.until) = (Stage::Daily, now + SMITH_WAIT);
+        Self::send(
+            out,
+            57,
+            Ctx {
+                option: Some(option as i32),
+                map_id: Some(npc::NPC_MAP),
+                npc_id: Some(npc::ELDER),
+                ..Ctx::default()
+            },
+        );
+    }
+
+    /// s2c/1195 while SmithTask::Daily waits for its line (Stage::Daily): Nhận brings the new quest, Hủy none, Hoàn thành
+    /// kind 2 with the rewards. Another kind (a progress) is not the answer.
+    pub(super) fn smith_daily(&mut self, d: &mail::Daily, now: Instant, out: &mut Vec<Out>) {
+        let Some(sm) = self.smith.as_ref().filter(|s| s.stage == Stage::Daily) else {
+            return;
+        };
+        let SmithTask::Daily { action } = sm.task else {
+            return;
+        };
+        let was = sm.daily.clone();
+        let line = match (action, d) {
+            (DailyAction::Accept, mail::Daily::Quest(q)) => {
+                let s = &mut self.snap.daily;
+                s.taken = s.taken.map(|t| t + 1);
+                let today = (s.taken.zip(s.max))
+                    .map_or(String::new(), |(t, m)| format!("; hôm nay đã nhận {t}/{m}"));
+                format!("đã nhận {}{today}", daily_what(q))
+            }
+            (DailyAction::Cancel, mail::Daily::None) => format!(
+                "đã hủy {} (vẫn tính một lượt trong ngày)",
+                was.map_or("nhiệm vụ".into(), |q| q.name)
+            ),
+            (DailyAction::Complete, mail::Daily::Done { name, rewards }) => {
+                match rewards.is_empty() {
+                    true => format!("xong {name}"),
+                    false => format!("xong {name}, nhận {}", rewards.join(", ")),
+                }
+            }
+            _ => return,
+        };
+        self.smith_finish(line, now, out);
     }
 
     /// Cách tính điểm (s2c/0) of Điểm năng động: kept with the points; the task ends.
@@ -1557,6 +1753,23 @@ impl Bot {
             self.smith_reset(now, out);
             return true;
         }
+        // Nhiệm vụ hàng ngày: the notice of Nhận comes before its s2c/1195 (G1), which ends the task (smith_daily); that of
+        // Hủy after it, while Hương Lão is talked to again.
+        if sm.stage == Stage::Daily
+            && matches!(
+                sm.task,
+                SmithTask::Daily {
+                    action: DailyAction::Accept
+                }
+            )
+            && mail::is_daily_accepted(text)
+        {
+            return true;
+        }
+        // Talking to the NPC again: the task ends on the menu, whatever is said meanwhile.
+        if sm.stage == Stage::Reset {
+            return true;
+        }
         // While Cởi ra or Mặc waits, a notice is kept as the reason in case the item does not move; it ends nothing, as
         // it may be another's (a broadcast, a late answer).
         if matches!(sm.stage, Stage::Unequip | Stage::Rewear) {
@@ -1601,7 +1814,7 @@ impl Bot {
             Some(sm)
                 if matches!(
                     sm.stage,
-                    Stage::Start | Stage::Exchange | Stage::Unequip | Stage::IceDone
+                    Stage::Start | Stage::Exchange | Stage::Unequip | Stage::IceDone | Stage::Daily
                 ) =>
             {
                 sm.stopping = true

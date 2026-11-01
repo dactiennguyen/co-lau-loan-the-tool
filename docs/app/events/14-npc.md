@@ -146,6 +146,7 @@ s2c/1195  u8 loại                 0: không có nhiệm vụ ngày (1 byte)
 | 113 | Nhặt xu | Thu thập %d xu khóa từ đánh quái | 2050 |
 
 - Bot TS: `npm run daily` đọc nhiệm vụ và menu, Nhận, Hủy hay Hoàn thành với `--confirm`, rồi để menu gốc của Hương Lão là menu cuối ([cách chạy](../../integration/nodejs/mail.md#nhiệm-vụ-ngày)). Đọc và Hoàn thành đã chạy thật ở NP1; Nhận và Hủy bằng bot thì chưa.
+- App: tab Nhiệm vụ ngày của Tiện ích làm cùng bốn việc, và thẻ Nhiệm vụ hiện tiến độ từ `s2c/1195` ([Tiện ích](../../integration/rust/features.md#tiện-ích)). Mới chạy trong test với gói của G1 và NP1.
 - Tab **Phụ** của khung nhiệm vụ bên trái hiện "Sử dụng 0/3 vật phẩm trong trận đấu"; mở tab không gửi gói nào. Nhân vật vẫn giữ nhiệm vụ chính (tab Chính).
 - Cẩm nang (mục Nhiệm vụ): mỗi ngày nhận tối đa 3 nhiệm vụ, mỗi lần làm 1; làm xong thì về Hương Lão chọn **Hoàn thành nhiệm vụ**; thưởng là kinh nghiệm, Xu khóa hoặc vật phẩm. Theo Cách tính điểm, mỗi lần nhận thưởng nhiệm vụ ngày được 5 điểm năng động.
 **Hoàn thành nhiệm vụ (NP1):** manina (cấp 33) xong 113 Nhặt xu 2100/2100 sau 22 trận thắng Cua Càng ở M2, rồi về M1 [Đo NP1]:

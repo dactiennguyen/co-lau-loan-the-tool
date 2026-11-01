@@ -4,7 +4,7 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
 import { FilterChip } from "@/components/FilterChip";
 import { Hint } from "@/components/Hint";
-import { num } from "@/utils/format";
+import { num, timeOfDay } from "@/utils/format";
 import { recalled, remember } from "@/utils/remember";
 import { CRAFT_KINDS, ICE, roman } from "@/game/shops";
 import type { Recipe } from "@/api/types";
@@ -16,9 +16,6 @@ const KIND_KEY = "shop.craftKind";
 const ROW = "grid grid-cols-[110px_minmax(0,1fr)_auto_auto] items-center gap-2.5 px-2 py-1.5 bg-bg-2 border-2 border-line text-12";
 /** One of Chế tạo trang bị, Đổi Băng Tâm. */
 const PART = "grid [align-content:start] gap-2 px-2.5 py-2 bg-bg-2/40 border-2 border-line";
-
-/** "21:04". */
-const clock = (ms: number) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
 /**
  * Chế tạo of Pháp sư (16-upgrade.md#chế-tạo, O1). Chế tạo trang bị: the recipes of an item kind are read from Pháp sư's
@@ -131,7 +128,7 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
                 </div>
               );
             })}
-            <span className="text-11 text-fg-3">Đọc lúc {clock(read.readAt)}. Túi còn {free} ô trống.</span>
+            <span className="text-11 text-fg-3">Đọc lúc {timeOfDay(read.readAt)}. Túi còn {free} ô trống.</span>
           </div>
         )}
       </div>

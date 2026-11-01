@@ -9,6 +9,7 @@ import { Icon } from "@/components/Icon";
 import { Stepper } from "@/components/Stepper";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
+import { dailyDone, dailyText } from "@/game/daily";
 import { useStore } from "@/store";
 import type { Account, Quest } from "@/api/types";
 import { useFightSetting } from "@/hooks/useFightSetting";
@@ -53,13 +54,17 @@ function steps(q: Quest) {
 
 /**
  * The current main quest (s2c/39): its steps, each with ▶ to play that step alone, and "Tự làm nhiệm vụ" for all of them;
- * then what the bot does. The server counts only the current step, so only its ▶ is live.
+ * then what the bot does. The server counts only the current step, so only its ▶ is live. Last, the daily quest of
+ * Hương Lão and its progress, with the way to his tab of Tiện ích (ShopDaily).
  */
 export function QuestCard({ account, onStart, onStop }: Props) {
   const c = account.character;
   const details = useStore((s) => s.battleDetails);
   const toggle = useStore((s) => s.toggleBattleDetails);
+  const open = useStore((s) => s.open);
   const q = c?.quest;
+  const daily = c?.daily;
+  const dq = daily?.quest;
   const run = c?.questRun;
   const running = !!run && run.done == null;
   // The step whose ▶ turned into a stop button.
@@ -202,6 +207,37 @@ export function QuestCard({ account, onStart, onStop }: Props) {
         <p className={HINT}>
           Bước "Nâng điểm tiềm năng" sẽ cộng 1 điểm {account.statPlan ? "theo Tự cộng ở khung Chỉ số" : "vào Cường lực"}.
         </p>
+      )}
+      {/* Nhiệm vụ ngày (s2c/1195): held or not, its progress, and Hương Lão's tab to take, finish or drop one. */}
+      {daily?.known && (
+        <div className="flex items-center gap-2.5 py-1 pr-[5px] pl-2 bg-bg-2 text-11">
+          <span className="flex-none font-bold text-fg-2">Nhiệm vụ ngày</span>
+          {dq ? (
+            <>
+              <span className="flex-1 min-w-0 truncate text-fg" title={dailyText(dq)}>
+                {dq.name}: {dailyText(dq)}
+              </span>
+              <span className="flex-none w-16">
+                <Bar
+                  value={dq.progress / Math.max(1, dq.target)}
+                  fill={dailyDone(dq) ? "var(--good)" : "var(--primary)"}
+                  thin
+                  label={`Tiến độ nhiệm vụ ngày ${dq.name}`}
+                />
+              </span>
+            </>
+          ) : (
+            <span className="flex-1 min-w-0 text-fg-3">không giữ nhiệm vụ nào</span>
+          )}
+          <Button
+            small
+            kind={dq && dailyDone(dq) ? "primary" : "outline"}
+            icon={dq && dailyDone(dq) ? "check" : "flag"}
+            onClick={() => open({ kind: "shop", id: account.id, sub: "daily" })}
+          >
+            {dq ? (dailyDone(dq) ? "Hoàn thành…" : "Hương Lão…") : "Nhận…"}
+          </Button>
+        </div>
       )}
     </Card>
   );

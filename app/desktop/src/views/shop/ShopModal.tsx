@@ -15,6 +15,7 @@ import type { Account, SmithRun } from "@/api/types";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { ShopBuy } from "./ShopBuy";
 import { ShopCraft } from "./ShopCraft";
+import { ShopDaily } from "./ShopDaily";
 import { ShopExchange } from "./ShopExchange";
 import { ShopGift } from "./ShopGift";
 import { ShopMail } from "./ShopMail";
@@ -22,7 +23,7 @@ import { ShopMarket } from "./ShopMarket";
 import { ShopMerge } from "./ShopMerge";
 import { ShopUpgrade } from "./ShopUpgrade";
 
-export type ShopSub = "buy" | "merge" | "upgrade" | "craft" | "exchange" | "market" | "mail" | "gift";
+export type ShopSub = "buy" | "merge" | "upgrade" | "craft" | "exchange" | "daily" | "market" | "mail" | "gift";
 /** Mã quà tặng last: the least used. */
 const SUBS: { key: ShopSub; label: string; icon: IconName }[] = [
   { key: "buy", label: "Mua", icon: "cart" },
@@ -30,6 +31,7 @@ const SUBS: { key: ShopSub; label: string; icon: IconName }[] = [
   { key: "upgrade", label: "Nâng cấp", icon: "hammer" },
   { key: "craft", label: "Chế tạo", icon: "flame" },
   { key: "exchange", label: "Đổi lượng", icon: "coin" },
+  { key: "daily", label: "Nhiệm vụ ngày", icon: "flag" },
   { key: "market", label: "Chợ trời", icon: "market" },
   { key: "mail", label: "Hòm thư", icon: "mail" },
   { key: "gift", label: "Mã quà tặng", icon: "gift" },
@@ -37,7 +39,7 @@ const SUBS: { key: ShopSub; label: string; icon: IconName }[] = [
 const SUB_KEY = "shop.sub";
 /** Bot::smith refused the task: "Chưa <title>: <why>", the title as Bot::smith_title writes it; Bot::redeem refused the
  * codes: "Chưa nhập mã: <why>". */
-const REFUSED = /^Chưa (Gộp đá|Hỏi giá|Nâng cấp|Tách đá|Chuyển hoá|Chế tạo|Xem công thức|Xem Điểm|Đổi |nhập mã)/;
+const REFUSED = /^Chưa (Gộp đá|Hỏi giá|Nâng cấp|Tách đá|Chuyển hoá|Chế tạo|Xem công thức|Xem Điểm|Đổi |[^:]* nhiệm vụ ngày|nhập mã)/;
 /** "Xong việc quay về chỗ cũ" is on until turned off. */
 const BACK = "shop.back";
 
@@ -110,23 +112,25 @@ interface Props {
   account: Account;
   /** Mua búa: the item to pick first in Dược phẩm (2). */
   item?: number;
+  /** The sub-tab to open on (Nhiệm vụ ngày from the Nhiệm vụ card), instead of the one used last. */
+  sub?: ShopSub;
   onClose: () => void;
 }
 
 /**
  * Tiện ích (16-upgrade.md#tính-năng), a large modal: the money and the bag's room, where the character stands (the NPCs
- * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and eight
+ * serve only in Làng Thanh Khê, with the trip there and back), the work of Pháp sư or Hương Lão under way, and nine
  * sub-tabs: Mua at the 14 shops, Gộp đá, Nâng cấp (with Bùa bảo vệ, Tách đá and Chuyển hoá), Chế tạo (Chế tạo trang bị,
- * Đổi Băng Tâm), Đổi lượng (with Điểm năng động), then Chợ trời, Hòm thư and Mã quà tặng (all three from anywhere; the
- * gift codes last, the least used).
+ * Đổi Băng Tâm), Đổi lượng (with Điểm năng động), Nhiệm vụ ngày, then Chợ trời, Hòm thư and Mã quà tặng (all three from
+ * anywhere; the gift codes last, the least used).
  * Every spend asks once more.
  * Closing it, however it closes, walks the character back after a trip with "Xong việc quay về chỗ cũ" (Bot::shop_closed).
  */
-export function ShopModal({ account, item, onClose }: Props) {
+export function ShopModal({ account, item, sub: first, onClose }: Props) {
   const c = account.character;
   const id = account.id;
   const [sub, setSub] = useState<ShopSub>(() =>
-    item != null ? "buy" : (SUBS.find((s) => s.key === recalled(SUB_KEY))?.key ?? "buy"),
+    item != null ? "buy" : (first ?? SUBS.find((s) => s.key === recalled(SUB_KEY))?.key ?? "buy"),
   );
   const pick = (s: ShopSub) => {
     setSub(s);
@@ -261,6 +265,8 @@ export function ShopModal({ account, item, onClose }: Props) {
             <ShopCraft {...ctx} />
           ) : sub === "exchange" ? (
             <ShopExchange {...ctx} />
+          ) : sub === "daily" ? (
+            <ShopDaily {...ctx} />
           ) : sub === "market" ? (
             <ShopMarket {...ctx} />
           ) : sub === "mail" ? (
