@@ -7,8 +7,9 @@ use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleSource, FightSettings, ItemAct, LogKind};
+use cllt_core::bot::{BattleSource, FightSettings, ItemAct, LogKind, SmithTask};
 use cllt_core::net::Command;
+use cllt_core::npc::{MergeForecast, MergeOptions};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use serde::Deserialize;
@@ -197,6 +198,79 @@ pub fn shop_closed(shared: State<Shared>, id: u64) {
 #[tauri::command]
 pub fn open_shop(shared: State<Shared>, id: u64) {
     shared.with(|app| app.send(id, Command::OpenShop));
+}
+
+/// Cửa hàng tab: opens shop `kind` of npc::SHOPS (on M1); the account's `shop` then lists it.
+#[tauri::command]
+pub fn open_shop_kind(shared: State<Shared>, id: u64, kind: u8) {
+    shared.with(|app| app.send(id, Command::OpenShopKind(kind)));
+}
+
+/// Gộp đá: every set of 4 stones of a level at 100%, up to Đá cấp `up_to`; unlocked stones too with `unlocked`.
+#[tauri::command]
+pub fn smith_merge(shared: State<Shared>, id: u64, up_to: i32, unlocked: bool) {
+    let task = SmithTask::Merge(MergeOptions { up_to, unlocked });
+    shared.with(|app| app.send(id, Command::Smith(task)));
+}
+
+/// What Gộp đá would do on the bag as it is now; None without a bag.
+#[tauri::command]
+pub fn merge_forecast(
+    shared: State<Shared>,
+    id: u64,
+    up_to: i32,
+    unlocked: bool,
+) -> Option<MergeForecast> {
+    shared.with(|app| app.merge_forecast(id, MergeOptions { up_to, unlocked }))
+}
+
+/// Nâng cấp the item of bag slot `slot` up to +`to_level` with stones up to `rate` % each level ([Cẩn thận] with
+/// `careful`); `quote` only asks the price and odds of the next level.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn smith_upgrade(
+    shared: State<Shared>,
+    id: u64,
+    slot: u8,
+    careful: bool,
+    rate: i32,
+    to_level: i32,
+    unlocked: bool,
+    quote: bool,
+) {
+    let task = SmithTask::Upgrade {
+        slot,
+        careful,
+        rate,
+        to_level,
+        unlocked,
+        quote,
+    };
+    shared.with(|app| app.send(id, Command::Smith(task)));
+}
+
+/// Tách đá of the item of bag slot `slot`.
+#[tauri::command]
+pub fn smith_separate(shared: State<Shared>, id: u64, slot: u8) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Separate { slot })));
+}
+
+/// Chuyển hoá from bag slot `source` to bag slot `target`.
+#[tauri::command]
+pub fn smith_transmute(shared: State<Shared>, id: u64, source: u8, target: u8) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Transmute { source, target })));
+}
+
+/// The bag slots Chuyển hoá may move the level of bag slot `source` to.
+#[tauri::command]
+pub fn transmute_targets(shared: State<Shared>, id: u64, source: u8) -> Vec<i32> {
+    shared.with(|app| app.transmute_targets(id, source))
+}
+
+/// Đổi lượng: `times` × 50 Lượng for 50.000 Xu (option 0) or 55.000 Xu khóa (option 1).
+#[tauri::command]
+pub fn exchange_luong(shared: State<Shared>, id: u64, option: u8, times: u32) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Exchange { option, times })));
 }
 
 /// Mua: `quantity` of the shop line `shop_id`; the log tells how it went.

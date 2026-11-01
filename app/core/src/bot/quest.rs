@@ -28,6 +28,12 @@ impl Bot {
                 "Đang đổi chỗ: đợi tới nơi rồi mới làm nhiệm vụ".into(),
             ));
         }
+        if self.smith.is_some() {
+            return out.push(Out::Log(
+                LogKind::Quest,
+                "Đang làm việc ở Pháp sư hay Hương Lão: bấm Dừng rồi mới làm nhiệm vụ".into(),
+            ));
+        }
         let playing = step.and_then(|(id, i)| {
             let q = self
                 .snap

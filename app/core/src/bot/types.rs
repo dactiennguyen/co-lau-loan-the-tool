@@ -357,6 +357,63 @@ pub struct QuestRun {
     pub ended_at: Option<u64>,
 }
 
+/// What the Cửa hàng tab asks of Pháp sư or Hương Lão (Bot::smith, 16-upgrade.md#tính-năng). Each press of Bắt đầu
+/// costs money or items; the UI asks before sending any but `Upgrade` with `quote`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SmithTask {
+    /// Gộp đá: every set of 4 stones of a level at 100%, again on the stones made, up to Đá cấp `up_to`; unlocked
+    /// stones too with `unlocked` (in Luyện đá [Xu], paid in Xu).
+    Merge(MergeOptions),
+    /// Nâng cấp the item of bag slot `slot` up to +`to_level` (npc::SAFE_LEVEL at most until Bùa is measured), each level
+    /// with the cheapest stones that bring the odds to `rate` %, or as far as they go; [Cẩn thận] with `careful`. With
+    /// `quote` only the price and odds of the next level are asked: nothing is pressed or spent.
+    Upgrade {
+        slot: u8,
+        careful: bool,
+        rate: i32,
+        to_level: i32,
+        unlocked: bool,
+        quote: bool,
+    },
+    /// Tách đá of the item of bag slot `slot`.
+    Separate { slot: u8 },
+    /// Chuyển hoá from bag slot `source` to bag slot `target`, with the cheapest Chuyển hoá item of the bag.
+    Transmute { source: u8, target: u8 },
+    /// Đổi lượng: `times` × 50 Lượng for 50.000 Xu (option 0) or 55.000 Xu khóa (option 1).
+    Exchange { option: u8, times: u32 },
+}
+
+/// The work of Pháp sư or Hương Lão under way or last done, for the Cửa hàng tab.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SmithRun {
+    /// Number of the run in this session, so the UI tells a new one from the one before.
+    pub id: u32,
+    /// "merge", "upgrade", "quote", "separate", "transmute" or "exchange".
+    pub kind: &'static str,
+    /// "Gộp đá tới Đá cấp 6", "Nâng cấp Nhẫn Trơn tới +4".
+    pub title: String,
+    /// What it does now, or did last.
+    pub doing: String,
+    /// Presses of Bắt đầu (exchanges for Đổi lượng), and how many went well or failed.
+    pub steps: u32,
+    pub ok: u32,
+    pub failed: u32,
+    /// The price and odds the window said last (s2c/90, s2c/92).
+    pub quote: Option<Quote>,
+    /// Nâng cấp: the item one level up (s2c/1258), and the item as it is now.
+    pub preview: Option<ItemRecord>,
+    pub item: Option<ItemRecord>,
+    /// What the presses cost in all.
+    pub spent_xu: i64,
+    pub spent_xu_khoa: i64,
+    pub spent_luong: i64,
+    /// Why it ended; None while it runs.
+    pub done: Option<String>,
+    pub started_at: u64,
+    pub ended_at: Option<u64>,
+}
+
 /// A map of the atlas for "Đổi map": the level the world map asks for, and how many portals away it is.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -478,8 +535,11 @@ pub struct Snapshot {
     pub skills: Arc<Vec<SkillDef>>,
     /// The level of each skill by id: the s2c/9 tail, then s2c/10 kind 32 after every c2s/1191.
     pub skill_levels: BTreeMap<i32, i32>,
-    /// The Dược phẩm shop of Lái Buôn as s2c/1190 last listed it (open_shop), until the character leaves M1.
+    /// The shop s2c/1190 last listed (open_shop, open_shop_kind; `kind` says which of npc::SHOPS), until the character
+    /// leaves M1.
     pub shop: Option<ShopList>,
+    /// The work of Pháp sư or Hương Lão under way or last done (Bot::smith).
+    pub smith: Option<SmithRun>,
     /// Timed effects at login (the s2c/9 tail), such as x2 EXP; no packet is known yet to update them in the session.
     pub boosts: Vec<Boost>,
 }

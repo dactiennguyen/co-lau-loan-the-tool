@@ -202,11 +202,12 @@ Mỗi dòng là một lần mở cửa sổ mới rồi đặt món. "Đá" là 
 | | | Thường | Đá 3; Đá 5; Đá 1 + Đá 4 | 19 | 0 | 80% |
 | | | Cẩn thận | Đá 1 | 19 | 5 | 24% |
 | | | Cẩn thận | Đá 1 ×2 | 19 | 5 | 49% |
+| | +1→+2 | Thường | Đá 2 + Đá 3 (Hỏi giá của app, 01/11) | 49 | 0 | 75% |
 | Nhẫn Quỷ (51) | +0→+1 | Thường | Đá 5 | 19 | 0 | 80% |
 | | | Cẩn thận | Đá 5 | 19 | 5 | 100% |
 | Anh Hùng Nhẫn (51) | +0→+1 | Thường | Đá 5 | 19 | 0 | 80% |
 
-**Phí** không đổi theo số đá, cấp đá hay chế độ; chỉ đổi theo món và cấp hiện tại. Nhẫn +0 là 19 Xu khóa dù bậc 1 hay bậc 51. Giáp +0 là 12 (J1), giáp +1 là 33. Phí giáp +0 rẻ hơn nhẫn +0 vì loại món hay vì thời điểm đo khác nhau thì chưa rõ. [Đo; Chưa rõ: công thức phí]
+**Phí** không đổi theo số đá, cấp đá hay chế độ; chỉ đổi theo món và cấp hiện tại. Nhẫn +0 là 19 Xu khóa dù bậc 1 hay bậc 51, nhẫn +1 là 49 (Hỏi giá của app, 01/11). Giáp +0 là 12 (J1), giáp +1 là 33. Phí giáp +0 rẻ hơn nhẫn +0 vì loại món hay vì thời điểm đo khác nhau thì chưa rõ. [Đo; Chưa rõ: công thức phí]
 
 **Server lấy hết đá đã đặt.** J3 đặt 2 Đá cấp 5 vào Cẩn thận dù 1 viên đã cho 100%: cả 2 viên mất. Vậy bot phải đặt từng viên, từ giá trị thấp lên, và dừng ngay khi tỉ lệ đạt mức cần hoặc chạm trần. [Đo J3]
 
@@ -427,6 +428,19 @@ Mọi lần do bot TS, mỗi lần mở cửa sổ mới, đặt món bằng `c2
 | Y2, Y3 | Luyện đá [Xu khóa], 2 Đá 5 khoá | 50% | thành công cả hai | −410 Xu khóa mỗi lần | 2 Đá 5 → 1 Đá 6 khoá |
 
 Tiền trước và sau J3: Xu 13.755.600 → 13.755.598; Xu khóa 7.952.514 → 8.005.714 (tiêu 1.800, nhận 55.000); Lượng 16.675 → 16.588 (tiêu 87). Dữ liệu thô ở `captures/n2-2026-11-01/probe-5.jsonl` tới `probe-10.jsonl`.
+
+<a id="trong-app"></a>
+
+## Trong app
+
+Modal **Cửa hàng** của app Rust làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#cửa-hàng)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
+
+<a id="todo"></a>
+
+## Còn để sau (TODO)
+
+- **Bùa bảo vệ và nâng trên +4.** Cần một món +5 trở lên để đo: server nhận bùa từ cấp nào, đặt bùa bằng gói nào (có lẽ vẫn `c2s/97`), thất bại có bùa thì giữ cấp và mất gì, R và trần của tỉ lệ ở cấp cao. Cho tới khi đo xong, app chỉ nâng tới +4 (`npc::SAFE_LEVEL`).
+- **Chế tạo trang bị.** Đã có công thức ([chế tạo](#chế-tạo)); chưa đo chọn một bậc thì server mở cửa sổ hay chế ngay, gói và kết quả.
 
 <a id="tính-năng"></a>
 

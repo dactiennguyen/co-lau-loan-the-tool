@@ -89,13 +89,22 @@ pub fn save(path: &Path, accounts: &[Account]) -> Result<(), String> {
 /// The account of CLLT_USERNAME / CLLT_PASSWORD / CLLT_SERVER_ID in a .env file, as the TS CLI reads it.
 pub fn from_env(path: &Path) -> Option<Account> {
     let text = std::fs::read_to_string(path).ok()?;
-    let get = |k: &str| {
+    from_vars(".env", |k: &str| {
         text.lines()
             .find_map(|l| l.trim().strip_prefix(&format!("{k}=")))
             .map(|v| v.trim().trim_matches('"').to_string())
-    };
+    })
+}
+
+/// The account of CLLT_USERNAME and CLLT_PASSWORD in the environment of the process, for a run that must not write a
+/// password anywhere (`CLLT_USERNAME=… CLLT_PASSWORD=… cllt …`).
+pub fn from_process() -> Option<Account> {
+    from_vars("env", |k: &str| std::env::var(k).ok())
+}
+
+fn from_vars(label: &str, get: impl Fn(&str) -> Option<String>) -> Option<Account> {
     Some(Account {
-        label: ".env".into(),
+        label: label.into(),
         username: get("CLLT_USERNAME").filter(|v| !v.is_empty())?,
         password: get("CLLT_PASSWORD")?,
         server_id: get("CLLT_SERVER_ID")

@@ -5,7 +5,8 @@ use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::battle_record::BattleData;
 use crate::bot::{
-    BattleRecord, Bot, BotOptions, FightSettings, ItemAct, LogKind, Out, PickupRecord, Snapshot,
+    BattleRecord, Bot, BotOptions, FightSettings, ItemAct, LogKind, Out, PickupRecord, SmithTask,
+    Snapshot,
 };
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
@@ -68,6 +69,10 @@ pub enum Command {
     ShopClosed,
     /// The Dược phẩm shop of Lái Buôn (Bot::open_shop).
     OpenShop,
+    /// One of the 14 shops of npc::SHOPS by its kind (Bot::open_shop_kind).
+    OpenShopKind(u8),
+    /// A task of Pháp sư or Hương Lão of the Cửa hàng tab (Bot::smith).
+    Smith(SmithTask),
     /// Buys a line of that shop: its shop id and how many (Bot::buy).
     Buy {
         shop_id: i32,

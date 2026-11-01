@@ -14,6 +14,7 @@ import { LogCard } from "./LogCard";
 import { MetricRow } from "./MetricRow";
 import { PlayersCard } from "./PlayersCard";
 import { QuestCard } from "./QuestCard";
+import { Button } from "../components/Button";
 import { SkillsCard } from "./SkillsCard";
 import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
@@ -84,20 +85,32 @@ export function AccountPage({ account }: { account: Account }) {
           <PlayersCard character={c} />
         </div>
         <div className="page__stack page__stack--tasks">
-          <Tabs<Task>
-            id={tabs}
-            label="Việc của nick"
-            value={task}
-            onChange={setTask}
-            tabs={[
-              { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
-              { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
-              { key: "settings", label: "Cài đặt", icon: "settings" },
-              { key: "bag", label: "Túi đồ", icon: "gem" },
-              { key: "skills", label: "Kỹ năng", icon: "bolt" },
-              { key: "stats", label: "Thống kê", icon: "chart" },
-            ]}
-          />
+          <div className="page__tasks">
+            <Tabs<Task>
+              id={tabs}
+              label="Việc của nick"
+              value={task}
+              onChange={setTask}
+              tabs={[
+                { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
+                { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
+                { key: "settings", label: "Cài đặt", icon: "settings" },
+                { key: "bag", label: "Túi đồ", icon: "gem" },
+                { key: "skills", label: "Kỹ năng", icon: "bolt" },
+                { key: "stats", label: "Thống kê", icon: "chart" },
+              ]}
+            />
+            {/* Cửa hàng opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng (ShopModal). */}
+            <Button
+              kind="outline"
+              small
+              icon="cart"
+              className={c?.smith && c.smith.done == null ? "page__shop page__shop--busy" : "page__shop"}
+              onClick={() => open({ kind: "shop", id })}
+            >
+              Cửa hàng
+            </Button>
+          </div>
           <TabPanel id={tabs} value={task}>
             {task === "quest" ? (
               <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />

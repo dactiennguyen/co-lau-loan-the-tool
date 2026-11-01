@@ -19,6 +19,8 @@ impl Bot {
             Some("đang tự làm nhiệm vụ, bấm Dừng trước")
         } else if self.moving() || self.travelling.is_some() {
             Some("đang đổi chỗ")
+        } else if self.smith.is_some() {
+            Some("đang làm việc với Pháp sư hay Hương Lão, bấm Dừng trước")
         } else {
             None
         }

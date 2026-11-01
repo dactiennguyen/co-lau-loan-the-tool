@@ -4,7 +4,7 @@
 import { Reader, ProtocolError, mapPrefix, characterProfile } from './protocol.ts';
 
 const u16 = (r: Reader) => r.take(2).readUInt16BE();
-const finish = <T>(r: Reader, value: T, what: string): T => {
+export const finish = <T>(r: Reader, value: T, what: string): T => {
   if (r.offset !== r.data.length) throw new ProtocolError('PAYLOAD_SCHEMA', `${what}: ${r.data.length - r.offset} unread bytes`, { offset: r.offset, length: r.data.length });
   return value;
 };
@@ -184,14 +184,21 @@ export function duelInvite(payload: Uint8Array) {
   return finish(r, { mapId, npcId, mob, a: r.u8(), b: r.i32() }, 's2c/1180');
 }
 
-/** s2c/1190 after c2s/57 opens a shop (Dược phẩm of Lái Buôn, P5). shopId is what c2s/1190 buys, not the item id: the same
- * item can be sold twice, for Xu (currency 0) and for Xu khóa (currency 1). */
+/** s2c/1190 after c2s/57 opens one of the 14 shops (`kind`, docs/app/events/15-shops.md). shopId is what c2s/1190 buys,
+ * not the item id: the same item is sold for Xu (currency 0), Xu khóa (1) or Lượng (2) in lines of their own. `flag` is
+ * the trade lock of the item bought (1 tradeable, 0 locked: the Xu khóa lines). A record is 33 bytes; gear has 16 more
+ * per stat range: the main stat it rolls between `min` and `max` (J1: Nhẫn Trơn sức tấn công 5–9). */
 export function shopList(payload: Uint8Array) {
   const r = new Reader(payload), kind = r.u8(), title = r.string(), items = [];
   for (let n = r.i32(); n > 0; n--) {
     const shopId = r.i32(), itemId = r.i32(), currency = r.u8(), price = r.i32(), durability = r.i32(), quantity = r.i32(), flag = r.u8(), element = r.u8();
-    r.take(10);
-    items.push({ shopId, itemId, currency, price, durability, quantity, flag, element });
+    r.i32(); r.u8(); r.u8(); // field2, field3, field4 (1 on gear) of the item record
+    const ranges = [];
+    for (let k = r.i32(); k > 0; k--) {
+      ranges.push({ stat: r.i32(), min: r.i32(), max: r.i32() });
+      r.take(4); // 01 01 01 01, or 01 01 02 01 on weapons of tier 51: not understood
+    }
+    items.push({ shopId, itemId, currency, price, durability, quantity, flag, element, ranges });
   }
   return finish(r, { kind, title, items }, 's2c/1190');
 }

@@ -17,6 +17,8 @@ impl Bot {
             Some("đang đánh, đợi hết trận")
         } else if pending {
             Some("đang đợi server trả lời lần trước")
+        } else if self.smith.is_some() {
+            Some("đang làm việc ở Pháp sư hay Hương Lão")
         } else {
             None
         };

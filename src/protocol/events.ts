@@ -3,6 +3,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
   zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList } from './world.ts';
+import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult } from './npc.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from '../battle/battle.ts';
 
 export type Direction = 'c2s' | 's2c';
@@ -210,6 +211,9 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     // Lái Buôn (P5): a line of the NPC menu sqlq.a103(option, mapId, npcId), then Mua sqlq.h87(shopId, quantity).
     case 57: return w.u8(required(ctx.option, 'option')).string(required(ctx.mapId, 'mapId')).i32(required(ctx.npcId, 'npcId')).build();
     case 1190: return w.u8(0).i32(required(ctx.shopId, 'shopId')).i32(ctx.quantity ?? 1).build();
+    // Pháp sư (J1, J3): put the item of a bag slot in the open window sqlq.a107(""; 0; slot), then Bắt đầu sqlq.m109("").
+    case 97: return w.string('').u8(0).i32(0).i32(required(ctx.slot, 'slot')).i32(ctx.quantity ?? 1).build();
+    case 91: return w.string('').build();
     // Túi đồ in battle (P5): sqlq.g76(slot, 0) writes the 0 first, like c2s/20 writes seq before the skill.
     case 44: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(0).i32(required(ctx.slot, 'slot')).build();
     case 15: return w.string(required(ctx.mobId, 'mobId')).u8(0).build();
@@ -247,6 +251,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 84: fields = { slot: r.i32() }; break;
       case 57: fields = { option: r.u8(), mapId: r.string(), npcId: r.i32() }; break;
       case 1190: fields = { kind: r.u8(), shopId: r.i32(), quantity: r.i32() }; break;
+      case 97: fields = { key: r.string(), kind: r.u8(), field: r.i32(), slot: r.i32(), quantity: r.i32() }; break;
+      case 91: fields = { key: r.string() }; break;
       case 44: fields = { battleUuid: r.string(), a: r.i32(), slot: r.i32() }; break;
       case 48: fields = { where: r.u8(), slot: r.i32() }; break;
       case 1254: fields = payload.length > 1 ? { tab: r.u8(), field: r.u8() } : { tab: r.u8() }; break;
@@ -293,6 +299,14 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 83: fields = { slot: r.i32(), left: r.i32() }; break;
       case 57: fields = npcMenu(payload); r.take(payload.length); break;
       case 1190: fields = shopList(payload); r.take(payload.length); break;
+      case 96: fields = serviceWindow(payload); r.take(payload.length); break;
+      case 99: fields = craftWindow(payload); r.take(payload.length); break;
+      case 90: fields = serviceSlot(payload); r.take(payload.length); break;
+      case 92: fields = stoneSlot(payload); r.take(payload.length); break;
+      case 1258: fields = servicePreview(payload); r.take(payload.length); break;
+      case 1260: fields = transmuteTarget(payload); r.take(payload.length); break;
+      case 91: fields = serviceResult(payload); r.take(payload.length); break;
+      case 93: fields = stoneResult(payload); r.take(payload.length); break;
       case 1180: fields = duelInvite(payload); r.take(payload.length); break;
       case 44: fields = battleItemResult(r); break;
       case 43: fields = mapEntities(payload); r.take(payload.length); break;

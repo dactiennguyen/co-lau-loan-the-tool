@@ -1,0 +1,130 @@
+/* Cửa hàng: a large modal. The top (money, where, the work of Pháp sư) and the sub-tabs stay; the body scrolls. */
+.dialog.shopmodal { width: min(1180px, 96vw); height: min(880px, 94vh); max-width: none; max-height: none; }
+.shopmodal form { height: 100%; box-sizing: border-box; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-5) var(--space-6); }
+.shopmodal__top { display: grid; gap: var(--space-2); }
+.shopmodal__wallet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 8px 12px; font-size: 12px; color: var(--fg-2); background: var(--bg-2); border: 2px solid var(--line); }
+.shopmodal__wallet span { display: inline-flex; align-items: center; gap: 5px; }
+.shopmodal__wallet b { color: var(--fg); font-size: 12px; }
+.shopmodal__locked, .shopmodal__locked b { color: var(--coin); }
+.shopmodal__luong, .shopmodal__luong b { color: var(--accent); }
+.shopmodal__where { margin-left: auto; }
+.shopmodal__body { min-height: 0; overflow-y: auto; padding-right: 6px; container-type: inline-size; }
+.shopmodal .tabs__panel { display: block; }
+.shoptab__note { margin: 0; font-size: 12px; color: var(--fg-3); line-height: 1.5; }
+.shoptab__note b { color: var(--fg); }
+.shoptab__why { margin: 0; font-size: 12px; color: var(--danger); }
+.shoptab__todo { margin: var(--space-2) 0 0; padding: 6px 8px; font-size: 11.5px; color: var(--fg-3); background: var(--bg-2); border-left: 3px solid var(--line-strong); }
+.shoptab__result { margin: 0; font-size: 12px; color: var(--danger); }
+.shoptab__result--ok { color: var(--s-online); }
+
+/* Away from Làng Thanh Khê: the trip there, and back once done. */
+.shoptab__away,
+.shoptab__back {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--fg-2);
+  background: var(--bg-2);
+  border: 2px solid var(--line);
+}
+.shoptab__away p { flex: 1 1 100%; margin: 0; }
+.shoptab__back span { flex: 1 1 200px; }
+
+/* A pixel check box like the setting rows: green when on. */
+.shoptab__check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--fg-2); cursor: pointer; }
+.shoptab__check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.shoptab__box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: transparent;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+}
+.shoptab__check input:checked + .shoptab__box { color: var(--ink); background: var(--good); box-shadow: inset -2px -2px 0 var(--good-shade); }
+.shoptab__check input:focus-visible + .shoptab__box { outline: 2px solid var(--ring); outline-offset: 2px; }
+.shoptab__check:hover { color: var(--fg); }
+
+/* The work of Pháp sư or Hương Lão: a lit frame while it runs. */
+.smith { display: grid; gap: 3px; padding: 8px 10px; background: var(--card-2); border: 2px solid var(--line); }
+.smith--on { border-color: var(--primary); }
+.smith__head { display: flex; align-items: center; gap: var(--space-2); font-size: 12.5px; color: var(--fg); }
+.smith__head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.smith--on .smith__head svg { color: var(--primary); animation: smith-spin 1.2s steps(8) infinite; }
+.smith__doing { margin: 0; font-size: 12px; color: var(--fg-2); }
+.smith__tally { margin: 0; font-size: 11px; color: var(--fg-3); }
+.smith__ok { color: var(--s-online); }
+.smith__bad { color: var(--danger); }
+@keyframes smith-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .smith--on .smith__head svg { animation: none; } }
+
+/* Mua: rows of chips, the lines of the shop, the line picked. */
+.sbuy, .smerge, .sup, .sex { display: grid; align-content: start; gap: var(--space-3); }
+.sbuy__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sbuy__sep { width: 2px; height: 18px; background: var(--line); }
+.sbuy__list { display: grid; gap: 4px; }
+.sline {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 8px;
+  background: var(--bg-2);
+  border: 2px solid var(--line);
+  font: inherit;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.sline:hover { border-color: var(--line-strong); }
+.sline:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; }
+.sline--on { border-color: var(--primary); background: var(--card-2); }
+.sline__icon { display: grid; place-items: center; width: 36px; height: 36px; background: var(--ink); }
+.sline__icon img { width: 30px; height: 30px; image-rendering: pixelated; }
+.sline__name { display: grid; min-width: 0; }
+.sline__name b { font-size: 12.5px; }
+.sline__name small { overflow: hidden; color: var(--fg-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.sline__plus { margin-left: 4px; font-size: 10px; color: var(--primary); }
+.sline__price { font-size: 11.5px; color: var(--fg-2); white-space: nowrap; }
+.sline__price b { font-size: 11px; color: var(--fg); }
+.sline__price--1 b { color: var(--coin); }
+.sline__price--2 b { color: var(--accent); }
+.sbuy__buy { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); font-size: 12px; }
+.sbuy__what { flex: 1 1 160px; min-width: 0; color: var(--fg-2); }
+.sbuy__cost b { font-size: 11px; color: var(--coin); }
+.sbuy__cost--short { color: var(--danger); }
+
+/* Gộp đá: the stones by level, the options and what it would do. */
+.smerge__table { width: 100%; max-width: 420px; border-collapse: collapse; font-size: 12px; }
+.smerge__table th, .smerge__table td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+.smerge__table thead th { font-size: 11px; font-weight: 600; color: var(--fg-3); }
+.smerge__table tbody th { font-weight: 500; color: var(--fg); }
+.smerge__table td { font-size: 11px; color: var(--fg-2); }
+.smerge__opts, .sup__opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.smerge__opt { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--fg-2); }
+.smerge__plan { margin: 0; padding: 8px 10px; font-size: 12px; color: var(--fg); background: var(--bg-2); border-left: 3px solid var(--good); }
+
+/* Nâng cấp: the gear, the options, Pháp sư's price, and Tách đá, Chuyển hoá. */
+.sup__gear { display: grid; gap: 4px; }
+.sup__quote { display: grid; gap: 2px; padding: 8px 10px; font-size: 12px; color: var(--fg); background: var(--bg-2); border-left: 3px solid var(--primary); }
+.sup__preview { font-size: 11px; color: var(--s-online); }
+.sup__btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sup__more { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); }
+.sup__part { display: grid; align-content: start; justify-items: start; gap: var(--space-2); padding: 8px 10px; background: var(--bg-2); border: 2px solid var(--line); }
+.sup__part > b { font-size: 12.5px; color: var(--fg); }
+
+/* With the room of the modal, the lists go in columns. */
+@container (min-width: 760px) {
+  .sbuy__list, .sup__gear { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+}
+
+/* A heading of a part with its "?", and the line over the shop's list with its "?" and Mở lại. */
+.shoptab__lead { display: flex; align-items: center; gap: var(--space-2); }
+.shoptab__lead > b { font-size: 12.5px; color: var(--fg); }
+.sbuy__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.sbuy__head .shoptab__note { flex: 0 1 auto; }

@@ -11,6 +11,11 @@ use crate::items::{
     bag_slot, book, character_extra, character_gear, character_tail, currencies, gear_durability,
     gear_update, ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
 };
+use crate::npc::{
+    self, craft_window, merge_plan, quote, service_preview, service_result, service_slot,
+    service_window, stone_result, stone_slot, transmute_item, transmute_target, upgrade_stones,
+    BagItem, MergeOptions, Quote, WindowKind,
+};
 use crate::potentials::{next_stat, StatPlan, POTENTIALS};
 use crate::protocol::{
     character_location, character_prefix, character_profile, map_prefix, Reader, Writer,
@@ -36,6 +41,7 @@ mod packets;
 mod quest;
 mod record;
 mod shop;
+mod smith;
 mod stats;
 mod travel;
 mod types;
@@ -111,7 +117,8 @@ struct LootFrom {
 /// Lái Buôn (NPC 106 of M1) and the line of his menu that opens the Dược phẩm shop (12-skills-items.md#c2s-1190). The
 /// server answers c2s/13 to him from anywhere on M1, and "Không thể thực hiện" from another map (B1).
 const SELLER: (&str, i32) = ("M1", 106);
-const SELLER_MENU: &str = "Dược phẩm";
+/// The Dược phẩm shop (npc::SHOPS), opened by open_shop.
+const SELLER_KIND: u8 = 6;
 /// How long a step of the shop waits for the server.
 const SHOP_WAIT: Duration = Duration::from_secs(8);
 
@@ -125,11 +132,18 @@ struct ShopBack {
     closed: bool,
 }
 
-/// Where the shop stands: c2s/13 waits for s2c/57, c2s/57 for s2c/1190, c2s/1190 for the notice of the purchase.
+/// Where the shop stands: c2s/13 waits for s2c/57, c2s/57 for the next menu (s2c/57) while lines of the shop's path are
+/// `left`, then for s2c/1190; c2s/1190 waits for the notice of the purchase. `npc` names the seller for the log.
 #[derive(Debug, Clone)]
 enum Shopping {
-    Talk,
-    Menu,
+    Talk {
+        npc: i32,
+        left: Vec<u8>,
+    },
+    Menu {
+        npc: i32,
+        left: Vec<u8>,
+    },
     Buy {
         name: String,
         quantity: i32,
@@ -238,6 +252,9 @@ pub struct Bot {
     move_until: Option<Instant>,
     /// The step of the shop waiting for the server, and until when.
     shopping: Option<(Shopping, Instant)>,
+    /// The task of Pháp sư or Hương Lão under way (smith.rs), and how many were started in this session.
+    smith: Option<smith::Smith>,
+    smith_runs: u32,
     fight: FightSettings,
     /// The gear slot and item name of the repair auto_repair sent, until s2c/48 or a notice answers it. `repair_failed`
     /// holds the slots the server did not repair in this run, `repair_warned` whether the run said it has no hammer.
@@ -305,6 +322,8 @@ impl Bot {
             shop_back: None,
             move_until: None,
             shopping: None,
+            smith: None,
+            smith_runs: 0,
             fight,
             repairing: None,
             repair_failed: HashSet::new(),
@@ -488,6 +507,7 @@ impl Bot {
             self.leave_until,
             self.move_until,
             self.shopping.as_ref().map(|s| s.1),
+            self.smith.as_ref().map(|s| s.until),
             self.pick_at,
         ]
         .into_iter()
@@ -539,12 +559,14 @@ impl Bot {
             self.pick_next(now, out);
         }
         if self.shopping.as_ref().is_some_and(|s| s.1 <= now) {
+            let who = self.shop_npc();
             self.shopping = None;
             out.push(Out::Log(
                 LogKind::Item,
-                format!("Lái Buôn không trả lời sau {} s", SHOP_WAIT.as_secs()),
+                format!("{who} không trả lời sau {} s", SHOP_WAIT.as_secs()),
             ));
         }
+        self.smith_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
             if let Some(z) = self.zoning.take() {
@@ -600,6 +622,7 @@ impl Bot {
                 format!("Kết thúc: thôi đi tới {name}"),
             ));
         }
+        self.smith_stop(out);
         if surrender {
             self.surrender(now, out);
         }

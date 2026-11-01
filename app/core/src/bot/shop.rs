@@ -1,8 +1,9 @@
-//! Cửa hàng: the Dược phẩm shop of Lái Buôn.
+//! Cửa hàng: the 14 shops of Lái Buôn and Bà Tư Hạnh (15-shops.md), and the trip to Làng Thanh Khê.
 use super::*;
 
-/// The Dược phẩm shop of Lái Buôn (12-skills-items.md#c2s-1190): c2s/13 to him, c2s/57 for Dược phẩm, and s2c/1190 lists
-/// it; c2s/1190 buys a line, and the server answers with a notice, then the bag (s2c/42) and the money (s2c/46).
+/// A shop (npc::SHOPS; 12-skills-items.md#c2s-1190, 15-shops.md): c2s/13 to its NPC, c2s/57 down the lines of its path,
+/// and s2c/1190 lists it; c2s/1190 buys a line, and the server answers with a notice, the bag (s2c/42, or s2c/1187 for
+/// Lượng) and the money (s2c/46).
 impl Bot {
     /// "Đi tới Làng Thanh Khê" of the Cửa hàng: Đổi map to M1. With `back` ("Mua xong quay về chỗ cũ") it keeps the map
     /// and zone it starts from, to walk back there once the dialog is closed (shop_closed). Nothing is kept without
@@ -42,6 +43,7 @@ impl Bot {
             || self.travelling.is_some()
             || self.zoning.is_some()
             || self.shopping.is_some()
+            || self.smith.is_some()
             || self.battle.is_some()
         {
             return;
@@ -65,39 +67,89 @@ impl Bot {
         }
     }
 
-    /// Why the shop cannot be used now: busy, a step of it waiting, or away from M1.
-    pub(super) fn shop_refusal(&self) -> Option<String> {
+    /// The NPC who sells in the shop open (Lái Buôn by default).
+    fn open_seller(&self) -> i32 {
+        self.snap
+            .shop
+            .as_ref()
+            .and_then(|s| npc::shop_of(s.kind))
+            .map_or(npc::MERCHANT, |s| s.npc_id)
+    }
+
+    /// The NPC the shop waits for: the one talked to, else the seller of the shop open.
+    pub(super) fn shop_npc(&self) -> &'static str {
+        let id = match &self.shopping {
+            Some((Shopping::Talk { npc, .. } | Shopping::Menu { npc, .. }, _)) => *npc,
+            _ => self.open_seller(),
+        };
+        npc::npc_name(id)
+    }
+
+    /// Why the shop of `npc_id` cannot be used now: busy, a step of a shop waiting, or away from M1.
+    pub(super) fn shop_refusal_of(&self, npc_id: i32) -> Option<String> {
         self.busy().map(String::from).or_else(|| {
             if self.shopping.is_some() {
-                Some("đang đợi Lái Buôn trả lời".into())
+                Some(format!("đang đợi {} trả lời", self.shop_npc()))
             } else if self.snap.map_id != SELLER.0 {
-                Some("Lái Buôn ở Làng Thanh Khê (M1), hãy sang M1 trước".into())
+                let who = npc::npc_name(npc_id);
+                Some(format!("{who} ở Làng Thanh Khê (M1), hãy sang M1 trước"))
             } else {
                 None
             }
         })
     }
+    pub(super) fn shop_refusal(&self) -> Option<String> {
+        self.shop_refusal_of(self.open_seller())
+    }
 
-    /// Opens the shop: c2s/13 to Lái Buôn, then c2s/57 when his menu comes. Refused, with the reason in the log and
-    /// nothing sent, while busy, while a step of the shop waits, and away from M1.
+    /// Opens the Dược phẩm shop of Lái Buôn (open_shop_kind 6).
     pub fn open_shop(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if let Some(why) = self.shop_refusal() {
+        self.open_shop_kind(SELLER_KIND, now, out);
+    }
+
+    /// Opens shop `kind` of npc::SHOPS: c2s/13 to its NPC, then c2s/57 for each line of its path as the menus come.
+    /// Refused, with the reason in the log and nothing sent, for a kind not known, while busy, while a step of a shop
+    /// waits, and away from M1.
+    pub fn open_shop_kind(&mut self, kind: u8, now: Instant, out: &mut Vec<Out>) {
+        let Some(shop) = npc::shop_of(kind) else {
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Chưa mở cửa hàng: không có cửa hàng {kind}"),
+            ));
+        };
+        if let Some(why) = self.shop_refusal_of(shop.npc_id) {
             return out.push(Out::Log(LogKind::Item, format!("Chưa mở cửa hàng: {why}")));
         }
+        let money = match shop.money {
+            1 => " [Xu khóa]",
+            2 | -1 => "",
+            _ => " [Xu]",
+        };
         out.push(Out::Log(
             LogKind::Item,
-            format!("Mở cửa hàng Lái Buôn ({SELLER_MENU})"),
+            format!(
+                "Mở cửa hàng {} ({}{money})",
+                npc::npc_name(shop.npc_id),
+                shop.name
+            ),
         ));
         Self::send(
             out,
             13,
             Ctx {
                 map_id: Some(SELLER.0),
-                npc_id: Some(SELLER.1),
+                npc_id: Some(shop.npc_id),
                 ..Ctx::default()
             },
         );
-        self.shopping = Some((Shopping::Talk, now + SHOP_WAIT));
+        let left = shop.path.to_vec();
+        self.shopping = Some((
+            Shopping::Talk {
+                npc: shop.npc_id,
+                left,
+            },
+            now + SHOP_WAIT,
+        ));
     }
 
     /// Buys `quantity` of the shop line `shop_id` (c2s/1190). Refused as open_shop is, and before the shop is open, for
@@ -117,16 +169,20 @@ impl Bot {
                     .map_or_else(|| format!("#{}", l.item_id), |d| d.name.clone())
             },
         );
-        let locked = line.as_ref().is_some_and(|l| l.currency == 1);
-        let money = if locked { "Xu khóa" } else { "Xu" };
+        let currency = line.as_ref().map_or(0, |l| l.currency);
+        let money = match currency {
+            1 => "Xu khóa",
+            2 => "Lượng",
+            _ => "Xu",
+        };
         let cost = line
             .as_ref()
             .map_or(0, |l| l.price as i64 * quantity as i64);
-        let have = self
-            .snap
-            .currencies
-            .as_ref()
-            .map(|c| if locked { c.xu_khoa } else { c.xu });
+        let have = self.snap.currencies.as_ref().map(|c| match currency {
+            1 => c.xu_khoa,
+            2 => c.luong,
+            _ => c.xu,
+        });
         let why = self.shop_refusal().or_else(|| {
             if self.snap.shop.is_none() {
                 Some("mở cửa hàng trước".into())

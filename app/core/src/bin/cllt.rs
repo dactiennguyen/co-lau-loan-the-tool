@@ -21,15 +21,23 @@
 //   cllt buy --account=NAME [--item=2] [--pay=khoa|xu] [--qty=1] [--confirm]
 //                                                       open the Dược phẩm shop of Lái Buôn (on M1) and print it; with
 //                                                       --confirm buy that item (2 Búa Sửa Chữa), which spends money
+//   cllt smith --account=NAME --quote=SLOT [--careful]  Pháp sư (on M1): print the stones and gear of the bag, ask the
+//                                                       price and odds of the next level of bag slot SLOT (free)
+//   cllt smith --account=NAME [--merge=12 | --upgrade=SLOT [--to=4] [--rate=100] [--careful] | --separate=SLOT |
+//              --transmute=SRC:DST | --exchange=OPT:TIMES] --confirm
+//                                                       Gộp đá, Nâng cấp, Tách đá, Chuyển hoá, Đổi lượng: spends money
+//                                                       and stones; without --confirm only what it would do is printed
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
-// --account=NAME also finds the one of .env when the file lacks it.
+// --account=NAME also finds the one of .env when the file lacks it, and CLLT_USERNAME/CLLT_PASSWORD of the process
+// environment come first of all.
 // Passwords are never printed.
 use cllt_core::accounts::{self, Account};
 use cllt_core::atlas::{find_upwards, Atlas};
 use cllt_core::battle_record::BattleData;
-use cllt_core::bot::{ItemAct, Snapshot};
+use cllt_core::bot::{ItemAct, SmithTask, Snapshot};
 use cllt_core::items::book;
 use cllt_core::net::{Command, ConnState, Event, Manager};
+use cllt_core::npc::MergeOptions;
 use cllt_core::skills::skill_tree;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -95,18 +103,145 @@ fn slug(text: &str) -> String {
     }
 }
 
+/// The task of `cllt smith` from its flags. A slot or option out of range is an error, never wrapped to another slot.
+fn smith_task(
+    arg: &dyn Fn(&str) -> Option<String>,
+    careful: bool,
+) -> Result<Option<SmithTask>, String> {
+    let int = |k: &str| -> Result<Option<i32>, String> {
+        arg(k)
+            .map(|v| {
+                v.parse::<i32>()
+                    .map_err(|_| format!("--{k}={v}: không phải số"))
+            })
+            .transpose()
+    };
+    let slot = |k: &str| -> Result<Option<u8>, String> {
+        arg(k)
+            .map(|v| {
+                v.parse::<u8>()
+                    .map_err(|_| format!("--{k}={v}: ô túi phải từ 0 tới 255"))
+            })
+            .transpose()
+    };
+    let pair = |k: &str| -> Result<Option<(u8, u32)>, String> {
+        let Some(v) = arg(k) else { return Ok(None) };
+        let bad = || format!("--{k}={v}: cần dạng A:B, A từ 0 tới 255");
+        let (a, b) = v.split_once(':').ok_or_else(bad)?;
+        Ok(Some((
+            a.parse().map_err(|_| bad())?,
+            b.parse().map_err(|_| bad())?,
+        )))
+    };
+    if let Some(slot) = slot("quote")? {
+        return Ok(Some(SmithTask::Upgrade {
+            slot,
+            careful,
+            rate: 100,
+            to_level: 16,
+            unlocked: true,
+            quote: true,
+        }));
+    }
+    if let Some(slot) = slot("upgrade")? {
+        return Ok(Some(SmithTask::Upgrade {
+            slot,
+            careful,
+            rate: int("rate")?.unwrap_or(100).clamp(1, 100),
+            to_level: int("to")?.unwrap_or(4),
+            unlocked: false,
+            quote: false,
+        }));
+    }
+    if let Some(up_to) = int("merge")? {
+        return Ok(Some(SmithTask::Merge(MergeOptions {
+            up_to,
+            unlocked: true,
+        })));
+    }
+    if let Some(slot) = slot("separate")? {
+        return Ok(Some(SmithTask::Separate { slot }));
+    }
+    if let Some((source, target)) = pair("transmute")? {
+        let target =
+            u8::try_from(target).map_err(|_| format!("--transmute: ô đích {target} quá 255"))?;
+        return Ok(Some(SmithTask::Transmute { source, target }));
+    }
+    Ok(pair("exchange")?.map(|(option, times)| SmithTask::Exchange { option, times }))
+}
+
+/// The stones (by level, locked or not) and the gear (+level) of the bag, for `cllt smith`.
+fn stones_and_gear(s: &Snapshot) -> Vec<String> {
+    let Some(bag) = &s.bag else {
+        return vec!["Chưa có túi đồ".into()];
+    };
+    let b = book();
+    let mut counts = [[0; 2]; 13];
+    let mut gear = vec![];
+    for i in &bag.items {
+        let level = cllt_core::npc::stone_level(i.item_id);
+        if level > 0 {
+            counts[level as usize][(i.field1 == 0) as usize] += 1;
+        } else if b.get(i.item_id).is_some_and(|d| d.kind <= 4) {
+            let name = b
+                .get(i.item_id)
+                .map_or_else(|| format!("#{}", i.item_id), |d| d.name.clone());
+            let lock = if i.field1 == 0 { ", khoá" } else { "" };
+            gear.push(format!("ô {} {} +{}{lock}", i.slot, name, i.field0));
+        }
+    }
+    let stones: Vec<String> = (1..13)
+        .filter(|&l| counts[l][0] + counts[l][1] > 0)
+        .map(|l| {
+            format!(
+                "Đá cấp {l}: {} khoá, {} chưa khoá",
+                counts[l][1], counts[l][0]
+            )
+        })
+        .collect();
+    let money = s.currencies.as_ref().map_or_else(String::new, |c| {
+        format!("{} Xu, {} Xu khóa, {} Lượng", c.xu, c.xu_khoa, c.luong)
+    });
+    vec![
+        format!("Túi {}/{} ô; {money}", bag.items.len(), bag.capacity),
+        format!(
+            "Đá: {}",
+            if stones.is_empty() {
+                "không có".into()
+            } else {
+                stones.join("; ")
+            }
+        ),
+        format!(
+            "Trang bị: {}",
+            if gear.is_empty() {
+                "không có".into()
+            } else {
+                gear.join("; ")
+            }
+        ),
+    ]
+}
+
+/// The accounts of the file (`--accounts`, app/accounts.json, else .env), with the account of CLLT_USERNAME and
+/// CLLT_PASSWORD first when the process has them, so `--account=NAME` finds either.
 fn load(path: Option<String>) -> Vec<Account> {
     let file = path
         .map(Into::into)
         .or_else(|| find_upwards("app/accounts.json"))
         .or_else(|| find_upwards("accounts.json"));
-    match file {
+    let mut all: Vec<Account> = match file {
         Some(f) => accounts::load(&f).unwrap_or_else(|e| panic!("{e}")),
         None => find_upwards(".env")
             .and_then(|p| accounts::from_env(&p))
             .into_iter()
             .collect(),
+    };
+    if let Some(a) = accounts::from_process() {
+        all.retain(|x| x.username != a.username);
+        all.insert(0, a);
     }
+    all
 }
 
 fn line(a: &Account, s: &Snapshot) -> String {
@@ -274,7 +409,16 @@ fn main() {
     let buy_quantity: i32 = arg("qty").and_then(|v| v.parse().ok()).unwrap_or(1);
     let confirm = args.iter().any(|a| a == "--confirm");
     let fight = command == Some("fight") || quest;
-    let chosen: Vec<(u64, Account)> = if fight || skill || item || zone || goto || buy {
+    let smith = command == Some("smith");
+    let smith_task = match smith_task(&arg, args.iter().any(|a| a == "--careful")) {
+        Ok(t) => t,
+        Err(e) if smith => {
+            eprintln!("{e}");
+            std::process::exit(2);
+        }
+        Err(_) => None,
+    };
+    let chosen: Vec<(u64, Account)> = if fight || skill || item || zone || goto || buy || smith {
         let name = arg("account").unwrap_or_else(|| all[0].username.clone());
         let env = || find_upwards(".env").and_then(|p| accounts::from_env(&p));
         all.iter()
@@ -365,6 +509,27 @@ fn main() {
                         println!("{}", wallet(&snaps[i], buy_item));
                         shopping = true;
                         manager.send(i as u64, Command::OpenShop);
+                    } else if smith {
+                        println!("{}", line(&chosen[i].1, &snaps[i]));
+                        stones_and_gear(&snaps[i])
+                            .iter()
+                            .for_each(|l| println!("{l}"));
+                        match &smith_task {
+                            Some(t)
+                                if confirm
+                                    || matches!(t, SmithTask::Upgrade { quote: true, .. }) =>
+                            {
+                                manager.send(i as u64, Command::Smith(t.clone()));
+                            }
+                            Some(t) => {
+                                println!("Sẽ làm: {t:?}; thêm --confirm để làm (tốn tiền và đá)");
+                                manager.send(i as u64, Command::Logout);
+                            }
+                            None => {
+                                eprintln!("Thiếu việc: --quote=SLOT, --merge=12, --upgrade=SLOT, --separate=SLOT, --transmute=SRC:DST hay --exchange=OPT:TIMES");
+                                manager.send(i as u64, Command::Logout);
+                            }
+                        }
                     } else if goto {
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         match arg("map") {
@@ -444,6 +609,13 @@ fn main() {
             },
             Event::Log(_, text) => {
                 println!("{}: {text}", chosen[i].1.username);
+                // Bot::smith refused the task ("Chưa Gộp đá …: <why>"): no run starts, so none ends; log out now.
+                if smith
+                    && text.starts_with("Chưa ")
+                    && snaps[i].smith.as_ref().is_none_or(|r| r.done.is_some())
+                {
+                    manager.send(id, Command::Logout);
+                }
                 // Bot::upgrade_skill refused it, or s2c/1191 answered it.
                 if upgrading.is_some()
                     && (text.starts_with("Chưa nâng") || text.starts_with("Đã nâng"))
@@ -492,6 +664,17 @@ fn main() {
                 if fight && done {
                     println!("{}", line(&chosen[i].1, &s));
                     manager.send(id, Command::Logout);
+                }
+                // `cllt smith` logs out once its task ended, with the bag as it is then.
+                if let (true, Some(run)) = (smith, s.smith.as_ref().filter(|r| r.done.is_some())) {
+                    if snaps[i].smith.as_ref().is_none_or(|r| r.done.is_none()) {
+                        println!(
+                            "{}: {} lần, {} được, {} trượt",
+                            run.title, run.steps, run.ok, run.failed
+                        );
+                        stones_and_gear(&s).iter().for_each(|l| println!("{l}"));
+                        manager.send(id, Command::Logout);
+                    }
                 }
                 if let (true, Some(zones)) = (zone && listing, &s.zones) {
                     listing = false;

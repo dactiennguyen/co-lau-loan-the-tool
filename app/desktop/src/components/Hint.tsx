@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import "./Hint.css";
 
@@ -16,12 +16,15 @@ const ROOM = 140;
 /**
  * A small "?" that shows `children` in a bubble while the pointer is over it or the bubble, or while it has the focus;
  * Escape, a scroll or leaving hides it. The bubble lives in <body> at a fixed place by the "?", so the clip-path and
- * scrolling of a card cannot cut it. Placed outside any <label>, so a click on it toggles nothing.
+ * scrolling of a card cannot cut it; inside a modal <dialog> it lives in that dialog, as the top layer would cover
+ * <body>. Placed outside any <label>, so a click on it toggles nothing.
  */
 export function Hint({ label, id, children }: Props) {
   const mark = useRef<HTMLButtonElement>(null);
   const timer = useRef<number | undefined>(undefined);
   const [at, setAt] = useState<{ left: number; top: number; up: boolean } | null>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => setHost(mark.current?.closest("dialog") ?? document.body), []);
   const show = () => {
     window.clearTimeout(timer.current);
     const r = mark.current?.getBoundingClientRect();
@@ -58,11 +61,19 @@ export function Hint({ label, id, children }: Props) {
         onMouseLeave={() => hide()}
         onFocus={show}
         onBlur={() => hide(true)}
-        onKeyDown={(e) => e.key === "Escape" && hide(true)}
+        onKeyDown={(e) => {
+          // Escape closes the bubble first; in a modal it would close the modal too.
+          if (e.key === "Escape" && at) {
+            e.preventDefault();
+            e.stopPropagation();
+            hide(true);
+          }
+        }}
       >
         ?
       </button>
-      {createPortal(
+      {host &&
+        createPortal(
         <span
           role="tooltip"
           id={id}
@@ -73,7 +84,7 @@ export function Hint({ label, id, children }: Props) {
         >
           {children}
         </span>,
-        document.body,
+        host,
       )}
     </>
   );

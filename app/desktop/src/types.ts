@@ -313,26 +313,79 @@ export interface Character {
   backTo: string | null;
   /** The maps of the atlas, nearest first, with the portals to take. */
   maps: MapChoice[];
-  /** The Dược phẩm shop of Lái Buôn (s2c/1190) once opened; null again off M1. */
+  /** The shop s2c/1190 last listed (`kind` says which); null again off M1. */
   shop: Shop | null;
+  /** The work of Pháp sư or Hương Lão under way or last done (Cửa hàng tab). */
+  smith: SmithRun | null;
 }
 
-/** A shop as s2c/1190 lists it (ShopView of view.rs). */
+/** A shop as s2c/1190 lists it (ShopView of view.rs): `kind` is one of the 14 shops (15-shops.md). */
 export interface Shop {
+  kind: number;
   title: string;
+  /** Who sells it: Lái Buôn, Bà Tư Hạnh. */
+  npc: string;
   items: ShopLine[];
 }
 
-/** One line of a shop: `shopId` is what Mua sends, not the item id; the same item is sold for Xu and for Xu khóa. */
+/** One line of a shop: `shopId` is what Mua sends, not the item id; the same item is sold for Xu, Xu khóa or Lượng. */
 export interface ShopLine {
   shopId: number;
   itemId: number;
   name: string;
   icon?: number | null;
   desc: string;
-  /** 0 Xu, 1 Xu khóa. */
-  currency: 0 | 1;
+  /** 0 Xu, 1 Xu khóa, 2 Lượng. */
+  currency: 0 | 1 | 2;
   price: number;
+  /** Type (0 hat, 1 armour, 2 weapon, 3 ring) and the level to wear it, for gear. */
+  kind: number | null;
+  level: number | null;
+  /** The main stat gear rolls when bought: "sức tấn công 5–9". */
+  ranges: string[];
+  /** Bought for Xu khóa, the item is trade-locked. */
+  locks: boolean;
+}
+
+/** What a window of Pháp sư said last (npc::quote): the fee and its money, Lượng, the odds, the stone Luyện đá makes,
+ * what Tách đá gives back. */
+export interface Quote {
+  fee: { amount: number; money: "xu" | "xuKhoa" } | null;
+  luong: number;
+  rate: number | null;
+  stone: { level: number; locked: boolean } | null;
+  gain: { quantity: number; name: string }[];
+}
+
+/** The work of Pháp sư or Hương Lão under way or last done (SmithView of view.rs). */
+export interface SmithRun {
+  id: number;
+  kind: "merge" | "upgrade" | "quote" | "separate" | "transmute" | "exchange";
+  title: string;
+  doing: string;
+  steps: number;
+  ok: number;
+  failed: number;
+  quote: Quote | null;
+  /** Nâng cấp: the item one level up, and the item as it is now. */
+  preview: Item | null;
+  item: Item | null;
+  spentXu: number;
+  spentXuKhoa: number;
+  spentLuong: number;
+  /** Why it ended; null while it runs. */
+  done: string | null;
+  startedAt: number;
+  endedAt: number | null;
+}
+
+/** What Gộp đá would do on the bag (npc::merge_forecast). */
+export interface MergeForecast {
+  merges: number;
+  xu: number;
+  xuKhoa: number;
+  freed: number;
+  made: { level: number; locked: boolean; count: number }[];
 }
 
 /** One zone of s2c/1172: `load` 0, 1, 2 as the game colours it (2 red), players of `capacity` (20). */
@@ -405,6 +458,10 @@ export interface Item {
   /** Level to wear it, for gear. */
   level: number | null;
   stats: string[];
+  /** Cường hoá: +0 … +16. */
+  plus: number;
+  /** Trade-locked: bought for Xu khóa, worn, or upgraded (15-shops.md#khoá). */
+  locked: boolean;
 }
 
 /** A button of the item detail: wear, use or throw away (discard) the item of a bag slot, take off or repair the one of a

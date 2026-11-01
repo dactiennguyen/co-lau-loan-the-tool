@@ -111,6 +111,15 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .i32(required(c.shop_id, "shopId")?)
             .i32(c.quantity.unwrap_or(1))
             .build(),
+        // Pháp sư (J1, J3): put the item of a bag slot in the open window, then Bắt đầu (npc::put_request, start_request).
+        97 => w
+            .string("")
+            .u8(0)
+            .i32(0)
+            .i32(required(c.slot, "slot")?)
+            .i32(c.quantity.unwrap_or(1))
+            .build(),
+        91 => w.string("").build(),
         48 => w
             .u8(c.place.unwrap_or(0) as u8)
             .i32(required(c.slot, "slot")?)

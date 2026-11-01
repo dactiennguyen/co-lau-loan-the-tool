@@ -80,7 +80,7 @@ Biến `CLLT_ACCOUNTS` được ưu tiên hơn cả hai chỗ trên.
 - Mở Sửa nick thì mật khẩu game và mật khẩu proxy đã điền sẵn, ẩn dưới dấu chấm; nút con mắt ở cuối ô bật/tắt hiển thị. Hộp hỏi chúng bằng lệnh `account_secrets` lúc mở; sự kiện `accounts` và nhật ký không bao giờ mang mật khẩu. Xoá trống ô mật khẩu thì vẫn giữ mật khẩu cũ (mật khẩu proxy cũng vậy, khi tài khoản proxy giữ nguyên). Nick đang đăng nhập chỉ dùng thông tin mới từ lần đăng nhập sau.
 - Không thêm được một nick hai lần trên cùng máy chủ (tên đăng nhập không phân biệt hoa thường), vì hai phiên của một nick sẽ đá nhau.
 - Biến `CLLT_ACCOUNTS` đổi đường dẫn file.
-- Chưa có file thì app bắt đầu với danh sách trống. App không đọc `.env` nữa; chỉ CLI `cllt` còn dùng `CLLT_USERNAME`/`CLLT_PASSWORD` trong `.env` khi chưa có file, hoặc khi `--account` gọi đúng nick của `.env` mà file không có.
+- Chưa có file thì app bắt đầu với danh sách trống. App không đọc `.env` nữa; chỉ CLI `cllt` còn dùng `CLLT_USERNAME`/`CLLT_PASSWORD` trong `.env` khi chưa có file, hoặc khi `--account` gọi đúng nick của `.env` mà file không có. Hai biến này đặt trong môi trường của lệnh thì nick đó đứng đầu danh sách, trước các nick của file.
 - Mỗi nick **không được online ở máy khác**. Khi đó server trả `s2c/0`, và app hiện lỗi "Server từ chối: …" trên nick đó.
 
 ### Windows và Linux

@@ -6,7 +6,9 @@ use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
 use cllt_core::bot::{add_picked, BattleResult, FightSettings, LogKind, Snapshot};
+use cllt_core::items::book;
 use cllt_core::net::{Command, ConnState, Event, Manager, Server};
+use cllt_core::npc::{self, BagItem, MergeForecast, MergeOptions};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::Proxy;
 use serde::Serialize;
@@ -498,6 +500,29 @@ impl App {
                 .unwrap_or_default(),
         })
     }
+    /// Gộp đá on the account's bag as it is now: what it would do in all (npc::merge_forecast); None without a bag.
+    pub fn merge_forecast(&self, id: u64, options: MergeOptions) -> Option<MergeForecast> {
+        let bag = self.entry(id)?.snap.bag.as_ref()?;
+        let items: Vec<BagItem> = bag.items.iter().map(BagItem::from).collect();
+        Some(npc::merge_forecast(&items, options))
+    }
+
+    /// The bag slots Chuyển hoá may move the level of bag slot `source` to (npc::transmute_targets).
+    pub fn transmute_targets(&self, id: u64, source: u8) -> Vec<i32> {
+        let Some(bag) = self.entry(id).and_then(|e| e.snap.bag.as_ref()) else {
+            return vec![];
+        };
+        let items: Vec<BagItem> = bag.items.iter().map(BagItem::from).collect();
+        let Some(from) = items.iter().find(|i| i.slot == source as i32) else {
+            return vec![];
+        };
+        let def = |id: i32| book().get(id).map(|d| (d.kind, d.level as i32));
+        npc::transmute_targets(&items, from, def)
+            .iter()
+            .map(|i| i.slot)
+            .collect()
+    }
+
     fn entry(&self, id: u64) -> Option<&Entry> {
         self.entries.iter().find(|e| e.id == id)
     }

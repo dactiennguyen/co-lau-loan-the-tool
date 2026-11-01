@@ -115,13 +115,47 @@ impl Bot {
                 }
             }
             // The bag and the money are shown, never acted on: one that does not read is logged and left as it was.
-            42 => match character_extra(payload) {
-                Ok(x) => s.bag = Some(x.bag),
-                Err(e) => out.push(Out::Log(
-                    LogKind::Item,
-                    format!("Không đọc được túi đồ (s2c/42): {e}"),
-                )),
-            },
+            // Also the answer to the c2s/42 a task of Pháp sư sends after each press (smith_bag).
+            42 => {
+                match character_extra(payload) {
+                    Ok(x) => s.bag = Some(x.bag),
+                    Err(e) => out.push(Out::Log(
+                        LogKind::Item,
+                        format!("Không đọc được túi đồ (s2c/42): {e}"),
+                    )),
+                }
+                self.smith_bag(now, out);
+            }
+            // Pháp sư's windows (16-upgrade.md#gói): opened, an item put in, the item one level up, the result of Bắt đầu.
+            96 => {
+                service_window(payload)?;
+                self.smith_window(now, out);
+            }
+            99 => {
+                craft_window(payload)?;
+                self.smith_window(now, out);
+            }
+            90 => {
+                let a = service_slot(payload)?;
+                self.smith_slot(&a.text, a.ready, !a.gear, now, out);
+            }
+            92 => {
+                let a = stone_slot(payload)?;
+                self.smith_slot(&a.text, a.ready, false, now, out);
+            }
+            1260 => {
+                let a = transmute_target(payload)?;
+                self.smith_slot(&a.text, a.ready, false, now, out);
+            }
+            1258 => self.smith_preview(service_preview(payload)?.item),
+            91 => {
+                let r = service_result(payload)?;
+                self.smith_result(r.ok, Some(r.item), r.received, r.target, now, out);
+            }
+            93 => {
+                let r = stone_result(payload)?;
+                self.smith_result(r.ok, None, r.items, None, now, out);
+            }
             // An item picked up went to the bag (s2c/51, K3): that slot, without a whole new bag.
             51 => match bag_slot(payload) {
                 Ok(item) => {
@@ -438,33 +472,41 @@ impl Bot {
                 }
             }
             1172 => self.snap.zones = Some(zone_list(payload)?.zones),
-            // Lái Buôn's menu after c2s/13 (open_shop): Dược phẩm opens the shop. A talk step's c2s/13 may get a dialog
-            // instead of s2c/34, as "Tỷ thí" does (npc_dialog).
+            // The menus of a shop's NPC after c2s/13 (open_shop_kind): the next line of its path, until the last one opens the
+            // shop. A talk step's c2s/13 may get a dialog instead of s2c/34, as "Tỷ thí" does (npc_dialog).
             57 => {
                 let menu = npc_menu(payload)?;
-                if matches!(self.shopping, Some((Shopping::Talk, _))) {
-                    match menu.options.iter().find(|o| o.1 == SELLER_MENU) {
-                        Some(&(option, _)) => {
+                if let Some((Shopping::Talk { npc, left } | Shopping::Menu { npc, left }, _)) =
+                    &self.shopping
+                {
+                    let (npc_id, mut left) = (*npc, left.clone());
+                    match left.first().copied() {
+                        Some(option) if menu.options.iter().any(|o| o.0 == option) => {
+                            left.remove(0);
                             Self::send(
                                 out,
                                 57,
                                 Ctx {
                                     option: Some(option as i32),
                                     map_id: Some(SELLER.0),
-                                    npc_id: Some(SELLER.1),
+                                    npc_id: Some(npc_id),
                                     ..Ctx::default()
                                 },
                             );
-                            self.shopping = Some((Shopping::Menu, now + SHOP_WAIT));
+                            self.shopping =
+                                Some((Shopping::Menu { npc: npc_id, left }, now + SHOP_WAIT));
                         }
-                        None => {
+                        // The last line went out: this menu is not the shop's (another NPC answered); nothing more is sent.
+                        None => {}
+                        Some(option) => {
                             self.shopping = None;
                             out.push(Out::Log(
                                 LogKind::Item,
-                                format!("{} không có dòng {SELLER_MENU}", menu.npc),
+                                format!("{} không có dòng {option} trong menu", menu.npc),
                             ));
                         }
                     }
+                } else if self.smith_menu(&menu, now, out) {
                 } else if self.awaiting_reply && self.quest_running() {
                     self.npc_dialog(menu, now, out);
                 }
@@ -478,12 +520,15 @@ impl Bot {
             }
             1190 => {
                 let shop = shop_list(payload)?;
-                if matches!(self.shopping, Some((Shopping::Menu, _))) {
+                if matches!(self.shopping, Some((Shopping::Menu { .. }, _))) {
+                    let who = self.shop_npc();
                     self.shopping = None;
-                    out.push(Out::Log(
-                        LogKind::Item,
-                        format!("Cửa hàng Lái Buôn: {} món", shop.items.len()),
-                    ));
+                    let name = npc::shop_of(shop.kind).map_or(shop.title.as_str(), |s| s.name);
+                    let line = match shop.kind {
+                        SELLER_KIND => format!("Cửa hàng {who}: {} món", shop.items.len()),
+                        _ => format!("Cửa hàng {who} ({name}): {} món", shop.items.len()),
+                    };
+                    out.push(Out::Log(LogKind::Item, line));
                 }
                 self.snap.shop = Some(shop);
             }
@@ -497,6 +542,7 @@ impl Bot {
                 let about = text.contains("nhặt") || text.contains("nhận được");
                 let waiting = self.travelling.is_some()
                     || self.shopping.is_some()
+                    || self.smith.is_some()
                     || self.item_wait.is_some()
                     || self.zoning.is_some();
                 if picking && (about || !waiting) {
@@ -504,6 +550,10 @@ impl Bot {
                     return Ok(());
                 }
                 out.push(Out::Log(LogKind::Server, text.clone()));
+                // The answer of Pháp sư or Hương Lão to a task (smith_notice).
+                if self.smith_notice(&text, now, out) {
+                    return Ok(());
+                }
                 // The purchase ("Bạn vừa mua thành công! 1 Búa Sửa Chữa", "Không đủ Xu để thực hiện"), or c2s/13 to Lái
                 // Buôn refused ("Không thể thực hiện" from another map, B1).
                 match self.shopping.take().map(|s| s.0) {
@@ -518,10 +568,12 @@ impl Bot {
                         };
                         out.push(Out::Log(LogKind::Item, line));
                     }
-                    Some(_) => out.push(Out::Log(
-                        LogKind::Item,
-                        format!("Không mở được cửa hàng Lái Buôn: {text}"),
-                    )),
+                    Some(Shopping::Talk { npc, .. } | Shopping::Menu { npc, .. }) => {
+                        out.push(Out::Log(
+                            LogKind::Item,
+                            format!("Không mở được cửa hàng {}: {text}", npc::npc_name(npc)),
+                        ))
+                    }
                     None => {}
                 }
                 // The answer to Sử dụng ("Vật phẩm không thể sử dụng!") or a refusal of another item action.
@@ -616,6 +668,14 @@ impl Bot {
                     .unwrap_or_default();
                 if !text.is_empty() {
                     out.push(Out::Log(LogKind::Server, format!("Server: {text}")));
+                    // Chế tạo cánh says what it lacks this way (J2): it ends a task of Pháp sư waiting for the answer to
+                    // an item put in or to Bắt đầu. Another message box of the server leaves the task alone.
+                    let answers = self.smith.as_ref().is_some_and(|s| {
+                        matches!(s.stage, smith::Stage::Put | smith::Stage::Start)
+                    });
+                    if opcode == 0 && answers {
+                        self.smith_notice(&text, now, out);
+                    }
                 }
             }
             // Gear durability, after every battle; inside a battle it means the server ended it.

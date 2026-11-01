@@ -329,6 +329,17 @@ impl ItemBook {
             None => format!("{}: {}", s.stat, s.value),
         }
     }
+    /// The name of a stat code without its value: "sức tấn công" for "# sức tấn công", "chí mạng" for "#% chí mạng".
+    pub fn stat_name(&self, stat: i32) -> String {
+        match self.stats.get(&stat.to_string()).filter(|t| !t.is_empty()) {
+            Some(t) => t
+                .trim_start_matches('#')
+                .trim_start_matches('%')
+                .trim()
+                .to_string(),
+            None => format!("chỉ số {stat}"),
+        }
+    }
     pub fn type_name(&self, kind: u8) -> Option<&str> {
         self.types.get(&kind.to_string()).map(String::as_str)
     }

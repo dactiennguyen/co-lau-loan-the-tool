@@ -12,6 +12,7 @@ import type {
   ItemAction,
   LogKind,
   LogLine,
+  MergeForecast,
   ProxyForm,
   Exported,
   Secrets,
@@ -73,6 +74,22 @@ export interface Api {
   openShop(id: number): Promise<void>;
   /** Mua: `quantity` of the shop line `shopId`; the log tells how it went. */
   buy(id: number, shopId: number, quantity: number): Promise<void>;
+  /** Cửa hàng tab: opens shop `kind` of the 14 (on M1); the account's `shop` then lists it. */
+  openShopKind(id: number, kind: number): Promise<void>;
+  /** Gộp đá: every set of 4 stones of a level at 100%, up to Đá cấp `upTo`; unlocked stones too with `unlocked`. */
+  smithMerge(id: number, upTo: number, unlocked: boolean): Promise<void>;
+  /** What Gộp đá would do on the bag as it is now; null without a bag. */
+  mergeForecast(id: number, upTo: number, unlocked: boolean): Promise<MergeForecast | null>;
+  /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
+  smithUpgrade(id: number, slot: number, careful: boolean, rate: number, toLevel: number, unlocked: boolean, quote: boolean): Promise<void>;
+  /** Tách đá of the item of bag slot `slot`. */
+  smithSeparate(id: number, slot: number): Promise<void>;
+  /** Chuyển hoá from bag slot `source` to bag slot `target`. */
+  smithTransmute(id: number, source: number, target: number): Promise<void>;
+  /** The bag slots Chuyển hoá may move the level of bag slot `source` to. */
+  transmuteTargets(id: number, source: number): Promise<number[]>;
+  /** Đổi lượng: `times` × 50 Lượng for 50.000 Xu (option 0) or 55.000 Xu khóa (option 1). */
+  exchangeLuong(id: number, option: number, times: number): Promise<void>;
   /** Older lines of the Nhật ký from cllt.db, oldest first: before row `before`, of `kinds` (all when empty), only the
    * red ones with `bad`. Empty without the database. */
   logHistory(id: number, before: number | null, kinds: LogKind[], bad: boolean, limit: number): Promise<LogLine[]>;
@@ -139,6 +156,15 @@ const tauri: Api = {
   shopClosed: (id) => invoke("shop_closed", { id }),
   openShop: (id) => invoke("open_shop", { id }),
   buy: (id, shopId, quantity) => invoke("buy", { id, shopId, quantity }),
+  openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
+  smithMerge: (id, upTo, unlocked) => invoke("smith_merge", { id, upTo, unlocked }),
+  mergeForecast: (id, upTo, unlocked) => invoke("merge_forecast", { id, upTo, unlocked }),
+  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote) =>
+    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote }),
+  smithSeparate: (id, slot) => invoke("smith_separate", { id, slot }),
+  smithTransmute: (id, source, target) => invoke("smith_transmute", { id, source, target }),
+  transmuteTargets: (id, source) => invoke("transmute_targets", { id, source }),
+  exchangeLuong: (id, option, times) => invoke("exchange_luong", { id, option, times }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
   battleStats: (id, since, source) => invoke("battle_stats", { id, since, source }),
   battleHistory: (id, since, source, before, limit) => invoke("battle_history", { id, since, source, before, limit }),
@@ -197,6 +223,14 @@ const preview: Api = {
   shopClosed: nothing,
   openShop: nothing,
   buy: nothing,
+  openShopKind: nothing,
+  smithMerge: nothing,
+  mergeForecast: async () => null,
+  smithUpgrade: nothing,
+  smithSeparate: nothing,
+  smithTransmute: nothing,
+  transmuteTargets: async () => [],
+  exchangeLuong: nothing,
   logHistory: async () => [],
   battleStats: async () => (await loadSample()).battleStats ?? null,
   battleHistory: async (_id, _since, _source, before) => (before == null ? ((await loadSample()).battleHistory ?? []) : []),

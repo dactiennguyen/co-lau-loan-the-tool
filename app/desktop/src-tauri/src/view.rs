@@ -3,10 +3,12 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BattleView, Boost, BossTile, FightSettings, Job, LogKind, MapChoice, Picked, QuestRun, Target,
+    BattleView, Boost, BossTile, FightSettings, Job, LogKind, MapChoice, Picked, QuestRun,
+    SmithRun, Target,
 };
 use cllt_core::items::{book, Bag, Currencies, ItemRecord};
 use cllt_core::net::ConnState;
+use cllt_core::npc::{self, Quote};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
@@ -208,15 +210,65 @@ pub struct CharacterView<'a> {
     pub back_to: Option<&'a str>,
     /// The maps of the atlas, nearest first, with the portals to take.
     pub maps: &'a [MapChoice],
-    /// The Dược phẩm shop of Lái Buôn as s2c/1190 last listed it; None until opened, and again once off M1.
+    /// The shop s2c/1190 last listed (Cửa hàng tab, Mua búa); None until opened, and again once off M1.
     pub shop: Option<ShopView<'a>>,
+    /// The work of Pháp sư or Hương Lão under way or last done (Cửa hàng tab).
+    pub smith: Option<SmithView<'a>>,
 }
 
-/// The shop of the Cửa hàng dialog: each line named from data/items.json, with its price and money.
+/// SmithRun with its items named and drawn as the bag draws them.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SmithView<'a> {
+    pub id: u32,
+    pub kind: &'static str,
+    pub title: &'a str,
+    pub doing: &'a str,
+    pub steps: u32,
+    pub ok: u32,
+    pub failed: u32,
+    pub quote: Option<&'a Quote>,
+    pub preview: Option<ItemView>,
+    pub item: Option<ItemView>,
+    pub spent_xu: i64,
+    pub spent_xu_khoa: i64,
+    pub spent_luong: i64,
+    pub done: Option<&'a str>,
+    pub started_at: u64,
+    pub ended_at: Option<u64>,
+}
+impl<'a> SmithView<'a> {
+    pub fn of(r: &'a SmithRun) -> Self {
+        Self {
+            id: r.id,
+            kind: r.kind,
+            title: &r.title,
+            doing: &r.doing,
+            steps: r.steps,
+            ok: r.ok,
+            failed: r.failed,
+            quote: r.quote.as_ref(),
+            preview: r.preview.as_ref().map(ItemView::of),
+            item: r.item.as_ref().map(ItemView::of),
+            spent_xu: r.spent_xu,
+            spent_xu_khoa: r.spent_xu_khoa,
+            spent_luong: r.spent_luong,
+            done: r.done.as_deref(),
+            started_at: r.started_at,
+            ended_at: r.ended_at,
+        }
+    }
+}
+
+/// A shop of the Cửa hàng tab and dialog: each line named from data/items.json, with its price and money.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShopView<'a> {
+    /// Which of npc::SHOPS (the first byte of s2c/1190).
+    pub kind: u8,
     pub title: &'a str,
+    /// Who sells it: Lái Buôn, Bà Tư Hạnh.
+    pub npc: &'static str,
     pub items: Vec<ShopLineView>,
 }
 
@@ -229,15 +281,24 @@ pub struct ShopLineView {
     pub name: String,
     pub icon: Option<i32>,
     pub desc: &'static str,
-    /// 0 Xu, 1 Xu khóa.
+    /// 0 Xu, 1 Xu khóa, 2 Lượng.
     pub currency: u8,
     pub price: i32,
+    /// Type of the item (0 hat, 1 armour, 2 weapon, 3 ring…) and the level to wear it, for gear.
+    pub kind: Option<u8>,
+    pub level: Option<u8>,
+    /// The main stat gear rolls when bought: "sức tấn công 5–9".
+    pub ranges: Vec<String>,
+    /// Bought for Xu khóa, the item is trade-locked (15-shops.md#khoá).
+    pub locks: bool,
 }
 impl<'a> ShopView<'a> {
     pub fn of(s: &'a ShopList) -> Self {
         let b = book();
         ShopView {
+            kind: s.kind,
             title: &s.title,
+            npc: npc::shop_of(s.kind).map_or("Lái Buôn", |d| npc::npc_name(d.npc_id)),
             items: s
                 .items
                 .iter()
@@ -251,6 +312,17 @@ impl<'a> ShopView<'a> {
                         desc: def.map_or("", |d| d.desc.as_str()),
                         currency: l.currency,
                         price: l.price,
+                        kind: def.map(|d| d.kind),
+                        level: def.filter(|d| d.kind <= 4).map(|d| d.level),
+                        ranges: l
+                            .ranges
+                            .iter()
+                            .map(|r| {
+                                let name = b.stat_name(r.stat);
+                                format!("{name} {}–{}", r.min, r.max)
+                            })
+                            .collect(),
+                        locks: l.flag == 0,
                     }
                 })
                 .collect(),
@@ -305,6 +377,10 @@ pub struct ItemView {
     pub level: Option<u8>,
     /// "+4 phòng thủ", "+58 sinh lực"
     pub stats: Vec<String>,
+    /// Cường hoá: +0 … +16 (field0 of the record).
+    pub plus: i32,
+    /// Trade-locked (field1 0: bought for Xu khóa, worn, upgraded; 15-shops.md#khoá).
+    pub locked: bool,
 }
 impl ItemView {
     pub fn of(i: &ItemRecord) -> Self {
@@ -331,6 +407,8 @@ impl ItemView {
             }),
             level: def.filter(|d| d.kind <= 4).map(|d| d.level),
             stats: i.stats.iter().map(|s| b.stat(s)).collect(),
+            plus: i.field0,
+            locked: i.field1 == 0,
         }
     }
 }
@@ -441,6 +519,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             .collect(),
             zones: s.zones.as_deref(),
             shop: s.shop.as_ref().map(ShopView::of),
+            smith: s.smith.as_ref().map(SmithView::of),
             moving: s.moving.as_deref(),
             back_to: s.back_to.as_deref(),
             maps: &s.maps,

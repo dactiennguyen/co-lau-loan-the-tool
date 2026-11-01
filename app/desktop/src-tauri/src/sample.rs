@@ -6,7 +6,7 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, Job, LogKind, MapChoice,
-    Picked, PickupRecord, QuestRun, Snapshot, Target,
+    Picked, PickupRecord, QuestRun, SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::net::ConnState;
@@ -124,6 +124,40 @@ fn manina_bag() -> Vec<ItemRecord> {
         item(5, 415, -1, 1, 0xff, &[]),
         item(7, 1, -1, 1, 0xff, &[]),
     ]
+}
+
+/// kiemkhach's bag for the Cửa hàng tab: stones of several levels, locked or not, a ring at +1 and spare gear at +0.
+fn kiemkhach_bag() -> Vec<ItemRecord> {
+    let with = |mut i: ItemRecord, plus: i32, locked: bool| {
+        (i.field0, i.field1) = (plus, if locked { 0 } else { 1 });
+        i
+    };
+    let mut bag = vec![
+        with(item(0, 306, 60, 1, 4, &[(5, 6), (8, 2)]), 1, true),
+        with(item(1, 318, 60, 1, 4, &[(5, 7)]), 0, false),
+        with(item(2, 48, 60, 1, 4, &[(6, 4), (9, 60)]), 0, true),
+        with(item(3, 616, -1, 1, 0xff, &[]), 0, false),
+    ];
+    for (k, (id, locked)) in [
+        (411, false),
+        (411, false),
+        (412, true),
+        (414, true),
+        (414, true),
+        (414, true),
+        (414, true),
+        (415, true),
+        (415, true),
+        (415, true),
+        (415, true),
+        (415, true),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        bag.push(with(item(4 + k as u8, id, -1, 1, 0xff, &[]), 0, locked));
+    }
+    bag
 }
 
 /// The skill tree of an element as s2c/30 sends it, from data/skills.json (built in), with the levels of `levels`.
@@ -464,6 +498,35 @@ pub fn entries() -> Vec<Entry> {
         }),
         skills: thuy.0,
         skill_levels: thuy.1,
+        bag: Some(Bag {
+            kind: 1,
+            capacity: 42,
+            items: kiemkhach_bag(),
+        }),
+        currencies: Some(Currencies {
+            label: "update Xu".into(),
+            xu: 13_400,
+            xu_khoa: 52_310,
+            luong: 120,
+        }),
+        smith: Some(SmithRun {
+            id: 1,
+            kind: "merge",
+            title: "Gộp đá tới Đá cấp 12".into(),
+            doing: String::new(),
+            steps: 2,
+            ok: 2,
+            failed: 0,
+            quote: None,
+            preview: None,
+            item: None,
+            spent_xu: 0,
+            spent_xu_khoa: 820,
+            spent_luong: 0,
+            done: Some("đã gộp hết".into()),
+            started_at: ago(5 * 60),
+            ended_at: Some(ago(5 * 60 - 3)),
+        }),
         ..Snapshot::default()
     };
 

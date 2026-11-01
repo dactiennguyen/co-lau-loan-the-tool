@@ -251,6 +251,8 @@ pub(super) async fn session(
                     Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, &mut out),
                     Some(Command::ShopTrip { back }) => bot.go_to_shop(back, now, &mut out),
                     Some(Command::OpenShop) => bot.open_shop(now, &mut out),
+                    Some(Command::OpenShopKind(kind)) => bot.open_shop_kind(kind, now, &mut out),
+                    Some(Command::Smith(task)) => bot.smith(task, now, &mut out),
                     Some(Command::Buy { shop_id, quantity }) => bot.buy(shop_id, quantity, now, &mut out),
                 }
             }

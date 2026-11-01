@@ -6,7 +6,7 @@ import { AccountPage } from "./views/AccountPage";
 import { ConfirmDialog } from "./views/ConfirmDialog";
 import { PlaceDialog } from "./views/PlaceDialog";
 import { SettingsDialog } from "./views/SettingsDialog";
-import { ShopDialog } from "./views/ShopDialog";
+import { ShopModal } from "./views/ShopModal";
 import { EmptyState } from "./views/EmptyState";
 import { Sidebar } from "./views/Sidebar";
 import { StatPlanDialog } from "./views/StatPlanDialog";
@@ -69,7 +69,7 @@ function Dialogs() {
     return <PlaceDialog account={account} onClose={close} />;
   }
   if (dialog?.kind === "shop" && account) {
-    return <ShopDialog account={account} item={dialog.item} onClose={close} />;
+    return <ShopModal account={account} item={dialog.item} onClose={close} />;
   }
   if (dialog?.kind === "remove" && account) {
     return (

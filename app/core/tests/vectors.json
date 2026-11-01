@@ -14284,5 +14284,1900 @@
    "ctx": { "battleUuid": "f88a4c00-bcb7-49bf-8a30-93e3dbbff9ca", "slot": 4 },
    "hex": "0000002466383861346330302d626362372d343962662d386133302d3933653364626266663963610000000000000004"
   }
+ },
+ "npc": {
+  "decoders": [
+   {
+    "fn": "serviceWindow",
+    "hex": "0000000573796d6170000000000000004243e1baa76e206368e1bb8d6e207472616e672062e1bb8b2076c3a020c491c3a1202863c3b3207468e1bb83207468c3aa6d2062c3b9612062e1baa36f2076e1bb8729000000174ec3a26e672063e1baa570205b7468c6b0e1bb9d6e675d00000012",
+    "expected": {
+     "name": "symap",
+     "key": "",
+     "prompt": "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+     "title": "Nâng cấp [thường]",
+     "slots": 18
+    }
+   },
+   {
+    "fn": "serviceWindow",
+    "hex": "0000000573796d6170000000000000004243e1baa76e206368e1bb8d6e207472616e672062e1bb8b2076c3a020c491c3a1202863c3b3207468e1bb83207468c3aa6d2062c3b9612062e1baa36f2076e1bb87290000001a4ec3a26e672063e1baa570205b63e1baa96e207468e1baad6e5d00000012",
+    "expected": {
+     "name": "symap",
+     "key": "",
+     "prompt": "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+     "title": "Nâng cấp [cẩn thận]",
+     "slots": 18
+    }
+   },
+   {
+    "fn": "serviceWindow",
+    "hex": "0000000573796d6170000000095452414e534d555445000000d94e6775e1bb936e3a206368c6b0612063c3b320287472616e672062e1bb8b20c491c3a32063c6b0e1bb9d6e6720686fc3a1290ac490c3ad63683a206368c6b0612063c3b320287472616e672062e1bb8b202b302063c3b96e67206c6fe1baa1692c2062e1baad632062e1bab16e6720686fe1bab7632063616f2068c6a16e290a56e1baad74207068e1baa96d3a206368c6b0612063c3b3202873c6a12063e1baa5702074e1bb9b69202b31302c207472756e672063e1baa5702074e1bb9b69202b31332c2063616f2063e1baa5702074e1bb9b69202b3136290000001843687579e1bb836e20686fc3a1207472616e672062e1bb8b00000012",
+    "expected": { "name": "symap", "key": "TRANSMUTE", "prompt": "Nguồn: chưa có (trang bị đã cường hoá)\nĐích: chưa có (trang bị +0 cùng loại, bậc bằng hoặc cao hơn)\nVật phẩm: chưa có (sơ cấp tới +10, trung cấp tới +13, cao cấp tới +16)", "title": "Chuyển hoá trang bị", "slots": 18 }
+   },
+   {
+    "fn": "serviceWindow",
+    "hex": "0000000573796d6170000000000000002843e1baa76e206368e1bb8d6e207472616e672062e1bb8b20c491c3a3206ec3a26e672063e1baa5700000001554c3a1636820c491c3a1207472616e672062e1bb8b00000000",
+    "expected": { "name": "symap", "key": "", "prompt": "Cần chọn trang bị đã nâng cấp", "title": "Tách đá trang bị", "slots": 0 }
+   },
+   {
+    "fn": "craftWindow",
+    "hex": "0000000861626364313030320000002b43e1baa76e206368e1bb8d6e20c491c3a12073e1bb91206cc6b0e1bba36e67203220c491e1babf6e203234000000174c7579e1bb876e20c491c3a1205b5875206b68c3b3615d00000018",
+    "expected": {
+     "key": "abcd1002",
+     "prompt": "Cần chọn đá số lượng 2 đến 24",
+     "title": "Luyện đá [Xu khóa]",
+     "slots": 24
+    }
+   },
+   {
+    "fn": "craftWindow",
+    "hex": "0000000861626364313030330000002b43e1baa76e206368e1bb8d6e20c491c3a12073e1bb91206cc6b0e1bba36e67203220c491e1babf6e203234000000114c7579e1bb876e20c491c3a1205b58755d00000018",
+    "expected": {
+     "key": "abcd1003",
+     "prompt": "Cần chọn đá số lượng 2 đến 24",
+     "title": "Luyện đá [Xu]",
+     "slots": 24
+    }
+   },
+   {
+    "fn": "craftWindow",
+    "hex": "000000086162636431303036000000d543c3a16e68205469c3aa6e20284cc3b46e672056c5a92920686fe1bab7632043c3a16e68205175e1bbb720285675e1bb9174205175e1bbb7293a20353025207468c3a06e682063c3b46e670a4cc3b46e672056c5a9202f205675e1bb9174205175e1bbb73a20302f310a4b696d205468e1baa163683a20302f3130300a487579e1babf74205468e1baa163683a20312f3130300a5468e1baa5742062e1baa169206de1baa5742031206de1baa36e68202b203530204b696d205468e1baa16368202b20353020487579e1babf74205468e1baa16368000000114368e1babf2074e1baa16f2063c3a16e6800000003",
+    "expected": { "key": "abcd1006", "prompt": "Cánh Tiên (Lông Vũ) hoặc Cánh Quỷ (Vuốt Quỷ): 50% thành công\nLông Vũ / Vuốt Quỷ: 0/1\nKim Thạch: 0/100\nHuyết Thạch: 1/100\nThất bại mất 1 mảnh + 50 Kim Thạch + 50 Huyết Thạch", "title": "Chế tạo cánh", "slots": 3 }
+   },
+   {
+    "fn": "craftWindow",
+    "hex": "000000086162636431303037000000b542c4836e67204b69e1babf6d3a2031303025207468c3a06e682063c3b46e670a42c4836e672054c3a26d3a20312f32300a4b696d205468e1baa163683a20302f33300a487579e1babf74205468e1baa163683a20312f33300a4de1bb9769206c6fe1baa1692063e1baa76e20c491e1bba72073e1bb912074726f6e67206de1bb997420c3b42c206de1bab7632042c4836e67204b69e1babf6d2076c3a06f207468c3ac206b686fc3a1206769616f2064e1bb8b6368000000184368e1babf2074e1baa16f2042c4836e67204b69e1babf6d00000003",
+    "expected": { "key": "abcd1007", "prompt": "Băng Kiếm: 100% thành công\nBăng Tâm: 1/20\nKim Thạch: 0/30\nHuyết Thạch: 1/30\nMỗi loại cần đủ số trong một ô, mặc Băng Kiếm vào thì khoá giao dịch", "title": "Chế tạo Băng Kiếm", "slots": 3 }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d617000010000002d0000000100000000000000000000004243e1baa76e206368e1bb8d6e207472616e672062e1bb8b2076c3a020c491c3a1202863c3b3207468e1bb83207468c3aa6d2062c3b9612062e1baa36f2076e1bb872900",
+    "expected": { "name": "symap", "gear": true, "slot": 45, "quantity": 1, "text": "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)", "ready": false }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d61700000000000140000000100000000000000000000006843e1baa76e3a203333205875206b68c3b36120286b68c3b46e6720c491e1bba72073e1babd2073e1bbad2064e1bba56e672063e1baa3205875290a43e1baa76e3a2030204cc6b0e1bba36e670a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a2037352501",
+    "expected": { "name": "symap", "gear": false, "slot": 20, "quantity": 1, "text": "Cần: 33 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 75%", "ready": true }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d61700000000000110000000100000000000000000000006843e1baa76e3a203139205875206b68c3b36120286b68c3b46e6720c491e1bba72073e1babd2073e1bbad2064e1bba56e672063e1baa3205875290a43e1baa76e3a2030204cc6b0e1bba36e670a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a2031362501",
+    "expected": { "name": "symap", "gear": false, "slot": 17, "quantity": 1, "text": "Cần: 19 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 16%", "ready": true }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d61700000000000210000000100000000000000000000006943e1baa76e3a203333205875206b68c3b36120286b68c3b46e6720c491e1bba72073e1babd2073e1bbad2064e1bba56e672063e1baa3205875290a43e1baa76e3a2035204cc6b0e1bba36e670a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a203130302501",
+    "expected": { "name": "symap", "gear": false, "slot": 33, "quantity": 1, "text": "Cần: 33 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 5 Lượng\nTỉ lệ thành công: 100%", "ready": true }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d617000010000002d000000010000000000000000000000214e68e1baad6e20c491c6b0e1bba3633a203220c490c3a12063e1baa57020312c2001",
+    "expected": { "name": "symap", "gear": true, "slot": 45, "quantity": 1, "text": "Nhận được: 2 Đá cấp 1, ", "ready": true }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d617000010000002d000000010000000000000000000000d34e6775e1bb936e3a204769c3a17020c490e1baa1692054c6b0e1bb9b6e67202b31202862e1baad63204949290ac490c3ad63683a206368c6b0612063c3b320287472616e672062e1bb8b202b302063c3b96e67206c6fe1baa1692c2062e1baad632062e1bab16e6720686fe1bab7632063616f2068c6a16e290a56e1baad74207068e1baa96d3a206368c6b0612063c3b3202873c6a12063e1baa5702074e1bb9b69202b31302c207472756e672063e1baa5702074e1bb9b69202b31332c2063616f2063e1baa5702074e1bb9b69202b31362900",
+    "expected": { "name": "symap", "gear": true, "slot": 45, "quantity": 1, "text": "Nguồn: Giáp Đại Tướng +1 (bậc II)\nĐích: chưa có (trang bị +0 cùng loại, bậc bằng hoặc cao hơn)\nVật phẩm: chưa có (sơ cấp tới +10, trung cấp tới +13, cao cấp tới +16)", "ready": false }
+   },
+   {
+    "fn": "serviceSlot",
+    "hex": "0000000573796d617000000000001a000000010000000000000000000000df4e6775e1bb936e3a204e68e1baab6e205175e1bbb7202b31202862e1baad63204949290ac490c3ad63683a20416e682048c3b96e67204e68e1baab6e202862e1baad63204949290a56e1baad74207068e1baa96d3a2043687579e1bb836e20686fc3a1207472616e672062e1bb8b2073c6a12063e1baa570202874e1bb916920c49161202b3130290a536175206b68692063687579e1bb836e3a20416e682048c3b96e67204e68e1baab6e202b312076c3a02062e1bb8b206b686fc3a1206769616f2064e1bb8b63682c204e68e1baab6e205175e1bbb72076e1bb81202b3001",
+    "expected": { "name": "symap", "gear": false, "slot": 26, "quantity": 1, "text": "Nguồn: Nhẫn Quỷ +1 (bậc II)\nĐích: Anh Hùng Nhẫn (bậc II)\nVật phẩm: Chuyển hoá trang bị sơ cấp (tối đa +10)\nSau khi chuyển: Anh Hùng Nhẫn +1 và bị khoá giao dịch, Nhẫn Quỷ về +0", "ready": true }
+   },
+   {
+    "fn": "stoneSlot",
+    "hex": "0000000573796d6170000000002400000000000000000000002b43e1baa76e206368e1bb8d6e20c491c3a12073e1bb91206cc6b0e1bba36e67203220c491e1babf6e20323400",
+    "expected": { "name": "symap", "slot": 36, "text": "Cần chọn đá số lượng 2 đến 24", "ready": false }
+   },
+   {
+    "fn": "stoneSlot",
+    "hex": "0000000573796d617000000000250000000000000000000000794c7579e1bb876e207468c3a06e6820c490c3a12063e1baa5702036204b68c3b3610a43e1baa76e3a20343130205875206b68c3b36120286b68c3b46e6720c491e1bba72073e1babd2073e1bbad2064e1bba56e672063e1baa3205875290a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a2035302501",
+    "expected": { "name": "symap", "slot": 37, "text": "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%", "ready": true }
+   },
+   {
+    "fn": "stoneSlot",
+    "hex": "0000000573796d6170000000002b00000000000000000000007a4c7579e1bb876e207468c3a06e6820c490c3a12063e1baa5702036204b68c3b3610a43e1baa76e3a20343130205875206b68c3b36120286b68c3b46e6720c491e1bba72073e1babd2073e1bbad2064e1bba56e672063e1baa3205875290a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a203130302501",
+    "expected": { "name": "symap", "slot": 43, "text": "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 100%", "ready": true }
+   },
+   {
+    "fn": "stoneSlot",
+    "hex": "0000000573796d6170000000002c00000000000000000000007b4c7579e1bb876e207468c3a06e6820c490c3a12063e1baa5702037204b68c3b3610a43e1baa76e3a20312e363339205875206b68c3b36120286b68c3b46e6720c491e1bba72073e1babd2073e1bbad2064e1bba56e672063e1baa3205875290a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a2033312501",
+    "expected": { "name": "symap", "slot": 44, "text": "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 31%", "ready": true }
+   },
+   {
+    "fn": "stoneSlot",
+    "hex": "0000000573796d617000000000110000000000000000000000434c7579e1bb876e207468c3a06e6820c490c3a12063e1baa57020320a43e1baa76e3a20322058750a54e1bb89206ce1bb87207468c3a06e682063c3b46e673a2035302501",
+    "expected": { "name": "symap", "slot": 17, "text": "Luyện thành Đá cấp 2\nCần: 2 Xu\nTỉ lệ thành công: 50%", "ready": true }
+   },
+   {
+    "fn": "stoneResult",
+    "hex": "0000000573796d6170010000000114000001a00000002465663737663736342d396335332d343932302d626239642d64383830633465623761323800000000ffffffff0000000100ff00000000000000",
+    "expected": {
+     "name": "symap",
+     "ok": true,
+     "items": [
+      {
+       "slot": 20,
+       "itemId": 416,
+       "uuid": "ef77f764-9c53-4920-bb9d-d880c4eb7a28",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ]
+    }
+   },
+   {
+    "fn": "stoneResult",
+    "hex": "0000000573796d61700100000001100000019c0000002431653837343834322d383761332d343430362d616338642d66373365636238373832616400000000ffffffff0000000101ff00000000000000",
+    "expected": {
+     "name": "symap",
+     "ok": true,
+     "items": [
+      {
+       "slot": 16,
+       "itemId": 412,
+       "uuid": "1e874842-87a3-4406-ac8d-f73ecb8782ad",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 1,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ]
+    }
+   },
+   {
+    "fn": "servicePreview",
+    "hex": "000000002461343432626565312d303537392d343137332d383637332d363739613938313038343962000000012d000000e30000002461343432626565312d303537392d343137332d383637332d363739613938313038343962000000020000003c000000010002000000000001020000000600000017000000010000000e",
+    "expected": {
+     "uuid": "a442bee1-0579-4173-8673-679a9810849b",
+     "level": 1,
+     "item": {
+      "slot": 45,
+      "itemId": 227,
+      "uuid": "a442bee1-0579-4173-8673-679a9810849b",
+      "field0": 2,
+      "durability": 60,
+      "quantity": 1,
+      "field1": 0,
+      "element": 2,
+      "field2": 0,
+      "field3": 0,
+      "field4": 1,
+      "stats": [
+       { "stat": 6, "value": 23 },
+       { "stat": 1, "value": 14 }
+      ]
+     }
+    }
+   },
+   {
+    "fn": "transmuteTarget",
+    "hex": "0000000032000000a14e6775e1bb936e3a204e68e1baab6e205175e1bbb7202b31202862e1baad63204949290ac490c3ad63683a20416e682048c3b96e67204e68e1baab6e202862e1baad63204949290a56e1baad74207068e1baa96d3a206368c6b0612063c3b3202873c6a12063e1baa5702074e1bb9b69202b31302c207472756e672063e1baa5702074e1bb9b69202b31332c2063616f2063e1baa5702074e1bb9b69202b31362900",
+    "expected": { "slot": 50, "text": "Nguồn: Nhẫn Quỷ +1 (bậc II)\nĐích: Anh Hùng Nhẫn (bậc II)\nVật phẩm: chưa có (sơ cấp tới +10, trung cấp tới +13, cao cấp tới +16)", "ready": false }
+   },
+   {
+    "fn": "serviceResult",
+    "hex": "0000000573796d6170000f000001320000002466643130323934332d343530342d343364322d613266332d633262303437623665663437000000000000003c000000010101000000000001020000000500000005000000080000000100000000",
+    "expected": {
+     "name": "symap",
+     "ok": false,
+     "item": {
+      "slot": 15,
+      "itemId": 306,
+      "uuid": "fd102943-4504-43d2-a2f3-c2b047b6ef47",
+      "field0": 0,
+      "durability": 60,
+      "quantity": 1,
+      "field1": 1,
+      "element": 1,
+      "field2": 0,
+      "field3": 0,
+      "field4": 1,
+      "stats": [
+       { "stat": 5, "value": 5 },
+       { "stat": 8, "value": 1 }
+      ]
+     },
+     "received": [],
+     "target": null
+    }
+   },
+   {
+    "fn": "serviceResult",
+    "hex": "0000000573796d6170010f000001320000002466643130323934332d343530342d343364322d613266332d633262303437623665663437000000010000003c000000010001000000000001020000000500000006000000080000000200000000",
+    "expected": {
+     "name": "symap",
+     "ok": true,
+     "item": {
+      "slot": 15,
+      "itemId": 306,
+      "uuid": "fd102943-4504-43d2-a2f3-c2b047b6ef47",
+      "field0": 1,
+      "durability": 60,
+      "quantity": 1,
+      "field1": 0,
+      "element": 1,
+      "field2": 0,
+      "field3": 0,
+      "field4": 1,
+      "stats": [
+       { "stat": 5, "value": 6 },
+       { "stat": 8, "value": 2 }
+      ]
+     },
+     "received": [],
+     "target": null
+    }
+   },
+   {
+    "fn": "serviceResult",
+    "hex": "0000000573796d6170012d000000e30000002461343432626565312d303537392d343137332d383637332d363739613938313038343962000000000000003c0000000100020000000000010200000006000000100000000100000009000000021a0000019b0000002431363738643037322d326666332d343332662d383633302d66313361343739343561383200000000ffffffff0000000100ff000000000000001e0000019b0000002462633839633133352d626165302d343432302d616133612d30376237393639626338666200000000ffffffff0000000100ff00000000000000",
+    "expected": {
+     "name": "symap",
+     "ok": true,
+     "item": {
+      "slot": 45,
+      "itemId": 227,
+      "uuid": "a442bee1-0579-4173-8673-679a9810849b",
+      "field0": 0,
+      "durability": 60,
+      "quantity": 1,
+      "field1": 0,
+      "element": 2,
+      "field2": 0,
+      "field3": 0,
+      "field4": 1,
+      "stats": [
+       { "stat": 6, "value": 16 },
+       { "stat": 1, "value": 9 }
+      ]
+     },
+     "received": [
+      {
+       "slot": 26,
+       "itemId": 411,
+       "uuid": "1678d072-2ff3-432f-8630-f13a47945a82",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      },
+      {
+       "slot": 30,
+       "itemId": 411,
+       "uuid": "bc89c135-bae0-4420-aa3a-07b7969bc8fb",
+       "field0": 0,
+       "durability": -1,
+       "quantity": 1,
+       "field1": 0,
+       "element": 255,
+       "field2": 0,
+       "field3": 0,
+       "field4": 0,
+       "stats": []
+      }
+     ],
+     "target": null
+    }
+   },
+   {
+    "fn": "serviceResult",
+    "hex": "0000000573796d6170012a0000016e0000002438613539623533302d616337612d346437642d623436662d393761363363386139343461000000000000003c000000010004000000000001020000000500000011000000020000001a0000000032000001650000002465663338636532372d323939642d346338312d383034612d323532313639316538353031000000010000003c00000001000100000000000102000000050000000f0000000200000017",
+    "expected": {
+     "name": "symap",
+     "ok": true,
+     "item": {
+      "slot": 42,
+      "itemId": 366,
+      "uuid": "8a59b530-ac7a-4d7d-b46f-97a63c8a944a",
+      "field0": 0,
+      "durability": 60,
+      "quantity": 1,
+      "field1": 0,
+      "element": 4,
+      "field2": 0,
+      "field3": 0,
+      "field4": 1,
+      "stats": [
+       { "stat": 5, "value": 17 },
+       { "stat": 2, "value": 26 }
+      ]
+     },
+     "received": [],
+     "target": {
+      "slot": 50,
+      "itemId": 357,
+      "uuid": "ef38ce27-299d-4c81-804a-2521691e8501",
+      "field0": 1,
+      "durability": 60,
+      "quantity": 1,
+      "field1": 0,
+      "element": 1,
+      "field2": 0,
+      "field3": 0,
+      "field4": 1,
+      "stats": [
+       { "stat": 5, "value": 15 },
+       { "stat": 2, "value": 23 }
+      ]
+     }
+    }
+   },
+   {
+    "fn": "shopList",
+    "hex": "05000000064e68e1baab6e0000000c0000018700000132000000012cffffffff00000001010100000000000100000001000000050000000500000009010101010000018800000138000000012cffffffff0000000101010000000000010000000100000005000000050000000901010101000001890000013e000000012cffffffff00000001010100000000000100000001000000050000000500000009010101010000018a0000014d000000076cffffffff0000000101010000000000010000000100000005000000080000000e010101010000018b00000156000000076cffffffff0000000101010000000000010000000100000005000000080000000e01010101000001d80000013b000000076cffffffff0000000101010000000000010000000100000005000000080000000e010101010000018c0000016200000053fcffffffff00000001010100000000000100000001000000050000000b0000001301010101000001da0000016b00000053fcffffffff00000001010100000000000100000001000000050000000b0000001301010101000001dc0000016e00000053fcffffffff00000001010100000000000100000001000000050000000b0000001301010101000001de0000017100000053fcffffffff00000001010100000000000100000001000000050000000b0000001301010101000001e90000016500000053fcffffffff00000001010100000000000100000001000000050000000b0000001301010101000001eb0000017400000053fcffffffff00000001010100000000000100000001000000050000000b0000001301010101",
+    "expected": {
+     "kind": 5,
+     "title": "Nhẫn",
+     "items": [
+      {
+       "shopId": 391,
+       "itemId": 306,
+       "currency": 0,
+       "price": 300,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 5, "max": 9 }
+       ]
+      },
+      {
+       "shopId": 392,
+       "itemId": 312,
+       "currency": 0,
+       "price": 300,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 5, "max": 9 }
+       ]
+      },
+      {
+       "shopId": 393,
+       "itemId": 318,
+       "currency": 0,
+       "price": 300,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 5, "max": 9 }
+       ]
+      },
+      {
+       "shopId": 394,
+       "itemId": 333,
+       "currency": 0,
+       "price": 1900,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 8, "max": 14 }
+       ]
+      },
+      {
+       "shopId": 395,
+       "itemId": 342,
+       "currency": 0,
+       "price": 1900,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 8, "max": 14 }
+       ]
+      },
+      {
+       "shopId": 472,
+       "itemId": 315,
+       "currency": 0,
+       "price": 1900,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 8, "max": 14 }
+       ]
+      },
+      {
+       "shopId": 396,
+       "itemId": 354,
+       "currency": 0,
+       "price": 21500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 11, "max": 19 }
+       ]
+      },
+      {
+       "shopId": 474,
+       "itemId": 363,
+       "currency": 0,
+       "price": 21500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 11, "max": 19 }
+       ]
+      },
+      {
+       "shopId": 476,
+       "itemId": 366,
+       "currency": 0,
+       "price": 21500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 11, "max": 19 }
+       ]
+      },
+      {
+       "shopId": 478,
+       "itemId": 369,
+       "currency": 0,
+       "price": 21500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 11, "max": 19 }
+       ]
+      },
+      {
+       "shopId": 489,
+       "itemId": 357,
+       "currency": 0,
+       "price": 21500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 11, "max": 19 }
+       ]
+      },
+      {
+       "shopId": 491,
+       "itemId": 372,
+       "currency": 0,
+       "price": 21500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 11, "max": 19 }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "fn": "shopList",
+    "hex": "070000000856c5a9204b68c3ad0000001a0000014c000000f60100000190ffffffff0000000100010000000000010000000100000005000000070000000b010101010000014d000000f90100000190ffffffff0000000100010000000000010000000100000005000000070000000b010101010000014e000000fc0100000190ffffffff0000000100010000000000010000000100000005000000070000000b010101010000014f000000ff0100000190ffffffff0000000100010000000000010000000100000005000000070000000b0101010100000150000001050100000190ffffffff0000000100010000000000010000000100000005000000070000000b0101010100000151000001080100000190ffffffff0000000100010000000000010000000100000005000000070000000b0101010100000154000001110100000190ffffffff0000000100010000000000010000000100000005000000070000000b01010101000001520000010b0100000c80ffffffff00000001000100000000000100000001000000050000000c0000001401010101000001530000010e0100000c80ffffffff00000001000100000000000100000001000000050000000c0000001401010101000001550000011d0100000c80ffffffff00000001000100000000000100000001000000050000000c000000140101010100000160000000f80100000c80ffffffff00000001000100000000000100000001000000050000000c000000140101010100000163000001010100000c80ffffffff00000001000100000000000100000001000000050000000c0000001401010101000001e4000000f70100000c80ffffffff00000001000100000000000100000001000000050000000c0000001401010101000001690000011f01000088b8ffffffff00000001000100000000000100000001000000050000001400000022010102010000017e0000011601000088b8ffffffff00000001000100000000000100000001000000050000001400000022010102010000017f0000012b01000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001800000012e01000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001810000022401000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001820000022b01000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001830000023001000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001840000023501000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001850000023e01000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001860000024501000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001d30000011501000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001d50000011b01000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201000001e60000011e01000088b8ffffffff0000000100010000000000010000000100000005000000140000002201010201",
+    "expected": {
+     "kind": 7,
+     "title": "Vũ Khí",
+     "items": [
+      {
+       "shopId": 332,
+       "itemId": 246,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 333,
+       "itemId": 249,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 334,
+       "itemId": 252,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 335,
+       "itemId": 255,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 336,
+       "itemId": 261,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 337,
+       "itemId": 264,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 340,
+       "itemId": 273,
+       "currency": 1,
+       "price": 400,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 7, "max": 11 }
+       ]
+      },
+      {
+       "shopId": 338,
+       "itemId": 267,
+       "currency": 1,
+       "price": 3200,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 12, "max": 20 }
+       ]
+      },
+      {
+       "shopId": 339,
+       "itemId": 270,
+       "currency": 1,
+       "price": 3200,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 12, "max": 20 }
+       ]
+      },
+      {
+       "shopId": 341,
+       "itemId": 285,
+       "currency": 1,
+       "price": 3200,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 12, "max": 20 }
+       ]
+      },
+      {
+       "shopId": 352,
+       "itemId": 248,
+       "currency": 1,
+       "price": 3200,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 12, "max": 20 }
+       ]
+      },
+      {
+       "shopId": 355,
+       "itemId": 257,
+       "currency": 1,
+       "price": 3200,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 12, "max": 20 }
+       ]
+      },
+      {
+       "shopId": 484,
+       "itemId": 247,
+       "currency": 1,
+       "price": 3200,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 12, "max": 20 }
+       ]
+      },
+      {
+       "shopId": 361,
+       "itemId": 287,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 382,
+       "itemId": 278,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 383,
+       "itemId": 299,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 384,
+       "itemId": 302,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 385,
+       "itemId": 548,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 386,
+       "itemId": 555,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 387,
+       "itemId": 560,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 388,
+       "itemId": 565,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 389,
+       "itemId": 574,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 390,
+       "itemId": 581,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 467,
+       "itemId": 277,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 469,
+       "itemId": 283,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      },
+      {
+       "shopId": 486,
+       "itemId": 286,
+       "currency": 1,
+       "price": 35000,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 0,
+       "element": 1,
+       "ranges": [
+        { "stat": 5, "min": 20, "max": 34 }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "fn": "shopList",
+    "hex": "080000000c56e1baad74205068e1baa96d000000130000000300000007020000000affffffff0000000101ff00000000000000000000000001310000002f020000001effffffff0000000101ff00000000000000000000000001e800000285020000001effffffff0000000101ff000000000000000000000000012d00000023020000000affffffff0000000101ff000000000000000000000000012e00000024020000002dffffffff0000000101ff000000000000000000000000012f000000250200000096ffffffff0000000101ff000000000000000000000000013000000026020000015effffffff0000000101ff0000000000000000000000000132000000270200000005ffffffff0000000101ff0000000000000000000000000133000001b0020000000affffffff0000000101ff0000000000000000000000000193000001b1020000000cffffffff0000000101ff0000000000000000000000000194000001a00200000002ffffffff0000000101ff0000000000000000000000000195000001a10200000007ffffffff0000000101ff0000000000000000000000000196000001a2020000001effffffff0000000101ff0000000000000000000000000197000001a30200000078ffffffff0000000101ff0000000000000000000000000198000001a402000001e0ffffffff0000000101ff0000000000000000000000000199000001a5020000076cffffffff0000000101ff00000000000000000000000001e000000268020000001effffffff0000000101ff00000000000000000000000001e1000002690200000096ffffffff0000000101ff00000000000000000000000001e20000026a02000001f4ffffffff0000000101ff00000000000000000000",
+    "expected": {
+     "kind": 8,
+     "title": "Vật Phẩm",
+     "items": [
+      {
+       "shopId": 3,
+       "itemId": 7,
+       "currency": 2,
+       "price": 10,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 305,
+       "itemId": 47,
+       "currency": 2,
+       "price": 30,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 488,
+       "itemId": 645,
+       "currency": 2,
+       "price": 30,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 301,
+       "itemId": 35,
+       "currency": 2,
+       "price": 10,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 302,
+       "itemId": 36,
+       "currency": 2,
+       "price": 45,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 303,
+       "itemId": 37,
+       "currency": 2,
+       "price": 150,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 304,
+       "itemId": 38,
+       "currency": 2,
+       "price": 350,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 306,
+       "itemId": 39,
+       "currency": 2,
+       "price": 5,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 307,
+       "itemId": 432,
+       "currency": 2,
+       "price": 10,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 403,
+       "itemId": 433,
+       "currency": 2,
+       "price": 12,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 404,
+       "itemId": 416,
+       "currency": 2,
+       "price": 2,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 405,
+       "itemId": 417,
+       "currency": 2,
+       "price": 7,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 406,
+       "itemId": 418,
+       "currency": 2,
+       "price": 30,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 407,
+       "itemId": 419,
+       "currency": 2,
+       "price": 120,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 408,
+       "itemId": 420,
+       "currency": 2,
+       "price": 480,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 409,
+       "itemId": 421,
+       "currency": 2,
+       "price": 1900,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 480,
+       "itemId": 616,
+       "currency": 2,
+       "price": 30,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 481,
+       "itemId": 617,
+       "currency": 2,
+       "price": 150,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      },
+      {
+       "shopId": 482,
+       "itemId": 618,
+       "currency": 2,
+       "price": 500,
+       "durability": -1,
+       "quantity": 1,
+       "flag": 1,
+       "element": 255,
+       "ranges": []
+      }
+     ]
+    }
+   }
+  ],
+  "quotes": [
+   {
+    "text": "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+    "expected": {
+     "fee": null,
+     "luong": 0,
+     "rate": null,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Cần: 33 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 75%",
+    "expected": {
+     "fee": { "amount": 33, "money": "xuKhoa" },
+     "luong": 0,
+     "rate": 75,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Cần: 19 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 16%",
+    "expected": {
+     "fee": { "amount": 19, "money": "xuKhoa" },
+     "luong": 0,
+     "rate": 16,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Cần: 33 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 5 Lượng\nTỉ lệ thành công: 100%",
+    "expected": {
+     "fee": { "amount": 33, "money": "xuKhoa" },
+     "luong": 5,
+     "rate": 100,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Nhận được: 2 Đá cấp 1, ",
+    "expected": {
+     "fee": null,
+     "luong": 0,
+     "rate": null,
+     "stone": null,
+     "gain": [
+      { "quantity": 2, "name": "Đá cấp 1" }
+     ]
+    }
+   },
+   {
+    "text": "Nguồn: Giáp Đại Tướng +1 (bậc II)\nĐích: chưa có (trang bị +0 cùng loại, bậc bằng hoặc cao hơn)\nVật phẩm: chưa có (sơ cấp tới +10, trung cấp tới +13, cao cấp tới +16)",
+    "expected": {
+     "fee": null,
+     "luong": 0,
+     "rate": null,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Nguồn: Nhẫn Quỷ +1 (bậc II)\nĐích: Anh Hùng Nhẫn (bậc II)\nVật phẩm: Chuyển hoá trang bị sơ cấp (tối đa +10)\nSau khi chuyển: Anh Hùng Nhẫn +1 và bị khoá giao dịch, Nhẫn Quỷ về +0",
+    "expected": {
+     "fee": null,
+     "luong": 0,
+     "rate": null,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Cần chọn đá số lượng 2 đến 24",
+    "expected": {
+     "fee": null,
+     "luong": 0,
+     "rate": null,
+     "stone": null,
+     "gain": []
+    }
+   },
+   {
+    "text": "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%",
+    "expected": {
+     "fee": { "amount": 410, "money": "xuKhoa" },
+     "luong": 0,
+     "rate": 50,
+     "stone": { "level": 6, "locked": true },
+     "gain": []
+    }
+   },
+   {
+    "text": "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 100%",
+    "expected": {
+     "fee": { "amount": 410, "money": "xuKhoa" },
+     "luong": 0,
+     "rate": 100,
+     "stone": { "level": 6, "locked": true },
+     "gain": []
+    }
+   },
+   {
+    "text": "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 31%",
+    "expected": {
+     "fee": { "amount": 1639, "money": "xuKhoa" },
+     "luong": 0,
+     "rate": 31,
+     "stone": { "level": 7, "locked": true },
+     "gain": []
+    }
+   },
+   {
+    "text": "Luyện thành Đá cấp 2\nCần: 2 Xu\nTỉ lệ thành công: 50%",
+    "expected": {
+     "fee": { "amount": 2, "money": "xu" },
+     "luong": 0,
+     "rate": 50,
+     "stone": { "level": 2, "locked": false },
+     "gain": []
+    }
+   },
+   {
+    "text": "Nguồn: Nhẫn Quỷ +1 (bậc II)\nĐích: Anh Hùng Nhẫn (bậc II)\nVật phẩm: chưa có (sơ cấp tới +10, trung cấp tới +13, cao cấp tới +16)",
+    "expected": {
+     "fee": null,
+     "luong": 0,
+     "rate": null,
+     "stone": null,
+     "gain": []
+    }
+   }
+  ],
+  "plans": [
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": {},
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 6,
+     "xu": 0,
+     "xuKhoa": 3689,
+     "freed": 18,
+     "made": [
+      { "level": 6, "locked": true, "count": 5 },
+      { "level": 7, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": {},
+    "plan": [
+     {
+      "level": 1,
+      "slots": [ 16, 17, 60, 61 ],
+      "locked": false,
+      "window": "mergeXu",
+      "fee": 2
+     },
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 7,
+     "xu": 2,
+     "xuKhoa": 3689,
+     "freed": 21,
+     "made": [
+      { "level": 2, "locked": false, "count": 1 },
+      { "level": 6, "locked": true, "count": 5 },
+      { "level": 7, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "upTo": 6 },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 5,
+     "xu": 0,
+     "xuKhoa": 2050,
+     "freed": 15,
+     "made": [
+      { "level": 6, "locked": true, "count": 5 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "upTo": 6 },
+    "plan": [
+     {
+      "level": 1,
+      "slots": [ 16, 17, 60, 61 ],
+      "locked": false,
+      "window": "mergeXu",
+      "fee": 2
+     },
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 6,
+     "xu": 2,
+     "xuKhoa": 2050,
+     "freed": 18,
+     "made": [
+      { "level": 2, "locked": false, "count": 1 },
+      { "level": 6, "locked": true, "count": 5 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "upTo": 2 },
+    "plan": [],
+    "forecast": {
+     "merges": 0,
+     "xu": 0,
+     "xuKhoa": 0,
+     "freed": 0,
+     "made": []
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "upTo": 2 },
+    "plan": [
+     {
+      "level": 1,
+      "slots": [ 16, 17, 60, 61 ],
+      "locked": false,
+      "window": "mergeXu",
+      "fee": 2
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 2,
+     "xuKhoa": 0,
+     "freed": 3,
+     "made": [
+      { "level": 2, "locked": false, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "unlocked": false },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 6,
+     "xu": 0,
+     "xuKhoa": 3689,
+     "freed": 18,
+     "made": [
+      { "level": 6, "locked": true, "count": 5 },
+      { "level": 7, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "unlocked": false },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 6,
+     "xu": 0,
+     "xuKhoa": 3689,
+     "freed": 18,
+     "made": [
+      { "level": 6, "locked": true, "count": 5 },
+      { "level": 7, "locked": true, "count": 1 }
+     ]
+    }
+   }
+  ],
+  "upgradeStones": [
+   {
+    "unlocked": true,
+    "slots": [ 16, 17, 29, 34, 41, 19, 20, 24, 25, 26, 30, 31, 32, 33, 35, 36, 37, 39, 43, 44, 46, 47, 48, 49, 51, 52, 53, 28, 21, 27 ]
+   },
+   {
+    "unlocked": false,
+    "slots": [ 34, 41, 20, 24, 25, 26, 30, 31, 32, 33, 35, 36, 37, 39, 43, 44, 46, 47, 48, 49, 51, 52, 53, 21 ]
+   }
+  ],
+  "requests": { "put45": "0000000000000000000000002d00000001", "start": "00000000" }
  }
 }

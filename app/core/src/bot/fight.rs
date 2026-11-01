@@ -25,6 +25,12 @@ impl Bot {
                 "Đang đổi chỗ: đợi tới nơi rồi mới đánh quái".into(),
             ));
         }
+        if self.smith.is_some() {
+            return out.push(Out::Log(
+                LogKind::Battle,
+                "Đang làm việc ở Pháp sư hay Hương Lão: bấm Dừng rồi mới đánh quái".into(),
+            ));
+        }
         self.snap.job = Some(Job {
             target: target.into(),
             count,

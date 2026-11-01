@@ -435,7 +435,8 @@ pub fn npc_menu(p: &[u8]) -> Result<NpcMenu> {
 }
 
 /// One line of a shop: `shop_id` is what c2s/1190 buys, not the item id, since the same item is sold for Xu
-/// (`currency` 0) and for Xu khóa (1) in two lines.
+/// (`currency` 0), Xu khóa (1) or Lượng (2) in lines of their own. `flag` is the trade lock of the item bought (1
+/// tradeable, 0 locked: the Xu khóa lines). Gear has its main stat as a range it rolls in (15-shops.md#bản-ghi).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShopItem {
@@ -447,10 +448,17 @@ pub struct ShopItem {
     pub quantity: i32,
     pub flag: u8,
     pub element: u8,
+    pub ranges: Vec<StatRange>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct StatRange {
+    pub stat: i32,
+    pub min: i32,
+    pub max: i32,
 }
 
-/// s2c/1190 after c2s/57 opens a shop (Dược phẩm of Lái Buôn: kind 6, "Vật Phẩm", 8 lines of 33 bytes, P5). ← shopList of
-/// src/protocol/world.ts.
+/// s2c/1190 after c2s/57 opens one of the 14 shops (npc::SHOPS; kind 6 Dược phẩm of Lái Buôn: "Vật Phẩm", 8 lines of 33
+/// bytes, P5; gear lines are 49 bytes, J1). ← shopList of src/protocol/world.ts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShopList {
@@ -472,8 +480,22 @@ pub fn shop_list(p: &[u8]) -> Result<ShopList> {
             quantity: r.i32()?,
             flag: r.u8()?,
             element: r.u8()?,
+            ranges: {
+                // field2, field3, field4 (1 on gear) of the item record, then the stat ranges.
+                r.take(6)?;
+                let mut ranges = vec![];
+                for _ in 0..r.i32()?.max(0) {
+                    ranges.push(StatRange {
+                        stat: r.i32()?,
+                        min: r.i32()?,
+                        max: r.i32()?,
+                    });
+                    // 01 01 01 01, or 01 01 02 01 on weapons of tier 51: not understood.
+                    r.take(4)?;
+                }
+                ranges
+            },
         });
-        r.take(10)?;
     }
     r.finish(ShopList { kind, title, items }, "s2c/1190")
 }

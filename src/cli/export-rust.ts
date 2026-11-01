@@ -18,6 +18,10 @@ import { readFileSync } from 'node:fs';
 import { UNKNOWN, mobMoveOdds, answerValue, castSkill, mobBlock, battleItemResult, type Board, type Strategy } from '../battle/battle.ts';
 import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from '../battle/battle-actions.ts';
 import { fixtures } from '../../test/fixtures.ts';
+import { npcPackets, symapBag } from '../../test/fixtures-npc.ts';
+import { shopList } from '../protocol/world.ts';
+import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, quote, mergePlan,
+  mergeForecast, upgradeStones, putRequest, startRequest } from '../protocol/npc.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
@@ -98,6 +102,31 @@ function decoders() {
 }
 
 /** stepAction on the step texts of quests 3–9, and ones the bot does not know. */
+/** The packets of the NPC shops and of Pháp sư's windows (test/fixtures-npc.ts, J1–J3), what quote reads in each text,
+ * and the plans of Gộp đá and Nâng cấp on symap's bag (app/core/tests/npc.rs). */
+function npcCases() {
+  const fns: Record<number, [string, (p: Uint8Array) => any]> = {
+    96: ['serviceWindow', serviceWindow], 99: ['craftWindow', craftWindow], 90: ['serviceSlot', serviceSlot], 92: ['stoneSlot', stoneSlot],
+    1258: ['servicePreview', servicePreview], 1260: ['transmuteTarget', transmuteTarget], 91: ['serviceResult', serviceResult],
+    93: ['stoneResult', stoneResult], 1190: ['shopList', shopList],
+  };
+  const decoders: { fn: string; hex: string; expected: unknown }[] = [], texts = new Set<string>();
+  for (const [key, h] of Object.entries(npcPackets)) {
+    const f = fns[Number(key.split(' ')[0].split('/')[1])];
+    if (!f) continue;
+    const expected = f[1](bytes(h));
+    decoders.push({ fn: f[0], hex: h, expected });
+    if (typeof expected.text === 'string') texts.add(expected.text);
+  }
+  const extra = [...symapBag, { slot: 60, itemId: 411, field0: 0, field1: 1 }, { slot: 61, itemId: 411, field0: 0, field1: 1 }];
+  const plans = [{}, { upTo: 6 }, { upTo: 2 }, { unlocked: false }].flatMap(opts => [symapBag, extra].map(bag => ({ bag, opts, plan: mergePlan(bag, opts), forecast: mergeForecast(bag, opts) })));
+  return {
+    decoders, quotes: [...texts].map(text => ({ text, expected: quote(text) })), plans,
+    upgradeStones: [true, false].map(unlocked => ({ unlocked, slots: upgradeStones(symapBag, { unlocked }).map(i => i.slot) })),
+    requests: { put45: hex(putRequest(45)), start: hex(startRequest()) },
+  };
+}
+
 function stepActions() {
   const steps: [string, number, number?][] = [['Tiêu diệt Heo Mọi', -1], ['Tiêu diệt 1 Sói Xám', -1], ['Đánh bại Kẻ Gây Rối', -1], ['Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc', -1],
     ['Đạt cấp độ 8', -1], ['Nâng điểm tiềm năng', -1], ['Báo cáo với Bà Tư Hạnh', 103], ['Bàn bạc với Thành Chủ Nguyễn Khang', 129], ['Gặp Trại Chủ Phạm Hùng', 127],
@@ -425,7 +454,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
-    battleV3: battleV3(),
+    battleV3: battleV3(), npc: npcCases(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }
