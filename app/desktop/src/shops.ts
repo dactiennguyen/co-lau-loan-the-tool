@@ -1,4 +1,5 @@
 // The NPC services of Làng Thanh Khê as the Cửa hàng tab offers them (npc.rs, docs/app/events/15-shops.md, 16-upgrade.md).
+import { itemIcon } from "./itemIcons";
 import type { Character, Item } from "./types";
 
 /** Lái Buôn, Bà Tư Hạnh, Hương Lão and Pháp sư stand in Làng Thanh Khê; the server serves them only on that map (B1). */
@@ -40,6 +41,18 @@ export const MONEY = ["Xu", "Xu khóa", "Lượng"] as const;
 
 /** Đá cấp 1–12 are items 411–422; 0 for any other item. */
 export const stoneLevel = (id: number) => (id > 410 && id <= 422 ? id - 410 : 0);
+/** The picture of Đá cấp `level`, also for a stone the bag does not hold yet: data/items.json gives items 411–422 the
+ * icons 167–178 (data/icons/i167.webp…). */
+export const stoneIcon = (level: number) => itemIcon(166 + level);
+/** The stones of the bag by level (index 1–12): [locked, unlocked]. Stones do not stack: one per slot. */
+export function stoneCounts(items: Item[]): [number, number][] {
+  const counts = Array.from({ length: 13 }, (): [number, number] => [0, 0]);
+  for (const i of items) {
+    const level = stoneLevel(i.id);
+    if (level) counts[level][i.locked ? 0 : 1] += 1;
+  }
+  return counts;
+}
 /** Trần cường hoá of the Cẩm nang by the level to wear: tier 1 to +4, 21 to +8, 51 to +12, 101 and up to +16. */
 export const upgradeCap = (level: number) => (level >= 101 ? 16 : level >= 51 ? 12 : level >= 21 ? 8 : 4);
 /** Below +4 a failed Nâng cấp keeps the level; the app upgrades only that far until Bùa bảo vệ is measured. */
@@ -52,6 +65,9 @@ export const TRANSMUTE_ITEMS = [
 ];
 /** The gear Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh. */
 export const isGear = (i: Item) => i.kind != null && i.kind <= 4;
+/** Cường hoá of a piece of gear, as the bag and the item detail draw it: 0 for +0 and for any other item, whose field0
+ * is not a level. */
+export const plusOf = (i: Item) => (isGear(i) ? Math.max(0, i.plus) : 0);
 
 /** Why Pháp sư, Hương Lão or a shop cannot be used now; the bot refuses the same (Bot::busy, Bot::smith). */
 export function busyReason(c: Character): string | null {

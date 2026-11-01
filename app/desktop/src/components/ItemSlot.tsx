@@ -1,4 +1,5 @@
 import { itemIcon } from "../itemIcons";
+import { plusOf } from "../shops";
 import type { Item } from "../types";
 import { ELEMENT_ICON } from "./ElementTag";
 import { Icon, type IconName } from "./Icon";
@@ -20,8 +21,8 @@ interface Props {
 }
 
 /**
- * One square of the bag or the gear: the item's icon with its quantity (items that stack) and element in the corners; a
- * red tint when it is worn out. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens
+ * One square of the bag or the gear: the item's icon with its quantity (items that stack), element and cường hoá (+1 and
+ * up) in the corners; a red tint when it is worn out. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens
  * its menu.
  */
 export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPick, onMenu }: Props) {
@@ -35,11 +36,12 @@ export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPic
   const url = itemIcon(item.icon);
   const broken = item.durability != null && item.durability[0] <= 0;
   const qty = item.stacks ? ` ×${item.quantity}` : "";
+  const plus = plusOf(item);
   return (
     <button
       type="button"
       className={`slot${broken ? " slot--broken" : ""}${active ? " slot--active" : ""}`}
-      aria-label={`${label}: ${item.name}${qty}${broken ? ", hỏng" : ""}`}
+      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${broken ? ", hỏng" : ""}`}
       aria-pressed={active}
       onMouseEnter={() => onShow(true)}
       onMouseLeave={() => onShow(false)}
@@ -60,6 +62,11 @@ export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPic
     >
       {url ? <img src={url} alt="" draggable={false} /> : <span className="slot__id px">#{item.id}</span>}
       {item.stacks && <b className="slot__qty px">{item.quantity}</b>}
+      {plus > 0 && (
+        <b className="slot__plus px" aria-hidden="true">
+          +{plus}
+        </b>
+      )}
       {item.element != null && ELEMENT_ICON[item.element] && (
         <span className={`slot__el el el--${item.element}`} aria-hidden="true">
           <Icon name={ELEMENT_ICON[item.element]} size={9} />

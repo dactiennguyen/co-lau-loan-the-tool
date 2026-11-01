@@ -2,6 +2,7 @@ import { Icon } from "../components/Icon";
 import { ELEMENT_ICON } from "../components/ElementTag";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
+import { plusOf } from "../shops";
 import type { ReactNode } from "react";
 import type { Item } from "../types";
 import "./ItemDetail.css";
@@ -16,14 +17,15 @@ interface Props {
   actions?: ReactNode;
 }
 
-/** The item shown under the bag, as its popup in the game: icon, name, element, type, level, durability, stats, and the
- * popup's buttons. */
+/** The item shown under the bag, as its popup in the game: icon, name with its cường hoá ("Nhẫn Trơn +1"), element, type,
+ * level, durability, stats, and the popup's buttons. */
 export function ItemDetail({ item, where, element, actions }: Props) {
   if (!item) {
     return <div className="detail detail--none">Rê chuột hay bấm vào một món để xem chi tiết.</div>;
   }
   const url = itemIcon(item.icon);
   const broken = item.durability != null && item.durability[0] <= 0;
+  const plus = plusOf(item);
   const facts = [
     item.kindName,
     item.level != null && `cấp ${item.level}`,
@@ -35,7 +37,10 @@ export function ItemDetail({ item, where, element, actions }: Props) {
       <span className="detail__icon">{url ? <img src={url} alt="" /> : <span className="px">#{item.id}</span>}</span>
       <div className="detail__body">
         <div className="detail__name">
-          <b>{item.name}</b>
+          <b>
+            {item.name}
+            {plus > 0 && <span className="detail__plus px"> +{plus}</span>}
+          </b>
           {item.element != null && item.elementName && (
             <span className={`detail__el el el--${item.element}`}>
               {ELEMENT_ICON[item.element] && <Icon name={ELEMENT_ICON[item.element]} size={11} />} {item.elementName}

@@ -7,9 +7,10 @@ import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
-import { isGear, SAFE_LEVEL, stoneLevel, TRANSMUTE_ITEMS, upgradeCap } from "../shops";
+import { isGear, SAFE_LEVEL, stoneCounts, stoneLevel, TRANSMUTE_ITEMS, upgradeCap } from "../shops";
 import type { Item } from "../types";
 import type { ShopContext } from "./ShopModal";
+import { ItemChip, Stone } from "./Stone";
 
 /**
  * Nâng cấp (16-upgrade.md#nâng-cấp): a piece of gear of the bag, Thường or Cẩn thận (+5 Lượng, odds ×1,5), the odds to
@@ -34,6 +35,10 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   }, [item?.slot, item?.plus, top]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stones = (c.bag?.items ?? []).filter((i) => stoneLevel(i.id) && (unlocked || i.locked));
+  // The stones by level, as the bot will put them: the cheapest first.
+  const stoneRow = stoneCounts(c.bag?.items ?? [])
+    .map(([locked, free], level): [number, number] => [level, locked + (unlocked ? free : 0)])
+    .filter(([level, n]) => level > 0 && n > 0);
   const run = c.smith;
   const mine = run && item && run.item?.slot === item.slot ? run : null;
 
@@ -50,6 +55,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
     };
   }, [account.id, item?.slot, item?.plus]); // eslint-disable-line react-hooks/exhaustive-deps
   const stuff = item ? TRANSMUTE_ITEMS.find((t) => t.upTo >= item.plus && c.bag?.items.some((i) => i.id === t.id)) : undefined;
+  const stuffItem = stuff ? c.bag?.items.find((i) => i.id === stuff.id) : undefined;
   const byslot = (s: number) => c.bag?.items.find((i) => i.slot === s);
   const hint = useId();
 
@@ -116,6 +122,13 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               Mặc định bot chỉ đặt đá đã khoá (đá rơi từ quái, đá Tách đá trả về). Chọn thì dùng cả đá chưa khoá (mua bằng Lượng, bán
               được), nhưng đá đã khoá vẫn được đặt trước.
             </Hint>
+          </div>
+          <div className="stones" role="group" aria-label="Đá dùng được, rẻ nhất trước">
+            {stoneRow.length === 0 ? (
+              <span className="shoptab__note">Không có đá {unlocked ? "" : "đã khoá "}nào trong túi.</span>
+            ) : (
+              stoneRow.map(([level, n]) => <Stone key={level} level={level} count={n} short />)
+            )}
           </div>
           <p className="shoptab__note">
             {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stones.length} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
@@ -211,6 +224,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
                   Chuyển +{item.plus} sang món +0 cùng loại, bậc bằng hoặc cao hơn; món này về +0, món đích bị khoá. Miễn phí, mỗi lần 1 vật phẩm
                   Chuyển hoá ({stuff ? "có trong túi" : "túi chưa có: mua ở Cửa hàng [Lượng]"}).
                 </span>
+                {stuffItem && <ItemChip url={itemIcon(stuffItem.icon)} name={`Sẽ dùng: ${stuffItem.name}`} />}
                 {targets.length === 0 ? (
                   <span className="shoptab__note">Túi không có món đích hợp lệ.</span>
                 ) : (

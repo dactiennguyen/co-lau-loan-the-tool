@@ -6,9 +6,10 @@ import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { recalled, remember } from "../remember";
-import { stoneLevel } from "../shops";
+import { stoneCounts } from "../shops";
 import type { MergeForecast } from "../types";
 import type { ShopContext } from "./ShopModal";
+import { Stone } from "./Stone";
 
 const UP_TO = "shop.mergeUpTo";
 const UNLOCKED = "shop.mergeUnlocked";
@@ -36,11 +37,7 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
   }, [account.id, upTo, unlocked, stamp]);
 
   // Stones by level: [locked, unlocked].
-  const counts = Array.from({ length: 13 }, () => [0, 0]);
-  for (const i of bag?.items ?? []) {
-    const level = stoneLevel(i.id);
-    if (level) counts[level][i.locked ? 0 : 1] += 1;
-  }
+  const counts = stoneCounts(bag?.items ?? []);
   const levels = counts.map((n, level) => ({ level, locked: n[0], unlocked: n[1] })).filter((r) => r.level && r.locked + r.unlocked);
   const money = c.currencies;
   const short = !!forecast && !!money && (forecast.xu > money.xu || forecast.xuKhoa + forecast.xu > money.xuKhoa + money.xu);
@@ -74,7 +71,9 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
           <tbody>
             {levels.map((r) => (
               <tr key={r.level}>
-                <th scope="row">Đá cấp {r.level}</th>
+                <th scope="row">
+                  <Stone level={r.level} />
+                </th>
                 <td className="px">{r.locked || "—"}</td>
                 <td className="px">{r.unlocked || "—"}</td>
                 <td className="px">{Math.floor(r.locked / 4) + (unlocked ? Math.floor(r.unlocked / 4) : 0) || "—"}</td>
@@ -120,13 +119,20 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
           trộn hai loại: đá chưa khoá gộp ở Luyện đá [Xu], trả bằng Xu, nên đá ra vẫn chưa khoá. Bỏ chọn thì chỉ gộp đá đã khoá.
         </Hint>
       </div>
-      <p className="smerge__plan" role="status">
+      <div className="smerge__plan" role="status">
         {forecast == null
           ? "…"
           : forecast.merges === 0
             ? "Không có bộ 4 viên cùng cấp và cùng khoá nào để gộp."
-            : `Sẽ luyện ${forecast.merges} lần, tốn ${fee}, túi trống thêm ${forecast.freed} ô. Ra: ${made}.`}
-      </p>
+            : `Sẽ luyện ${forecast.merges} lần, tốn ${fee}, túi trống thêm ${forecast.freed} ô. Ra:`}
+        {forecast && forecast.merges > 0 && (
+          <span className="stones">
+            {forecast.made.map((m) => (
+              <Stone key={`${m.level}-${m.locked}`} level={m.level} count={m.count} locked={m.locked} />
+            ))}
+          </span>
+        )}
+      </div>
       <p className="shoptab__note">
         Chỉ gộp bộ 4 viên cùng cấp: tỉ lệ 100%, không mất đá. 4 viên cấp k thành 1 viên cấp k+1; phí theo cấp đá ra (Đá cấp 6:
         410, Đá cấp 7: 1.639 Xu khóa). Server không cho luyện khi tỉ lệ từ 40% trở xuống.
