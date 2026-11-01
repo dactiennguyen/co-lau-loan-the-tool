@@ -31,6 +31,8 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 `c2s/57` = `u8 mãDòng; string mapId; i32 npcId`, cùng một gói ở mọi tầng menu. Lúc chọn menu con, trên máy gửi `00 "M1" 161` cho Nâng cấp rồi lại `00 "M1" 161` cho Nâng cấp [Thường]. [Đo]
 
+**Server nhớ menu đang mở, gói không nói tầng nào.** Ở Hương Lão, cùng một gói `00 "M1" 102` là Mã quà tặng (menu gốc), "50 lượng nhận 50.000 Xu" (Đổi lượng, **đổi ngay**), Nhận nhiệm vụ hay Hủy nhiệm vụ hiện tại (Nhiệm vụ hàng ngày), hoặc Đổi Xu (Điểm năng động), tuỳ `s2c/57` cuối cùng server đã gửi [Đo G1]. Bot phải mở NPC bằng `c2s/13`, đi đúng đường menu, và chỉ gửi `c2s/57` với dòng có trong `s2c/57` vừa nhận. Không bao giờ gửi lại một `c2s/57` cũ. Sau khi menu đóng (chạm vào khung chữ, hay sau một việc), server có còn nhớ menu cũ không thì chưa thử [Chưa rõ].
+
 Đi kèm trả lời của NPC có thể có các gói nền không liên quan: `s2c/1` (ping), `s2c/1166`, `s2c/1167`, `s2c/1170` (người chơi khác), `s2c/1182`, `s2c/1183` (đồ trên đất). [Đo]
 
 <a id="danh-sách-npc"></a>
@@ -81,12 +83,62 @@ Các cửa sổ, gói đặt món, giá và tỉ lệ đo được, quy luật l
 | Dòng | Server trả |
 |---|---|
 | 0 Mã quà tặng | `s2c/1224` rỗng (0 byte), rồi client mở cửa sổ Phúc lợi → Mã quà tặng. Gửi mã là `c2s/1223` ([Mã quà tặng](#mã-quà-tặng)) [Đo G1] |
-| 1 Đổi lượng | `s2c/57` "Con muốn đổi gì.": 0 "50 lượng nhận 50.000 Xu", 1 "50 lượng nhận 55.000 Xu khóa" (J2). J3 chọn dòng 1: đổi ngay, không hỏi lại ([Đổi lượng](15-shops.md#đổi-lượng)) |
-| 2 Nhiệm vụ hàng ngày | `s2c/57` "Hôm nay con đã nhận 0/3 nhiệm vụ hàng ngày." với một dòng 0 Nhận nhiệm vụ. J1 không nhận |
-| 3 Điểm năng động | `s2c/57` "Điểm năng động tuần này: 54/100\nHạn mức đổi (cấp 79): 7.000 Xu, cần 7.700 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai." với 0 Đổi Xu, 1 Cách tính điểm, 2 Đóng |
+| 1 Đổi lượng | `s2c/57` "Con muốn đổi gì.": 0 "50 lượng nhận 50.000 Xu", 1 "50 lượng nhận 55.000 Xu khóa" (J2). Chọn dòng nào cũng đổi ngay, không hỏi lại: J3 đổi dòng 1, G1 đổi dòng 0 ([Đổi lượng](15-shops.md#đổi-lượng)) |
+| 2 Nhiệm vụ hàng ngày | `s2c/57` "Hôm nay con đã nhận N/3 nhiệm vụ hàng ngày." Chưa có nhiệm vụ: một dòng 0 Nhận nhiệm vụ. Đang có nhiệm vụ: một dòng 0 Hủy nhiệm vụ hiện tại ([Nhiệm vụ hàng ngày](#nhiệm-vụ-hàng-ngày)) |
+| 3 Điểm năng động | `s2c/57` "Điểm năng động tuần này: 54/100\nHạn mức đổi (cấp 79): 7.000 Xu, cần 7.700 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai." với 0 Đổi Xu, 1 Cách tính điểm, 2 Đóng ([Điểm năng động](#điểm-năng-động)) |
 | 3 → 1 Cách tính điểm | `s2c/0` (xem [dưới](#s2c-0)): "Điểm năng động tính theo tuần (bắt đầu 00:00 thứ Hai): Nhận thưởng nhiệm vụ ngày: 5 điểm (tối đa 3 nhiệm vụ / ngày); Thắng 10 / 20 / 30 trận đánh quái trong ngày: +2 điểm mỗi mốc (quái không quá thấp so với con); Tham gia Bạch Hổ (cấp 30+): 3 điểm / ngày; Nhiệm vụ Bảo Điển ngày (khi có mùa): 1 điểm (tối đa 4 / ngày). Đủ 100 điểm: đổi Xu khóa lấy Xu một lần mỗi tuần, hạn mức theo cấp. Mỗi tuần chỉ 500 người đổi đầu tiên có suất." |
 
-[Đo J1, J2]
+[Đo J1, J2, G1]
+
+<a id="nhiệm-vụ-hàng-ngày"></a>
+
+### Nhiệm vụ hàng ngày
+
+G1 (01/11, Tiheo2 / Ttuananh cấp 31, điện thoại có Frida ghi gói):
+
+| Bấm | Gửi | Server trả |
+|---|---|---|
+| Hương Lão → Nhiệm vụ hàng ngày | `c2s/57 (2, "M1", 102)` | `s2c/57` "Hôm nay con đã nhận 0/3 nhiệm vụ hàng ngày." với 0 Nhận nhiệm vụ |
+| Nhận nhiệm vụ | `c2s/57 (0, "M1", 102)` | `s2c/1256` "Nhận nhiệm vụ hàng ngày thành công.", rồi `s2c/1195` với nhiệm vụ mới (116 "Sử dụng vật phẩm") |
+| Nhiệm vụ hàng ngày lần nữa | `c2s/57 (2, …)` | "Hôm nay con đã nhận 1/3 nhiệm vụ hàng ngày." với 0 Hủy nhiệm vụ hiện tại |
+| Hủy nhiệm vụ hiện tại | `c2s/57 (0, …)` | `s2c/1195` `00` (hết nhiệm vụ), rồi `s2c/1256` "Hủy nhiệm vụ thành công". Không hỏi lại |
+| Nhiệm vụ hàng ngày sau khi hủy | `c2s/57 (2, …)` | Vẫn "đã nhận 1/3", với 0 Nhận nhiệm vụ: nhiệm vụ đã hủy vẫn tính một lượt |
+| Nhận nhiệm vụ lần hai | `c2s/57 (0, …)` | "Nhận nhiệm vụ hàng ngày thành công." và nhiệm vụ khác (113 "Nhặt xu") |
+
+`s2c/1195` là **nhiệm vụ ngày đang làm**, không phải cờ như [04-push](04-push.md#s2c-1195) ghi trước đây. Lúc đăng nhập nó đến cùng các gói nhân vật.
+
+```text
+s2c/1195  u8 có                   0: không có nhiệm vụ ngày (1 byte)
+          nếu 1: i32 mãNhiệmVụ; string tên; string mẫu ("%d" là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu
+```
+
+| Mã | Tên | Mẫu | Mục tiêu |
+|---|---|---|---|
+| 116 | Sử dụng vật phẩm | Sử dụng %d vật phẩm trong trận đấu | 3 |
+| 113 | Nhặt xu | Thu thập %d xu khóa từ đánh quái | 2050 |
+
+- Tab **Phụ** của khung nhiệm vụ bên trái hiện "Sử dụng 0/3 vật phẩm trong trận đấu"; mở tab không gửi gói nào. Nhân vật vẫn giữ nhiệm vụ chính (tab Chính).
+- Cẩm nang (mục Nhiệm vụ): mỗi ngày nhận tối đa 3 nhiệm vụ, mỗi lần làm 1; làm xong thì về Hương Lão chọn **Hoàn thành nhiệm vụ**; thưởng là kinh nghiệm, Xu khóa hoặc vật phẩm. Theo Cách tính điểm, mỗi lần nhận thưởng nhiệm vụ ngày được 5 điểm năng động.
+- Chưa đo [Chưa rõ]: tiến độ tăng thế nào (có `s2c/1195` mới sau mỗi trận không), dòng Hoàn thành nhiệm vụ và phần thưởng, nhận lượt thứ 4 trong ngày, mấy giờ thì tính sang ngày mới. Muốn đo thì phải đánh trận. Tiheo2 đang giữ nhiệm vụ 113 (0/2050), đã dùng 2/3 lượt của 01/11.
+
+<a id="điểm-năng-động"></a>
+
+### Điểm năng động
+
+G1, Tiheo2 cấp 31: "Điểm năng động tuần này: 12/100\nHạn mức đổi (cấp 31): 3.000 Xu, cần 3.300 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai."
+
+| Bấm | Gửi | Server trả |
+|---|---|---|
+| Đổi Xu khi chưa đủ 100 điểm | `c2s/57 (0, "M1", 102)` | `s2c/1256` "Chưa đủ 100 điểm năng động (đang có 12).", hộp thoại đóng. Không tốn gì |
+| Đóng | `c2s/57 (2, "M1", 102)` | **Không trả gì.** Client hiện "Vui lòng chờ..." và kẹt ở đó (hơn 2 phút); chạm vào hộp không tắt, phím Back đưa game xuống nền, mở lại vẫn kẹt. G1 gỡ bằng cách cho bot TS đăng nhập Tiheo2 để điện thoại bị đẩy ra ("Mất kết nối với máy chủ!"), rồi đăng nhập lại |
+
+- Hạn mức theo cấp: cấp 31 được 3.000 Xu (cần 3.300 Xu khóa), cấp 79 được 7.000 Xu (cần 7.700, J1). Có lẽ là 1.000 Xu cho mỗi 10 cấp và Xu khóa cần gấp 1,1 lần [Suy luận, mới có 2 điểm].
+- Đổi Xu khi đủ 100 điểm chưa đo (tốn Xu khóa) [Chưa rõ].
+- Bot không gửi dòng 2 Đóng: chỉ cần không chọn gì nữa. Trên máy, chạm vào khung chữ của hộp thoại thì hộp đóng mà không gửi gói nào [Đo G1].
+
+**Đổi lượng dòng 0 ở G1:** `c2s/57 (0, "M1", 102)` → `s2c/46` (Lượng 30.000 → 29.950), `s2c/46` (Xu 15.003.600 → 15.053.600), `s2c/1256` "Bạn vừa nhận được 50.000 Xu"; hộp thoại đóng ([15-shops](15-shops.md#đổi-lượng)).
+
+**Sự cố ở manina2 (G1):** trên điện thoại, nhân vật manina đứng cạnh Hương Lão (chưa gắn Frida). Hai lần bấm định mở menu ≡ và đóng một hộp thoại thì hiện ra hộp Nhiệm vụ hàng ngày, rồi "Bạn vừa nhận được 50.000 Xu". Bot đọc lại ví: Lượng 10.000 → 9.950, Xu 5.003.600 → 5.053.600, tức dòng 0 của Đổi lượng đã chạy. Không biết lần bấm nào gây ra. Chạm vào khung chữ thì không gửi gì (đã thử ở Tiheo2) [Chưa rõ]. Cách tránh: gắn Frida trước khi bấm, chụp màn hình trước mỗi lần bấm, và không bấm gì quanh một NPC có dòng đổi tiền ngay.
 
 <a id="mã-quà-tặng"></a>
 
@@ -217,6 +269,6 @@ Sau khoảng 8 phút gắn agent ghi gói và agent đi xuyên quái (thay `sqhz
 
 ## Chưa đo
 
-- Nhận nhiệm vụ hàng ngày, Đổi Xu (điểm năng động), Chế Băng Kiếm, chọn bậc ở Chế tạo trang bị: đều có thể làm thay đổi tài khoản ngay khi bấm.
+- Hoàn thành nhiệm vụ hàng ngày (phải đánh trận cho xong), Đổi Xu khi đủ 100 điểm năng động, Chế Băng Kiếm, chọn bậc ở Chế tạo trang bị: đều có thể làm thay đổi tài khoản ngay khi bấm. Nhận và Hủy nhiệm vụ hàng ngày, Đổi Xu khi chưa đủ điểm đã đo ở G1 ([Nhiệm vụ hàng ngày](#nhiệm-vụ-hàng-ngày), [Điểm năng động](#điểm-năng-động)).
 - Ở Pháp sư: bùa bảo vệ, nâng từ +2 trở lên, luyện đá thất bại, chế tạo ([16-upgrade](16-upgrade.md#chưa-đo)). Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá đã bấm thật ở J3 ([kết quả](16-upgrade.md#j3)).
 - Mua, bán, rút tiền ở Chợ trời.

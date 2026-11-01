@@ -298,7 +298,16 @@ S→C 46    Xu khóa 8.006.534, Lượng 16.588          (Xu khóa + 55.000)
 S→C 1256  1, "Bạn vừa nhận được 55.000 Xu khóa"
 ```
 
-Dòng 0 (50.000 Xu) chưa đo, chắc cùng dạng. Cẩm nang ghi cùng tỉ giá. Thiếu Lượng thì server trả gì: chưa đo.
+Dòng 0 cùng dạng, G1 đổi trên Tiheo2 (người dùng nhờ điều tra menu này) [Đo G1]:
+
+```text
+C→S 57    0, "M1", 102                  50 lượng nhận 50.000 Xu
+S→C 46    Xu 15.003.600, Lượng 29.950              (Lượng − 50)
+S→C 46    Xu 15.053.600, Lượng 29.950              (Xu + 50.000)
+S→C 1256  1, "Bạn vừa nhận được 50.000 Xu"
+```
+
+Gói của dòng 0 trùng từng byte với Mã quà tặng ở menu gốc, Nhận nhiệm vụ và Đổi Xu; server hiểu theo menu nó vừa gửi ([hộp thoại](14-npc.md#hộp-thoại)). Cẩm nang ghi cùng tỉ giá. Thiếu Lượng thì server trả gì, và mỗi ngày đổi được mấy lần: chưa đo.
 
 Chiều ngược lại (Xu khóa → Xu) có ở Điểm năng động, mỗi tuần một lần khi đủ 100 điểm ([Hương Lão](14-npc.md#hương-lão)).
 

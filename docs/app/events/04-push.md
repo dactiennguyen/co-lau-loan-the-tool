@@ -343,6 +343,7 @@ Nguồn: A2: packet đọc từ native reader, record 147.
 | Bố cục payload | u8 field |
 | Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
 | Độ dài payload mẫu | 1 byte |
+| Thêm (G1) | **Nhiệm vụ ngày đang làm**, không phải cờ: `00` là không có; có thì `01; i32 mãNhiệmVụ; string tên; string mẫu; i32 tiếnĐộ; i32 mụcTiêu` (92 byte cho 116 "Sử dụng vật phẩm" 0/3). Gửi lúc đăng nhập, khi nhận và khi hủy nhiệm vụ ngày ([Nhiệm vụ hàng ngày](14-npc.md#nhiệm-vụ-hàng-ngày)). Nhãn `flag_1195` và bố cục `u8` trong catalog TS là cũ |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
