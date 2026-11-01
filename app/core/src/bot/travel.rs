@@ -25,6 +25,8 @@ impl Bot {
             Some("đang nhập mã quà tặng, bấm Dừng trước")
         } else if self.mail_changing() {
             Some("đang nhận hay xoá thư, đợi server trả lời")
+        } else if self.market_changing() {
+            Some("đang mua bán ở Chợ trời, đợi server trả lời")
         } else {
             None
         }

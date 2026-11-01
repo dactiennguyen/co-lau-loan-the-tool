@@ -3,7 +3,8 @@
 // byte is the server's but "s2c/1192 Đang bán trước Gia hạn": the listing after, with the end it had before (24 h less, as
 // the probe read it). "s2c/1195 tiến độ 218/2100": manina's daily quest Nhặt xu after its first pickup of 218 Xu khóa.
 // Then Hoàn thành nhiệm vụ (s2c/1195 kind 2) with what came before it: the EXP (s2c/10) and the Xu khóa (s2c/46).
-// Golden inputs for test/market.test.ts only; not in the Rust vectors.
+// Golden inputs for test/market.test.ts; the Gia hạn packets also go, through src/cli/export-rust.ts, to the market part
+// of the Rust vectors.
 export const np1Packets: Record<string, string> = {
   "c2s/112 Gia hạn": "020000002464613136353537642d383161382d343461662d626564362d333762666531303862333331",
   "s2c/46 sau Gia hạn": "0000000975706461746520587500000000004d0d0000000000004cc56e00000000000026de",

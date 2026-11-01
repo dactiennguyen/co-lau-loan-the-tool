@@ -23,6 +23,8 @@ impl Bot {
             Some("đang nhập mã quà tặng")
         } else if self.mail_changing() {
             Some("đang nhận hay xoá thư")
+        } else if self.market_changing() {
+            Some("đang mua bán ở Chợ trời")
         } else {
             None
         };

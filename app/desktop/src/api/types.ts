@@ -362,6 +362,53 @@ export interface Character {
   giftLimits: GiftLimits;
   /** Hòm thư (Tiện ích): the list, the mails opened, the task under way. */
   mailbox: Mailbox;
+  /** Chợ trời (Tiện ích): the tabs, the page read last, Đang bán, the task under way. */
+  market: Market;
+}
+
+/** Chợ trời as the app knows it (MarketView of view.rs). */
+export interface Market {
+  /** s2c/116: the tabs with their listing counts, the fee, the hours on sale, the highest price; null until opened. */
+  tabs: MarketTabs | null;
+  /** The page of a tab read last, and Đang bán as read last. */
+  page: MarketPage | null;
+  mine: MarketPage | null;
+  /** What the task under way does ("Đang mua Thú cưng Slime…"); null when none is. */
+  doing: string | null;
+  /** The listing or bag item (uuid) the task under way is about. */
+  busyWith: string | null;
+  /** The task under way is Mua, Đăng bán, Thu hồi or Gia hạn: the character counts as busy until the server answers. */
+  changing: boolean;
+  /** The line the last of those ended with, as in the log. */
+  last: string | null;
+}
+export interface MarketTabs {
+  tabs: { tab: number; name: string; listings: number }[];
+  rules: string;
+  /** Xu to list (and to extend), the hours on sale, the highest price. */
+  fee: number;
+  hours: number;
+  maxPrice: number;
+}
+/** A page of s2c/1192; tab -1 is Đang bán. */
+export interface MarketPage {
+  tab: number;
+  tabName: string;
+  pages: number;
+  page: number;
+  listings: Listing[];
+}
+/** One item on sale: the item drawn as the bag draws it, its quality (1 Hiếm, 3 Sử Thi), seller, price in Xu, end. */
+export interface Listing {
+  uuid: string;
+  item: Item;
+  quality: number;
+  qualityName: string | null;
+  seller: string;
+  price: number;
+  currency: number;
+  /** When it leaves the market, in ms since 1970. */
+  expiresAt: number;
 }
 
 /** The mailbox as the app knows it (MailboxView of view.rs). */

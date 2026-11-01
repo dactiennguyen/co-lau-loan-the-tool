@@ -564,6 +564,7 @@ impl Bot {
                     || self.smith.is_some()
                     || self.gift.is_some()
                     || self.mail.is_some()
+                    || self.market.is_some()
                     || self.item_wait.is_some()
                     || self.zoning.is_some();
                 if picking && (about || !waiting) {
@@ -573,6 +574,8 @@ impl Bot {
                 out.push(Out::Log(LogKind::Server, text.clone()));
                 // The notice of Nhận ("Rương đã đầy…") or Nhận hết ("Đã nhận quà của 2 thư"), for its result line.
                 self.mail_notice(&text);
+                // A refusal of Mua, Đăng bán, Thu hồi or Gia hạn: their answers come before any notice.
+                self.market_notice(&text, out);
                 // The answer of Pháp sư or Hương Lão to a task (smith_notice).
                 if self.smith_notice(&text, now, out) {
                     return Ok(());
@@ -750,6 +753,27 @@ impl Bot {
                 self.mail_deleted(a, now, out);
             }
             1220 => self.snap.mailbox.unread = payload.first().map(|&b| b == 1),
+            // Chợ trời (bot/market.rs): the tabs, a page (also the answer to Gia hạn), Mua, Đăng bán, Thu hồi.
+            116 => {
+                let tabs = crate::market::market_tabs(payload)?;
+                self.market_tabs(tabs, now, out);
+            }
+            1192 => {
+                let page = crate::market::market(payload)?;
+                self.market_page(page, out);
+            }
+            115 => {
+                let d = crate::market::market_done(payload, 115)?;
+                self.market_bought(d, out);
+            }
+            112 => {
+                let l = crate::market::market_listed(payload)?;
+                self.market_listed(l, now, out);
+            }
+            113 => {
+                let d = crate::market::market_done(payload, 113)?;
+                self.market_withdrawn(d, out);
+            }
             _ => {}
         }
         self.walk_back(now, out);

@@ -46,6 +46,12 @@ impl Bot {
                 "Đang nhận hay xoá thư: đợi xong rồi mới làm nhiệm vụ".into(),
             ));
         }
+        if self.market_changing() {
+            return out.push(Out::Log(
+                LogKind::Quest,
+                "Đang mua bán ở Chợ trời: đợi xong rồi mới làm nhiệm vụ".into(),
+            ));
+        }
         let playing = step.and_then(|(id, i)| {
             let q = self
                 .snap

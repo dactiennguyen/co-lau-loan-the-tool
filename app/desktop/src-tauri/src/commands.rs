@@ -7,7 +7,9 @@ use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
-use cllt_core::bot::{BattleSource, FightSettings, ItemAct, LogKind, MailTask, SmithTask};
+use cllt_core::bot::{
+    BattleSource, FightSettings, ItemAct, LogKind, MailTask, MarketTask, SmithTask,
+};
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
 use cllt_core::potentials::StatPlan;
@@ -316,6 +318,43 @@ pub fn mail_claim_all(shared: State<Shared>, id: u64) {
 #[tauri::command]
 pub fn mail_delete(shared: State<Shared>, id: u64, mails: Vec<i64>) {
     shared.with(|app| app.send(id, Command::Mail(MailTask::Delete(mails))));
+}
+
+/// Chợ trời, from wherever the character stands (Bot::market); `character.market` and the log tell how it went. Opens
+/// the window (c2s/116) on page `page` of tab `tab` (-1 for Đang bán).
+#[tauri::command]
+pub fn market_open(shared: State<Shared>, id: u64, tab: i32, page: i32) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Open { tab, page })));
+}
+
+/// Chợ trời: page `page` of tab `tab` (-1 for Đang bán); also Làm mới.
+#[tauri::command]
+pub fn market_page(shared: State<Shared>, id: u64, tab: i32, page: i32) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Page { tab, page })));
+}
+
+/// Chợ trời, Mua: the listing `uuid` of the page shown, at `price` Xu as shown.
+#[tauri::command]
+pub fn market_buy(shared: State<Shared>, id: u64, uuid: String, price: i32) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Buy { uuid, price })));
+}
+
+/// Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu (the fee of s2c/116 is taken).
+#[tauri::command]
+pub fn market_sell(shared: State<Shared>, id: u64, slot: u8, price: i64) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Sell { slot, price })));
+}
+
+/// Chợ trời, Thu hồi: the listing `uuid` of Đang bán back to the bag.
+#[tauri::command]
+pub fn market_withdraw(shared: State<Shared>, id: u64, uuid: String) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Withdraw(uuid))));
+}
+
+/// Chợ trời, Gia hạn: 24 more hours on the listing `uuid` of Đang bán, for the fee.
+#[tauri::command]
+pub fn market_extend(shared: State<Shared>, id: u64, uuid: String) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Extend(uuid))));
 }
 
 /// Mua: `quantity` of the shop line `shop_id`; the log tells how it went.

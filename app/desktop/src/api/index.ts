@@ -105,6 +105,18 @@ export interface Api {
   mailClaimAll(id: number): Promise<void>;
   /** Hòm thư, Xóa: these mails, only those whose gift is taken or that had none. There is no Xóa hết. */
   mailDelete(id: number, mails: number[]): Promise<void>;
+  /** Chợ trời, from wherever the character stands: the tabs, then page `page` of tab `tab` (-1 for Đang bán). */
+  marketOpen(id: number, tab: number, page: number): Promise<void>;
+  /** Chợ trời: page `page` of tab `tab` (-1 for Đang bán); also Làm mới. */
+  marketPage(id: number, tab: number, page: number): Promise<void>;
+  /** Chợ trời, Mua: the listing `uuid` of the page shown, at `price` Xu as shown. */
+  marketBuy(id: number, uuid: string, price: number): Promise<void>;
+  /** Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu; the fee is taken at once. */
+  marketSell(id: number, slot: number, price: number): Promise<void>;
+  /** Chợ trời, Thu hồi: the listing `uuid` of Đang bán back to the bag. */
+  marketWithdraw(id: number, uuid: string): Promise<void>;
+  /** Chợ trời, Gia hạn: 24 more hours on the listing `uuid` of Đang bán, for the fee. */
+  marketExtend(id: number, uuid: string): Promise<void>;
   /** Older lines of the Nhật ký from cllt.db, oldest first: before row `before`, of `kinds` (all when empty), only the
    * red ones with `bad`. Empty without the database. */
   logHistory(id: number, before: number | null, kinds: LogKind[], bad: boolean, limit: number): Promise<LogLine[]>;
@@ -187,6 +199,12 @@ const tauri: Api = {
   mailClaim: (id, mail) => invoke("mail_claim", { id, mail }),
   mailClaimAll: (id) => invoke("mail_claim_all", { id }),
   mailDelete: (id, mails) => invoke("mail_delete", { id, mails }),
+  marketOpen: (id, tab, page) => invoke("market_open", { id, tab, page }),
+  marketPage: (id, tab, page) => invoke("market_page", { id, tab, page }),
+  marketBuy: (id, uuid, price) => invoke("market_buy", { id, uuid, price }),
+  marketSell: (id, slot, price) => invoke("market_sell", { id, slot, price }),
+  marketWithdraw: (id, uuid) => invoke("market_withdraw", { id, uuid }),
+  marketExtend: (id, uuid) => invoke("market_extend", { id, uuid }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
   battleStats: (id, since, source) => invoke("battle_stats", { id, since, source }),
   battleHistory: (id, since, source, before, limit) => invoke("battle_history", { id, since, source, before, limit }),
@@ -260,6 +278,12 @@ const preview: Api = {
   mailClaim: nothing,
   mailClaimAll: nothing,
   mailDelete: nothing,
+  marketOpen: nothing,
+  marketPage: nothing,
+  marketBuy: nothing,
+  marketSell: nothing,
+  marketWithdraw: nothing,
+  marketExtend: nothing,
   logHistory: async () => [],
   battleStats: async () => (await loadSample()).battleStats ?? null,
   battleHistory: async (_id, _since, _source, before) => (before == null ? ((await loadSample()).battleHistory ?? []) : []),

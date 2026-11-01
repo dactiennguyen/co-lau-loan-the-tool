@@ -27,6 +27,9 @@ import { g1Packets } from '../../test/fixtures-g1.ts';
 import { q17Packets } from '../../test/fixtures-q17.ts';
 import { claimedCount, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
 import { Items } from '../protocol/items.ts';
+import { market, marketBuyRequest, marketDone, marketExtendRequest, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from '../protocol/market.ts';
+import { ct1Packets } from '../../test/fixtures-ct1.ts';
+import { np1Packets } from '../../test/fixtures-np1.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -165,6 +168,34 @@ function mailCases() {
   const claimed = ['Đã nhận quà của 2 thư', 'Đã nhận quà của 1 thư, rương đã đầy', 'Không có quà nào để nhận',
     'Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa'].map(text => ({ text, count: claimedCount(text) }));
   return { decoders, requests, slots, claimed };
+}
+
+/** Chợ trời: what market, marketTabs, marketListed and marketDone read in the packets of CT1 (test/fixtures-ct1.ts) and in
+ * Đang bán before and after Gia hạn of NP1 (test/fixtures-np1.ts); the bytes of c2s/1192, c2s/115, c2s/112 (kind 1 and 2)
+ * and c2s/113 as built here and as on the wire (`wire`: the phone's in CT1, the TS bot's that the server took in NP1); the
+ * packets of NP1's Gia hạn in their order, for the bot to replay (app/core/tests/market.rs). */
+function marketCases() {
+  const fns: Record<string, [string, (p: Uint8Array) => unknown]> = {
+    's2c/1192': ['market', market], 's2c/116': ['marketTabs', marketTabs], 's2c/112': ['marketListed', marketListed],
+    's2c/113': ['marketDone', p => marketDone(p, 113)], 's2c/115': ['marketDone', p => marketDone(p, 115)],
+  };
+  const extend = ['s2c/1192 Đang bán trước Gia hạn', 'c2s/112 Gia hạn', 's2c/46 sau Gia hạn', 's2c/1192 Đang bán sau Gia hạn', 's2c/1256 gia hạn'];
+  const packets = { ...ct1Packets, ...Object.fromEntries(extend.map(k => [k, np1Packets[k]])) };
+  const decoders = Object.entries(packets).flatMap(([key, h]) => {
+    const f = fns[key.split(' ')[0]];
+    return f ? [{ fn: f[0], key, hex: h, expected: f[1](bytes(h)) }] : [];
+  });
+  const uuid = (key: string) => new Reader(bytes(ct1Packets[key])).string();
+  const extendUuid = (() => { const r = new Reader(bytes(np1Packets['c2s/112 Gia hạn'])); r.u8(); return r.string(); })();
+  const requests = [
+    { op: 1192, tab: 1, page: 2, hex: hex(marketPageRequest(1, 2)), wire: ct1Packets['c2s/1192 Nón Nam trang 2'] },
+    { op: 1192, tab: -1, page: 1, hex: hex(marketPageRequest(-1)), wire: ct1Packets['c2s/1192 Đang bán'] },
+    { op: 115, uuid: uuid('c2s/115 Mua'), hex: hex(marketBuyRequest(uuid('c2s/115 Mua'))), wire: ct1Packets['c2s/115 Mua'] },
+    { op: 112, slot: 2, quantity: 1, price: 1_000_000, hex: hex(marketSellRequest(2, 1, 1_000_000)), wire: ct1Packets['c2s/112 Đăng bán ô 2 giá 1.000.000'] },
+    { op: 113, uuid: uuid('c2s/113 Thu hồi'), hex: hex(marketWithdrawRequest(uuid('c2s/113 Thu hồi'))), wire: ct1Packets['c2s/113 Thu hồi'] },
+    { op: 112, uuid: extendUuid, hex: hex(marketExtendRequest(extendUuid)), wire: np1Packets['c2s/112 Gia hạn'] },
+  ];
+  return { decoders, requests, extend: extend.map(key => ({ key, hex: np1Packets[key] })) };
 }
 
 function stepActions() {
@@ -503,7 +534,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
-    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(),
+    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), market: marketCases(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }

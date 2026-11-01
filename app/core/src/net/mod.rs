@@ -5,8 +5,8 @@ use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::battle_record::BattleData;
 use crate::bot::{
-    BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind, MailTask, Out,
-    PickupRecord, SmithTask, Snapshot,
+    BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind, MailTask,
+    MarketTask, Out, PickupRecord, SmithTask, Snapshot,
 };
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
@@ -84,6 +84,8 @@ pub enum Command {
     GiftReset,
     /// A task of the Hòm thư tab (Bot::mail).
     Mail(MailTask),
+    /// A task of the Chợ trời tab (Bot::market).
+    Market(MarketTask),
     Logout,
 }
 

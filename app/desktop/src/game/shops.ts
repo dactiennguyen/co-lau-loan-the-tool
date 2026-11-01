@@ -78,5 +78,6 @@ export function busyReason(c: Character): string | null {
   if (c.smith && !c.smith.done) return "Đang làm việc với Pháp sư hay Hương Lão.";
   if (c.gift && !c.gift.done) return "Đang nhập mã quà tặng.";
   if (c.mailbox.changing) return "Đang nhận hay xoá thư.";
+  if (c.market.changing) return "Đang mua bán ở Chợ trời.";
   return null;
 }

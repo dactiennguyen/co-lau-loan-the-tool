@@ -285,6 +285,8 @@ Không cần điện thoại hay NPC: mọi gói ở trên gửi được ngay s
 3. Hay dùng `c2s/1218` (Nhận hết): nhận được thư nào hay thư đó, an toàn với túi đầy. Đọc lời trong `s2c/1256` ("Đã nhận quà của N thư", "…, rương đã đầy", "Không có quà nào để nhận") và danh sách mới trong `s2c/1215`.
 4. Xoá: chỉ `c2s/1219` từng thư có `đãNhận` 1. **Không bao giờ gửi `c2s/1221`** khi còn thư có quà chưa nhận.
 
+App Rust làm các bước 2–4 ở tab Hòm thư của Tiện ích: danh sách, mở thư, Nhận (đếm ô trước), Nhận hết, xoá từng thư đã nhận quà; không có Xóa hết ([features](../../integration/rust/features.md#hòm-thư)).
+
 <a id="ngọc-nga"></a>
 
 ## Ngọc Nga (Chợ trời)
@@ -397,6 +399,8 @@ Chưa đo: món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/11
 ### Làm bằng bot TS
 
 `npm run market` xem chợ, quét món rẻ nhất, Mua, Đăng bán, Thu hồi bằng đúng các gói trên, mở chợ như nút của thanh công cụ (không qua Ngọc Nga). Không có `--confirm` thì chỉ đọc. Cách chạy, các bước kiểm tra trước khi gửi và TODO: [Chợ trời bằng Node.js](../../integration/nodejs/market.md).
+
+App Rust làm Mua, Đăng bán (từng cái một), Gia hạn và Thu hồi ở tab Chợ trời của Tiện ích, cũng mở chợ như nút của thanh công cụ và hỏi lại trước mỗi việc tốn tiền hay chuyển đồ; chưa quét món rẻ nhất trên mọi trang ([features](../../integration/rust/features.md#chợ-trời)).
 
 ### Lời mời của người chơi khác
 

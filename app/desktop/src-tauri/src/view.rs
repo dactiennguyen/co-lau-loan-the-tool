@@ -4,10 +4,11 @@ use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
     BattleView, Boost, BossTile, FightSettings, GiftLimits, GiftRun, Job, LogKind, Mailbox,
-    MapChoice, Picked, QuestRun, SmithRun, Target,
+    MapChoice, MarketState, Picked, QuestRun, SmithRun, Target,
 };
-use cllt_core::items::{book, Bag, Currencies, ItemRecord};
+use cllt_core::items::{book, Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{self, MailBody, MailHeader, Money};
+use cllt_core::market::{self, MarketListing, MarketPage, MarketTabs};
 use cllt_core::net::ConnState;
 use cllt_core::npc::{self, Quote};
 use cllt_core::potentials::StatPlan;
@@ -221,6 +222,107 @@ pub struct CharacterView<'a> {
     pub gift_limits: &'a GiftLimits,
     /// Hòm thư (Tiện ích): the list, the mails opened, the task under way.
     pub mailbox: MailboxView<'a>,
+    /// Chợ trời (Tiện ích): the tabs, the page read last, Đang bán, the task under way.
+    pub market: MarketView<'a>,
+}
+
+/// Chợ trời for its tab: s2c/116 (tabs, fee, hours, highest price), the page of a tab last read, Đang bán, the task
+/// under way (what, about which uuid, whether it keeps the character busy) and the line the last one ended with.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketView<'a> {
+    pub tabs: Option<&'a MarketTabs>,
+    pub page: Option<MarketPageView<'a>>,
+    pub mine: Option<MarketPageView<'a>>,
+    pub doing: Option<&'a str>,
+    pub busy_with: Option<&'a str>,
+    pub changing: bool,
+    pub last: Option<&'a str>,
+}
+impl<'a> MarketView<'a> {
+    pub fn of(m: &'a MarketState) -> Self {
+        Self {
+            tabs: m.tabs.as_ref(),
+            page: m.page.as_ref().map(MarketPageView::of),
+            mine: m.mine.as_ref().map(MarketPageView::of),
+            doing: m.doing.as_deref(),
+            busy_with: m.busy_with.as_deref(),
+            changing: m.changing,
+            last: m.last.as_deref(),
+        }
+    }
+}
+
+/// A page of s2c/1192: tab -1 for Đang bán.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketPageView<'a> {
+    pub tab: i32,
+    pub tab_name: &'a str,
+    pub pages: i32,
+    pub page: i32,
+    pub listings: Vec<ListingView<'a>>,
+}
+impl<'a> MarketPageView<'a> {
+    fn of(p: &'a MarketPage) -> Self {
+        Self {
+            tab: p.tab,
+            tab_name: &p.tab_name,
+            pages: p.pages,
+            page: p.page,
+            listings: p.listings.iter().map(ListingView::of).collect(),
+        }
+    }
+}
+
+/// One listing: its uuid on the market, the item drawn as the bag draws it (name, icon, stats, level, durability), the
+/// quality (1 Hiếm, 3 Sử Thi), who sells it, the price in Xu (`currency` 0) and when it ends (ms since 1970).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListingView<'a> {
+    pub uuid: &'a str,
+    pub item: ItemView,
+    pub quality: i32,
+    pub quality_name: Option<&'static str>,
+    pub seller: &'a str,
+    pub price: i32,
+    pub currency: u8,
+    pub expires_at: i64,
+}
+impl<'a> ListingView<'a> {
+    fn of(l: &'a MarketListing) -> Self {
+        let record = ItemRecord {
+            slot: 0,
+            item_id: l.item_id,
+            uuid: l.uuid.clone(),
+            field0: l.field0,
+            durability: l.durability,
+            quantity: l.quantity,
+            field1: l.field1,
+            element: 0xff,
+            field2: l.field2,
+            field3: 0,
+            field4: 0,
+            stats: l
+                .stats
+                .iter()
+                .map(|s| ItemStat {
+                    stat: s.stat,
+                    value: s.value,
+                })
+                .collect(),
+        };
+        Self {
+            uuid: &l.uuid,
+            item: ItemView::of(&record),
+            quality: l.quality,
+            quality_name: market::quality_name(l.quality),
+            seller: &l.seller,
+            price: l.price,
+            currency: l.currency,
+            expires_at: l.expires_at,
+        }
+    }
 }
 
 /// Mailbox for the Hòm thư tab: the list as last listed (null until listed), the mails opened with their items drawn as
@@ -609,6 +711,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             gift: s.gift.as_ref(),
             gift_limits: &s.gift_limits,
             mailbox: MailboxView::of(&s.mailbox, s.bag.as_ref()),
+            market: MarketView::of(&s.market),
             moving: s.moving.as_deref(),
             back_to: s.back_to.as_deref(),
             maps: &s.maps,

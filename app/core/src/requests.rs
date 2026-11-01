@@ -41,6 +41,11 @@ pub struct Ctx<'a> {
     pub code: Option<&'a str>,
     /// The mail of c2s/1216 (open), c2s/1217 (Nhận), c2s/1219 (Xóa): its id in s2c/1215.
     pub mail_id: Option<i64>,
+    /// Chợ trời: the tab (0–8 of s2c/116, -1 for Đang bán) and page (from 1) of c2s/1192; the price of Đăng bán (c2s/112
+    /// kind 1, with `slot` and `quantity`). Mua (c2s/115), Thu hồi (c2s/113) and Gia hạn (c2s/112 kind 2) take `uuid`.
+    pub tab: Option<i32>,
+    pub page: Option<i32>,
+    pub price: Option<i64>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -55,7 +60,7 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
     Ok(match opcode {
         // c2s/1215 asks for the mailbox, c2s/1218 is Nhận hết. c2s/1221 (Xóa hết) has no arm: it deletes the gifts not
         // taken too (mail::DELETE_ALL).
-        -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 => w.build(),
+        -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 | 116 => w.build(),
         1206 => w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build(),
         5 => w
             .i32(c.server_id.unwrap_or(SERVER_ID))
@@ -136,6 +141,23 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         1223 => w.string(required(c.code, "code")?).build(),
         // Hòm thư (G1): open, Nhận and Xóa of one mail.
         1216 | 1217 | 1219 => w.i64(required(c.mail_id, "mailId")?).build(),
+        // Chợ trời (CT1, NP1): a page, Mua and Thu hồi by the listing's uuid; c2s/112 is Gia hạn (kind 2) with a uuid,
+        // else Đăng bán (kind 1) of a bag slot.
+        1192 => w
+            .u8(0)
+            .i32(required(c.tab, "tab")?)
+            .i32(c.page.unwrap_or(1))
+            .build(),
+        115 | 113 => w.string(required(c.uuid, "uuid")?).build(),
+        112 => match c.uuid {
+            Some(uuid) => w.u8(2).string(uuid).build(),
+            None => w
+                .u8(1)
+                .i32(required(c.slot, "slot")?)
+                .i32(c.quantity.unwrap_or(1))
+                .i64(required(c.price, "price")?)
+                .build(),
+        },
         1178 => w.string(required(c.mob_id, "mobId")?).i32(0).build(),
         1181 => w
             .string(required(c.mob_id, "mobId")?)

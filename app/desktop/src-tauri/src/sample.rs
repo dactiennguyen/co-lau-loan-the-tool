@@ -6,11 +6,12 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, GiftCode, GiftLimits,
-    GiftRun, Job, LogKind, Mailbox, MapChoice, Picked, PickupRecord, QuestRun, SmithRun, Snapshot,
-    Target,
+    GiftRun, Job, LogKind, Mailbox, MapChoice, MarketState, Picked, PickupRecord, QuestRun,
+    SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{MailBody, MailHeader};
+use cllt_core::market::{MarketListing, MarketPage, MarketStat, MarketTab, MarketTabs};
 use cllt_core::net::ConnState;
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
@@ -149,6 +150,100 @@ fn g1_mailbox() -> Mailbox {
             "Xong nhận thư \"Quà Đền bù AlphaTest\": 5.000.000 Xu, 10.000 Lượng, 5.000.000 Xu khóa"
                 .into(),
         ),
+    }
+}
+
+/// Chợ trời as CT1 read it (14-npc.md#ngọc-nga): the nine tabs and part of Vật Phẩm Khác page 4 with a weapon of Vũ
+/// Khí, the sellers renamed; one Slime of the character's own on sale. The ends made up around the real ones.
+fn ct1_market() -> MarketState {
+    let now = ago(0) as i64;
+    let listing = |uuid: &str,
+                   item_id: i32,
+                   seller: &str,
+                   quality: i32,
+                   price: i32,
+                   hours: i64,
+                   stats: &[(i32, i32)]| {
+        MarketListing {
+            item_id,
+            item_id2: item_id,
+            uuid: uuid.into(),
+            seller: seller.into(),
+            durability: if quality > 0 { 60 } else { -1 },
+            field0: 0,
+            quality,
+            expires_at: now + hours * 3_600_000 + 17 * 60_000,
+            currency: 0,
+            price,
+            field2: 0,
+            quantity: 1,
+            field1: 1,
+            stats: stats
+                .iter()
+                .map(|&(stat, value)| MarketStat {
+                    stat,
+                    value,
+                    value2: value,
+                })
+                .collect(),
+        }
+    };
+    let names = [
+        ("Vũ Khí", 169),
+        ("Nón Nam", 102),
+        ("Nón Nữ", 9),
+        ("Giáp Nam", 50),
+        ("Giáp Nữ", 9),
+        ("Nhẫn", 77),
+        ("Vật Phẩm Khác", 139),
+        ("Đá Quý", 16),
+        ("Vật Dụng", 23),
+    ];
+    MarketState {
+        tabs: Some(MarketTabs {
+            tabs: names
+                .iter()
+                .enumerate()
+                .map(|(tab, &(name, listings))| MarketTab {
+                    tab: tab as i32,
+                    name: name.into(),
+                    listings,
+                })
+                .collect(),
+            rules: "Phí đăng bán 1.000 Xu, bán trong 24 giờ, phí chợ 5% khi bán được. Tiền bán được và vật phẩm hết hạn gửi về hộp thư.".into(),
+            fee: 1000,
+            a: 1000,
+            hours: 24,
+            b: 1000,
+            max_price: 100_000_000,
+        }),
+        page: Some(MarketPage {
+            tabs: 9,
+            tab: 6,
+            tab_name: "Vật Phẩm Khác".into(),
+            pages: 7,
+            page: 4,
+            listings: vec![
+                listing("s-1", 424, "Người bán 1", 0, 88_888, 21, &[(1, 18)]),
+                listing("s-2", 423, "Người bán 1", 0, 88_888, 21, &[(4, 13)]),
+                listing("s-3", 423, "Người bán 2", 0, 1_000, 18, &[(4, 16)]),
+                listing("s-4", 426, "Người bán 2", 0, 100_000, 18, &[(2, 18)]),
+                listing("s-5", 425, "Người bán 2", 0, 555_555, 9, &[(3, 15)]),
+                listing("s-6", 299, "Người bán 3", 3, 3_333_333, 2, &[(5, 44), (2, 23), (4, 20)]),
+            ],
+        }),
+        mine: Some(MarketPage {
+            tabs: 0,
+            tab: -1,
+            tab_name: String::new(),
+            pages: 1,
+            page: 1,
+            listings: vec![listing("s-mine", 423, "kiemkhach", 0, 1_000_000, 20, &[(4, 16)])],
+        }),
+        doing: None,
+        busy_with: None,
+        changing: false,
+        last: Some("Xong mua Thú cưng Slime (1.000 Xu)".into()),
     }
 }
 
@@ -641,6 +736,7 @@ pub fn entries() -> Vec<Entry> {
             ..GiftLimits::default()
         },
         mailbox: g1_mailbox(),
+        market: ct1_market(),
         ..Snapshot::default()
     };
 

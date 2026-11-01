@@ -113,6 +113,8 @@ const paths = {
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
   cart: <path d="M3 4h2l2.2 10.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L19.5 8H6.2M9 20h.01M17 20h.01" />,
+  // A stall under an awning: Chợ trời.
+  market: <path d="M3 9 5 4h14l2 5M3 9h18M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M5 12v8h14v-8M10 20v-5h4v5" />,
   // An envelope: Hòm thư.
   mail: <path d="M3 5h18v14H3zM3 6l9 7 9-7" />,
   // A box with a ribbon and a bow: Mã quà tặng.

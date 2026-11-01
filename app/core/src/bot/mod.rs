@@ -12,6 +12,7 @@ use crate::items::{
     gear_update, ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
 };
 use crate::mail::{MailBody, MailHeader};
+use crate::market::{MarketPage, MarketTabs};
 use crate::npc::{
     self, craft_window, merge_plan, quote, service_preview, service_result, service_slot,
     service_window, stone_result, stone_slot, transmute_item, transmute_target, upgrade_stones,
@@ -40,6 +41,7 @@ mod fight;
 mod gift;
 mod items;
 mod mailbox;
+mod market;
 mod packets;
 mod quest;
 mod record;
@@ -275,6 +277,9 @@ pub struct Bot {
     gift_echo: Option<(String, Instant)>,
     /// Hòm thư (mailbox.rs): the task under way, waiting for the server. What the mailbox holds is in Snapshot.mailbox.
     mail: Option<mailbox::MailWait>,
+    /// Chợ trời (bot/market.rs): the task under way, waiting for the server. What the market showed is in
+    /// Snapshot.market.
+    market: Option<market::MarketWait>,
     fight: FightSettings,
     /// The gear slot and item name of the repair auto_repair sent, until s2c/48 or a notice answers it. `repair_failed`
     /// holds the slots the server did not repair in this run, `repair_warned` whether the run said it has no hammer.
@@ -352,6 +357,7 @@ impl Bot {
             gift_runs: 0,
             gift_echo: None,
             mail: None,
+            market: None,
             fight,
             repairing: None,
             repair_failed: HashSet::new(),
@@ -391,6 +397,7 @@ impl Bot {
             .map(|b| format!("{} khu {}", b.name, b.zone));
         s.gift_limits = self.gift_limits();
         s.mailbox.changing = self.mail_changing();
+        s.market.changing = self.market_changing();
         if let Some(b) = &self.battle {
             s.turn = self.turn_of(b);
         }
@@ -540,6 +547,7 @@ impl Bot {
             self.smith.as_ref().map(|s| s.until),
             self.gift.as_ref().map(|g| g.until),
             self.mail.as_ref().map(|m| m.until),
+            self.market.as_ref().map(|m| m.until),
             self.pick_at,
         ]
         .into_iter()
@@ -611,6 +619,7 @@ impl Bot {
         self.smith_timer(now, out);
         self.gift_timer(now, out);
         self.mail_timer(now, out);
+        self.market_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
             if let Some(z) = self.zoning.take() {

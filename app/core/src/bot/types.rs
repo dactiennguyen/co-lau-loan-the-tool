@@ -499,6 +499,43 @@ pub enum MailTask {
     Delete(Vec<i64>),
 }
 
+/// What the Chợ trời tab asks (Bot::market). Mua, Đăng bán, Thu hồi and Gia hạn cost money or move an item; the UI asks
+/// before each.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MarketTask {
+    /// c2s/116 for the tabs, then c2s/1192 for page `page` of tab `tab`: the window as the toolbar button opens it.
+    Open { tab: i32, page: i32 },
+    /// c2s/1192: page `page` of tab `tab` (0–8), or of Đang bán (market::MARKET_MINE_TAB).
+    Page { tab: i32, page: i32 },
+    /// c2s/115: the listing `uuid` of the page last read, which must still cost `price` Xu.
+    Buy { uuid: String, price: i32 },
+    /// c2s/112 kind 1: one of the item of bag slot `slot`, at `price` Xu.
+    Sell { slot: u8, price: i64 },
+    /// c2s/113: the listing `uuid` of Đang bán back to the bag.
+    Withdraw(String),
+    /// c2s/112 kind 2: 24 more hours on the listing `uuid` of Đang bán, for the fee.
+    Extend(String),
+}
+
+/// Chợ trời as the app knows it (Bot::market, bot/market.rs), for the Chợ trời tab of Tiện ích.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct MarketState {
+    /// s2c/116: the tabs with their listing counts, the fee, the hours on sale, the highest price; None until opened.
+    pub tabs: Option<MarketTabs>,
+    /// The page of a tab last read, and Đang bán as last read (also after Đăng bán and Gia hạn).
+    pub page: Option<MarketPage>,
+    pub mine: Option<MarketPage>,
+    /// What the task under way does ("Đang mua Thú cưng Slime…"); None when none is.
+    pub doing: Option<String>,
+    /// The listing (uuid) or bag item (uuid) the task under way is about.
+    pub busy_with: Option<String>,
+    /// The task under way is Mua, Đăng bán, Thu hồi or Gia hạn, which keeps the character busy (Bot::market_changing);
+    /// filled by snapshot().
+    pub changing: bool,
+    /// The line the last of those ended with, as in the log ("Xong mua …", "Chưa mua được …").
+    pub last: Option<String>,
+}
+
 /// The mailbox as the app knows it (Bot::mail, mailbox.rs), for the Hòm thư tab of Tiện ích.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Mailbox {
@@ -652,6 +689,8 @@ pub struct Snapshot {
     pub gift_limits: GiftLimits,
     /// Hòm thư (Bot::mail).
     pub mailbox: Mailbox,
+    /// Chợ trời (Bot::market).
+    pub market: MarketState,
     /// Timed effects at login (the s2c/9 tail), such as x2 EXP; no packet is known yet to update them in the session.
     pub boosts: Vec<Boost>,
 }
