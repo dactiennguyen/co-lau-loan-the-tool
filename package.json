@@ -15,6 +15,7 @@
     "quest": "node --experimental-strip-types src/cli/quest-run.ts",
     "scan": "node --experimental-strip-types src/cli/map-scan-run.ts",
     "items": "node --experimental-strip-types src/cli/items-run.ts",
+    "mobs": "node --experimental-strip-types src/cli/mobs-run.ts",
     "bag": "node --experimental-strip-types src/cli/bag-run.ts",
     "skills": "node --experimental-strip-types src/cli/skills-run.ts",
     "zone": "node --experimental-strip-types src/cli/zone-run.ts",

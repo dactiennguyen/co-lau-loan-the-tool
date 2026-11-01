@@ -5,6 +5,7 @@ import { Card } from "@/components/Card";
 import { DetailsToggle } from "@/components/DetailsToggle";
 import { Elapsed } from "@/components/Elapsed";
 import { Icon } from "@/components/Icon";
+import { mobIcon } from "@/game/mobIcons";
 import { Stepper } from "@/components/Stepper";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
@@ -13,6 +14,13 @@ import type { Account } from "@/api/types";
 import { BattlePanel } from "./BattlePanel";
 import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
+
+/** The mob's own picture (npm run mobs) in the box of its row; the crown of a boss or the sword when there is none. */
+function TargetIcon({ name, boss }: { name: string; boss: boolean }) {
+  const src = mobIcon(name);
+  if (!src) return <Icon name={boss ? "crown" : "sword"} size={13} />;
+  return <img src={src} alt="" draggable={false} className="w-[22px] h-[22px] object-contain" />;
+}
 
 /** In place of the Thua tối đa field of a fight job against a boss: "Thua boss không tính", as tall as the field. */
 const LOSSES_LEFT = "inline-flex items-center gap-1 h-[30px] text-[11.5px] font-semibold text-fg-2 whitespace-nowrap [&_b]:text-13 [&_b]:text-danger";
@@ -86,7 +94,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             onKeyDown={(e) => e.key === "Enter" && set({ target: t.name })}
           >
             <span className={cn("grid place-items-center w-[22px] h-[22px] text-fg-2 bg-card", t.boss && "text-ink bg-accent bevel-sm")}>
-              <Icon name={t.boss ? "crown" : "sword"} size={13} />
+              <TargetIcon name={t.name} boss={t.boss} />
             </span>
             <span className="flex-1 min-w-0 truncate text-12 font-bold">{t.name}</span>
             {!t.here && <span className="flex-none text-10 text-coin">đang đổi chỗ</span>}

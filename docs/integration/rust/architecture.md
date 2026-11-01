@@ -85,7 +85,8 @@ app/
                               trong localStorage), proxyText.ts (đọc chuỗi proxy dán vào)
       game/                   điều app biết về game, hằng số đi cùng luật: shops.ts (cửa hàng, đá, trần cường hoá),
                               potentials.ts (tiềm năng, chỉ số chính theo hệ), logKinds.ts (tên và màu các loại nhật
-                              ký), itemIcons.ts và skillIcons.ts (icon của data/icons, Vite gom vào bản build)
+                              ký), itemIcons.ts, skillIcons.ts và mobIcons.ts (icon của data/icons, Vite gom vào
+                              bản build)
       styles/                 tailwind.css (Tailwind CSS v4: thứ tự layer, theme lấy từ tokens.css, tiện ích notch/bevel,
                               preflight và mặc định của trang, px/scroll), tokens.css (màu, khung pixel, nhịp chuyển
                               động, @font-face)

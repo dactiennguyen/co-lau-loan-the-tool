@@ -217,6 +217,36 @@ Chỉ có khu 0: bot quét không đổi khu. Chim Điên và Hỏa Hầu của 
 
 Vì ghép chuỗi nên mã có thể nhập nhằng (`mob110` là Gà Điên số 10, không phải loại 10). Bot so tên quái, không tách mã.
 
+Gốc của các nhóm quái trong một map nối thành một dãy: nhóm đầu từ 0, nhóm sau bắt đầu ở gốc nhóm trước + 100 × số con mỗi khu. Ví dụ M4: Sơn Tặc 0 (5 con) → Chim Điên 500 (5) → Hỏa Hầu 1000 (5) → Cá Sấu 1500 (6) → Cóc Tía 2100 (5) → Huyết Lang 2600; M1: Gà Điên 0 (8) → Heo Mọi 800 → Kẻ Gây Rối 1400 → Sơn Tặc 2000 → Chỉ Huy Sơn Tặc 2600. [Đo: đúng ở M1, M4, M5, M10] Có đủ các nhóm của map thì dãy này tách được mã: `mob122100` chỉ có thể là loại 11 từ gốc 2100, không phải loại 121 từ gốc 100. `mobTypes` của [sprite.ts](../../../src/protocol/sprite.ts) làm như vậy và ra loại của cả 28 tên trong `data/maps.json`, khớp mọi loại đã biết từ nhiệm vụ. Một tên thiếu các nhóm còn lại của map mà vẫn đọc được hai cách thì bị bỏ, trừ khi một cách là loại tên khác đã chắc chắn có (Báo Đốm `mob45500` không thể là loại 3 của Sơn Tặc).
+
+<a id="ảnh-quái"></a>
+
+### Ảnh quái
+
+Mỗi loại quái có một tấm sprite trong `files/dyncache/offline-a2` của game: `<100000 + 10 × loại>.dat`, giải bằng `decodeAsset` như icon vật phẩm ([13-drops-items](13-drops-items.md#cách-lấy-lại-dữ-liệu)). File `.fx` cùng số + 9 là bảng khung hình của tấm đó. Ví dụ Gà Điên (loại 0) là `100000.dat` và `100009.fx`; Sơn Tặc (loại 3) là `100030.dat`. [Đo: 21 loại có ảnh, đặt cạnh tên đều đúng con]
+
+| File | Là gì |
+|---|---|
+| `100000`…`100780` (.dat, .fx) | Loại 0–78, thiếu 59. Mỗi tấm 5–9 khung hình |
+| `101000`…`101070` | Tấm lớn hơn (tới 2048 px), có thể là loại 100–107: hồ ly chín đuôi, hổ, hạc, chó ba đầu, người tuyết, ba người cầm kiếm [Suy luận] |
+| `100850`, `100860`, `100880`…`100970` | Không có trên máy: chưa biết ảnh của boss (loại 85, 88, 89, 92, 95, 97) và Chỉ Huy Sơn Tặc (86) [Chưa rõ] |
+| `1`…`13`, `10000`…`10045` | Không phải quái: tileset và ảnh nền của map |
+
+Bố cục `.fx` (big endian), đọc hết tới byte cuối ở cả 86 file:
+
+```text
+u8 2; i32 số tấm; u16 rộng; u16 cao; u8 0; u16 số khung
+số khung × (u16 x; u16 y; u16 w; u16 h)                    vị trí khung trên tấm
+u8 số động tác
+mỗi động tác: u8 id; u16 rộng; u16 cao; u8 a (36 hoặc 0); u8 lặp; u16 b (0); u8 số bước
+              số bước × (u8 số mảnh; số mảnh × (u16 khung; i16 dx; i16 dy))
+              u16 n; n × i16 bước vẽ ở mỗi nhịp (−1: không vẽ)
+```
+
+Động tác 0 là quái đứng thở: Gà Điên lặp bước 0, 1, 2, 1, mỗi bước 7 nhịp. Ở Gà Điên, động tác 4 (không lặp) nháy bước 0 với −1, như lúc quái chết; các tấm `1010x0` có tới 8 động tác. Các động tác 1–3 chưa rõ là gì. Ở cả 86 tấm, bước đầu của động tác 0 chỉ có một mảnh, nên ảnh đứng yên là đúng một khung cắt ra.
+
+Icon trong app: `npm run mobs -- --adb=<máy>` ([mobs-run.ts](../../../src/cli/mobs-run.ts)) chép các tấm từ điện thoại (máy root, không mở game), cắt khung đầu của động tác 0, thu về cạnh dài 44 px (gấp đôi ô 22 px của danh sách) và lưu `data/icons/mobs/<loại>.webp` (86 file, tổng 119 KB). Lệnh cũng ghi `data/icons/mobs/names.json` là loại của từng tên quái trong `data/maps.json`. Sau khi bot gặp quái mới, chạy `npm run mobs` không tham số để ghi lại bảng tên mà không cần điện thoại. App hiện ảnh ở đầu mỗi dòng của danh sách Tự đánh ([features](../../integration/rust/features.md#việc-đánh-x-n-lần)); tên chưa có ảnh vẫn hiện vương miện (boss) hay thanh kiếm. Test: [sprite.test.ts](../../../test/sprite.test.ts).
+
 ## Cách liệt kê toàn bộ bot của map
 
 ### 1. Qua gói tin
