@@ -140,6 +140,8 @@ G1, Tiheo2 cấp 31: "Điểm năng động tuần này: 12/100\nHạn mức đ�
 
 **Sự cố ở manina2 (G1):** trên điện thoại, nhân vật manina đứng cạnh Hương Lão (chưa gắn Frida). Hai lần bấm định mở menu ≡ và đóng một hộp thoại thì hiện ra hộp Nhiệm vụ hàng ngày, rồi "Bạn vừa nhận được 50.000 Xu". Bot đọc lại ví: Lượng 10.000 → 9.950, Xu 5.003.600 → 5.053.600, tức dòng 0 của Đổi lượng đã chạy. Không biết lần bấm nào gây ra. Chạm vào khung chữ thì không gửi gì (đã thử ở Tiheo2) [Chưa rõ]. Cách tránh: gắn Frida trước khi bấm, chụp màn hình trước mỗi lần bấm, và không bấm gì quanh một NPC có dòng đổi tiền ngay.
 
+**Thêm một lần ở Tiheo2 (cùng ngày):** sau lần đổi dòng 0 ở trên (Lượng 30.000 → 29.950, Xu 15.053.600) và tháo Frida, không bấm gì thêm trên máy. Khi bot TS đăng nhập Tiheo2 (lần đầu bị "đang đăng nhập ở một nơi khác", 15 s sau thì vào được), ví đã là Lượng 29.900, Xu 15.103.600: thêm một lần đổi dòng 0. Cùng lúc, điện thoại hiện hộp thoại Pháp sư mà bot vừa mở (`c2s/13 ("M1", 161)` của bot), tức kết nối cũ của máy **vẫn nhận gói của nhân vật** sau khi bot vào, rồi mới báo "Mất kết nối với máy chủ!". Có lẽ client trên máy đã gửi lại `c2s/57 (0, "M1", 102)` lúc chuyển phiên, khi server vẫn nhớ menu Đổi lượng; chưa chứng minh vì không có Frida [Chưa rõ]. Cách tránh: tắt hẳn game trên máy (`am force-stop`) trước khi bot đăng nhập cùng nick, và không để hộp thoại đổi tiền là menu cuối cùng của một NPC.
+
 <a id="mã-quà-tặng"></a>
 
 ### Mã quà tặng

@@ -5,6 +5,7 @@ Mốc: APK 1.0.3, server Thanh Khê, nhân vật symap (tài khoản tiheo1, c�
 - **J1** (01/11): điện thoại có Frida ghi gói. Nâng cấp [thường] Giáp Đại Tướng từ +0 lên +1 bằng 1 Đá cấp 5 (người dùng đồng ý; tốn 12 Xu khóa) ([luồng trên máy](#trên-máy)).
 - **J2** (01/11): bot TS chạy 4 lượt. Mỗi lượt mở các cửa sổ của Pháp sư, đặt món và đá (`c2s/97`), rồi đọc giá và tỉ lệ server báo. **Không bấm Bắt đầu lần nào**, nên không tốn gì. Dữ liệu thô và script ở `captures/n2-2026-11-01/` (chỉ có trên máy, không vào git).
 - **J3** (01/11, người dùng đồng ý tiêu): bot TS **bấm Bắt đầu thật** ở mọi cửa sổ: 7 lần Luyện đá (6 thành công, 1 bị từ chối), 3 lần Nâng cấp (1 thất bại), 2 lần Tách đá (lần đầu túi đầy), 1 Chuyển hoá; mua 2 món bằng Lượng, đổi 50 Lượng. Sau mỗi lần, bot xin lại cả túi (`c2s/42`) để so món nào mất, món nào thêm ([kết quả J3](#j3)). Tổng: tốn 2 Xu, 87 Lượng, 1.800 Xu khóa, nhận 55.000 Xu khóa.
+- **O1** (01/11, nhân vật Ttuananh của tài khoản tiheo2, cấp 31; người dùng nhờ "thử hết" Pháp sư): bot TS (`captures/o1-2026-11-01/probe.ts`, chỉ chạy với tiheo2) và điện thoại có Frida. Chế tạo Nhẫn Bậc I, thử Bậc II và III, nâng một Nhẫn Thái Cực từ +0 lên +7 (có thất bại tụt cấp, có bùa), Đổi Băng Tâm lấy bình. Trên máy chỉ để bắt gói client gửi khi đặt nguyên liệu chế tạo và đặt bùa. Tốn 6.400 Xu, 71.507 Xu khóa, 139 Lượng ([kết quả O1](#o1)).
 - **Cẩm nang** của game (`cam-nang.json` chép từ máy ngày 01/11, trang Trang bị và Tiền tệ). Chữ trích nguyên văn có nhãn [Cẩm nang].
 
 Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]**, **[Cẩm nang]**.
@@ -18,12 +19,12 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]**, **[Cẩm nang]**.
 | Tỉ lệ thành công tính sao? | Server báo sẵn trong `s2c/90` mỗi khi đặt thêm món: "Tỉ lệ thành công: 75%". Có trần theo cấp: +0→+1 là 80%, +1→+2 là 75%. Đặt thêm đá khi đã chạm trần không tăng nữa ([bảng đo](#bảng-đo-nâng-cấp)). [Đo] |
 | Nâng đồ đang mặc được không? | Trong game thì phải cởi ra trước: cửa sổ Nâng cấp chỉ có tab Hành trang (túi đồ) để chọn món, và `c2s/97` gửi số ô túi (J1). Server có nhận đồ đang mặc qua một dạng khác của `c2s/97` hay không thì chưa đo. App tự cởi ra túi, nâng, rồi mặc lại ([đồ đang mặc](#đồ-đang-mặc)). [Đo J1; Chưa rõ: dạng khác của gói] |
 | Thường khác Cẩn thận chỗ nào? | Cẩn thận tốn thêm **5 Lượng** và tỉ lệ ×1,5 (tối đa 100%): cùng một viên Đá cấp 5 cho 75% ở Thường, 100% ở Cẩn thận. Phí Xu khóa như nhau ([Cẩn thận](#cẩn-thận)). [Đo] |
-| Thất bại mất gì? | Đo ở +0: `s2c/91` kếtQuả 0, mất đá và phí, món giữ +0 và **không bị khoá**. [Cẩm nang] cấp tụt về mốc gần nhất +4, +8, +12 hoặc +14; dưới +4 giữ nguyên ([thất bại](#thất-bại-và-bùa)). [Đo J3 + Cẩm nang] |
-| Bùa bảo vệ? | Giữ cấp khi thất bại. Server **không nhận bùa** ở lần nâng +1→+2 ("Vật phẩm không phù hợp"), khớp với luật dưới +4 không tụt cấp. Mức nào thì nhận: chưa đo ([bùa](#thất-bại-và-bùa)). [Đo + Cẩm nang] |
+| Thất bại mất gì? | Mất đá và phí. Đo ở +0: `s2c/91` kếtQuả 0, món giữ +0 và **không bị khoá**. Đo ở O1: Nhẫn Thái Cực **+7 → +4** khi thất bại không bùa, đúng [Cẩm nang]: cấp tụt về mốc gần nhất +4, +8, +12 hoặc +14; dưới +4 giữ nguyên ([thất bại](#thất-bại-và-bùa)). [Đo J3, O1] |
+| Bùa bảo vệ? | Đặt bằng `c2s/97` với **i32 thứ ba = 1** (`"", 0, 1, ôTúi, 1`), như client gửi. Với 0 (cách J2 làm) server trả "Vật phẩm không phù hợp", nên lời từ chối ở J2 là do gói chứ chưa chắc do cấp. Thất bại có bùa thì **giữ cấp** (+7 vẫn +7); bùa **mất cả khi thành công** lẫn thất bại ([bùa](#thất-bại-và-bùa)). [Đo O1] |
 | Trần cường hoá? | [Cẩm nang] bậc 1 tới +4, bậc 21 tới +8, bậc 51 tới +12, từ bậc 101 và cánh tới +16. |
 | Tách đá trả gì? | Giáp Đại Tướng +1 → 2 Đá cấp 1 (đã khoá); giáp về +0, chỉ số về như cũ. Không tốn Xu. Cần đủ ô trống cho số đá nhận ([Tách đá](#tách-đá)). [Đo J3] |
 | Chuyển hoá? | Chuyển cấp cường hoá từ món nguồn sang món +0 cùng loại; cần 1 vật phẩm Chuyển hoá (mua bằng Lượng). Đã làm 1 lần: Nhẫn Quỷ +1 → +0, Anh Hùng Nhẫn +0 → +1, không tốn Xu ([Chuyển hoá](#chuyển-hoá)). [Đo J3] |
-| Gói gì? | Mở cửa sổ: `c2s/13` → `c2s/57` → `s2c/96` hoặc `s2c/99`. Đặt món: `c2s/97` ở **mọi** cửa sổ. Server trả `s2c/90` (Nâng cấp, Tách đá, nguồn Chuyển hoá), `s2c/1260` (đích Chuyển hoá), `s2c/92` (Luyện đá). Bắt đầu: `c2s/91 ""` ở mọi cửa sổ; kết quả `s2c/91` (Nâng cấp, Tách đá, Chuyển hoá) hay `s2c/93` (Luyện đá). Server **không gửi lại túi**: bot phải tự sửa túi hoặc xin lại bằng `c2s/42` ([gói](#gói)). [Đo J3] |
+| Gói gì? | Mở cửa sổ: `c2s/13` → `c2s/57` → `s2c/96` hoặc `s2c/99`. Đặt món: `c2s/97` ở **mọi** cửa sổ; trường i32 thứ ba là 0 với trang bị, đá, vật phẩm Chuyển hoá, và 1 với bùa và nguyên liệu Chế tạo (O1). Server trả `s2c/90` (Nâng cấp, Tách đá, nguồn Chuyển hoá), `s2c/1260` (đích Chuyển hoá), `s2c/92` (Luyện đá). Bắt đầu: `c2s/91 ""` ở mọi cửa sổ; kết quả `s2c/91` (Nâng cấp, Tách đá, Chuyển hoá) hay `s2c/93` (Luyện đá). Server **không gửi lại túi**: bot phải tự sửa túi hoặc xin lại bằng `c2s/42` ([gói](#gói)). [Đo J3] |
 | Túi đầy thì sao? | Mua: "Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa". Tách đá: đặt món vẫn được, bấm Bắt đầu thì "Rương đồ không đủ ô trống". Luyện đá làm túi trống bớt nên vẫn chạy ([túi đầy](#túi-đầy)). [Đo J3] |
 
 <a id="luật"></a>
@@ -90,7 +91,7 @@ Pháp sư là NPC 161 ở M1 (Làng Thanh Khê). Bot gửi từ chỗ nào trong
 | Chế tạo trang bị | 3 → 1 → 0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn → 0 Bậc I, 1 Bậc II, 2 Bậc III | `s2c/57` (công thức) | | | chưa chọn bậc ([chế tạo](#chế-tạo)) |
 | Đổi Băng Tâm lấy bình rỗng | 3 → 3 → 0 Đổi 1 bình, 1 Đổi 5 bình, 2 Đổi hết | `s2c/57` | | | thiếu: `s2c/1256` "Cần 8 Băng Tâm để đổi 1 Bình Huyết Linh (Rỗng)" |
 
-Chọn một bậc ở Chế tạo trang bị chưa thử, vì có thể chế ngay và tốn nguyên liệu, Xu. [Đo menu J3]
+Chọn một bậc ở Chế tạo trang bị mở cửa sổ `s2c/99` "Chế tạo trang bị" (key "abcd1001", 2 ô), không chế ngay ([chế tạo](#chế-tạo)). [Đo menu J3, cửa sổ O1]
 
 Lời nhắc của từng cửa sổ (`s2c/96`, `s2c/99`) [Đo]:
 
@@ -133,15 +134,15 @@ Thứ tự gói server trả khi bấm Bắt đầu (J3, mỗi dòng đo 1–4 l
 |---|---|---|
 | `s2c/96` | `string tênNhânVật; string key; string lời; string tên; i32 sốÔ` | Cửa sổ của Nâng cấp, Chuyển hoá, Tách đá [Đo] |
 | `s2c/99` | `string key; string lời; string tên; i32 n` | Cửa sổ của Luyện đá, Chế tạo. n là số đá tối đa (24) hoặc số ô nguyên liệu (3) [Đo] |
-| `c2s/97` | `string ""; u8 0; i32 0; i32 ôTúi; i32 sốLượng` | Đặt một món vào cửa sổ đang mở, ở cả `s2c/96` lẫn `s2c/99`. Không tốn gì. Hàm dựng `sqlq.a107`. Còn một hàm dựng `sqlq.a108(Object, byte, int, int)` cùng opcode chưa đọc được ([c2s-builders](../c2s-builders.md)) [Đo] |
+| `c2s/97` | `string ""; u8 0; i32 loại; i32 ôTúi; i32 sốLượng` | Đặt một món vào cửa sổ đang mở, ở cả `s2c/96` lẫn `s2c/99`. Không tốn gì. Hàm dựng `sqlq.a107`. **loại** 0: trang bị, đá, vật phẩm Chuyển hoá (J1–J3); 1: bùa bảo vệ, nguyên liệu Chế tạo, với sốLượng là **cả chồng** (client gửi 86 khi có 86 Quặng; O1). Gửi sai loại thì bùa bị "Vật phẩm không phù hợp", nguyên liệu bị lời nhắc `s2c/0` "Cần chọn đủ 2 loại nguyên liệu và Xu…". Hàm dựng thứ hai `sqlq.a108(Object, byte, int, int)` cùng opcode chưa đọc được ([c2s-builders](../c2s-builders.md)) [Đo] |
 | `s2c/90` | `string tên; u8 0; u8 loạiÔ; i32 ôTúi; i32 sốLượng; i32 0; i32 0; string chữ; u8 sẵnSàng` | loạiÔ 1 là ô trang bị, 0 là ô đá. `chữ` là lời nhắc, hoặc giá và tỉ lệ khi đủ món. sẵnSàng 1 thì nút Bắt đầu sáng [Đo] |
 | `s2c/1258` | `u8 0; string uuid; i32 cấpHiệnTại; bản ghi vật phẩm` | Món **sau một lần nâng nữa**, để hiện ở ô kết quả ([chỉ số](#chỉ-số-sau-khi-nâng)) [Đo] |
-| `s2c/92` | `string tên; u8 0; i32 ôTúi; i32 0; i32 0; string chữ; u8 sẵnSàng` | Trả `c2s/97` trong cửa sổ Luyện đá. Giống `s2c/90` nhưng không có byte loạiÔ và số lượng. Đọc hết 70 và 146–150 byte [Đo J2] |
+| `s2c/92` | `string tên; u8 0; i32 ôTúi; i32 0; i32 phíXu; string chữ; u8 sẵnSàng` | Trả `c2s/97` trong cửa sổ Luyện đá và Chế tạo trang bị. Giống `s2c/90` nhưng không có byte loạiÔ và số lượng. Chế tạo: khi đủ nguyên liệu thì `phíXu` là 2.400 (Bậc I) và sẵnSàng 1. Đọc hết 70, 105 và 146–150 byte [Đo J2, O1] |
 | `s2c/1260` | `u8 0; i32 ôTúi; string chữ; u8 sẵnSàng` | Trả `c2s/97` khi món đặt vào là món +0, tức món đích của Chuyển hoá: "Đích: Nhẫn Trơn (bậc 0)". Đọc hết 181 byte [Đo J2] |
 | `s2c/1256` | `u8 1; string chữ` | Lời từ chối hiện giữa màn hình ([dưới](#từ-chối)) [Đo] |
 | `c2s/91` | `string ""` | Nút Bắt đầu, hàm dựng `sqlq.m109`. Cùng gói ở Nâng cấp, Cẩn thận, Luyện đá [Xu] và [Xu khóa], Tách đá, Chuyển hoá. Gửi `"abcd1002"` thay cho `""` khi cửa sổ đã xong thì server chỉ trả lời nhắc "Cần chọn đá số lượng 2 đến 24" [Đo J1, J3] |
-| `s2c/91` | `string tên; u8 kếtQuả; bản ghi món; i32 n; n × bản ghi món nhận được`; Chuyển hoá thêm `bản ghi món đích` | kếtQuả 1 thành công, 0 thất bại. Nâng cấp: bản ghi là món sau lần nâng (thất bại thì như cũ), n = 0, dài 96 byte. Tách đá: món đã về +0, n = 2 bản ghi Đá cấp 1, dài 228 byte. Chuyển hoá: món nguồn đã về +0, n = 0, rồi bản ghi món đích đã lên cấp, dài 178 byte. Đọc hết byte [Đo J1, J3] |
-| `s2c/93` | `string tên; u8 kếtQuả; i32 n; n × bản ghi vật phẩm` | Kết quả Luyện đá: viên đá mới (ô túi, mã, cờ khoá). 80 byte. 6 lần đều kếtQuả 1; gói khi luyện thất bại chưa thấy [Đo J3] |
+| `s2c/91` | `string tên; u8 kếtQuả; bản ghi món; i32 n; n × bản ghi món nhận được`; Chuyển hoá thêm `bản ghi món đích` | kếtQuả 1 thành công, 0 thất bại. Nâng cấp: bản ghi là món sau lần nâng (thất bại thì như cũ), n = 0, dài 96 byte. Tách đá: món đã về +0, n = 2 bản ghi Đá cấp 1, dài 228 byte. Chuyển hoá: món nguồn đã về +0, n = 0, rồi bản ghi món đích đã lên cấp, dài 178 byte. Có bùa thì n = 1: bản ghi **chồng bùa còn lại** (Bùa ×2 sau lần thành công, ×1 sau lần thất bại), dài 165 byte. Đọc hết byte [Đo J1, J3, O1] |
+| `s2c/93` | `string tên; u8 kếtQuả; i32 n; n × bản ghi vật phẩm` | Kết quả Luyện đá: viên đá mới (ô túi, mã, cờ khoá). 80 byte. 6 lần đều kếtQuả 1; gói khi luyện thất bại chưa thấy. Chế tạo trang bị cũng trả `s2c/93`, với n bản ghi là **nguyên liệu còn lại** (Quặng Bậc 1 86 → 62, Linh Thạch Bậc 1 43 → 19); món mới đến riêng bằng `s2c/1187` loại 4 [Đo J3, O1] |
 
 **Không có gói bỏ món ra.** Đặt lại món đã có trong cửa sổ thì server trả "Vật phẩm này đã được chọn rồi". Đóng cửa sổ cũng không gửi gì. Muốn làm lại từ đầu thì chọn lại menu: mỗi `s2c/96`/`s2c/99` mới là một cửa sổ rỗng (J2 mở lại Nâng cấp 24 lần, lần nào đặt lại cùng món cũng được). [Đo]
 
@@ -154,7 +155,9 @@ Thứ tự không bắt buộc: đặt đá trước trang bị thì `s2c/90` b�
 | Lời (`s2c/1256` trừ dòng cuối) | Khi nào [Đo J2, J3] |
 |---|---|
 | "Vật phẩm này đã được chọn rồi" | Đặt lại món đã ở trong cửa sổ |
-| "Vật phẩm không phù hợp" | Bùa bảo vệ ở lần nâng +1→+2 (đặt trước hay sau đá đều vậy); trang bị vào Luyện đá; đá vào Tách đá |
+| "Vật phẩm không phù hợp" | Bùa bảo vệ gửi với loại 0 trong `c2s/97` (J2 ở +1→+2, O1 ở +5; với loại 1 thì O1 đặt được ở +5 tới +7); trang bị vào Luyện đá; đá vào Tách đá |
+| "Cần đạt cấp 51 mới chế tạo được Áo Bậc II", "Cần đạt cấp 101 mới chế tạo được Vũ khí Bậc III" | Bấm Bắt đầu ở Chế tạo trang bị khi nhân vật thấp cấp hơn bậc (O1, cấp 31). Đặt nguyên liệu vẫn được; không mất gì |
+| `s2c/0` (cờ 255) "Cần chọn đủ 2 loại nguyên liệu và Xu\n…công thức…" | Chế tạo: đặt nguyên liệu bằng `c2s/97` loại 0 (sai loại), và bấm Bắt đầu khi chưa đặt gì. Đặt đúng loại 1 thì server trả `s2c/92` (O1) |
 | "Cần chọn trang bị đã nâng cấp" | Món +0 vào Tách đá |
 | "Trang bị đích phải cùng loại với trang bị nguồn" | Chuyển hoá: nguồn là giáp, đích là nhẫn |
 | "Cần trang bị nguồn (đã cường hoá), trang bị đích (+0) và vật phẩm Chuyển hoá" | Chuyển hoá: đặt bùa vào lưới vật phẩm |
@@ -228,9 +231,10 @@ J3 bấm thật: Nhẫn Quỷ +0 với 2 Đá cấp 5 (100%) lên +1. Server tr�
 
 - [Cẩm nang] Thất bại mất đá, bùa và phí; cấp tụt về mốc gần nhất +4, +8, +12 hoặc +14; dưới +4 giữ nguyên. Ví dụ +6→+7 thất bại thì về +4.
 - Bùa bảo vệ (mua bằng Lượng, [cửa hàng](15-shops.md#lượng)): sơ, trung, cao, siêu cấp cho lần nâng tới +8, +12, +14, +16; mô tả vật phẩm ghi: "Bảo vệ không rớt cấp khi nâng cấp trang bị từ cấp 1 đến cấp 8 / 12 / 14 / 16".
-- J2: đặt Bùa bảo vệ sơ cấp và trung cấp ở lần nâng +1→+2 thì server trả "Vật phẩm không phù hợp", đặt trước hay sau đá đều vậy. Có lẽ server chỉ nhận bùa ở lần nâng có thể tụt cấp, tức khi món đang từ +5 trở lên. Bùa đặt bằng gói nào (có thể vẫn là `c2s/97`) và từ cấp nào thì nhận: chưa đo. [Đo lời từ chối; Suy luận]
+- J2: đặt Bùa bảo vệ sơ cấp và trung cấp ở lần nâng +1→+2 thì server trả "Vật phẩm không phù hợp", đặt trước hay sau đá đều vậy. **O1 cho thấy đó là do gói:** J2 gửi `c2s/97` loại 0. Client gửi bùa với loại 1 (`"", 0, 1, ôTúi, 1`, bắt trên máy); bot gửi loại 0 ở +5 cũng bị "Vật phẩm không phù hợp", loại 1 thì `s2c/90` nhận bùa và Lượng của Cẩn thận vẫn tính như thường. Ở +1→+2 với loại 1 chưa thử. [Đo O1]
 - **J3 thất bại thật:** Nhẫn Trơn +0 với 1 Đá cấp 1 (16%). `s2c/91` kếtQuả 0 kèm bản ghi Nhẫn Trơn +0 như cũ, rồi `s2c/1258` (vẫn xem trước +1) và `s2c/46` (trừ 19 Xu khóa). Viên đá mất. Lần thứ hai cùng 16% thì thành công lên +1. [Đo J3]
-- Tụt cấp khi thất bại từ +5 trở lên và bùa: chưa đo (chưa có món +5).
+- **O1, thất bại không bùa:** Nhẫn Thái Cực +7→+8, Thường, 1 Đá cấp 5 (5%): `s2c/91` kếtQuả 0 với bản ghi nhẫn **+4** (chỉ số về đúng mức +4: sức tấn công 57 → 32), mất đá. [Đo O1]
+- **O1, có bùa:** +5→+6 và +6→+7 Cẩn thận có Bùa sơ cấp đều thành công, bùa bị trừ mỗi lần (4 → 3 → 2). +7→+8 Thường có bùa, 1 Đá cấp 6 (20%): thất bại, nhẫn **vẫn +7**, mất bùa và đá. `s2c/91` có thêm bản ghi chồng bùa còn lại ([gói](#gói)). [Đo O1]
 
 <a id="chỉ-số-sau-khi-nâng"></a>
 
@@ -280,7 +284,7 @@ Kết quả: Giáp Đại Tướng (đồ nữ, bậc 51) lên +1; mất 1 Đá 
 ### Đồ đang mặc
 
 - **Trong game:** cửa sổ "Nâng cấp [thường]" chỉ có hai tab, Nâng cấp và **Hành trang** (túi đồ). Món được chọn từ Hành trang bằng nút **Chọn**. Không có tab hay nút nào cho đồ đang mặc, nên người chơi phải cởi món ra túi trước ([trên máy](#trên-máy)). [Đo J1]
-- **Gói:** `c2s/97` mang số **ô túi** (`"", 0, 0, ôTúi, 1`); mọi lần đặt món ở J1, J2, J3 đều từ túi. Byte thứ hai (luôn 0) có thể là nơi lấy món. Client còn hàm dựng thứ hai cùng opcode, `sqlq.a108(Object, byte, int, int)`, chưa đọc được ([c2s-builders](../c2s-builders.md)). Gửi `c2s/97` với byte đó khác 0 và số ô trang bị thì server làm gì: chưa đo. Script thử miễn phí (chỉ đặt món, không bấm) đã viết sẵn cho lần đo K1. [Đo J1–J3; Chưa rõ]
+- **Gói:** `c2s/97` mang số **ô túi** (`"", 0, 0, ôTúi, 1`); mọi lần đặt món ở J1, J2, J3 đều từ túi. Byte thứ hai (luôn 0) có thể là nơi lấy món. Client còn hàm dựng thứ hai cùng opcode, `sqlq.a108(Object, byte, int, int)`, chưa đọc được ([c2s-builders](../c2s-builders.md)). Gửi `c2s/97` với byte đó khác 0 và số ô trang bị thì server làm gì: chưa đo. O1 gửi thử ở cửa sổ Nâng cấp [thường] hai dạng với byte 1 và ô trang bị 3 (Nhẫn Trơn đang đeo): `"", 1, 0, 3, 1` (dạng `a107`) và `"", 1, 3, 1` (4 trường): server **không trả gì** cả hai lần. Vậy server không cho đặt đồ đang mặc, ít nhất với các dạng này. [Đo J1–J3, O1]
 - **App:** việc Nâng cấp một món đang mặc (`SmithTask::Upgrade { worn: true }`, ô là ô trang bị) làm như người chơi:
   1. Cởi món ra túi bằng `c2s/1186 (1, ô trang bị)`, như nút Cởi ra; server trả `s2c/37`, `s2c/42`, `s2c/1186` ([mặc và cởi](12-skills-items.md#c2s-1186)).
   2. Tìm món trong túi theo uuid của bản ghi rồi nâng như món trong túi.
@@ -392,7 +396,7 @@ Không có `s2c/46`: không tốn Xu. Vật phẩm Chuyển hoá mất. [Đo J3]
 | Cánh Tiên / Cánh Quỷ | 1 Lông Vũ hoặc 1 Vuốt Quỷ, 100 Kim Thạch, 100 Huyết Thạch | 50% | Thất bại mất 1 mảnh, 50 Kim Thạch, 50 Huyết Thạch. Không tốn Xu. Cánh nâng cấp tới +16 [Cẩm nang, Đo lời cửa sổ] |
 | Băng Kiếm | 20 Băng Tâm, 30 Kim Thạch, 30 Huyết Thạch | 100% | Mặc vào thì khoá giao dịch. Mặc khi đánh Bạch Hổ để làm đầy Bình Huyết Linh [Đo lời cửa sổ; bảng vật phẩm] |
 | Trang bị | Xem bảng dưới | | [Cẩm nang] "Đồ chế tạo: có cơ hội có thưởng hệ và thưởng bộ" |
-| Bình Huyết Linh (Rỗng) | 8 Băng Tâm mỗi bình (Đổi 1 bình, 5 bình, hoặc hết) | | Pháp sư → 3 → 3. Thiếu thì "Cần 8 Băng Tâm để đổi 1 Bình Huyết Linh (Rỗng)" [Đo J3] |
+| Bình Huyết Linh (Rỗng) | 8 Băng Tâm mỗi bình (Đổi 1 bình, 5 bình, hoặc hết) | | Pháp sư → 3 → 3. Thiếu thì "Cần 8 Băng Tâm để đổi 1 Bình Huyết Linh (Rỗng)" [Đo J3]. Đổi được (O1, có 8 Băng Tâm mua ở Dược phẩm, ô cửa hàng 487): menu ghi "Đổi 8 Băng Tâm lấy 1 Bình Huyết Linh (Rỗng). Bạn đang có 8 Băng Tâm."; `c2s/57 (0, "M1", 161)` → `s2c/1187` (cả túi: Bình Huyết Linh (Rỗng) ô 0, đã khoá) và `s2c/1256` "Đã đổi 8 Băng Tâm lấy 1 Bình Huyết Linh (Rỗng)". Không tốn Xu [Đo O1] |
 
 Chế tạo trang bị: Pháp sư → 3 Chế tạo → 1 Chế tạo trang bị ("Cậu muốn chế tạo món gì?") → 0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn. Mỗi loại trả `s2c/57` ghi công thức, với ba dòng 0 Bậc I (Lv 21), 1 Bậc II (Lv 51), 2 Bậc III (Lv 101) [Đo J3]:
 
@@ -403,7 +407,30 @@ Chế tạo trang bị: Pháp sư → 3 Chế tạo → 1 Chế tạo trang bị
 | Vũ khí | Quặng, Gỗ | 2.400 Xu | 26.500 Xu | 90.000 Xu |
 | Nhẫn | Quặng, Linh Thạch | 2.400 Xu | 26.500 Xu | 90.000 Xu |
 
-Bậc I dùng nguyên liệu Bậc 1, Bậc II dùng Bậc 2, Bậc III dùng Bậc 3; ví dụ Nón Bậc II cần Da Bậc 2 ×24, Linh Thạch Bậc 2 ×24 và 26.500 Xu. Cửa hàng không bán đồ Bậc III (cấp 101), nên chế tạo là cách có đồ bậc 101. Chọn bậc rồi server làm gì (mở cửa sổ hay chế ngay) chưa đo. [Đo menu; Chưa rõ: bước sau]
+Bậc I dùng nguyên liệu Bậc 1, Bậc II dùng Bậc 2, Bậc III dùng Bậc 3; ví dụ Nón Bậc II cần Da Bậc 2 ×24, Linh Thạch Bậc 2 ×24 và 26.500 Xu. Cửa hàng không bán đồ Bậc III (cấp 101), nên chế tạo là cách có đồ bậc 101. [Đo menu J3]
+
+**Chế thật (O1, Ttuananh cấp 31).** Chọn bậc mở cửa sổ, chưa chế:
+
+```text
+C→S 57    0, "M1", 161                  Bậc I (sau 3 Chế tạo → 1 Chế tạo trang bị → 3 Nhẫn)
+S→C 99    "abcd1001", "Nhẫn Bậc I\nQuặng Bậc 1: 86/24\nLinh Thạch Bậc 1: 43/24\nXu: 2.400", "Chế tạo trang bị", 2
+C→S 97    "", 0, 1, 33, 86              chọn Quặng Bậc 1 ở tab Hành trang (cả chồng 86)
+S→C 92    "Ttuananh", 0, 33, 0, 0, "Nhẫn Bậc I\n…", 0
+C→S 97    "", 0, 1, 37, 43              chọn Linh Thạch Bậc 1 (cả chồng 43)
+S→C 92    "Ttuananh", 0, 37, 0, 2400, "Nhẫn Bậc I\n…", 1        sẵn sàng, phí 2.400 Xu
+C→S 91    ""                            nút Kết hợp
+S→C 93    "Ttuananh", 1, 2 bản ghi: Quặng Bậc 1 ×62 (ô 33), Linh Thạch Bậc 1 ×19 (ô 37)
+S→C 46    Xu 15.103.600 → 15.101.200
+S→C 1187  04, bản ghi món mới: ô 19 Nhẫn Thái Cực (#333), +12 sức tấn công, +20 thể lực, hệ Lôi, chưa khoá
+S→C 1256  1, "Bạn vừa nhận được Nhẫn Thái Cực"
+```
+
+- Cửa sổ có hai tab Kết hợp và Hành trang, 2 ô nguyên liệu và nút **Kết hợp**. Chọn món ở Hành trang hiện chi tiết với nút Chọn, như cửa sổ Nâng cấp.
+- Server lấy đúng 24 mỗi loại dù client gửi cả chồng.
+- `s2c/1187` byte đầu 4 là **thêm một món** (một bản ghi vật phẩm, 83 byte), khác byte đầu 1 là cả túi.
+- Món chế ra có hệ ngẫu nhiên và phẩm chất: chi tiết trên máy ghi "Phẩm chất: Quý", "Đúng hệ nhân vật: +5% chỉ số trang bị", "Bộ cùng hệ (4/4)" (Cẩm nang: "Đồ chế tạo: có cơ hội có thưởng hệ và thưởng bộ"). Nhẫn Thái Cực bậc 21 nên nâng được tới +8.
+- **Cấp nhân vật:** Bậc II và Bậc III cũng mở cửa sổ và nhận nguyên liệu, nhưng Bắt đầu thì "Cần đạt cấp 51 mới chế tạo được Áo Bậc II", "Cần đạt cấp 101 mới chế tạo được Vũ khí Bậc III" (`s2c/1256`), không mất gì.
+- Bot đặt nguyên liệu bằng loại 0 thì chỉ nhận lời nhắc `s2c/0` "Cần chọn đủ 2 loại nguyên liệu và Xu…", vì vậy bot TS phải chịu được `s2c/0` khi đang ở trong game (O1 dùng một bản chép của client cho việc này). [Đo O1]
 
 Băng Tâm bán ở Dược phẩm giá 500 Xu ([cửa hàng](15-shops.md#danh-sách-sản-phẩm)).
 
@@ -447,6 +474,30 @@ Mọi lần do bot TS, mỗi lần mở cửa sổ mới, đặt món bằng `c2
 
 Tiền trước và sau J3: Xu 13.755.600 → 13.755.598; Xu khóa 7.952.514 → 8.005.714 (tiêu 1.800, nhận 55.000); Lượng 16.675 → 16.588 (tiêu 87). Dữ liệu thô ở `captures/n2-2026-11-01/probe-5.jsonl` tới `probe-10.jsonl`.
 
+<a id="o1"></a>
+
+## Kết quả O1 (Tiheo2, bấm thật)
+
+Nhẫn Thái Cực (#333, bậc 21, chế ở O1) nâng bằng bot, mỗi lần mở cửa sổ mới. Cột "Một viên" là tỉ lệ `s2c/90` báo ở Thường với đúng một viên đá (đo, không bấm). Người dùng chỉ cần gói, nên bảng chỉ ghi số đã thấy, không tìm công thức. [Đo O1]
+
+| Lần nâng | Phí Xu khóa | Lượng (Cẩn thận) | Một viên (Thường) | Trần Thường / Cẩn thận | Bấm | Kết quả |
+|---|---:|---:|---|---|---|---|
+| +0→+1 | 19 | 5 | Đá 2: 66% | | Cẩn thận 100% | thành công |
+| +1→+2 | 49 | 5 | Đá 3: 75% | 75% / 100% | Cẩn thận 100% | thành công |
+| +2→+3 | 121 | 5 | Đá 3: 32% | | Cẩn thận 100% | thành công |
+| +3→+4 | 280 | 5 | Đá 5: 65% | 65% / 97% | Cẩn thận 97% | thành công |
+| +4→+5 | 769 | 5 | Đá 5: 60% | 60% / 90% | Cẩn thận 90% (hai lần) | thành công |
+| +5→+6 | 2.910 | 10 | Đá 5: 50% | 55% / 82% | Thường 50%; Cẩn thận 82% + bùa | thành công cả hai |
+| +6→+7 | 9.440 | 15 | Đá 5: 25% | 50% / 75% | Thường 25%; Cẩn thận 75% + bùa | thành công cả hai |
+| +7→+8 | 22.400 | | Đá 5: 5%; Đá 6: 20% | | Thường 5%; Thường 20% + bùa | **thất bại**: +7 → +4; có bùa: giữ +7 |
+
+- Thêm đá khi đã chạm trần thì tỉ lệ không tăng, và server vẫn lấy hết đá đã đặt (giống J3). Trần Cẩn thận bằng trần Thường × 1,5 (làm tròn xuống).
+- Lượng của Cẩn thận tăng từ +5 (10, 15); phí Xu khóa tính cả khi thất bại.
+- Gói thứ tự như J3: Cẩn thận có `s2c/46` (Lượng) trước `s2c/91`, `s2c/1258`, `s2c/46` (Xu khóa).
+- Mua ở Cửa hàng [Lượng] để có đá và bùa: đá (không chồng được) phải mua **từng viên**; gửi `c2s/1190` với số lượng 10 thì "Số lượng không chính xác!" ([cửa hàng](15-shops.md#lượng)).
+
+Tiền của Tiheo2 trước và sau O1: Xu 15.103.600 → 15.097.200 (chế Nhẫn 2.400, 8 Băng Tâm 4.000); Xu khóa 16.030.279 → 15.958.772; Lượng 29.900 → 29.761 (4 bùa 40, 12 viên đá 44, Cẩn thận 55). Dữ liệu thô ở `captures/o1-2026-11-01/` (`probe-*.jsonl` của bot, `phone-craft-charm.jsonl` của máy), không vào git.
+
 <a id="trong-app"></a>
 
 ## Trong app
@@ -457,8 +508,8 @@ Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm đư�
 
 ## Còn để sau (TODO)
 
-- **Bùa bảo vệ và nâng trên +4.** Cần một món +5 trở lên để đo: server nhận bùa từ cấp nào, đặt bùa bằng gói nào (có lẽ vẫn `c2s/97`), thất bại có bùa thì giữ cấp và mất gì, R và trần của tỉ lệ ở cấp cao. Cho tới khi đo xong, app chỉ nâng tới +4 (`npc::SAFE_LEVEL`).
-- **Chế tạo trang bị.** Đã có công thức ([chế tạo](#chế-tạo)); chưa đo chọn một bậc thì server mở cửa sổ hay chế ngay, gói và kết quả.
+- **Bùa bảo vệ và nâng trên +4.** Gói đã đo ở O1 (bùa là `c2s/97` loại 1; thất bại tụt về +4; có bùa thì giữ cấp; bùa mất cả khi thành công). Còn phải làm trong app: đặt bùa đúng loại, chọn khi nào cần bùa, và bỏ giới hạn `npc::SAFE_LEVEL`.
+- **Chế tạo trang bị.** Gói đã đo ở O1 ([chế tạo](#chế-tạo)): đặt hai nguyên liệu bằng `c2s/97` loại 1 với cả chồng, Bắt đầu `c2s/91`, món mới trong `s2c/1187` loại 4. Còn phải làm trong app và bot.
 
 <a id="tính-năng"></a>
 
@@ -470,7 +521,7 @@ Những gì bot cần, theo các phần trên:
 2. **Phải ở M1.** Mở cửa sổ: `c2s/13 ("M1", 161)`, rồi `c2s/57` theo đường menu ở [bảng cửa sổ](#cửa-sổ); chờ `s2c/96` hoặc `s2c/99`.
 3. **Đặt trang bị:** `c2s/97` với ô túi. Đọc `s2c/1258` để biết chỉ số sau khi nâng.
 4. **Đặt đá từng viên**, từ giá trị thấp lên. Sau mỗi viên đọc `s2c/90`: phí Xu khóa, Lượng, tỉ lệ. Dừng ngay khi tỉ lệ đạt mức người dùng muốn hoặc chạm trần, vì **server lấy hết đá đã đặt**.
-5. **Bùa:** ở lần nâng có thể tụt cấp (món đang +5 trở lên, theo Cẩm nang), đặt bùa có mức đủ cao; ở cấp thấp server từ chối.
+5. **Bùa:** ở lần nâng có thể tụt cấp (món đang +5 trở lên, theo Cẩm nang), đặt bùa bằng `c2s/97` **loại 1** (loại 0 thì server trả "Vật phẩm không phù hợp", O1). Bùa mất cả khi thành công. Lần nâng dưới +5 server có nhận bùa loại 1 không thì chưa đo.
 6. **Kiểm tiền:** Xu khóa (thiếu thì server lấy cả Xu), Lượng nếu Cẩn thận. Xin người dùng duyệt trước khi gửi `c2s/91`.
 7. **Bắt đầu:** `c2s/91 ("")`. Đọc `s2c/91` (kếtQuả 1 hay 0, món sau đó), `s2c/1258`, `s2c/46` (tiền). Thành công thì món bị khoá. Lời từ chối đến bằng `s2c/1256` ([danh sách](#từ-chối)).
 8. **Làm lại:** mở lại menu là có cửa sổ rỗng. Không có gói bỏ món.
@@ -482,8 +533,7 @@ Những gì bot cần, theo các phần trên:
 
 Các phần sau đều tốn tiền hoặc đồ, cần người dùng đồng ý từng lần:
 
-- Nâng cấp từ +2 trở lên: phí, Lượng của Cẩn thận, R và trần của tỉ lệ; tụt cấp khi thất bại từ +5.
-- Bùa bảo vệ: cấp nào server nhận, gói đặt bùa, bùa có mất khi thành công không.
-- Luyện đá thất bại: gói `s2c/93` kếtQuả 0 và đá còn lại; 24 viên một lần; tỉ lệ thật so với số báo.
-- Chế tạo trang bị (chọn một bậc), Chế Băng Kiếm, Chế tạo cánh (thiếu nguyên liệu).
+- Luyện đá thất bại: gói `s2c/93` kếtQuả 0 và đá còn lại; 24 viên một lần.
+- Bùa ở lần nâng dưới +5 với loại 1; bùa trung, cao, siêu cấp; nâng trên +8 (cần món bậc 51 trở lên, tức nhân vật cấp 51 mới chế được).
+- Chế Băng Kiếm và Chế tạo cánh: cần Kim Thạch, Huyết Thạch, Lông Vũ hoặc Vuốt Quỷ, không có ở cửa hàng nào.
 - Nâng cấp hay Chuyển hoá khi túi đầy.

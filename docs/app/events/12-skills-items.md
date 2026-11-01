@@ -299,6 +299,7 @@ Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. B
 |---|---|---|---|
 | `s2c/42` | Trả `c2s/42 (string tênNhânVật)` lúc đăng nhập | `string "test dong 1"; i32 42; i32 3; u8 2; i32 sứcChứa; i32 n; n × bản ghi` | 608/608 byte, 8 món, sức chứa 42 |
 | `s2c/1187` | Mỗi khi túi đổi: sửa đồ (E2), trả nhiệm vụ (L1, Q2) | `u8 1; i32 sứcChứa; i32 n; n × bản ghi` (cả túi) | 519/519 byte, 7 món sau khi sửa |
+| `s2c/1187` byte đầu 4 | Chế tạo trang bị ở Pháp sư (O1) | `u8 4; bản ghi` (chỉ món mới thêm vào túi) | 83/83 byte: Nhẫn Thái Cực ở ô 19 ([16-upgrade](16-upgrade.md#chế-tạo)) |
 | Đuôi `s2c/9` | Lúc đăng nhập | Sau danh sách kỹ năng: `i32 8; 8 × (u8 0xff: ô trống \| bản ghi)`, byte `ô` của bản ghi bằng số ô | Ô 0 nón, ô 2 vũ khí, 6 ô trống ([Ô trang bị](#ô-trang-bị)) |
 
 - Sức chứa 42 khớp túi 50 ô trên máy có 8 ô khoá. Trước đây [09](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) đọc `0000002a` của `s2c/1187` là "mã 42", nhưng đó là sức chứa. [Đo]

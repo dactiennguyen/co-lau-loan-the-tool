@@ -274,6 +274,12 @@ S→C 1256  1, "Bạn vừa mua thành công! 1 Chuyển hoá trang bị sơ c�
 S→C 46    như trên
 ```
 
+O1 (Tiheo2) mua thêm ở cửa hàng này [Đo O1]:
+
+- 4 Bùa bảo vệ sơ cấp (ô 301): gửi số lượng 2 thì được (bùa chồng được, 4 cái nằm chung một ô).
+- Đá cấp 6, 7 (ô 404, 405): gửi số lượng 10 hay 4 thì `s2c/1256` "Số lượng không chính xác!", không trừ tiền; mua từng viên (số lượng 1) thì được. Món không chồng được (`stack` 1) phải mua từng cái [Suy luận].
+- Băng Tâm ở Dược phẩm: phải gửi **ô cửa hàng 487**, không phải mã vật phẩm 21; gửi 21 thì "Không thể thực hiện". 8 Băng Tâm mua một lần được (500 Xu mỗi cái; `s2c/1256`, `s2c/42`, `s2c/46` như mua bằng Xu).
+
 Khác với mua bằng Xu (J1) và Xu khóa (P5), vốn trả `s2c/1256`, `s2c/42`, `s2c/46`: mua bằng Lượng thì túi đến bằng `s2c/1187`, và `s2c/46` đến cả trước lẫn sau. Bot nên nhận cả hai cách. Thiếu Lượng thì có lẽ "Không đủ Lượng để thực hiện", như "Không đủ Xu…" ở P5 [Suy luận].
 
 Lượng là tiền nạp. Theo Cẩm nang, Lượng dùng cho: Nâng cấp [Cẩn thận] ([16-upgrade](16-upgrade.md#cẩn-thận)), bùa bảo vệ, Bảo Điển, chat kênh Thế giới (1 Lượng mỗi tin), lập sứ quân (500 Lượng), mua quỹ Trưởng thành, mua cấp Bảo Điển. VIP tính theo tổng Lượng đã nạp. [Đo chữ của game]
