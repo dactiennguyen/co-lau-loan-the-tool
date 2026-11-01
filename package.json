@@ -23,6 +23,7 @@
     "gift": "node --experimental-strip-types src/cli/gift-run.ts",
     "mail": "node --experimental-strip-types src/cli/mail-run.ts",
     "daily": "node --experimental-strip-types src/cli/daily-run.ts",
+    "market": "node --experimental-strip-types src/cli/market-run.ts",
     "battles": "node --experimental-strip-types --no-warnings src/cli/battles.ts",
     "test:scenario": "node --experimental-strip-types test/scenario-runner.ts",
     "check:apk": "node --experimental-strip-types src/cli/check-apk.ts",

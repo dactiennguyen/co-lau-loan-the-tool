@@ -341,6 +341,10 @@ Người dùng cho thử mua món rẻ nhất (Thú cưng Slime +16 thể lực,
 
 Chưa đo: Gia hạn (có lẽ tốn phí), món bán được (tiền về hòm thư, trừ 5%), món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/1192` vẫn chưa thấy trên dây: `c2s/1193` `k124(int, int)` = `i32; u8`; `c2s/1194` `E125()` rỗng; `c2s/1197`, `c2s/1198` `(int)` = `i32`; `c2s/1199` `b129(int, Object)` = `i32; string` ([c2s-builders](../c2s-builders.md)). Chưa rõ chúng có thuộc chợ hay không [Chưa rõ].
 
+### Làm bằng bot TS
+
+`npm run market` xem chợ, quét món rẻ nhất, Mua, Đăng bán, Thu hồi bằng đúng các gói trên, mở chợ như nút của thanh công cụ (không qua Ngọc Nga). Không có `--confirm` thì chỉ đọc. Cách chạy, các bước kiểm tra trước khi gửi và TODO: [Chợ trời bằng Node.js](../../integration/nodejs/market.md).
+
 ### Lời mời của người chơi khác
 
 Trong CT1, một người chơi khác gửi lời mời (`s2c/17`, 73 byte: `string uuid; string tên; …`) khi cửa sổ Chợ trời đang mở. Lần chạm kế tiếp của ADB (vào nút một mục) bị hộp mời lấy mất. Client gửi `c2s/17 (false, uuid, "")`, có lẽ là từ chối, và không có gì xảy ra. Loại lời mời chưa rõ [Chưa rõ]. Cũng như lời mời giao dịch ở I1, phải xem ảnh màn hình trước mỗi lần chạm.

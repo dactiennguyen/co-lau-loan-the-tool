@@ -10,6 +10,7 @@
 | Giữ kết nối sau khi vào thế giới, bot tự làm nhiệm vụ và đánh quái | [Bot làm nhiệm vụ](quest-bot.md) |
 | Pháp sư: hỏi giá, nâng cấp có bùa, gộp đá, tách đá, chuyển hoá, chế tạo, đổi Băng Tâm | [Pháp sư bằng Node.js](smith.md) |
 | Nhập mã quà tặng, hòm thư (nhận quà, xoá thư đã nhận), nhiệm vụ ngày ở Hương Lão | [Mã quà tặng, hòm thư và nhiệm vụ ngày](mail.md) |
+| Chợ trời: xem, quét món rẻ nhất, Mua, Đăng bán, Thu hồi | [Chợ trời](market.md) |
 | Binary, phương pháp và schema byte của game | [Điều tra app](../../app/README.md) |
 
 ## Chạy với tài khoản của bạn
@@ -115,7 +116,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [buy-run.ts](../../../src/cli/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm hay Cửa hàng [Lượng] (`--shop=luong`) của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; món không chồng được thì mua từng cái; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
 | [smith.ts](../../../src/bot/smith.ts), [smith-run.ts](../../../src/cli/smith-run.ts), [npc.ts](../../../src/protocol/npc.ts) | Pháp sư và lệnh `npm run smith`: mỗi lần một việc, dừng trước Bắt đầu khi không có `--confirm` ([Pháp sư](smith.md)) |
 | [mail.ts](../../../src/protocol/mail.ts), [bot/mail.ts](../../../src/bot/mail.ts), [daily.ts](../../../src/bot/daily.ts), [gift-run.ts](../../../src/cli/gift-run.ts), [gift-state.ts](../../../src/cli/gift-state.ts), [mail-run.ts](../../../src/cli/mail-run.ts), [daily-run.ts](../../../src/cli/daily-run.ts) | Gói và lệnh `npm run gift`, `npm run mail`, `npm run daily` ([mã quà, hòm thư, nhiệm vụ ngày](mail.md)); số mã sai liền của từng nick giữa các lần chạy (`.cache/gift-codes.json`, chỉ ở máy) |
-| [market.ts](../../../src/protocol/market.ts) | Đọc `s2c/1192` của Ngọc Nga: danh sách Chợ trời (món, người bán, giá, hạn, chỉ số), luật bán, món đang bán ([Ngọc Nga](../../app/events/14-npc.md#ngọc-nga)). Chưa có lệnh mua bán |
+| [market.ts](../../../src/protocol/market.ts), [bot/market.ts](../../../src/bot/market.ts), [market-run.ts](../../../src/cli/market-run.ts) | Gói và lệnh `npm run market` ([Chợ trời](market.md)): các mục, trang, quét, Mua, Đăng bán, Thu hồi |
 | [steps.ts](../../../src/bot/steps.ts), [run-session.ts](../../../src/cli/run-session.ts) | Phần chung của các bot từng bước (smith, gift, mail, daily): gửi một gói rồi chờ câu trả lời, đi menu NPC, giữ túi và tiền; tham số, đăng nhập và dòng tổng kết của CLI |
 | [accounts.ts](../../../src/net/accounts.ts) | `--account=<tên>` của `npm run smith`, `gift`, `mail`, `daily`, `buy`: lấy tài khoản trong `app/accounts.json` (chỉ ở máy, không in mật khẩu) |
 | [zone-run.ts](../../../src/cli/zone-run.ts) | Lệnh `npm run zone`: đăng nhập, in số người của từng khu (`c2s/1172`); `--zone=N` thì sang khu N như bảng Khu vực trong game rồi in quái và người của khu mới ([đổi khu](../../app/events/06-map-mobs.md#bot-ts-đổi-khu-z1)) |

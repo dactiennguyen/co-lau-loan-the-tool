@@ -7,6 +7,9 @@ import { currencies } from '../src/protocol/world.ts';
 import { buildRequest } from '../src/protocol/events.ts';
 import { notice } from '../src/protocol/world.ts';
 import { ct1Packets as P } from './fixtures-ct1.ts';
+import { bag42, money46, scripted, type Expect, type Reply } from './support/packets.ts';
+import { MarketBot, type MarketTask } from '../src/bot/market.ts';
+import { Stop } from '../src/bot/steps.ts';
 
 const hex = (key: string) => Buffer.from(P[key], 'hex');
 const items = Items.load();
@@ -79,4 +82,93 @@ test('Đăng bán is c2s/112 (1, bag slot, quantity, i64 price); Đang bán list
   assert.equal(marketWithdrawRequest(l.uuid).toString('hex'), P['c2s/113 Thu hồi']);
   assert.deepEqual(marketDone(hex('s2c/113'), 113), { uuid: l.uuid });
   assert.equal(notice(hex('s2c/1256 đã nhận lại')).text, 'Đã nhận lại vật phẩm Thú cưng Slime');
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// MarketBot, replaying CT1 (01/11, manina2).
+
+const r = (op: number, key: string): Reply => [op, hex(key)];
+const SLIME = '34cb2dae-d9b6-48dd-8d42-6c56337c7d8e';
+const window = (): Expect => ({ op: 116, hex: '', reply: [r(116, 's2c/116 chín mục')] });
+const page4 = (): Expect => ({ op: 1192, hex: marketPageRequest(6, 4).toString('hex'), reply: [r(1192, 's2c/1192 Vật Phẩm Khác trang 4')] });
+
+async function marketBot(task: MarketTask, script: Expect[], { bag = 's2c/1187 sau Thu hồi' as string | Buffer, xu = 5_053_600, confirm = false } = {}) {
+  const logs: Record<string, any>[] = [];
+  const bot = new MarketBot({ items, confirm, waitMs: 300, settleMs: 5, log: e => logs.push(e) });
+  if (typeof bag === 'string') bot.onPacket(1187, hex(bag)); else bot.onPacket(42, bag);
+  bot.onPacket(46, money46(xu, 5_031_278, 9_950));
+  const s = scripted(script, (op, p) => bot.onPacket(op, p));
+  let outcome: string | undefined, stop: string | undefined;
+  try { outcome = await bot.run(task, s.io); } catch (error) { if (!(error instanceof Stop)) throw error; stop = error.message; }
+  return { ...s, outcome, stop, logs, bot };
+}
+
+test('MarketBot opens the window with c2s/116, then reads a page; --scan sorts every page by price', async () => {
+  const list = await marketBot({ kind: 'list', tab: 6, page: 4 }, [window(), page4()]);
+  assert.deepEqual([list.errors, list.left.length, list.outcome], [[], 0, 'done']);
+  assert.deepEqual(list.logs.find(e => e.event === 'tabs')!.fee, 1000);
+  assert.equal(list.logs.filter(e => e.event === 'listing').length, 20);
+  const pages = Array.from({ length: 7 }, (_, k): Expect => ({ op: 1192, hex: marketPageRequest(6, k + 1).toString('hex'), reply: [r(1192, 's2c/1192 Vật Phẩm Khác trang 4')] }));
+  const scan = await marketBot({ kind: 'scan', tab: 6, name: 'slime', top: 2 }, [window(), ...pages]);
+  assert.deepEqual([scan.errors, scan.left.length, scan.outcome], [[], 0, 'done']);
+  const cheap = scan.logs.filter(e => e.event === 'cheap');
+  assert.deepEqual(cheap.map(e => [e.item, e.price, e.uuid]), [['Thú cưng Slime (+16 thể lực)', 1000, SLIME], ['Thú cưng Slime (+12 nội lực)', 5000, '4683a2f4-0e36-463c-8541-962c08c76f4b']]);
+  // The same page seven times: each listing counts once.
+  assert.equal(scan.logs.find(e => e.event === 'scanned')!.listings, 20);
+});
+
+test('Mua: dry run stops before c2s/115; with --confirm the uuid goes out and the item lands in the bag', async () => {
+  const dry = await marketBot({ kind: 'buy', uuid: SLIME, maxPrice: 1000, tab: 6, page: 4 }, [window(), page4()]);
+  assert.deepEqual([dry.errors, dry.left.length, dry.outcome], [[], 0, 'dry_run']);
+  assert.ok(!dry.sent.some(x => x.startsWith('c2s/115')));
+  const buy = await marketBot({ kind: 'buy', uuid: SLIME, maxPrice: 1000, tab: 6, page: 4 }, [window(), page4(),
+    { op: 115, hex: P['c2s/115 Mua'], reply: [r(46, 's2c/46 sau Mua'), r(115, 's2c/115 mua được'), r(1187, 's2c/1187 sau Mua')] }], { confirm: true });
+  assert.deepEqual([buy.errors, buy.left.length, buy.stop, buy.outcome], [[], 0, undefined, 'done']);
+  const result = buy.logs.find(e => e.event === 'result')!;
+  // The bag before is the one after Thu hồi: the same items, the Slime with another uuid.
+  assert.deepEqual([result.moneyAfter.xu, result.slots], [5_052_600, [2]]);
+});
+
+test('Mua refuses before sending: price above --max-price, a full bag; a refusal of the server ends the task', async () => {
+  const dear = await marketBot({ kind: 'buy', uuid: SLIME, maxPrice: 999, tab: 6, page: 4 }, [window(), page4()], { confirm: true });
+  assert.match(dear.stop!, /cao hơn --max-price=999/);
+  const full = Array.from({ length: 42 }, (_, slot) => ({ slot, itemId: 411 }));
+  const noRoom = await marketBot({ kind: 'buy', uuid: SLIME, maxPrice: 1000, tab: 6, page: 4 }, [window(), page4()], { bag: bag42(full), confirm: true });
+  assert.match(noRoom.stop!, /túi không còn ô trống/);
+  assert.ok(![dear, noRoom].some(x => x.sent.some(s => s.startsWith('c2s/115'))));
+  const refused = await marketBot({ kind: 'buy', uuid: SLIME, maxPrice: 1000, tab: 6, page: 4 }, [window(), page4(), { op: 115, reply: [r(1256, 's2c/1256 rương đầy')] }], { confirm: true });
+  assert.deepEqual([refused.errors, refused.left.length], [[], 0]);
+  assert.match(refused.stop!, /server từ chối "Rương đã đầy/);
+  const gone = await marketBot({ kind: 'buy', uuid: '00000000-0000-0000-0000-000000000000', maxPrice: 1000, tab: 6, page: 4 },
+    [window(), page4(), ...Array.from({ length: 7 }, (_, k): Expect => ({ op: 1192, hex: marketPageRequest(6, k + 1).toString('hex'), reply: [r(1192, 's2c/1192 Vật Phẩm Khác trang 4')] }))]);
+  assert.match(gone.stop!, /không thấy món/);
+});
+
+test('Đăng bán: only an item not locked, a price in range; --confirm sends c2s/112 and the fee is taken', async () => {
+  const locked = await marketBot({ kind: 'sell', slot: 0, price: 50_000 }, [window()], { bag: 's2c/1187 sau Mua', confirm: true });
+  assert.match(locked.stop!, /Hoàn Linh Dược ×6 ở ô 0 đã khoá/);
+  const cheap = await marketBot({ kind: 'sell', slot: 2, price: 999 }, [window()], { bag: 's2c/1187 sau Mua', confirm: true });
+  assert.match(cheap.stop!, /giá phải từ 1000 tới 100000000/);
+  const dry = await marketBot({ kind: 'sell', slot: 2, price: 1_000_000 }, [window()], { bag: 's2c/1187 sau Mua' });
+  assert.deepEqual([dry.errors, dry.left.length, dry.outcome], [[], 0, 'dry_run']);
+  assert.deepEqual((({ fee, cut, net }) => ({ fee, cut, net }))(dry.logs.find(e => e.event === 'plan')!), { fee: 1000, cut: 50_000, net: 950_000 });
+  const sell = await marketBot({ kind: 'sell', slot: 2, price: 1_000_000 }, [window(),
+    { op: 112, hex: P['c2s/112 Đăng bán ô 2 giá 1.000.000'], reply: [[46, money46(5_051_600, 5_031_278, 9_950)], r(112, 's2c/112'), r(1256, 's2c/1256 rao bán thành công')] }],
+  { bag: 's2c/1187 sau Mua', xu: 5_052_600, confirm: true });
+  assert.deepEqual([sell.errors, sell.left.length, sell.stop, sell.outcome], [[], 0, undefined, 'done']);
+  const result = sell.logs.find(e => e.event === 'result')!;
+  assert.deepEqual([result.slot, result.moneyAfter.xu, result.notices], [2, 5_051_600, ['Rao bán vật phẩm thành công']]);
+});
+
+test('Thu hồi: the uuid of Đang bán, c2s/113, and the item back in the bag', async () => {
+  const mine = (): Expect => ({ op: 1192, hex: P['c2s/1192 Đang bán'], reply: [r(1192, 's2c/1192 Đang bán một món')] });
+  const listed = market(hex('s2c/1192 Đang bán một món'));
+  const uuid = listed.kind === 2 ? listed.listings[0].uuid : '';
+  const back = await marketBot({ kind: 'withdraw', uuid }, [window(), mine(),
+    { op: 113, hex: P['c2s/113 Thu hồi'], reply: [r(1187, 's2c/1187 sau Thu hồi'), r(113, 's2c/113'), r(1256, 's2c/1256 đã nhận lại')] }], { bag: 's2c/1187 sau Mua', confirm: true });
+  assert.deepEqual([back.errors, back.left.length, back.stop, back.outcome], [[], 0, undefined, 'done']);
+  assert.deepEqual(back.logs.find(e => e.event === 'result')!.slots, [2]);
+  const unknown = await marketBot({ kind: 'withdraw', uuid: SLIME }, [window(), mine()], { confirm: true });
+  assert.match(unknown.stop!, /Đang bán không có món/);
+  assert.ok(!unknown.sent.some(s => s.startsWith('c2s/113')));
 });
