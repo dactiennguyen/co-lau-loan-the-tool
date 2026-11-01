@@ -14,6 +14,8 @@ export const FLOW: { state: string; request: number; expect: number[] }[] = [
   { state: 'map', request: 11, expect: [11] }, { state: 'entities', request: 43, expect: [43, 1263] },
 ];
 export const EXPECTED: Record<string, number[]> = { proxy: [], seed: [], ...Object.fromEntries(FLOW.map(s => [s.state, s.expect])) };
+/** The s2c/0 of a session taken over by a login elsewhere (02-login.md#s2c-0): ends the session, in the world too. */
+export const LOGGED_IN_ELSEWHERE = /đăng nhập ở (một )?nơi khác/i;
 export interface ClientOptions {
   host?: string; port?: number; serverId?: number; username?: string; password?: string;
   mode?: 'bootstrap' | 'login' | 'world'; responseTimeoutMs?: number; overallTimeoutMs?: number;
@@ -54,6 +56,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     let seedBytes: Buffer = Buffer.alloc(0), haveSeed = false, haveList = false, haveFlag = false;
     let state = 'seed', done = false, characterName = '', mapId = '', packets = 0;
     let entities = false, snapshot = false, players = false, ready = false, lastReceiveOpcode: number | null = null;
+    let lastServerMessage: { flag: unknown; text: unknown; at: number } | undefined;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     let stepTimer: ReturnType<typeof setTimeout> | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -119,7 +122,10 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     socket.on('close', () => {
       if (done) return;
       if (state === 'proxy') fail('PROXY_CLOSED', 'Proxy closed the connection before the tunnel opened', { proxy: proxyLabel(proxy!) });
-      else fail('SERVER_CLOSED', 'Server closed connection before the requested result');
+      else {
+        const m = lastServerMessage && { flag: lastServerMessage.flag, text: lastServerMessage.text, secondsAgo: Math.round((Date.now() - lastServerMessage.at) / 1000) };
+        fail('SERVER_CLOSED', 'Server closed connection before the requested result', m && { lastServerMessage: m });
+      }
     });
     socket.on('data', (chunk: Buffer) => {
       if (done) return;
@@ -156,7 +162,17 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
             fields: decoded?.fields, parsedBytes: decoded?.parsedBytes ?? 0, opaqueBytes: decoded?.opaqueBytes ?? packet.payload.length });
           if (packet.opcode === undefined || !spec) emit('unknown_opcode', { code: 'OPCODE_MAPPING_OR_CATALOG', encodedOpcode: packet.encodedOpcode, opcode: packet.opcode ?? null });
           if (packet.opcode !== undefined) options.session?.onPacket(packet.opcode, packet.payload);
-          if (ready && packet.opcode !== 0) continue;
+          // In the world s2c/0 is the server's message box (Hương Lão's Cách tính điểm, Chế tạo short of materials:
+          // 14-npc.md#s2c-0): logged and handed to the session, which goes on. Before that it ends the login, and so does
+          // "logged in elsewhere" in the world: the session was taken over and must send nothing more.
+          if (ready && packet.opcode === 0) {
+            const text = String(decoded?.fields.text ?? '');
+            if (LOGGED_IN_ELSEWHERE.test(text)) throw new ProtocolError('SERVER_MESSAGE', text, { serverFlag: decoded?.fields.flag, sourceEvent: 's2c/0', inWorld: true });
+            lastServerMessage = { flag: decoded?.fields.flag, text, at: Date.now() };
+            emit('server_message', { flag: lastServerMessage.flag, text });
+            continue;
+          }
+          if (ready) continue;
           const r = new Reader(packet.payload);
           switch (packet.opcode) {
             case 0:

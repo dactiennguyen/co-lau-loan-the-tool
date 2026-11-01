@@ -165,7 +165,7 @@ Thứ tự không bắt buộc: đặt đá trước trang bị thì `s2c/90` b�
 | "Rương đồ không đủ ô trống" | Bấm Bắt đầu ở Tách đá khi túi 54/54 ô |
 | "Cần 20 Băng Tâm, 30 Kim Thạch và 30 Huyết Thạch" | Đặt Băng Tâm vào Chế Băng Kiếm khi thiếu |
 | "Cần 8 Băng Tâm để đổi 1 Bình Huyết Linh (Rỗng)" | Chọn Đổi 1 bình khi có 1 Băng Tâm |
-| `s2c/0` "Cần 1 Lông Vũ (Cánh Tiên) hoặc 1 Vuốt Quỷ (Cánh Quỷ), 100 Kim Thạch và 100 Huyết Thạch" | Chế tạo cánh: đặt Huyết Thạch khi thiếu nguyên liệu. Bot TS hiện coi mọi `s2c/0` là lỗi và ngắt phiên ([s2c/0](14-npc.md#s2c-0)) |
+| `s2c/0` "Cần 1 Lông Vũ (Cánh Tiên) hoặc 1 Vuốt Quỷ (Cánh Quỷ), 100 Kim Thạch và 100 Huyết Thạch" | Chế tạo cánh: đặt Huyết Thạch khi thiếu nguyên liệu. Đã vào game thì client TS ghi `server_message` rồi chạy tiếp ([s2c/0](14-npc.md#s2c-0)) |
 
 <a id="nâng-cấp"></a>
 
@@ -430,7 +430,7 @@ S→C 1256  1, "Bạn vừa nhận được Nhẫn Thái Cực"
 - `s2c/1187` byte đầu 4 là **thêm một món** (một bản ghi vật phẩm, 83 byte), khác byte đầu 1 là cả túi.
 - Món chế ra có hệ ngẫu nhiên và phẩm chất: chi tiết trên máy ghi "Phẩm chất: Quý", "Đúng hệ nhân vật: +5% chỉ số trang bị", "Bộ cùng hệ (4/4)" (Cẩm nang: "Đồ chế tạo: có cơ hội có thưởng hệ và thưởng bộ"). Nhẫn Thái Cực bậc 21 nên nâng được tới +8.
 - **Cấp nhân vật:** Bậc II và Bậc III cũng mở cửa sổ và nhận nguyên liệu, nhưng Bắt đầu thì "Cần đạt cấp 51 mới chế tạo được Áo Bậc II", "Cần đạt cấp 101 mới chế tạo được Vũ khí Bậc III" (`s2c/1256`), không mất gì.
-- Bot đặt nguyên liệu bằng loại 0 thì chỉ nhận lời nhắc `s2c/0` "Cần chọn đủ 2 loại nguyên liệu và Xu…", vì vậy bot TS phải chịu được `s2c/0` khi đang ở trong game (O1 dùng một bản chép của client cho việc này). [Đo O1]
+- Bot đặt nguyên liệu bằng loại 0 thì chỉ nhận lời nhắc `s2c/0` "Cần chọn đủ 2 loại nguyên liệu và Xu…", vì vậy bot TS phải chịu được `s2c/0` khi đang ở trong game. O1 dùng một bản chép của client cho việc này; từ sau O1 client TS không ngắt phiên vì `s2c/0` khi đã vào game nữa ([s2c/0](14-npc.md#s2c-0)). [Đo O1]
 
 Băng Tâm bán ở Dược phẩm giá 500 Xu ([cửa hàng](15-shops.md#danh-sách-sản-phẩm)).
 
@@ -504,12 +504,14 @@ Tiền của Tiheo2 trước và sau O1: Xu 15.103.600 → 15.097.200 (chế Nh�
 
 Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
 
+Bot TS `npm run smith` ([Pháp sư bằng Node.js](../../integration/nodejs/smith.md)) làm Hỏi giá, Nâng cấp, Gộp đá, Tách đá, Chuyển hoá như app, và thêm bốn phần app chưa có: **bùa bảo vệ** (`c2s/97` loại 1, chỉ ở lần nâng mà thất bại sẽ tụt cấp), **nâng trên +4** tới trần theo bậc, **Chế tạo trang bị** (công thức đọc từ menu, nguyên liệu loại 1 với cả chồng), **Đổi Băng Tâm**. Không có `--confirm` thì bot dừng trước Bắt đầu. Đã có test phát lại gói O1; chưa chạy với server thật.
+
 <a id="todo"></a>
 
 ## Còn để sau (TODO)
 
-- **Bùa bảo vệ và nâng trên +4.** Gói đã đo ở O1 (bùa là `c2s/97` loại 1; thất bại tụt về +4; có bùa thì giữ cấp; bùa mất cả khi thành công). Còn phải làm trong app: đặt bùa đúng loại, chọn khi nào cần bùa, và bỏ giới hạn `npc::SAFE_LEVEL`.
-- **Chế tạo trang bị.** Gói đã đo ở O1 ([chế tạo](#chế-tạo)): đặt hai nguyên liệu bằng `c2s/97` loại 1 với cả chồng, Bắt đầu `c2s/91`, món mới trong `s2c/1187` loại 4. Còn phải làm trong app và bot.
+- **Bùa bảo vệ và nâng trên +4.** Gói đã đo ở O1 (bùa là `c2s/97` loại 1; thất bại tụt về +4; có bùa thì giữ cấp; bùa mất cả khi thành công). Bot TS đã làm ([nâng cấp](../../integration/nodejs/smith.md#nâng-cấp)); còn phải chạy thật bằng bot TS rồi port sang app: đặt bùa đúng loại, chọn khi nào cần bùa, và bỏ giới hạn `npc::SAFE_LEVEL`.
+- **Chế tạo trang bị.** Gói đã đo ở O1 ([chế tạo](#chế-tạo)): đặt hai nguyên liệu bằng `c2s/97` loại 1 với cả chồng, Bắt đầu `c2s/91`, món mới trong `s2c/1187` loại 4. Bot TS đã làm ([chế tạo](../../integration/nodejs/smith.md#chế-tạo)), cùng Đổi Băng Tâm; còn phải chạy thật rồi port sang app.
 
 <a id="tính-năng"></a>
 
@@ -527,7 +529,7 @@ Những gì bot cần, theo các phần trên:
 8. **Làm lại:** mở lại menu là có cửa sổ rỗng. Không có gói bỏ món.
 9. **Luyện đá:** cùng cách, cửa sổ `s2c/99`, đọc `s2c/92`; Bắt đầu cũng là `c2s/91 ""`, kết quả `s2c/93`. Dùng [quy luật](#luyện-đá) để chọn số viên (4 viên cùng cấp là 100%; từ 40% trở xuống server không cho bấm). Muốn đá ra không khoá thì chỉ dùng đá chưa khoá và cửa sổ [Xu].
 10. **Ô trống:** Tách đá cần đủ ô cho số đá nhận; mua cần 1 ô ([túi đầy](#túi-đầy)).
-11. **Xử lý `s2c/0`:** bot TS hiện ngắt phiên khi gặp `s2c/0`, mà Chế tạo cánh trả lời thiếu nguyên liệu bằng gói này. Cần sửa trước khi làm Chế tạo.
+11. **Xử lý `s2c/0`:** Chế tạo trả lời thiếu nguyên liệu (hay đặt sai loại) bằng `s2c/0`. Client TS đã sửa: khi đã vào game, `s2c/0` được ghi thành `server_message` và giao cho phiên; `npm run smith` coi nó là lời từ chối của bước đang chờ.
 
 ## Chưa đo
 

@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 124 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 88 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 135 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 88 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -104,7 +104,18 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/44 | battle_use_item | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | s2c/44 | battle_item_result | battle | [Dùng vật phẩm trong trận](12-skills-items.md#c2s-44) |
 | c2s/1215 | mail_request | world | [Các bảng chức năng](11-panels.md) |
-| s2c/1215 | mail_list | world | [Các bảng chức năng](11-panels.md) |
+| s2c/1215 | mail_list | world | [Hòm thư](14-npc.md#hòm-thư) |
+| c2s/1216 | mail_open | world | [Hòm thư](14-npc.md#hòm-thư) |
+| s2c/1216 | mail_body | world | [Hòm thư](14-npc.md#hòm-thư) |
+| c2s/1217 | mail_claim | world | [Hòm thư](14-npc.md#hòm-thư) |
+| s2c/1217 | mail_claimed | world | [Hòm thư](14-npc.md#hòm-thư) |
+| c2s/1218 | mail_claim_all | world | [Hòm thư](14-npc.md#hòm-thư) |
+| c2s/1219 | mail_delete | world | [Hòm thư](14-npc.md#hòm-thư) |
+| s2c/1219 | mail_deleted | world | [Hòm thư](14-npc.md#hòm-thư) |
+| c2s/1221 | mail_delete_all | world | [Hòm thư](14-npc.md#hòm-thư) |
+| s2c/1222 | mail_new | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
+| c2s/1223 | gift_code | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
+| s2c/1223 | gift_code_result | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
 | c2s/1196 | friends_request | world | [Các bảng chức năng](11-panels.md) |
 | s2c/1196 | friend_list | world | [Các bảng chức năng](11-panels.md) |
 | c2s/1254 | ranking_request | world | [Bảng xếp hạng](11-panels.md#s2c-1254) |
@@ -150,8 +161,8 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/34 | quest_progress | push | [Gói nhiệm vụ](10-quests.md#c2s-13) |
 | s2c/35 | quest_complete | push | [Gói nhiệm vụ](10-quests.md#c2s-13) |
 | s2c/1261 | counter_1261 | push | [Gói định kỳ trong bot](10-quests.md#kết-quả-q2) |
-| s2c/1195 | flag_1195 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1195) |
-| s2c/1220 | flag_1220 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1220) |
+| s2c/1195 | daily_quest | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1195) |
+| s2c/1220 | mail_unread | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1220) |
 | s2c/1177 | map_boss | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1177) |
 | s2c/1263 | players_snapshot | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1263) |
 | s2c/1262 | player_positions | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1262) |

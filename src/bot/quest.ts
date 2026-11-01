@@ -10,8 +10,9 @@ import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
 import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
+import { dailyQuest, dailyText } from '../protocol/mail.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -311,6 +312,14 @@ export class QuestBot implements WorldSession {
         break;
       // Empty, at the end of a battle and after c2s/40 (05-battle).
       case 1214: if (this.battle?.surrendered) this.left(1214); break;
+      // The daily quest held (Hương Lão): at login, when taken or dropped; logged to see how its progress moves in fights
+      // (docs/integration/nodejs/mail.md#todo).
+      case 1195: {
+        let quest: ReturnType<typeof dailyQuest>['quest'] | undefined;
+        try { quest = dailyQuest(payload).quest; } catch { this.log('daily_quest', { payloadHex: payload.toString('hex') }); break; }
+        this.log('daily_quest', { quest: quest && { id: quest.id, name: quest.name, text: dailyText(quest) } });
+        break;
+      }
       // Xu, Xu khóa, Lượng after a change: login, a quest reward, a pickup (P3).
       case 46: {
         let money: ReturnType<typeof currencies> | undefined;
@@ -322,8 +331,12 @@ export class QuestBot implements WorldSession {
         // The whole bag after it changed: a quest reward, a repair, an item picked up.
         let bag: ReturnType<typeof inventory> | undefined;
         try { bag = inventory(payload); } catch { this.log('inventory', { payloadHex: payload.toString('hex') }); break; }
-        this.bag = bag.items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity }));
-        this.log('inventory', { capacity: bag.capacity, items: bag.items.map(i => this.options.items?.describe(i) ?? `#${i.itemId} ×${i.quantity}`) });
+        // Kind 4 adds one item (Chế tạo, O1): the log says that item and how many the bag holds now. The others are the
+        // whole bag.
+        const describe = (i: (typeof bag.items)[number]) => this.options.items?.describe(i) ?? `#${i.itemId} ×${i.quantity}`;
+        this.bag = bagAfter(this.bag, bag.kind, bag.items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity })));
+        this.log('inventory', bag.kind === BAG_ADD ? { kind: bag.kind, added: describe(bag.items[0]), slot: bag.items[0].slot, count: this.bag.length }
+          : { kind: bag.kind, capacity: bag.capacity, items: bag.items.map(describe) });
         break;
       }
       case 42: try { this.bag = characterExtra(payload).items.map(i => ({ slot: i.slot, itemId: i.itemId, quantity: i.quantity })); } catch { /* the bag log of s2c/1187 covers it */ } break;

@@ -299,7 +299,7 @@ Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. B
 |---|---|---|---|
 | `s2c/42` | Trả `c2s/42 (string tênNhânVật)` lúc đăng nhập | `string "test dong 1"; i32 42; i32 3; u8 2; i32 sứcChứa; i32 n; n × bản ghi` | 608/608 byte, 8 món, sức chứa 42 |
 | `s2c/1187` | Mỗi khi túi đổi: sửa đồ (E2), trả nhiệm vụ (L1, Q2) | `u8 1; i32 sứcChứa; i32 n; n × bản ghi` (cả túi) | 519/519 byte, 7 món sau khi sửa |
-| `s2c/1187` byte đầu 4 | Chế tạo trang bị ở Pháp sư (O1) | `u8 4; bản ghi` (chỉ món mới thêm vào túi) | 83/83 byte: Nhẫn Thái Cực ở ô 19 ([16-upgrade](16-upgrade.md#chế-tạo)) |
+| `s2c/1187` byte đầu 4 | Chế tạo trang bị ở Pháp sư (O1) | `u8 4; bản ghi` (chỉ món mới thêm vào túi) | 83/83 byte: Nhẫn Thái Cực ở ô 19 ([16-upgrade](16-upgrade.md#chế-tạo)). `inventory()` trả `kind` 4 với một món; bot ghép món đó vào túi đang có, không thay cả túi |
 | Đuôi `s2c/9` | Lúc đăng nhập | Sau danh sách kỹ năng: `i32 8; 8 × (u8 0xff: ô trống \| bản ghi)`, byte `ô` của bản ghi bằng số ô | Ô 0 nón, ô 2 vũ khí, 6 ô trống ([Ô trang bị](#ô-trang-bị)) |
 
 - Sức chứa 42 khớp túi 50 ô trên máy có 8 ô khoá. Trước đây [09](09-players-chat.md#gói-khác-thấy-trong-l1-người-chơi-tự-bấm-trên-máy) đọc `0000002a` của `s2c/1187` là "mã 42", nhưng đó là sức chứa. [Đo]
@@ -624,7 +624,7 @@ buildRequest(1190, { shopId: 4, quantity: 1 })                // mua 1 Hoàn Lin
 
 - Chọn ô theo `s2c/1190`, không theo mã vật phẩm: tìm món có `itemId` cần mua và `currency` muốn trả, rồi gửi `shopId` của nó. Bộ giải mã: `npcMenu`, `shopList` trong [src/protocol/world.ts](../../../src/protocol/world.ts).
 - Kiểm tiền trước khi gửi: `giá × số lượng` phải ≤ Xu hoặc Xu khóa của `s2c/46` gần nhất.
-- Lệnh [src/cli/buy-run.ts](../../../src/cli/buy-run.ts): `npm run buy [-- --item=2] [--pay=khoa|xu] [--qty=1] [--buy]`. Lệnh đăng nhập, mở Dược phẩm, in bảng, chọn ô có `itemId` và loại tiền muốn trả, kiểm tiền, rồi chỉ gửi `c2s/1190` khi có `--buy`. Không có `--buy` thì chỉ mở cửa hàng, không tốn gì.
+- Lệnh [src/cli/buy-run.ts](../../../src/cli/buy-run.ts): `npm run buy [-- --account=tiheo2] [--shop=duoc|luong] [--item=2] [--pay=khoa|xu] [--qty=1] [--buy]`. Lệnh đăng nhập, mở Dược phẩm (hay Cửa hàng [Lượng] với `--shop=luong`), in bảng, chọn ô có `itemId` và loại tiền muốn trả, kiểm tiền, rồi chỉ gửi `c2s/1190` khi có `--buy`. Món không chồng được (đá) thì gửi từng cái một cho đủ `--qty` ([mua bằng Lượng](15-shops.md#lượng)). Không có `--buy` thì chỉ mở cửa hàng, không tốn gì.
 - **B1** (31/10, manina cấp 21, 500 Xu, 8.517 Xu khóa, không có búa):
   - Đứng ở **M2**: `c2s/13 ("M1", 106)` → `s2c/1256` "Không thể thực hiện" sau 27 ms, không có `s2c/57`. **Phải đang ở M1** mới mở được Lái Buôn. [Đo]
   - Sang M1 (`cllt goto --map=M1`, server xếp khu 1), đứng ở chỗ đăng nhập, xa NPC: `s2c/57` sau 26 ms, `s2c/1190` sau 26 ms, đủ 8 món đúng giá và đúng ô như P5. Khoảng cách tới NPC không quan trọng. [Đo]

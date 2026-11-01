@@ -74,7 +74,7 @@ test('c2s/97 and c2s/91 are what the phone sent (J1): put bag slot 45, Bắt đ�
   assert.equal(buildRequest(97, { slot: 45 }).toString('hex'), '0000000000000000000000002d00000001');
   assert.equal(putRequest(45).toString('hex'), '0000000000000000000000002d00000001');
   assert.deepEqual([buildRequest(91).toString('hex'), startRequest().toString('hex')], ['00000000', '00000000']);
-  assert.deepEqual(decodeEvent('c2s', 97, putRequest(15)).fields, { key: '', kind: 0, field: 0, slot: 15, quantity: 1 });
+  assert.deepEqual(decodeEvent('c2s', 97, putRequest(15)).fields, { key: '', from: 0, kind: 0, slot: 15, quantity: 1 });
   assert.deepEqual([WINDOWS.upgrade, WINDOWS.careful, WINDOWS.separate, WINDOWS.mergeXu], [[0, 0], [0, 1], [2], [1, 1]]);
 });
 

@@ -21,7 +21,7 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | NPC nào có việc? | Ở M1: Hương Lão Trần Bá, Bà Tư Hạnh, Lái Buôn, Pháp sư, Ngọc Nga. 15 NPC còn lại chỉ nói "Xin chào" với một nút OK ([bảng](#danh-sách-npc)). [Đo] |
 | Mua ở NPC? | Mọi cửa hàng dùng chung một gói mua: `c2s/1190 (0, ôCửaHàng, sốLượng)`. Byte đầu của `s2c/1190` là mã cửa hàng, có 14 cửa hàng, 193 dòng hàng ([15-shops](15-shops.md)). [Đo] |
 | Nâng cấp trang bị? | Pháp sư → Nâng cấp → Nâng cấp [Thường]: `s2c/96` mở cửa sổ; `c2s/97` đặt món (không tốn gì); `s2c/90` báo giá và tỉ lệ; `c2s/91` là nút Bắt đầu; `s2c/91` trả kết quả. Luyện đá, Tách đá, Chuyển hoá dùng cùng gói đặt món ([16-upgrade](16-upgrade.md)). [Đo] |
-| `s2c/0` là gì? | Hộp thông báo chung của server, không chỉ báo "đăng nhập nơi khác". Hương Lão → Điểm năng động → Cách tính điểm trả lời bằng `s2c/0`, và bot TS hiện coi gói này là lỗi nên ngắt phiên ([s2c/0](#s2c-0)). [Đo] |
+| `s2c/0` là gì? | Hộp thông báo chung của server, không chỉ báo "đăng nhập nơi khác". Hương Lão → Điểm năng động → Cách tính điểm trả lời bằng `s2c/0`. Đã vào game thì client TS ghi gói này thành `server_message` và chạy tiếp, trừ lời báo đăng nhập nơi khác: phiên đó dừng ngay ([s2c/0](#s2c-0)). [Đo] |
 
 <a id="hộp-thoại"></a>
 
@@ -117,6 +117,7 @@ s2c/1195  u8 có                   0: không có nhiệm vụ ngày (1 byte)
 | 116 | Sử dụng vật phẩm | Sử dụng %d vật phẩm trong trận đấu | 3 |
 | 113 | Nhặt xu | Thu thập %d xu khóa từ đánh quái | 2050 |
 
+- Bot TS: `npm run daily` đọc nhiệm vụ và menu, Nhận hay Hủy với `--confirm`, rồi để menu gốc của Hương Lão là menu cuối ([cách chạy](../../integration/nodejs/mail.md#nhiệm-vụ-ngày)); chưa chạy với server thật.
 - Tab **Phụ** của khung nhiệm vụ bên trái hiện "Sử dụng 0/3 vật phẩm trong trận đấu"; mở tab không gửi gói nào. Nhân vật vẫn giữ nhiệm vụ chính (tab Chính).
 - Cẩm nang (mục Nhiệm vụ): mỗi ngày nhận tối đa 3 nhiệm vụ, mỗi lần làm 1; làm xong thì về Hương Lão chọn **Hoàn thành nhiệm vụ**; thưởng là kinh nghiệm, Xu khóa hoặc vật phẩm. Theo Cách tính điểm, mỗi lần nhận thưởng nhiệm vụ ngày được 5 điểm năng động.
 - Chưa đo [Chưa rõ]: tiến độ tăng thế nào (có `s2c/1195` mới sau mỗi trận không), dòng Hoàn thành nhiệm vụ và phần thưởng, nhận lượt thứ 4 trong ngày, mấy giờ thì tính sang ngày mới. Muốn đo thì phải đánh trận. Tiheo2 đang giữ nhiệm vụ 113 (0/2050), đã dùng 2/3 lượt của 01/11.
@@ -238,7 +239,7 @@ Bốn thư của Ttuananh (cấp 31, túi 42/42 ô, phần lớn là đá):
 
 #### Làm bằng bot TS
 
-Không cần điện thoại hay NPC: mọi gói ở trên gửi được ngay sau khi vào game. Client mở Mã quà tặng qua Hương Lão, nhưng bot gửi thẳng `c2s/1223` cũng được [Đo G1].
+Không cần điện thoại hay NPC: mọi gói ở trên gửi được ngay sau khi vào game. Client mở Mã quà tặng qua Hương Lão, nhưng bot gửi thẳng `c2s/1223` cũng được [Đo G1]. Bot TS làm đúng các bước dưới bằng `npm run gift` và `npm run mail` ([cách chạy](../../integration/nodejs/mail.md)); chưa chạy với server thật.
 
 1. Nhập mã: `c2s/1223 (string mã)`, đổi chữ hoa và cắt dấu cách trước, tối đa 32 ký tự. Đọc `s2c/1223`: `ok` 1 thì chờ `s2c/1222` (thư mới); `ok` 0 thì dừng và báo lời của server. Server không cho biết đã sai mấy lần, nên bot tự đếm số lần sai liền của nick: 10 lần sai liền thì mọi mã (kể cả mã đúng) bị từ chối với "Bạn nhập mã quá nhanh, vui lòng thử lại sau" trong 5 phút. Gặp lời này thì chờ đủ 5 phút rồi mới gửi tiếp. Không thử mã đoán mò.
 2. Xem hòm: `c2s/1215` → `s2c/1215`. Với mỗi thư `cóQuà` 1, `đãNhận` 0: `c2s/1216` để biết món (tiền là `#40`–`#42`), rồi `c2s/1217`. Đếm ô trống của túi trước: món đã có trong túi thì cộng vào chồng (đã thấy khi cùng đã khoá); món mới và mỗi viên đá (không chồng) cần một ô. `s2c/1217` `ok` 1 thì cập nhật tiền theo `s2c/46` và túi theo `s2c/1187`; `ok` 0 kèm "Rương đã đầy" thì dừng, báo người dùng.
@@ -263,7 +264,12 @@ Cả ba dòng đều trả `s2c/1192`; byte đầu cho biết loại. [Đo J1]
 
 ## `s2c/0` là hộp thông báo chung
 
-Cách tính điểm của Hương Lão trả lời bằng `s2c/0` với cả đoạn chữ ở trên, không phải `s2c/57`. Trước J1, `s2c/0` chỉ thấy khi tài khoản đang đăng nhập nơi khác ([02-login](02-login.md#s2c-0)). Bot TS (`runClient`) coi mọi `s2c/0` là lỗi `SERVER_MESSAGE` và ngắt phiên, nên lần chạy thứ ba của J1 dừng ngay sau gói này. Muốn bot đọc được các thông báo kiểu này thì phải phân biệt hai trường hợp, ví dụ theo lúc đến (đang đăng nhập hay đã vào game) hoặc theo cờ đầu gói. [Đo; cách phân biệt Chưa rõ]
+Cách tính điểm của Hương Lão trả lời bằng `s2c/0` với cả đoạn chữ ở trên, không phải `s2c/57`. Trước J1, `s2c/0` chỉ thấy khi tài khoản đang đăng nhập nơi khác ([02-login](02-login.md#s2c-0)). Trước đây bot TS (`runClient`) coi mọi `s2c/0` là lỗi `SERVER_MESSAGE` và ngắt phiên, nên lần chạy thứ ba của J1 dừng ngay sau gói này. Cờ đầu gói không phân biệt được hai trường hợp: lúc đăng nhập lẫn trong game đều là -1 (J1, G1, O1). Vì vậy client phân biệt theo lúc đến [Đo]:
+
+- **Đang đăng nhập** (chưa vào game): vẫn là lỗi `SERVER_MESSAGE` kèm chữ của server, như "Tài khoản hiện đang đăng nhập ở một nơi khác".
+- **Đã vào game:** client ghi dòng `server_message` (cờ, chữ), giao gói cho phiên (`onPacket(0, …)`) rồi chạy tiếp. Nếu sau đó server đóng kết nối thì chẩn đoán `SERVER_CLOSED` có kèm `lastServerMessage` và `secondsAgo` (gói đó đến bao lâu trước).
+- **Đã vào game mà chữ là "…đăng nhập ở một nơi khác":** vẫn là lỗi `SERVER_MESSAGE` (kèm `inWorld: true`) và phiên dừng ngay. Phiên đã bị nơi khác chiếm; kết nối cũ còn nhận gói một lúc (lần ở Tiheo2 trong [Hương Lão](#hương-lão-trần-bá)), nên bot không được gửi gì thêm.
+- Test: `test/client.test.ts` (server giả gửi hộp thông báo của O1, rồi lời báo đăng nhập nơi khác, sau khi vào game).
 
 ## Ghi chú về Frida
 
@@ -272,5 +278,5 @@ Sau khoảng 8 phút gắn agent ghi gói và agent đi xuyên quái (thay `sqhz
 ## Chưa đo
 
 - Hoàn thành nhiệm vụ hàng ngày (phải đánh trận cho xong), Đổi Xu khi đủ 100 điểm năng động, Chế Băng Kiếm, chọn bậc ở Chế tạo trang bị: đều có thể làm thay đổi tài khoản ngay khi bấm. Nhận và Hủy nhiệm vụ hàng ngày, Đổi Xu khi chưa đủ điểm đã đo ở G1 ([Nhiệm vụ hàng ngày](#nhiệm-vụ-hàng-ngày), [Điểm năng động](#điểm-năng-động)).
-- Ở Pháp sư: bùa bảo vệ, nâng từ +2 trở lên, luyện đá thất bại, chế tạo ([16-upgrade](16-upgrade.md#chưa-đo)). Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá đã bấm thật ở J3 ([kết quả](16-upgrade.md#j3)).
+- Ở Pháp sư: luyện đá thất bại, Chế Băng Kiếm, Chế tạo cánh ([16-upgrade](16-upgrade.md#chưa-đo)). Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá đã bấm thật ở J3; bùa, nâng tới +7, Chế tạo trang bị, Đổi Băng Tâm ở O1 ([kết quả](16-upgrade.md#o1)).
 - Mua, bán, rút tiền ở Chợ trời.

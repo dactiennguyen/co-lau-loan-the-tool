@@ -78,7 +78,7 @@ Index bắt đầu từ 0 trong danh sách record đã normalize. Lỗi parse c�
 | `PUSH_SCHEMA` | Schema push đang suy luận; giữ raw/opaque tới khi xác minh |
 | `UNSUPPORTED_BRANCH` | Gate/ACK/status ngoài nhánh đã đo; quan sát UI app |
 | `SERVER_NOTIFICATION` | Text thông báo trả ngoài bước bootstrap |
-| `SERVER_MESSAGE` | Gói 0/text thật; đã gặp account đang đăng nhập nơi khác |
+| `SERVER_MESSAGE` | Gói 0/text thật lúc đăng nhập; đã gặp account đang đăng nhập nơi khác. Trong game chỉ khi chữ là "…đăng nhập ở một nơi khác" (`inWorld: true`); hộp thông báo khác chỉ là dòng `server_message` |
 | `RESPONSE_TIMEOUT`, `MISSING_RESPONSE` | State và `expectedReceiveOpcodes`; có thể thiếu thời gian capture |
 | `REQUEST_ORDER_CHANGED`, `MISSING_REQUEST`, `PREVIOUS_RESPONSE_MISSING`, `MISSING_REQUIRED_EVENT` | So flow từ boot; phân biệt capture bắt đầu muộn với flow mới |
 | `CAPTURE_TRUNCATED`, `PAYLOAD_MISSING` | Thiếu bằng chứng, cần body đủ |

@@ -3,7 +3,8 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
   zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList } from './world.ts';
-import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult } from './npc.ts';
+import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
+import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from '../battle/battle.ts';
 
 export type Direction = 'c2s' | 's2c';
@@ -34,7 +35,7 @@ event('c2s', 5, 'notice_request', 'boot', 'Đã nhận danh sách server và fla
 event('s2c', 5, 'notification', 'boot', 'Thông báo boot, hoặc thông báo trong giai đoạn khác', 'Boot: chờ bấm login; nhánh khác: dừng và đọc thông báo', 'u8 kind; i32 field0..3; string text');
 event('c2s', 1, 'heartbeat_request', 'boot', 'Timer khoảng 2 giây tại login', 's2c/1', 'Rỗng');
 event('s2c', 1, 'heartbeat_response', 'boot', 'Trả heartbeat', 'Không gửi ACK riêng', 'Rỗng');
-event('s2c', 0, 'server_message', 'login', 'Server gửi thông báo; đã quan sát khi account online nơi khác', 'Đọc text và dừng phiên đang chờ; không coi là sai mật khẩu', 'i8 flag; string text', 'Đã nhận trực tiếp từ server thật bằng kết nối kiểm chứng độc lập: flag=-1, thông báo account đang đăng nhập nơi khác');
+event('s2c', 0, 'server_message', 'login', 'Server gửi hộp thông báo: lúc đăng nhập khi account online nơi khác; trong game là lời nhắc thường (Hương Lão → Cách tính điểm, Chế tạo thiếu nguyên liệu)', 'Lúc đăng nhập: đọc text và dừng phiên đang chờ, không coi là sai mật khẩu. Trong game: client ghi server_message, giao gói cho phiên và chạy tiếp', 'i8 flag; string text', 'Đã nhận trực tiếp từ server thật bằng kết nối kiểm chứng độc lập: flag=-1, thông báo account đang đăng nhập nơi khác. Trong game cũng flag=-1 (J1, G1, O1)');
 event('c2s', 2, 'login_begin', 'login', 'Người dùng bấm Đăng nhập', 's2c/2', 'Rỗng');
 event('s2c', 2, 'login_gate', 'login', 'Trả login_begin', 'String rỗng: c2s/3; khác: nhánh chưa quan sát', 'string gate');
 event('c2s', 3, 'challenge_request', 'login', 'Login gate rỗng', 's2c/3', 'Rỗng');
@@ -75,11 +76,11 @@ event('s2c', 1180, 'duel_invite', 'world', 'Sau c2s/57 Đồng ý trong hộp th
 event('c2s', 1181, 'duel_challenge', 'world', 'Client tự gửi khi nhận s2c/1180 (sqlq.a122(mobId, npcId, false), gọi từ hàm chạm sqhz.a17)', 's2c/22 mở trận sau 2,1 s (N3)', 'string mobId; i32 0; i32 npcId', 'Đo N3 1 lần: "mob880" 0 141');
 event('c2s', 1190, 'shop_buy', 'world', 'Bấm Mua rồi xác nhận số lượng trong cửa hàng NPC (sqlq.h87(shopId, quantity))', 'Được: s2c/1256 "Bạn vừa mua thành công! 1 Hoàn Linh Dược", s2c/42 (cả túi), s2c/46 (tiền). Thiếu tiền: s2c/1256 "Không đủ Xu để thực hiện"', 'u8 0; i32 shopId (của s2c/1190); i32 quantity', 'Đo P5 2 lần: ô 0 trả bằng Xu (thiếu Xu), ô 4 trả 120 Xu khóa (mua được, Xu khóa 3544 → 3424); J1 1 lần: ô 391 Nhẫn Trơn 300 Xu; J3 2 lần bằng Lượng (ô 404, 480): s2c/46, s2c/1187, s2c/1256, s2c/46; túi đầy: s2c/1256 "Rương đã đầy…"');
 event('s2c', 96, 'service_window', 'world', 'Sau c2s/57 chọn Nâng cấp [Thường] hay [Cẩn thận], Chuyển hoá trang bị, Tách đá ở Pháp sư', 'Đặt món: c2s/97', 'string tênNhânVật; string key ("" hoặc "TRANSMUTE"); string lời; string tên; i32 sốÔ (18; 0 ở Tách đá)', 'Đọc hết 4 cửa sổ (J1), mở lại 30 lần (J2); trên máy là cửa sổ Nâng cấp có 18 ô đá');
-event('s2c', 99, 'craft_window', 'world', 'Sau c2s/57 chọn Luyện đá [Xu khóa] hay [Xu], Chế tạo cánh, Chế Băng Kiếm ở Pháp sư', 'Đặt món: c2s/97 → s2c/92 (Luyện đá)', 'string key ("abcd1002", "abcd1003", "abcd1006", "abcd1007"); string lời; string tên; i32 n (24 đá; 3 ô nguyên liệu)', 'Đọc hết 4 cửa sổ (J1, J2)');
-event('c2s', 97, 'service_put', 'world', 'Bấm Chọn ở một món của Hành trang trong mọi cửa sổ của Pháp sư (sqlq.a107)', 's2c/90 (Nâng cấp, Tách đá, nguồn Chuyển hoá; với trang bị thêm s2c/1258), s2c/1260 (đích Chuyển hoá), s2c/92 (Luyện đá), s2c/1256 (từ chối), s2c/0 (Chế tạo cánh thiếu nguyên liệu)', 'string ""; u8 0; i32 0; i32 ôTúi; i32 sốLượng', 'Đo J1 2 lần trên máy; J2 bot TS gửi hơn 90 lần ở mọi cửa sổ, chưa tốn gì');
+event('s2c', 99, 'craft_window', 'world', 'Sau c2s/57 chọn Luyện đá [Xu khóa] hay [Xu], Chế tạo cánh, Chế Băng Kiếm, hay một bậc của Chế tạo trang bị ở Pháp sư', 'Đặt món: c2s/97 → s2c/92 (Luyện đá, Chế tạo trang bị)', 'string key ("abcd1002", "abcd1003", "abcd1006", "abcd1007", "abcd1001" Chế tạo trang bị); string lời; string tên; i32 n (24 đá; 3 ô nguyên liệu; 2 ở Chế tạo trang bị)', 'Đọc hết 4 cửa sổ (J1, J2) và cửa sổ Chế tạo trang bị (O1, 121 byte)');
+event('c2s', 97, 'service_put', 'world', 'Bấm Chọn ở một món của Hành trang trong mọi cửa sổ của Pháp sư (sqlq.a107)', 's2c/90 (Nâng cấp, Tách đá, nguồn Chuyển hoá; với trang bị thêm s2c/1258), s2c/1260 (đích Chuyển hoá), s2c/92 (Luyện đá, Chế tạo trang bị), s2c/1256 (từ chối), s2c/0 (Chế tạo thiếu nguyên liệu hay sai loại)', 'string ""; u8 0; i32 loại (0 trang bị, đá, Chuyển hoá; 1 bùa bảo vệ, nguyên liệu Chế tạo với cả chồng); i32 ôTúi; i32 sốLượng', 'Đo J1 2 lần trên máy; J2 bot TS gửi hơn 90 lần ở mọi cửa sổ, chưa tốn gì; O1 trên máy: loại 1 cho bùa và nguyên liệu');
 event('s2c', 90, 'service_slot', 'world', 'Trả c2s/97', 'Bấm Bắt đầu: c2s/91', 'string tên; u8 0; u8 loạiÔ (1 trang bị, 0 đá); i32 ôTúi; i32 sốLượng; i32 0; i32 0; string chữ; u8 sẵnSàng', 'Đọc hết 98 và 136 byte (J1): "Cần: 12 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: 80%", sẵnSàng 1. J2: phí, Lượng (Cẩn thận 5) và tỉ lệ 11–100% theo đá; Tách đá "Nhận được: 2 Đá cấp 1, "');
-event('s2c', 93, 'stone_result', 'world', 'Trả c2s/91 trong cửa sổ Luyện đá', 's2c/46 (phí); túi không được gửi lại', 'string tên; u8 kếtQuả; i32 n; n * bản ghi vật phẩm (viên đá mới)', 'Đọc hết 80 byte (J3, 6 lần, đều kếtQuả 1): Đá cấp 6 khoá ở ô 20; Đá cấp 2 chưa khoá ở ô 16 (Luyện đá [Xu])');
-event('s2c', 92, 'stone_slot', 'world', 'Trả c2s/97 trong cửa sổ Luyện đá (s2c/99)', 'Bấm Bắt đầu: c2s/91 → s2c/93', 'string tên; u8 0; i32 ôTúi; i32 0; i32 0; string chữ; u8 sẵnSàng', 'Đọc hết 70 và 94–150 byte (J2 27 lần, J3 18 lần): "Cần chọn đá số lượng 2 đến 24", hay "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%"');
+event('s2c', 93, 'stone_result', 'world', 'Trả c2s/91 trong cửa sổ Luyện đá và Chế tạo trang bị', 's2c/46 (phí); Luyện đá: túi không được gửi lại; Chế tạo: s2c/1187 loại 4 (món mới), s2c/1256', 'string tên; u8 kếtQuả; i32 n; n * bản ghi vật phẩm (Luyện đá: viên đá mới; Chế tạo: nguyên liệu còn lại)', 'Đọc hết 80 byte (J3, 6 lần, đều kếtQuả 1): Đá cấp 6 khoá ở ô 20; Đá cấp 2 chưa khoá ở ô 16 (Luyện đá [Xu]). Chế tạo 149 byte (O1): Quặng Bậc 1 ×62, Linh Thạch Bậc 1 ×19');
+event('s2c', 92, 'stone_slot', 'world', 'Trả c2s/97 trong cửa sổ Luyện đá và Chế tạo trang bị (s2c/99)', 'Bấm Bắt đầu: c2s/91 → s2c/93', 'string tên; u8 0; i32 ôTúi; i32 0; i32 phíXu (Chế tạo khi đủ nguyên liệu; 0 ở Luyện đá); string chữ; u8 sẵnSàng', 'Đọc hết 70 và 94–150 byte (J2 27 lần, J3 18 lần): "Cần chọn đá số lượng 2 đến 24", hay "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%"');
 event('s2c', 1260, 'transmute_target', 'world', 'Trả c2s/97 trong cửa sổ Chuyển hoá khi món đặt vào là món +0 (món đích)', 'Không có', 'u8 0; i32 ôTúi; string chữ; u8 sẵnSàng', 'Đọc hết 181 byte (J2, 1 lần): ô 15, "Nguồn: chưa có …\nĐích: Nhẫn Trơn (bậc 0)\nVật phẩm: chưa có …", sẵnSàng 0');
 event('s2c', 1258, 'service_preview', 'world', 'Sau c2s/97 đặt trang bị, và sau s2c/91', 'Không có', 'u8 0; string uuid; i32 cấpHiệnTại; bản ghi vật phẩm của món sau một lần nâng nữa', 'Đọc hết 127 byte (J1, J2): giáp +0 cho bản ghi +1 (phòng thủ 19, cường lực 11); lên +1 rồi thì bản ghi +2 (23, 14); ba nhẫn +0 (J2)');
 event('c2s', 91, 'service_start', 'world', 'Bấm Bắt đầu trong mọi cửa sổ của Pháp sư: Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá (sqlq.m109)', 'Nâng cấp: s2c/91, s2c/1258, s2c/46 (Cẩn thận thêm s2c/46 Lượng ở đầu). Luyện đá: s2c/93, s2c/46. Tách đá, Chuyển hoá: s2c/91. Không đủ điều kiện: s2c/1256. Không có túi mới', 'string "" (rỗng)', 'Đo J1 1 lần trên máy; J3 bot TS 14 lần: 3 Nâng cấp (1 thất bại), 7 Luyện đá (6 thành công, 1 bị từ chối dưới 40%), 1 gửi key "abcd1002" sau khi đã luyện xong, 2 Tách đá (lần đầu bị từ chối vì túi đầy), 1 Chuyển hoá');
@@ -89,7 +90,18 @@ event('s2c', 1224, 'gift_code_prompt', 'world', 'Sau c2s/57 chọn Mã quà tặ
 event('c2s', 44, 'battle_use_item', 'battle', 'Trong trận: nút Túi đồ rồi chạm món (sqlq.g76(slot, 0))', 's2c/83 (số còn lại trong ô), s2c/44 (HP mới)', 'string battleUuid; i32 0; i32 bagSlot', 'Đo P5 1 lần trong trận tính giờ với Sơn Tặc: Hoàn Linh Dược ở ô 4, HP 31 → 67');
 event('s2c', 44, 'battle_item_result', 'battle', 'Sau c2s/44', 'Trận đi tiếp', 'i32 seq; i32 0; u32 seed; i32 0; i32 bagSlot; i32; i32 n; u8[n] refill; u8 m; m * {string name; i32 damage; u8; i32 hp; i32; i32}; u8 flags[4]; string actor; u8 end', 'Đọc hết 75 byte (P5): Ttuananh hp 67 sau Hoàn Linh Dược');
 event('c2s', 1215, 'mail_request', 'world', 'Mở Hòm thư', 's2c/1215', 'Rỗng');
-event('s2c', 1215, 'mail_list', 'world', 'Trả mail_request', 'Không', 'i32 n; bản ghi thư chưa thấy (n = 0)', 'Đo 1 lần, hòm thư trống');
+event('s2c', 1215, 'mail_list', 'world', 'Trả mail_request; sau Nhận hết (c2s/1218) và Xóa hết (c2s/1221)', 'Không', 'i32 n; n * thư: i64 mãThư; u8 loại; string tiêuĐề; string ngườiGửi; u8 đãĐọc; u8 cóQuà; u8 đãNhận; i64 giờGửi (ms); i64 0', 'U1: 0 thư. G1 (01/11) trên máy có Frida: đọc hết 279 byte (4 thư quà) và 206 byte (3 thư)');
+event('c2s', 1216, 'mail_open', 'world', 'Bấm vào một thư trong Hòm thư', 's2c/1216, s2c/1220', 'i64 mãThư', 'G1 (01/11) trên máy có Frida');
+event('s2c', 1216, 'mail_body', 'world', 'Trả mail_open', 'Nhận: c2s/1217', 'i64 mãThư; string tiêuĐề; string nộiDung; string ngườiGửi; u8 đãNhận; i32 n; n * bản ghi vật phẩm (tiền là vật phẩm #40 Xu, #41 Xu khóa, #42 Lượng)', 'G1 (01/11) trên máy có Frida: đọc hết 310, 321, 611, 793 byte');
+event('c2s', 1217, 'mail_claim', 'world', 'Bấm Nhận ở một thư', 's2c/46, s2c/1187 (thư có vật phẩm), s2c/1217, s2c/1220; túi không đủ chỗ: s2c/1256 "Rương đã đầy…" rồi s2c/1217 ok 0', 'i64 mãThư', 'G1 (01/11) trên máy có Frida');
+event('s2c', 1217, 'mail_claimed', 'world', 'Trả mail_claim', 'Không', 'i64 mãThư; u8 ok', 'G1 (01/11) trên máy có Frida: ok 1 (thư 6280, 6273), ok 0 khi túi đầy (6278)');
+event('c2s', 1218, 'mail_claim_all', 'world', 'Bấm Nhận hết', 's2c/46, s2c/1187 (một lần cho cả lượt), s2c/1256 "Đã nhận quà của N thư" (hay "…, rương đã đầy", "Không có quà nào để nhận"), s2c/1215, s2c/1220', 'Rỗng', 'G1 (01/11) trên máy có Frida: thư thiếu chỗ bị bỏ qua, không mất');
+event('c2s', 1219, 'mail_delete', 'world', 'Bấm Xóa một thư rồi đồng ý', 's2c/1219, s2c/1220', 'i64 mãThư', 'G1 (01/11) trên máy có Frida');
+event('s2c', 1219, 'mail_deleted', 'world', 'Trả mail_delete', 'Không', 'i64 mãThư; u8 ok', 'G1 (01/11) trên máy có Frida');
+event('c2s', 1221, 'mail_delete_all', 'world', 'Bấm Xóa hết rồi đồng ý', 's2c/1215 rỗng, s2c/1220 0, s2c/1256 "Đã xoá N thư"', 'Rỗng', 'G1 (01/11) trên máy có Frida: xoá cả thư còn quà chưa nhận (manina2 mất quà của 3 thư). Bot không gửi gói này');
+event('s2c', 1222, 'mail_new', 'world', 'Sau mã quà tặng nhập đúng (s2c/1223 ok 1)', 's2c/1220 1', 'như một thư của s2c/1215', 'G1 (01/11) trên máy có Frida: đọc hết 63, 71, 73 byte; mãThư tăng dần chung cả server');
+event('c2s', 1223, 'gift_code', 'world', 'Bấm Nhập quà ở Phúc lợi → Mã quà tặng; gửi thẳng không qua NPC cũng được', 's2c/1223; đúng thì s2c/1222, s2c/1220; sai thì s2c/1256 cùng lời', 'string mã (đã cắt dấu cách, chữ hoa, tối đa 32 ký tự)', 'G1 (01/11) trên máy có Frida: 4 mã đúng, 15 mã sai hay đã dùng; 10 lần sai liền thì mọi mã bị chặn 5 phút');
+event('s2c', 1223, 'gift_code_result', 'world', 'Trả gift_code', 'Không', 'u8 ok; string lời ("Nhập mã thành công…", "Mã không tồn tại", "Nhân vật này đã dùng mã rồi", "Bạn nhập mã quá nhanh, vui lòng thử lại sau")', 'G1 (01/11) trên máy có Frida: không có số lần sai còn lại');
 event('c2s', 1196, 'friends_request', 'world', 'Mở Bạn bè', 's2c/1196', 'Rỗng');
 event('s2c', 1196, 'friend_list', 'world', 'Trả friends_request', 'Không', 'i32 n; bản ghi bạn chưa thấy (n = 0)', 'Đo 1 lần, chưa có bạn');
 event('c2s', 1254, 'ranking_request', 'world', 'Mở BXH hoặc đổi tab', 's2c/1254 kiểu 0 (tab) rồi kiểu 1 (danh sách)', 'u8 tab; mở lần đầu chỉ có u8 0, đổi tab gửi u8 tab; u8 1');
@@ -124,7 +136,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
   [46, 'currency_notice', 'Sau s2c/9; khi tiền đổi (trả nhiệm vụ)', 'string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong', 'Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng'],
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau); sau c2s/1191 (kiểu 32)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]. Kind 32: i32 n; n * {i32 skillId; i32 level}', 'Đọc hết byte 4 kiểu (L1, Q2, E1, P1); EXP và tiền khớp phần thưởng trận; stats[0] tăng 1 mỗi điểm Cường Lực, stats[1] mỗi điểm Thân Pháp, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, chính xác, né tránh, chí mạng: khớp bảng ở P1), fields[0] là điểm kỹ năng (16 ở P1, khớp bảng), extra[0], labels chưa rõ; kiểu 32 tăng cấp Hỏa Cầu Thuật 1 → 4'],
-  [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ', 'u8 1; i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 element; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
+  [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ; loại 4 sau Chế tạo trang bị', 'u8 kind; kind 4: một item record (món vừa thêm, O1). Kind 1: i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 element; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
   [1191, 'skill_points', 'Sau c2s/1191', 'i32 statPoints; i32 skillPoints', 'Đo E1 3 lần: 68 và 18, 17, 16, khớp bảng Chỉ số và Kỹ năng'],
   [48, 'repair_ack', 'Sau c2s/48 và s2c/1187', 'u8 where; i32 slot (giống c2s/48)', 'Đo E2, P4'],
   [37, 'gear_update', 'Sau c2s/1186 (mặc hoặc cởi đồ)', 'i32 0; u8 0x40; string name; i32 8; 8 * (u8 0xff | item record)', 'Đọc hết byte 2 mẫu (P4): 350 byte khi cởi thú cưng, 423 khi mặc lại'],
@@ -138,8 +150,8 @@ const pushes: [number, string, string, string, string?][] = [
   [34, 'quest_progress', 'Sau khi nói chuyện với NPC, diệt quái của nhiệm vụ, nhận nhiệm vụ', 'i32 0; string "subtask 1"; i32 questId; string dialogue', 'Đọc hết byte'],
   [35, 'quest_complete', 'Trả nhiệm vụ', 'i32 questId; string title; i32 n; n * string reward; string message', 'Đọc hết byte 1 mẫu'],
   [1261, 'counter_1261', 'Định kỳ ~36 s (log bot)', '10 byte: u8 0x13; i32 bộ đếm tăng 1; u8 3; i32 0', 'Chưa rõ'],
-  [1195, 'flag_1195', 'Trong đồng bộ nhân vật', 'u8 field'],
-  [1220, 'flag_1220', 'Trong đồng bộ nhân vật', 'u8 field'],
+  [1195, 'daily_quest', 'Trong đồng bộ nhân vật; khi nhận và khi hủy nhiệm vụ ngày ở Hương Lão', 'u8 có; nếu 1: i32 mãNhiệmVụ; string tên; string mẫu (%d là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu', 'G1: đọc hết 1, 70, 92 byte (116 Sử dụng vật phẩm 0/3, 113 Nhặt xu 0/2050); tiến độ tăng thế nào chưa đo'],
+  [1220, 'mail_unread', 'Trong đồng bộ nhân vật; sau s2c/1222, c2s/1216, c2s/1217, c2s/1218, c2s/1219', 'u8 (1 còn thư chưa đọc, 0 đã đọc hết)', 'G1: chấm đỏ của nút Thư'],
   [1177, 'map_boss', 'Sau c2s/43: boss của map; và khi boss đổi chỗ', 'string mapId; u8 field. field 0: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}; u8 1; i32 cột; i32 hàng. field 1: string mobId (boss rời ô, ~13 s sau có field 0 với ô mới)', 'Đọc hết byte: Q9, Q10, Q13, B4, B5, Q16. Cột/hàng là suy luận: luôn nằm trong lưới 156×23 của M1, đổi sau mỗi field 1'],
   [1263, 'players_snapshot', 'Sau c2s/43: mọi người chơi khác trong khu', 'u16 n; n * {player record; status như s2c/1212}', 'Đọc hết byte; số bản ghi + mình = "Dân số" của khu trong s2c/1172'],
   [1262, 'player_positions', 'Mỗi 100 ms khi có người đổi vị trí', 'u16 tickMs=100; u16 n; n * {i32 id; i32 x; i32 y; u8 state; u8 flags; u16 field14}', 'Đo: bản ghi id của mình lặp đúng x/y/state của c2s/1169; flags = bitmask flags[0..3] của 1169; field14 chưa rõ'],
@@ -176,6 +188,10 @@ export interface RequestContext {
   element?: number;
   /** c2s/57: the choice of s2c/57; c2s/1190: shopId of s2c/1190 and how many. */
   option?: number; shopId?: number; quantity?: number;
+  /** c2s/97: 0 gear, stones, Chuyển hoá items; 1 charms and crafting materials (O1). */
+  kind?: number;
+  /** c2s/1216, c2s/1217, c2s/1219: the mail; c2s/1223: the gift code. */
+  mailId?: number; code?: string;
 }
 function required<T>(value: T | undefined, name: string): T {
   if (value === undefined) throw new Error(`Missing request field: ${name}`);
@@ -185,7 +201,10 @@ function required<T>(value: T | undefined, name: string): T {
 export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
   const w = new Writer();
   switch (opcode) {
-    case -1: case 1: case 2: case 3: case 1172: case 1257: return w.build();
+    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: return w.build();
+    // Hòm thư and Mã quà tặng (G1). No c2s/1221 (Xóa hết): it deletes gifts not taken too.
+    case 1216: case 1217: case 1219: return mailIdRequest(required(ctx.mailId, 'mailId'));
+    case 1223: return giftCodeRequest(required(ctx.code, 'code'));
     case 1206: return w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build();
     case 5: return w.i32(ctx.serverId ?? BASELINE.observedServerId).i32(-1).u8(1).build();
     case 4: return loginPayload(required(ctx.username, 'username'), passwordProof(required(ctx.challenge, 'challenge'), required(ctx.password, 'password')), ctx.serverId ?? BASELINE.observedServerId);
@@ -211,9 +230,10 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     // Lái Buôn (P5): a line of the NPC menu sqlq.a103(option, mapId, npcId), then Mua sqlq.h87(shopId, quantity).
     case 57: return w.u8(required(ctx.option, 'option')).string(required(ctx.mapId, 'mapId')).i32(required(ctx.npcId, 'npcId')).build();
     case 1190: return w.u8(0).i32(required(ctx.shopId, 'shopId')).i32(ctx.quantity ?? 1).build();
-    // Pháp sư (J1, J3): put the item of a bag slot in the open window sqlq.a107(""; 0; slot), then Bắt đầu sqlq.m109("").
-    case 97: return w.string('').u8(0).i32(0).i32(required(ctx.slot, 'slot')).i32(ctx.quantity ?? 1).build();
-    case 91: return w.string('').build();
+    // Pháp sư (J1, J3, O1): put the item of a bag slot in the open window sqlq.a107(""; 0; kind; slot), kind 1 for charms
+    // and crafting materials (npc.ts PUT_STACK), then Bắt đầu sqlq.m109("").
+    case 97: return putRequest(required(ctx.slot, 'slot'), ctx.quantity ?? 1, ctx.kind ?? PUT_ITEM);
+    case 91: return startRequest();
     // Túi đồ in battle (P5): sqlq.g76(slot, 0) writes the 0 first, like c2s/20 writes seq before the skill.
     case 44: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(0).i32(required(ctx.slot, 'slot')).build();
     case 15: return w.string(required(ctx.mobId, 'mobId')).u8(0).build();
@@ -234,7 +254,9 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
   let fields: Record<string, unknown> = {};
   if (direction === 'c2s') {
     switch (opcode) {
-      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: break;
+      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1218: case 1221: break;
+      case 1216: case 1217: case 1219: fields = { mailId: Number(r.take(8).readBigInt64BE()) }; break;
+      case 1223: fields = { code: r.string() }; break;
       case 13: fields = { mapId: r.string(), npcId: r.i32() }; break;
       case 1173: fields = { zone: r.u8() }; break;
       case 15: fields = { mobId: r.string(), flag: r.u8() }; break;
@@ -251,7 +273,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 84: fields = { slot: r.i32() }; break;
       case 57: fields = { option: r.u8(), mapId: r.string(), npcId: r.i32() }; break;
       case 1190: fields = { kind: r.u8(), shopId: r.i32(), quantity: r.i32() }; break;
-      case 97: fields = { key: r.string(), kind: r.u8(), field: r.i32(), slot: r.i32(), quantity: r.i32() }; break;
+      case 97: fields = { key: r.string(), from: r.u8(), kind: r.i32(), slot: r.i32(), quantity: r.i32() }; break;
       case 91: fields = { key: r.string() }; break;
       case 44: fields = { battleUuid: r.string(), a: r.i32(), slot: r.i32() }; break;
       case 48: fields = { where: r.u8(), slot: r.i32() }; break;
@@ -275,7 +297,13 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case -1: fields = { keyBytes: sessionKey(payload).length }; r.take(payload.length); break;
       case 1: case 4: break;
       case 1207: fields = { serverList: r.string() }; break;
-      case 1209: case 1195: case 1220: fields = { flag: r.u8() }; break;
+      case 1209: fields = { flag: r.u8() }; break;
+      case 1220: fields = { unread: r.u8() === 1 }; break;
+      case 1195: fields = dailyQuest(payload); r.take(payload.length); break;
+      case 1216: fields = mailBody(payload); r.take(payload.length); break;
+      case 1217: case 1219: fields = mailAck(payload, opcode); r.take(payload.length); break;
+      case 1222: fields = newMail(payload); r.take(payload.length); break;
+      case 1223: fields = giftCodeResult(payload); r.take(payload.length); break;
       case 2: fields = { gate: r.string() }; break;
       case 3: fields = { challenge: r.bytes().toString('hex') }; break;
       case 5: fields = notification(payload); r.take(payload.length); break;
@@ -328,7 +356,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 34: fields = questProgress(payload); r.take(payload.length); break;
       case 35: fields = questComplete(payload); r.take(payload.length); break;
       case 1254: fields = ranking(payload); r.take(payload.length); break;
-      case 1215: case 1196: fields = { count: r.i32() }; break;
+      case 1215: fields = mailList(payload); r.take(payload.length); break;
+      case 1196: fields = { count: r.i32() }; break;
       case 1240: case 1241: fields = { flag: r.u8() }; break;
       case 1265: fields = { command: r.u8() }; break;
       case 46: fields = currencies(payload); r.take(payload.length); break;

@@ -86,7 +86,7 @@ events.ts    buildRequest() cho mọi gói gửi đi, decodeEvent() cho log
 | `step_progress`, `boss_moving`, `waiting_for_mob` | `s2c/1201` (tiến độ server); `s2c/1177` field 1 (boss rời ô); quái của bước thuộc map này theo `data/maps.json` (như boss đang đổi chỗ) mà chưa thấy: đợi 5 s, tối đa 6 lần, rồi dừng, không đi map khác |
 | `boss`, `boss_loss`, `damage_counted`, `level`, `durability`, `battle_cancelled`, `currency` | Boss từ `s2c/1177`; thua boss (không dừng bot); sát thương cộng dồn cho bước boss; lên cấp; độ bền trang bị (`s2c/36`); `s2c/36` đến giữa trận nghĩa là server đã kết thúc trận; tiền: Xu, Xu khóa, Lượng của `s2c/46` |
 | `character`, `gear`, `effects`, `players` | `effects`: hiệu ứng có hạn giờ và sứ quân ở cuối `s2c/9`, ví dụ `"ef7 x2, còn 3h40"` (ngôi sao x2 EXP, [12](../../app/events/12-skills-items.md#x2-exp)). `gear`: trang bị đang mặc ở đuôi `s2c/9`, ví dụ `"0: Nón Âu Lạc (+4 phòng thủ, +58 sinh lực), hệ Lôi, độ bền 55/60"` ([ô trang bị](../../app/events/12-skills-items.md#ô-trang-bị)). Lúc đăng nhập, từ đuôi `s2c/9`: cấp, HP, EXP, mốc EXP, xu, chỉ số chiến đấu, điểm tiềm năng và điểm kỹ năng ([user-data](../../app/user-data.md#đuôi-s2c9)). Mỗi `s2c/1263`: số người khác trong khu kèm tên và cấp ([09](../../app/events/09-players-chat.md#đếm-người-xung-quanh)) |
-| `quest_complete`, `stats`, `inventory` | `s2c/35` phần thưởng; `s2c/10` kiểu 4 (HP, EXP); `s2c/1187` cả túi đồ khi đổi, mỗi món theo tên trong `data/items.json`, ví dụ `"Hoàn Linh Dược ×4"`, `"Nón Lá (+5 phòng thủ, +66 sinh lực)"` ([13-drops-items](../../app/events/13-drops-items.md#bảng-vật-phẩm)) |
+| `quest_complete`, `stats`, `inventory`, `daily_quest` | `daily_quest`: nhiệm vụ ngày đang giữ và tiến độ, mỗi khi `s2c/1195` đến ([nhiệm vụ ngày](mail.md#nhiệm-vụ-ngày)). `s2c/35` phần thưởng; `s2c/10` kiểu 4 (HP, EXP); `s2c/1187` cả túi đồ khi đổi, mỗi món theo tên trong `data/items.json`, ví dụ `"Hoàn Linh Dược ×4"`, `"Nón Lá (+5 phòng thủ, +66 sinh lực)"` ([13-drops-items](../../app/events/13-drops-items.md#bảng-vật-phẩm)). Kiểu 4 của `s2c/1187` chỉ thêm một món (Chế tạo): dòng `inventory` khi đó có `added` (món mới), `slot` và `count` (số món trong túi), không có cả túi |
 | `parse_error`, `server_text`, `stop` | Gói đọc lỗi (kèm hex); `s2c/0`, `s2c/5`; lý do dừng |
 
 ## Quét map
@@ -125,10 +125,14 @@ Chỉ ghi những gì server đã gửi. Cổng bị từ chối vì cấp chỉ
 
 ## Việc cần làm (TODO)
 
-Đã điều tra đủ gói ở G1 (01/11), chưa viết vào bot TS:
+Gói đã điều tra ở G1 (01/11). Phần đã làm thì nằm ở [Mã quà tặng, hòm thư và nhiệm vụ ngày](mail.md):
 
-- **Nhập mã quà tặng:** gửi thẳng `c2s/1223` (chữ hoa, cắt dấu cách, tối đa 32 ký tự), đọc `s2c/1223` và `s2c/1222`. Gặp "Bạn nhập mã quá nhanh…" thì chờ 5 phút; tự đếm số lần sai liền, dừng trước lần thứ 10 ([Mã quà tặng](../../app/events/14-npc.md#mã-quà-tặng)).
-- **Hòm thư:** danh sách `c2s/1215`, xem `c2s/1216`, Nhận `c2s/1217`, Nhận hết `c2s/1218`, cập nhật tiền theo `s2c/46` và túi theo `s2c/1187`; đếm ô trống trước khi nhận; chỉ xoá thư đã nhận bằng `c2s/1219`, **không bao giờ** gửi `c2s/1221` ([Làm bằng bot TS](../../app/events/14-npc.md#hòm-thư-bot)).
-- **Nhiệm vụ ngày:** Nhận và Hủy qua menu Hương Lão (`c2s/13` rồi `c2s/57` theo đúng `s2c/57` vừa nhận), đọc nhiệm vụ đang làm trong `s2c/1195`. Hoàn thành nhiệm vụ và phần thưởng chưa đo: cần đánh trận cho xong một nhiệm vụ trước ([Nhiệm vụ hàng ngày](../../app/events/14-npc.md#nhiệm-vụ-hàng-ngày)).
-- **Catalog** `src/protocol/events.ts`: `s2c/1195` đang là `flag_1195` (`u8`), phải là nhiệm vụ ngày; thêm các gói thư và mã quà (`c2s/1216`–`1223`, `s2c/1216`–`1223`) với bố cục đã đo; `s2c/1215` hết là "chưa thấy bản ghi".
-- **`s2c/0`:** bot đang coi mọi `s2c/0` là lỗi và ngắt phiên, trong khi Hương Lão → Cách tính điểm trả lời bằng gói này ([s2c/0](../../app/events/14-npc.md#s2c-0)).
+- **Đã xong:**
+  - nhập mã quà tặng (`npm run gift`);
+  - hòm thư (`npm run mail`: danh sách, xem quà, Nhận, Nhận hết, xoá thư đã nhận; không bao giờ `c2s/1221`);
+  - nhiệm vụ ngày: đọc, Nhận, Hủy (`npm run daily`), và bot nhiệm vụ ghi `daily_quest` mỗi khi `s2c/1195` đến;
+  - catalog `src/protocol/events.ts`: `s2c/1195` là `daily_quest`, `s2c/1220` là `mail_unread`, thêm 11 gói thư và mã quà;
+  - `s2c/0` khi đã vào game không còn làm client ngắt phiên ([s2c/0](../../app/events/14-npc.md#s2c-0)).
+
+  Có test phát lại gói G1; **chưa chạy với server thật**.
+- **Còn lại:** Hoàn thành nhiệm vụ ngày và phần thưởng chưa đo; phải đánh trận cho xong một nhiệm vụ trước ([TODO nhiệm vụ ngày](mail.md#todo)).

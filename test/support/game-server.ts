@@ -1,13 +1,14 @@
 import net from 'node:net';
 import { once } from 'node:events';
 import { fixtures } from '../fixtures.ts';
+import { o1Packets } from '../fixtures-o1.ts';
 import { encodedOpcodes, handshake, sessionKey, XorStream, MAX_FRAME } from '../../src/protocol/protocol.ts';
 import { buildRequest, decodeEvent } from '../../src/protocol/events.ts';
 
 export const scenario = fixtures.scenario;
 const boot = fixtures.prelogin;
-export type SimFault = 'none' | 'bad-key' | 'bad-frame' | 'bad-map' | 'new-opcode' | 'stall-map' | 'already-online' | 'alone-in-zone';
-export const SIM_FAULTS = ['none', 'bad-key', 'bad-frame', 'bad-map', 'new-opcode', 'stall-map', 'already-online', 'alone-in-zone'] as const;
+export type SimFault = 'none' | 'bad-key' | 'bad-frame' | 'bad-map' | 'new-opcode' | 'stall-map' | 'already-online' | 'alone-in-zone' | 'message-in-world' | 'kicked-in-world';
+export const SIM_FAULTS = ['none', 'bad-key', 'bad-frame', 'bad-map', 'new-opcode', 'stall-map', 'already-online', 'alone-in-zone', 'message-in-world', 'kicked-in-world'] as const;
 interface SimOptions { port?: number; fault?: SimFault; log?: (event: Record<string, unknown>) => void }
 
 /** Real local TCP server. Response bodies come from captures; framing/padding/timing are simulated. */
@@ -69,6 +70,9 @@ export async function startSimulator(options: SimOptions = {}) {
           if (opcode === -1) keyed = true;
           if (opcode === 43) {
             for (const push of scenario.extraPushExamples) if (fault !== 'alone-in-zone' || push.opcode !== 1263) reply(push.opcode, Buffer.from(push.hex, 'hex'), 'recorded extra example from first capture');
+            // In the world s2c/0 is the server's message box (14-npc.md#s2c-0), once the client is in.
+            if (fault === 'message-in-world') setTimeout(() => { if (!socket.destroyed) reply(0, Buffer.from(o1Packets['s2c/0 thiếu nguyên liệu'], 'hex'), 'message box in the world (O1)'); }, 200);
+            if (fault === 'kicked-in-world') setTimeout(() => { if (!socket.destroyed) reply(0, Buffer.from(fixtures['server-message'].hex, 'hex'), 'logged in elsewhere, in the world'); }, 200);
           }
         }
       } catch (error) { log({ event: 'sim_error', reason: (error as Error).message }); socket.destroy(); }

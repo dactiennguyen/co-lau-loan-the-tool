@@ -8,6 +8,8 @@
 | Checker APK/capture, log, diagnostic và cập nhật code | [Chẩn đoán tích hợp](diagnostics.md) |
 | Kết quả login/world đã kiểm chứng trực tiếp | [Live check](live-check.md) |
 | Giữ kết nối sau khi vào thế giới, bot tự làm nhiệm vụ và đánh quái | [Bot làm nhiệm vụ](quest-bot.md) |
+| Pháp sư: hỏi giá, nâng cấp có bùa, gộp đá, tách đá, chuyển hoá, chế tạo, đổi Băng Tâm | [Pháp sư bằng Node.js](smith.md) |
+| Nhập mã quà tặng, hòm thư (nhận quà, xoá thư đã nhận), nhiệm vụ ngày ở Hương Lão | [Mã quà tặng, hòm thư và nhiệm vụ ngày](mail.md) |
 | Binary, phương pháp và schema byte của game | [Điều tra app](../../app/README.md) |
 
 ## Chạy với tài khoản của bạn
@@ -102,7 +104,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [env.ts](../../../src/net/env.ts) | Nạp `.env` và dựng option kết nối cho các CLI |
 | [proxy.ts](../../../src/net/proxy.ts) | Đọc `CLLT_PROXY`; bắt tay SOCKS5/HTTP CONNECT không I/O (`ProxyTunnel`) mà `client.ts` chạy trước seed ([proxy](#proxy)) |
 | [client.ts](../../../src/net/client.ts) | Socket thật, luồng đăng nhập `FLOW`, log event, `result.user`, heartbeat, deadline, `session` |
-| [events.ts](../../../src/protocol/events.ts) | Catalog 91 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
+| [events.ts](../../../src/protocol/events.ts) | Catalog 135 gói (nhãn, thời điểm, schema); `buildRequest()` cho gói gửi, `decodeEvent()` cho gói nhận |
 | [protocol.ts](../../../src/protocol/protocol.ts) | Serialize, seed/key/proof, frame và RX/TX XOR; đọc gói nhân vật/vị trí/map |
 | [world.ts](../../../src/protocol/world.ts) | Đọc gói thế giới: quái của map, khu, người chơi, chat, vật phẩm, chỉ số, nhiệm vụ, xếp hạng |
 | [battle.ts](../../../src/battle/battle.ts), [battle-runner.ts](../../../src/battle/battle-runner.ts) | Mô hình bàn 8×8 và gói trận; chạy một trận không giao diện |
@@ -110,7 +112,11 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [items.ts](../../../src/protocol/items.ts), [items-run.ts](../../../src/cli/items-run.ts) | Bảng vật phẩm (`data/items.json`), tên đồ cho bot, giải mã icon; lệnh `npm run items` ([13-drops-items](../../app/events/13-drops-items.md#cách-lấy-lại-dữ-liệu)) |
 | [bag-run.ts](../../../src/cli/bag-run.ts) | Lệnh `npm run bag`: đăng nhập, in trang bị đang mặc và túi đồ theo tên, rồi ngắt; chỉ đọc ([cách lấy túi đồ](../../app/events/12-skills-items.md#cách-lấy-túi-đồ)) |
 | [skills.ts](../../../src/protocol/skills.ts), [skills-run.ts](../../../src/cli/skills-run.ts) | Tab Kỹ năng: vị trí 9 ô trên ảnh nền, ô nào học hay nâng cấp được, bảng chi tiết như trên máy; lệnh `npm run skills` chỉ đọc ([tab Kỹ năng](../../app/events/12-skills-items.md#tab-kỹ-năng)) |
-| [buy-run.ts](../../../src/cli/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
+| [buy-run.ts](../../../src/cli/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm hay Cửa hàng [Lượng] (`--shop=luong`) của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; món không chồng được thì mua từng cái; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
+| [smith.ts](../../../src/bot/smith.ts), [smith-run.ts](../../../src/cli/smith-run.ts), [npc.ts](../../../src/protocol/npc.ts) | Pháp sư và lệnh `npm run smith`: mỗi lần một việc, dừng trước Bắt đầu khi không có `--confirm` ([Pháp sư](smith.md)) |
+| [mail.ts](../../../src/protocol/mail.ts), [bot/mail.ts](../../../src/bot/mail.ts), [daily.ts](../../../src/bot/daily.ts), [gift-run.ts](../../../src/cli/gift-run.ts), [gift-state.ts](../../../src/cli/gift-state.ts), [mail-run.ts](../../../src/cli/mail-run.ts), [daily-run.ts](../../../src/cli/daily-run.ts) | Gói và lệnh `npm run gift`, `npm run mail`, `npm run daily` ([mã quà, hòm thư, nhiệm vụ ngày](mail.md)); số mã sai liền của từng nick giữa các lần chạy (`.cache/gift-codes.json`, chỉ ở máy) |
+| [steps.ts](../../../src/bot/steps.ts), [run-session.ts](../../../src/cli/run-session.ts) | Phần chung của các bot từng bước (smith, gift, mail, daily): gửi một gói rồi chờ câu trả lời, đi menu NPC, giữ túi và tiền; tham số, đăng nhập và dòng tổng kết của CLI |
+| [accounts.ts](../../../src/net/accounts.ts) | `--account=<tên>` của `npm run smith`, `gift`, `mail`, `daily`, `buy`: lấy tài khoản trong `app/accounts.json` (chỉ ở máy, không in mật khẩu) |
 | [zone-run.ts](../../../src/cli/zone-run.ts) | Lệnh `npm run zone`: đăng nhập, in số người của từng khu (`c2s/1172`); `--zone=N` thì sang khu N như bảng Khu vực trong game rồi in quái và người của khu mới ([đổi khu](../../app/events/06-map-mobs.md#bot-ts-đổi-khu-z1)) |
 | [atlas.ts](../../../src/bot/atlas.ts), [map-scan.ts](../../../src/bot/map-scan.ts), [map-scan-run.ts](../../../src/cli/map-scan-run.ts) | Bản đồ đã biết (`data/maps.json`) và lệnh `npm run scan` ([quét map](quest-bot.md#quét-map)) |
 | [config.ts](../../../src/protocol/config.ts) | Baseline build, host/client info và opcode map |
@@ -132,4 +138,4 @@ Server giả chỉ nằm trong `test/support/` làm TCP peer cho regression. `np
 
 [Chẩn đoán tích hợp](diagnostics.md) giải thích exit code, checker, phần log bị cắt và cách cập nhật code khi có bằng chứng từ build mới.
 
-Đã kiểm chứng Node.js login/world trực tiếp với server thật bằng account `manina2`: nhận character `9`, map location `29`, map `11`, entities `43`, snapshot `1263`. Kết quả và byte count nằm trong [live-check](live-check.md); mật khẩu không lưu trong repo. Nếu server gửi `s2c/0`, client báo `SERVER_MESSAGE` cùng text thật; đã gặp thông báo account đang đăng nhập nơi khác và phải đóng app điện thoại trước khi thử lại. Gate/ACK/status ngoài nhánh đã đo vẫn báo chưa hỗ trợ; lỗi mạng không được coi là sai mật khẩu. Các phần `opaqueBytes` chưa có schema đầy đủ.
+Đã kiểm chứng Node.js login/world trực tiếp với server thật bằng account `manina2`: nhận character `9`, map location `29`, map `11`, entities `43`, snapshot `1263`. Kết quả và byte count nằm trong [live-check](live-check.md); mật khẩu không lưu trong repo. Nếu server gửi `s2c/0` lúc đăng nhập, client báo `SERVER_MESSAGE` cùng text thật; đã gặp thông báo account đang đăng nhập nơi khác và phải đóng app điện thoại trước khi thử lại. Khi đã vào game, `s2c/0` chỉ là hộp thông báo: client ghi `server_message` và chạy tiếp ([s2c/0](../../app/events/14-npc.md#s2c-0)). Gate/ACK/status ngoài nhánh đã đo vẫn báo chưa hỗ trợ; lỗi mạng không được coi là sai mật khẩu. Các phần `opaqueBytes` chưa có schema đầy đủ.

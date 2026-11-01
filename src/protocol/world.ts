@@ -293,8 +293,17 @@ export function groundItems(payload: Uint8Array) {
 
 /** The whole bag: s2c/1187 when it changes, and the tail of s2c/42 at login. kind is 1 in s2c/1187, 2 in s2c/42. */
 export function bag(r: Reader) {
-  const kind = r.u8(), capacity = r.i32();
+  const kind = r.u8();
+  // Kind 4 (O1, Chế tạo trang bị at Pháp sư): one item record, the item just added; the rest of the bag is unchanged.
+  if (kind === BAG_ADD) return { kind, capacity: -1, items: [itemRecord(r)] };
+  const capacity = r.i32();
   return { kind, capacity, items: Array.from({ length: r.i32() }, () => itemRecord(r)) };
+}
+/** The first byte of s2c/1187 when it carries one item added to the bag, not the whole bag (12-skills-items.md#túi-đồ). */
+export const BAG_ADD = 4;
+/** The bag after s2c/1187: kind 4 puts its one item in its slot, the other kinds are the whole bag. */
+export function bagAfter<T extends { slot: number }>(bag: T[], kind: number, items: T[]): T[] {
+  return kind === BAG_ADD ? [...bag.filter(i => i.slot !== items[0].slot), items[0]] : items;
 }
 export function inventory(payload: Uint8Array) { const r = new Reader(payload); return finish(r, bag(r), 's2c/1187'); }
 

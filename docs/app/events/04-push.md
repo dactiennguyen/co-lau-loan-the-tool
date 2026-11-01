@@ -337,13 +337,13 @@ Nguồn: A2: packet đọc từ native reader, record 147.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | flag_1195 |
-| Xuất hiện khi | Trong đồng bộ nhân vật |
+| Nhãn phân tích | daily_quest |
+| Xuất hiện khi | Trong đồng bộ nhân vật; khi nhận và khi hủy nhiệm vụ ngày ở Hương Lão |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | u8 field |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | u8 có; nếu 1: i32 mãNhiệmVụ; string tên; string mẫu (%d là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu |
+| Độ chắc chắn | G1: đọc hết 1, 70, 92 byte (116 Sử dụng vật phẩm 0/3, 113 Nhặt xu 0/2050); tiến độ tăng thế nào chưa đo |
 | Độ dài payload mẫu | 1 byte |
-| Thêm (G1) | **Nhiệm vụ ngày đang làm**, không phải cờ: `00` là không có; có thì `01; i32 mãNhiệmVụ; string tên; string mẫu; i32 tiếnĐộ; i32 mụcTiêu` (92 byte cho 116 "Sử dụng vật phẩm" 0/3). Gửi lúc đăng nhập, khi nhận và khi hủy nhiệm vụ ngày ([Nhiệm vụ hàng ngày](14-npc.md#nhiệm-vụ-hàng-ngày)). Nhãn `flag_1195` và bố cục `u8` trong catalog TS là cũ |
+| Thêm (G1) | **Nhiệm vụ ngày đang làm**, không phải cờ như nhãn cũ `flag_1195`: `00` là không có nhiệm vụ. Gửi lúc đăng nhập, khi nhận và khi hủy nhiệm vụ ngày ([Nhiệm vụ hàng ngày](14-npc.md#nhiệm-vụ-hàng-ngày)). Bộ giải mã: `dailyQuest` trong [src/protocol/mail.ts](../../../src/protocol/mail.ts) |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -360,7 +360,7 @@ Nguồn: A2: packet đọc từ native reader, record 148.
 ```json
 {
   "values": {
-    "flag": 0
+    "quest": null
   },
   "bytesInterpreted": 1,
   "bytesUnknown": 0
@@ -376,11 +376,11 @@ Nguồn: A2: packet đọc từ native reader, record 148.
 | Thuộc tính | Điều tra được |
 |---|---|
 | Hướng | Server → Client |
-| Nhãn phân tích | flag_1220 |
-| Xuất hiện khi | Trong đồng bộ nhân vật |
+| Nhãn phân tích | mail_unread |
+| Xuất hiện khi | Trong đồng bộ nhân vật; sau s2c/1222, c2s/1216, c2s/1217, c2s/1218, c2s/1219 |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | u8 field |
-| Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
+| Bố cục payload | u8 (1 còn thư chưa đọc, 0 đã đọc hết) |
+| Độ chắc chắn | G1: chấm đỏ của nút Thư |
 | Độ dài payload mẫu | 1 byte |
 | Thêm (G1) | Cờ còn thư chưa đọc: `01` sau `s2c/1222` (thư mới) và sau mỗi lần mở thư khi còn thư chưa đọc, `00` khi đã mở hết ([Hòm thư](14-npc.md#hòm-thư)) |
 
@@ -399,7 +399,7 @@ Nguồn: A2: packet đọc từ native reader, record 149.
 ```json
 {
   "values": {
-    "flag": 0
+    "unread": false
   },
   "bytesInterpreted": 1,
   "bytesUnknown": 0

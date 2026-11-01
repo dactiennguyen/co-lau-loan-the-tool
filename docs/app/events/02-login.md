@@ -12,10 +12,10 @@ Challenge của gói 3 khác key XOR của gói -1. Xem [cách xác minh proof/h
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | server_message |
-| Xuất hiện khi | Server gửi thông báo; đã quan sát khi account online nơi khác |
-| Sau đó | Đọc text và dừng phiên đang chờ; không coi là sai mật khẩu |
+| Xuất hiện khi | Server gửi hộp thông báo: lúc đăng nhập khi account online nơi khác; trong game là lời nhắc thường (Hương Lão → Cách tính điểm, Chế tạo thiếu nguyên liệu) |
+| Sau đó | Lúc đăng nhập: đọc text và dừng phiên đang chờ, không coi là sai mật khẩu. Trong game: client ghi server_message, giao gói cho phiên và chạy tiếp |
 | Bố cục payload | i8 flag; string text |
-| Độ chắc chắn | Đã nhận trực tiếp từ server thật bằng kết nối kiểm chứng độc lập: flag=-1, thông báo account đang đăng nhập nơi khác |
+| Độ chắc chắn | Đã nhận trực tiếp từ server thật bằng kết nối kiểm chứng độc lập: flag=-1, thông báo account đang đăng nhập nơi khác. Trong game cũng flag=-1 (J1, G1, O1) |
 | Độ dài payload mẫu | 65 byte |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:

@@ -119,8 +119,22 @@ export function stoneResult(payload: Uint8Array) {
   return finish(r, { name, ok, items }, 's2c/93');
 }
 
+/** s2c/92 in Chế tạo trang bị: as stoneSlot, with the fee in Xu once both materials are in (O1: 2.400 for Bậc I, 26.500
+ * Bậc II, 90.000 Bậc III; 0 before that, and 0 in Luyện đá, whose fee is in the text). */
+export function craftSlot(payload: Uint8Array) {
+  const r = new Reader(payload), name = r.string();
+  r.u8();
+  const slot = r.i32();
+  r.i32();
+  const fee = r.i32();
+  return finish(r, { name, slot, fee, text: r.string(), ready: r.u8() === 1 }, 's2c/92');
+}
+
+/** The third field of c2s/97 (16-upgrade.md#gói): 0 for gear, stones and Chuyển hoá items; 1 for Bùa bảo vệ and the
+ * materials of Chế tạo trang bị, which go in with the whole stack (O1). With 0 a charm is "Vật phẩm không phù hợp". */
+export const PUT_ITEM = 0, PUT_STACK = 1;
 /** c2s/97: puts the item of a bag slot in the open window. Free; the window answers. */
-export const putRequest = (slot: number, quantity = 1) => new Writer().string('').u8(0).i32(0).i32(slot).i32(quantity).build();
+export const putRequest = (slot: number, quantity = 1, kind = PUT_ITEM) => new Writer().string('').u8(0).i32(kind).i32(slot).i32(quantity).build();
 /** c2s/91: Bắt đầu, the same in every window. */
 export const startRequest = () => new Writer().string('').build();
 
@@ -231,14 +245,14 @@ export function mergeForecast(bag: BagItem[], { upTo = 12, unlocked = true } = {
 /** The stones Nâng cấp may use, in the order to put them: lowest value first, and within a level the locked ones before
  * the unlocked ones, which stay tradeable longer. `unlocked` false leaves unlocked stones out. The server takes every
  * stone put in (J3), so the bot puts them one by one and stops as soon as the odds are reached. */
-export function upgradeStones(bag: BagItem[], { unlocked = true } = {}) {
+export function upgradeStones<T extends BagItem>(bag: T[], { unlocked = true } = {}) {
   return bag.filter(i => stoneLevel(i.itemId) && (unlocked || locked(i)))
     .sort((a, b) => stoneLevel(a.itemId) - stoneLevel(b.itemId) || Number(locked(b)) - Number(locked(a)) || a.slot - b.slot);
 }
 
 /** The bag items Chuyển hoá may move `source`'s level to (16-upgrade.md#chuyển-hoá): another item of the same type, at
  * +0, of a tier (wear level) at least the source's, and able to reach that level. `def` gives an item's type and level. */
-export function transmuteTargets(bag: BagItem[], source: BagItem, def: (itemId: number) => { type: number; level: number } | undefined) {
+export function transmuteTargets<T extends BagItem>(bag: T[], source: BagItem, def: (itemId: number) => { type: number; level: number } | undefined) {
   const from = def(source.itemId);
   if (!from || source.field0 < 1) return [];
   return bag.filter(i => {
@@ -248,7 +262,7 @@ export function transmuteTargets(bag: BagItem[], source: BagItem, def: (itemId: 
 }
 
 /** The cheapest Chuyển hoá item of the bag that moves a +`level` item, if any. */
-export function transmuteItem(bag: BagItem[], level: number) {
+export function transmuteItem<T extends BagItem>(bag: T[], level: number) {
   for (const t of TRANSMUTE_ITEMS) {
     if (t.upTo < level) continue;
     const item = bag.find(i => i.itemId === t.itemId);
@@ -256,3 +270,74 @@ export function transmuteItem(bag: BagItem[], level: number) {
   }
   return undefined;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Bùa bảo vệ, Chế tạo trang bị and Đổi Băng Tâm (O1, 16-upgrade.md#thất-bại-và-bùa, #chế-tạo).
+
+/** Bùa bảo vệ sơ, trung, cao, siêu cấp and the highest level of the upgrade each protects ("từ cấp 1 đến cấp 8 / 12 /
+ * 14 / 16"). They stack, and go in with c2s/97 kind 1, quantity 1. */
+export const CHARMS = [{ itemId: 35, upTo: 8 }, { itemId: 36, upTo: 12 }, { itemId: 37, upTo: 14 }, { itemId: 38, upTo: 16 }] as const;
+/** The levels a failed Nâng cấp falls back to (Cẩm nang; +7 → +4 measured in O1). Below +4 it keeps its level. */
+export const FALLBACK_LEVELS = [4, 8, 12, 14] as const;
+/** The level of an item +`level` after a failed Nâng cấp without a charm. */
+export function failLevel(level: number) {
+  let to = level;
+  for (const m of FALLBACK_LEVELS) if (m <= level) to = m;
+  return to;
+}
+/** Whether a failed Nâng cấp from +`level` loses levels (+5 to +7, +9 to +11, +13, +15), so a charm is worth it. */
+export const charmUseful = (level: number) => failLevel(level) < level;
+/** The lowest charm of the bag that protects the upgrade from +`level` to the next. */
+export function charmFor<T extends { itemId: number }>(bag: T[], level: number) {
+  for (const c of CHARMS) {
+    if (c.upTo < level + 1) continue;
+    const item = bag.find(i => i.itemId === c.itemId);
+    if (item) return item;
+  }
+  return undefined;
+}
+/** Trần cường hoá of an item from its it1 type and wear level: wings (type 4) go to +16 whatever their level. */
+export const itemCap = (def: { type: number; level: number }) => (def.type === 4 ? 16 : upgradeCap(def.level));
+/** Gear that Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh (it1 types 0–4). */
+export const isGear = (def: { type: number } | undefined) => !!def && def.type >= 0 && def.type <= 4;
+
+/** Chế tạo trang bị: Pháp sư → 3 Chế tạo → 1 Chế tạo trang bị → the kind (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), whose s2c/57
+ * gives the recipes; a tier line opens the window s2c/99 "abcd1001". */
+export const CRAFT_KINDS = { non: 0, ao: 1, vukhi: 2, nhan: 3 } as const;
+export const CRAFT_LABELS = ['Nón', 'Áo', 'Vũ khí', 'Nhẫn'] as const;
+export interface Recipe { tier: number; option: number; level: number; materials: { name: string; count: number }[]; xu: number }
+const ROMAN: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
+
+/** The recipes of an item kind from its s2c/57: the text gives "Bậc I: Quặng Bậc 1 x24, Linh Thạch Bậc 1 x24, 2.400 Xu"
+ * for each tier, the lines "Bậc II (Lv 51)" the character level each needs (O1). */
+export function recipes(menu: { text: string; options: { option: number; label: string }[] }): Recipe[] {
+  const out: Recipe[] = [];
+  for (const line of menu.text.split('\n')) {
+    const m = /^Bậc ([IV]+): (.+)$/.exec(line.trim());
+    if (!m || !ROMAN[m[1]]) continue;
+    const parts = m[2].split(',').map(p => p.trim()), price = /^([\d.]+) Xu$/.exec(parts.at(-1) ?? '');
+    const materials = parts.slice(0, -1).map(p => /^(.+) x(\d+)$/.exec(p)).filter(x => !!x).map(x => ({ name: x[1], count: Number(x[2]) }));
+    const tier = ROMAN[m[1]], label = menu.options.find(o => new RegExp(`^Bậc ${m[1]} \\(Lv (\\d+)\\)`).test(o.label));
+    if (!price || !label || materials.length !== parts.length - 1) continue;
+    out.push({ tier, option: label.option, level: Number(/Lv (\d+)/.exec(label.label)![1]), materials, xu: amount(price[1]) });
+  }
+  return out;
+}
+
+/** The bag slot to put for each material of a recipe: the largest stack of that item, which must hold the count (the
+ * client puts one stack, the whole of it; the server takes the count). `idOf` maps a material name to its item id. */
+export function craftMaterials<T extends { slot: number; itemId: number; quantity: number }>(bag: T[], recipe: Recipe, idOf: (name: string) => number | undefined) {
+  const puts: { name: string; count: number; item: T }[] = [], missing: string[] = [];
+  for (const m of recipe.materials) {
+    const id = idOf(m.name), best = bag.filter(i => i.itemId === id).sort((a, b) => b.quantity - a.quantity)[0];
+    if (best && best.quantity >= m.count) puts.push({ ...m, item: best });
+    else missing.push(`${m.name} ${best?.quantity ?? 0}/${m.count}`);
+  }
+  return { puts, missing };
+}
+
+/** Đổi Băng Tâm lấy bình rỗng: Pháp sư → 3 Chế tạo → 3, then 0 one bottle, 1 five, 2 all. 8 Băng Tâm (item 21) make one
+ * Bình Huyết Linh (Rỗng) (item 16). The server exchanges as soon as the line is picked, without asking again (O1). */
+export const ICE = { perBottle: 8, iceId: 21, bottleId: 16, options: { 1: 0, 5: 1, all: 2 } } as const;
+/** "Đổi 8 Băng Tâm lấy 1 Bình Huyết Linh (Rỗng). Bạn đang có 8 Băng Tâm." → 8. */
+export const iceHeld = (text: string) => { const m = /Bạn đang có ([\d.]+) Băng Tâm/.exec(text); return m ? amount(m[1]) : undefined; };
