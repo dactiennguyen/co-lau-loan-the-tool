@@ -80,13 +80,116 @@ Các cửa sổ, gói đặt món, giá và tỉ lệ đo được, quy luật l
 
 | Dòng | Server trả |
 |---|---|
-| 0 Mã quà tặng | `s2c/1224` rỗng (0 byte). Có lẽ client mở ô nhập mã [Suy luận] |
+| 0 Mã quà tặng | `s2c/1224` rỗng (0 byte), rồi client mở cửa sổ Phúc lợi → Mã quà tặng. Gửi mã là `c2s/1223` ([Mã quà tặng](#mã-quà-tặng)) [Đo G1] |
 | 1 Đổi lượng | `s2c/57` "Con muốn đổi gì.": 0 "50 lượng nhận 50.000 Xu", 1 "50 lượng nhận 55.000 Xu khóa" (J2). J3 chọn dòng 1: đổi ngay, không hỏi lại ([Đổi lượng](15-shops.md#đổi-lượng)) |
 | 2 Nhiệm vụ hàng ngày | `s2c/57` "Hôm nay con đã nhận 0/3 nhiệm vụ hàng ngày." với một dòng 0 Nhận nhiệm vụ. J1 không nhận |
 | 3 Điểm năng động | `s2c/57` "Điểm năng động tuần này: 54/100\nHạn mức đổi (cấp 79): 7.000 Xu, cần 7.700 Xu khóa\nTuần này còn 500/500 suất. Hết tuần lúc 00:00 thứ Hai." với 0 Đổi Xu, 1 Cách tính điểm, 2 Đóng |
 | 3 → 1 Cách tính điểm | `s2c/0` (xem [dưới](#s2c-0)): "Điểm năng động tính theo tuần (bắt đầu 00:00 thứ Hai): Nhận thưởng nhiệm vụ ngày: 5 điểm (tối đa 3 nhiệm vụ / ngày); Thắng 10 / 20 / 30 trận đánh quái trong ngày: +2 điểm mỗi mốc (quái không quá thấp so với con); Tham gia Bạch Hổ (cấp 30+): 3 điểm / ngày; Nhiệm vụ Bảo Điển ngày (khi có mùa): 1 điểm (tối đa 4 / ngày). Đủ 100 điểm: đổi Xu khóa lấy Xu một lần mỗi tuần, hạn mức theo cấp. Mỗi tuần chỉ 500 người đổi đầu tiên có suất." |
 
 [Đo J1, J2]
+
+<a id="mã-quà-tặng"></a>
+
+### Mã quà tặng
+
+G1 (01/11/2026, Tiheo2 / Ttuananh cấp 31, M1 khu 0): điện thoại có Frida ghi gói, nhân vật được đặt sẵn cạnh Hương Lão bằng một `c2s/1169` của bot TS. Luồng:
+
+1. `c2s/13 ("M1", 102)` → `s2c/57` với 4 dòng.
+2. `c2s/57 (0, "M1", 102)` → `s2c/1224` rỗng → client mở cửa sổ **Phúc lợi**, tab **Mã quà tặng**: ô "Nhập mã tại đây", lưu ý "Nếu nhập sai quá 5 lần, bạn sẽ không thể nhập tiếp trong vòng 24h. Phần thưởng sẽ được gửi vào hộp thư.", nút **Nhập quà**, và "NHẬN CODE NGAY TẠI" với nút Tham gia ngay.
+3. Nhập quà → `c2s/1223` → `s2c/1223`; thành công thì thêm `s2c/1222` và `s2c/1220`, lỗi thì thêm `s2c/1256`.
+
+| Gói | Bố cục | Ghi chú |
+|---|---|---|
+| `c2s/1223` | `string mã` | `0000000a 414c5048415445535431` là "ALPHATEST1". Client đổi chữ thường thành chữ hoa và cắt dấu cách hai đầu trước khi gửi: gõ "denbu" hay "  DENBU  " đều gửi `00000005 44454e4255`. Ô trống thì client báo "Bạn chưa nhập mã quà tặng." và không gửi gì. Gói không mang map hay NPC |
+| `s2c/1223` | `u8 ok; string lời` | `ok` 1: "Nhập mã thành công, phần thưởng đã được gửi vào hộp thư" (chữ xanh dưới nút, ô mã được xoá). `ok` 0: lời lỗi (chữ đỏ, ô giữ mã) |
+| `s2c/1256` | `u8 1; string` | Chỉ khi lỗi: cùng lời đó, hiện thành dải thông báo giữa màn hình |
+| `s2c/1222` | `i64 mãThư; u8 1; string tiêuĐề; string ngườiGửi; u8 0; u8 1; u8 0; i64 giờGửi; i64 0` | Thư mới trong hộp thư, client hiện "Bạn có thư mới: …". `giờGửi` là ms theo giờ server (sớm hơn lúc điện thoại nhận khoảng 0,8 s, do đồng hồ điện thoại lệch). `mãThư` tăng dần chung cả server: 6273, 6278, 6280 trong 80 s. Ba byte giữa và `i64` cuối chưa rõ nghĩa [Chưa rõ] |
+| `s2c/1220` | `u8 1` | Ngay sau `s2c/1222`: còn thư chưa đọc ([Hòm thư](#hòm-thư)) |
+
+Các trường hợp đã thử, theo thứ tự:
+
+| Gõ vào ô | Gửi trong `c2s/1223` | `ok` | Lời | Thư mới |
+|---|---|---|---|---|
+| ALPHATEST1 | ALPHATEST1 | 1 | Nhập mã thành công, phần thưởng đã được gửi vào hộp thư | "Quà Alpha Test Ngày 1" (6273) |
+| ALPHATEST1 lần hai | ALPHATEST1 | 0 | Nhân vật này đã dùng mã rồi | |
+| ALPHATEST2 | ALPHATEST2 | 1 | Nhập mã thành công, … | "Quà Alpha Test" (6278) |
+| denbu | DENBU | 1 | Nhập mã thành công, … | "Quà Đền bù AlphaTest" (6280) |
+| (để trống) | không gửi | | Bạn chưa nhập mã quà tặng. (client) | |
+| SAIMA2026 | SAIMA2026 | 0 | Mã không tồn tại | |
+| "  DENBU  " | DENBU | 0 | Nhân vật này đã dùng mã rồi | |
+| SAIMA2027, gửi bằng bot TS, không qua NPC | SAIMA2027 | 0 | Mã không tồn tại | |
+| SAIMA2028 … SAIMA2037 (10 mã sai liền, cùng một lần đăng nhập, cách nhau 9–25 s) | như gõ | 0 | Mã không tồn tại (cả 10 lần) | |
+| SAIMA2038, SAIMA2039, DENBU (ngay sau đó) | như gõ | 0 | Bạn nhập mã quá nhanh, vui lòng thử lại sau | |
+| DENBU, 3 phút sau lần sai thứ 10 | DENBU | 0 | Bạn nhập mã quá nhanh, vui lòng thử lại sau | |
+| DENBU, 6 phút 10 s sau lần sai thứ 10 | DENBU | 0 | Nhân vật này đã dùng mã rồi | |
+
+- Lời "Nhân vật này đã dùng mã rồi" cho thấy mã tính theo nhân vật, không theo tài khoản [Suy luận]. Cẩm nang ghi "mỗi nhân vật (có mã tính theo tài khoản) chỉ dùng một lần; mã còn có hạn dùng và số lượt".
+- **Không có chỗ nào báo còn mấy lần nhập sai.** Cửa sổ Mã quà tặng của client (`com.g.m.sqcc`) chỉ có dòng lưu ý cố định "Nếu nhập sai quá 5 lần…" và một nhãn hiện lời của server. `s2c/1223` chỉ có `ok` và lời, không có số đếm. Cả 12 lần sai của Tiheo2 đều nhận đúng một lời, "Mã không tồn tại" [Đo G1].
+- **Khoá thật là 10 lần sai liền thì chặn 5 phút**, không phải "quá 5 lần thì 24h" như dòng lưu ý của cửa sổ. Cẩm nang (`cam-nang.json`, mục Mã quà tặng) ghi đúng điều server làm: "gõ sai mã 10 lần liền thì bị khóa nhập 5 phút". Khi bị chặn, server trả `s2c/1223` với `ok` 0 và `s2c/1256`, cùng lời "Bạn nhập mã quá nhanh, vui lòng thử lại sau", cho **mọi** mã, kể cả mã thật (DENBU). Lời này đến sau khoảng 27 ms, nhanh hơn lời "Mã không tồn tại" (43–85 ms) [Đo G1].
+- Thời gian chặn: vẫn bị chặn ở 3 phút 10 s sau lần sai thứ 10, hết chặn ở 6 phút 10 s, nên khớp 5 phút của Cẩm nang. Lần thử ở phút thứ 3 không làm chặn lâu thêm: nếu mỗi lần thử lúc bị chặn tính lại 5 phút thì ở phút thứ 6 vẫn còn bị chặn [Đo G1].
+- Đếm "liền" theo gì: lần chặn đến sau đúng 10 lần sai của cùng một lần đăng nhập (SAIMA2028–2037). SAIMA2026 và SAIMA2027 ở hai lần đăng nhập trước, hay bị ngắt quãng bởi một mã đã dùng ("  DENBU  "), không cộng vào. Server đếm theo lần đăng nhập, hay lần nhập mã đã dùng làm số đếm về 0, thì chưa phân biệt được [Chưa rõ].
+- Ô mã nhận tối đa 32 ký tự (`setMaxLength(32)` trong `sqcc`) và có bộ lọc ký tự (`sqcd`, chưa đọc) [Đọc code].
+- Server có phân biệt chữ hoa, chữ thường không: chưa thử được qua client, vì client luôn gửi chữ hoa. Cẩm nang ghi "không phân biệt chữ hoa, chữ thường".
+- Phần thưởng nằm trong hòm thư ([Hòm thư](#hòm-thư)).
+- **Bot TS gửi `c2s/1223` thẳng được:** 1,5 s sau khi vào game, nhân vật đứng ở M1 nhưng không mở Hương Lão hay Phúc lợi. Server trả `s2c/1223` và `s2c/1256` sau 52 ms, giống hệt khi bấm trên điện thoại [Đo G1].
+- Gói của G1 (chỉ các gói ở trên và các bước bấm) giữ ở `captures/g1-2026-11-01/gift.jsonl` (điện thoại), `code-bot.jsonl` (bot TS) và `gift-lock.jsonl` (10 lần sai và lúc bị chặn), không đưa vào git.
+
+<a id="hòm-thư"></a>
+
+### Hòm thư
+
+G1, cùng phiên: Chức năng (góc phải màn hình) → **Thư** mở cửa sổ **HÒM THƯ**: danh sách thư bên trái (tiêu đề, người gửi, nhãn "quà", "7 phút trước", chấm đỏ khi chưa đọc), nội dung bên phải ("Chọn thư để xem nội dung.", "(Không có vật phẩm)"), và 4 nút Xóa hết, Xóa, Nhận, Nhận hết. Thư đã nhận có dấu "ĐÃ NHẬN" và nút Nhận mờ đi.
+
+| Gói | Bố cục | Ghi chú |
+|---|---|---|
+| `c2s/1215` | rỗng | Mở hòm thư |
+| `s2c/1215` | `i32 n; n × thư` | Một thư: `i64 mãThư; u8 loại; string tiêuĐề; string ngườiGửi; u8 đãĐọc; u8 cóQuà; u8 đãNhận; i64 giờGửi; i64 0`. `loại` 1 ở mọi thư quà. Thư mới chưa mở là `0 1 0`, thư đã nhận `1 1 1`. Cũng là bố cục của `s2c/1222` (thư mới) |
+| `c2s/1216` | `i64 mãThư` | Bấm vào một thư |
+| `s2c/1216` | `i64 mãThư; string tiêuĐề; string nộiDung; string ngườiGửi; u8 đãNhận; i32 n; n × bản ghi vật phẩm` | Bản ghi vật phẩm như của túi ([12-skills-items](12-skills-items.md#túi-đồ)), ô 0xff. Tiền cũng là vật phẩm: Xu `#40`, Xu khóa `#41`, Lượng `#42`, số tiền ở `quantity`. `field1` là cờ khoá như trong túi (0 đã khoá, client vẽ ổ khoá; 1 chưa khoá) |
+| `s2c/1220` | `u8` | Sau mỗi `s2c/1216` và `s2c/1217`: 1 khi còn thư chưa đọc, 0 khi đã mở hết (chấm đỏ của nút Thư) |
+| `c2s/1217` | `i64 mãThư` | Nhận |
+| `s2c/1217` | `i64 mãThư; u8 ok` | 1 nhận được, 0 không. Được thì trước đó có `s2c/46` "update Xu" với số tiền mới, và nếu thư có vật phẩm thì thêm `s2c/1187` (cả túi sau khi nhận, [12-skills-items](12-skills-items.md#túi-đồ)); thứ tự là `s2c/46`, `s2c/1187`, `s2c/1217`, `s2c/1220`. Không có `s2c/51` (thêm một ô). Túi không đủ chỗ thì trước đó có `s2c/1256` "Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa" và thư không nhận được gì, kể cả tiền |
+| `c2s/1218` | rỗng | Nhận hết. Server nhận từng thư còn chỗ, bỏ qua thư không đủ chỗ. Nhận được mọi thư: **một** `s2c/46` với tổng tiền mới, **một** `s2c/1187` với cả túi, rồi `s2c/1256` "Đã nhận quà của 2 thư" (Tiheo2, sau khi gộp đá). Nhận được một phần: `s2c/46`, rồi `s2c/1256` "Đã nhận quà của 1 thư, rương đã đầy" (manina2: thư chỉ có tiền nhận được, ba thư có vật phẩm bị bỏ qua). Không thư nào nhận được: `s2c/1256` "Rương đã đầy. …". Không còn thư nào có quà: `s2c/1256` "Không có quà nào để nhận". Sau đó luôn có `s2c/1215` (cả danh sách mới) và `s2c/1220`. Thư nhận bằng Nhận hết vẫn là chưa đọc. Sau Nhận hết, ô nội dung của thư đang chọn hiện "Đang tải nội dung…" mãi, vì client không gửi lại `c2s/1216` |
+| `c2s/1219` | `i64 mãThư` | Xóa một thư. Client hỏi lại trước khi gửi: "Bạn có muốn xóa thư này không?" với thư đã nhận, "Thư này còn quà chưa nhận, xóa đi sẽ mất quà. Bạn có chắc muốn xóa không?" với thư còn quà |
+| `s2c/1219` | `i64 mãThư; u8 ok` | 1 đã xoá; rồi `s2c/1220`. Client bỏ thư khỏi danh sách, không xin lại `s2c/1215` |
+| `c2s/1221` | rỗng | **Xóa hết: xoá mọi thư, kể cả thư còn quà chưa nhận.** Client hỏi "Bạn có muốn xóa tất cả thư đã nhận không?", nhưng "đã nhận" ở đây là thư đã đến hòm, không phải thư đã lấy quà. Server trả `s2c/1215` rỗng (`00000000`), `s2c/1220` 0 và `s2c/1256` "Đã xoá 4 thư" |
+
+Bốn thư của Ttuananh (cấp 31, túi 42/42 ô, phần lớn là đá):
+
+| Thư (mã) | Nội dung | Món | Nhận |
+|---|---|---|---|
+| Quà Đền bù AlphaTest (6280) | Cảm ơn Sứ Quân đã chịu khó chờ đợi | Xu 5.000.000, Lượng 10.000, Xu khóa 5.000.000 | Được: `s2c/46` đổi Xu 3.600 → 5.003.600, Xu khóa 26.138 → 5.026.138, Lượng 0 → 10.000 |
+| Quà Alpha Test (6278) | Quà Alpha Test | Xu 10.000.000, Xu khóa 10.000.000, Lượng 20.000; Gỗ, Da, Linh Thạch, Quặng Bậc 2 và Bậc 3, mỗi thứ 500 | Túi đầy; sau khi gộp đá nhận bằng Nhận hết |
+| Quà Alpha Test Ngày 1 (6273) | Chào mừng Sứ Quân | Xu khóa 1.000.000; Tăng Kinh Nghiệm 1, Đá cấp 5 × 3 (ba bản ghi), Búa Sửa Chữa 10, Hoàn Linh Dược 10, Kim Đan Dược 10, đều đã khoá | Túi đầy; sau khi gộp đá nhận bằng Nhận |
+| Quà đạt cấp 20 (5118, từ 31/10) | Chúc mừng bạn đạt cấp 20! Bấm nhận để lấy quà. | Xu khóa 4.350, Tăng Kinh Nghiệm 1, Đá cấp 5, đã khoá | Túi đầy; sau khi gộp đá nhận bằng Nhận hết |
+
+- Một thư nhận cả hoặc không nhận gì. Thư chỉ có tiền thì nhận được dù túi đầy.
+
+**Nhận thư có vật phẩm (G1, Tiheo2, sau khi gộp đá).** Để có chỗ, `cllt smith --account=tiheo2 --merge=5 --confirm` gộp 17 Đá cấp 2, 11 Đá cấp 3 và 1 Đá cấp 4 (đều đã khoá) qua 8 lần luyện, cả 8 lần đều được và tốn 209 Xu khóa. Túi từ 42/42 còn 18/42. Rồi trên điện thoại (Frida ghi gói): Nhận thư 6273, rồi Nhận hết hai thư còn lại, rồi Nhận hết lần nữa khi không còn quà:
+
+| Bấm | Tiền (`s2c/46`) | Túi (`s2c/1187`) |
+|---|---|---|
+| Nhận thư 6273 | Xu khóa 5.025.929 → 6.025.929 | 18 → 22 món: Tăng Kinh Nghiệm (ô 3), 3 Đá cấp 5 (ô 6, 7, 8) vào ô trống thấp nhất; Hoàn Linh Dược 3 → 13, Kim Đan Dược 2 → 12, Búa Sửa Chữa 93 → 103 cộng vào chồng sẵn có |
+| Nhận hết (6278, 5118) | Xu 5.003.600 → 15.003.600; Xu khóa → 16.030.279 (+10.004.350, cả hai thư); Lượng 10.000 → 30.000 | 22 → 31 món: 8 nguyên liệu ×500 (ô 9–16, chưa khoá, như `field1` 1 trong thư), Đá cấp 5 (ô 17); Tăng Kinh Nghiệm 1 → 2 |
+
+- Món đã có trong túi cộng vào chồng sẵn có (G1: chồng cũ và món trong thư đều đã khoá), nên chỉ món mới hay đá (không chồng được, `stack` 1) mới cần ô trống. Món khác cờ khoá có vào chung chồng không thì chưa thử [Chưa rõ].
+- Nhận hết nhiều thư chỉ gửi một `s2c/46` và một `s2c/1187` cho cả lượt.
+- manina2 (cùng ngày, manina cấp 32, túi cũng 42/42): nhập 3 mã đều thành công (thư 6336, 6338, 6339), nên mã tính theo nhân vật: Tiheo2 đã dùng không làm mã hết lượt. Bấm Nhận hết ngay: chỉ nhận được thư Đền bù (Xu 3.600 → 5.003.600, Xu khóa 31.986 → 5.031.986, Lượng 0 → 10.000). Rồi Xóa hết: **cả 4 thư bị xoá, quà của ba thư chưa nhận (Quà Alpha Test, Quà Alpha Test Ngày 1, Quà đạt cấp 20) mất hẳn**, không nhập lại mã được ("Nhân vật này đã dùng mã rồi").
+- Lần bấm Xóa đầu tiên ở Tiheo2 lại hỏi về thư "Quà Alpha Test" (chưa nhận) dù thư đang chọn là thư đã nhận; G1 bấm Hủy. Lần thứ hai hỏi đúng thư đã nhận. Vì sao lựa chọn nhảy sang thư khác thì chưa rõ [Chưa rõ].
+- Cẩm nang (mục Hòm thư, Mã quà tặng) ghi thêm, chưa đo: hộp hiện 50 thư mới nhất; thư hết hạn vẫn còn trong danh sách nhưng không nhận quà được nữa; thư quà từ mã không hết hạn; "mỗi món quà cần 1 ô hành trang, tiền thì không; hết ô thì Nhận hết dừng lại" (đo được thì món chồng vào chồng có sẵn không cần ô mới, và Nhận hết bỏ qua thư thiếu chỗ chứ chưa chắc dừng). Cẩm nang cũng ghi "Xóa hết: … mọi thư đã nhận", cùng chữ dễ hiểu lầm như hộp hỏi lại; server xoá cả thư chưa nhận quà.
+- Chưa thấy: thư có Đá hay đồ (không chồng được) khi túi chỉ đủ chỗ cho một phần món của thư; thư hết hạn trên dây (cờ nào trong `s2c/1215`).
+- Gói của G1 ở `captures/g1-2026-11-01/mail.jsonl` (Tiheo2), `mail-2.jsonl` (Xóa ở Tiheo2, manina2) và `mail-3.jsonl` (nhận thư có vật phẩm, Nhận hết, Tiheo2), không đưa vào git.
+
+<a id="hòm-thư-bot"></a>
+
+#### Làm bằng bot TS
+
+Không cần điện thoại hay NPC: mọi gói ở trên gửi được ngay sau khi vào game. Client mở Mã quà tặng qua Hương Lão, nhưng bot gửi thẳng `c2s/1223` cũng được [Đo G1].
+
+1. Nhập mã: `c2s/1223 (string mã)`, đổi chữ hoa và cắt dấu cách trước, tối đa 32 ký tự. Đọc `s2c/1223`: `ok` 1 thì chờ `s2c/1222` (thư mới); `ok` 0 thì dừng và báo lời của server. Server không cho biết đã sai mấy lần, nên bot tự đếm số lần sai liền của nick: 10 lần sai liền thì mọi mã (kể cả mã đúng) bị từ chối với "Bạn nhập mã quá nhanh, vui lòng thử lại sau" trong 5 phút. Gặp lời này thì chờ đủ 5 phút rồi mới gửi tiếp. Không thử mã đoán mò.
+2. Xem hòm: `c2s/1215` → `s2c/1215`. Với mỗi thư `cóQuà` 1, `đãNhận` 0: `c2s/1216` để biết món (tiền là `#40`–`#42`), rồi `c2s/1217`. Đếm ô trống của túi trước: món đã có trong túi thì cộng vào chồng (đã thấy khi cùng đã khoá); món mới và mỗi viên đá (không chồng) cần một ô. `s2c/1217` `ok` 1 thì cập nhật tiền theo `s2c/46` và túi theo `s2c/1187`; `ok` 0 kèm "Rương đã đầy" thì dừng, báo người dùng.
+3. Hay dùng `c2s/1218` (Nhận hết): nhận được thư nào hay thư đó, an toàn với túi đầy. Đọc lời trong `s2c/1256` ("Đã nhận quà của N thư", "…, rương đã đầy", "Không có quà nào để nhận") và danh sách mới trong `s2c/1215`.
+4. Xoá: chỉ `c2s/1219` từng thư có `đãNhận` 1. **Không bao giờ gửi `c2s/1221`** khi còn thư có quà chưa nhận.
 
 <a id="ngọc-nga"></a>
 

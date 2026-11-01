@@ -10,7 +10,7 @@ Mở từ menu "Chức năng" và các biểu tượng góc phải. Bảng nào 
 |---|---|---|
 | Nhiệm vụ (tab Chính, Phụ) | không | Chính: dữ liệu `s2c/39`. Phụ: "Chưa có thông tin nhiệm vụ." |
 | Bản thân (trang bị, chỉ số, kỹ năng) | không | Túi 4 món; 0 Xu, 2.060 Xu khoá, 0 Lượng |
-| Hòm thư | `c2s/1215` (rỗng) → `s2c/1215` `i32 0` | Không có thư |
+| Hòm thư | `c2s/1215` (rỗng) → `s2c/1215` `i32 0` | Không có thư. Khi có thư (G1): bố cục từng thư, xem thư, Nhận, Nhận hết, Xóa, Xóa hết ở [Hòm thư](14-npc.md#hòm-thư) |
 | Bạn bè | `c2s/1196` (rỗng) → `s2c/1196` `i32 0` | Chưa có bạn |
 | Bảng xếp hạng | `c2s/1254 00` → `s2c/1254` tab, rồi danh sách; đổi tab: `c2s/1254 01 01` | Xem dưới |
 | Bảo Điển (tab Bảo Điển, Nhiệm vụ) | `c2s/1240` → `s2c/1240` `00`; `c2s/1241` → `s2c/1241` `00` | "Hiện chưa có mùa Bảo Điển nào" |

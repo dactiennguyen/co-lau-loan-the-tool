@@ -381,6 +381,7 @@ Nguồn: A2: packet đọc từ native reader, record 148.
 | Bố cục payload | u8 field |
 | Độ chắc chắn | Byte đã đo; ý nghĩa nghiệp vụ/schema một phần là suy luận; phần chưa biết giữ opaque |
 | Độ dài payload mẫu | 1 byte |
+| Thêm (G1) | Cờ còn thư chưa đọc: `01` sau `s2c/1222` (thư mới) và sau mỗi lần mở thư khi còn thư chưa đọc, `00` khi đã mở hết ([Hòm thư](14-npc.md#hòm-thư)) |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
