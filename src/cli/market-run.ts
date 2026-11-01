@@ -10,6 +10,7 @@ import { flags, runSession, show, showCharacter } from './run-session.ts';
 //   npm run market -- --buy=<uuid> --max-price=N [--tab=6 --page=4] [--confirm]
 //   npm run market -- --sell=<bag slot> --price=N [--qty=1] [--confirm]   fee 1.000 Xu
 //   npm run market -- --withdraw=<uuid of Đang bán> [--confirm]
+//   npm run market -- --extend=<uuid of Đang bán> [--confirm]           Gia hạn: 24 h more, fee 1.000 Xu
 // Without --confirm it only reads and says what it would do.
 const { arg, has, usage, int } = flags('market_run_result');
 const PRICE = { min: 1, max: 100_000_000 };
@@ -28,10 +29,10 @@ function parseTask(): MarketTask {
   }
   if (has('sell')) return { kind: 'sell', slot: int('sell'), price: int('price', PRICE), quantity: opt('qty', { min: 1, max: 9999 }) };
   if (has('withdraw')) return { kind: 'withdraw', uuid: uuid('withdraw') };
+  if (has('extend')) return { kind: 'extend', uuid: uuid('extend') };
   if (has('mine')) return { kind: 'mine' };
   if (has('scan')) return { kind: 'scan', tab: opt('tab', TAB), name: arg('name') || undefined, maxPrice: opt('max-price', PRICE), top: opt('top', { min: 1, max: 1000 }) };
   if (has('tab')) return { kind: 'list', tab: int('tab', TAB), page: opt('page', PAGE) };
-  if (has('extend')) usage('Gia hạn chưa đo nên bot không làm');
   return { kind: 'tabs' };
 }
 const task = parseTask();

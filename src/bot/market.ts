@@ -1,7 +1,6 @@
 // Chợ trời from the TS bot (docs/integration/nodejs/market.md, docs/app/events/14-npc.md#ngọc-nga), as the window of the
 // phone's toolbar button opens it, from anywhere once in the world: c2s/116 for the tabs, c2s/1192 for each page (read
-// only), and with `confirm` c2s/115 Mua, c2s/112 Đăng bán, c2s/113 Thu hồi. Never Gia hạn nor the other kind of c2s/112:
-// neither is measured.
+// only), and with `confirm` c2s/115 Mua, c2s/112 Đăng bán (kind 1) and Gia hạn (kind 2), c2s/113 Thu hồi.
 import { buildRequest } from '../protocol/events.ts';
 import type { Items } from '../protocol/items.ts';
 import * as m from '../protocol/market.ts';
@@ -16,14 +15,15 @@ export type MarketTask =
   | { kind: 'mine' }
   | { kind: 'buy'; uuid: string; maxPrice: number; tab?: number; page?: number }
   | { kind: 'sell'; slot: number; price: number; quantity?: number }
-  | { kind: 'withdraw'; uuid: string };
+  | { kind: 'withdraw'; uuid: string }
+  | { kind: 'extend'; uuid: string };
 
 export interface MarketOptions {
   items: Items;
-  /** Mua, Đăng bán, Thu hồi; without it the bot only reads. */
+  /** Mua, Đăng bán, Gia hạn, Thu hồi; without it the bot only reads. */
   confirm?: boolean;
   waitMs?: number;
-  /** After the answer to Mua, Đăng bán or Thu hồi, how long the packets with it get (default 400 ms). */
+  /** After the answer to Mua, Đăng bán, Gia hạn or Thu hồi, how long the packets with it get (default 400 ms). */
   settleMs?: number;
   log?: Log;
 }
@@ -75,6 +75,7 @@ export class MarketBot {
       case 'buy': return this.buy(task);
       case 'sell': return this.sell(task);
       case 'withdraw': return this.withdraw(task.uuid);
+      case 'extend': return this.extend(task.uuid);
     }
   }
 
@@ -194,6 +195,25 @@ export class MarketBot {
     await sleep(this.settleMs);
     const back = this.holdings.bag.filter(i => !before.has(i.uuid));
     this.log({ event: 'result', task: 'Thu hồi', ok: true, item: this.items.name(l.itemId), slots: back.map(i => i.slot), notices: this.notices.slice(seen) });
+    return 'done';
+  }
+
+  /** Gia hạn (NP1): 24 more hours on the listing, from its current end. The fee is taken as the listing fee of s2c/116:
+   * both were 1.000 Xu in NP1, as the cẩm nang says; which field of s2c/116 is the Gia hạn fee is not known. */
+  private async extend(uuid: string): Promise<Outcome> {
+    const l = (await this.readTab(m.MARKET_MINE_TAB)).find(x => x.uuid === uuid), fee = this.tabs!.fee, xu = this.holdings.money?.xu;
+    if (!l) throw new Stop(`Đang bán không có món ${uuid}: đã bán, hết hạn hay đã thu hồi`);
+    this.log({ event: 'plan', task: 'Gia hạn', ...this.view(l), fee, hours: this.tabs!.hours, xu });
+    if (xu === undefined || xu < fee) throw new Stop(`thiếu Xu cho phí gia hạn: cần ${fee}, có ${xu ?? 'chưa biết'}`);
+    if (!this.confirm) return this.dryRun();
+    const moneyBefore = { ...this.holdings.money! }, seen = this.notices.length;
+    // Extended: s2c/46 (the fee), s2c/1192 kind 2 (Đang bán with the new end), then "Gia hạn vật phẩm thành công".
+    const page = m.market((await this.steps.ask(112, m.marketExtendRequest(l.uuid), [1192], `Gia hạn ${this.items.name(l.itemId)}`)).payload);
+    await sleep(this.settleMs);
+    // The new end is read from the first page of Đang bán the server sends back; a listing further down is not on it.
+    const after = page.kind === m.MARKET_MINE ? page.listings.find(x => x.uuid === l.uuid) : undefined;
+    this.log({ event: 'result', task: 'Gia hạn', ok: after ? after.expiresAt > l.expiresAt : undefined, item: this.items.name(l.itemId), uuid: l.uuid, expiresBefore: new Date(l.expiresAt).toISOString(),
+      expiresAfter: after && new Date(after.expiresAt).toISOString(), notices: this.notices.slice(seen), moneyBefore, moneyAfter: this.holdings.money });
     return 'done';
   }
 

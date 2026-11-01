@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeEvent } from '../src/protocol/events.ts';
 import { Items } from '../src/protocol/items.ts';
-import { MARKET, MARKET_MINE_TAB, MARKET_QUALITY, market, marketBuyRequest, marketDone, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from '../src/protocol/market.ts';
+import { MARKET, MARKET_MINE_TAB, MARKET_QUALITY, market, marketBuyRequest, marketDone, marketExtendRequest, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from '../src/protocol/market.ts';
+import { newMail } from '../src/protocol/mail.ts';
+import { np1Packets as NP } from './fixtures-np1.ts';
 import { currencies } from '../src/protocol/world.ts';
 import { buildRequest } from '../src/protocol/events.ts';
 import { notice } from '../src/protocol/world.ts';
@@ -171,4 +173,44 @@ test('Thu hồi: the uuid of Đang bán, c2s/113, and the item back in the bag',
   const unknown = await marketBot({ kind: 'withdraw', uuid: SLIME }, [window(), mine()], { confirm: true });
   assert.match(unknown.stop!, /Đang bán không có món/);
   assert.ok(!unknown.sent.some(s => s.startsWith('c2s/113')));
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// NP1: Gia hạn, and the mail of a listing sold.
+
+const np = (key: string) => Buffer.from(NP[key], 'hex');
+const nr = (op: number, key: string): Reply => [op, np(key)];
+const RENEWED = 'da16557d-81a8-44af-bed6-37bfe108b331';
+
+test('Gia hạn is c2s/112 (2, uuid of Đang bán): 1.000 Xu, and the listing ends 24 h later than it did', async () => {
+  assert.equal(marketExtendRequest(RENEWED).toString('hex'), NP['c2s/112 Gia hạn']);
+  assert.deepEqual(decodeEvent('c2s', 112, np('c2s/112 Gia hạn')).fields, { kind: 2, uuid: RENEWED });
+  const [before, after] = ['trước', 'sau'].map(k => market(np(`s2c/1192 Đang bán ${k} Gia hạn`)));
+  if (before.kind !== 2 || after.kind !== 2) throw new Error('Đang bán');
+  assert.deepEqual([after.listings[0].uuid, after.listings[0].price, after.listings[0].seller], [RENEWED, 20_000, 'manina']);
+  assert.equal(after.listings[0].expiresAt - before.listings[0].expiresAt, 24 * 3_600_000);
+  assert.equal(notice(np('s2c/1256 gia hạn')).text, 'Gia hạn vật phẩm thành công');
+
+  const mine = (): Expect => ({ op: 1192, hex: P['c2s/1192 Đang bán'], reply: [nr(1192, 's2c/1192 Đang bán trước Gia hạn')] });
+  const dry = await marketBot({ kind: 'extend', uuid: RENEWED }, [window(), mine()], { xu: 5_050_600 });
+  assert.deepEqual([dry.errors, dry.left.length, dry.outcome], [[], 0, 'dry_run']);
+  assert.deepEqual((({ task, fee, hours }) => ({ task, fee, hours }))(dry.logs.find(e => e.event === 'plan')!), { task: 'Gia hạn', fee: 1000, hours: 24 });
+  const done = await marketBot({ kind: 'extend', uuid: RENEWED }, [window(), mine(),
+    { op: 112, hex: NP['c2s/112 Gia hạn'], reply: [nr(46, 's2c/46 sau Gia hạn'), nr(1192, 's2c/1192 Đang bán sau Gia hạn'), nr(1256, 's2c/1256 gia hạn')] }], { xu: 5_050_600, confirm: true });
+  assert.deepEqual([done.errors, done.left.length, done.stop, done.outcome], [[], 0, undefined, 'done']);
+  const result = done.logs.find(e => e.event === 'result')!;
+  assert.deepEqual([result.ok, result.moneyAfter.xu, result.notices], [true, 5_049_600, ['Gia hạn vật phẩm thành công']]);
+  assert.equal(Date.parse(result.expiresAfter) - Date.parse(result.expiresBefore), 24 * 3_600_000);
+  // Short of the fee, or a uuid not in Đang bán: nothing goes out.
+  const poor = await marketBot({ kind: 'extend', uuid: RENEWED }, [window(), mine()], { xu: 999, confirm: true });
+  const gone = await marketBot({ kind: 'extend', uuid: SLIME }, [window(), mine()], { confirm: true });
+  assert.deepEqual([/thiếu Xu/.test(poor.stop!), /Đang bán không có món/.test(gone.stop!)], [true, true]);
+  assert.ok(![poor, gone].some(x => x.sent.some(s => s.startsWith('c2s/112'))));
+});
+
+test('a listing sold: the seller online gets only s2c/1222, a mail of Hệ Thống, and s2c/1220', () => {
+  const mail = newMail(np('s2c/1222 thư bán được'));
+  assert.deepEqual((({ title, sender, read, gift, taken }) => ({ title, sender, read, gift, taken }))(mail),
+    { title: 'Chợ trời: đã bán vật phẩm', sender: 'Hệ Thống', read: false, gift: true, taken: false });
+  assert.equal(NP['s2c/1220'], '01');
 });

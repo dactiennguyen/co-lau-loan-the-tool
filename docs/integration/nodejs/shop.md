@@ -84,14 +84,14 @@ Bot mở dòng 3 Điểm năng động và đọc lời của menu: điểm tu�
 2. Mỗi lần (chỉ khi có `--confirm`): mở lại menu, rồi `c2s/57` dòng đó. **Chọn là đổi ngay, không hỏi lại.** Server trả `s2c/46` hai lần (Lượng giảm, rồi tiền tăng) và "Bạn vừa nhận được …". Lời khác thì bot dừng.
 3. **Dù xong hay dừng giữa chừng**, bot nói chuyện lại với Hương Lão để menu cuối là menu gốc. Server nhớ menu cuối; nếu menu Đổi lượng còn là menu cuối thì một `c2s/57` dòng 0 bất kỳ, kể cả của client trên máy lúc chuyển phiên, sẽ đổi thêm một lần (sự cố G1, [Hương Lão](../../app/events/14-npc.md#hương-lão)).
 
-Thiếu Lượng thì server trả gì, và mỗi ngày đổi được mấy lần: chưa đo.
+Mỗi ngày đổi được bao nhiêu lần cũng được, ít nhất 41: NP1 chạy `--times=20 --confirm` hai lượt liền trên manina2 mà không bị từ chối ([Đổi lượng](../../app/events/15-shops.md#đổi-lượng-ở-hương-lão)). Thiếu Lượng thì server trả gì: chưa đo.
 
 ## TODO
 
 - Đổi Xu ở Điểm năng động khi đủ 100 điểm (tốn Xu khóa).
-- Đổi lượng: giới hạn mỗi ngày, lời của server khi thiếu Lượng.
+- Đổi lượng: lời của server khi thiếu Lượng.
 - Mua bằng Xu khóa khi thiếu Xu khóa: server có lấy thêm Xu không (Pháp sư thì có).
-- Bot `npm run buy` và `npm run elder` mới thử với gói ghi lại; chưa chạy với server thật kể từ khi viết lại (bản `npm run buy` cũ đã mua thật ở B1, J3).
+- `npm run buy` với `--confirm` chưa chạy với server thật kể từ khi viết lại (bản cũ đã mua thật ở B1, J3). Đã chạy thật ở NP1 (01/11, manina2): bảng hàng Nhẫn [Xu] (đủ 12 món như J1), `npm run elder --rules`, và `--exchange=xu --times=20 --confirm` hai lượt.
 
 ## Log
 

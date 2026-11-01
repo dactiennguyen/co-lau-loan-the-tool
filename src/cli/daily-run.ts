@@ -3,11 +3,12 @@ import { flags, mapOf, runSession, show, showCharacter } from './run-session.ts'
 
 // Nhiệm vụ hàng ngày from the TS bot (docs/integration/nodejs/mail.md#nhiệm-vụ-ngày): the quest held and its progress
 // (s2c/1195 at login), and at Hương Lão (M1) how many of the 3 were taken today; Nhận or Hủy with --confirm.
-//   npm run daily -- [--account=tiheo2] [--accept | --cancel] [--confirm]
-// Hoàn thành nhiệm vụ is not measured yet: the bot stops when the menu offers it (TODO).
+//   npm run daily -- [--account=tiheo2] [--accept | --cancel | --complete] [--confirm]
+// --complete presses Hoàn thành nhiệm vụ when the quest held is done (progress ≥ target, the line in the menu) and logs
+// the reward as it comes.
 const { arg, has, usage } = flags('daily_run_result');
-if (has('accept') && has('cancel')) usage('chọn một trong --accept và --cancel');
-const task: DailyTask = has('accept') ? 'accept' : has('cancel') ? 'cancel' : 'show';
+if ([has('accept'), has('cancel'), has('complete')].filter(Boolean).length > 1) usage('chọn một trong --accept, --cancel và --complete');
+const task: DailyTask = has('accept') ? 'accept' : has('cancel') ? 'cancel' : has('complete') ? 'complete' : 'show';
 const bot = new DailyBot({ confirm: has('confirm'), log: show });
 
 await runSession({

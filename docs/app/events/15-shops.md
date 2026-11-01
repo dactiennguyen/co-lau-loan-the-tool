@@ -313,7 +313,9 @@ S→C 46    Xu 15.053.600, Lượng 29.950              (Xu + 50.000)
 S→C 1256  1, "Bạn vừa nhận được 50.000 Xu"
 ```
 
-Gói của dòng 0 trùng từng byte với Mã quà tặng ở menu gốc, Nhận nhiệm vụ và Đổi Xu; server hiểu theo menu nó vừa gửi ([hộp thoại](14-npc.md#hộp-thoại)). Cẩm nang ghi cùng tỉ giá. Thiếu Lượng thì server trả gì, và mỗi ngày đổi được mấy lần: chưa đo.
+Gói của dòng 0 trùng từng byte với Mã quà tặng ở menu gốc, Nhận nhiệm vụ và Đổi Xu; server hiểu theo menu nó vừa gửi ([hộp thoại](14-npc.md#hộp-thoại)). Cẩm nang ghi cùng tỉ giá và không nói giới hạn.
+
+**Không có giới hạn mỗi ngày, ít nhất tới 41 lần** [Đo NP1]. Ngày 01/11, manina (cấp 32) đã đổi 1 lần ở G1. Bot TS `npm run elder -- --exchange=xu --times=20 --confirm` chạy hai lượt, 40 lần liền, mỗi lần đi lại menu. Lần nào cũng đúng như trên: Lượng 9.950 → 7.950, Xu 5.048.600 → 7.048.600. Không lần nào bị từ chối hay chậm. Thiếu Lượng thì server trả gì: chưa đo (bot dừng trước khi gửi).
 
 Chiều ngược lại (Xu khóa → Xu) có ở Điểm năng động, mỗi tuần một lần khi đủ 100 điểm ([Hương Lão](14-npc.md#hương-lão)).
 

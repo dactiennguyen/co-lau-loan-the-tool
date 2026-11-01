@@ -83,6 +83,7 @@ Sau khi nhận, bot ghi tiền trước và sau (`s2c/46`) và số món trong t
 npm run daily -- --account=tiheo2                      # nhiệm vụ đang làm, tiến độ, số lượt đã nhận hôm nay
 npm run daily -- --account=tiheo2 --accept --confirm   # Nhận nhiệm vụ
 npm run daily -- --account=tiheo2 --cancel --confirm   # Hủy nhiệm vụ đang làm
+npm run daily -- --account=tiheo2 --complete --confirm # Hoàn thành nhiệm vụ đã xong, nhận thưởng
 ```
 
 1. **Đọc nhiệm vụ.** Lúc đăng nhập server gửi `s2c/1195`: không có nhiệm vụ, hoặc mã, tên, mẫu, tiến độ, mục tiêu. Bot in như tab Phụ của game, ví dụ "Thu thập 0/2050 xu khóa từ đánh quái".
@@ -93,17 +94,18 @@ npm run daily -- --account=tiheo2 --cancel --confirm   # Hủy nhiệm vụ đan
 4. **`--cancel`** (dòng 0 phải là Hủy nhiệm vụ hiện tại). Server trả `s2c/1195` không có nhiệm vụ, rồi "Hủy nhiệm vụ thành công". Nhiệm vụ đã hủy **vẫn tính một lượt** trong 3 lượt của ngày.
 5. **Quay về menu gốc.** Server nhớ menu cuối cùng và đọc `c2s/57` theo menu đó. Ở menu nhiệm vụ ngày, dòng 0 là Nhận hoặc Hủy, chạy ngay không hỏi lại. Vì vậy, xong việc (hay chạy thử, hay dừng), bot gửi lại `c2s/13` để menu cuối là menu gốc của Hương Lão. Ở menu gốc, dòng 0 chỉ mở Mã quà tặng ([hộp thoại](../../app/events/14-npc.md#hộp-thoại)).
 
-Dòng chữ của nút không đúng như mong đợi thì bot dừng, không bấm. Ví dụ: muốn Nhận nhưng đang giữ nhiệm vụ, hoặc menu có dòng Hoàn thành.
+6. **`--complete`** (đo ở NP1). Nhiệm vụ đang giữ phải đủ tiến độ và menu phải có dòng "Hoàn thành nhiệm vụ" (khi đó menu có hai dòng: 0 Hoàn thành nhiệm vụ, 1 Hủy nhiệm vụ hiện tại). Bot chọn dòng đó. Server trả `s2c/10` (EXP), `s2c/46` (Xu khóa), `s2c/1187` (túi), rồi `s2c/1195` loại 2 với tên nhiệm vụ và các phần thưởng ("727 kinh nghiệm", "590 xu khóa"), không có lời báo. Bot ghi `daily_done` và dòng `result` với phần thưởng, tiền trước và sau, các opcode đã đến. Lần chạy thật ở NP1 trả được nhiệm vụ, nhưng bot lúc đó chưa đọc được `s2c/1195` loại 2 nên ghi `parse_error` và `ok: false`; bản đọc loại 2 mới thử với gói ghi lại của lần đó (`test/fixtures-np1.ts`).
 
-Bot nhiệm vụ (`npm run quest`) cũng ghi dòng `daily_quest` mỗi khi `s2c/1195` đến, để biết tiến độ tăng thế nào khi đánh quái.
+Dòng chữ của nút không đúng như mong đợi thì bot dừng, không bấm. Ví dụ: muốn Nhận nhưng đang giữ nhiệm vụ, hoặc muốn Hoàn thành khi chưa đủ tiến độ.
+
+**Tiến độ.** Khi tiến độ đổi, server gửi `s2c/1195` loại 3 (`i32 tiếnĐộ; i32 mụcTiêu`). Với Nhặt xu, gói này đến ngay sau mỗi lần nhặt Xu khóa của quái, giữa `s2c/46` và lời báo "Bạn vừa nhận được … Xu khóa". Tiến độ dừng ở mục tiêu (2087 → 2100). Quái thấp hơn quá 20 cấp không rơi gì nên không tính. Bot nhiệm vụ (`npm run quest`) ghi dòng `daily_quest` với tiến độ; `npm run daily` cộng tiến độ vào nhiệm vụ đang giữ.
 
 <a id="todo"></a>
 
 ### Còn để sau (TODO)
 
-- **Hoàn thành nhiệm vụ ngày và phần thưởng** chưa đo. Theo Cẩm nang, làm xong thì về Hương Lão chọn "Hoàn thành nhiệm vụ", thưởng kinh nghiệm, Xu khóa hay vật phẩm, và 5 điểm năng động. Muốn đo phải đánh trận cho xong một nhiệm vụ.
-- Chưa đo: tiến độ tăng thế nào (có `s2c/1195` mới sau mỗi trận không), nhận lượt thứ 4 trong ngày, giờ nào thì tính sang ngày mới.
-- Bot dừng nếu thấy dòng Hoàn thành; khi đo xong sẽ thêm `--complete`.
+- Chưa đo: nhận lượt thứ 4 trong ngày, giờ nào thì tính sang ngày mới, tiến độ của các loại khác Nhặt xu (116 Sử dụng vật phẩm trong trận), phần thưởng có vật phẩm không.
+- Bot chưa tự làm nhiệm vụ ngày: farm cho đủ tiến độ vẫn là `npm run quest -- --farm=…` chạy tay.
 
 ## Log
 
@@ -117,7 +119,8 @@ Mỗi dòng là một JSON; cuối cùng có `gift_run_result`, `mail_run_result
 | `mail` | mail | Một thư đã mở: vật phẩm, tiền, số ô cần |
 | `plan`, `dry_run` | cả ba | Việc sẽ làm; dừng vì không có `--confirm` |
 | `result` | cả ba | Kết quả: thư đã nhận hay xoá, tiền trước và sau; nhiệm vụ mới |
-| `daily_quest` | daily, quest | `s2c/1195` vừa đến |
+| `daily_quest` | daily, quest | `s2c/1195` vừa đến: nhiệm vụ đang giữ, hay tiến độ mới (loại 3) |
+| `daily_done` | daily | `s2c/1195` loại 2 sau Hoàn thành nhiệm vụ: tên nhiệm vụ và các phần thưởng |
 | `menu` | daily | Dòng menu đã chọn, và chữ của menu nhiệm vụ ngày |
 | `notice`, `server_message` | cả ba | `s2c/1256`, `s2c/0` |
 | `stop` | cả ba | Lý do dừng |

@@ -338,10 +338,10 @@ Nguồn: A2: packet đọc từ native reader, record 147.
 |---|---|
 | Hướng | Server → Client |
 | Nhãn phân tích | daily_quest |
-| Xuất hiện khi | Trong đồng bộ nhân vật; khi nhận và khi hủy nhiệm vụ ngày ở Hương Lão |
+| Xuất hiện khi | Trong đồng bộ nhân vật; khi nhận và khi hủy nhiệm vụ ngày ở Hương Lão; khi tiến độ đổi (loại 3) |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | u8 có; nếu 1: i32 mãNhiệmVụ; string tên; string mẫu (%d là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu |
-| Độ chắc chắn | G1: đọc hết 1, 70, 92 byte (116 Sử dụng vật phẩm 0/3, 113 Nhặt xu 0/2050); tiến độ tăng thế nào chưa đo |
+| Bố cục payload | u8 loại; 0 không có; 1: i32 mãNhiệmVụ; string tên; string mẫu (%d là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu; 3: i32 tiếnĐộ; i32 mụcTiêu |
+| Độ chắc chắn | G1: đọc hết 1, 70, 92 byte (116 Sử dụng vật phẩm 0/3, 113 Nhặt xu 0/2050). NP1: loại 3 (9 byte) sau mỗi lần nhặt Xu khóa, 218/2100, 462/2100… |
 | Độ dài payload mẫu | 1 byte |
 | Thêm (G1) | **Nhiệm vụ ngày đang làm**, không phải cờ như nhãn cũ `flag_1195`: `00` là không có nhiệm vụ. Gửi lúc đăng nhập, khi nhận và khi hủy nhiệm vụ ngày ([Nhiệm vụ hàng ngày](14-npc.md#nhiệm-vụ-hàng-ngày)). Bộ giải mã: `dailyQuest` trong [src/protocol/mail.ts](../../../src/protocol/mail.ts) |
 

@@ -39,7 +39,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 Cẩm nang (`cam-nang.json`, tab Trận đấu và Cơ bản) [Đo chữ của game]:
 - "Đồ rơi: hòm đồ có thể rơi xuống đất sau trận; đứng lên hòm rồi bấm **Nhặt**."
 - "Kiếm Xu khóa: nhặt Xu khóa quái rơi, làm nhiệm vụ hàng ngày, đầy thanh Vàng."
-- "Quái quá thấp: thấp hơn bạn hơn 20 cấp thì không có kinh nghiệm, vàng và đồ rơi."
+- "Quái quá thấp: thấp hơn bạn hơn 20 cấp thì không có kinh nghiệm, vàng và đồ rơi." Đúng như vậy ở NP1 (01/11): manina cấp 32 thắng 11 trận Sơn Tặc cấp 9 ở M1, trận nào cũng `exp` 0, `coin` 0, không có `s2c/1182`; nhiệm vụ ngày Nhặt xu không tăng. [Đo NP1]
 - Bạch Hổ Thống Lĩnh (boss thế giới): "Trong trận: không có kinh nghiệm, vàng, đồ rơi."
 
 Chuỗi trong `libgdx-flashds.so` [Đo]:

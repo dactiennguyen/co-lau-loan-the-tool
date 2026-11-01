@@ -71,6 +71,11 @@ export function marketSellRequest(slot: number, quantity: number, price: number)
  * OK. Answer: s2c/1187 (the whole bag, the item back with a new uuid), s2c/113 (the same uuid), s2c/1256 "Đã nhận lại vật
  * phẩm …". */
 export const marketWithdrawRequest = (uuid: string) => new Writer().string(uuid).build();
+/** c2s/112 kind 2: Gia hạn a listing of Đang bán (its uuid in s2c/1192 kind 2), builder g80 (NP1; the 2 read from its
+ * native code). Answer: s2c/46 (the fee, 1.000 Xu), s2c/1192 kind 2 (Đang bán again: the same uuid, expiresAt 24 h later
+ * than before, not 24 h from now), s2c/1256 "Gia hạn vật phẩm thành công". */
+export const MARKET_EXTEND = 2;
+export const marketExtendRequest = (uuid: string) => new Writer().u8(MARKET_EXTEND).string(uuid).build();
 
 /** s2c/112, after a listing went up: i32 a (1); i32 bag slot; i32 quantity. */
 export function marketListed(payload: Uint8Array) {

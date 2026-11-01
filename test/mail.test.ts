@@ -1,9 +1,10 @@
 import test from 'node:test';
+import { np1Packets } from './fixtures-np1.ts';
 import assert from 'node:assert/strict';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { Items } from '../src/protocol/items.ts';
 import {
-  normalizeCode, giftCodeRequest, mailList, mailBody, mailIdRequest, slotsNeeded, claimedCount, dailyQuest, dailyTaken, dailyText,
+  normalizeCode, giftCodeRequest, mailList, mailBody, mailIdRequest, slotsNeeded, claimedCount, dailyAfter, dailyQuest, dailyTaken, dailyText,
 } from '../src/protocol/mail.ts';
 import { npcMenu } from '../src/protocol/world.ts';
 import { GiftBot, MailBot, type MailTask } from '../src/bot/mail.ts';
@@ -52,6 +53,11 @@ test('s2c/1195 is the daily quest held; its menu says how many were taken today'
   const q = dailyQuest(hex('s2c/1195 113 Nhặt xu')).quest!;
   assert.deepEqual([q.id, q.name, q.progress, q.target, dailyText(q)], [113, 'Nhặt xu', 0, 2050, 'Thu thập 0/2050 xu khóa từ đánh quái']);
   assert.equal(dailyQuest(hex('s2c/1195 không có')).quest, null);
+  // Kind 3 is the progress alone, after a pickup that counts (NP1); dailyAfter puts it on the quest held.
+  const moved = Buffer.from(np1Packets['s2c/1195 tiến độ 218/2100'], 'hex');
+  assert.deepEqual(dailyQuest(moved), { kind: 3, quest: undefined, progress: 218, target: 2100 });
+  assert.equal(dailyText(dailyAfter(q, dailyQuest(moved))!), 'Thu thập 218/2100 xu khóa từ đánh quái');
+  assert.equal(dailyAfter(null, dailyQuest(moved)), null);
   assert.deepEqual(dailyTaken(npcMenu(hex('s2c/57 nhiệm vụ ngày 1/3 Hủy')).text), { taken: 1, max: 3 });
 });
 
@@ -201,4 +207,35 @@ test('Nhận and Hủy, as G1; a dry run picks nothing, and the wrong line stops
   const holding = await dailyBot('accept', [talk(), choose(2, r(57, 's2c/57 nhiệm vụ ngày 1/3 Hủy')), talk()], { quest: 's2c/1195 113 Nhặt xu', confirm: true });
   assert.deepEqual([holding.errors, holding.left.length], [[], 0]);
   assert.equal(holding.stop, 'không nhận được: dòng 0 là "Hủy nhiệm vụ hiện tại" (đang giữ Nhặt xu)');
+});
+
+test('Hoàn thành nhiệm vụ (NP1): s2c/10 and s2c/46 give the rewards, then s2c/1195 kind 2 names them; no quest is left', async () => {
+  const n = (key: string) => Buffer.from(np1Packets[key], 'hex'), nr = (op: number, key: string): Reply => [op, n(key)];
+  assert.deepEqual(dailyQuest(n('s2c/1195 xong Nhặt xu')), { kind: 2, quest: null, done: { name: 'Nhặt xu', rewards: ['727 kinh nghiệm', '590 xu khóa'] } });
+  const menu = npcMenu(n('s2c/57 nhiệm vụ ngày 1/3 Hoàn thành'));
+  assert.deepEqual([menu.text, menu.options], ['Hôm nay con đã nhận 1/3 nhiệm vụ hàng ngày.', [{ option: 0, label: 'Hoàn thành nhiệm vụ' }, { option: 1, label: 'Hủy nhiệm vụ hiện tại' }]]);
+  const play = (confirm: boolean, extra: Expect[]) => {
+    const logs: Record<string, any>[] = [];
+    const bot = new DailyBot({ confirm, waitMs: 300, settleMs: 5, log: e => logs.push(e) });
+    bot.onPacket(1195, n('s2c/1195 113 Nhặt xu 2100/2100'));
+    bot.onPacket(46, money46(7_048_600, 5_033_578, 7_950));
+    const s = scripted([talk(), choose(2, nr(57, 's2c/57 nhiệm vụ ngày 1/3 Hoàn thành')), ...extra, talk()], (op, p) => bot.onPacket(op, p));
+    return bot.run('complete', s.io, 'M1').then(outcome => ({ ...s, outcome, logs, bot }));
+  };
+  const dry = await play(false, []);
+  assert.deepEqual([dry.errors, dry.left.length, dry.outcome], [[], 0, 'dry_run']);
+  const done = await play(true, [choose(0, nr(10, 's2c/10 sau Hoàn thành'), nr(46, 's2c/46 sau Hoàn thành'), nr(1195, 's2c/1195 xong Nhặt xu'))]);
+  assert.deepEqual([done.errors, done.left.length, done.outcome, done.bot.quest], [[], 0, 'done', null]);
+  const result = done.logs.find(e => e.event === 'result')!;
+  assert.deepEqual([result.ok, result.rewards, result.moneyAfter.xuKhoa - result.moneyBefore.xuKhoa, result.opcodes], [true, ['727 kinh nghiệm', '590 xu khóa'], 590, [10, 46, 1195]]);
+});
+
+test('Hoàn thành is refused before any pick when the quest is not done or the line is missing', async () => {
+  const notDone = await dailyBot('complete', [talk(), choose(2, r(57, 's2c/57 nhiệm vụ ngày 1/3 Hủy')), talk()], { quest: 's2c/1195 113 Nhặt xu', confirm: true });
+  assert.deepEqual([notDone.errors, notDone.left.length], [[], 0]);
+  assert.match(notDone.stop!, /không có dòng Hoàn thành/);
+  const n = Buffer.from(np1Packets['s2c/57 nhiệm vụ ngày 1/3 Hoàn thành'], 'hex');
+  const early = await dailyBot('complete', [talk(), choose(2, [57, n]), talk()], { quest: 's2c/1195 113 Nhặt xu', confirm: true });
+  assert.match(early.stop!, /mới 0\/2050: chưa xong/);
+  assert.ok(![notDone, early].some(x => x.sent.some(s => s === `c2s/57 ${buildRequest(57, { option: 0, ...ELDER }).toString('hex')}`)));
 });

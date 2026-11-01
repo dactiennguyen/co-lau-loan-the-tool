@@ -31,7 +31,30 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 `c2s/57` = `u8 mãDòng; string mapId; i32 npcId`, cùng một gói ở mọi tầng menu. Lúc chọn menu con, trên máy gửi `00 "M1" 161` cho Nâng cấp rồi lại `00 "M1" 161` cho Nâng cấp [Thường]. [Đo]
 
-**Server nhớ menu đang mở, gói không nói tầng nào.** Ở Hương Lão, cùng một gói `00 "M1" 102` là Mã quà tặng (menu gốc), "50 lượng nhận 50.000 Xu" (Đổi lượng, **đổi ngay**), Nhận nhiệm vụ hay Hủy nhiệm vụ hiện tại (Nhiệm vụ hàng ngày), hoặc Đổi Xu (Điểm năng động), tuỳ `s2c/57` cuối cùng server đã gửi [Đo G1]. Bot phải mở NPC bằng `c2s/13`, đi đúng đường menu, và chỉ gửi `c2s/57` với dòng có trong `s2c/57` vừa nhận. Không bao giờ gửi lại một `c2s/57` cũ. Sau khi menu đóng (chạm vào khung chữ, hay sau một việc), server có còn nhớ menu cũ không thì chưa thử [Chưa rõ].
+**Server nhớ menu đang mở, gói không nói tầng nào.** Ở Hương Lão, cùng một gói `00 "M1" 102` là Mã quà tặng (menu gốc), "50 lượng nhận 50.000 Xu" (Đổi lượng, **đổi ngay**), Nhận nhiệm vụ hay Hủy nhiệm vụ hiện tại (Nhiệm vụ hàng ngày), hoặc Đổi Xu (Điểm năng động), tuỳ `s2c/57` cuối cùng server đã gửi [Đo G1]. Bot phải mở NPC bằng `c2s/13`, đi đúng đường menu, và chỉ gửi `c2s/57` với dòng có trong `s2c/57` vừa nhận. Không bao giờ gửi lại một `c2s/57` cũ.
+
+<a id="trí-nhớ-menu"></a>
+
+**Server nhớ menu thế nào (NP1).** manina2, bot TS, chỉ dùng những menu mà dòng được chọn mở cửa hàng, chợ hay menu con. Script `captures/np1-2026-11-01/menu-memory.ts` [Đo NP1]:
+
+| Trước đó | Gửi, không `c2s/13` trước | Server trả |
+|---|---|---|
+| Lái Buôn → 0 Vũ khí (menu con), rồi `c2s/13` Bà Tư (menu gốc) | `c2s/57 (0, "M1", 106)` Lái Buôn | Menu con Vũ khí, tức dòng 0 của **menu gốc** Lái Buôn |
+| (tiếp, menu cuối là menu con Vũ khí) | `c2s/57 (0, "M1", 103)` Bà Tư | Cửa hàng 1 Nón Nam [Xu], tức Bà Tư → 0 Nón → 0 |
+| Pháp sư → 1 Luyện đá (menu con) | `c2s/57 (0, "M1", 103)` Bà Tư | Cửa hàng 1 Nón Nam [Xu], **không phải** Giáp (dòng 1) |
+| Lái Buôn → 0 Vũ khí | `c2s/57 (1, "M1", 103)` Bà Tư | Cửa hàng 2 Nón Nữ [Xu] (Nón → 1) |
+| Bà Tư → 1 Giáp, rồi Lái Buôn → 0 Vũ khí | `c2s/57 (0, "M1", 103)` Bà Tư | Cửa hàng 1 Nón Nam [Xu], **không phải** Giáp Nam |
+| Ngọc Nga chưa `c2s/13` trong phiên, menu cuối là cửa hàng của Bà Tư | `c2s/57 (0, "M1", 104)` | `s2c/1192` loại 1 (Chợ trời) |
+| Phiên mới, chưa `c2s/13` nào; phiên trước để menu con Vũ khí | `c2s/57 (0, "M1", 106)` | **Không trả gì** |
+
+Vậy:
+
+- Server giữ **một** trạng thái menu cho mỗi nhân vật, không giữ riêng từng NPC. `c2s/13` đặt lại về menu gốc của NPC đó.
+- `c2s/57` cho **đúng NPC** của menu cuối: server hiểu theo đúng menu đó. Đây là trường hợp Hương Lão ở G1: menu cuối là Đổi lượng, dòng 0 đổi ngay.
+- `c2s/57` cho **NPC khác**: server chỉ dùng **tầng** của menu cuối. Ở tầng gốc thì là menu gốc của NPC đó; ở tầng menu con thì là menu con của **dòng 0** của NPC đó (của Bà Tư là Nón), dù trước đó đã chọn dòng nào. Mới đo một tầng menu con.
+- Trạng thái **không qua phiên mới**: đăng nhập lại thì `c2s/57` không có `c2s/13` bị bỏ qua. Vì vậy lần Đổi lượng thừa ở Tiheo2 (G1) phải đến từ **kết nối cũ** của điện thoại, khi phiên đó còn sống và còn nhớ menu Đổi lượng [Suy luận].
+- Chưa thử, vì có thể tốn tiền: `c2s/57` cho Hương Lão khi đang ở menu con của NPC khác. Dòng 0 menu gốc của Hương Lão là Mã quà tặng, không phải menu con [Chưa rõ]. Bot luôn gửi `c2s/13` trước, và gửi lại `c2s/13` sau mỗi việc ở Hương Lão.
+- Cả 7 NPC ở M1 trả cùng lời và cùng dòng cho manina (cấp 33, nhiệm vụ 16) như cho symap (cấp 79) ở J1.
 
 Đi kèm trả lời của NPC có thể có các gói nền không liên quan: `s2c/1` (ping), `s2c/1166`, `s2c/1167`, `s2c/1170` (người chơi khác), `s2c/1182`, `s2c/1183` (đồ trên đất). [Đo]
 
@@ -110,19 +133,32 @@ G1 (01/11, Tiheo2 / Ttuananh cấp 31, điện thoại có Frida ghi gói):
 `s2c/1195` là **nhiệm vụ ngày đang làm**, không phải cờ như [04-push](04-push.md#s2c-1195) ghi trước đây. Lúc đăng nhập nó đến cùng các gói nhân vật.
 
 ```text
-s2c/1195  u8 có                   0: không có nhiệm vụ ngày (1 byte)
-          nếu 1: i32 mãNhiệmVụ; string tên; string mẫu ("%d" là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu
+s2c/1195  u8 loại                 0: không có nhiệm vụ ngày (1 byte)
+          loại 1: i32 mãNhiệmVụ; string tên; string mẫu ("%d" là mục tiêu); i32 tiếnĐộ; i32 mụcTiêu
+          loại 3: i32 tiếnĐộ; i32 mụcTiêu    tiến độ vừa đổi (9 byte, NP1)
 ```
+
+**Tiến độ (NP1):** ngay sau mỗi lần nhặt Xu khóa của quái, server gửi `s2c/46` (Xu khóa mới), `s2c/1195` loại 3, rồi `s2c/1256` "Bạn vừa nhận được 218 Xu khóa". Ví dụ manina (cấp 32, nhiệm vụ 113, mục tiêu 2100) đánh Cua Càng ở M2: `03 000000da 00000834` (218/2100), rồi 462/2100, 709/2100. Nhặt đồ (Áo Chiến, Đá cấp 3) không có `s2c/1195`. Mục tiêu của Nhặt xu theo cấp: 2050 ở cấp 31 (Tiheo2), 2100 ở cấp 32. Quái thấp hơn quá 20 cấp không rơi gì nên không tính (Sơn Tặc cấp 9). [Đo NP1]
 
 | Mã | Tên | Mẫu | Mục tiêu |
 |---|---|---|---|
 | 116 | Sử dụng vật phẩm | Sử dụng %d vật phẩm trong trận đấu | 3 |
 | 113 | Nhặt xu | Thu thập %d xu khóa từ đánh quái | 2050 |
 
-- Bot TS: `npm run daily` đọc nhiệm vụ và menu, Nhận hay Hủy với `--confirm`, rồi để menu gốc của Hương Lão là menu cuối ([cách chạy](../../integration/nodejs/mail.md#nhiệm-vụ-ngày)); chưa chạy với server thật.
+- Bot TS: `npm run daily` đọc nhiệm vụ và menu, Nhận, Hủy hay Hoàn thành với `--confirm`, rồi để menu gốc của Hương Lão là menu cuối ([cách chạy](../../integration/nodejs/mail.md#nhiệm-vụ-ngày)). Đọc và Hoàn thành đã chạy thật ở NP1; Nhận và Hủy bằng bot thì chưa.
 - Tab **Phụ** của khung nhiệm vụ bên trái hiện "Sử dụng 0/3 vật phẩm trong trận đấu"; mở tab không gửi gói nào. Nhân vật vẫn giữ nhiệm vụ chính (tab Chính).
 - Cẩm nang (mục Nhiệm vụ): mỗi ngày nhận tối đa 3 nhiệm vụ, mỗi lần làm 1; làm xong thì về Hương Lão chọn **Hoàn thành nhiệm vụ**; thưởng là kinh nghiệm, Xu khóa hoặc vật phẩm. Theo Cách tính điểm, mỗi lần nhận thưởng nhiệm vụ ngày được 5 điểm năng động.
-- Chưa đo [Chưa rõ]: tiến độ tăng thế nào (có `s2c/1195` mới sau mỗi trận không), dòng Hoàn thành nhiệm vụ và phần thưởng, nhận lượt thứ 4 trong ngày, mấy giờ thì tính sang ngày mới. Muốn đo thì phải đánh trận. Tiheo2 đang giữ nhiệm vụ 113 (0/2050), đã dùng 2/3 lượt của 01/11.
+**Hoàn thành nhiệm vụ (NP1):** manina (cấp 33) xong 113 Nhặt xu 2100/2100 sau 22 trận thắng Cua Càng ở M2, rồi về M1 [Đo NP1]:
+
+| Bấm | Gửi | Server trả |
+|---|---|---|
+| Nhiệm vụ hàng ngày khi đã xong | `c2s/57 (2, "M1", 102)` | "Hôm nay con đã nhận 1/3 nhiệm vụ hàng ngày." với **hai** dòng: 0 Hoàn thành nhiệm vụ, 1 Hủy nhiệm vụ hiện tại |
+| Hoàn thành nhiệm vụ | `c2s/57 (0, "M1", 102)` | Trong 32 ms: `s2c/10` loại 4 (EXP 59.094 → 59.821), `s2c/46` (Xu khóa +590), `s2c/1187` (cả túi, không thêm món), rồi `s2c/1195` **loại 2**: `"Nhặt xu"; i32 2; "727 kinh nghiệm"; "590 xu khóa"`. Không có `s2c/1256` |
+| Nhiệm vụ hàng ngày sau đó | `c2s/57 (2, …)` | Vẫn "đã nhận 1/3", dòng 0 Nhận nhiệm vụ; không còn giữ nhiệm vụ |
+
+- Điểm năng động 16 → 23 cùng lúc. Có lẽ là 5 điểm phần thưởng cộng 2 điểm mốc 10 trận thắng; mốc 20 trận không thấy cộng. Có thể vì quái thấp hơn quá nhiều ("quái không quá thấp so với con") [Suy luận].
+- Bot TS: `npm run daily -- --complete --confirm` ([cách chạy](../../integration/nodejs/mail.md#nhiệm-vụ-ngày)).
+- Chưa đo [Chưa rõ]: nhận lượt thứ 4 trong ngày, mấy giờ thì tính sang ngày mới, các loại nhiệm vụ khác 113 và 116, phần thưởng có đổi theo cấp hay theo loại không. Tiheo2 vẫn giữ 113 (0/2050), đã dùng 2/3 lượt của 01/11.
 
 <a id="điểm-năng-động"></a>
 
@@ -332,7 +368,7 @@ Người dùng cho thử mua món rẻ nhất (Thú cưng Slime +16 thể lực,
   ```
 
 - Server trả `s2c/46` (Xu 5.052.600 → 5.051.600: phí 1.000), `s2c/112` (`i32 1; i32 ôTúi; i32 sốLượng` = 1, 2, 1), `s2c/1256` "Rao bán vật phẩm thành công". [Đo CT1]
-- Hàm dựng của `c2s/112` là `a81(int, int, long)`; cùng opcode còn `g80(Object)` = `u8; string`, có lẽ là Gia hạn theo uuid [Suy luận].
+- Hàm dựng của `c2s/112` là `a81(int, int, long)`; cùng opcode còn `g80(Object)` = `u8 2; string uuid`, là **Gia hạn** ([dưới](#gia-hạn)). Số 2 đọc từ mã máy: `g80` gọi `sqi.b(I)` với hằng 2, chữ ký `(I)Lcom/mh/n/sqi;` ở bảng chuỗi +0xf5eb [Đo tĩnh NP1].
 
 <a id="thu-hồi"></a>
 
@@ -342,7 +378,21 @@ Người dùng cho thử mua món rẻ nhất (Thú cưng Slime +16 thể lực,
 - Chạm món đang bán mở bảng chi tiết với hai nút **Gia hạn** và **Thu hồi**.
 - **Thu hồi** → "Thu hồi Thú cưng Slime về hành trang?" → OK → `c2s/113 (string uuid)`, với uuid của món trong Đang bán. Server trả `s2c/1187` (cả túi: Slime về ô 2, chưa khoá, lại có uuid mới), `s2c/113` (đúng uuid đã gửi), `s2c/1256` "Đã nhận lại vật phẩm Thú cưng Slime". Không hoàn phí đăng bán. [Đo CT1]
 
-Chưa đo: Gia hạn (có lẽ tốn phí), món bán được (tiền về hòm thư, trừ 5%), món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/1192` vẫn chưa thấy trên dây: `c2s/1193` `k124(int, int)` = `i32; u8`; `c2s/1194` `E125()` rỗng; `c2s/1197`, `c2s/1198` `(int)` = `i32`; `c2s/1199` `b129(int, Object)` = `i32; string` ([c2s-builders](../c2s-builders.md)). Chưa rõ chúng có thuộc chợ hay không [Chưa rõ].
+<a id="gia-hạn"></a>
+
+### Gia hạn, bán được (NP1)
+
+NP1 (01/11, bot TS, không dùng điện thoại; người dùng đồng ý tốn phí): manina2 đăng Slime giá 20.000 Xu, gia hạn, rồi Tiheo2 mua. Sau đó làm ngược lại: Tiheo2 đăng bán và ở lại trong game, manina2 mua.
+
+- **Gia hạn** = `c2s/112: u8 2; string uuid` (uuid của món trong Đang bán). Server trả theo thứ tự [Đo NP1]:
+  1. `s2c/46`: Xu 5.050.600 → 5.049.600 (phí 1.000, đúng như cẩm nang);
+  2. `s2c/1192` loại 2: Đang bán mới, uuid giữ nguyên, `expiresAt` **cộng 24 giờ vào hạn cũ** (2/11 18:33 → 3/11 18:33), không tính lại từ lúc gia hạn;
+  3. `s2c/1256` "Gia hạn vật phẩm thành công".
+- **Chợ dùng được ở map khác M1.** Tiheo2 đứng ở M2 vẫn mở chợ (`c2s/116`), tìm món và mua bằng `c2s/115`. Người mua: Xu −20.000, món vào túi và **không bị khoá**: Tiheo2 đăng bán lại ngay được. [Đo NP1]
+- **Người bán offline:** tiền đến bằng thư của Hệ Thống, tiêu đề "Chợ trời: đã bán vật phẩm", nội dung "Thú cưng Slime x1 đã bán được 20.000 Xu. Phí chợ 5%: 1.000 Xu, thực nhận 19.000 Xu.", quà là 19.000 Xu. Nhận như mọi thư quà (`c2s/1217`, [Hòm thư](#hòm-thư)). [Đo NP1]
+- **Người bán đang online:** ngay lúc người mua nhận hàng, người bán nhận `s2c/1222` (thư mới, cùng tiêu đề) rồi `s2c/1220 01`. Không có `s2c/1256`, `s2c/46` hay `s2c/1192`: Xu không cộng tới khi nhận thư. [Đo NP1]
+
+Chưa đo: món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/1192` vẫn chưa thấy trên dây: `c2s/1193` `k124(int, int)` = `i32; u8`; `c2s/1194` `E125()` rỗng; `c2s/1197`, `c2s/1198` `(int)` = `i32`; `c2s/1199` `b129(int, Object)` = `i32; string` ([c2s-builders](../c2s-builders.md)). Chưa rõ chúng có thuộc chợ hay không [Chưa rõ].
 
 ### Làm bằng bot TS
 
@@ -369,6 +419,7 @@ Sau khoảng 8 phút gắn agent ghi gói và agent đi xuyên quái (thay `sqhz
 
 ## Chưa đo
 
-- Hoàn thành nhiệm vụ hàng ngày (phải đánh trận cho xong), Đổi Xu khi đủ 100 điểm năng động, Chế Băng Kiếm, chọn bậc ở Chế tạo trang bị: đều có thể làm thay đổi tài khoản ngay khi bấm. Nhận và Hủy nhiệm vụ hàng ngày, Đổi Xu khi chưa đủ điểm đã đo ở G1 ([Nhiệm vụ hàng ngày](#nhiệm-vụ-hàng-ngày), [Điểm năng động](#điểm-năng-động)).
+- Ở Hương Lão: Đổi Xu khi đủ 100 điểm năng động, lượt nhiệm vụ ngày thứ 4, Đổi lượng khi thiếu Lượng. Nhận, Hủy, Hoàn thành nhiệm vụ ngày (G1, NP1), Đổi Xu khi chưa đủ điểm (G1), Đổi lượng 41 lần một ngày (NP1) đã đo ([Nhiệm vụ hàng ngày](#nhiệm-vụ-hàng-ngày), [Điểm năng động](#điểm-năng-động)).
+- `c2s/57` cho Hương Lão khi menu cuối là menu con của NPC khác ([trí nhớ menu](#trí-nhớ-menu)).
 - Ở Pháp sư: luyện đá thất bại, Chế Băng Kiếm, Chế tạo cánh ([16-upgrade](16-upgrade.md#chưa-đo)). Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá đã bấm thật ở J3; bùa, nâng tới +7, Chế tạo trang bị, Đổi Băng Tâm ở O1 ([kết quả](16-upgrade.md#o1)).
-- Mua, bán, rút tiền ở Chợ trời.
+- Ở Chợ trời: món hết hạn sau 24 giờ. Mua, Đăng bán, Thu hồi (CT1), Gia hạn và bán được (NP1) đã đo ([Gia hạn, bán được](#gia-hạn)).

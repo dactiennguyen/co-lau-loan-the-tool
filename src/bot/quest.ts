@@ -12,7 +12,7 @@ import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
-import { dailyQuest, dailyText } from '../protocol/mail.ts';
+import { DAILY_DONE, DAILY_PROGRESS, dailyQuest, dailyText } from '../protocol/mail.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for, read from its text (the steps of quests 3–8 in 10-quests.md). */
@@ -312,12 +312,14 @@ export class QuestBot implements WorldSession {
         break;
       // Empty, at the end of a battle and after c2s/40 (05-battle).
       case 1214: if (this.battle?.surrendered) this.left(1214); break;
-      // The daily quest held (Hương Lão): at login, when taken or dropped; logged to see how its progress moves in fights
-      // (docs/integration/nodejs/mail.md#todo).
+      // The daily quest held (Hương Lão): at login, when taken or dropped; kind 3 when its progress moves, e.g. after a
+      // pickup of Xu khóa (NP1, 14-npc.md#nhiệm-vụ-hàng-ngày).
       case 1195: {
-        let quest: ReturnType<typeof dailyQuest>['quest'] | undefined;
-        try { quest = dailyQuest(payload).quest; } catch { this.log('daily_quest', { payloadHex: payload.toString('hex') }); break; }
-        this.log('daily_quest', { quest: quest && { id: quest.id, name: quest.name, text: dailyText(quest) } });
+        let d: ReturnType<typeof dailyQuest>;
+        try { d = dailyQuest(payload); } catch { this.log('daily_quest', { payloadHex: payload.toString('hex') }); break; }
+        if (d.kind === DAILY_PROGRESS) this.log('daily_quest', { progress: d.progress, target: d.target });
+        else if (d.kind === DAILY_DONE) this.log('daily_quest', { done: d.done });
+        else this.log('daily_quest', { quest: d.quest && { id: d.quest.id, name: d.quest.name, text: dailyText(d.quest) } });
         break;
       }
       // Xu, Xu khóa, Lượng after a change: login, a quest reward, a pickup (P3).

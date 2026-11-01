@@ -99,13 +99,29 @@ export const DAILY = {
   complete: /Hoàn thành/,
   accepted: /^Nhận nhiệm vụ hàng ngày thành công/, cancelled: /^Hủy nhiệm vụ thành công/,
 } as const;
-/** s2c/1195: the daily quest held, at login and when one is taken or dropped. `template` has %d for the target. */
+/** s2c/1195, the daily quest held. Kind 0: none; 1: the quest (at login, when taken; `template` has %d for the target);
+ * 2: done, after Hoàn thành nhiệm vụ (string name; i32 n; n × string reward, "727 kinh nghiệm", "590 xu khóa"), with the
+ * rewards already given by s2c/10 and s2c/46 before it; 3: its progress moved (i32 progress; i32 target), e.g. right
+ * after a pickup of Xu khóa for Nhặt xu (NP1). */
+export const DAILY_NONE = 0, DAILY_QUEST = 1, DAILY_DONE = 2, DAILY_PROGRESS = 3;
 export function dailyQuest(payload: Uint8Array) {
-  const r = new Reader(payload);
-  if (r.u8() !== 1) return finish(r, { quest: null }, 's2c/1195');
-  return finish(r, { quest: { id: r.i32(), name: r.string(), template: r.string(), progress: r.i32(), target: r.i32() } }, 's2c/1195');
+  const r = new Reader(payload), kind = r.u8();
+  if (kind === DAILY_PROGRESS) return finish(r, { kind: DAILY_PROGRESS as typeof DAILY_PROGRESS, quest: undefined, progress: r.i32(), target: r.i32() }, 's2c/1195');
+  if (kind === DAILY_NONE) return finish(r, { kind: DAILY_NONE as typeof DAILY_NONE, quest: null }, 's2c/1195');
+  if (kind === DAILY_DONE) {
+    const name = r.string(), rewards: string[] = [];
+    for (let n = r.i32(); n > 0; n--) rewards.push(r.string());
+    return finish(r, { kind: DAILY_DONE as typeof DAILY_DONE, quest: null, done: { name, rewards } }, 's2c/1195');
+  }
+  if (kind !== DAILY_QUEST) throw new Error(`s2c/1195: kind ${kind} not seen yet`);
+  return finish(r, { kind: DAILY_QUEST as typeof DAILY_QUEST, quest: { id: r.i32(), name: r.string(), template: r.string(), progress: r.i32(), target: r.i32() } }, 's2c/1195');
 }
-export type DailyQuest = NonNullable<ReturnType<typeof dailyQuest>['quest']>;
+export type DailyQuest = NonNullable<Extract<ReturnType<typeof dailyQuest>, { kind: 1 }>['quest']>;
+/** The quest held after a s2c/1195 (decoded by dailyQuest): the new one, none, or `held` with the progress of kind 3. */
+export function dailyAfter(held: DailyQuest | null | undefined, d: ReturnType<typeof dailyQuest>): DailyQuest | null | undefined {
+  if (d.kind !== DAILY_PROGRESS) return d.quest;
+  return held ? { ...held, progress: d.progress, target: d.target } : held;
+}
 /** "Sử dụng 0/3 vật phẩm trong trận đấu", as the Phụ tab of the quest panel draws it. */
 export const dailyText = (q: DailyQuest) => q.template.replace('%d', `${q.progress}/${q.target}`);
 /** "Hôm nay con đã nhận 1/3 nhiệm vụ hàng ngày." → { taken: 1, max: 3 }. */

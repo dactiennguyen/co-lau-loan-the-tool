@@ -1,20 +1,20 @@
 # Chợ trời bằng Node.js
 
-`npm run market` làm việc với Chợ trời của Ngọc Nga bằng các gói đã đo ở CT1 (01/11, manina2) ([Ngọc Nga](../../app/events/14-npc.md#ngọc-nga)):
+`npm run market` làm việc với Chợ trời của Ngọc Nga bằng các gói đã đo ở CT1 và NP1 (01/11, manina2, Tiheo2) ([Ngọc Nga](../../app/events/14-npc.md#ngọc-nga)):
 
 - xem các mục, xem một trang;
 - quét mọi trang để tìm món rẻ nhất;
 - xem món mình đang bán;
-- Mua, Đăng bán, Thu hồi.
+- Mua, Đăng bán, Gia hạn, Thu hồi.
 
-Bot mở chợ như nút **Chợ trời** trên thanh công cụ của game: gửi thẳng `c2s/116` rồi `c2s/1192`, không qua Ngọc Nga. Vì vậy bot chạy được ở mọi map sau khi vào game. CT1 đã chạy thật bằng bot từ M1; các map khác chưa thử [Chưa rõ].
+Bot mở chợ như nút **Chợ trời** trên thanh công cụ của game: gửi thẳng `c2s/116` rồi `c2s/1192`, không qua Ngọc Nga. Vì vậy bot chạy được ở mọi map sau khi vào game: CT1 chạy thật từ M1, NP1 mua được khi Tiheo2 đứng ở M2.
 
 Code nằm ở các file sau:
 
 - gói: [src/protocol/market.ts](../../../src/protocol/market.ts);
 - luồng: [src/bot/market.ts](../../../src/bot/market.ts);
 - CLI: [src/cli/market-run.ts](../../../src/cli/market-run.ts);
-- test: [test/market.test.ts](../../../test/market.test.ts), phát lại gói CT1 (tên người bán được thay bằng "Người bán 1, 2…").
+- test: [test/market.test.ts](../../../test/market.test.ts), phát lại gói CT1 (tên người bán được thay bằng "Người bán 1, 2…") và NP1 ([test/fixtures-np1.ts](../../../test/fixtures-np1.ts)).
 
 Chung cho mọi lệnh:
 
@@ -84,18 +84,23 @@ npm run market -- --account=manina2 --withdraw=<uuid> --confirm           # lấ
 
 uuid trong Đang bán **khác** uuid của món trong túi; phải lấy từ `--mine`. Bot đọc Đang bán, kiểm món có ở đó, rồi gửi `c2s/113 (uuid)`. Server trả `s2c/1187` (món về túi, lại có uuid mới), `s2c/113`, rồi "Đã nhận lại vật phẩm …". Phí đăng bán không được hoàn.
 
-## Không làm
+## Gia hạn
 
-- **Gia hạn**: nút có trên máy nhưng chưa bấm, chưa biết gói và phí. `--extend` bị từ chối.
-- Kiểu thứ hai của `c2s/112` (`u8; string`, hàm dựng `g80`), có lẽ là Gia hạn: bot không gửi.
+```bash
+npm run market -- --account=manina2 --mine                                # uuid của món đang bán
+npm run market -- --account=manina2 --extend=<uuid> --confirm             # thêm 24 giờ, phí 1.000 Xu
+```
+
+Bot đọc Đang bán, kiểm món có ở đó và đủ Xu trả phí, rồi gửi `c2s/112 (2, uuid)`. Server trả `s2c/46` (trừ 1.000 Xu), `s2c/1192` Đang bán mới, rồi "Gia hạn vật phẩm thành công". Hạn mới là **hạn cũ cộng 24 giờ**, không tính từ lúc gia hạn; uuid giữ nguyên. Bot ghi hạn trước và sau trong dòng `result` ([Gia hạn](../../app/events/14-npc.md#gia-hạn)). Bot TS mới gia hạn bằng script dò ở NP1, chưa chạy lệnh `--extend` với server thật.
+
+## Khi món bán được
+
+Tiền về **hòm thư**: thư của Hệ Thống "Chợ trời: đã bán vật phẩm", ví dụ "Thú cưng Slime x1 đã bán được 20.000 Xu. Phí chợ 5%: 1.000 Xu, thực nhận 19.000 Xu.", quà là số Xu thực nhận. Nhận bằng `npm run mail -- --claim=<mã thư> --confirm` ([hòm thư](mail.md)). Người bán đang online chỉ nhận `s2c/1222` (thư mới) và `s2c/1220`; Xu không cộng tới khi nhận thư. [Đo NP1]
 
 ## TODO
 
-- Gia hạn: gói, phí.
-- Món bán được: tiền (trừ 5%) về hòm thư ra sao; có gói báo ngay không.
 - Món hết hạn sau 24 giờ: về hòm thư thế nào.
 - Món chồng (đá, vật dụng): `--qty` lớn hơn 1, và giá là của cả chồng hay từng cái.
-- Bot chạy ở map khác M1.
 
 ## Log
 
@@ -108,6 +113,6 @@ Mỗi dòng là một JSON. Ngoài các dòng chung (`character`, `notice`, `ser
 | `listing` | `--tab`, `--mine` | Một món: tên kèm chỉ số, phẩm chất, cấp, giá, người bán, thời gian còn, mục, trang, uuid |
 | `cheap` | `--scan` | Như `listing`, các món rẻ nhất |
 | `scanned` | `--scan` | Số món đọc được, số món khớp bộ lọc |
-| `plan` | Mua, Đăng bán, Thu hồi | Việc sẽ làm và các số đã kiểm |
+| `plan` | Mua, Đăng bán, Gia hạn, Thu hồi | Việc sẽ làm và các số đã kiểm |
 | `dry_run` | Không có `--confirm` | Dừng trước khi gửi |
-| `result` | Sau khi server nhận | Tiền trước và sau, ô túi, các lời báo của server |
+| `result` | Sau khi server nhận | Tiền trước và sau, ô túi, các lời báo của server; với Gia hạn thêm hạn trước và sau |
