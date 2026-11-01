@@ -97,6 +97,7 @@ impl Bot {
             };
             let mut record = self.record(b.mob_id(), BattleResult::Left, b.turns(), damage, 0, 0);
             record.hp_after = b.me().hp as i32;
+            self.remember_battle(&record);
             out.push(Out::Battle(record));
         }
         self.record_end(serde_json::json!({ "left": format!("s2c/{by}") }), now);
@@ -231,6 +232,7 @@ impl Bot {
         if end.won && self.fight.pickup {
             self.loot(&record, now, out);
         }
+        self.remember_battle(&record);
         out.push(Out::Battle(record));
         if self.battle_seq != self.job_seq {
             out.push(Out::Log(
@@ -371,6 +373,7 @@ impl Bot {
             BattleSource::Other
         };
         (self.battle_at, self.battle_hp) = (epoch_ms(), setup.hp);
+        self.battles_started += 1;
         // Before apply: its c2s/18 goes into the data through record_sent.
         self.record_start(payload, &setup.uuid, &mob_id, now, out);
         self.apply(acts, now, out);

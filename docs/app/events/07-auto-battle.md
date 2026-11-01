@@ -577,16 +577,17 @@ Mỗi trận bot đánh được ghi thành một file, để sau này hiệu ch
    | `combat` | Tấn công, phòng thủ, chính xác, né tránh, chí mạng | `s2c/9`, `extra[1..5]` của `s2c/10` kiểu 4 |
    | `potentials` | 10 số chỉ số tiềm năng, thứ tự của `s2c/9` | `s2c/9`, `s2c/10` kiểu 2 |
    | `skills` | `[mã, cấp]` các kỹ năng đã học | đuôi `s2c/9`, `s2c/10` kiểu 32 |
-   | `gear` | Mỗi ô: `slot`, `itemId`, `element`, `durability` (theo `s2c/36` của trận trước), `stats` | `s2c/9`, `s2c/36` |
+   | `gear` | Mỗi ô: `slot`, `itemId`, `plus` (cường hoá +0…+16, `field0` của bản ghi), `element`, `durability` (theo `s2c/36` của trận trước), `stats` | `s2c/9`, `s2c/36` |
    | `potions` | Bình trong túi: ô, mã, số lượng | `s2c/42`, `s2c/1187` |
    | `mob` | `id`, `name`, `level`, `element`, `elementName`, `hp`, `maxHp`, `boss` | khối quái của `s2c/22` |
    | `map`, `zone` | Chỗ đánh | `s2c/29`, `s2c/11` |
    | `play` | `strategy` (các trọng số của `--goal`), `skills` (kỹ năng bot được dùng), `skill`, `potionCost` | tham số dòng lệnh |
    | `memory` | Thông số bot đã học từ các trận trước trong phiên: `[tổng, số lần]` theo `tên quái.sword`, `me>tên quái.sword`… | `BattleIo.memory` |
+   | `before` | Bối cảnh trước trận: `session` (trận thứ mấy của phiên, từ 1), `restMs` (ms từ lúc trận trước kết thúc tới `s2c/22` này, tức bot đã nghỉ bao lâu), `last` (`won`, `hp`, `maxHp`, `mob` của trận trước). Trận đầu phiên có `restMs` và `last` là `null`. Dùng để học khi nào nên nghỉ hay hồi máu trước trận: máu lúc vào trận ảnh hưởng mạnh tới thắng thua (dưới 30% máu chỉ thắng 41% so với khoảng 80%, 567 trận v3 ngày 31/10–01/11) | bot, lúc trận trước kết thúc |
 
 2. **Gói tin** `[ms, "s2c/19", "hex"]`: ms tính từ `s2c/22`, hex đủ cả gói. Chỉ có các gói của trận: `s2c/22`, `c2s/18`, `s2c/18`, `c2s/14`, `s2c/24`, `c2s/19`, `s2c/19`, `s2c/20`, `s2c/21`, `c2s/20`, `c2s/44`, `s2c/44`, `c2s/11`, `c2s/40`, `s2c/10`, `s2c/1201`, `s2c/36`, `s2c/1214`. Không có gói đăng nhập (`c2s/4`), chat, hay người chơi khác.
 3. **Ghi chú của bot** `{ "ms": …, "note": … }`, xen giữa các gói:
-   - `turn` mỗi lượt của mình: `pick` (`swap`, `skill 1000`, `item 0`), `scores` (3 hành động điểm cao nhất kèm điểm), với v3 thêm `hp`, `stat1`, `mobHp` bot đang tin;
+   - `turn` mỗi lượt của mình: `pick` (`swap`, `skill 1000`, `item 0`), `scores` (3 hành động điểm cao nhất kèm điểm); với v3 thêm những gì bot đang tin lúc chọn: `hp`, `stat1` (nội lực), `stat2` (sức mạnh) của mình, `mobHp`, `mobStat1`, `mobStat2` của quái. Nội lực và sức mạnh cho biết giá trị của âm dương và đào theo hệ, kỹ năng và chỉ số của nhân vật;
    - `skill_try`, `item_try`, `action_no_answer`, `skill_cast`, `item_used`, `board_desync`, `board_reshuffled`, `turn_inferred`, `timed_attack`, `no_legal_move`;
    - `estimates` lúc hết trận: các thông số bot học được.
 4. **Kết quả** `{ "kind": "end", … }`: `won`, `exp`, `coin`, `myTurns`, `hp`, `damage`, `ms`, `skillsCast`; hoặc `cancelled`, `left` (đầu hàng), `stopped` (bot dừng giữa trận). Sau dòng này còn `s2c/10`, `s2c/36` và `s2c/1214`, vì chúng đến trong khoảng 1 ms sau gói kết thúc trận. File được ghi khi có `s2c/1214`, chậm nhất 500 ms sau dòng kết quả.

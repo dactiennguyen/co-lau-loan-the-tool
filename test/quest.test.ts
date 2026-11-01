@@ -265,23 +265,27 @@ test('quest bot: with record, a battle becomes one file: header with both elemen
   const dir = mkdtempSync(join(tmpdir(), 'cllt-quest-record-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
-  const bot = new QuestBot({ maxFights: 1, record: { dir, tags: { bot: 'test' } }, log: e => events.push(e) });
+  const bot = new QuestBot({ maxFights: 2, record: { dir, tags: { bot: 'test' } }, log: e => events.push(e) });
   bot.api = recorder(sent);
   bot.onPacket(9, hex(fixtures.profile['s2c/9 level 21'])); // manina, Hỏa
   bot.onPacket(29, new Writer().string('manina').string('M2').i32(0).build());
   bot.onPacket(43, mobsPacket('M2', [['mob61000', 'Cóc Xanh', 13]]));
   bot.onPacket(1263, Buffer.alloc(0)); // outside the battle: not kept
-  bot.onPacket(22, cocXanhSetup());
-  bot.onPacket(18, Buffer.from(bp['s2c/18'], 'hex'));
-  bot.onPacket(24, Buffer.from(bp['s2c/24 own turn'], 'hex'));
   const end = new Writer().i32(2).i32(0).i32(0).i32(2).i32(2).i32(2).i32(3).i32(1).bytes(Buffer.alloc(0))
     .u8(1).string('mob61000').i32(29).u8(0).i32(0).i32(-1).i32(-1).u8(0).u8(0).u8(0).u8(1).string('manina').u8(1).u8(1).i32(8).i32(4).build();
-  bot.onPacket(19, end);
-  bot.onPacket(36, Buffer.from('00000008' + 'ff'.repeat(8), 'hex')); // durability: 8 empty slots
-  bot.onPacket(1214, Buffer.alloc(0));
+  const battle = () => {
+    bot.onPacket(22, cocXanhSetup());
+    bot.onPacket(18, Buffer.from(bp['s2c/18'], 'hex'));
+    bot.onPacket(24, Buffer.from(bp['s2c/24 own turn'], 'hex'));
+    bot.onPacket(19, end);
+    bot.onPacket(36, Buffer.from('00000008' + 'ff'.repeat(8), 'hex')); // durability: 8 empty slots
+    bot.onPacket(1214, Buffer.alloc(0));
+  };
+  battle();
   const saved = events.filter(e => e.event === 'battle_recorded');
   assert.equal(saved.length, 1, JSON.stringify(events.filter(e => String(e.event).startsWith('battle_record'))));
-  const lines: any[] = gunzipSync(readFileSync(String(saved[0].file))).toString('utf8').trimEnd().split('\n').map(l => JSON.parse(l));
+  const read = (file: unknown): any[] => gunzipSync(readFileSync(String(file))).toString('utf8').trimEnd().split('\n').map(l => JSON.parse(l));
+  const lines = read(saved[0].file);
   const h = lines[0];
   assert.deepEqual([h.kind, h.bot, h.character, h.element, h.elementName, h.level, h.mob.name, h.mob.element, h.mob.elementName, h.mob.level, h.mob.maxHp, h.map],
     ['header', 'test', 'manina', 1, 'Hỏa', 21, 'Cóc Xanh', 4, 'Thủy', 13, 249, 'M2']);
@@ -290,6 +294,17 @@ test('quest bot: with record, a battle becomes one file: header with both elemen
     ['s2c/22', 'c2s/18', 's2c/18', 'c2s/14', 's2c/24', 'turn', 'c2s/19', 's2c/19', 'estimates', 'end', 's2c/36', 's2c/1214']);
   assert.equal(lines.find(l => Array.isArray(l) && l[1] === 'c2s/19')[2], sent.find(s => s.opcode === 19)!.hex, 'the swap as sent');
   assert.deepEqual([lines.at(-3).kind, lines.at(-3).won], ['end', true]);
+  // The first battle of the session has none before it; each own turn notes both sides' nội lực and sức mạnh.
+  assert.deepEqual(h.before, { session: 1, restMs: null, last: null });
+  assert.ok(h.gear.length > 0 && h.gear.every((g: any) => typeof g.plus === 'number'), JSON.stringify(h.gear));
+  const turn = lines.find(l => l.note === 'turn');
+  assert.ok(['hp', 'stat1', 'stat2', 'mobStat1', 'mobStat2'].every(k => typeof turn[k] === 'number'), JSON.stringify(turn));
+  // The next battle says what came before it: its number, the rest, how the first one ended.
+  battle();
+  const second = events.filter(e => e.event === 'battle_recorded');
+  assert.equal(second.length, 2);
+  const before = read(second[1].file)[0].before;
+  assert.deepEqual([before.session, before.last.won, before.last.mob, typeof before.restMs, typeof before.last.hp], [2, true, 'mob61000', 'number', 'number']);
 });
 
 const si: Record<string, string> = fixtures['skills-items'];

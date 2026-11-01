@@ -457,9 +457,10 @@ impl BattleRunner {
             .into_iter()
             .collect();
         let pick = cast.map_or_else(|| "swap".to_string(), |k| format!("skill {}", k.id));
+        let mob_hp = Some(self.mob.hp).filter(|v| v.is_finite());
         out.push(Act::Note(
             "turn",
-            json!({ "seq": seq, "pick": pick, "scores": scores }),
+            json!({ "seq": seq, "pick": pick, "hp": self.me.hp, "stat1": self.me.s1, "stat2": self.me.s2, "mobHp": mob_hp, "mobStat1": self.mob.s1, "mobStat2": self.mob.s2, "scores": scores }),
         ));
         match cast {
             Some(k) => self.cast_own(seq, k.id, fallback, now, out),
@@ -506,7 +507,7 @@ impl BattleRunner {
         let mob_hp = Some(self.mob.hp).filter(|v| v.is_finite());
         out.push(Act::Note(
             "turn",
-            json!({ "seq": seq, "pick": all.first().map(|a| a.label.clone()), "hp": self.me.hp, "stat1": self.me.s1, "mobHp": mob_hp, "scores": scores }),
+            json!({ "seq": seq, "pick": all.first().map(|a| a.label.clone()), "hp": self.me.hp, "stat1": self.me.s1, "stat2": self.me.s2, "mobHp": mob_hp, "mobStat1": self.mob.s1, "mobStat2": self.mob.s2, "scores": scores }),
         ));
         // Why it cast, healed or swapped stays in the battle data only: the log shows what happened in the game.
         match all.first().map(|a| a.action) {

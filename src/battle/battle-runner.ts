@@ -153,7 +153,8 @@ export class BattleRunner {
     const id = forced && 'skill' in forced ? forced.skill
       : forced && 'swap' in forced ? undefined
       : skill && !this.skillRefused && castSkill(this.board, this.me, this.mob, s, pick?.score ?? null) ? skill.id : undefined;
-    this.io.note?.('turn', { seq, pick: id === undefined ? 'swap' : `skill ${id}`, scores: pick ? [['swap', round1(pick.score)]] : [] });
+    this.io.note?.('turn', { seq, pick: id === undefined ? 'swap' : `skill ${id}`, hp: this.me.hp, stat1: this.me.s1, stat2: this.me.s2, mobHp: this.mob.hp,
+      mobStat1: this.mob.s1, mobStat2: this.mob.s2, scores: pick ? [['swap', round1(pick.score)]] : [] });
     if (id !== undefined) return this.castOwn(seq, id, pick);
     this.swapMove(seq, pick);
   }
@@ -165,7 +166,8 @@ export class BattleRunner {
     Object.assign(this.me, skillWorth(this.me.sword, skills));
     const { best, all } = bestAction(this.board, this.me, this.mob, s, { skills, potions: this.potions, potionCost: this.io.potionCost, buffs: this.buffs });
     const swap = all.find(a => a.action.kind === 'swap'), pick = swap?.action.kind === 'swap' ? { move: swap.action.move, score: swap.score } : null;
-    this.io.note?.('turn', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, mobHp: this.mob.hp, scores: all.slice(0, 3).map(a => [a.label, round1(a.score)]) });
+    this.io.note?.('turn', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, stat2: this.me.s2, mobHp: this.mob.hp, mobStat1: this.mob.s1,
+      mobStat2: this.mob.s2, scores: all.slice(0, 3).map(a => [a.label, round1(a.score)]) });
     // Only turns where a skill could be cast or something else than a swap was picked: why it cast, healed or did not.
     if (all.some(a => a.action.kind === 'skill') || (best && best.action.kind !== 'swap')) this.io.log('choice', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, mobHp: this.mob.hp, scores: all.slice(0, 4).map(a => [a.label, Math.round(a.score)]) });
     const forced = this.io.choose?.(this, seq);

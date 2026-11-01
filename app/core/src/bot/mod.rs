@@ -226,6 +226,9 @@ pub struct Bot {
     battle_at: u64,
     battle_source: BattleSource,
     battle_hp: i32,
+    /// Battles opened in this session, and how the last one ended: the `before` of the next battle data (record.rs).
+    battles_started: u32,
+    last_battle: Option<record::LastBattle>,
     /// Lưu dữ liệu trận: the lines of the battle on, from its s2c/22 until s2c/1214 after its end, or the first packet or
     /// timer past END_WAIT after it (record_received). Not a deadline of its own, so it never moves a job's timers.
     recorder: Option<Recorder>,
@@ -307,6 +310,8 @@ impl Bot {
             battle_at: 0,
             battle_source: BattleSource::Other,
             battle_hp: 0,
+            battles_started: 0,
+            last_battle: None,
             recorder: None,
             stat_plan,
             given: [0; 4],

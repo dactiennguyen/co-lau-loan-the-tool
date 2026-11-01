@@ -102,6 +102,8 @@ export class QuestBot implements WorldSession {
   /** Waits for a moving boss before the current challenge. */
   waits = 0;
   fights = 0; wins = 0; losses = 0; hp = 0; maxHp = 0; level = 0; statPoints?: number; challenged = 0; battleStart = 0;
+  /** Battles opened in this session, and how the last one ended: the `before` of the next battle file. */
+  battlesStarted = 0; lastBattle?: { endedAt: number; won: boolean; hp: number; maxHp: number; mobId: string };
   /** Tấn công (combat[0] of s2c/9) and the bag (s2c/42 at login, s2c/1187 after a change, s2c/83 for one slot). */
   attack?: number; bag: { slot: number; itemId: number; quantity: number }[] = [];
   /** Tấn công, phòng thủ, chính xác, né tránh, chí mạng (combat of s2c/9, then extra[1..5] of s2c/10 kind 4), and the 8
@@ -615,7 +617,7 @@ export class QuestBot implements WorldSession {
     // The mob block of s2c/22 starts with the length-prefixed mob id; a late setup may answer an earlier challenge.
     const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id ?? this.target?.id ?? '?';
     const mob = mobBlock(payload, mobId);
-    this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp;
+    this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp; this.battlesStarted++;
     this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, mob: mob && `${mob.name} ${mob.hp}/${mob.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
     const skills = this.battleSkills(), potions = this.bag.filter(i => POTIONS[i.itemId] && i.quantity > 0);
     if (skills) this.log('battle_skills', { skills: skills.map(k => `${k.id} ${k.name} ${k.level}: ${k.kind}, ${k.cost} nội lực`), potions: potions.map(p => `${POTIONS[p.itemId].name} ×${p.quantity}`), potionCost: this.options.potionCost });
@@ -632,17 +634,22 @@ export class QuestBot implements WorldSession {
   private recordHeader(s: ReturnType<typeof battleSetup>, mobId: string, mob: ReturnType<typeof mobBlock>, skills: ReturnType<QuestBot['battleSkills']>,
     potions: QuestBot['bag']) {
     const element = (code?: number) => code === undefined ? undefined : ITEM_ELEMENTS[code];
+    const last = this.lastBattle;
     return {
       ...this.options.record?.tags,
       character: s.me, level: this.level, element: this.element, elementName: element(this.element), hp: s.hp, maxHp: s.maxHp,
       combat: this.combat, potentials: this.potentials, skills: [...this.skillLevels].filter(([, level]) => level > 0),
-      gear: this.gear.flatMap(g => g ? [{ slot: g.slot, itemId: g.itemId, element: g.element, durability: g.durability, stats: g.stats }] : []),
+      gear: this.gear.flatMap(g => g ? [{ slot: g.slot, itemId: g.itemId, plus: g.field0, element: g.element, durability: g.durability, stats: g.stats }] : []),
       potions: potions.map(p => ({ slot: p.slot, itemId: p.itemId, quantity: p.quantity })),
       mob: { id: mobId, name: mob?.name, level: mob?.level ?? this.mobs.find(m => m.id === mobId)?.level, element: mob?.element, elementName: element(mob?.element),
         hp: mob?.hp, maxHp: mob?.maxHp, boss: this.bosses.has(mobId) },
       map: this.mapId, zone: this.zone,
       play: { strategy: this.options.strategy, skills: skills?.map(k => k.id) ?? null, skill: this.options.skill, potionCost: this.options.potionCost },
       memory: Object.fromEntries(this.battleMemory),
+      // What came just before: the battle's number in the session, the rest since the last one and how that one ended,
+      // for learning when to rest or heal (07-auto-battle.md#ghi-trận).
+      before: { session: this.battlesStarted, restMs: last ? this.battleStart - last.endedAt : null,
+        last: last ? { won: last.won, hp: last.hp, maxHp: last.maxHp, mob: last.mobId } : null },
     };
   }
 
@@ -658,6 +665,7 @@ export class QuestBot implements WorldSession {
   private onBattleEnd(end: BattleEnd) {
     if (end.won) this.wins++; else this.losses++;
     this.hp = end.hp;
+    this.lastBattle = { endedAt: Date.now(), won: end.won, hp: end.hp, maxHp: this.maxHp, mobId: end.mobId };
     this.log('battle_end', { ...end, ms: Date.now() - this.battleStart, skillsCast: this.battle?.skillsCast });
     this.recorder?.end({ ...end, ms: Date.now() - this.battleStart, skillsCast: this.battle?.skillsCast });
     this.battle = undefined;

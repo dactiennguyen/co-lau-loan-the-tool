@@ -4,7 +4,28 @@
 use super::*;
 use serde_json::{json, Value};
 
+/// How the last battle of the session ended, for the `before` of the next one's header.
+#[derive(Debug, Clone)]
+pub(super) struct LastBattle {
+    ended_at: u64,
+    won: bool,
+    hp: i32,
+    max_hp: i32,
+    mob_id: String,
+}
+
 impl Bot {
+    /// Keeps how `r` ended, for the header of the next battle (`before`).
+    pub(super) fn remember_battle(&mut self, r: &BattleRecord) {
+        self.last_battle = Some(LastBattle {
+            ended_at: r.ended_at,
+            won: r.result == BattleResult::Won,
+            hp: r.hp_after,
+            max_hp: r.max_hp,
+            mob_id: r.mob_id.clone(),
+        });
+    }
+
     /// Lưu dữ liệu trận, from the app's Cài đặt (Manager::set_record). It counts from the next battle; the one being
     /// recorded is kept.
     pub fn set_record(&mut self, on: bool, out: &mut Vec<Out>) {
@@ -124,7 +145,7 @@ impl Bot {
             .flatten()
             .map(|g| {
                 let stats: Vec<Value> = g.stats.iter().map(|x| json!({ "stat": x.stat, "value": x.value })).collect();
-                json!({ "slot": g.slot, "itemId": g.item_id, "element": g.element, "durability": g.durability, "stats": stats })
+                json!({ "slot": g.slot, "itemId": g.item_id, "plus": g.field0, "element": g.element, "durability": g.durability, "stats": stats })
             })
             .collect();
         let name = mob
@@ -184,6 +205,13 @@ impl Bot {
                 "source": self.battle_source.key(),
             },
             "memory": memory,
+            // What came just before (07-auto-battle.md#ghi-trận): the battle's number in the session, the rest since the
+            // last one and how that one ended, for learning when to rest or heal.
+            "before": {
+                "session": self.battles_started,
+                "restMs": self.last_battle.as_ref().map(|l| self.battle_at.saturating_sub(l.ended_at)),
+                "last": self.last_battle.as_ref().map(|l| json!({ "won": l.won, "hp": l.hp, "maxHp": l.max_hp, "mob": l.mob_id })),
+            },
         })
     }
 }

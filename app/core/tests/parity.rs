@@ -3045,7 +3045,19 @@ fn luu_du_lieu_tran_keeps_a_battle_with_its_header_packets_notes_and_result() {
         .i32(64)
         .build();
     setup.extend_from_slice(&old[old.len() - 66..]);
-    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    // manina's s2c/9: the gear of the header, each item with its cường hoá.
+    let character = v()["decoders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["fn"] == "characterGear")
+        .unwrap()["hex"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    bot.on_packet(9, &hex(&character), now, &mut out).unwrap();
+    // Two battles: the second's header says what came before it.
+    bot.fight("Cóc Xanh", 2, 1, now, &mut out);
     out.clear();
     // The session hands every packet it sends to the bot (session.rs).
     let step = |bot: &mut Bot, op: i32, payload: &[u8], at: Instant, out: &mut Vec<Out>| {
@@ -3153,6 +3165,55 @@ fn luu_du_lieu_tran_keeps_a_battle_with_its_header_packets_notes_and_result() {
     assert_eq!(
         (&result["won"], &result["ms"]),
         (&json!(true), &json!(1000))
+    );
+    // The first battle of the session has none before it; a turn note has both sides' nội lực and sức mạnh.
+    assert_eq!(
+        h["before"],
+        json!({ "session": 1, "restMs": null, "last": null })
+    );
+    let gear = h["gear"].as_array().unwrap();
+    assert!(
+        !gear.is_empty() && gear.iter().all(|g| g["plus"].is_i64()),
+        "{gear:?}"
+    );
+
+    // After the rest, the next challenge and its battle: `before` holds the first one's end.
+    out.clear();
+    let next = bot.deadline().expect("the rest before the next challenge");
+    bot.on_timer(next, &mut out);
+    assert_eq!(sends(&out, 15), 1, "the next challenge");
+    step(&mut bot, 22, &setup, next, &mut out);
+    step(&mut bot, 18, &hex("000000000000"), next, &mut out);
+    let end = next + Duration::from_secs(1);
+    step(&mut bot, 19, &won_battle(), end, &mut out);
+    step(&mut bot, 36, &durability, end, &mut out);
+    step(&mut bot, 1214, &[], end, &mut out);
+    let second = out
+        .iter()
+        .find_map(|o| match o {
+            Out::BattleData(d) => Some(d.clone()),
+            _ => None,
+        })
+        .expect("the second battle's data");
+    let mut text = String::new();
+    flate2::read::GzDecoder::new(&second.packets[..])
+        .read_to_string(&mut text)
+        .unwrap();
+    let h: Value = serde_json::from_str(text.lines().next().unwrap()).unwrap();
+    let before = &h["before"];
+    assert_eq!(
+        (
+            &before["session"],
+            &before["last"]["won"],
+            &before["last"]["maxHp"],
+            &before["last"]["mob"]
+        ),
+        (&json!(2), &json!(true), &json!(180), &json!("mob61000")),
+        "{before}"
+    );
+    assert!(
+        before["restMs"].is_u64() && before["last"]["hp"].is_i64(),
+        "{before}"
     );
 }
 
@@ -3283,5 +3344,14 @@ fn v1_is_kept_beside_v3_and_the_battle_data_names_the_algorithm() {
             (&json!(seq), &json!("swap")),
             "{algorithm:?}"
         );
+        // v3 notes both sides' nội lực and sức mạnh on each own turn, for the value of yin-yang and peaches.
+        if algorithm == Algorithm::V3 {
+            assert!(
+                ["stat1", "stat2", "mobStat1", "mobStat2"]
+                    .iter()
+                    .all(|k| turn[k].is_number()),
+                "{turn}"
+            );
+        }
     }
 }
