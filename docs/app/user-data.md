@@ -39,7 +39,7 @@ Response mẫu dài **551 byte**. Prefix 40 byte đã đối chiếu getter nati
 | 2 | string | name | manina | Tên dùng cho các request sau |
 | 12 | int32 | numericId | 155 | ID số trong packet; chưa khẳng định ID account/database |
 | 16 | string | displayName | manina | Khớp tên trên UI |
-| 26, 27 | byte, byte | flag1, flag2 | 1, 0 | Chưa rõ nghĩa. Nick thứ hai: 4, 1 |
+| 26, 27 | byte, byte | flag1, flag2 | 1, 0 | `flag1` lặp lại hệ (`field01`). `flag2` là **giới tính**: 0 nam, 1 nữ, cùng cách đánh số với `gender` của bảng vật phẩm. manina (A2, cấp 21) và symap có 0 và mặc đồ `gender` 0 (Nón Âu Lạc 54; Nón Hào Kiệt 68, Áo Thuật Sĩ 519); nick thứ hai (Ttuananh) có 1 và mặc Áo Lụa 198, Khăn Vòng 99, đều `gender` 1. Mặc đồ của giới tính kia thì server trả "Trang bị không phù hợp" (01/11) [Đo 3 mẫu; suy ra từ đồ đang mặc] |
 | 28 | int32 | level | 3 | Khớp cấp trên UI |
 | 32 | int32 | hp | 120 | Khớp HP trên UI lúc A2 |
 | 36 | int32 | maxHp | 130 | Khớp HP tối đa trên UI |

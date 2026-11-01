@@ -54,14 +54,19 @@ impl Bot {
         let most = def.map_or(0, |d| d.durability);
         let full = bag.is_some_and(|b| b.items.len() as i32 >= b.capacity);
         let hammer = bag.is_some_and(|b| b.items.iter().any(|i| i.item_id == HAMMER));
-        let refused = busy.or_else(|| match act {
-            ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị"),
-            ItemAct::Unequip(_) if full => Some("túi đồ đã đầy"),
-            ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận"),
-            ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc"),
-            ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền"),
-            ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy"),
-            ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi"),
+        // Gear of the other gender: the server would only say "Trang bị không phù hợp".
+        let wrong = match act {
+            ItemAct::Equip(_) => def.and_then(|d| crate::items::misfit(d.gender, self.snap.gender)),
+            _ => None,
+        };
+        let refused = busy.map(str::to_string).or(wrong).or_else(|| match act {
+            ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị".into()),
+            ItemAct::Unequip(_) if full => Some("túi đồ đã đầy".into()),
+            ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận".into()),
+            ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc".into()),
+            ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền".into()),
+            ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy".into()),
+            ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi".into()),
             _ => None,
         });
         let verb = match act {
@@ -156,6 +161,16 @@ impl Bot {
                 .into(),
             ));
         }
+        if settings.pickup_other_gender != self.fight.pickup_other_gender {
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.pickup_other_gender {
+                    true => "Bật nhặt cả đồ khác giới tính: tự nhặt đồ nhặt cả trang bị nhân vật không mặc được",
+                    false => "Tắt nhặt đồ khác giới tính: trang bị nhân vật không mặc được sẽ để lại dưới đất",
+                }
+                .into(),
+            ));
+        }
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,
@@ -194,10 +209,21 @@ impl Bot {
             self.pick(fallen, now, out);
         }
     }
-    /// Queues an item for c2s/1188, once; one goes out every PICK_GAP.
+    /// Queues an item for c2s/1188, once; one goes out every PICK_GAP. Gear the character cannot wear stays on the ground
+    /// when Nhặt cả đồ khác giới tính is off, said once.
     pub(super) fn pick(&mut self, fallen: Fallen, now: Instant, out: &mut Vec<Out>) {
         if self.asked.contains(&fallen.uuid) || self.to_pick.iter().any(|p| p.uuid == fallen.uuid) {
             return;
+        }
+        if !self.fight.pickup_other_gender {
+            let def = book().get(fallen.item.item_id);
+            if let Some(why) = def.and_then(|d| crate::items::misfit(d.gender, self.snap.gender)) {
+                self.asked.insert(fallen.uuid.clone());
+                return out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Bỏ qua {}: {why}", fallen.item.label()),
+                ));
+            }
         }
         self.to_pick.push_back(fallen);
         if self.pick_at.is_none() {

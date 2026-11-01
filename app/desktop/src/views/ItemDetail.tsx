@@ -4,6 +4,7 @@ import { ELEMENT_ICON, elementText } from "@/components/ElementTag";
 import { num } from "@/utils/format";
 import { itemIcon } from "@/game/itemIcons";
 import { plusOf } from "@/game/shops";
+import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, misfit } from "@/game/gender";
 import type { ReactNode } from "react";
 import type { Item } from "@/api/types";
 
@@ -19,13 +20,15 @@ interface Props {
   where: string;
   /** Element of the character (field01 of s2c/9): an item of the same one gets +5 % to its stats (Cẩm nang). */
   element: number | null;
+  /** Gender of the character (flag2 of s2c/9): gear of the other one cannot be worn. */
+  gender: number | null;
   /** The buttons for the item (Mặc, Cởi ra, Dùng, Sửa), at the right end. */
   actions?: ReactNode;
 }
 
 /** The item shown under the bag, as its popup in the game: icon, name with its cường hoá ("Nhẫn Trơn +1"), element, type,
  * level, durability, stats, and the popup's buttons. */
-export function ItemDetail({ item, where, element, actions }: Props) {
+export function ItemDetail({ item, where, element, gender, actions }: Props) {
   if (!item) {
     return <div className={cn(STRIP, "flex text-11 text-fg-3")}>Rê chuột hay bấm vào một món để xem chi tiết.</div>;
   }
@@ -56,6 +59,14 @@ export function ItemDetail({ item, where, element, actions }: Props) {
           )}
           {item.element != null && item.element === element && (
             <span className="py-0 px-[5px] border border-good-shade text-10 font-bold text-good">đúng hệ: +5% chỉ số</span>
+          )}
+          {item.gender != null && GENDER_ICON[item.gender] && (
+            <span className={cn("inline-flex items-center gap-[3px] text-11 font-bold", GENDER_TEXT[item.gender])}>
+              <Icon name={GENDER_ICON[item.gender]} size={11} /> Đồ {GENDER_WORD[item.gender]}
+            </span>
+          )}
+          {misfit(item, gender) && (
+            <span className="py-0 px-[5px] border border-danger text-10 font-bold text-danger">khác giới tính: không mặc được</span>
           )}
           <span className="text-11 text-fg-3">{facts.join(" · ")}</span>
         </div>

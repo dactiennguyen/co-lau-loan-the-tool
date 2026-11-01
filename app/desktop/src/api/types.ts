@@ -307,6 +307,8 @@ export interface Character {
   name: string;
   /** field01 of s2c/9: 1 Hỏa, 4 Thủy. */
   element: number | null;
+  /** flag2 of s2c/9: 0 nam, 1 nữ (game/gender.ts); null until s2c/9 came. */
+  gender: number | null;
   level: number;
   hp: number;
   maxHp: number;
@@ -700,6 +702,8 @@ export interface Item {
   durability: [number, number] | null;
   /** Level to wear it, for gear. */
   level: number | null;
+  /** Who can wear it: 0 nam, 1 nữ; null when both can (weapons, rings, everything that is no gear). */
+  gender: number | null;
   stats: string[];
   /** Cường hoá: +0 … +16. */
   plus: number;
@@ -771,6 +775,9 @@ export interface FightSettings {
   repair: boolean;
   /** Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up. */
   pickup: boolean;
+  /** Nhặt cả đồ khác giới tính, on unless turned off: Tự nhặt đồ also picks up gear the character cannot wear (to
+   * sell); off, such gear stays on the ground. */
+  pickupOtherGender: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

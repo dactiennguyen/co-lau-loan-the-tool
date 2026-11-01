@@ -180,6 +180,8 @@ pub struct CharacterView<'a> {
     pub skill_points: Option<i32>,
     /// field01 of s2c/9: 1 Hỏa, 4 Thủy.
     pub element: Option<i32>,
+    /// flag2 of s2c/9: 0 nam, 1 nữ; gear of the other one cannot be worn (ItemView::gender).
+    pub gender: Option<u8>,
     pub map_id: &'a str,
     pub map_name: &'a str,
     pub zone: i32,
@@ -570,6 +572,9 @@ pub struct ItemView {
     pub durability: Option<[i32; 2]>,
     /// Level to wear it, for gear.
     pub level: Option<u8>,
+    /// Who can wear it: 0 nam, 1 nữ (items::GENDER_*); None when both can, as weapons, rings and every item that is no
+    /// gear.
+    pub gender: Option<u8>,
     /// "+4 phòng thủ", "+58 sinh lực"
     pub stats: Vec<String>,
     /// Cường hoá: +0 … +16 (field0 of the record).
@@ -602,6 +607,9 @@ impl ItemView {
                 ]
             }),
             level: def.filter(|d| d.kind <= 4).map(|d| d.level),
+            gender: def
+                .map(|d| d.gender)
+                .filter(|&g| g != cllt_core::items::GENDER_BOTH),
             stats: i.stats.iter().map(|s| b.stat(s)).collect(),
             plus: i.field0,
             locked: i.field1 == 0,
@@ -672,6 +680,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             stat_points: s.stat_points,
             skill_points: s.skill_points,
             element: s.element,
+            gender: s.gender,
             map_id: &s.map_id,
             map_name: &s.map_name,
             zone: s.zone,

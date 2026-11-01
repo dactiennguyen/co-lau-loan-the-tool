@@ -344,6 +344,10 @@ pub struct Character {
     pub name: String,
     pub numeric_id: i32,
     pub display_name: String,
+    /// flag2 of user-data.md: 0 nam, 1 nữ, as `gender` of the item table (manina and symap 0 in their gear of đồ nam,
+    /// the second account 1 in đồ nữ). Not in the TS vectors of characterPrefix.
+    #[serde(skip)]
+    pub gender: u8,
     pub level: i32,
     pub hp: i32,
     pub max_hp: i32,
@@ -363,12 +367,14 @@ fn prefix(r: &mut Reader) -> Result<Character> {
         );
     }
     let (name, numeric_id, display_name) = (r.string()?, r.i32()?, r.string()?);
-    r.take(2)?;
+    // flag1 repeats the element; flag2 is the gender.
+    let (_, gender) = (r.u8()?, r.u8()?);
     Ok(Character {
         field01,
         name,
         numeric_id,
         display_name,
+        gender,
         level: r.i32()?,
         hp: r.i32()?,
         max_hp: r.i32()?,

@@ -3,7 +3,8 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { ElementTag } from "@/components/ElementTag";
-import type { IconName } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
+import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, misfit } from "@/game/gender";
 import { ItemSlot } from "@/components/ItemSlot";
 import { Menu, type MenuItem } from "@/components/Menu";
 import { num } from "@/utils/format";
@@ -104,6 +105,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       label={label}
       placeholder={placeholder}
       wear={wear}
+      misfit={item && !wear ? misfit(item, c.gender) : null}
       className={k.startsWith("gear-") ? "[--size:46px]" : undefined}
       active={shownKey === k}
       onShow={(on) => setHover((h) => (on ? k : h === k ? null : h))}
@@ -144,7 +146,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       danger: true,
       confirm: `Vứt bỏ ${item.name}${qty}? Món mất hẳn, không lấy lại được.`,
     };
-    if (item.kind != null && item.kind <= 7) return [{ action: "equip", label: "Mặc", icon: "login", why: null }, discard];
+    // Gear of the other gender: Bot::item refuses it with the same words (the server would say "Trang bị không phù hợp").
+    if (item.kind != null && item.kind <= 7) return [{ action: "equip", label: "Mặc", icon: "login", why: misfit(item, c.gender) }, discard];
     if (item.kind != null && USABLE.has(item.kind)) {
       const why = item.kind === POTION ? "bình chỉ dùng được trong trận" : null;
       return [{ action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` }, discard];
@@ -269,6 +272,11 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
             <b className="max-w-[110px] truncate text-13 text-fg">{c.name}</b>
             <span className="text-11 text-primary px">LV {c.level}</span>
             <ElementTag element={c.element} />
+            {c.gender != null && GENDER_ICON[c.gender] && (
+              <span className={`inline-flex items-center gap-[3px] text-11 font-bold ${GENDER_TEXT[c.gender]}`}>
+                <Icon name={GENDER_ICON[c.gender]} size={11} /> Nhân vật {GENDER_WORD[c.gender]}
+              </span>
+            )}
           </div>
           <div className={COL}>{RIGHT.map(gearSlot)}</div>
         </section>
@@ -284,7 +292,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
         </section>
       </div>
 
-      <ItemDetail item={shown} where={where} element={c.element} actions={actions} />
+      <ItemDetail item={shown} where={where} element={c.element} gender={c.gender} actions={actions} />
       {menu && menuItem && (
         <Menu x={menu.x} y={menu.y} label={`Món ${menuItem.name}`} items={menuItems(menu.key, menuItem)} onClose={() => setMenu(null)} />
       )}

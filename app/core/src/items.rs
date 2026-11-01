@@ -68,7 +68,16 @@ pub struct Bag {
     pub items: Vec<ItemRecord>,
 }
 fn bag(r: &mut Reader) -> Result<Bag> {
-    let (kind, capacity) = (r.u8()?, r.i32()?);
+    let kind = r.u8()?;
+    // Kind 4 (O1, Chế tạo trang bị at Pháp sư): one item record, the item just added; the rest of the bag is unchanged.
+    if kind == BAG_ADD {
+        return Ok(Bag {
+            kind,
+            capacity: -1,
+            items: vec![item_record(r)?],
+        });
+    }
+    let capacity = r.i32()?;
     let n = r.i32()?.max(0);
     let items = (0..n).map(|_| item_record(r)).collect::<Result<_>>()?;
     Ok(Bag {
@@ -77,7 +86,24 @@ fn bag(r: &mut Reader) -> Result<Bag> {
         items,
     })
 }
-/// s2c/1187, whenever the bag changes (rewards, repair): the whole bag again.
+/// The first byte of s2c/1187 when it carries one item added to the bag, not the whole bag (12-skills-items.md#túi-đồ).
+pub const BAG_ADD: u8 = 4;
+/// `bag` after the s2c/1187 `update`: kind 4 puts its one item in its slot, the other kinds are the whole bag (bagAfter
+/// of src/protocol/world.ts). Kind 4 before any bag is known leaves it unknown: the next whole bag brings it.
+pub fn bag_after(bag: Option<Bag>, update: Bag) -> Option<Bag> {
+    match (bag, update.kind) {
+        (Some(mut b), BAG_ADD) => {
+            for item in update.items {
+                b.items.retain(|i| i.slot != item.slot);
+                b.items.push(item);
+            }
+            Some(b)
+        }
+        (None, BAG_ADD) => None,
+        (_, _) => Some(update),
+    }
+}
+/// s2c/1187, whenever the bag changes (rewards, repair): the whole bag again; kind 4, the one item added.
 pub fn inventory(p: &[u8]) -> Result<Bag> {
     let mut r = Reader::new(p);
     let b = bag(&mut r)?;
@@ -289,8 +315,36 @@ pub struct ItemDef {
     pub kind: u8,
     pub icon: i32,
     pub level: u8,
+    /// Who can wear it (GENDER_*): two items of one name often differ only here (Giáp Tiên Phong 149 nam, 200 nữ), and
+    /// a drop may be the other one; the server refuses it with "Trang bị không phù hợp" (12-skills-items.md).
+    #[serde(default = "both")]
+    pub gender: u8,
     pub stack: i32,
     pub durability: i32,
+}
+fn both() -> u8 {
+    GENDER_BOTH
+}
+
+/// `gender` of the item table, and of the character (flag2 of s2c/9): đồ nam, đồ nữ (Áo Thiếu Nữ, Mão Âu Cơ), and what
+/// both wear (weapons, rings, everything that is no gear).
+pub const GENDER_MALE: u8 = 0;
+pub const GENDER_FEMALE: u8 = 1;
+pub const GENDER_BOTH: u8 = 2;
+/// "nam", "nữ".
+pub fn gender_word(gender: u8) -> &'static str {
+    match gender {
+        GENDER_MALE => "nam",
+        GENDER_FEMALE => "nữ",
+        _ => "nam nữ",
+    }
+}
+/// Why a character of `character` gender cannot wear an item of `item` gender ("đồ nữ, nhân vật là nam"); None when it
+/// can, or when the character's gender is not known yet.
+pub fn misfit(item: u8, character: Option<u8>) -> Option<String> {
+    let c = character.filter(|&c| c != GENDER_BOTH)?;
+    (item != GENDER_BOTH && item != c)
+        .then(|| format!("đồ {}, nhân vật là {}", gender_word(item), gender_word(c)))
 }
 
 /// data/items.json: the item table, the stat templates of `it0` ("#" is the value), and names of types and elements.

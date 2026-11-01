@@ -467,7 +467,7 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
         seen += 1;
     }
-    assert_eq!(seen, 9);
+    assert_eq!(seen, 10);
 }
 
 /// The x2 EXP of Tăng Kinh Nghiệm comes in the s2c/9 tail with the time it has left: the snapshot keeps when it ends and
@@ -567,12 +567,12 @@ fn the_snapshot_holds_the_gear_of_s2c_9_the_bag_and_the_money() {
         .currencies
         .map(|c| (c.xu, c.xu_khoa, c.luong));
     assert_eq!(money, Some((500, 7370, 0)));
-    // A bag that does not read is logged, and the one shown stays.
+    // A bag that does not read is logged, the one shown stays, and c2s/42 asks the whole bag again.
     assert!(out.is_empty());
     bot.on_packet(1187, &[1], now, &mut out).unwrap();
     assert_eq!(ids(&bot), Some((42, vec![0, 412, 147, 48, 306, 415, 1])));
     assert!(
-        matches!(&out[..], [Out::Log(_, l)] if l.contains("s2c/1187")),
+        matches!(&out[..], [Out::Log(_, l), Out::Send(42, _)] if l.contains("s2c/1187 loại 1")),
         "{out:?}"
     );
 }
@@ -3371,4 +3371,202 @@ fn v1_is_kept_beside_v3_and_the_battle_data_names_the_algorithm() {
             );
         }
     }
+}
+
+/// flag2 of s2c/9 is the gender, as `gender` of the item table: manina (A2 and level 21) 0, the second account 1.
+/// Mặc refuses gear of the other gender before anything goes out ("Trang bị không phù hợp" from the server otherwise),
+/// with the words of items::misfit; gear for both, and any gear while the gender is not known, goes out.
+#[test]
+fn mac_refuses_gear_of_the_other_gender_and_s2c_1187_kind_4_adds_one_item() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let profiles: Vec<Vec<u8>> = cases
+        .iter()
+        .filter(|c| c["fn"] == "characterProfile")
+        .map(|c| hex(c["hex"].as_str().unwrap()))
+        .collect();
+    let genders: Vec<u8> = profiles
+        .iter()
+        .map(|p| character_prefix(p).unwrap().gender)
+        .collect();
+    assert_eq!(genders, [0, 0, 1]);
+    assert_eq!(
+        items::misfit(1, Some(0)).as_deref(),
+        Some("đồ nữ, nhân vật là nam")
+    );
+    assert_eq!(
+        items::misfit(0, Some(1)).as_deref(),
+        Some("đồ nam, nhân vật là nữ")
+    );
+    assert_eq!(items::misfit(2, Some(1)), None);
+    assert_eq!(items::misfit(0, None), None);
+    assert_eq!(items::book().get(200).map(|d| d.gender), Some(1));
+    assert_eq!(items::book().get(149).map(|d| d.gender), Some(0));
+
+    let hex_of = |f: &str, n: usize| {
+        hex(cases.iter().filter(|c| c["fn"] == f).nth(n).unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    bot.on_packet(9, &hex_of("characterGear", 0), now, &mut out)
+        .unwrap();
+    bot.on_packet(42, &hex_of("characterExtra", 0), now, &mut out)
+        .unwrap();
+    assert_eq!(bot.snapshot().gender, Some(0));
+    let before = bot.snapshot().bag.unwrap();
+
+    // s2c/1187 kind 4 of O1 (Nhẫn Thái Cực in slot 19), then the same record made Giáp Tiên Phong nữ (200) in slot 20:
+    // each joins the bag, which keeps its other items and its capacity.
+    let ring = hex_of("inventory", 1);
+    assert_eq!(ring[0], items::BAG_ADD);
+    let armour: Vec<u8> = [&[4u8, 20][..], &200i32.to_be_bytes(), &ring[6..]].concat();
+    out.clear();
+    bot.on_packet(1187, &ring, now, &mut out).unwrap();
+    bot.on_packet(1187, &armour, now, &mut out).unwrap();
+    assert!(out.is_empty(), "{out:?}");
+    let bag = bot.snapshot().bag.unwrap();
+    assert_eq!(
+        (bag.capacity, bag.items.len()),
+        (before.capacity, before.items.len() + 2)
+    );
+    let at = |slot: u8| bag.items.iter().find(|i| i.slot == slot).map(|i| i.item_id);
+    assert_eq!((at(19), at(20)), (Some(333), Some(200)));
+
+    let mut step = |act: ItemAct| {
+        let mut out = vec![];
+        bot.item(act, now, &mut out);
+        out
+    };
+    let refused = step(ItemAct::Equip(20));
+    assert_eq!(
+        refused,
+        [Out::Log(
+            LogKind::Item,
+            "Chưa mặc Giáp Tiên Phong: đồ nữ, nhân vật là nam".into()
+        )]
+    );
+    // A ring is for both: it goes out.
+    assert_eq!(sends(&step(ItemAct::Equip(19)), 1186), 1);
+}
+
+/// A s2c/1187 that does not read (after Đập Trứng Gà: 5 to 8 bytes, its kind not 1 or 4) is a Log lỗi line, and c2s/42
+/// asks the whole bag again; the s2c/42 that answers is the bag.
+#[test]
+fn a_bag_update_that_does_not_read_asks_the_whole_bag_again() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let extra = hex(
+        cases.iter().find(|c| c["fn"] == "characterExtra").unwrap()["hex"]
+            .as_str()
+            .unwrap(),
+    );
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    bot.on_packet(
+        29,
+        &Writer::new().string("manina").string("M2").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(42, &extra, now, &mut out).unwrap();
+    let mut sname = Writer::new()
+        .u8(1)
+        .u8(1)
+        .string("manina")
+        .i32(155)
+        .string("manina");
+    sname = sname.u8(1).u8(0).i32(21).i32(100).i32(120);
+    bot.on_packet(9, &sname.build(), now, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(1187, &[3, 8, 0, 0, 0, 1], now, &mut out)
+        .unwrap();
+    assert!(
+        logged(&out, "Không đọc được túi đồ (s2c/1187 loại 3): "),
+        "{out:?}"
+    );
+    assert!(cllt_core::net::is_fault(match &out[0] {
+        Out::Log(_, t) => t,
+        o => panic!("{o:?}"),
+    }));
+    assert_eq!(
+        sent(&out, 42),
+        Some(tohex(
+            &build(
+                42,
+                &Ctx {
+                    character_name: Some("manina"),
+                    ..Ctx::default()
+                }
+            )
+            .unwrap()
+        ))
+    );
+    // The bag of before stays until s2c/42 brings the new one.
+    assert!(bot.snapshot().bag.is_some());
+}
+
+/// Nhặt cả đồ khác giới tính, on by default: Tự nhặt đồ picks up Giáp Tiên Phong nữ for manina too. Off, gear the
+/// character cannot wear stays on the ground, said once; gear for it and the rest are picked up as before.
+#[test]
+fn tu_nhat_do_leaves_gear_of_the_other_gender_when_told() {
+    assert!(FightSettings::default().pickup_other_gender);
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let profile = hex(
+        cases.iter().find(|c| c["fn"] == "characterGear").unwrap()["hex"]
+            .as_str()
+            .unwrap(),
+    );
+    let run = |other: bool| {
+        let (mut bot, mut out, now, setup) = coc_xanh_bot();
+        bot.on_packet(9, &profile, now, &mut out).unwrap();
+        bot.set_fight(
+            FightSettings {
+                pickup_other_gender: other,
+                ..FightSettings::default()
+            },
+            &mut out,
+        );
+        bot.fight("Cóc Xanh", 3, 3, now, &mut out);
+        bot.on_packet(22, &setup, now, &mut out).unwrap();
+        let end = now + Duration::from_secs(1);
+        bot.on_packet(1182, &drop_packet("nu", 200, 1), end, &mut out)
+            .unwrap();
+        bot.on_packet(1182, &drop_packet("nam", 149, 1), end, &mut out)
+            .unwrap();
+        out.clear();
+        bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+        let mut all = out.clone();
+        let mut t = end;
+        while let Some(next) = bot
+            .deadline()
+            .filter(|d| *d <= end + Duration::from_secs(1))
+        {
+            t = next.max(t);
+            out.clear();
+            bot.on_timer(t, &mut out);
+            all.extend(out.clone());
+        }
+        all
+    };
+    let request = |uuid: &str| tohex(&Writer::new().string(uuid).build());
+    let picked = |out: &[Out]| -> Vec<String> {
+        out.iter()
+            .filter_map(|o| match o {
+                Out::Send(1188, p) => Some(tohex(p)),
+                _ => None,
+            })
+            .collect()
+    };
+    let on = run(true);
+    assert_eq!(picked(&on), [request("nu"), request("nam")], "{on:?}");
+    let off = run(false);
+    assert!(
+        logged(&off, "Bỏ qua Giáp Tiên Phong: đồ nữ, nhân vật là nam"),
+        "{off:?}"
+    );
+    assert_eq!(picked(&off), [request("nam")], "{off:?}");
 }

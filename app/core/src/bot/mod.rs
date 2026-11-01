@@ -8,8 +8,9 @@ use crate::atlas::{Atlas, MapRecord, Portal};
 use crate::battle::{battle_setup, mob_block, Strategy};
 use crate::battle_record::{BattleData, Recorder};
 use crate::items::{
-    bag_slot, book, character_extra, character_gear, character_tail, currencies, gear_durability,
-    gear_update, ground_item_add, ground_item_remove, inventory, Bag, Currencies, ItemRecord,
+    bag_after, bag_slot, book, character_extra, character_gear, character_tail, currencies,
+    gear_durability, gear_update, ground_item_add, ground_item_remove, inventory, Bag, Currencies,
+    ItemRecord, BAG_ADD,
 };
 use crate::mail::{MailBody, MailHeader};
 use crate::market::{MarketPage, MarketTabs};

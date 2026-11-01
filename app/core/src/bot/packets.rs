@@ -26,7 +26,7 @@ impl Bot {
             9 => {
                 let c = character_prefix(payload)?;
                 (s.name, s.level, s.hp, s.max_hp) = (c.name, c.level, c.hp, c.max_hp);
-                s.element = Some(c.field01 as i32);
+                (s.element, s.gender) = (Some(c.field01 as i32), Some(c.gender));
                 // The tail layout comes from two captures; without it EXP and stats wait for s2c/10.
                 match character_profile(payload) {
                     Ok(p) => {
@@ -200,23 +200,43 @@ impl Bot {
                 self.drops.retain(|d| d.uuid != uuid);
             }
             // The whole bag, also after Sắp xếp: within 5 s of it, the bag sorted (it comes for rewards and repairs too).
+            // Kind 4 is the one item just added (Chế tạo trang bị). Another kind does not read (the one after Đập Trứng
+            // Gà, 5 to 8 bytes, not measured): the line keeps it in Log lỗi, and c2s/42 asks the whole bag again (s2c/42,
+            // as at login and in J3), so the bag the app shows is never the one before.
             1187 => match inventory(payload) {
                 Ok(b) => {
-                    let sorted = self
-                        .item_wait
-                        .take_if(|w| w.act == ItemAct::Sort && now < w.at + Duration::from_secs(5));
+                    // One item added is not the sorted bag: the wait stays for the whole bag.
+                    let sorted = self.item_wait.take_if(|w| {
+                        b.kind != BAG_ADD
+                            && w.act == ItemAct::Sort
+                            && now < w.at + Duration::from_secs(5)
+                    });
                     if sorted.is_some() {
                         out.push(Out::Log(
                             LogKind::Item,
                             format!("Đã sắp xếp túi đồ ({} món)", b.items.len()),
                         ));
                     }
-                    s.bag = Some(b);
+                    s.bag = bag_after(s.bag.take(), b);
                 }
-                Err(e) => out.push(Out::Log(
-                    LogKind::Item,
-                    format!("Không đọc được túi đồ (s2c/1187): {e}"),
-                )),
+                Err(e) => {
+                    let kind = payload.first().copied().unwrap_or_default();
+                    out.push(Out::Log(
+                        LogKind::Item,
+                        format!(
+                            "Không đọc được túi đồ (s2c/1187 loại {kind}): {e}; hỏi lại cả túi"
+                        ),
+                    ));
+                    let name = s.name.clone();
+                    Self::send(
+                        out,
+                        42,
+                        Ctx {
+                            character_name: Some(&name),
+                            ..Ctx::default()
+                        },
+                    );
+                }
             },
             // What is left in a bag slot (K3, P5): after Vứt bỏ (c2s/1186 action 2) and after a potion used in a battle
             // (c2s/44). 0 empties the slot.

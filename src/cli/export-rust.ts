@@ -90,6 +90,8 @@ function decoders() {
   // Bag, gear and money (12-skills-items.md#túi-đồ, 04-push.md#s2c-46), ahead of the skill cases the Rust side lacks yet.
   add('characterExtra', si0['s2c/42 login'], characterExtra(bytes(si0['s2c/42 login'])));
   add('inventory', si0['s2c/1187 after repair'], inventory(bytes(si0['s2c/1187 after repair'])));
+  // Kind 4 (O1, Chế tạo trang bị): one item added, not the whole bag.
+  add('inventory', o1Packets['s2c/1187 loại 4'], inventory(bytes(o1Packets['s2c/1187 loại 4'])));
   for (const h of [fixtures.profile['s2c/9 level 21'], fixtures.profile['s2c/9 field01 4']] as string[]) add('characterGear', h, characterGear(bytes(h)));
   // The tail of s2c/9: symap's x2 EXP star "ef7" and faction (P4), and manina with no effect.
   for (const h of [fixtures.equip['s2c/9 symap'], fixtures.profile['s2c/9 level 21']] as string[]) add('characterTail', h, characterTail(bytes(h)));

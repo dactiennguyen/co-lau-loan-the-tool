@@ -428,6 +428,7 @@ S→C 1256  1, "Bạn vừa nhận được Nhẫn Thái Cực"
 - Cửa sổ có hai tab Kết hợp và Hành trang, 2 ô nguyên liệu và nút **Kết hợp**. Chọn món ở Hành trang hiện chi tiết với nút Chọn, như cửa sổ Nâng cấp.
 - Server lấy đúng 24 mỗi loại dù client gửi cả chồng.
 - `s2c/1187` byte đầu 4 là **thêm một món** (một bản ghi vật phẩm, 83 byte), khác byte đầu 1 là cả túi.
+- Còn ít nhất một loại nữa, chưa đo: sau "Đập Trứng Gà" (`c2s/84`), app Rust không đọc được `s2c/1187` 9 lần từ 31/10 tới 01/11, lỗi "Invalid field length 4 at 5", tức gói chỉ dài 5–8 byte và byte đầu không phải 1 hay 4. Túi không đổi nên lần bấm sau server báo "Vật phẩm không đủ số lượng". App giờ hỏi lại cả túi bằng `c2s/42` khi gặp loại lạ, và Log lỗi giữ gói đó; lần đập trứng sau sẽ cho biết bố cục. [Đo gián tiếp; bố cục Chưa rõ]
 - Món chế ra có hệ ngẫu nhiên và phẩm chất: chi tiết trên máy ghi "Phẩm chất: Quý", "Đúng hệ nhân vật: +5% chỉ số trang bị", "Bộ cùng hệ (4/4)" (Cẩm nang: "Đồ chế tạo: có cơ hội có thưởng hệ và thưởng bộ"). Nhẫn Thái Cực bậc 21 nên nâng được tới +8.
 - **Cấp nhân vật:** Bậc II và Bậc III cũng mở cửa sổ và nhận nguyên liệu, nhưng Bắt đầu thì "Cần đạt cấp 51 mới chế tạo được Áo Bậc II", "Cần đạt cấp 101 mới chế tạo được Vũ khí Bậc III" (`s2c/1256`), không mất gì.
 - Bot đặt nguyên liệu bằng loại 0 thì chỉ nhận lời nhắc `s2c/0` "Cần chọn đủ 2 loại nguyên liệu và Xu…", vì vậy bot TS phải chịu được `s2c/0` khi đang ở trong game. O1 dùng một bản chép của client cho việc này; từ sau O1 client TS không ngắt phiên vì `s2c/0` khi đã vào game nữa ([s2c/0](14-npc.md#s2c-0)). [Đo O1]

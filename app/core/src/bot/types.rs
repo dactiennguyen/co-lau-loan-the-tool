@@ -263,6 +263,10 @@ pub struct FightSettings {
     /// Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up (Bot::loot).
     #[serde(default = "on")]
     pub pickup: bool,
+    /// Nhặt cả đồ khác giới tính, on unless turned off: Tự nhặt đồ also picks up gear the character cannot wear, to sell
+    /// it; off, it leaves such gear on the ground (Bot::pick).
+    #[serde(default = "on")]
+    pub pickup_other_gender: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -292,6 +296,7 @@ impl Default for FightSettings {
         Self {
             repair: false,
             pickup: true,
+            pickup_other_gender: true,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -721,6 +726,8 @@ pub struct Snapshot {
     pub combat: Option<[i32; 5]>,
     /// The element, field01 of s2c/9: 1 Hỏa, 4 Thủy (potentials::main_stat).
     pub element: Option<i32>,
+    /// The gender, flag2 of s2c/9: 0 nam, 1 nữ (items::GENDER_*); gear of the other one is refused by Mặc.
+    pub gender: Option<u8>,
     /// Points left to spend (s2c/9, s2c/10 kind 8).
     pub stat_points: Option<i32>,
     pub skill_points: Option<i32>,

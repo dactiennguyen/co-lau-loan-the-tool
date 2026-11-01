@@ -305,6 +305,8 @@ fn manina_bag() -> Vec<ItemRecord> {
             field1: 1,
             ..item(12, 604, -1, 12, 0xff, &[])
         },
+        // Giáp Tiên Phong nữ (200) picked up by manina, who is nam: Mặc is greyed with the reason.
+        item(13, 200, 60, 1, 4, &[(6, 9), (9, 70)]),
     ]
 }
 
@@ -446,6 +448,7 @@ fn main_character() -> Snapshot {
         stats: vec![32, 10, 10, 30, 0, 0, 0, 0, 0, 0],
         combat: Some([32, 5, 30, 20, 6]),
         element: Some(1),
+        gender: Some(0),
         stat_points: Some(68),
         skill_points: Some(19),
         map_id: "M2".into(),
@@ -707,6 +710,7 @@ pub fn entries() -> Vec<Entry> {
         stats: vec![26, 10, 10, 24, 0, 0, 0, 0, 0, 0],
         combat: Some([26, 9, 30, 20, 6]),
         element: Some(4),
+        gender: Some(1),
         stat_points: Some(46),
         skill_points: Some(13),
         map_id: "M1".into(),

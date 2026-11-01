@@ -135,6 +135,19 @@ const paths = {
   hammer: <path d="M12 6l4-4 6 6-4 4zM15 9 4 20l-1.5-1.5L13.5 7.5" />,
   server: <path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01M12 7h4M12 17h4" />,
   folder: <path d="M3 6h6l2 2h10v11H3z" />,
+  /** Đồ nam, đồ nữ (game/gender.ts). */
+  male: (
+    <>
+      <circle cx="9.5" cy="14.5" r="5.5" />
+      <path d="m13.5 10.5 6.5-6.5M15 4h5v5" />
+    </>
+  ),
+  female: (
+    <>
+      <circle cx="12" cy="9" r="5.5" />
+      <path d="M12 14.5V22M8.5 18.5h7" />
+    </>
+  ),
   /** Báo lỗi, Log lỗi. */
   bug: (
     <>

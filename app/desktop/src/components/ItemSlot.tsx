@@ -2,6 +2,7 @@ import { itemIcon } from "@/game/itemIcons";
 import { plusOf } from "@/game/shops";
 import type { Item } from "@/api/types";
 import { cn } from "@/utils/cn";
+import { GENDER_ICON, GENDER_TEXT, GENDER_WORD } from "@/game/gender";
 import { ELEMENT_ICON, elementText } from "./ElementTag";
 import { Icon, type IconName } from "./Icon";
 
@@ -14,6 +15,8 @@ interface Props {
   active?: boolean;
   /** Gear: a durability bar along the bottom. */
   wear?: boolean;
+  /** Why the character cannot wear it (game/gender.ts misfit): the item dimmed, its gender sign red. */
+  misfit?: string | null;
   onShow: (shown: boolean) => void;
   onPick: () => void;
   /** Chuột phải, or the Menu key and Shift+F10: the item's menu, opened at that point of the window. */
@@ -30,11 +33,11 @@ const SLOT =
 const CORNER = "absolute right-px px-0.5 bg-[rgb(15_17_21/0.75)] text-10 font-normal leading-[1.3]";
 
 /**
- * One square of the bag or the gear: the item's icon with its quantity (items that stack), element and cường hoá (+1 and
- * up) in the corners; a red tint when it is worn out. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens
- * its menu.
+ * One square of the bag or the gear: the item's icon with its quantity (items that stack), element, cường hoá (+1 and
+ * up) and đồ nam / nữ in the corners; a red tint when it is worn out, dimmed with a red sign when the character cannot
+ * wear it. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens its menu.
  */
-export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPick, onMenu, className }: Props) {
+export function ItemSlot({ item, label, placeholder, active, wear, misfit, onShow, onPick, onMenu, className }: Props) {
   if (!item) {
     return (
       <span className={cn(SLOT, "cursor-default opacity-60", className)} title={`${label}: trống`}>
@@ -57,7 +60,9 @@ export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPic
         broken && "border-accent-deep after:content-[''] after:absolute after:inset-0 after:bg-[rgb(205_122_114/0.22)] after:pointer-events-none",
         className,
       )}
-      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${broken ? ", hỏng" : ""}`}
+      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${broken ? ", hỏng" : ""}${
+        item.gender != null ? `, đồ ${GENDER_WORD[item.gender]}${misfit ? ", không mặc được" : ""}` : ""
+      }`}
       aria-pressed={active}
       onMouseEnter={() => onShow(true)}
       onMouseLeave={() => onShow(false)}
@@ -83,7 +88,7 @@ export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPic
           draggable={false}
           className={cn(
             "w-[calc(var(--size)-8px)] h-[calc(var(--size)-8px)] [image-rendering:auto] pointer-events-none",
-            broken && "[filter:grayscale(0.6)_brightness(0.7)]",
+            (broken || misfit) && "[filter:grayscale(0.6)_brightness(0.7)]",
           )}
         />
       ) : (
@@ -98,6 +103,17 @@ export function ItemSlot({ item, label, placeholder, active, wear, onShow, onPic
       {item.element != null && ELEMENT_ICON[item.element] && (
         <span className={cn("absolute top-px left-px grid place-items-center size-[13px] bg-ink", elementText(item.element))} aria-hidden="true">
           <Icon name={ELEMENT_ICON[item.element]} size={9} />
+        </span>
+      )}
+      {item.gender != null && GENDER_ICON[item.gender] && (
+        <span
+          className={cn(
+            "absolute bottom-px left-px grid place-items-center size-[13px] bg-ink",
+            misfit ? "text-danger shadow-[inset_0_0_0_1px_var(--danger)]" : GENDER_TEXT[item.gender],
+          )}
+          aria-hidden="true"
+        >
+          <Icon name={GENDER_ICON[item.gender]} size={10} />
         </span>
       )}
       {wear && item.durability && (
