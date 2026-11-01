@@ -295,6 +295,16 @@ fn manina_bag() -> Vec<ItemRecord> {
         item(4, 306, 60, 1, 1, &[(5, 9), (8, 1)]),
         item(5, 415, -1, 1, 0xff, &[]),
         item(7, 1, -1, 1, 0xff, &[]),
+        // Materials of Chế tạo trang bị as the mobs drop them: enough for Nhẫn Bậc I, and Gỗ Bậc 1 in two stacks (one
+        // locked, one not) that the game does not take together.
+        item(8, 598, -1, 86, 0xff, &[]),
+        item(9, 610, -1, 43, 0xff, &[]),
+        item(10, 592, -1, 12, 0xff, &[]),
+        item(11, 604, -1, 14, 0xff, &[]),
+        ItemRecord {
+            field1: 1,
+            ..item(12, 604, -1, 12, 0xff, &[])
+        },
     ]
 }
 
@@ -532,7 +542,7 @@ fn main_character() -> Snapshot {
         }),
         currencies: Some(Currencies {
             label: "update Xu".into(),
-            xu: 500,
+            xu: 15_000,
             xu_khoa: 7370,
             luong: 0,
         }),

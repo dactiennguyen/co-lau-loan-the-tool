@@ -1,6 +1,6 @@
 // The NPC services of Làng Thanh Khê as the Tiện ích modal offers them (npc.rs, docs/app/events/15-shops.md, 16-upgrade.md).
 import { itemIcon } from "./itemIcons";
-import type { Character, Item } from "@/api/types";
+import type { Character, Item, Recipe } from "@/api/types";
 
 /** Lái Buôn, Bà Tư Hạnh, Hương Lão and Pháp sư stand in Làng Thanh Khê; the server serves them only on that map (B1). */
 export const NPC_MAP = "M1";
@@ -72,8 +72,50 @@ export const failLevel = (level: number) => [4, 8, 12, 14].filter((m) => m <= le
 export const charmUseful = (level: number) => failLevel(level) < level;
 /** Đổi Băng Tâm lấy bình rỗng: 8 Băng Tâm (21) for a Bình Huyết Linh (Rỗng) (16); lines 0 one, 1 five, 2 all. */
 export const ICE = { iceId: 21, bottleId: 16, perBottle: 8 };
-/** The item kinds of Chế tạo trang bị, by their line in its menu (npc::CRAFT_LABELS). */
+/** The item kinds of Chế tạo trang bị, by their line in its menu (npc::CRAFT_LABELS); also the item kind (0 hat, 1
+ * armour, 2 weapon, 3 ring). */
 export const CRAFT_KINDS = ["Nón", "Áo", "Vũ khí", "Nhẫn"];
+/** The two materials each kind takes, in the order of its recipe (16-upgrade.md#chế-tạo, menus of J3). */
+const CRAFT_MATERIALS = [
+  ["Da", "Linh Thạch"],
+  ["Da", "Gỗ"],
+  ["Quặng", "Gỗ"],
+  ["Quặng", "Linh Thạch"],
+];
+/** The tiers of Chế tạo trang bị: its line in the menu of a kind, the character level and the Xu it takes; each takes
+ * 24 of both materials of that tier ("Quặng Bậc 2"), and makes gear of level 21, 51 or 101. */
+const CRAFT_TIERS = [
+  { tier: 1, level: 21, xu: 2_400 },
+  { tier: 2, level: 51, xu: 26_500 },
+  { tier: 3, level: 101, xu: 90_000 },
+];
+/** The recipes of a kind as Pháp sư's menus said them (J3, O1), shown before any menu is read; a menu read
+ * (Character.recipes, Xem ở Pháp sư) takes their place. The bot always reads the menu again before it makes one. */
+export const knownRecipes = (kind: number): Recipe[] =>
+  CRAFT_TIERS.map((t) => ({
+    tier: t.tier,
+    option: t.tier - 1,
+    level: t.level,
+    materials: (CRAFT_MATERIALS[kind] ?? []).map((m) => ({ name: `${m} Bậc ${t.tier}`, count: 24 })),
+    xu: t.xu,
+  }));
+/** Da, Quặng, Gỗ, Linh Thạch Bậc 1–6 are items 592–597, 598–603, 604–609, 610–615, whose icons are 215…, 221…, 227…,
+ * 233… (data/items.json); the picture of "Gỗ Bậc 2" also before the bag holds one. */
+const MATERIAL_ICONS: Record<string, number> = { Da: 215, Quặng: 221, Gỗ: 227, "Linh Thạch": 233 };
+export function materialIcon(name: string) {
+  const m = /^(.+) Bậc (\d)$/.exec(name);
+  const base = m ? MATERIAL_ICONS[m[1]] : undefined;
+  return base == null ? undefined : itemIcon(base + Number(m![2]) - 1);
+}
+/** How the bag holds a material of a recipe: all of it, the largest stack, and whether the count is there. The game puts
+ * one stack in the window (the whole of it, of which the server takes the count), and a locked stack does not join an
+ * unlocked one, so 12 + 12 in two stacks is not 24. */
+export function materialHeld(items: Item[], name: string, count: number) {
+  const stacks = items.filter((i) => i.name === name);
+  const total = stacks.reduce((n, i) => n + i.quantity, 0);
+  const largest = stacks.reduce((n, i) => Math.max(n, i.quantity), 0);
+  return { total, largest, stacks: stacks.length, enough: largest >= count, split: largest < count && total >= count };
+}
 /** "I", "II", … for the tiers of Chế tạo trang bị. */
 export const roman = (tier: number) => ["?", "I", "II", "III", "IV", "V", "VI"][tier] ?? String(tier);
 /** Chuyển hoá trang bị sơ, trung, cao cấp: the level each moves up to. */
