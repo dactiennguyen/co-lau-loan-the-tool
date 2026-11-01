@@ -1,4 +1,4 @@
-// Cài đặt of the app, behind the button beside colautool: the game server, Lưu dữ liệu trận and what closing the window
+// Cài đặt of the app, behind the button beside the name CLLT Tool: the game server, Lưu dữ liệu trận and what closing the window
 // does, the same for every account. settings.json beside accounts.json; local only (app/.gitignore).
 use cllt_core::net::Server;
 use serde::{Deserialize, Serialize};

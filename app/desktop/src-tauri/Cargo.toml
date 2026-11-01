@@ -10,6 +10,13 @@ rust-version.workspace = true
 name = "cllt_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# The program cargo builds, and the name the dev app runs under (npm run tauri dev): macOS shows it in the Dock, the app
+# switcher and the menu bar. `tauri build` renames it to mainBinaryName (cllt-desktop) in the bundles, so the installed
+# app, its installers and its updates keep their file.
+[[bin]]
+name = "cllt-tool-dev"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build.workspace = true
 

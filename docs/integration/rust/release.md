@@ -30,7 +30,7 @@ Lưu ý:
   - WiX (`.msi`) chỉ nhận ký tự có trong code page 1252. "ờ", "ạ", "ế" không có trong 1252, và cũng không có trong 1258.
   - `.deb`/`.rpm` lấy tên gói là `productName` viết kebab-case, mà dpkg chỉ nhận a–z, 0–9, `+`, `-`, `.`.
 
-  Tiêu đề cửa sổ vẫn là "Cờ Lau Loạn Thế". Identifier vẫn là `vn.colauloanthe.desktop`, nên thư mục chứa `accounts.json` không đổi.
+  Tên hiện ra là **CLLT Tool**: tiêu đề cửa sổ, khay, thanh bên, và `CFBundleName` (`bundle.macOS.bundleName`) trên thanh menu macOS. `productName` vẫn là `colautool`, vì nó đặt tên tệp cài, thư mục cài và gói trên Windows và Linux: đổi nó thì bộ cài mới không nhận ra bản cũ và cài thêm một bản nữa. Identifier vẫn là `vn.colauloanthe.desktop`, nên thư mục chứa `accounts.json` không đổi. Bản dev là **CLLT Tool DEV** ([Chạy](README.md#chạy)), không bao giờ được đóng gói.
 - **Chưa ký số Apple, Windows:** macOS dùng chữ ký ad-hoc (`signingIdentity: "-"`), nên lần đầu người dùng phải chạy `xattr -cr /Applications/colautool.app`. Windows hiện cảnh báo SmartScreen. Muốn ký như cockpit-tools thì cần chứng chỉ Apple Developer ID và 6 secret `APPLE_*`. Chữ ký của updater (minisign, [Tự cập nhật](#tự-cập-nhật)) là chuyện khác: nó chỉ để app biết bản tải về đúng là của mình.
 - **Rust 1.90 cố định** trong CI, để một lint clippy mới của bản stable sau không tự làm hỏng build.
 - **Đã thử trên máy (30/10/2026):** build macOS Apple Silicon bằng đúng lệnh của CI ra `colautool.app` 4,8 MB và `.dmg` 2,6 MB. Script gom file và bước kiểm tra tag chạy đúng. Bản Intel, Windows và Ubuntu chỉ build trên GitHub Actions và chưa có lần chạy nào.

@@ -49,11 +49,20 @@ export function Sidebar() {
       {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
       <div className="absolute inset-x-0 top-0 h-9" data-tauri-drag-region />
       <div className="flex items-center gap-2.5">
-        <img className="block shrink-0 size-[34px] object-contain" src={appIcon} alt="" draggable={false} />
+        {/* Under `npm run tauri dev` the icon and the name say DEV (tauri.dev.conf.json), not to be taken for the installed
+            app running beside it. The dev server serves the DEV icon by its path; an import would put it in every build. */}
+        <img className="block shrink-0 size-[34px] object-contain" src={import.meta.env.DEV ? "/app-icon-dev.png" : appIcon} alt="" draggable={false} />
         {/* The name with the Cài đặt button at the right of its line; the summary has the whole width under them. */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1.5">
-            <div className="font-pixel font-bold text-15 leading-[1.2] uppercase">colautool</div>
+            <div className="flex items-center gap-1.5 min-w-0 font-pixel font-bold text-15 leading-[1.2] uppercase">
+              CLLT Tool
+              {import.meta.env.DEV && (
+                <span className="px-1 py-px text-10 leading-none text-ink bg-danger" title="Bản dev (npm run tauri dev)">
+                  Dev
+                </span>
+              )}
+            </div>
             {/* Above the strip that drags the window, which covers the brand where the window has no room left for its
                 buttons; the negative margin keeps the line as tall as the name. */}
             <Button kind="ghost" small icon="settings" aria-label="Cài đặt" className="relative z-1 shrink-0 -my-1.5 -mr-1" onClick={() => open({ kind: "settings" })} />

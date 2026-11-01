@@ -18,7 +18,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Mở cửa sổ", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Thoát", true, None::<&str>)?;
     let mut tray = TrayIconBuilder::with_id(MAIN)
-        .tooltip("Cờ Lau Loạn Thế")
+        .tooltip(crate::app_name())
         .menu(&Menu::with_items(app, &[&open, &quit])?)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {

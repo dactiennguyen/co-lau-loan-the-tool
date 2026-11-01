@@ -2,7 +2,9 @@
 // in, and see for each one its character (level, HP, EXP, stats), where it stands (map, zone), who else is in the zone,
 // and a fight job ("đánh X N lần").
 //
-//   npm run tauri dev                    window with the Vite dev server (hot reload of ../src)
+//   npm run tauri dev                    window with the Vite dev server (hot reload of ../src), as CLLT Tool DEV:
+//                                        tauri.dev.conf.json over tauri.conf.json (scripts/tauri.mjs adds it), its own
+//                                        identifier and icon, so it runs beside the installed app without looking like it
 //   npm run app                          the app in app/target/release/bundle: macos/colautool.app (only that,
 //                                        tauri.macos.conf.json), nsis/ and msi/ on Windows, deb/, rpm/, appimage/ on Linux
 //   flags after `--`: --login-all logs every account in at start; --sample shows sample accounts, no network;
@@ -25,6 +27,14 @@ mod view;
 use app::{App, Shared};
 use cllt_core::net::Manager;
 use tauri::Manager as _;
+
+/// The name of the app in its window title and its tray: CLLT Tool, CLLT Tool DEV under `npm run tauri dev`.
+pub fn app_name() -> &'static str {
+    match tauri::is_dev() {
+        true => "CLLT Tool DEV",
+        false => "CLLT Tool",
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -80,6 +90,13 @@ pub fn run() {
             }
             update::start(tauri_app.handle(), sample);
             tray::create(tauri_app.handle())?;
+            // The title of tauri.conf.json is the installed app's; the dev app says so (tauri.dev.conf.json cannot, as it
+            // would have to repeat the whole window).
+            if tauri::is_dev() {
+                if let Some(window) = tauri_app.get_webview_window("main") {
+                    window.set_title(app_name())?;
+                }
+            }
             tray::keep_awake();
             Ok(())
         })

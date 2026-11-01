@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Cờ Lau Loạn Thế",
+        "title": "CLLT Tool",
         "width": 1280,
         "height": 860,
         "minWidth": 1080,
@@ -48,6 +48,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
+      "bundleName": "CLLT Tool",
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-"
     }
