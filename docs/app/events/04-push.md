@@ -446,7 +446,7 @@ Nguồn: A2: packet đọc từ native reader, record 196.
 }
 ```
 
-Boss này đánh bằng `c2s/1178`, không phải `c2s/15` ([05-battle](05-battle.md#c2s-1178)). Dạng field 1 (22 byte với M2): `000000024d32 01 0000000b 6d6f623839313030303032` = "M2", 1, "mob89100002".
+Boss này đánh bằng `c2s/1178`, không phải `c2s/15` ([05-battle](05-battle.md#c2s-1178)). Khi boss bị hạ, server cũng gửi field 1, cùng lúc với nước cuối của trận; khoảng 13 s sau có field 0 ở ô mới và boss đầy HP ([B6](06-map-mobs.md#đánh-boss)). Dạng field 1 (22 byte với M2): `000000024d32 01 0000000b 6d6f623839313030303032` = "M2", 1, "mob89100002".
 
 **Nếu bản app mới khác:** tìm lại writer/reader/handler native, đối chiếu kiểu getter, cursor và byte gốc; phân biệt thay đổi nội dung động với đổi cấu trúc. Xem [điều tra lại](../reinvestigation.md).
 

@@ -328,7 +328,7 @@ Trận boss (B4, Thủ Lĩnh Sơn Tặc cấp 11, manina cấp 17 với 2 món �
 - Mỗi 3 kiếm gây 29, đòn kỹ năng của boss gây 65. Thua cả hai trận, nhưng **thua boss không bị trừ EXP**: `s2c/10` sau trận giữ nguyên EXP và không có `s2c/1256`. HP được hồi đầy sau trận. [Đo]
 - Đủ 500 thì server gửi `s2c/34` với lời boss: "Các ngươi nghĩ giết ta là kết thúc sao? Ngoài kia còn nhiều thế lực lớn hơn rất nhiều". Báo cáo Thành Chủ (Q14, bot TS) nhận 1190 kinh nghiệm, 2130 Xu khoá. [Đo]
 - Khi nhân vật còn đứng đè lên boss, app tự gửi lại `c2s/1178` ngay sau mỗi trận, nên trận 3 bắt đầu dù đã xong bước. Tắt app giữa trận không bị trừ EXP (như Q4); để app tự rời trận thì bị trừ. [Đo]
-- Bot TS: bước "Gây N sát thương" gửi `c2s/1178`, đánh tiếp sau khi thua boss, và lấy tiến độ từ `s2c/1201`. Đã có test với gói thật, nhưng chưa chạy với boss thật vì nhiệm vụ 7 đã xong trên điện thoại. `c2s/1178` từ xa có được nhận không [Chưa rõ]: lần B4 nhân vật đứng sát boss.
+- Bot TS: bước "Gây N sát thương" gửi `c2s/1178`, đánh tiếp sau khi thua boss, và lấy tiến độ từ `s2c/1201`. Đã có test với gói thật. B6 (bot TS, symap cấp 79) đánh boss thật hai trận: `c2s/1178` từ xa vẫn được nhận, không cần đi tới boss; HP boss dùng chung với người chơi khác; hạ boss thì 13 s sau boss hiện lại đầy HP ([đánh boss](06-map-mobs.md#đánh-boss)).
 - Thao tác bàn cờ trên app qua ADB: vuốt chậm 400 ms, sau khi lượt bắt đầu 3 s. Chạm hai lần hay vuốt nhanh thường bị bỏ qua. [Đo]
 
 **Thử trước đó (B3, Q13).**
@@ -339,7 +339,7 @@ Trận boss (B4, Thủ Lĩnh Sơn Tặc cấp 11, manina cấp 17 với 2 món �
 
 ## Chưa rõ
 
-- `c2s/1178` có cần đứng gần boss không (B4 đứng sát boss).
+- Hạ boss ở cấp gần mình được gì (B6 hơn boss 68 cấp nên 0 EXP, 0 Xu).
 - Cổng Hồng Giang (1016) mở từ nhiệm vụ nào. Ở S1 (nhiệm vụ 9) cổng từ chối; ở N5 (nhiệm vụ 14, bước 2) cổng cho vào.
 - Phần cộng cố định của công thức EXP phụ thuộc gì. Hồi máu ngoài thua trận: dùng Hoàn Linh Dược trong trận bằng `c2s/44` ([12](12-skills-items.md#c2s-44)).
 - Món nào ứng với từng ô của `s2c/36`; có giới hạn số trận mỗi ngày không. Gói sửa đồ đã biết (`c2s/48`); Búa sửa chữa mua ở Lái Buôn ([12](12-skills-items.md#c2s-1190)).

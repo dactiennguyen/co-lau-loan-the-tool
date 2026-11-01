@@ -146,7 +146,7 @@ Gói không có toạ độ quái. Vị trí do client tự đặt và tự di c
 | Xuất hiện khi | Nhân vật va vào boss của map (`s2c/1177`). Code: `sqhz.a18(boss, false)` → `sqhz.a17` → `sqlq.b121(mobId, false)` |
 | Sau đó | `s2c/22` sau ~2,8 s, rồi trận như quái thường: `c2s/18` → `s2c/18` → `c2s/14` … |
 | Bố cục payload | `string mobId; i32 flag` (flag = 0), 19 byte với `mob86100201` |
-| Độ chắc chắn | [Đo] B4, 1 lần, Thủ Lĩnh Sơn Tặc khu 2. Boss **bỏ qua** `c2s/15` (Q10, Q13, cả khi đứng sát boss) |
+| Độ chắc chắn | [Đo] B4, 1 lần, Thủ Lĩnh Sơn Tặc khu 2. B6, 2 lần: từ xa (cách boss khoảng 1.700 đơn vị) và sau khi dịch chuyển lên ô boss, `s2c/22` sau 2,2–2,6 s; server không đòi đứng gần ([đánh boss](06-map-mobs.md#đánh-boss)). Boss **bỏ qua** `c2s/15` (Q10, Q13, cả khi đứng sát boss) |
 
 ```text
 0000000b 6d6f6238363130303230 31  00000000       "mob86100201", 0

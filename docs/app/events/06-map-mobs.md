@@ -84,6 +84,8 @@ Toạ độ đổi về đơn vị server (= bộ nhớ ÷ 1,5). Đây là một
 
 **Ở cấp 42 (symap, nhiệm vụ 23) vào được 6 map: M1, M2, M4, M5, M10, M25.** Atlas có thêm M4 Hồng Giang và M5 Lạc Cốc. Ba cổng còn khoá theo nhiệm vụ (Bạch Nham 1011, Phong Nguyên 1012, Tiên Cốc 1021), bốn cổng khoá theo cấp (Tam Khê 80, Nguyệt Đàm 100, Tân Trạch 110, Cổ Phong 130). Bot không thử lại cổng đã biết cần cấp cao hơn nhân vật. Quét mất 16 giây. [Đo S2]
 
+**Ở cấp 79 (S3, 01/11, symap, nhiệm vụ 25 bước 3) vẫn chỉ 6 map ấy.** Bạch Nham, Phong Nguyên và Tiên Cốc vẫn trả lời "Bạn cần hoàn thành nhiệm vụ trước khi tới đây", nên chúng mở theo nhiệm vụ chính chứ không theo cấp; Tam Khê cần cấp 80. Không có quái hay boss mới, chỉ ô đứng của boss đổi. Chín boss còn lại (Tướng Thiết Kích, Tướng Trấn Vũ, Tướng Vũ Kình, Tướng Nham Hổ, Đàm Xuyên, Thạch Khôi, Lôi Tướng, Nguyễn Bá Dực, Vệ Xích) mới biết tên qua `s2c/45`. Lên cấp bằng đánh quái cũng không được: quái ở 6 map này cao nhất cấp 58, thấp hơn symap quá 20 cấp nên không cho EXP. [Đo S3]
+
 **Cấp trên bản đồ thế giới và cấp cổng đòi.** Ở S1 (cấp 19), `s2c/11 "M99"` ghi M25 cấp 20 mà không khoá, và cổng Rìa Hồng Giang vẫn cho vào; M4 (cấp 20) thì khoá vì nhiệm vụ. Ở S2 (cấp 42), M10 (30) và M4 hết khoá, M8 (50) còn khoá. Lạc Cốc (40), Tam Khê (80), Nguyệt Đàm (100), Tân Trạch (110), Cổ Phong (130): cấp trong lời từ chối của cổng bằng đúng cấp trên bản đồ thế giới. Vì vậy bot TS và app Rust không đi qua map mà bản đồ thế giới ghi cấp cao hơn cấp nhân vật quá 1. Cổng cũng giữ cấp nó từng đòi, cả khi nhân vật cấp cao hơn đã đi qua: atlas dùng chung cho mọi tài khoản, mà S2 đã xoá mất cấp 40 của Lạc Cốc (đã ghi lại vào [data/maps.json](../../../data/maps.json)). Hộp Đổi map hiện "Cần cấp N" cho những map đó ([features](../../integration/rust/features.md)). [Đo S1, S2; giới hạn "quá 1" chỉ dựa vào M25]
 
 Cách quét: `npm run scan` ([quest-bot](../../integration/nodejs/quest-bot.md#quét-map)) đăng nhập, xin bản đồ thế giới `c2s/11 "M99"`, rồi đi lần lượt qua từng cổng vào được. Ở mỗi map nó xin `c2s/11` (map, NPC, cổng) và `c2s/43` (quái), nhận `s2c/1177` (boss), rồi quay về map ban đầu. Kết quả ghi vào [data/maps.json](../../../data/maps.json); bot nhiệm vụ đọc file này để biết đường đi qua các lần chạy ([src/bot/atlas.ts](../../../src/bot/atlas.ts)). Lệnh chỉ gửi `c2s/11`, `c2s/13`, `c2s/43`: không đánh, không chat, không mua bán.
@@ -148,6 +150,23 @@ Quái của M1 ở [bảng trên](#quái-của-m1). M25 không có quái và kh�
 | Hào Trưởng phía Nam | M2 | 21 | `mob90100003` | `mob90100103` | (14, 30) ở khu 0 |
 
 Boss đổi ô sau mỗi lần rời đi (`s2c/1177` field 1 rồi field 0 với ô mới, [04-push](04-push.md#s2c-1177)), nên ô chỉ đúng tại lúc quét. [Đo]
+
+<a id="đánh-boss"></a>
+
+### Đánh boss (B6)
+
+B6 (01/11, người dùng nhờ thử): bot TS với symap cấp 79 (tiheo1) đánh Thủ Lĩnh Sơn Tặc cấp 11 ở M1 khu 0 hai trận, trận 1 từ chỗ đang đứng, trận 2 sau khi dịch chuyển lên ô của boss. [Đo B6]
+
+| Câu hỏi | Kết quả |
+|---|---|
+| Thách đấu từ xa được không? | **Được.** symap đứng ở (698, 512), boss ở ô (74, 3) = (2368, 96), cách khoảng 1.700 đơn vị; `c2s/1178` vẫn mở trận, `s2c/22` đến sau 2,2 s. Không cần đi tới boss. |
+| Dịch chuyển tới boss được không? | **Được.** Một gói `c2s/1169` (x 1984, y 96, state 0, cờ 0) đặt nhân vật lên ô của boss ngay, không cần đi từng bước: `s2c/1262` phát lại đúng toạ độ sau chưa tới 100 ms. Thách đấu sau đó mở trận sau 2,6 s, như khi đứng xa, nên đánh boss không cần dịch chuyển. |
+| HP boss dùng chung với ai? | Với mọi người chơi của khu: lúc trận 1 mở, boss chỉ còn 74/5000 vì người khác đã đánh trước. |
+| Hạ boss thì sao? | Hết HP thì server gửi `s2c/1177` field 1 (boss rời ô) cùng lúc với nước kết thúc trận; không có thông báo, `s2c/45` hay gói thưởng riêng. Khoảng 13 s sau boss hiện lại (`s2c/1177` field 0) ở ô khác, **đầy HP**: trận 2 mở với 5000/5000, symap hạ trong 2 lượt (5.249 sát thương). |
+| Được gì? | Cả hai trận 0 EXP, 0 Xu, không rơi đồ. Boss thấp hơn symap 68 cấp, mà Cẩm nang ghi quái thấp hơn quá 20 cấp thì không có kinh nghiệm, vàng và đồ rơi. Hạ boss ở cấp gần mình được gì thì [Chưa rõ]. |
+| Độ bền | Trừ như trận quái thường: vũ khí 60 → 59 → 56, áo 34 → 32 → 31 sau hai trận. |
+
+App Rust cũng đã đánh 15 trận boss thật khi tự làm nhiệm vụ (31/10: Thủ Lĩnh Sơn Tặc 2 trận, Hào Trưởng phía Bắc 6, phía Nam 7, các nick cấp 18–27), thua cả, 0 EXP, theo bảng `battles` của `cllt.db`. Bot TS và app Rust đợi boss đổi chỗ 5 s, tối đa 6 lần, nên sau khi hạ boss chúng đợi được tới lúc boss hiện lại rồi đánh tiếp. Dữ liệu thô và script đo ở `captures/b6-2026-11-01/` (chỉ trên máy, không vào git); hai trận ghi ở `captures/battles/2026-11-01/`.
 
 ### Quái và boss của M4, M5, M10 (S2)
 

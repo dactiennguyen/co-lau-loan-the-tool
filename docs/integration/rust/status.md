@@ -39,7 +39,7 @@ Mỗi phần của app đã được kiểm bằng test nào và đã chạy th�
 
 ## Giới hạn
 
-- **Boss qua `c2s/1178`:** cả TS lẫn Rust mới chạy với gói thật bắt từ điện thoại (B4) và với test, **chưa đánh boss thật**. Đứng xa boss có thách đấu được không thì vẫn chưa rõ ([10-quests](../../app/events/10-quests.md#boss)).
+- **Boss qua `c2s/1178`:** bot TS đã đánh boss thật (B6, 2 trận): thách đấu từ xa được, hạ boss thì 13 s sau boss hiện lại đầy HP ([đánh boss](../../app/events/06-map-mobs.md#đánh-boss)). App Rust cũng đã đánh boss thật khi tự làm nhiệm vụ: 15 trận ngày 31/10 với Thủ Lĩnh Sơn Tặc và hai Hào Trưởng (wangpt, manina, Ttuananh, theo bảng `battles` của `cllt.db`), thua cả 15, không mất EXP.
 - **Nhiều nick cùng một IP:** chưa thử, cần thêm nick thứ hai. Phía app, mỗi nick đã là một kết nối độc lập, và có thể đi qua proxy riêng ([Proxy](features.md#proxy)). Chưa đăng nhập nick nào qua proxy với server thật, mới kiểm tra tới seed.
 - **Nhãn chỉ số:** "Tấn công" và "Phòng thủ" khớp số đo. "Chính xác", "Né tránh", "Chí mạng" và thứ tự Cường lực / Thân pháp / Nội lực / Thể lực của `stats` đã đo ở P1 ([user-data](../../app/user-data.md#đuôi-s2c9)). Số của `c2s/10` theo thứ tự khác: 0 Cường lực, 1 Nội lực, 2 Thân pháp, 3 Thể lực.
 - **Vị trí:** là x/y lúc vào map. App không cho nhân vật đi lại trong map (gói `c2s/1169`), nên x/y chỉ đổi khi sang map hay khu khác. Đổi map chỉ đi qua những cổng atlas đã biết; map chưa ai vào (chưa có trong `data/maps.json`) thì chưa có đường.

@@ -249,6 +249,7 @@ Proxy phải cho nối tới cổng 1688; có proxy chỉ cho 80/443. Chưa hỗ
 - **Thua trận:**
   - Thua quái thường mất EXP nhưng được hồi đầy HP. Thua đủ số trận cho phép thì bot dừng.
   - Thua boss không mất EXP, và HP boss được giữ giữa các trận. Vì vậy thua boss không làm bot dừng.
+- **Boss:** thách đấu từ chỗ nào trong map cũng được, không cần đi tới boss. HP boss dùng chung với mọi người chơi của khu. Hạ boss thì boss biến mất như lúc đổi chỗ và khoảng 13 s sau hiện lại ở ô khác, đầy HP, nên bot đợi rồi đánh tiếp. Hạ boss thấp hơn mình quá 20 cấp không được EXP, Xu ([đánh boss](../../app/events/06-map-mobs.md#đánh-boss), B6).
 - **Bấm Dừng:** trận đang đánh vẫn tiếp tục tới hết, vì không có cách rời trận. Sau trận đó bot không thách đấu nữa.
 - **Trận mở muộn:** mỗi `s2c/22` được gắn với thách đấu nó trả lời, theo mob ID có trong gói (thách đấu chưa có trả lời được giữ 60 s).
   - Trận của thách đấu gửi trước khi bấm Dừng, trước khi đổi việc, hay đã quá 8 s vẫn được đánh tới hết. Server đã mở trận đó và không rời được; bỏ mặc thì mỗi lượt tự hết sau 34 s trong khi quái vẫn đánh, tới khi thua ([05-battle](../../app/events/05-battle.md)). Trận đó tính cho việc đã gửi thách đấu, không tính cho việc hiện tại.

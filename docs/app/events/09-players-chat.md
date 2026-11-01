@@ -44,7 +44,7 @@ Bổ sung cho [05-battle](05-battle.md#c2s-1169). Đo bằng cách vuốt joysti
 | Nhịp | Trung vị 113 ms (p10 77, p90 141) giữa hai gói [Đo] |
 | Tốc độ chạy | 12 đơn vị mỗi gói, khoảng 101 đơn vị/s. Nhảy lên cao khoảng 54 đơn vị (y 661 → 607) [Đo] |
 | Toạ độ | Đơn vị server; client vẽ ×1,5. y tăng là đi xuống. Xem [06-map-mobs](06-map-mobs.md#toạ-độ-và-di-chuyển) |
-| Server có kiểm không | Server phát lại đúng x/y trong `1262` sau trung vị 71 ms (p90 115 ms). Chưa thử gửi toạ độ sai. [Chưa rõ] |
+| Server có kiểm không | Server phát lại đúng x/y trong `1262` sau trung vị 71 ms (p90 115 ms). Không kiểm quãng đường: một gói nhảy thẳng từ (698, 512) tới (1984, 96) vẫn được nhận và phát lại (B6, [đánh boss](06-map-mobs.md#đánh-boss)). Toạ độ ngoài map hay giữa khối đá thì [Chưa rõ] |
 
 | Trạng thái | Nghĩa | Căn cứ |
 |---:|---|---|
