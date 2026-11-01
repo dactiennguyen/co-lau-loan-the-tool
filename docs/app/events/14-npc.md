@@ -63,6 +63,8 @@ NPC của nhiệm vụ (Võ Quan, Tướng Quân Lê Viễn…) chỉ có lời 
 
 Bà Tư Hạnh và Lái Buôn bán ở 14 cửa hàng. Chọn một cửa hàng thì server gửi `s2c/1190`, byte đầu là mã cửa hàng. Bà Tư Hạnh và Vũ khí của Lái Buôn có thêm một tầng menu chọn loại tiền (và đồ nam hay nữ). Đường menu của từng cửa hàng, mọi sản phẩm với giá, bố cục bản ghi 33 và 49 byte, mua bằng Lượng và Đổi lượng ở [15-shops](15-shops.md). [Đo J1]
 
+Bot TS: `npm run buy -- --shop=…` mở và mua ở cả 14 cửa hàng; `npm run elder` đọc Điểm năng động và Đổi lượng ([Cửa hàng NPC và Hương Lão](../../integration/nodejs/shop.md)).
+
 <a id="pháp-sư"></a>
 
 ## Pháp sư

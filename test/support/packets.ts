@@ -50,3 +50,9 @@ export function scripted(script: Expect[], onPacket: (op: number, payload: Buffe
   };
   return { io, errors, sent, left: script };
 }
+/** s2c/57: an NPC's menu as npcMenu reads it. */
+export function menuPacket(npc: string, text: string, options: [number, string][]) {
+  const w = new Writer().i32(options.length).string(npc).string(text);
+  for (const [option, label] of options) w.u8(option).string(label);
+  return w.build();
+}

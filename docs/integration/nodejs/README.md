@@ -11,6 +11,7 @@
 | Pháp sư: hỏi giá, nâng cấp có bùa, gộp đá, tách đá, chuyển hoá, chế tạo, đổi Băng Tâm | [Pháp sư bằng Node.js](smith.md) |
 | Nhập mã quà tặng, hòm thư (nhận quà, xoá thư đã nhận), nhiệm vụ ngày ở Hương Lão | [Mã quà tặng, hòm thư và nhiệm vụ ngày](mail.md) |
 | Chợ trời: xem, quét món rẻ nhất, Mua, Đăng bán, Thu hồi | [Chợ trời](market.md) |
+| 14 cửa hàng NPC (Lái Buôn, Bà Tư Hạnh); Hương Lão: Điểm năng động, Đổi lượng | [Cửa hàng NPC và Hương Lão](shop.md) |
 | Binary, phương pháp và schema byte của game | [Điều tra app](../../app/README.md) |
 
 ## Chạy với tài khoản của bạn
@@ -113,7 +114,7 @@ Các record `user_info`, `user_location`, `user_map` có `kind=derived` và `sou
 | [items.ts](../../../src/protocol/items.ts), [items-run.ts](../../../src/cli/items-run.ts) | Bảng vật phẩm (`data/items.json`), tên đồ cho bot, giải mã icon; lệnh `npm run items` ([13-drops-items](../../app/events/13-drops-items.md#cách-lấy-lại-dữ-liệu)) |
 | [bag-run.ts](../../../src/cli/bag-run.ts) | Lệnh `npm run bag`: đăng nhập, in trang bị đang mặc và túi đồ theo tên, rồi ngắt; chỉ đọc ([cách lấy túi đồ](../../app/events/12-skills-items.md#cách-lấy-túi-đồ)) |
 | [skills.ts](../../../src/protocol/skills.ts), [skills-run.ts](../../../src/cli/skills-run.ts) | Tab Kỹ năng: vị trí 9 ô trên ảnh nền, ô nào học hay nâng cấp được, bảng chi tiết như trên máy; lệnh `npm run skills` chỉ đọc ([tab Kỹ năng](../../app/events/12-skills-items.md#tab-kỹ-năng)) |
-| [buy-run.ts](../../../src/cli/buy-run.ts) | Lệnh `npm run buy`: đăng nhập, mở Dược phẩm hay Cửa hàng [Lượng] (`--shop=luong`) của Lái Buôn (phải đang ở M1), in bảng giá, chọn ô theo món và loại tiền, kiểm tiền; món không chồng được thì mua từng cái; chỉ mua khi có `--buy` ([mua bằng bot TS](../../app/events/12-skills-items.md#mua-bằng-bot)) |
+| [shops.ts](../../../src/protocol/shops.ts), [bot/shop.ts](../../../src/bot/shop.ts), [elder.ts](../../../src/bot/elder.ts), [buy-run.ts](../../../src/cli/buy-run.ts), [elder-run.ts](../../../src/cli/elder-run.ts) | Lệnh `npm run buy` (14 cửa hàng của Lái Buôn và Bà Tư Hạnh, `--shop=…`, `--item`, `--qty`, `--pay`) và `npm run elder` (Điểm năng động, Đổi lượng) ([cách chạy](shop.md)). Phải đang ở M1 |
 | [smith.ts](../../../src/bot/smith.ts), [smith-run.ts](../../../src/cli/smith-run.ts), [npc.ts](../../../src/protocol/npc.ts) | Pháp sư và lệnh `npm run smith`: mỗi lần một việc, dừng trước Bắt đầu khi không có `--confirm` ([Pháp sư](smith.md)) |
 | [mail.ts](../../../src/protocol/mail.ts), [bot/mail.ts](../../../src/bot/mail.ts), [daily.ts](../../../src/bot/daily.ts), [gift-run.ts](../../../src/cli/gift-run.ts), [gift-state.ts](../../../src/cli/gift-state.ts), [mail-run.ts](../../../src/cli/mail-run.ts), [daily-run.ts](../../../src/cli/daily-run.ts) | Gói và lệnh `npm run gift`, `npm run mail`, `npm run daily` ([mã quà, hòm thư, nhiệm vụ ngày](mail.md)); số mã sai liền của từng nick giữa các lần chạy (`.cache/gift-codes.json`, chỉ ở máy) |
 | [market.ts](../../../src/protocol/market.ts), [bot/market.ts](../../../src/bot/market.ts), [market-run.ts](../../../src/cli/market-run.ts) | Gói và lệnh `npm run market` ([Chợ trời](market.md)): các mục, trang, quét, Mua, Đăng bán, Thu hồi |

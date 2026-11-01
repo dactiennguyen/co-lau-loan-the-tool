@@ -158,7 +158,7 @@ Hỏi giá (`--quote`) làm bước 1 tới 5 cho một cấp rồi dừng.
 
 ## Mua bùa và đá
 
-Bùa và đá cấp 6 trở lên chỉ bán ở Cửa hàng [Lượng] của Lái Buôn. `npm run buy` mua được ở cửa hàng này:
+Bùa và đá cấp 6 trở lên chỉ bán ở Cửa hàng [Lượng] của Lái Buôn. `npm run buy` mua được ở cửa hàng này ([cách chạy](shop.md#cửa-hàng)):
 
 ```bash
 npm run buy -- --account=tiheo2 --shop=luong --item=35 --qty=2 --buy   # 2 Bùa bảo vệ sơ cấp

@@ -31,7 +31,7 @@ Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 
 ## Mở từng cửa hàng
 
-Nói chuyện với NPC (`c2s/13 "M1", npcId`), rồi chọn từng dòng bằng `c2s/57 (mãDòng, "M1", npcId)` ([hộp thoại](14-npc.md#hộp-thoại)). Byte đầu của `s2c/1190` là mã cửa hàng. Bot gửi từ chỗ nào trong M1 cũng được; ở map khác server trả "Không thể thực hiện" ([P5](12-skills-items.md#c2s-1190)). [Đo]
+Nói chuyện với NPC (`c2s/13 "M1", npcId`), rồi chọn từng dòng bằng `c2s/57 (mãDòng, "M1", npcId)` ([hộp thoại](14-npc.md#hộp-thoại)). Nhãn dòng thứ hai có xuống dòng trước loại tiền, ví dụ "Nón Nam\n[Xu]" [Đo J1]. Bot TS làm đúng các đường này: `npm run buy -- --shop=…` ([cách chạy](../../integration/nodejs/shop.md#cửa-hàng)). Byte đầu của `s2c/1190` là mã cửa hàng. Bot gửi từ chỗ nào trong M1 cũng được; ở map khác server trả "Không thể thực hiện" ([P5](12-skills-items.md#c2s-1190)). [Đo]
 
 | Mã | Đường menu (mã dòng) | Tên bảng | Món | Tiền |
 |---:|---|---|---:|---|
