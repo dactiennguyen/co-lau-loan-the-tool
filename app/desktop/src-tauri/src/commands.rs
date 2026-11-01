@@ -3,8 +3,8 @@
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
 use crate::backup;
-use crate::settings::{self, Exported, OnClose, Settings, SettingsView};
-use crate::store::{BattleFilter, BattleStats, StoredBattle};
+use crate::settings::{self, Exported, ExportedFaults, OnClose, Settings, SettingsView};
+use crate::store::{BattleFilter, BattleStats, FaultList, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
@@ -677,7 +677,7 @@ pub async fn export_battles(app: AppHandle, shared: State<'_, Shared>) -> Result
             return Err("Chưa có trận nào được lưu".to_string());
         }
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let path = settings::export_path(&dir, &time);
+        let path = settings::export_path(&dir, settings::Export::Battles, &time);
         let battles = store
             .export_battle_data(&path)
             .map_err(|e| format!("Chưa xuất được: {e}"))?;
@@ -690,6 +690,98 @@ pub async fn export_battles(app: AppHandle, shared: State<'_, Shared>) -> Result
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Characters kept of a note of Báo lỗi, of the message of an error of the UI, and of its stack.
+const NOTE: usize = 2_000;
+const STACK: usize = 8_000;
+fn cut(text: &str, at: usize) -> String {
+    text.trim().chars().take(at).collect()
+}
+
+/// Báo lỗi of the Nhật ký card: the note of the user, with the account's last lines, commands and packets (App::report).
+/// Without cllt.db there is nowhere to keep it: the dialog says so.
+#[tauri::command]
+pub fn report_fault(shared: State<Shared>, id: u64, note: String) -> Result<(), String> {
+    if shared.store_handle().is_none() {
+        return Err("Không mở được cllt.db nên không lưu được log lỗi".into());
+    }
+    let note = match cut(&note, NOTE) {
+        n if n.is_empty() => "Báo lỗi (không ghi chú)".to_string(),
+        n => n,
+    };
+    shared.with(|app| app.report(id, &note));
+    Ok(())
+}
+
+/// An error of the UI (an exception, a promise nobody caught): Log lỗi without an account.
+#[tauri::command]
+pub fn report_ui_error(shared: State<Shared>, text: String, detail: String) {
+    let fault = cllt_core::net::Fault {
+        reported: false,
+        ..cllt_core::net::Fault::note(&cut(&text, NOTE))
+    };
+    shared.with(|app| app.add_fault(None, fault, Some(&cut(&detail, STACK))));
+}
+
+/// Log lỗi for the Cài đặt tab: how many, their size, the newest.
+#[tauri::command]
+pub async fn faults(shared: State<'_, Shared>) -> Result<FaultList, String> {
+    let store = shared
+        .store_handle()
+        .ok_or("Không mở được cllt.db nên không có log lỗi")?;
+    tauri::async_runtime::spawn_blocking(move || store.faults(20).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Xuất log lỗi: every Log lỗi into a new file cllt-errors-<time>.json in Downloads (Store::export_faults), to send to
+/// whoever fixes the app. The error is shown under the button.
+#[tauri::command]
+pub async fn export_faults(
+    app: AppHandle,
+    shared: State<'_, Shared>,
+) -> Result<ExportedFaults, String> {
+    let store = shared
+        .store_handle()
+        .ok_or("Không mở được cllt.db nên không có log lỗi")?;
+    let dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| format!("Không thấy thư mục Downloads: {e}"))?;
+    let now = chrono::Local::now();
+    let time = now.format("%Y%m%d-%H%M%S").to_string();
+    let mut head = crate::app::app_info();
+    head.insert("exportedAt".into(), now.to_rfc3339().into());
+    tauri::async_runtime::spawn_blocking(move || {
+        if store.faults(0).map_err(|e| e.to_string())?.count == 0 {
+            return Err("Chưa có log lỗi nào".to_string());
+        }
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let path = settings::export_path(&dir, settings::Export::Faults, &time);
+        let faults = store
+            .export_faults(&path, head)
+            .map_err(|e| format!("Chưa xuất được: {e}"))?;
+        let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        Ok(ExportedFaults {
+            path: path.display().to_string(),
+            faults,
+            bytes,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Xoá log lỗi: all of them; how many.
+#[tauri::command]
+pub async fn clear_faults(shared: State<'_, Shared>) -> Result<usize, String> {
+    let store = shared
+        .store_handle()
+        .ok_or("Không mở được cllt.db nên không có log lỗi")?;
+    tauri::async_runtime::spawn_blocking(move || store.clear_faults().map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// "Mở thư mục" after Xuất dữ liệu trận: the file selected in Finder or Explorer. Only a file the export wrote.
@@ -747,7 +839,7 @@ pub async fn save_accounts(
     let time = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
     tauri::async_runtime::spawn_blocking(move || {
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let path = settings::accounts_export_path(&dir, &time);
+        let path = settings::export_path(&dir, settings::Export::Accounts, &time);
         settings::write_private(&path, &text).map_err(|e| format!("Chưa lưu được: {e}"))?;
         Ok(backup::Saved {
             path: path.display().to_string(),

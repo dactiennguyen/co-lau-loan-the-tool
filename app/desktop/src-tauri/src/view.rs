@@ -29,7 +29,9 @@ pub enum LogTone {
 }
 impl LogTone {
     pub fn of(text: &str) -> Self {
+        // A fault Log lỗi keeps (a packet that does not read, a server or NPC silent) is red too.
         if text.starts_with("Lỗi")
+            || cllt_core::net::is_fault(text)
             || text.starts_with("Thua")
             || text.contains(": thua")
             || text.contains("từ chối")

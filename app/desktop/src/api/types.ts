@@ -842,6 +842,34 @@ export interface Imported {
   settings: boolean;
 }
 
+/** Where a Log lỗi comes from: a line of the bot, the error that ended a session, Báo lỗi, or the UI. */
+export type FaultSource = "bot" | "connection" | "report" | "ui";
+
+/** A Log lỗi as the Cài đặt tab lists it (store.rs FaultRow). */
+export interface FaultRow {
+  id: number;
+  /** ms since 1970. */
+  at: number;
+  /** The account's username, null for the UI. */
+  username: string | null;
+  source: FaultSource;
+  text: string;
+}
+
+/** Log lỗi: how many, the bytes of their reports, the newest first. */
+export interface FaultList {
+  count: number;
+  bytes: number;
+  recent: FaultRow[];
+}
+
+/** Xuất log lỗi: the file written. */
+export interface ExportedFaults {
+  path: string;
+  faults: number;
+  bytes: number;
+}
+
 export interface AppState {
   /** Count of changes the reply was read at; an update with a count not above it is older. */
   rev: number;

@@ -20,6 +20,8 @@ import type {
   ImportPreview,
   Imported,
   SavedAccounts,
+  ExportedFaults,
+  FaultList,
   Secrets,
   OnClose,
   Settings,
@@ -189,6 +191,16 @@ export interface Api {
   /** Nhập: adds the new accounts, replaces those the list has when `replace`, applies the Cài đặt of the JSON when
    * `settings`; rejects with a message to show. */
   importAccounts(text: string, replace: boolean, settings: boolean): Promise<Imported>;
+  /** Báo lỗi: the note of the user, kept in Log lỗi with the account's last log lines, commands and packets. */
+  reportFault(id: number, note: string): Promise<void>;
+  /** An error of the UI, kept in Log lỗi. */
+  reportUiError(text: string, detail: string): Promise<void>;
+  /** Log lỗi for the Cài đặt tab. */
+  faults(): Promise<FaultList>;
+  /** Xuất log lỗi: every Log lỗi into a new cllt-errors-<time>.json in Downloads; rejects with a message to show. */
+  exportFaults(): Promise<ExportedFaults>;
+  /** Xoá log lỗi: how many went. */
+  clearFaults(): Promise<number>;
   /** Đóng cửa sổ: Thu nhỏ vào khay ("tray") or Thoát ứng dụng ("quit"), kept as what the close button does from now on
    * when `remember`. Rejects with a message to show when that cannot be saved; nothing happens then. */
   closeWindow(action: Exclude<OnClose, "ask">, remember: boolean): Promise<void>;
@@ -265,6 +277,11 @@ const tauri: Api = {
   saveAccounts: (ids, settings) => invoke("save_accounts", { ids, settings }),
   previewImport: (text) => invoke("preview_import", { text }),
   importAccounts: (text, replace, settings) => invoke("import_accounts", { text, replace, settings }),
+  reportFault: (id, note) => invoke("report_fault", { id, note }),
+  reportUiError: (text, detail) => invoke("report_ui_error", { text, detail }),
+  faults: () => invoke("faults"),
+  exportFaults: () => invoke("export_faults"),
+  clearFaults: () => invoke("clear_faults"),
   closeWindow: (action, remember) => invoke("close_window", { action, remember }),
   onCloseAsked: (handler) => listen("close-asked", () => handler()),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
@@ -380,6 +397,19 @@ const preview: Api = {
     };
   },
   importAccounts: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không nhập nick")),
+  reportFault: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu log lỗi")),
+  reportUiError: nothing,
+  faults: async () => ({
+    count: 3,
+    bytes: 48_213,
+    recent: [
+      { id: 3, at: Date.now() - 60_000, username: "manina2", source: "report", text: "Dùng Trứng Gà: túi vẫn còn trứng, bấm lại thì báo Vật phẩm không đủ số lượng" },
+      { id: 2, at: Date.now() - 65_000, username: "manina2", source: "bot", text: "Không đọc được túi đồ (s2c/1187): PAYLOAD_SCHEMA: Invalid field length 4 at 5" },
+      { id: 1, at: Date.now() - 3_600_000, username: "wangpt", source: "connection", text: "Lỗi: Server đã đóng kết nối" },
+    ],
+  }),
+  exportFaults: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xuất được log lỗi")),
+  clearFaults: async () => 0,
   closeWindow: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có khay")),
   onCloseAsked: async () => () => {},
   onAccounts: async () => () => {},

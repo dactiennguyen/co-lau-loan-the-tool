@@ -4,7 +4,7 @@
 // an update re-renders only what shows the changed part.
 // Short-lived state of one view (the open tab, a menu's position, a form) stays in that view.
 import { create } from "zustand";
-import { addToasts, errorToasts, questToasts, updateToast, type ToastItem } from "./toasts";
+import { addToasts, errorToasts, questToasts, updateToast, type ToastInput, type ToastItem } from "./toasts";
 import type { Account, AccountsUpdate, AppState, LogLine, UpdateView } from "@/api/types";
 import type { ShopSub } from "@/views/shop/ShopModal";
 import { accountsOf, append, merge, type Accounts } from "./sync";
@@ -33,6 +33,8 @@ export type Dialog =
   /** Nhập / Xuất JSON of the Tài khoản list (backup.rs), in two tabs: accounts pasted or read from a file, shown before
    * they are added; the accounts with their passwords, copied or saved to a file. */
   | { kind: "accountsJson" }
+  /** Báo lỗi of the Nhật ký card. */
+  | { kind: "report"; id: number }
   /** Đóng cửa sổ: the close button was pressed and Cài đặt says to ask; `back` is the dialog it took the place of. */
   | { kind: "close"; back: Dialog | null };
 
@@ -67,6 +69,8 @@ export interface Store extends Accounts {
   open: (dialog: Dialog) => void;
   close: () => void;
   dismiss: (toast: number) => void;
+  /** A toast of the UI itself (Báo lỗi saved). */
+  toast: (toast: ToastInput) => void;
   toggleBattleDetails: () => void;
   /** A new state of the update; a download that just finished brings a toast. */
   updateChanged: (update: UpdateView) => void;
@@ -106,6 +110,7 @@ export const useStore = create<Store>()((set) => ({
   open: (dialog) => set({ dialog }),
   close: () => set({ dialog: null }),
   dismiss: (toast) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== toast) })),
+  toast: (toast) => set((s) => ({ toasts: addToasts(s.toasts, [toast]) })),
   toggleBattleDetails: () =>
     set((s) => {
       localStorage.setItem(DETAILS, s.battleDetails ? "0" : "1");

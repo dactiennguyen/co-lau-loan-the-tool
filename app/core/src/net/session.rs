@@ -1,6 +1,7 @@
 //! Đăng nhập and the session of one account: the login steps of FLOW (src/net/client.ts), then the Bot with its
 //! packets, commands, timers and the heartbeat until Logout or the end of the connection.
 use super::connect::connect;
+use super::trace::Trace;
 use super::*;
 
 /// Runs the session of `account` on `server` until Logout, the server closing, or an error; reports through `emit`.
@@ -16,7 +17,8 @@ pub async fn run(
     emit: Emit,
 ) {
     emit(Event::State(ConnState::Connecting));
-    let state = match session(
+    let mut trace = Trace::default();
+    let ended = session(
         server.addr(),
         record,
         &account,
@@ -24,14 +26,26 @@ pub async fn run(
         gift,
         &mut commands,
         &emit,
+        &mut trace,
     )
-    .await
-    {
+    .await;
+    // Log lỗi: an error of the session, not the server saying no to the login ("Vui lòng chờ 8 giây", the account
+    // playing elsewhere), with the packets before it.
+    let fault = ended
+        .as_ref()
+        .err()
+        .filter(|e| !e.starts_with(REFUSED))
+        .map(|e| trace.ended(&format!("Lỗi: {e}")));
+    emit(Event::State(match ended {
         Ok(()) => ConnState::Offline,
         Err(e) => ConnState::Error(e),
-    };
-    emit(Event::State(state));
+    }));
+    if let Some(f) = fault {
+        emit(Event::Fault(Box::new(f)));
+    }
 }
+/// How the session's error starts when the server refused the login (s2c/0 before the game).
+const REFUSED: &str = "Server từ chối";
 
 /// Login states of FLOW (src/net/client.ts): each sends one request and waits for its answers.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -62,6 +76,8 @@ pub(super) async fn logged_out(
         match commands.recv().await {
             None | Some(Command::Logout) => return,
             Some(Command::Record(on)) => *record = on,
+            // Nothing went in or out yet.
+            Some(Command::Report(note)) => emit(Event::Fault(Box::new(super::Fault::note(&note)))),
             Some(_) => emit(Event::Log(LogKind::Connection, NOT_READY.into())),
         }
     }
@@ -73,6 +89,7 @@ pub(super) fn unread(op: i32, e: impl std::fmt::Display) -> Error {
     format!("Không đọc được s2c/{op} lúc đăng nhập: {e}")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn session(
     server: (&str, u16),
     record: bool,
@@ -81,6 +98,7 @@ pub(super) async fn session(
     gift: Arc<Mutex<GiftMemory>>,
     commands: &mut UnboundedReceiver<Command>,
     emit: &Emit,
+    trace: &mut Trace,
 ) -> Result<(), Error> {
     // Logout works at every step: the connect and the seed wait end on it too, as the login steps below do.
     let proxy = account.proxy.as_ref().filter(|p| p.enabled);
@@ -129,9 +147,9 @@ pub(super) async fn session(
 
     macro_rules! send {
         ($op:expr, $ctx:expr) => {{
-            let frame = proto
-                .encode($op, &build($op, &$ctx).map_err(|e| e.to_string())?)
-                .map_err(|e| e.to_string())?;
+            let payload = build($op, &$ctx).map_err(|e| e.to_string())?;
+            trace.packet(true, $op, &payload);
+            let frame = proto.encode($op, &payload).map_err(|e| e.to_string())?;
             stream.write_all(&frame).await.map_err(|e| e.to_string())?;
         }};
     }
@@ -155,6 +173,7 @@ pub(super) async fn session(
                 proto.push(&buf[..n]);
                 while let Some(p) = proto.next_packet().map_err(|e| e.to_string())? {
                     let Some(op) = p.opcode else { continue };
+                    trace.packet(false, op, &p.payload);
                     let now = std::time::Instant::now();
                     if let Err(e) = bot.on_packet(op, &p.payload, now, &mut out) {
                         out.push(Out::Log(LogKind::Server, format!("Không đọc được s2c/{op}: {e}")));
@@ -244,8 +263,13 @@ pub(super) async fn session(
             _ = heartbeat.tick(), if step != Step::Key => send!(1, Ctx::default()),
             cmd = commands.recv() => {
                 let now = std::time::Instant::now();
+                if let Some(c) = &cmd {
+                    trace.command(c);
+                }
                 match cmd {
                     None | Some(Command::Logout) => return Ok(()),
+                    // At any step, with what went in and out so far.
+                    Some(Command::Report(note)) => emit(Event::Fault(Box::new(trace.report(&note)))),
                     // Sent once to every session, so kept even before the game is ready.
                     Some(Command::Record(on)) => bot.set_record(on, &mut out),
                     // Closing the dialog of a nick not in the game is nothing to say.
@@ -288,12 +312,23 @@ pub(super) async fn session(
         for o in out.drain(..) {
             match o {
                 Out::Send(op, payload) => {
+                    trace.packet(true, op, &payload);
                     let frame = proto.encode(op, &payload).map_err(|e| e.to_string())?;
                     stream.write_all(&frame).await.map_err(|e| e.to_string())?;
                     // Lưu dữ liệu trận: what goes out during a battle goes into its data.
                     bot.record_sent(op, &payload, std::time::Instant::now());
                 }
-                Out::Log(kind, text) => emit(Event::Log(kind, text)),
+                Out::Log(kind, text) => {
+                    let fault = if is_fault(&text) {
+                        trace.fault(kind, &text, std::time::Instant::now())
+                    } else {
+                        None
+                    };
+                    emit(Event::Log(kind, text));
+                    if let Some(f) = fault {
+                        emit(Event::Fault(Box::new(f)));
+                    }
+                }
                 Out::Battle(record) => emit(Event::Battle(record)),
                 Out::Pickup(record) => emit(Event::Pickup(record)),
                 Out::BattleData(data) => emit(Event::BattleData(data)),

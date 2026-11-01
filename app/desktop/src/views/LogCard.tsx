@@ -133,6 +133,15 @@ export function LogCard({ id, lines, fighting }: Props) {
           <Button
             kind="ghost"
             small
+            icon="bug"
+            onClick={() => useStore.getState().open({ kind: "report", id })}
+            title="Lưu lỗi vừa gặp cùng nhật ký và gói tin gần nhất vào Log lỗi, để xuất ra gửi đi"
+          >
+            Báo lỗi
+          </Button>
+          <Button
+            kind="ghost"
+            small
             icon="eraser"
             disabled={!older.length && !visible.length}
             onClick={clear}

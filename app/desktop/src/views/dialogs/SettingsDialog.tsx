@@ -10,11 +10,13 @@ import { TextField } from "@/components/TextField";
 import { num, size } from "@/utils/format";
 import { inGame, useStore } from "@/store";
 import type { Exported, OnClose, Settings, SettingsView } from "@/api/types";
+import { FaultsPage } from "./FaultsPage";
 
-type Page = "server" | "data" | "window";
+type Page = "server" | "data" | "faults" | "window";
 const PAGES: Tab<Page>[] = [
   { key: "server", label: "Server game", icon: "server" },
   { key: "data", label: "Dữ liệu trận", icon: "chart" },
+  { key: "faults", label: "Log lỗi", icon: "bug" },
   { key: "window", label: "Cửa sổ", icon: "tray" },
 ];
 
@@ -38,11 +40,12 @@ const PAGE = "[grid-area:1/1] grid gap-2.5 [align-content:start] min-w-0 inert:i
 const EXPORT_TEXT = "flex-[1_1_220px] m-0 text-[11.5px] text-fg-2 wrap-anywhere";
 
 /**
- * Cài đặt of the app, behind the button beside the name CLLT Tool, in three tabs. Server game: the address the next logins
+ * Cài đặt of the app, behind the button beside the name CLLT Tool, in four tabs. Server game: the address the next logins
  * connect to; Mặc định puts back play.colauloanthe.vn:1688. Dữ liệu trận: Lưu
  * dữ liệu trận for every account, and Xuất dữ liệu trận, which at once writes every saved battle to one file in
- * Downloads. Cửa sổ: what the close button of the window does. The tabs stay in the form, the hidden ones inert, so the
- * dialog keeps the height of the tallest and Lưu saves them all to settings.json.
+ * Downloads. Log lỗi (FaultsPage): the faults kept, read when the dialog opens, and Xuất and Xoá log lỗi, at once too.
+ * Cửa sổ: what the close button of the window does. The tabs stay in the form, the hidden ones inert, so the dialog keeps
+ * the height of the tallest and Lưu saves them all to settings.json.
  */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -188,6 +191,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     </p>
                   )}
                 </div>
+              </div>
+
+              <div className={PAGE} inert={page !== "faults"}>
+                <FaultsPage />
               </div>
 
               <div className={PAGE} inert={page !== "window"}>

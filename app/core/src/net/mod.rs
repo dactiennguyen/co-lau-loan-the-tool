@@ -86,6 +86,8 @@ pub enum Command {
     Mail(MailTask),
     /// A task of the Chợ trời tab (Bot::market).
     Market(MarketTask),
+    /// Báo lỗi with the note of the user: the session answers with Event::Fault, its last packets and commands.
+    Report(String),
     Logout,
 }
 
@@ -108,6 +110,9 @@ pub enum Event {
     Pickup(Box<PickupRecord>),
     /// The packets of a battle and what both sides were (Out::BattleData), for battle_data of cllt.db.
     BattleData(Box<BattleData>),
+    /// A fault of the session or a Báo lỗi, with what went in and out before it (trace.rs), for Log lỗi. Comes after
+    /// the log line or the state it is about.
+    Fault(Box<Fault>),
 }
 
 /// The game server the sessions connect to: play.colauloanthe.vn:1688, as the game's config says, unless the app's Cài
@@ -144,7 +149,9 @@ mod manager;
 mod session;
 #[cfg(test)]
 mod tests;
+mod trace;
 
 pub use connect::check_proxy;
 pub use manager::Manager;
 pub use session::run;
+pub use trace::{is_fault, Fault, Traced};

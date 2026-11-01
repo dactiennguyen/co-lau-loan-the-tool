@@ -8,7 +8,7 @@ use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
 use cllt_core::bot::{add_picked, BattleResult, FightSettings, LogKind, Snapshot};
 use cllt_core::items::book;
-use cllt_core::net::{Command, ConnState, Event, Manager, Server};
+use cllt_core::net::{Command, ConnState, Event, Fault, Manager, Server};
 use cllt_core::npc::{self, BagItem, MergeForecast, MergeOptions};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::Proxy;
@@ -22,6 +22,8 @@ use tauri::{AppHandle, Emitter, Manager as _};
 
 /// Lines of log kept per account.
 const LOG_LINES: usize = 500;
+/// Lines of the account's log a Log lỗi keeps, the last ones.
+const FAULT_LINES: usize = 60;
 /// Lines of the earlier sessions shown when the app starts; older ones come from cllt.db on demand.
 const HISTORY: u32 = 200;
 /// Longest wait before the UI hears of a change: the changes of that window (a battle turn on every account, a zone
@@ -135,6 +137,16 @@ pub struct App {
 /// The key of an account in cllt.db: its username in lower case, as the server takes it.
 pub fn username(account: &Account) -> String {
     account.username.to_lowercase()
+}
+
+/// The app and the system, at the head of a Log lỗi and of the file Xuất log lỗi writes.
+pub fn app_info() -> serde_json::Map<String, serde_json::Value> {
+    let mut m = serde_json::Map::new();
+    m.insert("app".into(), crate::app_name().into());
+    m.insert("version".into(), env!("CARGO_PKG_VERSION").into());
+    m.insert("os".into(), std::env::consts::OS.into());
+    m.insert("arch".into(), std::env::consts::ARCH.into());
+    m
 }
 
 /// Wall clock in ms since 1970.
@@ -744,6 +756,70 @@ impl App {
         let _ = self.wake.send(());
     }
 
+    /// Log lỗi: keeps fault `f` of account `id` (None for the UI, whose stack is `detail`) in cllt.db, with what the app
+    /// knows of the account then (its card as the UI has it, without the proxy; its last FAULT_LINES log lines) and the
+    /// app and system. Never the password: accounts.json is not read, and the session's trace leaves out c2s/4.
+    pub fn add_fault(&mut self, id: Option<u64>, f: Fault, detail: Option<&str>) {
+        let Some(store) = &self.store else { return };
+        let entry = id.and_then(|id| self.entries.iter().find(|e| e.id == id));
+        let source = if f.reported {
+            "report"
+        } else if entry.is_none() {
+            "ui"
+        } else if f.kind == LogKind::Connection && f.text.starts_with("Lỗi") {
+            "connection"
+        } else {
+            "bot"
+        };
+        let account = entry.map(|e| {
+            let mut card = serde_json::to_value(view::account(e)).unwrap_or_default();
+            if let Some(card) = card.as_object_mut() {
+                card.remove("proxy");
+            }
+            card
+        });
+        let log: Vec<_> = entry
+            .map(|e| e.log.iter().rev().take(FAULT_LINES).rev().collect())
+            .unwrap_or_default();
+        let report = serde_json::json!({
+            "app": app_info(),
+            "kind": f.kind,
+            "reported": f.reported,
+            "detail": detail,
+            "account": account,
+            "log": log
+                .iter()
+                .map(|l| serde_json::json!({ "at": l.at, "time": l.time, "kind": l.kind, "text": l.text }))
+                .collect::<Vec<_>>(),
+            "commands": f.commands,
+            "packets": f.packets,
+        });
+        let user = entry.map(|e| username(&e.account));
+        if let Err(e) = store.add_fault(
+            epoch_ms(),
+            user.as_deref(),
+            source,
+            &f.text,
+            &report.to_string(),
+        ) {
+            eprintln!("cllt.db: không ghi được log lỗi: {e}");
+        }
+    }
+
+    /// Báo lỗi of account `id` with the user's `note`: through its session, which adds its last packets and commands
+    /// (Command::Report, back as Event::Fault); without one, at once with what the app has.
+    pub fn report(&mut self, id: u64, note: &str) {
+        let running = self.manager.as_ref().is_some_and(|m| m.running(id));
+        if !(running
+            && self
+                .manager
+                .as_ref()
+                .is_some_and(|m| m.send(id, Command::Report(note.into()))))
+        {
+            self.add_fault(Some(id), Fault::note(note), None);
+        }
+    }
+
     pub fn on_event(&mut self, id: u64, event: Event) {
         match event {
             Event::State(state) => {
@@ -770,6 +846,7 @@ impl App {
                 self.touch(id, false);
             }
             Event::Log(kind, text) => self.log(id, kind, &text),
+            Event::Fault(f) => self.add_fault(Some(id), *f, None),
             Event::Battle(record) => {
                 if let Some(e) = self.entry_mut(id) {
                     e.loot_next = (record.result == BattleResult::Won).then_some(record.ended_at);
@@ -840,6 +917,110 @@ mod tests {
             proxy: None,
             algorithm: Default::default(),
         }
+    }
+
+    #[test]
+    fn log_loi_keeps_the_fault_with_the_account_its_last_lines_and_packets_but_no_secret() {
+        use cllt_core::net::Traced;
+        let store = Arc::new(Store::memory().unwrap());
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        app.set_store(store.clone());
+        let mut a = account("Wangpt");
+        a.proxy = Some(Proxy {
+            enabled: true,
+            kind: Default::default(),
+            host: "1.2.3.4".into(),
+            port: 1080,
+            username: "proxy-user".into(),
+            password: "proxy-secret".into(),
+        });
+        let id = app.add(a);
+        app.on_event(id, Event::State(ConnState::Online));
+        let text = "Không đọc được túi đồ (s2c/1187): PAYLOAD_SCHEMA: Invalid field length 4 at 5";
+        app.on_event(id, Event::Log(LogKind::Item, text.into()));
+        let packet = Traced {
+            at: 1,
+            dir: "s2c",
+            op: 1187,
+            len: 2,
+            hex: "0001".into(),
+        };
+        let fault = Fault {
+            text: text.into(),
+            kind: LogKind::Item,
+            reported: false,
+            commands: vec![(1, "Item(Use(8))".into())],
+            packets: vec![packet],
+        };
+        app.on_event(id, Event::Fault(Box::new(fault)));
+        // Báo lỗi without a session: saved at once, with what the app has.
+        app.report(id, "mở trứng không được");
+        app.on_event(
+            id,
+            Event::Fault(Box::new(Fault {
+                text: "Lỗi: Server đã đóng kết nối".into(),
+                ..Fault::note("")
+            })),
+        );
+        app.on_event(
+            id,
+            Event::Fault(Box::new(Fault {
+                reported: false,
+                ..Fault::note("Lỗi: Server đã đóng kết nối")
+            })),
+        );
+        app.add_fault(
+            None,
+            Fault {
+                reported: false,
+                ..Fault::note("TypeError: x")
+            },
+            Some("at f (App.tsx:1)"),
+        );
+
+        let list = store.faults(10).unwrap();
+        assert_eq!(
+            list.recent
+                .iter()
+                .rev()
+                .map(|f| (f.source.as_str(), f.username.as_deref()))
+                .collect::<Vec<_>>(),
+            [
+                ("bot", Some("wangpt")),
+                ("report", Some("wangpt")),
+                ("report", Some("wangpt")),
+                ("connection", Some("wangpt")),
+                ("ui", None)
+            ]
+        );
+        let dir = std::env::temp_dir().join(format!("cllt-app-faults-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let to = dir.join("cllt-errors.json");
+        let _ = std::fs::remove_file(&to);
+        store.export_faults(&to, app_info()).unwrap();
+        let file = std::fs::read_to_string(&to).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        for secret in ["proxy-secret", "proxy-user", "\"password\""] {
+            assert!(!file.contains(secret), "{secret} in {file}");
+        }
+        let doc: serde_json::Value = serde_json::from_str(&file).unwrap();
+        assert_eq!(doc["version"], env!("CARGO_PKG_VERSION"));
+        let bot = &doc["faults"][0]["report"];
+        assert_eq!(bot["packets"][0]["hex"], "0001");
+        assert_eq!(bot["commands"][0][1], "Item(Use(8))");
+        assert_eq!(bot["account"]["username"], "Wangpt");
+        assert!(bot["account"].get("proxy").is_none());
+        let lines: Vec<_> = bot["log"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l["text"].as_str().unwrap())
+            .collect();
+        assert_eq!(lines, ["Đã vào game", text]);
+        assert_eq!(doc["faults"][1]["text"], "mở trứng không được");
+        assert_eq!(doc["faults"][4]["report"]["detail"], "at f (App.tsx:1)");
+        // The line of the fault is red.
+        assert_eq!(app.logs(id)[1].tone, crate::view::LogTone::Bad as u8);
     }
 
     #[test]

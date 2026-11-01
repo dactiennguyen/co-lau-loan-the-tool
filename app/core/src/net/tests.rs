@@ -348,6 +348,86 @@ async fn a_map_or_mobs_that_do_not_read_stop_the_login() {
     }
 }
 
+/// The Event::Fault the session sent, in order.
+fn faults(events: &Events) -> Vec<super::Fault> {
+    let events = events.lock().unwrap();
+    events
+        .iter()
+        .filter_map(|e| match e {
+            Event::Fault(f) => Some((**f).clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn the_error_that_ends_a_login_goes_to_log_loi_with_the_packets_before_it() {
+    let (events, _tx, task) = login(Fault::Map).await;
+    ends(task).await;
+    let faults = faults(&events);
+    // The made-up s2c/9 and s2c/42 do not read in full: one fault each, though four decoders of s2c/9 say so.
+    assert_eq!(
+        faults
+            .iter()
+            .map(|f| f.text.split(':').next().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "Không đọc được phần sau của s2c/9",
+            "Không đọc được túi đồ (s2c/42)",
+            "Lỗi"
+        ]
+    );
+    let f = &faults[2];
+    assert!(
+        f.text.starts_with("Lỗi: Không đọc được s2c/11"),
+        "{}",
+        f.text
+    );
+    assert!(!f.reported);
+    // The last packet is the one that did not read; c2s/4 is there without its payload, the heartbeats are not.
+    let last = f.packets.last().unwrap();
+    assert_eq!((last.dir, last.op, last.hex.as_str()), ("s2c", 11, "01"));
+    let proof = f
+        .packets
+        .iter()
+        .find(|p| p.dir == "c2s" && p.op == 4)
+        .unwrap();
+    assert!(proof.len > 0 && proof.hex.is_empty(), "{proof:?}");
+    assert!(f.packets.iter().all(|p| p.op != 1));
+    // After the state it is about.
+    let events = events.lock().unwrap();
+    assert!(matches!(events.last(), Some(Event::Fault(_))));
+}
+
+#[tokio::test]
+async fn bao_loi_answers_with_what_went_in_and_out() {
+    let (events, tx, task) = login(Fault::None).await;
+    online(&events).await;
+    tx.send(Command::ListZones).unwrap();
+    tx.send(Command::Report("mở trứng không được".into()))
+        .unwrap();
+    let reported = || faults(&events).into_iter().find(|f| f.reported);
+    let wait = async {
+        while reported().is_none() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    };
+    timeout(Duration::from_secs(2), wait).await.unwrap();
+    let f = reported().unwrap();
+    assert_eq!(f.text, "mở trứng không được");
+    assert!(
+        f.commands.iter().any(|(_, c)| c == "ListZones"),
+        "{:?}",
+        f.commands
+    );
+    assert!(f.packets.iter().any(|p| p.dir == "s2c" && p.op == 43));
+    let before = faults(&events).len();
+    tx.send(Command::Logout).unwrap();
+    ends(task).await;
+    // A session that just ended is no fault.
+    assert_eq!(faults(&events).len(), before);
+}
+
 #[tokio::test]
 async fn players_that_do_not_read_leave_the_login_online_with_them_unknown() {
     let (events, tx, task) = login(Fault::Players).await;

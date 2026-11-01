@@ -6,6 +6,7 @@ import { AccountPage } from "@/views/AccountPage";
 import { CloseDialog } from "@/views/dialogs/CloseDialog";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { PlaceDialog } from "@/views/dialogs/PlaceDialog";
+import { ReportDialog } from "@/views/dialogs/ReportDialog";
 import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
 import { AccountsJsonDialog } from "@/views/dialogs/AccountsJsonDialog";
 import { SkillsModal } from "@/views/SkillsModal";
@@ -38,9 +39,9 @@ export default function App() {
   );
 }
 
-/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Tiện ích, Khởi động
- * lại để cập nhật while accounts play, the Cài đặt of the app and Đóng cửa sổ; nothing once the account it is about is
- * gone. */
+/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Tiện ích, Báo lỗi,
+ * Khởi động lại để cập nhật while accounts play, the Cài đặt of the app and Đóng cửa sổ; nothing once the account it is
+ * about is gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   const account = useStore((s) => (dialog && "id" in dialog ? s.byId[dialog.id] : undefined));
@@ -80,6 +81,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "place" && account) {
     return <PlaceDialog account={account} onClose={close} />;
+  }
+  if (dialog?.kind === "report" && account) {
+    return <ReportDialog account={account} onClose={close} />;
   }
   if (dialog?.kind === "skills" && account) {
     return <SkillsModal account={account} onClose={close} />;

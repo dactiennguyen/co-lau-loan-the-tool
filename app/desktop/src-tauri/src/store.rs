@@ -16,6 +16,8 @@ use std::sync::{Mutex, MutexGuard};
 pub const LOG_DAYS: u64 = 30;
 pub const BATTLE_DAYS: u64 = 90;
 pub const DAY_MS: u64 = 86_400_000;
+/// Log lỗi kept at most; the oldest go first (Store::add_fault).
+pub const FAULTS_KEPT: i64 = 500;
 
 /// The tables, version by version: MIGRATIONS[i] takes a database from user_version i to i + 1. The first one is the
 /// schema of 0.4.0 and before, all IF NOT EXISTS, so a cllt.db of those versions (user_version 0, tables there) goes
@@ -96,6 +98,18 @@ CREATE TABLE IF NOT EXISTS battle_data (
 );
 CREATE INDEX IF NOT EXISTS battle_data_by_account ON battle_data (username, started_at);
 ",
+    // Log lỗi (App::add_fault): a fault of a session or of the UI, or a Báo lỗi, with its report in JSON (the account,
+    // its last log lines, the commands and packets before it). FAULTS_KEPT at most; Store::prune leaves it alone.
+    "
+CREATE TABLE IF NOT EXISTS faults (
+    id INTEGER PRIMARY KEY,
+    at INTEGER NOT NULL,
+    username TEXT,
+    source TEXT NOT NULL,
+    text TEXT NOT NULL,
+    report TEXT NOT NULL
+);
+",
 ];
 
 /// battle_data of `db` into a new database at `to`. The table is made from the columns `db` has now (PRAGMA table_info,
@@ -142,6 +156,29 @@ pub struct StoredLog {
     pub tone: u8,
     pub text: String,
     pub picked: Vec<Picked>,
+}
+
+/// A Log lỗi as the Cài đặt tab lists it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaultRow {
+    pub id: i64,
+    /// ms since 1970.
+    pub at: u64,
+    /// The account, None for the UI.
+    pub username: Option<String>,
+    /// "bot" (a line of the bot), "connection" (the error that ended a session), "report" (Báo lỗi) or "ui".
+    pub source: String,
+    pub text: String,
+}
+
+/// Log lỗi: how many are kept and the bytes of their reports, and the newest first.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaultList {
+    pub count: u64,
+    pub bytes: u64,
+    pub recent: Vec<FaultRow>,
 }
 
 /// A battle of the history, with its row id (the cursor for the next page) and what was picked up after it.
@@ -758,6 +795,109 @@ impl Store {
             closest,
             losses,
         })
+    }
+
+    /// Keeps a Log lỗi of `username` (None for the UI) with its `report` (JSON); the oldest beyond FAULTS_KEPT go.
+    pub fn add_fault(
+        &self,
+        at: u64,
+        username: Option<&str>,
+        source: &str,
+        text: &str,
+        report: &str,
+    ) -> rusqlite::Result<i64> {
+        let db = self.db();
+        db.execute(
+            "INSERT INTO faults (at, username, source, text, report) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![at as i64, username, source, text, report],
+        )?;
+        let id = db.last_insert_rowid();
+        db.execute(
+            "DELETE FROM faults WHERE id <= ?1",
+            params![id - FAULTS_KEPT],
+        )?;
+        Ok(id)
+    }
+
+    /// Log lỗi for the Cài đặt tab: the count, the bytes, and the `limit` newest.
+    pub fn faults(&self, limit: u32) -> rusqlite::Result<FaultList> {
+        let db = self.db();
+        let (count, bytes) = db.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(octet_length(text) + octet_length(report)), 0) FROM faults",
+            [],
+            |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i64>(1)? as u64)),
+        )?;
+        let mut q = db.prepare(
+            "SELECT id, at, username, source, text FROM faults ORDER BY id DESC LIMIT ?1",
+        )?;
+        let recent = q
+            .query_map(params![limit as i64], |r| {
+                Ok(FaultRow {
+                    id: r.get(0)?,
+                    at: r.get::<_, i64>(1)? as u64,
+                    username: r.get(2)?,
+                    source: r.get(3)?,
+                    text: r.get(4)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(FaultList {
+            count,
+            bytes,
+            recent,
+        })
+    }
+
+    /// Xoá log lỗi: all of them; how many.
+    pub fn clear_faults(&self) -> rusqlite::Result<usize> {
+        self.db().execute("DELETE FROM faults", [])
+    }
+
+    /// Xuất log lỗi: every Log lỗi, oldest first, each with its time on this computer and its report, after the fields
+    /// of `head` (the app, its version, the system), as one JSON file at `to`. How many. A file already at `to` is an
+    /// error and stays as it is.
+    pub fn export_faults(
+        &self,
+        to: &Path,
+        head: serde_json::Map<String, serde_json::Value>,
+    ) -> Result<u64, String> {
+        use chrono::TimeZone as _;
+        use serde_json::{json, Value};
+        if to.exists() {
+            return Err(format!("{} đã có", to.display()));
+        }
+        let rows = {
+            let db = self.db();
+            let mut q = db
+                .prepare("SELECT id, at, username, source, text, report FROM faults ORDER BY id")
+                .map_err(|e| e.to_string())?;
+            let rows = q
+                .query_map([], |r| {
+                    let at: i64 = r.get(1)?;
+                    let report: String = r.get(5)?;
+                    Ok(json!({
+                        "id": r.get::<_, i64>(0)?,
+                        "at": at,
+                        "time": chrono::Local
+                            .timestamp_millis_opt(at)
+                            .single()
+                            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+                        "username": r.get::<_, Option<String>>(2)?,
+                        "source": r.get::<_, String>(3)?,
+                        "text": r.get::<_, String>(4)?,
+                        "report": serde_json::from_str::<Value>(&report).unwrap_or(Value::String(report)),
+                    }))
+                })
+                .map_err(|e| e.to_string())?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(|e| e.to_string())?
+        };
+        let count = rows.len() as u64;
+        let mut doc = head;
+        doc.insert("faults".into(), Value::Array(rows));
+        let bytes = serde_json::to_vec_pretty(&doc).map_err(|e| e.to_string())?;
+        std::fs::write(to, bytes).map_err(|e| format!("{}: {e}", to.display()))?;
+        Ok(count)
     }
 
     /// Deletes the log lines older than LOG_DAYS, and the battles that ended more than BATTLE_DAYS before `now` with the
@@ -1409,5 +1549,63 @@ mod tests {
             .unwrap();
         let e = Store::init(db, None).err().unwrap().to_string();
         assert!(e.contains("bản app mới hơn"), "{e}");
+    }
+
+    #[test]
+    fn log_loi_keeps_the_newest_lists_them_exports_them_and_clears_them() {
+        let s = Store::memory().unwrap();
+        assert_eq!(s.faults(10).unwrap(), FaultList::default());
+        let report = r#"{"packets":[{"dir":"s2c","op":1187,"hex":"00"}]}"#;
+        s.add_fault(
+            1_000,
+            Some("wangpt"),
+            "bot",
+            "Không đọc được túi đồ (s2c/1187)",
+            report,
+        )
+        .unwrap();
+        s.add_fault(2_000, None, "ui", "TypeError: x is undefined", "not json")
+            .unwrap();
+        let list = s.faults(1).unwrap();
+        assert_eq!(list.count, 2);
+        assert!(list.bytes > 0);
+        assert_eq!(
+            list.recent,
+            [FaultRow {
+                id: 2,
+                at: 2_000,
+                username: None,
+                source: "ui".into(),
+                text: "TypeError: x is undefined".into()
+            }]
+        );
+
+        let dir = std::env::temp_dir().join(format!("cllt-faults-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let to = dir.join("cllt-errors.json");
+        let _ = std::fs::remove_file(&to);
+        let mut head = serde_json::Map::new();
+        head.insert("version".into(), "0.8.0".into());
+        assert_eq!(s.export_faults(&to, head.clone()).unwrap(), 2);
+        let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(&to).unwrap()).unwrap();
+        assert_eq!(doc["version"], "0.8.0");
+        assert_eq!(doc["faults"][0]["username"], "wangpt");
+        // The report as JSON, or as the text it was.
+        assert_eq!(doc["faults"][0]["report"]["packets"][0]["op"], 1187);
+        assert_eq!(doc["faults"][1]["report"], "not json");
+        assert!(doc["faults"][1]["time"].is_string());
+        // Never over a file that is there.
+        assert!(s.export_faults(&to, head).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        // The oldest leave past FAULTS_KEPT.
+        for i in 0..FAULTS_KEPT {
+            s.add_fault(3_000 + i as u64, None, "ui", "x", "{}")
+                .unwrap();
+        }
+        let list = s.faults(1).unwrap();
+        assert_eq!(list.count, FAULTS_KEPT as u64);
+        assert_eq!(s.clear_faults().unwrap(), FAULTS_KEPT as usize);
+        assert_eq!(s.faults(5).unwrap().count, 0);
     }
 }

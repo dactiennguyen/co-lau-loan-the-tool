@@ -156,20 +156,42 @@ pub struct Exported {
     pub bytes: u64,
 }
 
-/// cllt-battles-<local time>.db in `dir`, with -2, -3… when a file of that name is there already.
-pub fn export_path(dir: &Path, time: &str) -> PathBuf {
-    free_path(dir, &format!("cllt-battles-{time}"), "db")
+/// Xuất log lỗi: the file written, how many Log lỗi it holds, and its bytes.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportedFaults {
+    pub path: String,
+    pub faults: u64,
+    pub bytes: u64,
 }
 
-/// cllt-accounts-<local time>.json of Xuất JSON in `dir`, numbered the same way.
-pub fn accounts_export_path(dir: &Path, time: &str) -> PathBuf {
-    free_path(dir, &format!("cllt-accounts-{time}"), "json")
+/// What an export writes: the battles of Lưu dữ liệu trận (a SQLite file), Log lỗi (a JSON file), or the accounts of
+/// Xuất JSON (a JSON file only its owner reads, write_private).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Export {
+    Battles,
+    Faults,
+    Accounts,
+}
+impl Export {
+    const ALL: [Export; 3] = [Export::Battles, Export::Faults, Export::Accounts];
+    /// The start and the end of its file names.
+    fn name(self) -> (&'static str, &'static str) {
+        match self {
+            Export::Battles => ("cllt-battles-", ".db"),
+            Export::Faults => ("cllt-errors-", ".json"),
+            Export::Accounts => ("cllt-accounts-", ".json"),
+        }
+    }
 }
 
-fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+/// cllt-battles-<local time>.db, cllt-errors-<local time>.json or cllt-accounts-<local time>.json in `dir`, with -2,
+/// -3… when a file of that name is there already.
+pub fn export_path(dir: &Path, export: Export, time: &str) -> PathBuf {
+    let (start, end) = export.name();
     let name = |n: u32| match n {
-        1 => format!("{stem}.{ext}"),
-        n => format!("{stem}-{n}.{ext}"),
+        1 => format!("{start}{time}{end}"),
+        n => format!("{start}{time}-{n}{end}"),
     };
     (1..)
         .map(|n| dir.join(name(n)))
@@ -177,12 +199,15 @@ fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
         .unwrap()
 }
 
-/// A file Xuất dữ liệu trận or Xuất JSON wrote: only those are shown in Finder or Explorer.
+/// A file an export wrote: only those are shown in Finder or Explorer.
 pub fn is_export(path: &Path) -> bool {
+    let name = path.file_name().and_then(|n| n.to_str());
     path.is_file()
-        && path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
-            (n.starts_with("cllt-battles-") && n.ends_with(".db"))
-                || (n.starts_with("cllt-accounts-") && n.ends_with(".json"))
+        && name.is_some_and(|n| {
+            Export::ALL.iter().any(|e| {
+                let (start, end) = e.name();
+                n.starts_with(start) && n.ends_with(end)
+            })
         })
 }
 
@@ -348,16 +373,21 @@ mod tests {
     fn export_names_do_not_overwrite_and_only_they_are_revealed() {
         let dir = std::env::temp_dir().join(format!("cllt-export-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let first = export_path(&dir, "20261031-203000");
+        let first = export_path(&dir, Export::Battles, "20261031-203000");
         assert!(first.ends_with("cllt-battles-20261031-203000.db"));
         assert!(!is_export(&first));
         std::fs::write(&first, "").unwrap();
         assert!(is_export(&first));
-        assert!(export_path(&dir, "20261031-203000").ends_with("cllt-battles-20261031-203000-2.db"));
+        assert!(export_path(&dir, Export::Battles, "20261031-203000")
+            .ends_with("cllt-battles-20261031-203000-2.db"));
+        let errors = export_path(&dir, Export::Faults, "20261101-220000");
+        assert!(errors.ends_with("cllt-errors-20261101-220000.json"));
+        std::fs::write(&errors, "{}").unwrap();
+        assert!(is_export(&errors));
         let other = dir.join("accounts.json");
         std::fs::write(&other, "").unwrap();
         assert!(!is_export(&other));
-        let json = accounts_export_path(&dir, "20261101-220000");
+        let json = export_path(&dir, Export::Accounts, "20261101-220000");
         assert!(json.ends_with("cllt-accounts-20261101-220000.json"));
         write_private(&json, "{}").unwrap();
         assert!(is_export(&json));
@@ -369,7 +399,7 @@ mod tests {
             ) & 0o777,
             0o600
         );
-        assert!(accounts_export_path(&dir, "20261101-220000")
+        assert!(export_path(&dir, Export::Accounts, "20261101-220000")
             .ends_with("cllt-accounts-20261101-220000-2.json"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
