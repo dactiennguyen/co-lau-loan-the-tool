@@ -102,7 +102,7 @@ app/
         shop/                 modal Tiện ích: ShopModal và các trang ShopBuy, ShopMerge, ShopUpgrade, ShopExchange, Stone
         dialogs/              hộp thoại: AccountDialog (thêm và sửa nick) với ProxyFields, ConfirmDialog (hỏi trước khi
                               xoá), StopDialog, PlaceDialog, SettingsDialog (Cài đặt của app), StatPlanDialog,
-                              UpdateDialog
+                              UpdateDialog, CloseDialog (Đóng cửa sổ: thu nhỏ vào khay hay thoát)
       assets/fonts/           Silkscreen (chữ pixel cho số) và Be Vietnam Pro (chữ tiếng Việt), cả hai OFL
     src-tauri/              crate cllt-desktop
       tauri.conf.json         cửa sổ, CSP, bundle (mọi định dạng của hệ đang build), khoá công khai và địa chỉ của
@@ -117,8 +117,10 @@ app/
                               và dòng nhật ký mới ("log"); ghi accounts.json ngoài khoá chung
       src/view.rs             Snapshot → AccountView mà giao diện nhận
       src/paths.rs            accounts.json, data/maps.json
-      src/settings.rs         Cài đặt của app (settings.json): server game, Lưu dữ liệu trận;
+      src/settings.rs         Cài đặt của app (settings.json): server game, Lưu dữ liệu trận, khi đóng cửa sổ;
                               tên file và Mở thư mục của Xuất dữ liệu trận
+      src/tray.rs             icon ở khay (Mở cửa sổ, Thoát), nút đóng cửa sổ, App Nap trên macOS; xem
+                              Thu nhỏ vào khay
       src/sample.rs           dữ liệu mẫu cho --sample, --dump-sample
       src/update.rs           tự cập nhật từ GitHub Releases (tauri-plugin-updater), xem Tự cập nhật
       src/store.rs            cllt.db (SQLite): nhật ký, lịch sử trận và đồ nhặt, phiên bản bảng (user_version)

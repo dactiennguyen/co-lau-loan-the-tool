@@ -1,5 +1,5 @@
-// Cài đặt of the app, behind the button beside colautool: the game server and Lưu dữ liệu trận, the same for every
-// account. settings.json beside accounts.json; local only (app/.gitignore).
+// Cài đặt of the app, behind the button beside colautool: the game server, Lưu dữ liệu trận and what closing the window
+// does, the same for every account. settings.json beside accounts.json; local only (app/.gitignore).
 use cllt_core::net::Server;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -11,14 +11,27 @@ pub struct Settings {
     pub server: Server,
     /// Lưu dữ liệu trận: every battle of every account into battle_data of cllt.db (Manager::set_record).
     pub record: bool,
+    /// The close button of the window (tray.rs): ask, hide it in the tray with the accounts still playing, or quit.
+    pub on_close: OnClose,
 }
 impl Default for Settings {
     fn default() -> Self {
         Self {
             server: Server::default(),
             record: true,
+            on_close: OnClose::Ask,
         }
     }
+}
+
+/// "onClose" of settings.json: "ask" (the Đóng cửa sổ dialog), "tray" (Thu nhỏ vào khay) or "quit" (Thoát ứng dụng).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OnClose {
+    #[default]
+    Ask,
+    Tray,
+    Quit,
 }
 impl Settings {
     /// The host trimmed, an IPv6 address without its brackets; the error to show for an empty host, one that is not a
@@ -215,6 +228,7 @@ mod tests {
                 port: 1700,
             },
             record: false,
+            on_close: OnClose::Tray,
         };
         save(&file, &changed).unwrap();
         assert_eq!(load(&file), changed);
@@ -232,6 +246,7 @@ mod tests {
                     port: Server::default().port,
                 },
                 record: false,
+                ..Settings::default()
             }
         );
         std::fs::write(
@@ -246,6 +261,11 @@ mod tests {
                 ..Settings::default()
             }
         );
+        // What closing the window does: a value not known is the file not read.
+        std::fs::write(&file, r#"{"onClose": "quit"}"#).unwrap();
+        assert_eq!(load(&file).on_close, OnClose::Quit);
+        std::fs::write(&file, r#"{"onClose": "close", "record": false}"#).unwrap();
+        assert_eq!(load(&file), Settings::default());
         std::fs::write(&file, "{").unwrap();
         assert_eq!(load(&file), Settings::default());
         std::fs::remove_dir_all(&dir).unwrap();
@@ -286,7 +306,7 @@ mod tests {
                 host: host.into(),
                 port,
             },
-            record: true,
+            ..Settings::default()
         };
         let host = |s: Settings| s.checked().unwrap().server.host;
         assert_eq!(

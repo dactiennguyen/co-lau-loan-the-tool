@@ -2,7 +2,7 @@
 // change the App; the flusher of app.rs tells the UI. Adding and removing an account write accounts.json, so they are
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
-use crate::settings::{self, Exported, Settings, SettingsView};
+use crate::settings::{self, Exported, OnClose, Settings, SettingsView};
 use crate::store::{BattleFilter, BattleStats, StoredBattle};
 use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
@@ -596,6 +596,26 @@ pub async fn settings(shared: State<'_, Shared>) -> Result<SettingsView, String>
 #[tauri::command]
 pub async fn set_settings(shared: State<'_, Shared>, settings: Settings) -> Result<(), String> {
     shared.set_settings(settings).await
+}
+
+/// A choice of the Đóng cửa sổ dialog (tray.rs): Thu nhỏ vào khay or Thoát ứng dụng, saved first as what the close
+/// button does from now on when Ghi nhớ is ticked. Nothing happens when that cannot be saved; the error is shown.
+#[tauri::command]
+pub async fn close_window(
+    app: AppHandle,
+    shared: State<'_, Shared>,
+    action: OnClose,
+    remember: bool,
+) -> Result<(), String> {
+    if remember {
+        let settings = Settings {
+            on_close: action,
+            ..shared.with(|app| app.settings().clone())
+        };
+        shared.set_settings(settings).await?;
+    }
+    crate::tray::close(&app, action);
+    Ok(())
 }
 
 /// Xuất dữ liệu trận: battle_data of cllt.db into a new file cllt-battles-<time>.db in Downloads, which `npm run

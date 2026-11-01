@@ -15,9 +15,13 @@ tauri-build.workspace = true
 
 [dependencies]
 cllt-core = { path = "../../core" }
-tauri.workspace = true
+tauri = { workspace = true, features = ["tray-icon"] }
 serde.workspace = true
 serde_json.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 tauri-plugin-updater = "2.14"
+
+# tray.rs: keeps the app out of App Nap while its window is in the tray (already in the tree through tauri).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo", "NSString"] }

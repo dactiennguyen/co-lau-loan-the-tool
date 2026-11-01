@@ -9,12 +9,20 @@ import { TabPanel, Tabs, type Tab } from "@/components/Tabs";
 import { TextField } from "@/components/TextField";
 import { num, size } from "@/utils/format";
 import { inGame, useStore } from "@/store";
-import type { Exported, Settings, SettingsView } from "@/api/types";
+import type { Exported, OnClose, Settings, SettingsView } from "@/api/types";
 
-type Page = "server" | "data";
+type Page = "server" | "data" | "window";
 const PAGES: Tab<Page>[] = [
   { key: "server", label: "Server game", icon: "server" },
   { key: "data", label: "Dữ liệu trận", icon: "chart" },
+  { key: "window", label: "Cửa sổ", icon: "tray" },
+];
+
+/** What the close button of the window can do (tray.rs), as the radio rows of the Cửa sổ tab. */
+const ON_CLOSE: { value: OnClose; title: string; text: string }[] = [
+  { value: "ask", title: "Hỏi mỗi lần", text: "Hiện hộp Đóng cửa sổ để chọn Thu nhỏ vào khay hay Thoát ứng dụng." },
+  { value: "tray", title: "Thu nhỏ vào khay", text: "Ẩn cửa sổ, các nick vẫn chơi tiếp. Mở lại bằng icon ở khay, hoặc chọn Thoát ở menu của icon để đóng hẳn." },
+  { value: "quit", title: "Thoát ứng dụng", text: "Đóng hẳn ứng dụng, mọi nick đang trong game bị đăng xuất." },
 ];
 
 type Export = { state: "idle" } | { state: "working" } | { state: "done"; file: Exported } | { state: "fail"; text: string };
@@ -30,11 +38,11 @@ const PAGE = "[grid-area:1/1] grid gap-2.5 [align-content:start] min-w-0 inert:i
 const EXPORT_TEXT = "flex-[1_1_220px] m-0 text-[11.5px] text-fg-2 wrap-anywhere";
 
 /**
- * Cài đặt of the app, behind the button beside colautool, in two tabs. Server game: the address the next logins connect
- * to; Mặc định puts back play.colauloanthe.vn:1688. Dữ liệu trận: Lưu
+ * Cài đặt of the app, behind the button beside colautool, in three tabs. Server game: the address the next logins
+ * connect to; Mặc định puts back play.colauloanthe.vn:1688. Dữ liệu trận: Lưu
  * dữ liệu trận for every account, and Xuất dữ liệu trận, which at once writes every saved battle to one file in
- * Downloads. Both tabs stay in the form, the hidden one inert, so the dialog keeps the height of the taller and Lưu saves
- * both to settings.json.
+ * Downloads. Cửa sổ: what the close button of the window does. The tabs stay in the form, the hidden ones inert, so the
+ * dialog keeps the height of the tallest and Lưu saves them all to settings.json.
  */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -179,6 +187,36 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                         : "Chưa có trận nào được lưu."}
                     </p>
                   )}
+                </div>
+              </div>
+
+              <div className={PAGE} inert={page !== "window"}>
+                <p className="m-0 text-11 text-fg-2">Khi bấm nút đóng cửa sổ:</p>
+                <div className="grid gap-1.5" role="radiogroup" aria-label="Khi bấm nút đóng cửa sổ">
+                  {ON_CLOSE.map((o) => (
+                    // The chosen one on a lighter plate with a gold stripe, as Tự cộng điểm tiềm năng.
+                    <label
+                      key={o.value}
+                      className={cn(
+                        "flex items-start gap-2.5 px-2.5 py-2 bg-ink shadow-[inset_3px_0_0_transparent] cursor-pointer hover:bg-bg-2",
+                        form.onClose === o.value && "shadow-[inset_3px_0_0_var(--primary)] bg-bg-2",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name={`${id}on-close`}
+                        value={o.value}
+                        checked={form.onClose === o.value}
+                        disabled={saving}
+                        onChange={() => set({ onClose: o.value })}
+                        className="mt-0.5 mx-0 mb-0 accent-primary focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                      />
+                      <span className="grid gap-0.5">
+                        <b className="text-[12.5px] text-fg">{o.title}</b>
+                        <span className="text-11 leading-[1.45] text-fg-2">{o.text}</span>
+                      </span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>

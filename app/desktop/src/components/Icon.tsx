@@ -129,6 +129,8 @@ const paths = {
   hammer: <path d="M12 6l4-4 6 6-4 4zM15 9 4 20l-1.5-1.5L13.5 7.5" />,
   server: <path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01M12 7h4M12 17h4" />,
   folder: <path d="M3 6h6l2 2h10v11H3z" />,
+  /** Thu nhỏ vào khay: two arrows pointing in. */
+  tray: <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />,
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof paths;

@@ -16,6 +16,14 @@ export function useSync() {
     // An event newer than the answer of update_status wins.
     return listenThenLoad(api.onUpdate, api.updateStatus, (now, early) => updateChanged(early[early.length - 1] ?? now), updateChanged);
   }, []);
+  useEffect(() => {
+    // The close button of the window asks first (tray.rs), in place of the dialog open, which comes back after.
+    const off = api.onCloseAsked(() => {
+      const { dialog, open } = useStore.getState();
+      if (dialog?.kind !== "close") open({ kind: "close", back: dialog });
+    });
+    return () => void off.then((unlisten) => unlisten());
+  }, []);
   const id = useStore(selectedId);
   useEffect(() => {
     const { logLoaded, logged } = useStore.getState();

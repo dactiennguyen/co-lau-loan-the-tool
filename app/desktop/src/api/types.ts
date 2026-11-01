@@ -728,7 +728,12 @@ export interface Settings {
   server: { host: string; port: number };
   /** Lưu dữ liệu trận: every battle of every account into battle_data of cllt.db. */
   record: boolean;
+  /** The close button of the window: ask (Đóng cửa sổ), hide it in the tray with the accounts still playing, or quit. */
+  onClose: OnClose;
 }
+
+/** OnClose of settings.rs. */
+export type OnClose = "ask" | "tray" | "quit";
 
 /** SettingsView of settings.rs: what Cài đặt opens with. */
 export interface SettingsView {

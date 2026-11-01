@@ -345,6 +345,7 @@ version = "0.7.0"
 dependencies = [
  "chrono",
  "cllt-core",
+ "objc2-foundation",
  "rusqlite",
  "serde",
  "serde_json",

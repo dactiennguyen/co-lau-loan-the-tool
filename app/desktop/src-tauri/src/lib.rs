@@ -10,13 +10,15 @@
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
 // UI is sent (../src/api/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
-// update.rs updates the installed app from the GitHub releases; settings.rs is the Cài đặt of the app (settings.json).
+// update.rs updates the installed app from the GitHub releases; settings.rs is the Cài đặt of the app (settings.json);
+// tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay).
 mod app;
 mod commands;
 mod paths;
 mod sample;
 mod settings;
 mod store;
+mod tray;
 mod update;
 mod view;
 
@@ -77,8 +79,11 @@ pub fn run() {
                 tauri_app.state::<Shared>().with(|app| app.login_all());
             }
             update::start(tauri_app.handle(), sample);
+            tray::create(tauri_app.handle())?;
+            tray::keep_awake();
             Ok(())
         })
+        .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::state,
             commands::logs,
@@ -139,12 +144,18 @@ pub fn run() {
             commands::update_status,
             commands::check_update,
             commands::install_update,
+            commands::close_window,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            if let tauri::RunEvent::Exit = event {
-                update::install_on_quit(app);
-            }
+        .run(|app, event| match event {
+            tauri::RunEvent::Exit => update::install_on_quit(app),
+            // The Dock icon clicked while the window is in the tray.
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } => tray::show(app),
+            _ => {}
         });
 }

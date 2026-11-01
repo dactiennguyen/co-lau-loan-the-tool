@@ -3,6 +3,7 @@ import { useSync } from "@/hooks/useSync";
 import { selectedAccount, useStore } from "@/store";
 import { AccountDialog } from "@/views/dialogs/AccountDialog";
 import { AccountPage } from "@/views/AccountPage";
+import { CloseDialog } from "@/views/dialogs/CloseDialog";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { PlaceDialog } from "@/views/dialogs/PlaceDialog";
 import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
@@ -37,7 +38,8 @@ export default function App() {
 }
 
 /** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Tiện ích, Khởi động
- * lại để cập nhật while accounts play, and the Cài đặt of the app; nothing once the account it is about is gone. */
+ * lại để cập nhật while accounts play, the Cài đặt of the app and Đóng cửa sổ; nothing once the account it is about is
+ * gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   const account = useStore((s) => (dialog && "id" in dialog ? s.byId[dialog.id] : undefined));
@@ -60,6 +62,11 @@ function Dialogs() {
   }
   if (dialog?.kind === "settings") {
     return <SettingsDialog onClose={close} />;
+  }
+  if (dialog?.kind === "close") {
+    // Huỷ, or the window back from the tray, finds the dialog that was open.
+    const back = dialog.back;
+    return <CloseDialog onClose={() => (back ? useStore.getState().open(back) : close())} />;
   }
   if (dialog?.kind === "stop" && account) {
     return <StopDialog account={account} onClose={close} />;

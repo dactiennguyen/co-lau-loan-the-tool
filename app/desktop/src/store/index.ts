@@ -26,8 +26,10 @@ export type Dialog =
   | { kind: "shop"; id: number; item?: number }
   /** Khởi động lại để cập nhật while accounts are in the game. */
   | { kind: "update" }
-  /** Cài đặt of the app: game server, Lưu and Xuất dữ liệu trận. */
-  | { kind: "settings" };
+  /** Cài đặt of the app: game server, Lưu and Xuất dữ liệu trận, what closing the window does. */
+  | { kind: "settings" }
+  /** Đóng cửa sổ: the close button was pressed and Cài đặt says to ask; `back` is the dialog it took the place of. */
+  | { kind: "close"; back: Dialog | null };
 
 export interface Store extends Accounts {
   /** Why accounts.json could not be read; the app then never writes it. */

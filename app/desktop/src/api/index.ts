@@ -17,6 +17,7 @@ import type {
   ProxyForm,
   Exported,
   Secrets,
+  OnClose,
   Settings,
   SettingsView,
   StatPlan,
@@ -156,6 +157,11 @@ export interface Api {
   exportBattles(): Promise<Exported>;
   /** The file of an export, selected in Finder or Explorer. */
   revealExport(path: string): Promise<void>;
+  /** Đóng cửa sổ: Thu nhỏ vào khay ("tray") or Thoát ứng dụng ("quit"), kept as what the close button does from now on
+   * when `remember`. Rejects with a message to show when that cannot be saved; nothing happens then. */
+  closeWindow(action: Exclude<OnClose, "ask">, remember: boolean): Promise<void>;
+  /** The close button was pressed and Cài đặt says to ask: show Đóng cửa sổ. */
+  onCloseAsked(handler: () => void): Promise<UnlistenFn>;
   onAccounts(handler: (update: AccountsUpdate) => void): Promise<UnlistenFn>;
   /** The lines logged since the last event, of every account. */
   onLog(handler: (events: LogEvent[]) => void): Promise<UnlistenFn>;
@@ -219,6 +225,8 @@ const tauri: Api = {
   setSettings: (settings) => invoke("set_settings", { settings }),
   exportBattles: () => invoke("export_battles"),
   revealExport: (path) => invoke("reveal_export", { path }),
+  closeWindow: (action, remember) => invoke("close_window", { action, remember }),
+  onCloseAsked: (handler) => listen("close-asked", () => handler()),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
   onLog: (handler) => listen<LogEvent[]>("log", (e) => handler(e.payload)),
   updateStatus: () => invoke("update_status"),
@@ -295,12 +303,14 @@ const preview: Api = {
   testProxy: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không kiểm tra được proxy")),
   accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
   settings: async () => {
-    const defaults = { server: { host: "play.colauloanthe.vn", port: 1688 }, record: true };
+    const defaults: Settings = { server: { host: "play.colauloanthe.vn", port: 1688 }, record: true, onClose: "ask" };
     return { settings: defaults, defaults, battleData: { battles: 1284, bytes: 5_712_384 } };
   },
   setSettings: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu cài đặt")),
   exportBattles: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xuất được dữ liệu trận")),
   revealExport: nothing,
+  closeWindow: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có khay")),
+  onCloseAsked: async () => () => {},
   onAccounts: async () => () => {},
   onLog: async () => () => {},
   updateStatus: async () => ({ current: "0.2.0", state: "off", reason: "bản xem thử trong trình duyệt" }),
