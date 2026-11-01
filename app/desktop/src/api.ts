@@ -48,6 +48,8 @@ export interface Api {
   setStats(id: number, plan: StatPlan | null): Promise<void>;
   /** Saves the Cài đặt đánh of the account; its session follows it from the next battle. Rejects with a message to show. */
   setFight(id: number, settings: FightSettings): Promise<void>;
+  /** Saves the target the Đánh quái tab chose on a map, which it chooses again back there. Rejects with a message. */
+  setFightTarget(id: number, mapId: string, target: string): Promise<void>;
   /** "Thua còn lại" of the fight job or quest run going on: it ends after that many more losses. */
   setLossesLeft(id: number, left: number): Promise<void>;
   /** "Cộng +1" on the potential of that c2s/10 index. */
@@ -125,6 +127,7 @@ const tauri: Api = {
   stop: (id, surrender) => invoke("stop", { id, surrender: surrender ?? false }),
   setStats: (id, plan) => invoke("set_stats", { id, plan }),
   setFight: (id, settings) => invoke("set_fight", { id, settings }),
+  setFightTarget: (id, mapId, target) => invoke("set_fight_target", { id, mapId, target }),
   setLossesLeft: (id, left) => invoke("set_losses_left", { id, left }),
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
@@ -182,6 +185,7 @@ const preview: Api = {
   stop: nothing,
   setStats: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   setFight: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
+  setFightTarget: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   setLossesLeft: nothing,
   addStat: nothing,
   upgradeSkill: nothing,

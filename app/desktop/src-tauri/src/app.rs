@@ -204,6 +204,7 @@ impl Shared {
                 skill: old.skill,
                 stats: old.stats,
                 fight: old.fight,
+                fight_targets: old.fight_targets.clone(),
                 proxy: keep_password(old.proxy.as_ref(), edit.proxy),
                 ..edit
             };
@@ -245,22 +246,44 @@ impl Shared {
 
     /// Saves how the account spends potential points on its own (None: not at all) and tells its session, if it has one.
     pub async fn set_stats(&self, id: u64, plan: Option<StatPlan>) -> Result<(), String> {
-        self.change(id, |a| a.stats = plan, Command::Stats(plan))
+        self.change(id, |a| a.stats = plan, Some(Command::Stats(plan)))
             .await
     }
 
     /// Saves the Cài đặt đánh of the account and tells its session, if it has one.
     pub async fn set_fight(&self, id: u64, settings: FightSettings) -> Result<(), String> {
-        self.change(id, |a| a.fight = settings, Command::FightSettings(settings))
-            .await
+        self.change(
+            id,
+            |a| a.fight = settings,
+            Some(Command::FightSettings(settings)),
+        )
+        .await
     }
 
-    /// Changes a setting of the account once accounts.json holds the change, then passes `command` to its session.
+    /// Saves the target the Đánh quái tab chose on a map; the session never reads it.
+    pub async fn set_fight_target(
+        &self,
+        id: u64,
+        map_id: String,
+        target: String,
+    ) -> Result<(), String> {
+        self.change(
+            id,
+            |a| {
+                a.fight_targets.insert(map_id, target);
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Changes a setting of the account once accounts.json holds the change, then passes `command`, if any, to its
+    /// session.
     async fn change(
         &self,
         id: u64,
         set: impl FnOnce(&mut Account),
-        command: Command,
+        command: Option<Command>,
     ) -> Result<(), String> {
         let _turn = self.saving.lock().await;
         let (path, list, account) = self.with(|app| {
@@ -279,7 +302,7 @@ impl Shared {
                 e.account = account;
                 app.touch(id, false);
             }
-            if app.running(id) {
+            if let Some(command) = command.filter(|_| app.running(id)) {
                 app.send(id, command);
             }
         });
@@ -711,6 +734,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
     use std::sync::mpsc::channel;
     use tauri::async_runtime::block_on;
 
@@ -723,6 +747,7 @@ mod tests {
             skill: None,
             stats: None,
             fight: Default::default(),
+            fight_targets: Default::default(),
             proxy: None,
             algorithm: Default::default(),
         }
@@ -1013,6 +1038,19 @@ mod tests {
         };
         block_on(shared.set_fight(id, repair)).unwrap();
         assert_eq!(accounts::load(&path).unwrap()[0].fight, repair);
+        // So is the target chosen on each map, the last one of a map winning.
+        for (map, target) in [
+            ("M2", "Sói Xám"),
+            ("M4", "Chim Điên"),
+            ("M2", "Kẻ Quấy Phá"),
+        ] {
+            block_on(shared.set_fight_target(id, map.into(), target.into())).unwrap();
+        }
+        let targets = BTreeMap::from([
+            ("M2".to_string(), "Kẻ Quấy Phá".to_string()),
+            ("M4".to_string(), "Chim Điên".to_string()),
+        ]);
+        assert_eq!(accounts::load(&path).unwrap()[0].fight_targets, targets);
 
         // An empty password keeps the saved one.
         let edit = Account {
@@ -1027,9 +1065,10 @@ mod tests {
                 saved.username.as_str(),
                 saved.label.as_str(),
                 saved.password.as_str(),
-                saved.fight
+                saved.fight,
+                &saved.fight_targets
             ),
-            ("a2", "Nick chính", "x", repair)
+            ("a2", "Nick chính", "x", repair, &targets)
         );
         assert_eq!(
             shared.with(|app| app.entries[0].account.username.clone()),

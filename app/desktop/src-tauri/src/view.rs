@@ -13,6 +13,7 @@ use cllt_core::runner::Turn;
 use cllt_core::skills::{skill_tree, Prerequisite, SkillBox, SkillLevel};
 use cllt_core::world::{Nearby, Quest, ShopList, Zone};
 use serde::Serialize;
+use std::collections::BTreeMap;
 
 /// Colour of a log line in the UI (LogLine.tone).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -120,6 +121,8 @@ pub struct AccountView<'a> {
     pub stat_plan: Option<StatPlan>,
     /// Cài đặt đánh (accounts.json).
     pub fight_settings: FightSettings,
+    /// The target last chosen in the Đánh quái tab on each map (accounts.json).
+    pub fight_targets: &'a BTreeMap<String, String>,
     /// The proxy saved for the account, on or off.
     pub proxy: Option<ProxyView<'a>>,
     /// What the session knows about the character; None until it is in the game.
@@ -380,6 +383,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
         since: &e.since,
         stat_plan: e.account.stats,
         fight_settings: e.account.fight,
+        fight_targets: &e.account.fight_targets,
         proxy: e.account.proxy.as_ref().map(ProxyView::of),
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,

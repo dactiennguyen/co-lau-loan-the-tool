@@ -5,6 +5,7 @@ use crate::potentials::StatPlan;
 use crate::proxy::Proxy;
 use crate::runner::Skill;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -26,6 +27,10 @@ pub struct Account {
     /// Đánh quái and Nhiệm vụ tabs.
     #[serde(default, skip_serializing_if = "FightSettings::is_default")]
     pub fight: FightSettings,
+    /// The target last chosen in the Đánh quái tab on each map (mapId → mob or boss), which the tab chooses again back on
+    /// that map. The session never reads it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub fight_targets: BTreeMap<String, String>,
     /// The proxy the session connects through while `enabled`; set in the add and edit form, which tests it first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy: Option<Proxy>,
@@ -99,6 +104,7 @@ pub fn from_env(path: &Path) -> Option<Account> {
         skill: None,
         stats: None,
         fight: FightSettings::default(),
+        fight_targets: BTreeMap::new(),
         proxy: None,
         algorithm: Default::default(),
     })
@@ -127,6 +133,7 @@ mod tests {
                 fight_losses: 4,
                 quest_losses: 2,
             },
+            fight_targets: BTreeMap::from([("M2".into(), "Kẻ Quấy Phá".into())]),
             proxy: Some(crate::proxy::Proxy {
                 enabled: false,
                 kind: crate::proxy::ProxyKind::Http,

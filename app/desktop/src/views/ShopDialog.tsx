@@ -6,6 +6,7 @@ import { Icon } from "../components/Icon";
 import { Stepper } from "../components/Stepper";
 import { num } from "../format";
 import { itemIcon } from "../itemIcons";
+import { recalled, remember } from "../remember";
 import { selectedLog, useStore } from "../store";
 import type { Account, Character, ShopLine } from "../types";
 import "./ShopDialog.css";
@@ -17,20 +18,8 @@ const MONEY = ["Xu", "Xu khóa"] as const;
 const RESULT = /^(Đã mua|Chưa mua|Lái Buôn không trả lời)/;
 /** "Mua xong quay về chỗ cũ" is on until turned off, then kept off on this machine. */
 const BACK = "shop.back";
-function backKept() {
-  try {
-    return localStorage.getItem(BACK) !== "0";
-  } catch {
-    return true;
-  }
-}
-function keepBack(on: boolean) {
-  try {
-    localStorage.setItem(BACK, on ? "1" : "0");
-  } catch {
-    // Not kept: the box is on again next time.
-  }
-}
+const backKept = () => recalled(BACK) !== "0";
+const keepBack = (on: boolean) => remember(BACK, on ? "1" : "0");
 
 interface Props {
   account: Account;

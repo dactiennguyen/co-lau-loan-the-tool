@@ -118,6 +118,20 @@ pub async fn set_fight(
     shared.set_fight(id, settings).await
 }
 
+/// The target the Đánh quái tab chose on a map, chosen again back on that map. Saved to accounts.json.
+#[tauri::command]
+pub async fn set_fight_target(
+    shared: State<'_, Shared>,
+    id: u64,
+    map_id: String,
+    target: String,
+) -> Result<(), String> {
+    if map_id.is_empty() || target.is_empty() {
+        return Err("Không có map hay quái để nhớ".into());
+    }
+    shared.set_fight_target(id, map_id, target).await
+}
+
 /// "Cộng +1" on one potential, by c2s/10 index: 0 Cường lực, 1 Nội lực, 2 Thân pháp, 3 Thể lực.
 #[tauri::command]
 pub fn add_stat(shared: State<Shared>, id: u64, stat: usize) {
@@ -343,6 +357,7 @@ fn form(
         skill: None,
         stats: None,
         fight: Default::default(),
+        fight_targets: Default::default(),
         proxy: proxy.map(ProxyForm::proxy).transpose()?.flatten(),
         algorithm: Default::default(),
     })

@@ -19,7 +19,8 @@ interface Props {
 /**
  * One account in the sidebar: name, level, where it is (or the error), status, HP and players around, login/logout.
  * Two controls side by side, none inside another: the name is the button that selects (it carries the place and status
- * as its description), and login/logout. A click anywhere else on the card selects too, for the mouse.
+ * as its description), and login/logout. A click anywhere else on the card selects too, for the mouse. Login selects the
+ * account as well, so its page shows while it logs in; logout leaves the selection as it is.
  * It reads its own account from the store: an update of another account leaves this one the same object, so only the
  * card of the account that changed renders (memo keeps the sidebar's renders from reaching it).
  */
@@ -89,7 +90,10 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
         onClick={(e) => {
           e.stopPropagation();
           if (connected) api.logout(a.id);
-          else api.login(a.id);
+          else {
+            select(a.id);
+            api.login(a.id);
+          }
         }}
       />
     </div>

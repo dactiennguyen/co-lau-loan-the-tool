@@ -439,6 +439,8 @@ export interface Account {
   statPlan: StatPlan | null;
   /** Cài đặt đánh (accounts.json). */
   fightSettings: FightSettings;
+  /** The target last chosen in the Đánh quái tab on each map, mapId → name (accounts.json). */
+  fightTargets: Record<string, string>;
   /** The proxy saved for the account, on or off; null when none. */
   proxy: ProxyInfo | null;
   /** Null until the session is in the game. */

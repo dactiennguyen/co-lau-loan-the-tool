@@ -235,6 +235,7 @@ async fn login_via(
         skill: None,
         stats: None,
         fight: Default::default(),
+        fight_targets: Default::default(),
         proxy,
         algorithm: Default::default(),
     };

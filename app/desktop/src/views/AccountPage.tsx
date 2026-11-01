@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { api } from "../api";
 import { TabPanel, Tabs } from "../components/Tabs";
+import { recalled, remember } from "../remember";
 import { selectedLog, useStore } from "../store";
 import type { Account } from "../types";
 import { useFightSetting } from "../useFightSetting";
@@ -18,10 +19,22 @@ import { StatsCard } from "./StatsCard";
 import "./AccountPage.css";
 
 type Task = "quest" | "fight" | "settings" | "bag" | "skills" | "stats";
+const TASKS: Task[] = ["quest", "fight", "settings", "bag", "skills", "stats"];
+/** localStorage keys (remember.ts): the open tab of an account, and the tab last opened on any account. */
+const tabKey = (id: number) => `tab.${id}`;
+const LAST_TAB = "tab.last";
+
+/** The tab the account had open, else the one last opened on any account, else Nhiệm vụ. */
+function keptTask(id: number): Task {
+  const kept = recalled(tabKey(id)) ?? recalled(LAST_TAB);
+  return TASKS.find((t) => t === kept) ?? "quest";
+}
 
 /**
- * Everything about the selected account; its log comes from the store. Mounted per account (key), so the tab and target
- * start fresh for each; Số trận and Thua tối đa come back as last chosen for that account (useFightSetting).
+ * Everything about the selected account; its log comes from the store. Mounted per account (key). The open tab comes
+ * back as last opened on that account (localStorage, remember.ts); the target chosen on each map, Số trận and Thua tối
+ * đa come back from accounts.json (fightTargets, useFightSetting), so a switch of account, of map or a start of the app
+ * keeps them.
  */
 export function AccountPage({ account }: { account: Account }) {
   const c = account.character;
@@ -30,16 +43,27 @@ export function AccountPage({ account }: { account: Account }) {
   const open = useStore((s) => s.open);
   // During a battle Dừng asks whether to play it out or surrender; otherwise it stops at once.
   const onStop = () => (c?.battle ? open({ kind: "stop", id }) : api.stop(id));
-  const [picked, setPicked] = useState("");
+  // The target chosen on each map (mapId → name): back on a map, the tab offers what was chosen there. Shown at once,
+  // saved to accounts.json; a save that fails (the browser preview saves nothing) keeps it while the page is open.
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const mapId = c?.mapId ?? "";
   const [count, setCount] = useFightSetting(account, "fightCount");
   const [losses, setLosses] = useFightSetting(account, "fightLosses");
-  const choice: FightChoice = { target: picked, count, losses };
+  const choice: FightChoice = { target: picked[mapId] ?? account.fightTargets[mapId] ?? "", count, losses };
   const setChoice = (next: FightChoice) => {
-    if (next.target !== picked) setPicked(next.target);
+    if (next.target !== choice.target && mapId) {
+      setPicked({ ...picked, [mapId]: next.target });
+      api.setFightTarget(id, mapId, next.target).catch(() => {});
+    }
     if (next.count !== count) setCount(next.count);
     if (next.losses !== losses) setLosses(next.losses);
   };
-  const [task, setTask] = useState<Task>("quest");
+  const [task, setTaskState] = useState(() => keptTask(id));
+  const setTask = (t: Task) => {
+    setTaskState(t);
+    remember(tabKey(id), t);
+    remember(LAST_TAB, t);
+  };
   const tabs = useId();
   const targets = c?.targets ?? [];
   // The chosen target, else the first one offered (bosses first, then the strongest).

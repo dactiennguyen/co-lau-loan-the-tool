@@ -29,6 +29,7 @@ fn account(label: &str, username: &str) -> Account {
         skill: None,
         stats: None,
         fight: Default::default(),
+        fight_targets: Default::default(),
         proxy: None,
         algorithm: Default::default(),
     }
