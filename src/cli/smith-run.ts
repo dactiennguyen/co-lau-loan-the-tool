@@ -10,6 +10,7 @@ import { flags, mapOf, runSession, show, showCharacter } from './run-session.ts'
 //   npm run smith -- --quote=19 [--careful]                     the price of upgrading the item of bag slot 19
 //   npm run smith -- --upgrade=19 [--to=8] [--careful] [--rate=100] [--charm=auto|never] [--tries=N] [--locked-stones]
 //   npm run smith -- --merge[=12] | --separate=19 | --transmute=19:20 | --craft=nhan:1 | --ice=1|5|all
+//   npm run smith -- --merge --level=3 [--lock=locked|unlocked] [--sets=1]    only Đá cấp 3 into Đá cấp 4, at most 1 time
 //   … --confirm                                                  press Bắt đầu
 // --account reads app/accounts.json (local only); without it CLLT_USERNAME/CLLT_PASSWORD of .env. CLLT_TRACE=<file>
 // keeps every packet.
@@ -28,7 +29,16 @@ function upgradeArgs(slot: number): UpgradeTask {
 function parseTask(): SmithTask {
   if (has('quote')) return { kind: 'quote', ...upgradeArgs(int('quote')) };
   if (has('upgrade')) return { kind: 'upgrade', ...upgradeArgs(int('upgrade')) };
-  if (has('merge')) return { kind: 'merge', upTo: arg('merge') === '' ? 12 : int('merge', { min: 2, max: 12 }) };
+  if (has('merge')) {
+    const lock = arg('lock');
+    if (lock !== undefined && lock !== 'locked' && lock !== 'unlocked') usage('--lock phải là locked hoặc unlocked');
+    return {
+      kind: 'merge', upTo: arg('merge') === '' ? 12 : int('merge', { min: 2, max: 12 }),
+      level: arg('level') === undefined ? undefined : int('level', { min: 1, max: 11 }),
+      locked: lock === undefined ? undefined : lock === 'locked',
+      sets: arg('sets') === undefined ? undefined : int('sets', { min: 1, max: 1000 }),
+    };
+  }
   if (has('separate')) return { kind: 'separate', slot: int('separate') };
   if (has('transmute')) {
     const m = /^(\d{1,3}):(\d{1,3})$/.exec(arg('transmute') ?? ''), [source, target] = [Number(m?.[1]), Number(m?.[2])];

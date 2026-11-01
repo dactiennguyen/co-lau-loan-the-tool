@@ -483,51 +483,76 @@ pub struct MergeSet {
     pub fee: i64,
 }
 
-/// Options of Gộp đá: `up_to` is the highest level made (12 at most); `unlocked` false leaves unlocked stones be.
+/// Options of Gộp đá ← MergeOptions of src/protocol/npc.ts. `up_to` is the highest level made (12 at most); `unlocked`
+/// false leaves unlocked stones be. `level` merges only the stones of that level (into the next, not further up) and
+/// `locked` only the locked (true) or unlocked (false) ones: the Gộp button of a row of the stones' table. `sets` is the
+/// most merges of the run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MergeOptions {
     pub up_to: i32,
     pub unlocked: bool,
+    pub level: Option<i32>,
+    pub locked: Option<bool>,
+    pub sets: Option<i64>,
 }
 impl Default for MergeOptions {
     fn default() -> Self {
         Self {
             up_to: 12,
             unlocked: true,
+            level: None,
+            locked: None,
+            sets: None,
         }
+    }
+}
+impl MergeOptions {
+    /// The levels and locks a merge may take, lowest level first, unlocked before locked.
+    fn kinds(&self) -> Vec<(i32, bool)> {
+        let levels = match self.level {
+            None => 1..self.up_to.min(12),
+            Some(l) if (1..12).contains(&l) => l..l + 1,
+            Some(_) => 0..0,
+        };
+        levels
+            .flat_map(|level| {
+                [false, true]
+                    .into_iter()
+                    .filter(|&lock| {
+                        (lock || self.unlocked) && self.locked.is_none_or(|want| want == lock)
+                    })
+                    .map(move |lock| (level, lock))
+            })
+            .collect()
     }
 }
 
 /// Gộp đá: the sets of 4 stones of a level that Luyện đá makes into one of the next at 100%, lowest level first. Unlocked
 /// stones go together in Luyện đá [Xu], paid in Xu, so the stone made stays tradeable; locked ones in [Xu khóa]. A
 /// level's 1–3 stones left over stay. The stones made are not in this plan: plan again on the new bag to go on up.
+/// `sets` is not applied here: the bot counts its merges.
 pub fn merge_plan(bag: &[BagItem], o: MergeOptions) -> Vec<MergeSet> {
     let mut sets = vec![];
-    for level in 1..o.up_to.min(12) {
-        for lock in [false, true] {
-            if !lock && !o.unlocked {
-                continue;
-            }
-            let mut slots: Vec<i32> = bag
-                .iter()
-                .filter(|i| stone_level(i.item_id) == level && i.locked() == lock)
-                .map(|i| i.slot)
-                .collect();
-            slots.sort();
-            for four in slots.chunks_exact(4) {
-                sets.push(MergeSet {
-                    level,
-                    slots: four.to_vec(),
-                    locked: lock,
-                    window: if lock {
-                        WindowKind::MergeXuKhoa
-                    } else {
-                        WindowKind::MergeXu
-                    },
-                    fee: merge_fee(level + 1),
-                });
-            }
+    for (level, lock) in o.kinds() {
+        let mut slots: Vec<i32> = bag
+            .iter()
+            .filter(|i| stone_level(i.item_id) == level && i.locked() == lock)
+            .map(|i| i.slot)
+            .collect();
+        slots.sort();
+        for four in slots.chunks_exact(4) {
+            sets.push(MergeSet {
+                level,
+                slots: four.to_vec(),
+                locked: lock,
+                window: if lock {
+                    WindowKind::MergeXuKhoa
+                } else {
+                    WindowKind::MergeXu
+                },
+                fee: merge_fee(level + 1),
+            });
         }
     }
     sets
@@ -549,8 +574,8 @@ pub struct MergeForecast {
     pub freed: i64,
     pub made: Vec<Made>,
 }
+/// What Gộp đá does in all, at most `sets` merges.
 pub fn merge_forecast(bag: &[BagItem], o: MergeOptions) -> MergeForecast {
-    let top = o.up_to.min(12);
     // count[level][lock]
     let mut count = [[0i64; 2]; 14];
     let mut made = [[0i64; 2]; 14];
@@ -561,22 +586,18 @@ pub fn merge_forecast(bag: &[BagItem], o: MergeOptions) -> MergeForecast {
         }
     }
     let (mut merges, mut xu, mut xu_khoa) = (0, 0, 0);
-    for level in 1..top {
-        for lock in [false, true] {
-            if !lock && !o.unlocked {
-                continue;
-            }
-            let sets = count[level as usize][lock as usize] / 4;
-            if sets == 0 {
-                continue;
-            }
-            count[level as usize + 1][lock as usize] += sets;
-            made[level as usize + 1][lock as usize] += sets;
-            merges += sets;
-            match lock {
-                true => xu_khoa += sets * merge_fee(level + 1),
-                false => xu += sets * merge_fee(level + 1),
-            }
+    for (level, lock) in o.kinds() {
+        let sets =
+            (count[level as usize][lock as usize] / 4).min(o.sets.unwrap_or(i64::MAX) - merges);
+        if sets <= 0 {
+            continue;
+        }
+        count[level as usize + 1][lock as usize] += sets;
+        made[level as usize + 1][lock as usize] += sets;
+        merges += sets;
+        match lock {
+            true => xu_khoa += sets * merge_fee(level + 1),
+            false => xu += sets * merge_fee(level + 1),
         }
     }
     let mut list = vec![];

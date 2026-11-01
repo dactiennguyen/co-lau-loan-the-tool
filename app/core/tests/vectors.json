@@ -16354,6 +16354,852 @@
       { "level": 7, "locked": true, "count": 1 }
      ]
     }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "level": 5, "locked": true, "sets": 1 },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 0,
+     "xuKhoa": 410,
+     "freed": 3,
+     "made": [
+      { "level": 6, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "level": 5, "locked": true, "sets": 1 },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 0,
+     "xuKhoa": 410,
+     "freed": 3,
+     "made": [
+      { "level": 6, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "level": 5 },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 5,
+     "xu": 0,
+     "xuKhoa": 2050,
+     "freed": 15,
+     "made": [
+      { "level": 6, "locked": true, "count": 5 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "level": 5 },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 5,
+     "xu": 0,
+     "xuKhoa": 2050,
+     "freed": 15,
+     "made": [
+      { "level": 6, "locked": true, "count": 5 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "sets": 2 },
+    "plan": [
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 2,
+     "xu": 0,
+     "xuKhoa": 820,
+     "freed": 6,
+     "made": [
+      { "level": 6, "locked": true, "count": 2 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "sets": 2 },
+    "plan": [
+     {
+      "level": 1,
+      "slots": [ 16, 17, 60, 61 ],
+      "locked": false,
+      "window": "mergeXu",
+      "fee": 2
+     },
+     {
+      "level": 5,
+      "slots": [ 20, 24, 25, 26 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 30, 31, 32, 33 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 35, 36, 37, 39 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 43, 44, 46, 47 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 48, 49, 51, 52 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 2,
+     "xu": 2,
+     "xuKhoa": 410,
+     "freed": 6,
+     "made": [
+      { "level": 2, "locked": false, "count": 1 },
+      { "level": 6, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "level": 1, "locked": false },
+    "plan": [],
+    "forecast": {
+     "merges": 0,
+     "xu": 0,
+     "xuKhoa": 0,
+     "freed": 0,
+     "made": []
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "level": 1, "locked": false },
+    "plan": [
+     {
+      "level": 1,
+      "slots": [ 16, 17, 60, 61 ],
+      "locked": false,
+      "window": "mergeXu",
+      "fee": 2
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 2,
+     "xuKhoa": 0,
+     "freed": 3,
+     "made": [
+      { "level": 2, "locked": false, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "level": 1, "locked": false, "unlocked": false },
+    "plan": [],
+    "forecast": {
+     "merges": 0,
+     "xu": 0,
+     "xuKhoa": 0,
+     "freed": 0,
+     "made": []
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "level": 1, "locked": false, "unlocked": false },
+    "plan": [],
+    "forecast": {
+     "merges": 0,
+     "xu": 0,
+     "xuKhoa": 0,
+     "freed": 0,
+     "made": []
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 }
+    ],
+    "opts": { "level": 12 },
+    "plan": [],
+    "forecast": {
+     "merges": 0,
+     "xu": 0,
+     "xuKhoa": 0,
+     "freed": 0,
+     "made": []
+    }
+   },
+   {
+    "bag": [
+     { "slot": 15, "itemId": 306, "field0": 0, "field1": 1 },
+     { "slot": 16, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 17, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 19, "itemId": 414, "field0": 0, "field1": 1 },
+     { "slot": 20, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 21, "itemId": 416, "field0": 0, "field1": 0 },
+     { "slot": 24, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 25, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 26, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 27, "itemId": 419, "field0": 0, "field1": 1 },
+     { "slot": 28, "itemId": 415, "field0": 0, "field1": 1 },
+     { "slot": 29, "itemId": 413, "field0": 0, "field1": 1 },
+     { "slot": 30, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 31, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 32, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 33, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 34, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 35, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 36, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 37, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 39, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 41, "itemId": 414, "field0": 0, "field1": 0 },
+     { "slot": 42, "itemId": 366, "field0": 0, "field1": 0 },
+     { "slot": 43, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 44, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 45, "itemId": 227, "field0": 1, "field1": 0 },
+     { "slot": 46, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 47, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 48, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 49, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 50, "itemId": 357, "field0": 0, "field1": 0 },
+     { "slot": 51, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 52, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 53, "itemId": 415, "field0": 0, "field1": 0 },
+     { "slot": 3, "itemId": 36, "field0": 0, "field1": 1 },
+     { "slot": 8, "itemId": 21, "field0": 0, "field1": 0 },
+     { "slot": 60, "itemId": 411, "field0": 0, "field1": 1 },
+     { "slot": 61, "itemId": 411, "field0": 0, "field1": 1 }
+    ],
+    "opts": { "level": 12 },
+    "plan": [],
+    "forecast": {
+     "merges": 0,
+     "xu": 0,
+     "xuKhoa": 0,
+     "freed": 0,
+     "made": []
+    }
    }
   ],
   "upgradeStones": [

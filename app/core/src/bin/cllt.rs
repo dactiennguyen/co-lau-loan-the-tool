@@ -161,7 +161,7 @@ fn smith_task(
     if let Some(up_to) = int("merge")? {
         return Ok(Some(SmithTask::Merge(MergeOptions {
             up_to,
-            unlocked: true,
+            ..MergeOptions::default()
         })));
     }
     if let Some(slot) = slot("separate")? {

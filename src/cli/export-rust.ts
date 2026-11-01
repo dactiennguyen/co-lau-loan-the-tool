@@ -126,7 +126,8 @@ function npcCases() {
     if (typeof expected.text === 'string') texts.add(expected.text);
   }
   const extra = [...symapBag, { slot: 60, itemId: 411, field0: 0, field1: 1 }, { slot: 61, itemId: 411, field0: 0, field1: 1 }];
-  const plans = [{}, { upTo: 6 }, { upTo: 2 }, { unlocked: false }].flatMap(opts => [symapBag, extra].map(bag => ({ bag, opts, plan: mergePlan(bag, opts), forecast: mergeForecast(bag, opts) })));
+  const plans = [{}, { upTo: 6 }, { upTo: 2 }, { unlocked: false }, { level: 5, locked: true, sets: 1 }, { level: 5 }, { sets: 2 },
+    { level: 1, locked: false }, { level: 1, locked: false, unlocked: false }, { level: 12 }].flatMap(opts => [symapBag, extra].map(bag => ({ bag, opts, plan: mergePlan(bag, opts), forecast: mergeForecast(bag, opts) })));
   return {
     decoders, quotes: [...texts].map(text => ({ text, expected: quote(text) })), plans,
     upgradeStones: [true, false].map(unlocked => ({ unlocked, slots: upgradeStones(symapBag, { unlocked }).map(i => i.slot) })),

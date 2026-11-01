@@ -53,7 +53,7 @@ npm run smith -- --account=tiheo2 --craft=nhan:1 --confirm          # chế Nh�
 | Xem túi | không có việc nào | không bao giờ | không |
 | Hỏi giá | `--quote=<ô>` | không bao giờ | không |
 | Nâng cấp | `--upgrade=<ô>` | `--confirm` | Xu khóa (thiếu thì lấy cả Xu), đá đã đặt, bùa; Cẩn thận thêm Lượng |
-| Gộp đá | `--merge` hoặc `--merge=<cấp cao nhất>` | `--confirm` | phí bằng Xu khóa, hoặc bằng Xu ở Luyện đá [Xu] |
+| Gộp đá | `--merge` hoặc `--merge=<cấp cao nhất>`; chỉ một cấp: `--merge --level=3 [--lock=locked\|unlocked] [--sets=1]` | `--confirm` | phí bằng Xu khóa, hoặc bằng Xu ở Luyện đá [Xu] |
 | Tách đá | `--separate=<ô>` | `--confirm` | không; cần ô trống cho số đá trả về |
 | Chuyển hoá | `--transmute=<ô nguồn>:<ô đích>` | `--confirm` | 1 vật phẩm Chuyển hoá |
 | Chế tạo trang bị | `--craft=<non\|ao\|vukhi\|nhan>:<1\|2\|3>` | `--confirm` | Xu, mỗi nguyên liệu 24 |
@@ -138,6 +138,7 @@ Hỏi giá (`--quote`) làm bước 1 tới 5 cho một cấp rồi dừng.
 - Bot đặt bốn viên, kiểm `s2c/92` báo đúng viên cấp trên với 100%, rồi bấm.
 - Sau mỗi lần, bot xin túi rồi lập kế hoạch lại, nên viên vừa ra được luyện tiếp tới cấp `--merge` (mặc định 12).
 - Chạy thử in cả dự tính: số lần luyện, phí, ô túi được giải phóng (`mergeForecast`).
+- `--level=<k>` chỉ luyện Đá cấp k thành Đá cấp k+1, không luyện tiếp viên vừa ra. `--lock=locked` hay `unlocked` chỉ lấy đá khoá hay chưa khoá. `--sets=<n>` dừng sau n lần. Nút Gộp của từng dòng trong app là `--level=<k> --lock=… --sets=1`.
 
 **Tách đá.**
 

@@ -502,7 +502,7 @@ Tiền của Tiheo2 trước và sau O1: Xu 15.103.600 → 15.097.200 (chế Nh�
 
 ## Trong app
 
-Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
+Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%; gộp hết tới một cấp, hay từng bộ một bằng nút Gộp của mỗi dòng), Nâng cấp tới +4 (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, Đổi lượng. CLI: `cllt smith`.
 
 Bot TS `npm run smith` ([Pháp sư bằng Node.js](../../integration/nodejs/smith.md)) làm Hỏi giá, Nâng cấp, Gộp đá, Tách đá, Chuyển hoá như app, và thêm bốn phần app chưa có: **bùa bảo vệ** (`c2s/97` loại 1, chỉ ở lần nâng mà thất bại sẽ tụt cấp), **nâng trên +4** tới trần theo bậc, **Chế tạo trang bị** (công thức đọc từ menu, nguyên liệu loại 1 với cả chồng), **Đổi Băng Tâm**. Không có `--confirm` thì bot dừng trước Bắt đầu. Đã có test phát lại gói O1; chưa chạy với server thật.
 

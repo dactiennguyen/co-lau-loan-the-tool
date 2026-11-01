@@ -13,6 +13,7 @@ import type {
   LogKind,
   LogLine,
   MergeForecast,
+  MergeOptions,
   ProxyForm,
   Exported,
   Secrets,
@@ -76,10 +77,11 @@ export interface Api {
   buy(id: number, shopId: number, quantity: number): Promise<void>;
   /** Tiện ích, Mua: opens shop `kind` of the 14 (on M1); the account's `shop` then lists it. */
   openShopKind(id: number, kind: number): Promise<void>;
-  /** Gộp đá: every set of 4 stones of a level at 100%, up to Đá cấp `upTo`; unlocked stones too with `unlocked`. */
-  smithMerge(id: number, upTo: number, unlocked: boolean): Promise<void>;
-  /** What Gộp đá would do on the bag as it is now; null without a bag. */
-  mergeForecast(id: number, upTo: number, unlocked: boolean): Promise<MergeForecast | null>;
+  /** Gộp đá: sets of 4 stones of a level at 100%, up to Đá cấp `upTo` (unlocked stones too with `unlocked`); or only `level`
+   * and `locked`, at most `sets` merges (the Gộp button of a row). */
+  smithMerge(id: number, options: MergeOptions): Promise<void>;
+  /** What Gộp đá would do with these options on the bag as it is now; null without a bag. */
+  mergeForecast(id: number, options: MergeOptions): Promise<MergeForecast | null>;
   /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
   /** `worn`: `slot` is a gear slot; the bot takes the item off, upgrades it and wears it again. */
   smithUpgrade(id: number, slot: number, careful: boolean, rate: number, toLevel: number, unlocked: boolean, quote: boolean, worn: boolean): Promise<void>;
@@ -184,8 +186,8 @@ const tauri: Api = {
   openShop: (id) => invoke("open_shop", { id }),
   buy: (id, shopId, quantity) => invoke("buy", { id, shopId, quantity }),
   openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
-  smithMerge: (id, upTo, unlocked) => invoke("smith_merge", { id, upTo, unlocked }),
-  mergeForecast: (id, upTo, unlocked) => invoke("merge_forecast", { id, upTo, unlocked }),
+  smithMerge: (id, options) => invoke("smith_merge", { id, options }),
+  mergeForecast: (id, options) => invoke("merge_forecast", { id, options }),
   smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn) =>
     invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn }),
   smithSeparate: (id, slot) => invoke("smith_separate", { id, slot }),

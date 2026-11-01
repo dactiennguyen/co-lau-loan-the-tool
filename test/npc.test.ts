@@ -96,6 +96,21 @@ test('Gộp đá: sets of 4 stones of a level and lock at 100%, and what going o
   assert.deepEqual(mergePlan(four, { upTo: 2, unlocked: false }), []);
 });
 
+test('Gộp đá of one row: only the stones of a level and lock, one level up, at most `sets` merges', () => {
+  // One set of the 21 locked Đá cấp 5: one Đá cấp 6, nothing further up.
+  assert.deepEqual(mergeForecast(BAG, { level: 5, locked: true, sets: 1 }), { merges: 1, xu: 0, xuKhoa: 410, freed: 3, made: [{ level: 6, locked: true, count: 1 }] });
+  // Every set of the level, but the Đá cấp 6 made stay: no Đá cấp 7 as without `level`.
+  assert.deepEqual(mergeForecast(BAG, { level: 5 }), { merges: 5, xu: 0, xuKhoa: 2050, freed: 15, made: [{ level: 6, locked: true, count: 5 }] });
+  assert.deepEqual(mergeForecast(BAG, { sets: 2 }).merges, 2);
+  assert.equal(mergePlan(BAG, { level: 5 }).length, 5);
+  assert.deepEqual(mergePlan(BAG, { level: 5, locked: false }), []);
+  assert.deepEqual([mergePlan(BAG, { level: 12 }), mergePlan(BAG, { level: 0 })], [[], []]);
+  // The unlocked row: Luyện đá [Xu]; `unlocked` false leaves it out even when asked.
+  const four = [...BAG, { slot: 60, itemId: 411, field0: 0, field1: 1 }, { slot: 61, itemId: 411, field0: 0, field1: 1 }];
+  assert.deepEqual(mergePlan(four, { level: 1, locked: false }), [{ level: 1, slots: [16, 17, 60, 61], locked: false, window: 'mergeXu', fee: 2 }]);
+  assert.deepEqual(mergePlan(four, { level: 1, locked: false, unlocked: false }), []);
+});
+
 test('Nâng cấp takes the cheapest stones first, locked before unlocked; Chuyển hoá finds the targets and the item', () => {
   assert.deepEqual(upgradeStones(BAG).slice(0, 7).map(i => i.slot), [16, 17, 29, 34, 41, 19, 20]);
   assert.deepEqual(upgradeStones(BAG, { unlocked: false }).slice(0, 3).map(i => i.slot), [34, 41, 20]);

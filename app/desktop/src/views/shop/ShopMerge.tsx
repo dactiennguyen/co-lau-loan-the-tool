@@ -20,11 +20,20 @@ const COL = cn(CELL, "text-11 font-semibold text-fg-3");
 const ROW = cn(CELL, "font-medium text-fg");
 const NUM = cn("px", CELL, "text-11 text-fg-2");
 
+/** The stones a row's Gộp takes: its locked ones first, its unlocked ones only with `unlocked`; null without 4 of either
+ * (or for Đá cấp 12, the highest). */
+function rowLock(r: { level: number; locked: number; unlocked: number }, unlocked: boolean): boolean | null {
+  if (r.level >= 12) return null;
+  if (r.locked >= 4) return true;
+  return unlocked && r.unlocked >= 4 ? false : null;
+}
+
 /**
  * Gộp đá (16-upgrade.md#luyện-đá): the stones of the bag by level, locked and not, and what Luyện đá would make of them:
  * only sets of 4 of a level, which make one of the next at 100% and lose nothing, again on the stones made, up to the
  * level chosen. Unlocked stones go to Luyện đá [Xu] and are paid in Xu, so the stone made stays tradeable. The total
- * fee is asked once more before the bot starts.
+ * fee is asked once more before the bot starts. Each row has its own Gộp: one set of 4 of that level into one stone of the
+ * next, nothing further, so the small stones a low upgrade needs stay.
  */
 export function ShopMerge({ account, why, ask }: ShopContext) {
   const c = account.character!;
@@ -36,7 +45,7 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
   const stamp = bag ? bag.items.map((i) => `${i.slot}:${i.id}:${i.locked}`).join(",") : "";
   useEffect(() => {
     let live = true;
-    api.mergeForecast(account.id, upTo, unlocked).then((f) => live && setForecast(f));
+    api.mergeForecast(account.id, { upTo, unlocked }).then((f) => live && setForecast(f));
     return () => {
       live = false;
     };
@@ -51,6 +60,20 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
   const fee = [forecast?.xuKhoa ? `${num(forecast.xuKhoa)} Xu khóa` : null, forecast?.xu ? `${num(forecast.xu)} Xu` : null]
     .filter(Boolean)
     .join(" + ");
+  /** Gộp of a row: one set of 4 of `level` and `locked`, the fee from the forecast of that one merge, asked once more. */
+  const mergeRow = async (level: number, locked: boolean) => {
+    const options = { level, locked, sets: 1 };
+    const f = await api.mergeForecast(account.id, options);
+    if (!f || f.merges === 0) return;
+    const cost = f.xuKhoa ? `${num(f.xuKhoa)} Xu khóa` : `${num(f.xu)} Xu`;
+    ask({
+      title: `Gộp Đá cấp ${level}`,
+      message: `Luyện 4 Đá cấp ${level} (${locked ? "khoá" : "chưa khoá"}) thành 1 Đá cấp ${level + 1}, tốn ${cost}. Tỉ lệ 100%, không mất đá; các viên khác giữ nguyên.`,
+      confirm: `Gộp, ${cost}`,
+      icon: "gem",
+      run: () => api.smithMerge(account.id, options),
+    });
+  };
 
   return (
     // The stones by level, the options and what it would do.
@@ -66,26 +89,47 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
       {levels.length === 0 ? (
         <p className={SHOP.note}>Túi không có đá nâng cấp (Đá cấp 1–12).</p>
       ) : (
-        <table className="w-full max-w-[420px] border-collapse text-12">
+        <table className="w-full max-w-[520px] border-collapse text-12">
           <thead>
             <tr>
               <th className={COL} scope="col">Đá</th>
               <th className={COL} scope="col">Khoá</th>
               <th className={COL} scope="col">Chưa khoá</th>
               <th className={COL} scope="col">Bộ 4 viên</th>
+              <th className={COL} scope="col">
+                <span className="sr-only">Gộp một bộ</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {levels.map((r) => (
-              <tr key={r.level}>
-                <th className={ROW} scope="row">
-                  <Stone level={r.level} />
-                </th>
-                <td className={NUM}>{r.locked || "—"}</td>
-                <td className={NUM}>{r.unlocked || "—"}</td>
-                <td className={NUM}>{Math.floor(r.locked / 4) + (unlocked ? Math.floor(r.unlocked / 4) : 0) || "—"}</td>
-              </tr>
-            ))}
+            {levels.map((r) => {
+              const lock = rowLock(r, unlocked);
+              const what = `4 Đá cấp ${r.level}${lock === false ? " chưa khoá" : ""} thành 1 Đá cấp ${r.level + 1}`;
+              return (
+                <tr key={r.level}>
+                  <th className={ROW} scope="row">
+                    <Stone level={r.level} />
+                  </th>
+                  <td className={NUM}>{r.locked || "—"}</td>
+                  <td className={NUM}>{r.unlocked || "—"}</td>
+                  <td className={NUM}>{Math.floor(r.locked / 4) + (unlocked ? Math.floor(r.unlocked / 4) : 0) || "—"}</td>
+                  <td className={cn(CELL, "py-0.5 text-right")}>
+                    {r.level < 12 && (
+                      <Button
+                        small
+                        icon="gem"
+                        disabled={!!why || lock == null}
+                        title={lock == null ? `Cần 4 Đá cấp ${r.level} cùng khoá hay cùng chưa khoá` : `Gộp ${what}`}
+                        aria-label={`Gộp ${what}`}
+                        onClick={() => lock != null && void mergeRow(r.level, lock)}
+                      >
+                        Gộp
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -157,7 +201,7 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
             message: `Luyện ${forecast.merges} lần, tốn ${fee}. Ra: ${made}. Mỗi lần dùng 4 viên cùng cấp, tỉ lệ 100%.`,
             confirm: "Gộp đá",
             icon: "gem",
-            run: () => api.smithMerge(account.id, upTo, unlocked),
+            run: () => api.smithMerge(account.id, { upTo, unlocked }),
           })
         }
       >

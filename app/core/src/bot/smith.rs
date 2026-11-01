@@ -201,7 +201,7 @@ impl Bot {
             )
         };
         match task {
-            SmithTask::Merge(o) => ("merge", format!("Gộp đá tới Đá cấp {}", o.up_to.min(12))),
+            SmithTask::Merge(o) => ("merge", merge_title(o)),
             SmithTask::Upgrade {
                 slot,
                 quote: true,
@@ -566,10 +566,17 @@ impl Bot {
         };
         match task {
             SmithTask::Merge(o) => {
-                let Some(set) = merge_plan(&bag, o).into_iter().next() else {
-                    let why = match steps {
-                        0 => "không có 4 viên đá cùng cấp nào để gộp",
-                        _ => "đã gộp hết",
+                let enough = o.sets.is_some_and(|n| steps as i64 >= n);
+                let next = (!enough).then(|| merge_plan(&bag, o).into_iter().next());
+                let Some(set) = next.flatten() else {
+                    let why = match (steps, o.level) {
+                        _ if enough => "đã gộp xong".into(),
+                        (0, Some(level)) => format!(
+                            "không có 4 viên Đá cấp {level}{} để gộp",
+                            lock_words(o.locked)
+                        ),
+                        (0, None) => "không có 4 viên đá cùng cấp nào để gộp".into(),
+                        _ => "đã gộp hết".to_string(),
                     };
                     return self.smith_finish(why, now, out);
                 };
@@ -1095,5 +1102,25 @@ impl Bot {
             Some(_) => self.smith_finish("Đã dừng", now, out),
             None => {}
         }
+    }
+}
+
+/// " (khoá)", " (chưa khoá)" or nothing, after "Đá cấp 3".
+fn lock_words(locked: Option<bool>) -> &'static str {
+    match locked {
+        Some(true) => " (khoá)",
+        Some(false) => " (chưa khoá)",
+        None => "",
+    }
+}
+
+/// The title of Gộp đá: "Gộp đá tới Đá cấp 6", or for a row of the stones' table "Gộp 4 Đá cấp 3 (khoá) thành 1 Đá cấp 4".
+fn merge_title(o: &MergeOptions) -> String {
+    let lock = lock_words(o.locked);
+    match (o.level, o.sets) {
+        (Some(l), Some(n)) => format!("Gộp {} Đá cấp {l}{lock} thành {n} Đá cấp {}", 4 * n, l + 1),
+        (Some(l), None) => format!("Gộp hết Đá cấp {l}{lock} lên Đá cấp {}", l + 1),
+        (None, Some(n)) => format!("Gộp đá tới Đá cấp {}, tối đa {n} lần", o.up_to.min(12)),
+        (None, None) => format!("Gộp đá tới Đá cấp {}", o.up_to.min(12)),
     }
 }

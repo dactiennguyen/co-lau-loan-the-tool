@@ -208,22 +208,21 @@ pub fn open_shop_kind(shared: State<Shared>, id: u64, kind: u8) {
     shared.with(|app| app.send(id, Command::OpenShopKind(kind)));
 }
 
-/// Gộp đá: every set of 4 stones of a level at 100%, up to Đá cấp `up_to`; unlocked stones too with `unlocked`.
+/// Gộp đá: sets of 4 stones of a level at 100%, up to Đá cấp `upTo` (unlocked stones too with `unlocked`); or, from the
+/// Gộp button of a row, only `level` and `locked`, at most `sets` merges (npc::MergeOptions).
 #[tauri::command]
-pub fn smith_merge(shared: State<Shared>, id: u64, up_to: i32, unlocked: bool) {
-    let task = SmithTask::Merge(MergeOptions { up_to, unlocked });
-    shared.with(|app| app.send(id, Command::Smith(task)));
+pub fn smith_merge(shared: State<Shared>, id: u64, options: MergeOptions) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Merge(options))));
 }
 
-/// What Gộp đá would do on the bag as it is now; None without a bag.
+/// What Gộp đá would do with these options on the bag as it is now; None without a bag.
 #[tauri::command]
 pub fn merge_forecast(
     shared: State<Shared>,
     id: u64,
-    up_to: i32,
-    unlocked: bool,
+    options: MergeOptions,
 ) -> Option<MergeForecast> {
-    shared.with(|app| app.merge_forecast(id, MergeOptions { up_to, unlocked }))
+    shared.with(|app| app.merge_forecast(id, options))
 }
 
 /// Nâng cấp the item of bag slot `slot` (gear slot with `worn`: taken off first, worn again after) up to +`to_level` with

@@ -290,7 +290,7 @@ fn gop_da_luyen_each_set_of_four_then_plans_again_on_the_new_bag() {
     bot.smith(
         SmithTask::Merge(MergeOptions {
             up_to: 6,
-            unlocked: true,
+            ..MergeOptions::default()
         }),
         now,
         &mut out,
@@ -383,6 +383,108 @@ fn gop_da_luyen_each_set_of_four_then_plans_again_on_the_new_bag() {
         Some("Đã dừng")
     );
     assert_eq!(bot.deadline(), None);
+}
+
+#[test]
+fn gop_one_row_luyen_one_set_of_that_level_and_lock_then_ends() {
+    // 8 locked Đá cấp 5 and 4 unlocked Đá cấp 1: the Gộp button of the locked Đá cấp 5 row, one set.
+    let stones: Vec<(u8, i32, i32, u8)> = [20, 24, 25, 26, 30, 31, 32, 33]
+        .iter()
+        .map(|&s| (s, 415, 0, 0))
+        .chain([16, 17, 18, 19].map(|s| (s, 411, 0, 1)))
+        .collect();
+    let (mut bot, mut out, now) = symap(&stones);
+    let one = MergeOptions {
+        level: Some(5),
+        locked: Some(true),
+        sets: Some(1),
+        ..MergeOptions::default()
+    };
+    let items: Vec<BagItem> = bot
+        .snapshot()
+        .bag
+        .unwrap()
+        .items
+        .iter()
+        .map(BagItem::from)
+        .collect();
+    let forecast = npc::merge_forecast(&items, one);
+    assert_eq!(
+        (forecast.merges, forecast.xu, forecast.xu_khoa),
+        (1, 0, 410)
+    );
+    bot.smith(SmithTask::Merge(one), now, &mut out);
+    assert!(
+        logged(&out, "Gộp 4 Đá cấp 5 (khoá) thành 1 Đá cấp 6"),
+        "{out:?}"
+    );
+    out.clear();
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 57),
+        ["01000000024d31000000a1", "00000000024d31000000a1"],
+        "Luyện đá [Xu khóa], not the unlocked Đá cấp 1"
+    );
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1002".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    for slot in [20, 24, 25] {
+        bot.on_packet(92, &slot92(slot, "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 75%", true), now, &mut out).unwrap();
+    }
+    out.clear();
+    bot.on_packet(92, &slot92(26, "Luyện thành Đá cấp 6 Khóa\nCần: 410 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 100%", true), now, &mut out).unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"]);
+    bot.on_packet(
+        93,
+        &captured("stoneResult", "ok", true.into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    // The new bag still has a set of locked Đá cấp 5 and four Đá cấp 1: one set was asked, so it ends.
+    out.clear();
+    let after: Vec<(u8, i32, i32, u8)> = [30, 31, 32, 33]
+        .iter()
+        .map(|&s| (s, 415, 0, 0))
+        .chain([(20, 416, 0, 0)])
+        .chain([16, 17, 18, 19].map(|s| (s, 411, 0, 1)))
+        .collect();
+    bot.on_packet(42, &bag(&after), now, &mut out).unwrap();
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Gộp 4 Đá cấp 5 (khoá) thành 1 Đá cấp 6: đã gộp xong (1 lần, tốn 410 Xu khóa)"
+        ),
+        "{out:?}"
+    );
+    // A row without a set: refused at once, nothing sent.
+    out.clear();
+    let none = MergeOptions {
+        level: Some(1),
+        locked: Some(true),
+        sets: Some(1),
+        ..MergeOptions::default()
+    };
+    bot.smith(SmithTask::Merge(none), now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Gộp 4 Đá cấp 1 (khoá) thành 1 Đá cấp 2: không có 4 viên Đá cấp 1 (khoá) để gộp"
+        ),
+        "{out:?}"
+    );
 }
 
 #[test]

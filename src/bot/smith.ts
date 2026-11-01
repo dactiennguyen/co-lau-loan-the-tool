@@ -33,7 +33,7 @@ export type SmithTask =
   | { kind: 'bag' }
   | ({ kind: 'quote' } & UpgradeTask)
   | ({ kind: 'upgrade' } & UpgradeTask)
-  | { kind: 'merge'; upTo?: number }
+  | ({ kind: 'merge' } & npc.MergeOptions)
   | { kind: 'separate'; slot: number }
   | { kind: 'transmute'; source: number; target: number }
   | { kind: 'craft'; itemKind: number; tier: number }
@@ -108,7 +108,7 @@ export class SmithBot {
       case 'bag': return 'done';
       case 'quote': return this.upgrade(task, true);
       case 'upgrade': return this.upgrade(task, false);
-      case 'merge': return this.merge(task.upTo ?? 12);
+      case 'merge': return this.merge(task);
       case 'separate': return this.separate(task.slot);
       case 'transmute': return this.transmute(task.source, task.target);
       case 'craft': return this.craft(task.itemKind, task.tier);
@@ -210,12 +210,15 @@ export class SmithBot {
   // -------------------------------------------------------------------------------------------------------------------
   // Gộp đá, Tách đá, Chuyển hoá.
 
-  private async merge(upTo: number): Promise<Outcome> {
-    const forecast = npc.mergeForecast(this.bag, { upTo });
-    this.log({ event: 'plan', task: 'Gộp đá', upTo, ...forecast });
+  /** Gộp đá: sets of 4 of a level, lowest first, again on the stones made; only `level` (one level up) and only `locked`
+   * if given, at most `sets` merges. */
+  private async merge(o: npc.MergeOptions): Promise<Outcome> {
+    const options = { upTo: o.upTo ?? 12, unlocked: o.unlocked ?? true, level: o.level, locked: o.locked, sets: o.sets };
+    const forecast = npc.mergeForecast(this.bag, options);
+    this.log({ event: 'plan', task: 'Gộp đá', ...options, ...forecast });
     if (!forecast.merges) throw new SmithStop('không có bộ 4 viên cùng cấp, cùng loại khoá nào để luyện');
     for (let done = 0; ;) {
-      const set = npc.mergePlan(this.bag, { upTo })[0];
+      const set = done < (options.sets ?? Infinity) ? npc.mergePlan(this.bag, options)[0] : undefined;
       if (!set) return 'done';
       await this.window(set.window === 'mergeXu' ? PATHS.mergeXu : PATHS.mergeXuKhoa, 99);
       let last: ReturnType<typeof npc.stoneSlot> | undefined;

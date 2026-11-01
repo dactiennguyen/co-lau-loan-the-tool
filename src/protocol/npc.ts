@@ -195,45 +195,51 @@ const locked = (i: BagItem) => i.field1 === 0;
 /** One Luyện đá: four stones of one level and lock, made into one of the next level at 100%. */
 export interface MergeSet { level: number; slots: number[]; locked: boolean; window: 'mergeXu' | 'mergeXuKhoa'; fee: number }
 
+/** Options of Gộp đá. `upTo` is the highest level made (12 at most); `unlocked` false leaves unlocked stones be. `level`
+ * merges only the stones of that level (into the next, not further up) and `locked` only the locked (true) or unlocked
+ * (false) ones: the Gộp button of a row of the stones' table. `sets` is the most merges of the run. */
+export interface MergeOptions { upTo?: number; unlocked?: boolean; level?: number; locked?: boolean; sets?: number }
+/** The levels and locks a merge may take, lowest level first, unlocked before locked. */
+function mergeKinds({ upTo = 12, unlocked = true, level, locked: lock }: MergeOptions) {
+  const levels = level === undefined ? Array.from({ length: Math.max(0, Math.min(upTo, 12) - 1) }, (_, k) => k + 1)
+    : level >= 1 && level < 12 ? [level] : [];
+  const locks = [false, true].filter(l => (l || unlocked) && (lock === undefined || l === lock));
+  return levels.flatMap(level => locks.map(lock => ({ level, lock })));
+}
+
 /** Gộp đá: the sets of 4 stones of a level that Luyện đá makes into one of the next at 100%, lowest level first. Unlocked
  * stones go together in Luyện đá [Xu], paid in Xu, so the stone made stays tradeable; locked ones in [Xu khóa]. A level's
- * 1–3 stones left over stay. `upTo` is the highest level made (12 at most); `unlocked` false leaves unlocked stones be.
- * The stones made are not in this plan: plan again on the new bag to go on up. */
-export function mergePlan(bag: BagItem[], { upTo = 12, unlocked = true } = {}): MergeSet[] {
+ * 1–3 stones left over stay. The stones made are not in this plan: plan again on the new bag to go on up. `sets` is not
+ * applied here: the bot counts its merges. */
+export function mergePlan(bag: BagItem[], options: MergeOptions = {}): MergeSet[] {
   const sets: MergeSet[] = [];
-  for (let level = 1; level < Math.min(upTo, 12); level++) {
-    for (const lock of [false, true]) {
-      if (!lock && !unlocked) continue;
-      const slots = bag.filter(i => stoneLevel(i.itemId) === level && locked(i) === lock).map(i => i.slot).sort((a, b) => a - b);
-      for (let k = 0; k + 4 <= slots.length; k += 4) {
-        sets.push({ level, slots: slots.slice(k, k + 4), locked: lock, window: lock ? 'mergeXuKhoa' : 'mergeXu', fee: mergeFee(level + 1) });
-      }
+  for (const { level, lock } of mergeKinds(options)) {
+    const slots = bag.filter(i => stoneLevel(i.itemId) === level && locked(i) === lock).map(i => i.slot).sort((a, b) => a - b);
+    for (let k = 0; k + 4 <= slots.length; k += 4) {
+      sets.push({ level, slots: slots.slice(k, k + 4), locked: lock, window: lock ? 'mergeXuKhoa' : 'mergeXu', fee: mergeFee(level + 1) });
     }
   }
   return sets;
 }
 
-/** What Gộp đá does in all, going on up with the stones it makes (mergePlan again after each): how many merges, the fees
- * in Xu and Xu khóa, the bag slots freed, and the stones made by level and lock. */
-export function mergeForecast(bag: BagItem[], { upTo = 12, unlocked = true } = {}) {
-  const top = Math.min(upTo, 12), count = new Map<string, number>(), made = new Map<string, number>();
+/** What Gộp đá does in all, going on up with the stones it makes (mergePlan again after each), at most `sets` merges: how
+ * many merges, the fees in Xu and Xu khóa, the bag slots freed, and the stones made by level and lock. */
+export function mergeForecast(bag: BagItem[], options: MergeOptions = {}) {
+  const count = new Map<string, number>(), made = new Map<string, number>();
   for (const i of bag) {
     const level = stoneLevel(i.itemId);
     if (level) count.set(`${level}:${locked(i)}`, (count.get(`${level}:${locked(i)}`) ?? 0) + 1);
   }
   let merges = 0, xu = 0, xuKhoa = 0;
-  for (let level = 1; level < top; level++) {
-    for (const lock of [false, true]) {
-      if (!lock && !unlocked) continue;
-      const sets = Math.floor((count.get(`${level}:${lock}`) ?? 0) / 4);
-      if (!sets) continue;
-      const key = `${level + 1}:${lock}`;
-      count.set(key, (count.get(key) ?? 0) + sets);
-      made.set(key, (made.get(key) ?? 0) + sets);
-      merges += sets;
-      if (lock) xuKhoa += sets * mergeFee(level + 1);
-      else xu += sets * mergeFee(level + 1);
-    }
+  for (const { level, lock } of mergeKinds(options)) {
+    const sets = Math.min(Math.floor((count.get(`${level}:${lock}`) ?? 0) / 4), (options.sets ?? Infinity) - merges);
+    if (sets <= 0) continue;
+    const key = `${level + 1}:${lock}`;
+    count.set(key, (count.get(key) ?? 0) + sets);
+    made.set(key, (made.get(key) ?? 0) + sets);
+    merges += sets;
+    if (lock) xuKhoa += sets * mergeFee(level + 1);
+    else xu += sets * mergeFee(level + 1);
   }
   return {
     merges, xu, xuKhoa, freed: merges * 3,

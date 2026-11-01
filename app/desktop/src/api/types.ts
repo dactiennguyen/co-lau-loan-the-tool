@@ -552,6 +552,15 @@ export interface SmithRun {
 }
 
 /** What Gộp đá would do on the bag (npc::merge_forecast). */
+/** Options of Gộp đá (npc::MergeOptions): up to Đá cấp `upTo`, unlocked stones too with `unlocked`; the Gộp button of a
+ * row gives `level` (only that level, one level up), `locked` (only that lock) and `sets` (the most merges). */
+export interface MergeOptions {
+  upTo?: number;
+  unlocked?: boolean;
+  level?: number;
+  locked?: boolean;
+  sets?: number;
+}
 export interface MergeForecast {
   merges: number;
   xu: number;
