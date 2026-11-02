@@ -61,7 +61,7 @@ test('latest.json: the release workflow writes it before the release, and the ap
   assert.match(workflow, /latest-json\.mjs assets "\$VERSION" "\$GH_REPO" "\$TAG" commit-body\.txt > assets\/latest\.json/);
   assert.match(workflow, /secrets: inherit/);
   const config = JSON.parse(readFileSync(new URL('../app/desktop/src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
-  assert.deepEqual(config.plugins.updater.endpoints, ['https://github.com/dactiennguyen/co-lau-loan-the-tool/releases/latest/download/latest.json']);
+  assert.deepEqual(config.plugins.updater.endpoints, ['https://github.com/dactiennguyen/colautool-releases/releases/latest/download/latest.json']);
   // Local builds stay unsigned; CI turns the updater files on when it has the key.
   assert.equal(config.bundle.createUpdaterArtifacts, undefined);
 });

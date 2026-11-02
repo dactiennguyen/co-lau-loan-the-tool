@@ -37,10 +37,10 @@ Lưu ý:
 
 ## Tự cập nhật
 
-Bản cài của app tự tìm, tải và cài bản mới từ [GitHub Releases](https://github.com/dactiennguyen/co-lau-loan-the-tool/releases), giống [cockpit-tools](https://github.com/jlcodes99/cockpit-tools). Code ở `desktop/src-tauri/src/update.rs`, dùng [`tauri-plugin-updater`](https://v2.tauri.app/plugin/updater/) 2.14. Giao diện chỉ gọi 3 lệnh của app (`update_status`, `check_update`, `install_update`) và nghe sự kiện `update`; không mở quyền của plugin cho giao diện.
+Bản cài của app tự tìm, tải và cài bản mới từ [GitHub Releases của repo phát hành](https://github.com/dactiennguyen/colautool-releases/releases) ([Repo phát hành riêng](#repo-phát-hành-riêng)), giống [cockpit-tools](https://github.com/jlcodes99/cockpit-tools). Code ở `desktop/src-tauri/src/update.rs`, dùng [`tauri-plugin-updater`](https://v2.tauri.app/plugin/updater/) 2.14. Giao diện chỉ gọi 3 lệnh của app (`update_status`, `check_update`, `install_update`) và nghe sự kiện `update`; không mở quyền của plugin cho giao diện.
 
 **Cách chạy:**
-1. 20 giây sau khi mở app, rồi cứ 6 giờ một lần, hoặc khi bấm ⟳, app tải `https://github.com/dactiennguyen/co-lau-loan-the-tool/releases/latest/download/latest.json` (địa chỉ trong `plugins.updater.endpoints` của `tauri.conf.json`). Repo công khai nên không cần token.
+1. 20 giây sau khi mở app, rồi cứ 6 giờ một lần, hoặc khi bấm ⟳, app tải `https://github.com/dactiennguyen/colautool-releases/releases/latest/download/latest.json` (địa chỉ trong `plugins.updater.endpoints` của `tauri.conf.json`). Repo công khai nên không cần token.
 2. `latest.json` có `version` mới hơn bản đang chạy thì app tải ngay file của đúng máy và đúng loại bộ cài, kèm thanh tiến độ. Tải xong, app kiểm chữ ký minisign của file với khoá công khai trong `tauri.conf.json` (`plugins.updater.pubkey`). Sai chữ ký thì không cài, báo "chữ ký của bản tải về không khớp". `requireSignedVersion` cũng bật: chữ ký phải ghi đúng phiên bản mà `latest.json` công bố. Nhờ vậy, kẻ sửa được `latest.json` cũng không ép được app cài lùi về một bản cũ, dù bản cũ đó vẫn mang chữ ký thật.
 3. Bản đã kiểm được giữ trong bộ nhớ, rồi cài theo một trong hai cách:
    - **Khởi động lại để cập nhật:** app cho mọi nick đăng xuất, cài, rồi mở bản mới. Trên Windows bộ cài NSIS hay MSI chạy ở chế độ `passive` (chỉ có thanh tiến độ), app thoát và bộ cài mở lại app.
@@ -75,3 +75,15 @@ Updater tìm `{hệ}-{kiến trúc}-{bộ cài}` trước (cài từ `.msi` thì
 - Bản đầu tiên có tính năng này phải cài tay. Từ bản sau đó, app mới tự cập nhật.
 - Khởi động lại thì các nick phải đăng nhập lại, vì server không giữ phiên.
 - Bản phát hành không đánh dấu pre-release, vì `releases/latest` bỏ qua bản pre-release.
+
+## Repo phát hành riêng
+
+Bản phát hành có thể nằm ở một repo public khác, [dactiennguyen/colautool-releases](https://github.com/dactiennguyen/colautool-releases), để repo code này chuyển sang private được. Updater tải `latest.json` và bộ cài mà không có token, nên Releases phải nằm ở repo public.
+
+- **Script:** [setup-release-repo.ps1](../../../.github/scripts/setup-release-repo.ps1) làm từng bước, chạy lại không sao: không tham số thì tạo repo; `-SetSecret` lưu `RELEASE_TOKEN` (cần `gh`); `-SetVariable` đặt `RELEASE_REPO`; `-CleanRemote` bỏ token khỏi remote `origin`; `-Check` chỉ xem trạng thái.
+- **Cấu hình** (repo code → Settings → Secrets and variables → Actions):
+  - Variable `RELEASE_REPO` = `dactiennguyen/colautool-releases`.
+  - Secret `RELEASE_TOKEN`: Fine-grained token chỉ có quyền `Contents: Read and write` trên repo phát hành. `github.token` của workflow không ghi được sang repo khác.
+- **Chưa có `RELEASE_REPO`:** release.yml vẫn phát hành vào chính repo code như trước. Có `RELEASE_REPO` mà thiếu `RELEASE_TOKEN` thì bước phát hành dừng và báo lỗi.
+- **Ở repo phát hành:** tag `v*` chưa có, nên `gh release create` tạo tag trên nhánh mặc định của repo đó, không dùng `--verify-tag` (tag đã được kiểm ở repo code) và `--generate-notes`. Link tải trong `latest.json` trỏ về repo phát hành, vì latest-json.mjs lấy tên repo từ `GH_REPO`.
+- **Chuyển các bản đã cài sang repo mới:** các bản đến 1.1.0 vẫn hỏi `co-lau-loan-the-tool`. Phát hành **một bản cuối vào repo code** (chưa đặt `RELEASE_REPO`) có `tauri.conf.json` trỏ sang repo mới, rồi mới đặt `RELEASE_REPO` cho các bản sau. Chờ người dùng lên bản đó rồi mới chuyển repo code sang private.
