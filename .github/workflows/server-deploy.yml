@@ -2,7 +2,8 @@
 # (Actions → Deploy Server → Run workflow). The tests run first; a failure deploys nothing.
 #
 # Needs two repository secrets (server/README.md#tự-deploy-bằng-github-actions):
-#   CLOUDFLARE_API_TOKEN   an API token with Account › Workers Scripts › Edit and Account › D1 › Edit
+#   CLOUDFLARE_API_TOKEN   an API token with Account › Workers Scripts › Edit and Account › D1 › Edit, and for the custom
+#                          domain of wrangler.toml, Zone › Workers Routes › Edit and Zone › DNS › Edit on olachat.net
 #   CLOUDFLARE_ACCOUNT_ID  the account id of the Cloudflare dashboard
 # Without them the run tests and says so, and deploys nothing. The D1 database "cllt" is made on the first run; its id
 # is written into the runner's copy of wrangler.toml only (scripts/d1-id.mjs), so nothing has to be committed for it.

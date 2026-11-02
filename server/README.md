@@ -61,9 +61,10 @@ Workflow [`.github/workflows/server-deploy.yml`](../.github/workflows/server-dep
 Cần làm một lần trước:
 1. **API token Cloudflare.** Vào My Profile → API Tokens → Create Token → Custom token, cấp hai quyền:
    - Account › **Workers Scripts** › Edit;
-   - Account › **D1** › Edit.
+   - Account › **D1** › Edit;
+   - Zone › **Workers Routes** › Edit và Zone › **DNS** › Edit, cho tên miền `colau.olachat.net` trong `routes` của `wrangler.toml`.
 
-   Ở Account Resources chọn tài khoản của bạn.
+   Ở Account Resources chọn tài khoản của bạn; ở Zone Resources chọn zone `olachat.net`.
 2. **Account ID.** Lấy ở cột phải trang Workers & Pages của dashboard, hay bằng `npx wrangler whoami`.
 3. **Mở Workers & Pages trên dashboard một lần**, để tài khoản có tên miền `workers.dev`. Deploy từ CI không tự chọn tên miền này được.
 4. **Thêm secret vào repo.** GitHub → repo → Settings → Secrets and variables → Actions → New repository secret, thêm hai secret:
