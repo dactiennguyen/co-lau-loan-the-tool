@@ -21,6 +21,34 @@ export interface Synced {
   repeated: number;
 }
 
+/** When each top-level field of an account was last changed, as the app saw it: {"field": epoch ms}. */
+export type Changed = Record<string, number>;
+
+/** One account of POST /api/devices/sync, with the time each of its fields changed. */
+export interface Stamped {
+  account: Account;
+  changed: Changed;
+}
+
+/** What the app sends to POST /api/devices/sync: its accounts that changed since its last sync, and its Cài đặt (JSON,
+ * null when not sent). */
+export interface DeviceSync {
+  id: string;
+  settings: string | null;
+  accounts: Stamped[];
+}
+
+/** What POST /api/devices/sync did. */
+export interface Merged {
+  added: number;
+  updated: number;
+  unchanged: number;
+  /** Of the updated and unchanged: accounts with a field the server keeps as it is, as another device or a token
+   * changed it later. */
+  kept: number;
+  repeated: number;
+}
+
 /** What the app sends to POST /api/devices/hello. `id` is the SHA-256 (hex) of the operating system's machine id. */
 export interface Hello {
   id: string;

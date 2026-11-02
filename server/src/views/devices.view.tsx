@@ -64,6 +64,9 @@ function DeviceRow({ d, now }: { d: Device; now: number }) {
         ) : (
           <span class="tag on">Được dùng</span>
         )}
+        <div class="muted" title={d.settings ? `Cài đặt: ${d.settings}` : undefined}>
+          {d.syncAllowed ? (d.syncedAt ? `Đồng bộ nick ${ago(d.syncedAt, now)}` : 'Cho đồng bộ, chưa gửi') : 'Chưa cho đồng bộ nick'}
+        </div>
       </td>
       <td>
         {d.blocked ? (
@@ -77,6 +80,19 @@ function DeviceRow({ d, now }: { d: Device; now: number }) {
             <input name="reason" type="text" maxlength={MAX_BLOCK_REASON} placeholder="Lý do (app hiện cho người dùng)" aria-label={`Lý do chặn ${name}`} />
             <button class="small danger" type="submit">
               Chặn
+            </button>
+          </form>
+        )}
+        {d.syncAllowed ? (
+          <form class="act" method="post" action={`${at}/sync-off`} data-confirm={`Tắt đồng bộ nick của ${name}? Nick đã gửi vẫn giữ.`}>
+            <button class="small" type="submit">
+              Tắt đồng bộ
+            </button>
+          </form>
+        ) : (
+          <form class="act" method="post" action={`${at}/sync-on`} data-confirm={`Cho ${name} đồng bộ nick lên server? Nick máy đó gửi sẽ gộp vào trang Nick.`}>
+            <button class="small primary" type="submit">
+              Cho đồng bộ
             </button>
           </form>
         )}
@@ -102,7 +118,7 @@ export function DevicesView({ nonce, list, flash, now }: { nonce: string; list: 
     <Layout title="Thiết bị" nonce={nonce} nav="devices">
       <h1>Thiết bị</h1>
       <p class="sub">
-        Máy nào mở app cũng tự báo về khi mở và 15 phút một lần, kèm danh sách nick (không có mật khẩu). Máy mới được dùng ngay; chặn một máy thì app trên máy đó bị
+        Máy nào mở app cũng tự báo về khi mở và 15 phút một lần, kèm danh sách nick; máy được admin <b>Cho đồng bộ</b> thì gửi luôn nick và cài đặt lên trang Nick (máy không gửi bí mật nào, nên chỉ máy đã duyệt mới được ghi nick). Máy mới được dùng ngay; chặn một máy thì app trên máy đó bị
         khoá, kể cả khi mất mạng.
       </p>
       <Message kind="ok" text={flash} />

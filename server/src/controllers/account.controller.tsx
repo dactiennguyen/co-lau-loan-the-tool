@@ -21,8 +21,13 @@ export async function sync(c: Ctx) {
   if (text === null) return c.json({ error: HTTP.accountsTooLarge }, 413);
   const sent = parse(text);
   if (!Array.isArray(sent)) return c.json(sent, 400);
-  const done = await accounts.sync(c.var.db, sent, c.var.source);
-  return c.json({ ...done, total: await accounts.count(c.var.db) });
+  try {
+    const done = await accounts.sync(c.var.db, sent, c.var.source);
+    return c.json({ ...done, total: await accounts.count(c.var.db) });
+  } catch (e) {
+    if (e instanceof accounts.Busy) return c.json({ error: e.message }, 503);
+    throw e;
+  }
 }
 
 export async function page(c: Ctx) {

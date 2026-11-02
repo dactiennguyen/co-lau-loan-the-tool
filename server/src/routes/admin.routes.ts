@@ -26,7 +26,7 @@ admin.get('/accounts.json', account.download);
 admin.post('/accounts/:id{[0-9]+}/delete', account.remove);
 
 admin.get('/devices', device.page);
-admin.post('/devices/:id{[0-9a-f]{64}}/:action{block|unblock|rename|delete}', device.act);
+admin.post('/devices/:id{[0-9a-f]{64}}/:action{block|unblock|rename|delete|sync-on|sync-off}', device.act);
 
 admin.get('/tokens', token.page);
 admin.post('/tokens', token.create);

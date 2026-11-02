@@ -28,6 +28,11 @@ export function parse(body: string): Account[] | { error: string } {
   } else if (isObject(value) && 'username' in value) list = [value];
   else return { error: 'Không thấy nick nào: cần {"accounts": […]}, một danh sách nick, hoặc một nick có "username"' };
   if (list.length === 0) return { error: 'JSON không có nick nào' };
+  return accountsOf(list);
+}
+
+/** The accounts of a list, each checked as backup::parse of the app checks it; the error names the first one wrong. */
+export function accountsOf(list: unknown[]): Account[] | { error: string } {
   const accounts: Account[] = [];
   for (const [i, item] of list.entries()) {
     const n = i + 1;

@@ -145,6 +145,9 @@ pub struct Imported {
     pub replaced: usize,
     pub skipped: usize,
     pub settings: bool,
+    /// The accounts added or replaced, as the list now has them: Đồng bộ nick counts them as from before (sync.rs).
+    #[serde(skip)]
+    pub accounts: Vec<Account>,
 }
 
 /// What becomes of each account of the JSON, in its order: `find` gives the account of the list it would log in as.

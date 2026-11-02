@@ -37,6 +37,10 @@ export const MAX_ACCOUNTS_BODY = 1 << 20;
 /** The largest hello POST /api/devices/hello takes. */
 export const MAX_HELLO_BODY = 16 * 1024;
 export const MAX_HELLO_ACCOUNTS = 200;
+/** The most accounts one POST /api/devices/sync takes (its body is limited as POST /api/accounts), and the largest
+ * Cài đặt kept for a device. */
+export const MAX_SYNC_ACCOUNTS = 500;
+export const MAX_SETTINGS = 4 * 1024;
 export const MAX_HOSTNAME = 100;
 export const MAX_OS = 60;
 export const MAX_VERSION = 30;

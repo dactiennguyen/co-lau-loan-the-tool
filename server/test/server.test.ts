@@ -2,7 +2,7 @@
 // accounts the API keeps, in the JSON of Xuất JSON of the desktop app.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { count, sync } from '../src/services/account.service.ts';
+import { count, merge, sync, syncDevice } from '../src/services/account.service.ts';
 import { database } from '../src/db/client.ts';
 import worker from '../src/index.ts';
 import { d1 } from './d1.ts';
@@ -112,19 +112,50 @@ test('a done= the page does not know shows nothing, and a post that is not a for
   assert.equal(r.status, 400);
 });
 
-test('an account another request added between the read and the write is replaced, not an error', async () => {
-  const db = d1();
-  await sync(database(db), [{ label: '', username: 'cung-luc', password: 'cu', serverId: 24 }], 'Máy nhà');
-  // As if this request read before the other one wrote: it sees no such account, and inserts.
-  const none = { raw: async () => [], all: async () => ({ results: [] }) };
-  const stale = {
+/** A D1 on which `between` runs once, right after the first read of the accounts: as if another send wrote between this
+ * send's read and its write. */
+function racing(db: D1Database, between: () => void) {
+  let done = false;
+  return {
     ...db,
-    prepare: (sql: string) => (sql.startsWith('select "id", "data" from "accounts"') ? { bind: () => none } : db.prepare(sql)),
+    prepare: (sql: string) => {
+      const real = db.prepare(sql);
+      if (done || !sql.startsWith('select "id", "server_id", "username_key", "data", "changed" from "accounts"')) return real;
+      return {
+        bind: (...args: unknown[]) => {
+          const bound = real.bind(...args);
+          return { ...bound, raw: async () => { const rows = await bound.raw(); if (!done) { done = true; between(); } return rows; } };
+        },
+        raw: async () => { const rows = await real.raw(); if (!done) { done = true; between(); } return rows; },
+      };
+    },
   } as unknown as D1Database;
-  const done = await sync(database(stale), [{ label: '', username: 'cung-luc', password: 'moi', serverId: 24 }], 'Máy công ty');
-  assert.equal(done.added, 1);
+}
+
+test('an account another send added or changed between the read and the write is read again and merged, not lost', async () => {
+  const db = d1();
+  // Added meanwhile: this send's add finds it there, reads again, and replaces it, as a later send would.
+  let pending: Promise<unknown> = Promise.resolve();
+  const raced = racing(db, () => (pending = sync(database(db), [{ label: '', username: 'cung-luc', password: 'cu', serverId: 24 }], 'Máy nhà')));
+  // Its batch waits for the other send, as two Workers at once might.
+  const late = { ...raced, batch: async (list: D1PreparedStatement[]) => (await pending, db.batch(list)) } as unknown as D1Database;
+  const done = await sync(database(late), [{ label: '', username: 'cung-luc', password: 'moi', serverId: 24 }], 'Máy công ty');
   assert.equal(await count(database(db)), 1);
   assert.equal(await db.prepare('SELECT password FROM accounts').first('password'), 'moi');
+  assert.equal(done.updated, 1);
+
+  // Changed meanwhile by another device: both devices' edits are kept, each in its field.
+  const db2 = d1();
+  const nick = { label: 'N', username: 'hai-may', password: 'p', serverId: 24, fight: { autoRepair: false } };
+  await syncDevice(database(db2), [{ account: nick, changed: { label: 1, password: 1, fight: 1 } }], 'Máy A', 10);
+  let between: Promise<unknown> = Promise.resolve();
+  const raced2 = racing(db2, () => (between = syncDevice(database(db2), [{ account: { ...nick, password: 'p-moi' }, changed: { password: 5 } }], 'Máy A', 10)));
+  // This send's batch waits for the other one, as before.
+  const slow = { ...raced2, batch: async (list: D1PreparedStatement[]) => (await between, db2.batch(list)) } as unknown as D1Database;
+  const b = await syncDevice(database(slow), [{ account: { ...nick, fight: { autoRepair: true } }, changed: { fight: 6 } }], 'Máy B', 10);
+  assert.equal(b.updated, 1);
+  const data = JSON.parse((await db2.prepare('SELECT data FROM accounts').first('data')) as string);
+  assert.deepEqual([data.password, data.fight], ['p-moi', { autoRepair: true }]);
 });
 
 test('pages keep the Origin of their own forms: Referrer-Policy same-origin, not no-referrer', async () => {
@@ -263,4 +294,120 @@ test('devices: the page and its actions need the admin, and a form of another si
   const r = await c.call(`/admin/devices/${DEVICE}/block`, { form: { reason: 'x' }, origin: 'https://evil.example' });
   assert.equal(r.status, 403);
   assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true });
+});
+
+// ---- Đồng bộ nick from devices (POST /api/devices/sync) ------------------------------------------------------------
+
+const OTHER = 'b'.repeat(64);
+
+/** POST /api/devices/sync of `id`: each account with the time each field changed (`at` for every field, or per field). */
+function syncOf(call: ReturnType<typeof client>['call'], id: string, accounts: [Record<string, unknown>, Record<string, number> | number][], settings?: object) {
+  const body = {
+    id,
+    settings,
+    accounts: accounts.map(([account, at]) => ({
+      account,
+      changed: typeof at === 'number' ? Object.fromEntries(Object.keys(account).map((k) => [k, at])) : at,
+    })),
+  };
+  return call('/api/devices/sync', { body: JSON.stringify(body) }).then((r) => ({ ...r, json: JSON.parse(r.text) }));
+}
+
+const kept = async (c: Awaited<ReturnType<typeof ready>>, t: string) =>
+  (JSON.parse((await c.call('/api/accounts', { token: t })).text) as { accounts: Record<string, unknown>[] }).accounts;
+
+test('merge: each field takes the later edit; an older one, an empty password or a clock ahead of the server does not win', () => {
+  const now = 1_000;
+  const old = { account: { label: 'A', username: 'Nick', password: 'p1', serverId: 24, proxy: { host: 'h' } }, changed: { label: 10, password: 20, proxy: 10 } };
+  // Another device changed the password earlier and the label later: the label comes, the password stays.
+  const a = merge(old, { label: 'B', username: 'nick', password: 'p0', serverId: 24, proxy: { host: 'h' } }, { label: 30, password: 15, proxy: 10 }, now);
+  assert.deepEqual([a.account.label, a.account.password, a.account.username, a.kept], ['B', 'p1', 'Nick', true]);
+  assert.deepEqual(a.changed, { label: 30, password: 20, proxy: 10 });
+  // Proxy taken off later: it goes. An empty password never replaces one.
+  const b = merge(old, { label: 'A', username: 'nick', password: '', serverId: 24 }, { proxy: 40, password: 40 }, now);
+  assert.equal(b.account.proxy, undefined);
+  assert.equal(b.account.password, 'p1');
+  // A time past the server's clock counts as now, so it cannot hold a field for ever.
+  assert.equal(merge(old, { ...old.account, label: 'C' }, { label: 9e15 }, now).changed.label, now);
+  // The same account: nothing changes, nothing kept back.
+  const same = merge(old, old.account, { label: 0, password: 0, proxy: 0 }, now);
+  assert.deepEqual([same.account, same.changed, same.kept], [old.account, old.changed, false]);
+});
+
+test('devices sync: two devices with the same account make one row; each field keeps its later edit', async () => {
+  const c = await ready();
+  const t = await token(c);
+  const nick = { label: 'Nick nhà', username: 'tiheo1', password: 'p1', serverId: 24, fight: { autoRepair: false } };
+
+  // Unknown device: refused until it says hello. Wrong shapes: 400.
+  assert.equal((await syncOf(c.call, DEVICE, [[nick, 0]])).status, 404);
+  await hello(c.call);
+  await hello(c.call, { id: OTHER, hostname: 'MAY-CTY' });
+  // Said hello, but the admin has not let them sync: refused, with what the app logs.
+  const waiting = await syncOf(c.call, DEVICE, [[nick, 0]]);
+  assert.deepEqual([waiting.status, waiting.json.error], [403, 'Admin chưa cho máy này đồng bộ nick (Cho đồng bộ trên trang Thiết bị)']);
+  assert.match((await c.call('/admin/devices')).text, /Chưa cho đồng bộ nick/);
+  for (const id of [DEVICE, OTHER]) {
+    assert.equal((await c.call(`/admin/devices/${id}/sync-on`, { form: {} })).location, '/admin/devices?done=syncOn');
+  }
+  for (const body of ['{', JSON.stringify({ id: DEVICE }), JSON.stringify({ id: DEVICE, accounts: [{ changed: {} }] })]) {
+    assert.equal((await c.call('/api/devices/sync', { body })).status, 400, body);
+  }
+  assert.equal((await c.call('/api/devices/sync')).status, 405);
+
+  // First sync of both devices, everything from before (time 0): the first one sent is kept, the second changes nothing.
+  assert.deepEqual((await syncOf(c.call, DEVICE, [[nick, 0]], { record: true })).json, { added: 1, updated: 0, unchanged: 0, kept: 0, repeated: 0 });
+  const other = { ...nick, username: 'TIHEO1', password: 'p-cu', fight: { autoRepair: true } };
+  // kept counts among the unchanged and updated: an account whose differing fields the server has later.
+  assert.deepEqual((await syncOf(c.call, OTHER, [[other, 0]])).json, { added: 0, updated: 0, unchanged: 1, kept: 1, repeated: 0 });
+  assert.equal(await count(database(c.env.DB)), 1);
+  assert.equal((await kept(c, t))[0].password, 'p1');
+
+  // The office device turns Tự sửa đồ on, the home one changes the password later: both edits are kept.
+  const now = Date.now();
+  assert.equal((await syncOf(c.call, OTHER, [[other, { fight: now - 2000 }]])).json.updated, 1);
+  assert.equal((await syncOf(c.call, DEVICE, [[{ ...nick, password: 'p2' }, { password: now - 1000 }]])).json.updated, 1);
+  const [one] = await kept(c, t);
+  assert.deepEqual([one.password, one.fight, one.username], ['p2', { autoRepair: true }, 'tiheo1']);
+  // The office device, still with an old password, sends it again: the later edit stays.
+  assert.equal((await syncOf(c.call, OTHER, [[other, { fight: now - 2000 }]])).json.kept, 1);
+  assert.equal((await kept(c, t))[0].password, 'p2');
+
+  // The page names the device it came from, and the device shows its sync.
+  assert.match((await c.call('/admin')).text, /Máy MAY-NHA/);
+  assert.match((await c.call('/admin/devices')).text, /Đồng bộ nick vừa xong/);
+  // Turned off: refused again, the accounts it sent stay.
+  await c.call(`/admin/devices/${OTHER}/sync-off`, { form: {} });
+  assert.equal((await syncOf(c.call, OTHER, [[other, Date.now()]])).status, 403);
+  assert.equal(await count(database(c.env.DB)), 1);
+  await c.call(`/admin/devices/${OTHER}/sync-on`, { form: {} });
+
+  // A token sends it later: its fields are stamped now, and an edit made on a device before that does not undo it.
+  await c.call('/api/accounts', { token: t, body: JSON.stringify({ ...nick, password: 'p-token' }) });
+  assert.equal((await syncOf(c.call, DEVICE, [[{ ...nick, password: 'p3' }, { password: now }]])).json.kept, 1);
+  assert.equal((await kept(c, t))[0].password, 'p-token');
+
+  // Blocked: refused, with what the app shows.
+  await c.call(`/admin/devices/${DEVICE}/block`, { form: { reason: 'x' } });
+  const refused = await syncOf(c.call, DEVICE, [[nick, Date.now()]]);
+  assert.equal(refused.status, 403);
+  assert.match(refused.json.error, /Thiết bị đã bị khoá/);
+});
+
+test('a send of many accounts is a few D1 queries, as the Workers Free plan takes 50 a request (a batch counts as one)', async () => {
+  const db = d1();
+  let queries = 0;
+  const counted = {
+    ...db,
+    prepare: (sql: string) => (queries++, db.prepare(sql)),
+    batch: (list: D1PreparedStatement[]) => ((queries -= list.length - 1), db.batch(list)),
+  } as unknown as D1Database;
+  const many = Array.from({ length: 120 }, (_, i) => ({ label: '', username: `nick${i}`, password: 'p', serverId: 24 }));
+  await sync(database(counted), many, 'Máy nhà');
+  assert.ok(queries <= 3, `${queries} queries for a token send`);
+  queries = 0;
+  const done = await syncDevice(database(counted), many.map((account) => ({ account: { ...account, password: 'q' }, changed: { password: 1 } })), 'Máy A', 2);
+  assert.equal(done.updated, 0); // the token's stamps are later
+  assert.ok(queries <= 3, `${queries} queries for a device send`);
+  assert.equal(await count(database(db)), 120);
 });

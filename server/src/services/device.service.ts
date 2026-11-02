@@ -18,6 +18,27 @@ export async function hello(db: Db, h: Hello, ip: string, now = Date.now()): Pro
   return row?.blocked ? { allowed: false, reason: row.reason } : { allowed: true };
 }
 
+/** The device of that id, if it said hello. */
+export async function get(db: Db, id: string): Promise<Device | undefined> {
+  return db.select().from(table).where(eq(table.id, id)).get();
+}
+
+/** How the Nick page names what a device sent: its name on the Thiết bị page, else its host name. */
+export const sourceOf = (d: Device) => `Máy ${d.label || d.hostname || d.id.slice(0, 12)}`;
+
+/** Notes a sync, with the Cài đặt of the app when it sent them. */
+export async function synced(db: Db, id: string, settings: string | null, now = Date.now()) {
+  await db
+    .update(table)
+    .set(settings === null ? { syncedAt: now } : { syncedAt: now, settings })
+    .where(eq(table.id, id));
+}
+
+/** Cho đồng bộ (true) or Tắt đồng bộ: whether the accounts the device sends are taken. */
+export async function allowSync(db: Db, id: string, allowed: boolean) {
+  await db.update(table).set({ syncAllowed: allowed ? 1 : 0 }).where(eq(table.id, id));
+}
+
 /** Every device, the one seen last first. */
 export async function list(db: Db): Promise<Device[]> {
   return db.select().from(table).orderBy(desc(table.lastSeen));

@@ -380,6 +380,12 @@ Mỗi máy chạy app được quản lý trên [CLLT Server](../../../server/RE
   - mọi nick bị đăng xuất; Đăng nhập, Đăng nhập tất cả và `--login-all` không làm gì.
   - Admin bỏ chặn thì hộp tự đóng ở lần báo tiếp theo (tối đa 15 phút).
 - **Không kết nối được server** (mất mạng, server lỗi): app giữ câu trả lời cuối, lưu trong `device.json` cạnh `accounts.json`. Máy đã bị chặn vẫn khoá; máy được dùng, hay chưa từng hỏi được, vẫn dùng bình thường.
+- **Đồng bộ nick lên server** (chỉ chiều lên, app không tải gì về; `desktop/src-tauri/src/sync.rs`, [server/README.md#đồng-bộ-nick](../../../server/README.md#đồng-bộ-nick)):
+  - sau mỗi lần báo được phép, app gửi `POST /api/devices/sync` với những nick đã đổi kể từ lần gửi trước. Mỗi nick gửi nguyên vẹn, kể cả mật khẩu, proxy, Cài đặt đánh. Cài đặt của app gửi kèm khi đổi;
+  - `sync.json` cạnh `accounts.json` nhớ mã băm và thời điểm đổi của từng mục, không chứa mật khẩu. Server gộp nick trùng của nhiều máy theo từng mục, lần sửa sau thắng. Lần gửi đầu tính mọi mục là "từ trước", nên không đè máy khác;
+  - admin phải bấm **Cho đồng bộ** cho từng máy trên trang Thiết bị, chưa duyệt thì server từ chối và app gửi lại lần sau;
+  - **Nhập JSON** thì các nick vừa nhập tính là "từ trước", nên không đè lần sửa mới hơn của máy khác;
+  - gửi lỗi thì lần sau gửi lại. `accounts.json` đọc lỗi thì không gửi gì. Máy bị chặn không gửi.
 - `--sample` không báo. `CLLT_DEVICE_SERVER` đổi địa chỉ server; `CLLT_DEVICE_SERVER=off` tắt hẳn (khi phát triển).
 
 ## Proxy

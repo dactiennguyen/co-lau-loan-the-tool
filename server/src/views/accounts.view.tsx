@@ -55,7 +55,10 @@ export function AccountsView({ nonce, rows, flash }: { nonce: string; rows: Acco
   return (
     <Layout title="Nick" nonce={nonce} nav="accounts">
       <h1>Nick đã đồng bộ</h1>
-      <p class="sub">Nick app gửi lên qua API, mỗi server game và tài khoản một dòng. Mật khẩu lưu nguyên văn, không mã hoá.</p>
+      <p class="sub">
+        Nick các máy tự đồng bộ lên (15 phút một lần) hoặc gửi bằng API token, mỗi server game và tài khoản một dòng. Hai máy cùng một nick thì gộp
+        từng mục, mục nào sửa sau thì giữ. Mật khẩu lưu nguyên văn, không mã hoá.
+      </p>
       <Message kind="ok" text={flash} />
       <div class="bar">
         <span class="count">
@@ -69,13 +72,13 @@ export function AccountsView({ nonce, rows, flash }: { nonce: string; rows: Acco
           Tải JSON (Nhập được vào app)
         </a>
       </div>
-      <Table head={['Tên hiển thị', 'Tài khoản', 'Mật khẩu', 'Server', 'Proxy', 'Gửi bằng token', 'Cập nhật', <span class="muted">Xoá</span>]}>
+      <Table head={['Tên hiển thị', 'Tài khoản', 'Mật khẩu', 'Server', 'Proxy', 'Gửi từ', 'Cập nhật', <span class="muted">Xoá</span>]}>
         {rows.length ? (
           rows.map((r) => <AccountRowView r={r} />)
         ) : (
           <tr>
             <td colspan={8} class="muted wrap">
-              Chưa có nick nào. Tạo một API token rồi gửi nick lên bằng <code>POST /api/accounts</code> (README.md của thư mục server).
+              Chưa có nick nào. App từ bản 1.1.4 tự đồng bộ nick lên; hoặc tạo một API token rồi gửi bằng <code>POST /api/accounts</code> (README.md của thư mục server).
             </td>
           </tr>
         )}

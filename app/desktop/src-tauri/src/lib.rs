@@ -24,6 +24,7 @@ mod paths;
 mod sample;
 mod settings;
 mod store;
+mod sync;
 mod tray;
 mod update;
 mod view;

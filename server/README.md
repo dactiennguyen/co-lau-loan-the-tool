@@ -141,6 +141,31 @@ Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 
 - Máy bị chặn thì khoá ở lần báo tiếp theo, tức tối đa 15 phút nếu app đang mở. App nhớ trạng thái, nên mất mạng vẫn khoá.
 - **Giới hạn:** mã máy do app tự báo. Người rành máy tính có thể đổi `MachineGuid` (cần quyền admin) hay sửa app để gửi mã khác. Cách này chặn người dùng thường, không chặn người cố tình.
 
+## Đồng bộ nick
+
+Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem trên trang **Nick** và Tải JSON, app không tải gì về. Máy mới phải được admin bấm **Cho đồng bộ** trên trang Thiết bị (bấm **Tắt đồng bộ** để thôi; nick đã gửi vẫn giữ). Sau mỗi lần báo danh được phép (lúc mở app, rồi 15 phút một lần), app gửi `POST /api/devices/sync` với các nick đã đổi kể từ lần gửi trước. Mỗi nick gửi nguyên vẹn: mật khẩu, proxy, Cài đặt đánh, kỹ năng, chỉ số. Cài đặt của app cũng gửi kèm khi đổi (`src-tauri/src/sync.rs`):
+
+```json
+{"id": "<64 ký tự hex>", "settings": {"server": …, "record": true, "onClose": "ask"},
+ "accounts": [{"account": {"username": "tiheo1", "password": "…", "serverId": 24, "fight": {…}},
+               "changed": {"password": 1762059000000, "fight": 0, "label": 0}}]}
+```
+
+**Hai máy cùng một nick** (cùng server game, tài khoản không phân biệt hoa thường) thì server gộp thành **một dòng**, gộp **từng mục**:
+
+- `changed` ghi lúc app thấy từng mục đổi. Server giữ cho mỗi mục giá trị của lần sửa **sau cùng** (cột `changed` của bảng `accounts`).
+- Hai máy gửi giống nhau: không đổi gì. Máy A sửa mật khẩu, máy B bật Tự sửa đồ: giữ cả hai. Cùng sửa một mục: lần sửa sau thắng.
+- Máy còn bản cũ gửi lại thì không đè lần sửa mới hơn (trả về `kept`). Lần đồng bộ đầu của một máy tính mọi mục là "từ trước" (thời điểm 0), nên máy vào sau không đè dữ liệu đã có.
+- Tên hiển thị hay mật khẩu để trống không xoá cái đã có. Thời điểm vượt giờ server tính bằng giờ server.
+- **Nhập JSON** trên app thì các nick vừa nhập tính là "từ trước" (thời điểm 0): nick server chưa có thì được thêm, nhưng không đè lần sửa mới hơn của máy khác. Sửa tay sau đó mới tính là sửa lúc đó.
+- Hai lần gửi cùng lúc cho cùng một nick: server chỉ ghi khi dòng còn y như lúc đọc. Dòng đã bị lần gửi kia đổi thì đọc lại và gộp lại, thử tối đa 3 lần, quá nữa thì trả 503 để app gửi lại sau.
+- Gửi bằng API token (`POST /api/accounts`) thì mọi mục tính là sửa lúc gửi.
+- Xoá nick trên app không xoá trên server; xoá ở trang Nick.
+
+Server trả `{"added", "updated", "unchanged", "kept", "repeated"}`. Máy chưa báo danh bị từ chối (404); máy bị chặn hay chưa được cho đồng bộ cũng vậy (403). Mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi. Trang Thiết bị hiện lần đồng bộ cuối, rê chuột lên đó để xem Cài đặt của máy.
+
+**Vì sao phải duyệt:** app không giữ được bí mật nên máy chỉ được nhận ra bằng mã máy. Ai biết API cũng báo danh được một mã mới, nhưng chưa được Cho đồng bộ thì không ghi được nick nào. Mã của máy đã duyệt là SHA-256 của mã máy, không đoán được; trang admin chỉ hiện 12 ký tự đầu.
+
 ## Bảo mật
 
 - **Mật khẩu game và mật khẩu proxy lưu nguyên văn** trong D1, không mã hoá. Đây là lựa chọn của người dùng, để trang quản trị xem được. Ai có token hay đăng nhập được trang quản trị là đọc được mọi mật khẩu. Vì vậy:
@@ -183,7 +208,7 @@ Chia lớp như một backend thường gặp: request đi `routes/` → `middle
 | `src/views/` | Trang quản trị bằng JSX của Hono (`hono/jsx`, viết như component React, render ra HTML ở server): mọi giá trị chèn vào đều được escape. `layout.tsx` (khung trang, `Message`, `Table`), `styles.ts`, `script.ts`, và một file `*.view.tsx` mỗi trang |
 | `src/utils/` | `crypto` (PBKDF2, SHA-256), `http` (IP, cookie, body có giới hạn, field của form), `render` (trang kèm nonce của CSP), `format` (giờ Việt Nam) |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
-| `migrations/0001_init.sql`, `0002_devices.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts`; `devices` |
+| `migrations/0001_init.sql`, `0002_devices.sql`, `0003_sync.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts`; `devices`; cột `changed` của `accounts`, `settings` và `synced_at` của `devices` |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 

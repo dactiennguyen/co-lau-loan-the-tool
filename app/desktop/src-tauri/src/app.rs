@@ -370,6 +370,7 @@ impl Shared {
             for (step, account) in steps.into_iter().zip(accounts) {
                 match step {
                     Step::Add => {
+                        done.accounts.push(account.clone());
                         let id = app.add(account);
                         app.touch(id, true);
                         done.added += 1;
@@ -377,6 +378,7 @@ impl Shared {
                     Step::Replace(id) => {
                         if let Some(at) = app.entries.iter().position(|e| e.id == id) {
                             app.entries[at].account = list[at].clone();
+                            done.accounts.push(list[at].clone());
                             app.touch(id, false);
                         }
                         done.replaced += 1;

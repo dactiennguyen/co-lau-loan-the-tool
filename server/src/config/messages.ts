@@ -9,6 +9,8 @@ export const FLASH: Record<string, string> = {
   unblocked: 'Đã bỏ chặn thiết bị.',
   renamed: 'Đã đặt tên thiết bị.',
   forgotten: 'Đã xoá thiết bị khỏi danh sách. Lần mở app tới nó sẽ hiện lại, vẫn được dùng; muốn ngăn thì Chặn.',
+  syncOn: 'Đã cho máy đồng bộ nick: nick của máy lên trang Nick ở lần báo tiếp theo (tối đa 15 phút).',
+  syncOff: 'Đã tắt đồng bộ nick của máy. Nick máy đó đã gửi vẫn giữ trên trang Nick.',
 };
 
 export const AUTH = {
@@ -31,5 +33,8 @@ export const HTTP = {
   onlyPost: 'Chỉ có POST',
   accountsTooLarge: 'JSON quá lớn (tối đa 1 MB)',
   helloTooLarge: 'JSON quá lớn',
+  unknownDevice: 'Thiết bị chưa báo danh (POST /api/devices/hello trước)',
+  blockedDevice: 'Thiết bị đã bị khoá, vui lòng liên hệ admin',
+  syncNotAllowed: 'Admin chưa cho máy này đồng bộ nick (Cho đồng bộ trên trang Thiết bị)',
   tokenName: `Đặt tên token từ 1 tới ${MAX_TOKEN_NAME} ký tự`,
 };

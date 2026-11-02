@@ -48,6 +48,8 @@ export const accounts = sqliteTable(
     source: text('source').notNull().default(''),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
+    /** JSON {"field": epoch ms}: when each field of `data` was last changed (migrations/0003_sync.sql). */
+    changed: text('changed').notNull().default('{}'),
   },
   (t) => [unique().on(t.serverId, t.usernameKey)],
 );
@@ -67,6 +69,11 @@ export const devices = sqliteTable(
     lastSeen: integer('last_seen').notNull(),
     blocked: integer('blocked').notNull().default(0),
     reason: text('reason').notNull().default(''),
+    /** Cài đặt of the app at the last sync, JSON; '' before any. */
+    settings: text('settings').notNull().default(''),
+    syncedAt: integer('synced_at'),
+    /** 1 once the admin lets it sync (Cho đồng bộ); 0 refuses its accounts. */
+    syncAllowed: integer('sync_allowed').notNull().default(0),
   },
   (t) => [index('devices_last_seen').on(t.lastSeen)],
 );

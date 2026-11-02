@@ -894,6 +894,8 @@ pub async fn import_accounts(
 ) -> Result<backup::Imported, String> {
     let parsed = backup::parse(&text)?;
     let mut done = shared.import(parsed.accounts, replace).await?;
+    // Old data, not an edit made now: it does not undo a later edit of another device (sync.rs).
+    crate::sync::imported(&done.accounts);
     if let Some(s) = parsed.settings.filter(|_| settings) {
         shared
             .set_settings(s)

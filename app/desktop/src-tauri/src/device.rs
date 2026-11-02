@@ -1,6 +1,7 @@
 // Quản lý thiết bị (docs/integration/rust/features.md#thiết-bị, server/README.md#thiết-bị): as it opens and every 15
 // minutes, the app says hello to CLLT Server (POST /api/devices/hello) with the id of this machine, its name and system,
-// the version of the app and the usernames of its accounts (no passwords). The answer says whether this device may run.
+// the version of the app and the usernames of its accounts (no passwords). The answer says whether this device may run;
+// one that may then sends its accounts that changed, passwords included (sync.rs).
 //
 // The id is the SHA-256 of the operating system's machine id (MachineGuid on Windows, IOPlatformUUID on macOS,
 // /etc/machine-id on Linux, read by machine-uid): the same after the app is removed and installed again.
@@ -203,7 +204,11 @@ async fn hello<R: Runtime>(app: &AppHandle<R>, server: &str) {
             })
         })
         .unwrap_or_default();
-    let id = app.state::<Devices>().0.lock().unwrap().id.clone();
+    let (id, file) = {
+        let devices = app.state::<Devices>();
+        let inner = devices.0.lock().unwrap();
+        (inner.id.clone(), inner.file.with_file_name("sync.json"))
+    };
     let body = serde_json::json!({
         "id": id,
         "hostname": hostname(),
@@ -212,7 +217,14 @@ async fn hello<R: Runtime>(app: &AppHandle<R>, server: &str) {
         "accounts": accounts,
     });
     match ask(server, &body).await {
-        Ok(a) => settle(app, a),
+        Ok(a) => {
+            let allowed = a.allowed;
+            settle(app, a);
+            // Đồng bộ nick lên server, only from a device that may run (sync.rs).
+            if allowed {
+                crate::sync::run(app, server, &id, &file).await;
+            }
+        }
         Err(e) => eprintln!("Quản lý thiết bị: không hỏi được server ({e}), giữ trạng thái cũ"),
     }
 }
