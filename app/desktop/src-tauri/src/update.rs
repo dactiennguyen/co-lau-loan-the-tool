@@ -1,7 +1,8 @@
 // Tự cập nhật (docs/integration/rust/release.md#tự-cập-nhật): tauri-plugin-updater reads latest.json of the latest GitHub
-// release, 20 s after the app opens and then every 6 hours, or when the user asks. A newer version is downloaded at once
-// and its minisign signature checked against the public key of tauri.conf.json; it is then installed when the app quits,
-// or at once with Khởi động lại (every account logged out first). The UI hears of each change with the "update" event.
+// release as soon as the app opens and then every 6 hours, or when the user asks. Every newer version is mandatory: it is
+// downloaded at once, its minisign signature checked against the public key of tauri.conf.json, then installed at once
+// (every account logged out first) and the app opened again; the UI covers the whole window meanwhile (UpdateGate.tsx).
+// A check that fails (no network, GitHub down) blocks nothing. The UI hears of each change with the "update" event.
 // Only an installed app updates itself: `tauri dev` and the portable Windows exe carry no bundle type.
 use crate::app::Shared;
 use cllt_core::net::Command;
@@ -11,8 +12,8 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-/// First check after the app opens, then one every EVERY.
-const FIRST: Duration = Duration::from_secs(20);
+/// First check after the app opens (at once: a newer version is mandatory), then one every EVERY.
+const FIRST: Duration = Duration::ZERO;
 const EVERY: Duration = Duration::from_secs(6 * 3600);
 /// Least time between two "update" events while downloading.
 const PROGRESS: Duration = Duration::from_millis(250);
@@ -44,7 +45,7 @@ pub enum UpdateState {
         got: u64,
         total: Option<u64>,
     },
-    /// Downloaded and verified: installed when the app quits, or now with Khởi động lại.
+    /// Downloaded and verified: being installed at once (mandatory), or when the app quits if that failed to start.
     Ready {
         version: String,
         notes: String,
@@ -183,6 +184,11 @@ async fn download<R: Runtime>(app: &AppHandle<R>, update: Update) {
         Ok(bytes) => {
             app.state::<Updates>().lock().ready = Some((update, bytes));
             set(app, UpdateState::Ready { version, notes });
+            // Mandatory: installed now, and the app opens again. Off the async workers, as install_update does (macOS
+            // may ask for an admin password). A failed install leaves the state Failed, which unblocks the UI; the next
+            // check tries again.
+            let app = app.clone();
+            let _ = tauri::async_runtime::spawn_blocking(move || install_now(&app)).await;
         }
         Err(e) => fail(app, &e),
     }

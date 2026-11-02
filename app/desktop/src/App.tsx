@@ -18,8 +18,10 @@ import { StatPlanDialog } from "@/views/dialogs/StatPlanDialog";
 import { StopDialog } from "@/views/dialogs/StopDialog";
 import { Toaster } from "@/views/Toaster";
 import { UpdateDialog } from "@/views/dialogs/UpdateDialog";
+import { UpdateGate } from "@/views/UpdateGate";
 
-/** Sidebar of accounts, the selected account, the dialog the store says is open, and the toasts. */
+/** Sidebar of accounts, the selected account, the dialog the store says is open, the toasts, and the cover of a
+ * mandatory update. */
 export default function App() {
   useSync();
   const ready = useStore((s) => s.ready);
@@ -35,6 +37,8 @@ export default function App() {
       </main>
       <Dialogs />
       <Toaster />
+      {/* Last, so that it opens above any dialog: a newer version is mandatory. */}
+      <UpdateGate />
     </div>
   );
 }
