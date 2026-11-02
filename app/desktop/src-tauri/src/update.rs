@@ -1,5 +1,6 @@
 // Tự cập nhật (docs/integration/rust/release.md#tự-cập-nhật): tauri-plugin-updater reads latest.json of the latest GitHub
-// release as soon as the app opens and then every 6 hours, or when the user asks. Every newer version is mandatory: it is
+// release once, as soon as the app opens, or when the user asks: a version released while the app runs waits for the next
+// time it opens, so accounts playing are not logged out for it. Every newer version is mandatory: it is
 // downloaded at once, its minisign signature checked against the public key of tauri.conf.json, then installed at once
 // (every account logged out first) and the app opened again; the UI covers the whole window meanwhile (UpdateGate.tsx).
 // A check that fails (no network, GitHub down) blocks nothing. The UI hears of each change with the "update" event.
@@ -12,9 +13,6 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-/// First check after the app opens (at once: a newer version is mandatory), then one every EVERY.
-const FIRST: Duration = Duration::ZERO;
-const EVERY: Duration = Duration::from_secs(6 * 3600);
 /// Least time between two "update" events while downloading.
 const PROGRESS: Duration = Duration::from_millis(250);
 /// Longest the app waits, once its window is gone, for the update to install on quit.
@@ -100,7 +98,7 @@ fn set<R: Runtime>(app: &AppHandle<R>, state: UpdateState) {
     let _ = app.emit("update", view(app));
 }
 
-/// Turns updates off for a copy that cannot update itself, else starts the checks.
+/// Turns updates off for a copy that cannot update itself, else checks once, at once (a newer version is mandatory).
 pub fn start<R: Runtime>(app: &AppHandle<R>, sample: bool) {
     let off = if sample {
         Some("dữ liệu mẫu (--sample)")
@@ -116,13 +114,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, sample: bool) {
         return;
     }
     let app = app.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(FIRST);
-        loop {
-            tauri::async_runtime::block_on(check(&app));
-            std::thread::sleep(EVERY);
-        }
-    });
+    std::thread::spawn(move || tauri::async_runtime::block_on(check(&app)));
 }
 
 /// Checks for a newer version and downloads it. Does nothing while off, checking, downloading, or once one is ready.

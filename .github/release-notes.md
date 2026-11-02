@@ -21,6 +21,6 @@ Bản `.app.zip` là app macOS dạng nén, dùng khi không muốn mở file `.
 
 ## Tự cập nhật
 
-App đã cài tự tìm bản mới trên trang Releases này (lúc mở app, rồi 6 giờ một lần), tải về và kiểm chữ ký. Tải xong, thanh bên có nút **Khởi động lại để cập nhật**; không bấm thì bản mới tự cài khi tắt app. Bản `_portable.exe` không tự cập nhật. Bản 0.2.0 trở về trước chưa có tính năng này: cài tay bản mới một lần, từ đó về sau app tự cập nhật.
+App đã cài tự tìm bản mới trên trang Releases này (mỗi lần mở app), tải về và kiểm chữ ký. Tải xong, thanh bên có nút **Khởi động lại để cập nhật**; không bấm thì bản mới tự cài khi tắt app. Bản `_portable.exe` không tự cập nhật. Bản 0.2.0 trở về trước chưa có tính năng này: cài tay bản mới một lần, từ đó về sau app tự cập nhật.
 
 Mỗi nick không được online ở máy khác khi dùng app.
