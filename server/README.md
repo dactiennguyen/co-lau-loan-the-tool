@@ -1,7 +1,7 @@
 # CLLT Server
 
 Server riêng để giữ danh sách nick và quản lý thiết bị của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
-- một **Worker** (TypeScript, `src/`);
+- một **Worker** (TypeScript, `src/`), định tuyến bằng [Hono](https://hono.dev), đọc ghi database bằng [Drizzle ORM](https://orm.drizzle.team);
 - một database **D1** (SQLite của Cloudflare, `migrations/`);
 - **API** để gửi nick lên và tải nick về, và để app báo thiết bị ([Thiết bị](#thiết-bị));
 - **trang quản trị** có đăng nhập.
@@ -165,7 +165,8 @@ Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 
 
 | File | Làm gì |
 |---|---|
-| `src/index.ts` | Nhận request, chia đường dẫn, gắn header bảo mật |
+| `src/index.ts` | App Hono: các route API và trang quản trị; middleware gắn header bảo mật, CORS cho `/api/*`, kiểm tra Origin của form, bắt đăng nhập, bắt đổi mật khẩu mặc định |
+| `src/db.ts` | Các bảng cho Drizzle. `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
 | `src/auth.ts` | Tài khoản quản trị, đăng nhập, phiên, đổi mật khẩu, API token |
 | `src/accounts.ts` | Đọc JSON (giống `backup::parse` của app), thêm/thay nick, xuất JSON |
 | `src/devices.ts` | Thiết bị: đọc hello, thêm/cập nhật, chặn, bỏ chặn, đặt tên, xoá |
@@ -173,7 +174,7 @@ Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
 | `migrations/0001_init.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts` |
 | `migrations/0002_devices.sql` | Bảng `devices` |
-| `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`) |
+| `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 
 Kiểm tra: `yarn test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd): đăng nhập `admin`/`admin`, bị chuyển sang đổi mật khẩu, tạo token, gửi một nick lên, tải về có mật khẩu, trang Nick hiện nick đó, header CSP có nonce.

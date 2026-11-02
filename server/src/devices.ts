@@ -1,5 +1,7 @@
 // Devices of the desktop app (README.md#thiết-bị). The app sends POST /api/devices/hello as it opens and every 15
 // minutes; the answer says whether it may run. A device never seen is allowed; the admin page blocks it afterwards.
+import { desc, eq } from 'drizzle-orm';
+import { devices as table, type Db } from './db.ts';
 
 /** What the app sends. `id` is the SHA-256 (hex) of the operating system's machine id. */
 export interface Hello {
@@ -10,19 +12,7 @@ export interface Hello {
   accounts: { username: string; serverId: number }[];
 }
 
-export interface Device {
-  id: string;
-  label: string;
-  hostname: string;
-  os: string;
-  version: string;
-  accounts: string;
-  ip: string;
-  first_seen: number;
-  last_seen: number;
-  blocked: number;
-  reason: string;
-}
+export type Device = typeof table.$inferSelect;
 
 /** The largest hello the API takes. */
 export const MAX_HELLO = 16 * 1024;
@@ -57,37 +47,34 @@ export function parseHello(body: string): Hello | { error: string } {
 }
 
 /** Records the hello (a new device is allowed) and answers whether the device may run, with the reason if not. */
-export async function hello(db: D1Database, h: Hello, ip: string, now = Date.now()) {
-  await db
-    .prepare(
-      `INSERT INTO devices (id, hostname, os, version, accounts, ip, first_seen, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (id) DO UPDATE SET hostname = excluded.hostname, os = excluded.os, version = excluded.version,
-         accounts = excluded.accounts, ip = excluded.ip, last_seen = excluded.last_seen`,
-    )
-    .bind(h.id, h.hostname, h.os, h.version, JSON.stringify(h.accounts), ip, now, now)
-    .run();
-  const row = await db.prepare('SELECT blocked, reason FROM devices WHERE id = ?').bind(h.id).first<{ blocked: number; reason: string }>();
+export async function hello(db: Db, h: Hello, ip: string, now = Date.now()) {
+  const seen = { hostname: h.hostname, os: h.os, version: h.version, accounts: JSON.stringify(h.accounts), ip, lastSeen: now };
+  const [row] = await db
+    .insert(table)
+    .values({ id: h.id, ...seen, firstSeen: now })
+    .onConflictDoUpdate({ target: table.id, set: seen })
+    .returning({ blocked: table.blocked, reason: table.reason });
   return row?.blocked ? { allowed: false, reason: row.reason } : { allowed: true };
 }
 
 /** Every device, the one seen last first. */
-export async function devices(db: D1Database): Promise<Device[]> {
-  return (await db.prepare('SELECT * FROM devices ORDER BY last_seen DESC').all<Device>()).results;
+export async function devices(db: Db): Promise<Device[]> {
+  return db.select().from(table).orderBy(desc(table.lastSeen));
 }
 
-export async function block(db: D1Database, id: string, reason: string) {
-  await db.prepare('UPDATE devices SET blocked = 1, reason = ? WHERE id = ?').bind(text(reason, MAX_REASON), id).run();
+export async function block(db: Db, id: string, reason: string) {
+  await db.update(table).set({ blocked: 1, reason: text(reason, MAX_REASON) }).where(eq(table.id, id));
 }
 
-export async function unblock(db: D1Database, id: string) {
-  await db.prepare("UPDATE devices SET blocked = 0, reason = '' WHERE id = ?").bind(id).run();
+export async function unblock(db: Db, id: string) {
+  await db.update(table).set({ blocked: 0, reason: '' }).where(eq(table.id, id));
 }
 
-export async function rename(db: D1Database, id: string, label: string) {
-  await db.prepare('UPDATE devices SET label = ? WHERE id = ?').bind(text(label, MAX_LABEL), id).run();
+export async function rename(db: Db, id: string, label: string) {
+  await db.update(table).set({ label: text(label, MAX_LABEL) }).where(eq(table.id, id));
 }
 
 /** Forgets a device; it comes back, allowed, at its next hello. Blocking is what keeps it out. */
-export async function forget(db: D1Database, id: string) {
-  await db.prepare('DELETE FROM devices WHERE id = ?').bind(id).run();
+export async function forget(db: Db, id: string) {
+  await db.delete(table).where(eq(table.id, id));
 }

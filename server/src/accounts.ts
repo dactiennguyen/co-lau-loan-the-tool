@@ -1,5 +1,7 @@
 // The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): what POST
 // /api/accounts takes and GET /api/accounts gives back, so that Nhập JSON of the app reads it as it is.
+import { and, asc, count as rowCount, eq, sql } from 'drizzle-orm';
+import { accounts as table, type Db } from './db.ts';
 
 /** As backup.rs writes them. */
 export const APP = 'CLLT Tool';
@@ -11,17 +13,8 @@ export const SERVER_ID = 24;
  * stats, fight, fightTargets, proxy), kept as sent. */
 export type Account = { [key: string]: unknown; label: string; username: string; password: string; serverId: number };
 
-export interface Row {
-  id: number;
-  server_id: number;
-  username: string;
-  label: string;
-  password: string;
-  data: string;
-  source: string;
-  created_at: number;
-  updated_at: number;
-}
+/** An account as the admin page lists it. */
+export type Row = typeof table.$inferSelect;
 
 export interface Synced {
   added: number;
@@ -97,74 +90,76 @@ const key = (a: Account) => a.username.toLowerCase();
 
 /** Đồng bộ lên: each account added, or put in place of the one of the same server and username (any case). `source`
  * is the name of the token that sent them. */
-export async function sync(db: D1Database, accounts: Account[], source: string): Promise<Synced> {
+export async function sync(db: Db, sent: Account[], source: string): Promise<Synced> {
   const done: Synced = { added: 0, updated: 0, unchanged: 0, repeated: 0 };
   const seen = new Set<string>();
   const now = Date.now();
-  const writes: D1PreparedStatement[] = [];
-  for (const sent of accounts) {
-    const id = `${sent.serverId}\n${key(sent)}`;
+  const writes = [];
+  for (const one of sent) {
+    const id = `${one.serverId}\n${key(one)}`;
     if (seen.has(id)) {
       done.repeated++;
       continue;
     }
     seen.add(id);
     const old = await db
-      .prepare('SELECT id, data FROM accounts WHERE server_id = ? AND username_key = ?')
-      .bind(sent.serverId, key(sent))
-      .first<{ id: number; data: string }>();
-    const next = old ? replacement(JSON.parse(old.data) as Account, sent) : sent;
+      .select({ id: table.id, data: table.data })
+      .from(table)
+      .where(and(eq(table.serverId, one.serverId), eq(table.usernameKey, key(one))))
+      .get();
+    const next = old ? replacement(JSON.parse(old.data) as Account, one) : one;
     const data = canonical(next);
     if (old?.data === data) {
       done.unchanged++;
       continue;
     }
+    const fields = { username: next.username, label: next.label, password: next.password, data, source, updatedAt: now };
     if (old) {
       done.updated++;
-      writes.push(
-        db
-          .prepare('UPDATE accounts SET username = ?, label = ?, password = ?, data = ?, source = ?, updated_at = ? WHERE id = ?')
-          .bind(next.username, next.label, next.password, data, source, now, old.id),
-      );
+      writes.push(db.update(table).set(fields).where(eq(table.id, old.id)));
     } else {
       done.added++;
       // Another request may have added it meanwhile: this one then replaces it, as a later send would.
       writes.push(
         db
-          .prepare(
-            `INSERT INTO accounts (server_id, username, username_key, label, password, data, source, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT (server_id, username_key) DO UPDATE SET username = excluded.username, label = excluded.label,
-               password = excluded.password, data = excluded.data, source = excluded.source, updated_at = excluded.updated_at`,
-          )
-          .bind(next.serverId, next.username, key(next), next.label, next.password, data, source, now, now),
+          .insert(table)
+          .values({ ...fields, serverId: next.serverId, usernameKey: key(next), createdAt: now })
+          .onConflictDoUpdate({
+            target: [table.serverId, table.usernameKey],
+            set: {
+              username: sql`excluded.username`,
+              label: sql`excluded.label`,
+              password: sql`excluded.password`,
+              data: sql`excluded.data`,
+              source: sql`excluded.source`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          }),
       );
     }
   }
-  if (writes.length) await db.batch(writes);
+  const [first, ...rest] = writes;
+  if (first) await db.batch([first, ...rest]);
   return done;
 }
 
 /** Every account, first added first. */
-export async function rows(db: D1Database): Promise<Row[]> {
-  const { results } = await db
-    .prepare('SELECT id, server_id, username, label, password, data, source, created_at, updated_at FROM accounts ORDER BY id')
-    .all<Row>();
-  return results;
+export async function rows(db: Db): Promise<Row[]> {
+  return db.select().from(table).orderBy(asc(table.id));
 }
 
-export async function count(db: D1Database): Promise<number> {
-  return (await db.prepare('SELECT COUNT(*) AS n FROM accounts').first<number>('n')) ?? 0;
+export async function count(db: Db): Promise<number> {
+  return (await db.select({ n: rowCount() }).from(table).get())?.n ?? 0;
 }
 
 /** The JSON of GET /api/accounts and Tải JSON: Xuất JSON of the app, without its "settings". */
-export async function exported(db: D1Database): Promise<string> {
+export async function exported(db: Db): Promise<string> {
   const accounts = (await rows(db)).map((r) => JSON.parse(r.data) as Account);
   return JSON.stringify({ app: APP, format: FORMAT, exportedAt: new Date().toISOString(), accounts }, null, 2) + '\n';
 }
 
 /** True when there was one to delete. */
-export async function remove(db: D1Database, id: number): Promise<boolean> {
-  const r = await db.prepare('DELETE FROM accounts WHERE id = ?').bind(id).run();
-  return (r.meta.changes ?? 0) > 0;
+export async function remove(db: Db, id: number): Promise<boolean> {
+  const gone = await db.delete(table).where(eq(table.id, id)).returning({ id: table.id });
+  return gone.length > 0;
 }

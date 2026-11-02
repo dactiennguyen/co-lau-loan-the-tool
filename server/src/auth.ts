@@ -1,5 +1,7 @@
 // The admin of the admin page, its logins, and the API tokens (README.md#bảo-mật). Passwords are hashed with
 // PBKDF2-SHA256; cookies and tokens are kept as their SHA-256 only, so the database alone opens nothing.
+import { and, eq, gt, lt, ne, sql } from 'drizzle-orm';
+import { admins, loginFailures, sessions, tokens, type Db } from './db.ts';
 
 /** The one admin, made on the first request with DEFAULT_PASSWORD, which the page then asks to change first. */
 export const ADMIN = 'admin';
@@ -15,18 +17,10 @@ export const COOKIE = 'cllt_admin';
 export const FAIL_LIMIT = 10;
 const FAIL_WINDOW_MS = 15 * 60_000;
 
-export interface Admin {
-  username: string;
-  password_hash: string;
-  must_change: number;
-}
-export interface Token {
-  id: number;
-  name: string;
-  prefix: string;
-  created_at: number;
-  last_used_at: number | null;
-}
+export type Admin = typeof admins.$inferSelect;
+/** A token as the admin page lists it: everything but its hash. */
+export type Token = Omit<typeof tokens.$inferSelect, 'hash'>;
+const tokenColumns = { id: tokens.id, name: tokens.name, prefix: tokens.prefix, createdAt: tokens.createdAt, lastUsedAt: tokens.lastUsedAt };
 
 const text = new TextEncoder();
 
@@ -72,15 +66,14 @@ export async function checkPassword(password: string, stored: string): Promise<b
 }
 
 /** The admin, made with DEFAULT_PASSWORD (to change first) when the database has none yet. */
-export async function admin(db: D1Database): Promise<Admin> {
-  const read = () =>
-    db.prepare('SELECT username, password_hash, must_change FROM admins WHERE username = ?').bind(ADMIN).first<Admin>();
+export async function admin(db: Db): Promise<Admin> {
+  const read = () => db.select().from(admins).where(eq(admins.username, ADMIN)).get();
   const found = await read();
   if (found) return found;
   await db
-    .prepare('INSERT OR IGNORE INTO admins (username, password_hash, must_change, updated_at) VALUES (?, ?, 1, ?)')
-    .bind(ADMIN, await hashPassword(DEFAULT_PASSWORD), Date.now())
-    .run();
+    .insert(admins)
+    .values({ username: ADMIN, passwordHash: await hashPassword(DEFAULT_PASSWORD), mustChange: 1, updatedAt: Date.now() })
+    .onConflictDoNothing();
   return (await read())!;
 }
 
@@ -94,111 +87,91 @@ export function cookieOf(req: Request, name: string): string | null {
 
 /** Đăng nhập: a new session cookie, or why not. An IP that failed FAIL_LIMIT times in 15 minutes waits for the rest of
  * them, right password or not. */
-export async function login(
-  db: D1Database,
-  ip: string,
-  username: string,
-  password: string,
-): Promise<{ cookie: string } | { error: string }> {
+export async function login(db: Db, ip: string, username: string, password: string): Promise<{ cookie: string } | { error: string }> {
   const now = Date.now();
-  const failed = await db
-    .prepare('SELECT count, first_at FROM login_failures WHERE ip = ?')
-    .bind(ip)
-    .first<{ count: number; first_at: number }>();
-  if (failed && now - failed.first_at < FAIL_WINDOW_MS && failed.count >= FAIL_LIMIT) {
-    const minutes = Math.ceil((failed.first_at + FAIL_WINDOW_MS - now) / 60_000);
+  const failed = await db.select().from(loginFailures).where(eq(loginFailures.ip, ip)).get();
+  if (failed && now - failed.firstAt < FAIL_WINDOW_MS && failed.count >= FAIL_LIMIT) {
+    const minutes = Math.ceil((failed.firstAt + FAIL_WINDOW_MS - now) / 60_000);
     return { error: `Đăng nhập sai ${FAIL_LIMIT} lần liền: thử lại sau ${minutes} phút` };
   }
   const a = await admin(db);
-  if (username.trim() !== a.username || !(await checkPassword(password, a.password_hash))) {
+  if (username.trim() !== a.username || !(await checkPassword(password, a.passwordHash))) {
+    // Within the window one more failure, else a new window from now.
+    const inWindow = sql`${now} - ${loginFailures.firstAt} < ${FAIL_WINDOW_MS}`;
     await db
-      .prepare(
-        `INSERT INTO login_failures (ip, count, first_at) VALUES (?1, 1, ?2)
-         ON CONFLICT (ip) DO UPDATE SET
-           count = CASE WHEN ?2 - first_at < ?3 THEN count + 1 ELSE 1 END,
-           first_at = CASE WHEN ?2 - first_at < ?3 THEN first_at ELSE ?2 END`,
-      )
-      .bind(ip, now, FAIL_WINDOW_MS)
-      .run();
+      .insert(loginFailures)
+      .values({ ip, count: 1, firstAt: now })
+      .onConflictDoUpdate({
+        target: loginFailures.ip,
+        set: {
+          count: sql`CASE WHEN ${inWindow} THEN ${loginFailures.count} + 1 ELSE 1 END`,
+          firstAt: sql`CASE WHEN ${inWindow} THEN ${loginFailures.firstAt} ELSE ${now} END`,
+        },
+      });
     return { error: 'Sai tên đăng nhập hoặc mật khẩu' };
   }
   const cookie = b64url(random(32));
   await db.batch([
-    db.prepare('DELETE FROM login_failures WHERE ip = ?').bind(ip),
-    db.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now),
-    db.prepare('INSERT INTO sessions (id, username, expires_at) VALUES (?, ?, ?)').bind(await sha256(cookie), a.username, now + SESSION_MS),
+    db.delete(loginFailures).where(eq(loginFailures.ip, ip)),
+    db.delete(sessions).where(lt(sessions.expiresAt, now)),
+    db.insert(sessions).values({ id: await sha256(cookie), username: a.username, expiresAt: now + SESSION_MS }),
   ]);
   return { cookie };
 }
 
 /** The admin of the request's session cookie; null without a live one. */
-export async function session(db: D1Database, req: Request): Promise<Admin | null> {
+export async function session(db: Db, req: Request): Promise<Admin | null> {
   const cookie = cookieOf(req, COOKIE);
   if (!cookie) return null;
   const row = await db
-    .prepare('SELECT username FROM sessions WHERE id = ? AND expires_at > ?')
-    .bind(await sha256(cookie), Date.now())
-    .first();
+    .select({ username: sessions.username })
+    .from(sessions)
+    .where(and(eq(sessions.id, await sha256(cookie)), gt(sessions.expiresAt, Date.now())))
+    .get();
   return row ? admin(db) : null;
 }
 
-export async function logout(db: D1Database, req: Request): Promise<void> {
+export async function logout(db: Db, req: Request): Promise<void> {
   const cookie = cookieOf(req, COOKIE);
-  if (cookie) await db.prepare('DELETE FROM sessions WHERE id = ?').bind(await sha256(cookie)).run();
+  if (cookie) await db.delete(sessions).where(eq(sessions.id, await sha256(cookie)));
 }
 
 /** Đổi mật khẩu: null when changed, else why not. Every other login of the admin ends. */
-export async function changePassword(
-  db: D1Database,
-  req: Request,
-  current: string,
-  next: string,
-  confirm: string,
-): Promise<string | null> {
+export async function changePassword(db: Db, req: Request, current: string, next: string, confirm: string): Promise<string | null> {
   const a = await admin(db);
-  if (!(await checkPassword(current, a.password_hash))) return 'Mật khẩu hiện tại không đúng';
+  if (!(await checkPassword(current, a.passwordHash))) return 'Mật khẩu hiện tại không đúng';
   if (next.length < MIN_PASSWORD) return `Mật khẩu mới cần ít nhất ${MIN_PASSWORD} ký tự`;
   if (next === DEFAULT_PASSWORD || next === current) return 'Mật khẩu mới phải khác mật khẩu cũ và khác "admin"';
   if (next !== confirm) return 'Nhập lại mật khẩu mới không khớp';
   const keep = await sha256(cookieOf(req, COOKIE) ?? '');
   await db.batch([
-    db
-      .prepare('UPDATE admins SET password_hash = ?, must_change = 0, updated_at = ? WHERE username = ?')
-      .bind(await hashPassword(next), Date.now(), a.username),
-    db.prepare('DELETE FROM sessions WHERE username = ? AND id != ?').bind(a.username, keep),
+    db.update(admins).set({ passwordHash: await hashPassword(next), mustChange: 0, updatedAt: Date.now() }).where(eq(admins.username, a.username)),
+    db.delete(sessions).where(and(eq(sessions.username, a.username), ne(sessions.id, keep))),
   ]);
   return null;
 }
 
 /** A new API token named `name`: "cllt_" and 43 characters. Only its SHA-256 is kept, so it is shown once. */
-export async function createToken(db: D1Database, name: string): Promise<string> {
+export async function createToken(db: Db, name: string): Promise<string> {
   const token = `cllt_${b64url(random(32))}`;
-  await db
-    .prepare('INSERT INTO tokens (name, hash, prefix, created_at) VALUES (?, ?, ?, ?)')
-    .bind(name, await sha256(token), token.slice(0, 10), Date.now())
-    .run();
+  await db.insert(tokens).values({ name, hash: await sha256(token), prefix: token.slice(0, 10), createdAt: Date.now() });
   return token;
 }
 
-export async function tokens(db: D1Database): Promise<Token[]> {
-  const { results } = await db
-    .prepare('SELECT id, name, prefix, created_at, last_used_at FROM tokens ORDER BY id')
-    .all<Token>();
-  return results;
+export async function listTokens(db: Db): Promise<Token[]> {
+  return db.select(tokenColumns).from(tokens).orderBy(tokens.id);
 }
 
-export async function deleteToken(db: D1Database, id: number): Promise<void> {
-  await db.prepare('DELETE FROM tokens WHERE id = ?').bind(id).run();
+export async function deleteToken(db: Db, id: number): Promise<void> {
+  await db.delete(tokens).where(eq(tokens.id, id));
 }
 
 /** The token of "Authorization: Bearer <token>", its last use noted; null without a known one. */
-export async function bearer(db: D1Database, req: Request): Promise<Token | null> {
+export async function bearer(db: Db, req: Request): Promise<Token | null> {
   const m = /^Bearer\s+(\S+)$/i.exec(req.headers.get('Authorization') ?? '');
   if (!m) return null;
-  const token = await db
-    .prepare('SELECT id, name, prefix, created_at, last_used_at FROM tokens WHERE hash = ?')
-    .bind(await sha256(m[1]))
-    .first<Token>();
-  if (token) await db.prepare('UPDATE tokens SET last_used_at = ? WHERE id = ?').bind(Date.now(), token.id).run();
+  const token = await db.select(tokenColumns).from(tokens).where(eq(tokens.hash, await sha256(m[1]))).get();
+  if (!token) return null;
+  await db.update(tokens).set({ lastUsedAt: Date.now() }).where(eq(tokens.id, token.id));
   return token;
 }

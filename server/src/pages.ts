@@ -122,7 +122,7 @@ export function accountsPage(nonce: string, rows: Row[], flash?: string | null):
           return `<tr data-find="${esc(find)}"><td>${esc(r.label) || '<span class="muted">—</span>'}</td><td class="mono">${esc(r.username)}</td>
 <td><span class="secret mono" id="pw${r.id}" data-secret="${esc(r.password)}">${r.password ? '••••••••' : '<span class="muted">(trống)</span>'}</span>
 ${r.password ? `<button class="small" type="button" data-reveal="pw${r.id}" aria-pressed="false" aria-label="Hiện mật khẩu của ${esc(r.username)}">Hiện</button> <button class="small" type="button" data-copy="${esc(r.password)}">Chép</button>` : ''}</td>
-<td>${r.server_id}</td><td class="mono">${esc(proxyText(r.data))}</td><td>${esc(r.source) || '<span class="muted">—</span>'}</td><td>${time(r.updated_at)}</td>
+<td>${r.serverId}</td><td class="mono">${esc(proxyText(r.data))}</td><td>${esc(r.source) || '<span class="muted">—</span>'}</td><td>${time(r.updatedAt)}</td>
 <td><form class="inline" method="post" action="/admin/accounts/${r.id}/delete" data-confirm="Xoá nick ${esc(r.username)} khỏi server? App không bị ảnh hưởng."><button class="small danger" type="submit">Xoá</button></form></td></tr>`;
         })
         .join('')
@@ -148,7 +148,7 @@ export function tokensPage(nonce: string, list: Token[], made?: { name: string; 
   const rows = list.length
     ? list
         .map(
-          (t) => `<tr><td>${esc(t.name)}</td><td class="mono">${esc(t.prefix)}…</td><td>${time(t.created_at)}</td><td>${time(t.last_used_at)}</td>
+          (t) => `<tr><td>${esc(t.name)}</td><td class="mono">${esc(t.prefix)}…</td><td>${time(t.createdAt)}</td><td>${time(t.lastUsedAt)}</td>
 <td><form class="inline" method="post" action="/admin/tokens/${t.id}/delete" data-confirm="Thu hồi token ${esc(t.name)}? App dùng token này sẽ không gửi được nữa."><button class="small danger" type="submit">Thu hồi</button></form></td></tr>`,
         )
         .join('')
@@ -200,7 +200,7 @@ export function devicesPage(nonce: string, list: Device[], flash: string | null,
             : `<form class="act" method="post" action="${at}/block" data-confirm="Chặn ${esc(name)}? App trên máy đó bị khoá trong tối đa 15 phút."><input name="reason" type="text" maxlength="${MAX_REASON}" placeholder="Lý do (app hiện cho người dùng)" aria-label="Lý do chặn ${esc(name)}"><button class="small danger" type="submit">Chặn</button></form>`;
           return `<tr data-find="${esc(find)}"${d.blocked ? ' class="blocked"' : ''}><td class="wrap"><b>${esc(name)}</b>${d.label && d.hostname ? `<div class="muted">${esc(d.hostname)}</div>` : ''}<div class="muted mono" title="${esc(d.id)}">${esc(d.id.slice(0, 12))}…</div></td>
 <td>${esc(d.os) || '—'}<div class="muted">bản ${esc(d.version) || '—'}</div></td><td class="wrap">${nicks(d.accounts)}</td><td class="mono">${esc(d.ip) || '—'}</td>
-<td title="Lần đầu: ${time(d.first_seen)}">${ago(d.last_seen, now)}<div class="muted">${time(d.last_seen)}</div></td><td class="wrap">${state}</td>
+<td title="Lần đầu: ${time(d.firstSeen)}">${ago(d.lastSeen, now)}<div class="muted">${time(d.lastSeen)}</div></td><td class="wrap">${state}</td>
 <td>${toggle}<form class="act" method="post" action="${at}/rename"><input name="label" type="text" maxlength="${MAX_LABEL}" value="${esc(d.label)}" placeholder="Tên (ví dụ: Máy anh A)" aria-label="Tên của ${esc(name)}"><button class="small" type="submit">Đặt tên</button></form>
 <form class="act" method="post" action="${at}/delete" data-confirm="Xoá ${esc(name)} khỏi danh sách? Mở app lần tới nó sẽ hiện lại và vẫn được dùng."><button class="small" type="submit">Xoá khỏi danh sách</button></form></td></tr>`;
         })

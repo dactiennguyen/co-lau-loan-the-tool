@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { count, sync } from '../src/accounts.ts';
+import { database } from '../src/db.ts';
 import worker from '../src/index.ts';
 import { d1 } from './d1.ts';
 
@@ -113,16 +114,16 @@ test('a done= the page does not know shows nothing, and a post that is not a for
 
 test('an account another request added between the read and the write is replaced, not an error', async () => {
   const db = d1();
-  await sync(db, [{ label: '', username: 'cung-luc', password: 'cu', serverId: 24 }], 'Máy nhà');
+  await sync(database(db), [{ label: '', username: 'cung-luc', password: 'cu', serverId: 24 }], 'Máy nhà');
   // As if this request read before the other one wrote: it sees no such account, and inserts.
+  const none = { raw: async () => [], all: async () => ({ results: [] }) };
   const stale = {
     ...db,
-    prepare: (sql: string) =>
-      sql.startsWith('SELECT id, data FROM accounts') ? { bind: () => ({ first: async () => null }) } : db.prepare(sql),
+    prepare: (sql: string) => (sql.startsWith('select "id", "data" from "accounts"') ? { bind: () => none } : db.prepare(sql)),
   } as unknown as D1Database;
-  const done = await sync(stale, [{ label: '', username: 'cung-luc', password: 'moi', serverId: 24 }], 'Máy công ty');
+  const done = await sync(database(stale), [{ label: '', username: 'cung-luc', password: 'moi', serverId: 24 }], 'Máy công ty');
   assert.equal(done.added, 1);
-  assert.equal(await count(db), 1);
+  assert.equal(await count(database(db)), 1);
   assert.equal(await db.prepare('SELECT password FROM accounts').first('password'), 'moi');
 });
 

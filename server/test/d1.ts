@@ -1,5 +1,5 @@
 // An in-memory D1 for the tests, on node:sqlite (D1 is SQLite too): the migrations of ../migrations applied, and the
-// part of the D1 API the Worker uses (prepare, bind, first, all, run, batch).
+// part of the D1 API that Drizzle's D1 driver uses (prepare, bind, first, all, raw, run, batch).
 import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
@@ -25,6 +25,10 @@ class Statement {
   async all<T>() {
     const results = this.db.prepare(this.sql).all(...this.args).map((r) => ({ ...r }) as T);
     return { results, success: true, meta: {} };
+  }
+  /** The rows as arrays of their values, in column order: what Drizzle reads selects and RETURNING with. */
+  async raw() {
+    return this.db.prepare(this.sql).all(...this.args).map((r) => Object.values(r));
   }
   async run() {
     const r = this.db.prepare(this.sql).run(...this.args);
