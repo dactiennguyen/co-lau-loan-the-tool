@@ -4,7 +4,8 @@ import { selectedId, useStore } from "@/store";
 import type { LogLine } from "@/api/types";
 import { append, listenThenLoad } from "@/store/sync";
 
-/** Keeps the store in step with src-tauri: every account, the log of the selected one, and the update of the app.
+/** Keeps the store in step with src-tauri: every account, the log of the selected one, the update of the app and
+ * whether this device may run.
  * Mounted once, in App. */
 export function useSync() {
   useEffect(() => {
@@ -15,6 +16,10 @@ export function useSync() {
     const { updateChanged } = useStore.getState();
     // An event newer than the answer of update_status wins.
     return listenThenLoad(api.onUpdate, api.updateStatus, (now, early) => updateChanged(early[early.length - 1] ?? now), updateChanged);
+  }, []);
+  useEffect(() => {
+    const { deviceChanged } = useStore.getState();
+    return listenThenLoad(api.onDevice, api.deviceStatus, (now, early) => deviceChanged(early[early.length - 1] ?? now), deviceChanged);
   }, []);
   useEffect(() => {
     // The close button of the window asks first (tray.rs), in place of the dialog open, which comes back after.

@@ -19,6 +19,7 @@ import { StopDialog } from "@/views/dialogs/StopDialog";
 import { Toaster } from "@/views/Toaster";
 import { UpdateDialog } from "@/views/dialogs/UpdateDialog";
 import { UpdateGate } from "@/views/UpdateGate";
+import { DeviceGate } from "@/views/DeviceGate";
 
 /** Sidebar of accounts, the selected account, the dialog the store says is open, the toasts, and the cover of a
  * mandatory update. */
@@ -39,6 +40,8 @@ export default function App() {
       <Toaster />
       {/* Last, so that it opens above any dialog: a newer version is mandatory. */}
       <UpdateGate />
+      {/* Above that too: a blocked device does nothing, not even update. */}
+      <DeviceGate />
     </div>
   );
 }

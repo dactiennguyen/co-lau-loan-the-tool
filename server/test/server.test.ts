@@ -211,3 +211,55 @@ test('the API keeps the accounts of Xuất JSON with their passwords, and gives 
   await c.call(`/admin/tokens/${tid}/delete`, { form: {} });
   assert.equal((await c.call('/api/accounts', { token: t })).status, 401);
 });
+
+const DEVICE = 'a'.repeat(64);
+const hello = (call: ReturnType<typeof client>['call'], extra: Record<string, unknown> = {}) =>
+  call('/api/devices/hello', {
+    body: JSON.stringify({ id: DEVICE, hostname: 'MAY-NHA', os: 'windows x86_64', version: '1.1.2', accounts: [{ username: 'manina', serverId: 24 }], ...extra }),
+  });
+
+test('devices: a new one is allowed and listed with its accounts; blocked, it is refused with the reason until unblocked', async () => {
+  const c = await ready();
+  // No token: the app keeps no secret.
+  const first = await hello(c.call);
+  assert.equal(first.status, 200);
+  assert.deepEqual(JSON.parse(first.text), { allowed: true });
+  assert.equal((await c.call('/api/devices/hello')).status, 405);
+  for (const body of ['{', '[]', '{"id": "abc"}', JSON.stringify({ id: 'A'.repeat(64) })]) {
+    assert.equal((await c.call('/api/devices/hello', { body })).status, 400, body);
+  }
+
+  const list = await c.call('/admin/devices');
+  assert.match(list.text, /1 thiết bị/);
+  assert.match(list.text, /MAY-NHA/);
+  assert.match(list.text, /<span class="mono">manina<\/span>/);
+  assert.match(list.text, /Được dùng/);
+
+  const blocked = await c.call(`/admin/devices/${DEVICE}/block`, { form: { reason: 'Hết hạn dùng thử' } });
+  assert.equal(blocked.location, '/admin/devices?done=blocked');
+  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: false, reason: 'Hết hạn dùng thử' });
+  assert.match((await c.call('/admin/devices')).text, /1 bị chặn/);
+
+  await c.call(`/admin/devices/${DEVICE}/rename`, { form: { label: 'Máy <anh A>' } });
+  const named = await c.call('/admin/devices');
+  assert.ok(named.text.includes('Máy &lt;anh A&gt;') && !named.text.includes('<anh A>'));
+
+  await c.call(`/admin/devices/${DEVICE}/unblock`, { form: {} });
+  assert.deepEqual(JSON.parse((await hello(c.call, { accounts: [] })).text), { allowed: true });
+
+  // Forgotten, it comes back allowed at its next hello.
+  assert.equal((await c.call(`/admin/devices/${DEVICE}/delete`, { form: {} })).location, '/admin/devices?done=forgotten');
+  assert.match((await c.call('/admin/devices')).text, /Chưa có thiết bị nào/);
+  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true });
+});
+
+test('devices: the page and its actions need the admin, and a form of another site cannot block', async () => {
+  const { call } = client();
+  assert.equal((await call('/admin/devices')).location, '/admin/login');
+  assert.equal((await call(`/admin/devices/${DEVICE}/block`, { form: { reason: 'x' } })).location, '/admin/login');
+  const c = await ready();
+  await hello(c.call);
+  const r = await c.call(`/admin/devices/${DEVICE}/block`, { form: { reason: 'x' }, origin: 'https://evil.example' });
+  assert.equal(r.status, 403);
+  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true });
+});

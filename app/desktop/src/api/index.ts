@@ -29,6 +29,7 @@ import type {
   StatPlan,
   StoredBattle,
   UpdateView,
+  DeviceView,
 } from "./types";
 
 export interface LogEvent {
@@ -161,6 +162,9 @@ export interface Api {
    * message to show. */
   installUpdate(): Promise<void>;
   onUpdate(handler: (update: UpdateView) => void): Promise<UnlistenFn>;
+  /** Quản lý thiết bị: whether this device may run; the "device" event brings each answer of the server. */
+  deviceStatus(): Promise<DeviceView>;
+  onDevice(handler: (device: DeviceView) => void): Promise<UnlistenFn>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -291,6 +295,8 @@ const tauri: Api = {
   checkUpdate: () => invoke("check_update"),
   installUpdate: () => invoke("install_update"),
   onUpdate: (handler) => listen<UpdateView>("update", (e) => handler(e.payload)),
+  deviceStatus: () => invoke("device_status"),
+  onDevice: (handler) => listen<DeviceView>("device", (e) => handler(e.payload)),
 };
 
 interface Sample extends AppState {
@@ -419,6 +425,8 @@ const preview: Api = {
   checkUpdate: nothing,
   installUpdate: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không cập nhật")),
   onUpdate: async () => () => {},
+  deviceStatus: async () => ({ id: "", state: "off" }),
+  onDevice: async () => () => {},
 };
 
 export const api: Api = isTauri() ? tauri : preview;

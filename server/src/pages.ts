@@ -1,7 +1,8 @@
-// The HTML of the admin page: Đăng nhập, Đổi mật khẩu, Nick, API token. Everything that comes from the database goes
+// The HTML of the admin page: Đăng nhập, Đổi mật khẩu, Nick, Thiết bị, API token. Everything that comes from the database goes
 // through esc(); the only script is inline with the nonce of the response's Content-Security-Policy.
 import type { Row } from './accounts.ts';
 import { MIN_PASSWORD, type Token } from './auth.ts';
+import { MAX_LABEL, MAX_REASON, type Device } from './devices.ts';
 
 export const esc = (v: unknown) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -33,6 +34,8 @@ th{color:var(--fg3);font-weight:600;font-size:13px}td.wrap{white-space:normal}co
 .secret{display:inline-block;min-width:88px}.muted{color:var(--fg3)}.token{display:block;padding:10px;border-radius:7px;background:var(--bg);border:1px dashed var(--accent);word-break:break-all;margin:8px 0}
 .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.row>div{flex:1 1 220px}.row>.fixed{flex:0 0 auto}form.inline{display:inline}
 .narrow.top{margin-top:24px}.card.gap{margin-bottom:16px}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid}.tag.on{border-color:var(--good);color:#a7f0b4}.tag.off{border-color:var(--danger);color:#ffb4ae}
+form.act{display:flex;gap:6px;align-items:center;margin:2px 0}form.act input{width:150px;padding:4px 8px;font-size:13px}tr.blocked td{background:#24141a}
 @media (prefers-reduced-motion:no-preference){button,.btn{transition:background .15s}}
 `;
 
@@ -52,17 +55,17 @@ document.addEventListener('submit', (e) => { const m = e.target.dataset.confirm;
 const find = document.getElementById('find');
 if (find) find.addEventListener('input', () => { const q = find.value.trim().toLowerCase(); let n = 0;
   document.querySelectorAll('tbody tr[data-find]').forEach((tr) => { const show = !q || tr.dataset.find.includes(q); tr.hidden = !show; if (show) n++; });
-  document.getElementById('shown').textContent = q ? n + ' nick khớp' : ''; });
+  document.getElementById('shown').textContent = q ? n + ' dòng khớp' : ''; });
 `;
 
-export type Section = 'accounts' | 'tokens' | 'password';
+export type Section = 'accounts' | 'devices' | 'tokens' | 'password';
 
 /** A whole page. `nav` is the section shown, for a logged-in admin. */
 export function page(title: string, body: string, nonce: string, nav?: Section): string {
   const link = (s: Section, href: string, label: string) =>
     `<a href="${href}"${nav === s ? ' aria-current="page"' : ''}>${label}</a>`;
   const head = nav
-    ? `<header><b>CLLT Server</b><nav aria-label="Trang quản trị">${link('accounts', '/admin', 'Nick')}${link('tokens', '/admin/tokens', 'API token')}${link('password', '/admin/password', 'Đổi mật khẩu')}</nav>
+    ? `<header><b>CLLT Server</b><nav aria-label="Trang quản trị">${link('accounts', '/admin', 'Nick')}${link('devices', '/admin/devices', 'Thiết bị')}${link('tokens', '/admin/tokens', 'API token')}${link('password', '/admin/password', 'Đổi mật khẩu')}</nav>
        <form class="inline" method="post" action="/admin/logout"><button class="small" type="submit">Đăng xuất</button></form></header>`
     : '';
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -160,5 +163,58 @@ ${shown}${message('error', error)}<div class="card gap"><form method="post" acti
 <tbody>${rows}</tbody></table></div>`,
     nonce,
     'tokens',
+  );
+}
+
+/** "5 phút trước", from the time of the page. */
+function ago(ms: number, now: number): string {
+  const m = Math.max(0, Math.round((now - ms) / 60_000));
+  if (m < 1) return 'vừa xong';
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} giờ trước` : `${Math.round(h / 24)} ngày trước`;
+}
+
+function nicks(accounts: string): string {
+  try {
+    const list = JSON.parse(accounts) as { username: string; serverId: number }[];
+    if (!list.length) return '<span class="muted">—</span>';
+    return list.map((a) => `<span class="mono">${esc(a.username)}</span>${a.serverId === 24 ? '' : ` <span class="muted">(${esc(a.serverId)})</span>`}`).join(', ');
+  } catch {
+    return '<span class="muted">—</span>';
+  }
+}
+
+export function devicesPage(nonce: string, list: Device[], flash: string | null, now: number): string {
+  const body = list.length
+    ? list
+        .map((d) => {
+          const name = d.label || d.hostname || 'Không tên';
+          const find = `${d.label} ${d.hostname} ${d.accounts} ${d.ip} ${d.id}`.toLowerCase();
+          const at = `/admin/devices/${d.id}`;
+          const state = d.blocked
+            ? `<span class="tag off">Bị chặn</span>${d.reason ? `<div class="muted wrap">${esc(d.reason)}</div>` : ''}`
+            : '<span class="tag on">Được dùng</span>';
+          const toggle = d.blocked
+            ? `<form class="act" method="post" action="${at}/unblock"><button class="small" type="submit">Bỏ chặn</button></form>`
+            : `<form class="act" method="post" action="${at}/block" data-confirm="Chặn ${esc(name)}? App trên máy đó bị khoá trong tối đa 15 phút."><input name="reason" type="text" maxlength="${MAX_REASON}" placeholder="Lý do (app hiện cho người dùng)" aria-label="Lý do chặn ${esc(name)}"><button class="small danger" type="submit">Chặn</button></form>`;
+          return `<tr data-find="${esc(find)}"${d.blocked ? ' class="blocked"' : ''}><td class="wrap"><b>${esc(name)}</b>${d.label && d.hostname ? `<div class="muted">${esc(d.hostname)}</div>` : ''}<div class="muted mono" title="${esc(d.id)}">${esc(d.id.slice(0, 12))}…</div></td>
+<td>${esc(d.os) || '—'}<div class="muted">bản ${esc(d.version) || '—'}</div></td><td class="wrap">${nicks(d.accounts)}</td><td class="mono">${esc(d.ip) || '—'}</td>
+<td title="Lần đầu: ${time(d.first_seen)}">${ago(d.last_seen, now)}<div class="muted">${time(d.last_seen)}</div></td><td class="wrap">${state}</td>
+<td>${toggle}<form class="act" method="post" action="${at}/rename"><input name="label" type="text" maxlength="${MAX_LABEL}" value="${esc(d.label)}" placeholder="Tên (ví dụ: Máy anh A)" aria-label="Tên của ${esc(name)}"><button class="small" type="submit">Đặt tên</button></form>
+<form class="act" method="post" action="${at}/delete" data-confirm="Xoá ${esc(name)} khỏi danh sách? Mở app lần tới nó sẽ hiện lại và vẫn được dùng."><button class="small" type="submit">Xoá khỏi danh sách</button></form></td></tr>`;
+        })
+        .join('')
+    : '<tr><td colspan="7" class="muted wrap">Chưa có thiết bị nào. Mỗi máy mở app (bản có quản lý thiết bị) sẽ tự hiện ở đây.</td></tr>';
+  const blocked = list.filter((d) => d.blocked).length;
+  return page(
+    'Thiết bị',
+    `<h1>Thiết bị</h1><p class="sub">Máy nào mở app cũng tự báo về khi mở và 15 phút một lần, kèm danh sách nick (không có mật khẩu). Máy mới được dùng ngay; chặn một máy thì app trên máy đó bị khoá, kể cả khi mất mạng.</p>
+${message('ok', flash)}<div class="bar"><span class="count">${list.length} thiết bị${blocked ? `, ${blocked} bị chặn` : ''} <span id="shown"></span></span>
+<input id="find" type="search" placeholder="Tìm theo tên máy, nick, IP" aria-label="Tìm thiết bị"></div>
+<div class="card scroll"><table><thead><tr><th scope="col">Thiết bị</th><th scope="col">Hệ điều hành</th><th scope="col">Nick</th><th scope="col">IP</th>
+<th scope="col">Hoạt động</th><th scope="col">Trạng thái</th><th scope="col"><span class="muted">Thao tác</span></th></tr></thead><tbody>${body}</tbody></table></div>`,
+    nonce,
+    'devices',
   );
 }

@@ -368,6 +368,20 @@ Dạng JSON: mỗi nick có đúng các khoá của `accounts.json`, `settings` 
 
 **Lưu ý an toàn:** JSON chứa mật khẩu ở dạng chữ thường. Ứng dụng khác trên máy đọc được clipboard. Không gửi file hay JSON này cho người khác.
 
+## Thiết bị
+
+Mỗi máy chạy app được quản lý trên [CLLT Server](../../../server/README.md#thiết-bị) (`https://colau.olachat.net/admin/devices`). Code ở `desktop/src-tauri/src/device.rs` và [DeviceGate.tsx](../../../app/desktop/src/views/DeviceGate.tsx).
+
+- **Mã thiết bị:** SHA-256 của mã máy do hệ điều hành giữ (thư viện `machine-uid`: `MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux), kèm tên app. Gỡ app rồi cài lại vẫn là một thiết bị. Mã gốc không rời máy.
+- **Báo về:** ngay khi mở app, rồi 15 phút một lần, app gửi `POST /api/devices/hello`: mã thiết bị, tên máy, hệ điều hành, phiên bản app, và **tài khoản cùng server game của mọi nick, không có mật khẩu**.
+- **Máy mới** được dùng ngay. Admin chặn sau trên trang Thiết bị.
+- **Máy bị chặn:**
+  - hộp **Thiết bị đã bị khoá** che cả cửa sổ: "Thiết bị này đã bị khoá, vui lòng liên hệ admin", lý do admin ghi, và 12 ký tự đầu của mã thiết bị để gửi cho admin. Hộp không đóng được, kể cả Escape, và nằm trên cả hộp Cập nhật bắt buộc;
+  - mọi nick bị đăng xuất; Đăng nhập, Đăng nhập tất cả và `--login-all` không làm gì.
+  - Admin bỏ chặn thì hộp tự đóng ở lần báo tiếp theo (tối đa 15 phút).
+- **Không kết nối được server** (mất mạng, server lỗi): app giữ câu trả lời cuối, lưu trong `device.json` cạnh `accounts.json`. Máy đã bị chặn vẫn khoá; máy được dùng, hay chưa từng hỏi được, vẫn dùng bình thường.
+- `--sample` không báo. `CLLT_DEVICE_SERVER` đổi địa chỉ server; `CLLT_DEVICE_SERVER=off` tắt hẳn (khi phát triển).
+
 ## Proxy
 
 Mỗi nick có thể đi qua một proxy riêng, SOCKS5 hoặc HTTP (CONNECT), có hoặc không có tài khoản. `core/src/proxy.rs` làm giống `src/net/proxy.ts` ([proxy của bot TS](../nodejs/README.md#proxy)): nối tới proxy, mở đường tới `play.colauloanthe.vn:1688`, rồi giao thức game chạy bên trong như khi không có proxy. Proxy trả lời dính liền với vài byte đầu của seed thì các byte đó vẫn được dùng.

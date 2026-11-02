@@ -28,6 +28,13 @@ serde_json.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 tauri-plugin-updater = "2.14"
+# device.rs: the hello to CLLT Server, with the reqwest and rustls (ring) the updater already brings; the machine id of
+# the system, hashed with sha2; the host name.
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+sha2 = "0.10"
+machine-uid = "0.5"
+gethostname = "1"
 
 # tray.rs: keeps the app out of App Nap while its window is in the tray (already in the tree through tauri).
 [target.'cfg(target_os = "macos")'.dependencies]

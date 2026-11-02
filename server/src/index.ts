@@ -1,9 +1,10 @@
-// cllt-server: a Cloudflare Worker with a D1 database that keeps the accounts of CLLT Tool (README.md).
-//   /api/*    JSON, with an API token (Authorization: Bearer cllt_…) made on the admin page.
+// cllt-server: a Cloudflare Worker with a D1 database that keeps the accounts and the devices of CLLT Tool (README.md).
+//   /api/*    JSON, with an API token (Authorization: Bearer cllt_…) made on the admin page; /api/devices/hello needs none.
 //   /admin/*  the admin page: login admin / admin at first, which must be changed before anything else.
 import { count, exported, parse, remove, rows, sync } from './accounts.ts';
 import * as auth from './auth.ts';
-import { accountsPage, loginPage, passwordPage, tokensPage } from './pages.ts';
+import * as device from './devices.ts';
+import { accountsPage, devicesPage, loginPage, passwordPage, tokensPage } from './pages.ts';
 
 export interface Env {
   DB: D1Database;
@@ -57,11 +58,27 @@ function sessionCookie(url: URL, value: string, maxAge: number): string {
 const DONE: Record<string, string> = {
   deleted: 'Đã xoá nick khỏi server.',
   password: 'Đã đổi mật khẩu.',
+  blocked: 'Đã chặn thiết bị: app trên máy đó bị khoá ở lần báo tiếp theo (tối đa 15 phút).',
+  unblocked: 'Đã bỏ chặn thiết bị.',
+  renamed: 'Đã đặt tên thiết bị.',
+  forgotten: 'Đã xoá thiết bị khỏi danh sách. Lần mở app tới nó sẽ hiện lại, vẫn được dùng; muốn ngăn thì Chặn.',
 };
+
+const ip = (req: Request) => req.headers.get('CF-Connecting-IP') ?? 'local';
 
 async function api(req: Request, url: URL, env: Env): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (url.pathname === '/api/health') return json({ ok: true, app: 'cllt-server' });
+  // The app on every device, as it opens and every 15 minutes: no token, as the app keeps no secret.
+  if (url.pathname === '/api/devices/hello') {
+    if (req.method !== 'POST') return json({ error: 'Chỉ có POST' }, 405, { Allow: 'POST, OPTIONS' });
+    if (Number(req.headers.get('Content-Length') ?? 0) > device.MAX_HELLO) return json({ error: 'JSON quá lớn' }, 413);
+    const body = await req.text();
+    if (body.length > device.MAX_HELLO) return json({ error: 'JSON quá lớn' }, 413);
+    const h = device.parseHello(body);
+    if ('error' in h) return json(h, 400);
+    return json(await device.hello(env.DB, h, ip(req)));
+  }
   if (url.pathname !== '/api/accounts') return json({ error: 'Không có API này' }, 404);
   const token = await auth.bearer(env.DB, req);
   if (!token) return json({ error: 'Thiếu hoặc sai API token (Authorization: Bearer …)' }, 401);
@@ -89,8 +106,7 @@ async function admin(req: Request, url: URL, env: Env): Promise<Response> {
 
   if (path === '/admin/login') {
     if (!post) return (await auth.session(db, req)) ? redirect('/admin') : html((n) => loginPage(n));
-    const ip = req.headers.get('CF-Connecting-IP') ?? 'local';
-    const r = await auth.login(db, ip, field('username'), field('password'));
+    const r = await auth.login(db, ip(req), field('username'), field('password'));
     if ('error' in r) return html((n) => loginPage(n, r.error), 401);
     return redirect('/admin', { 'Set-Cookie': sessionCookie(url, r.cookie, 7 * 24 * 3600) });
   }
@@ -110,11 +126,25 @@ async function admin(req: Request, url: URL, env: Env): Promise<Response> {
   // With the default password nothing else opens: the accounts page shows every game password.
   if (mustChange) return redirect('/admin/password');
 
+  const key = url.searchParams.get('done') ?? '';
+  const done = Object.hasOwn(DONE, key) ? DONE[key] : null;
   if (path === '/admin' && !post) {
     const list = await rows(db);
-    const key = url.searchParams.get('done') ?? '';
-    const done = Object.hasOwn(DONE, key) ? DONE[key] : null;
     return html((n) => accountsPage(n, list, done));
+  }
+  if (path === '/admin/devices' && !post) {
+    const list = await device.devices(db);
+    return html((n) => devicesPage(n, list, done, Date.now()));
+  }
+  const acting = /^\/admin\/devices\/([0-9a-f]{64})\/(block|unblock|rename|delete)$/.exec(path);
+  if (acting && post) {
+    const [, id, action] = acting;
+    if (action === 'block') await device.block(db, id, field('reason'));
+    if (action === 'unblock') await device.unblock(db, id);
+    if (action === 'rename') await device.rename(db, id, field('label'));
+    if (action === 'delete') await device.forget(db, id);
+    const said = { block: 'blocked', unblock: 'unblocked', rename: 'renamed', delete: 'forgotten' }[action];
+    return redirect(`/admin/devices?done=${said}`);
   }
   if (path === '/admin/accounts.json' && !post) {
     const day = new Date().toISOString().slice(0, 10);

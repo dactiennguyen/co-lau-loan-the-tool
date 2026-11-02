@@ -3,6 +3,7 @@
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
 use crate::backup;
+use crate::device::{self, DeviceView, Devices};
 use crate::settings::{self, Exported, ExportedFaults, OnClose, Settings, SettingsView};
 use crate::store::{BattleFilter, BattleStats, FaultList, StoredBattle};
 use crate::update::{self, UpdateView};
@@ -36,8 +37,10 @@ pub fn logs(shared: State<Shared>, id: u64) -> Vec<LogLine> {
 }
 
 #[tauri::command]
-pub fn login(shared: State<Shared>, id: u64) {
-    shared.with(|app| app.login(id));
+pub fn login(shared: State<Shared>, devices: State<Devices>, id: u64) {
+    if !devices.blocked() {
+        shared.with(|app| app.login(id));
+    }
 }
 
 #[tauri::command]
@@ -46,8 +49,10 @@ pub fn logout(shared: State<Shared>, id: u64) {
 }
 
 #[tauri::command]
-pub fn login_all(shared: State<Shared>) {
-    shared.with(|app| app.login_all());
+pub fn login_all(shared: State<Shared>, devices: State<Devices>) {
+    if !devices.blocked() {
+        shared.with(|app| app.login_all());
+    }
 }
 
 #[tauri::command]
@@ -480,6 +485,12 @@ pub fn battle_history(
     store
         .battles(filter, before, limit.clamp(1, 200))
         .map_err(|e| e.to_string())
+}
+
+/// Quản lý thiết bị: the id of this device and whether it may run.
+#[tauri::command]
+pub fn device_status(app: AppHandle) -> DeviceView {
+    device::view(&app)
 }
 
 /// Tự cập nhật: the version running and where its update stands.

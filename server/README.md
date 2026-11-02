@@ -1,14 +1,14 @@
 # CLLT Server
 
-Server riêng để giữ danh sách nick của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
+Server riêng để giữ danh sách nick và quản lý thiết bị của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
 - một **Worker** (TypeScript, `src/`);
 - một database **D1** (SQLite của Cloudflare, `migrations/`);
-- **API** để gửi nick lên và tải nick về;
+- **API** để gửi nick lên và tải nick về, và để app báo thiết bị ([Thiết bị](#thiết-bị));
 - **trang quản trị** có đăng nhập.
 
 Gói miễn phí của Cloudflare (Workers và D1) là đủ.
 
-App desktop **chưa** gọi API này: phần đồng bộ trong app làm sau. Bây giờ dùng API bằng `curl`, hay tải JSON từ trang quản trị rồi Nhập JSON vào app.
+App desktop chỉ gọi `POST /api/devices/hello`; phần đồng bộ nick trong app làm sau. Bây giờ dùng API bằng `curl`, hay tải JSON từ trang quản trị rồi Nhập JSON vào app.
 
 ## Có gì
 
@@ -18,6 +18,8 @@ App desktop **chưa** gọi API này: phần đồng bộ trong app làm sau. B�
 | Danh sách nick (xem, hiện mật khẩu, xoá, Tải JSON) | `/admin` | Đăng nhập |
 | Tạo và thu hồi API token | `/admin/tokens` | Đăng nhập |
 | Đổi mật khẩu quản trị | `/admin/password` | Đăng nhập |
+| Thiết bị (xem, chặn, bỏ chặn, đặt tên, xoá khỏi danh sách) | `/admin/devices` | Đăng nhập |
+| App báo thiết bị | `POST /api/devices/hello` | Không cần gì |
 | Kiểm tra server sống | `GET /api/health` | Không cần gì |
 | Tải mọi nick về | `GET /api/accounts` | API token |
 | Gửi nick lên | `POST /api/accounts` | API token |
@@ -120,6 +122,23 @@ curl -H "Authorization: Bearer $CLLT_TOKEN" https://cllt-server.<tên-bạn>.wor
 
 API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie mà chỉ dùng token.
 
+## Thiết bị
+
+Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 phút một lần ([features.md#thiết-bị](../docs/integration/rust/features.md#thiết-bị)):
+
+```json
+{"id": "<64 ký tự hex>", "hostname": "MAY-NHA", "os": "windows x86_64", "version": "1.1.2",
+ "accounts": [{"username": "manina", "serverId": 24}]}
+```
+
+- `id` là SHA-256 của mã máy do hệ điều hành giữ (`MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux). Gỡ app rồi cài lại vẫn là một thiết bị. Cài lại Windows hay Linux thì thành thiết bị mới.
+- Server trả `{"allowed": true}`, hay `{"allowed": false, "reason": "…"}` với máy bị chặn. Máy chưa từng thấy được thêm vào và **được dùng ngay**.
+- `accounts` chỉ có tài khoản và server game, **không có mật khẩu**. Server lưu IP, lần đầu và lần cuối thấy máy.
+- Không cần token: app không giữ được bí mật. Ai cũng gửi được hello, nên danh sách có thể có máy lạ; chặn máy đó, hay xoá khỏi danh sách.
+- Trang **Thiết bị** (`/admin/devices`): tìm theo tên máy, nick hay IP; **Chặn** kèm lý do (app hiện lý do cho người dùng), **Bỏ chặn**, **Đặt tên**, **Xoá khỏi danh sách** (máy đó hiện lại ở lần mở app tới, vẫn được dùng; muốn ngăn thì Chặn).
+- Máy bị chặn thì khoá ở lần báo tiếp theo, tức tối đa 15 phút nếu app đang mở. App nhớ trạng thái, nên mất mạng vẫn khoá.
+- **Giới hạn:** mã máy do app tự báo. Người rành máy tính có thể đổi `MachineGuid` (cần quyền admin) hay sửa app để gửi mã khác. Cách này chặn người dùng thường, không chặn người cố tình.
+
 ## Bảo mật
 
 - **Mật khẩu game và mật khẩu proxy lưu nguyên văn** trong D1, không mã hoá. Đây là lựa chọn của người dùng, để trang quản trị xem được. Ai có token hay đăng nhập được trang quản trị là đọc được mọi mật khẩu. Vì vậy:
@@ -147,9 +166,11 @@ API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie mà chỉ d�
 | `src/index.ts` | Nhận request, chia đường dẫn, gắn header bảo mật |
 | `src/auth.ts` | Tài khoản quản trị, đăng nhập, phiên, đổi mật khẩu, API token |
 | `src/accounts.ts` | Đọc JSON (giống `backup::parse` của app), thêm/thay nick, xuất JSON |
+| `src/devices.ts` | Thiết bị: đọc hello, thêm/cập nhật, chặn, bỏ chặn, đặt tên, xoá |
 | `src/pages.ts` | HTML của trang quản trị |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`npm run d1:id`; workflow deploy dùng) |
 | `migrations/0001_init.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts` |
+| `migrations/0002_devices.sql` | Bảng `devices` |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 

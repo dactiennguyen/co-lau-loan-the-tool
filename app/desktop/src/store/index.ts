@@ -5,7 +5,7 @@
 // Short-lived state of one view (the open tab, a menu's position, a form) stays in that view.
 import { create } from "zustand";
 import { addToasts, errorToasts, questToasts, updateToast, type ToastInput, type ToastItem } from "./toasts";
-import type { Account, AccountsUpdate, AppState, LogLine, UpdateView } from "@/api/types";
+import type { Account, AccountsUpdate, AppState, DeviceView, LogLine, UpdateView } from "@/api/types";
 import type { ShopSub } from "@/views/shop/ShopModal";
 import { accountsOf, append, merge, type Accounts } from "./sync";
 
@@ -57,6 +57,8 @@ export interface Store extends Accounts {
   battleDetails: boolean;
   /** Tự cập nhật (update.rs); null until the app answered. */
   update: UpdateView | null;
+  /** Quản lý thiết bị (device.rs); null until the app answered. */
+  device: DeviceView | null;
 
   /** The `state` reply, with the updates that came while it was on its way. */
   loaded: (s: AppState, early: AccountsUpdate[]) => void;
@@ -74,6 +76,7 @@ export interface Store extends Accounts {
   toggleBattleDetails: () => void;
   /** A new state of the update; a download that just finished brings a toast. */
   updateChanged: (update: UpdateView) => void;
+  deviceChanged: (device: DeviceView) => void;
 }
 
 const DETAILS = "battleDetails";
@@ -91,6 +94,7 @@ export const useStore = create<Store>()((set) => ({
   toasts: [],
   battleDetails: localStorage.getItem(DETAILS) === "1",
   update: null,
+  device: null,
 
   loaded: (s, early) => set({ ...early.reduce(merge, accountsOf(s)), accountsError: s.accountsError, ready: true }),
   updated: (u) =>
@@ -122,6 +126,7 @@ export const useStore = create<Store>()((set) => ({
         ? { update, toasts: addToasts(s.toasts, [updateToast(update.version)]) }
         : { update },
     ),
+  deviceChanged: (device) => set({ device }),
 }));
 
 const NO_LINES: LogLine[] = [];

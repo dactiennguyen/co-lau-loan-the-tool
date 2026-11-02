@@ -13,11 +13,13 @@
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
 // UI is sent (../src/api/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
-// update.rs updates the installed app from the GitHub releases; settings.rs is the Cài đặt of the app (settings.json);
+// update.rs updates the installed app from the GitHub releases; device.rs says hello to CLLT Server and locks a blocked
+// device; settings.rs is the Cài đặt of the app (settings.json);
 // tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay).
 mod app;
 mod backup;
 mod commands;
+mod device;
 mod paths;
 mod sample;
 mod settings;
@@ -90,7 +92,9 @@ pub fn run() {
             }
             tauri_app.manage(Shared::new(app));
             app::spawn_flusher(tauri_app.handle().clone(), woken);
-            if login_all {
+            // Before --login-all: a device blocked at its last answer logs nothing in.
+            device::start(tauri_app.handle(), &accounts, sample);
+            if login_all && !tauri_app.state::<device::Devices>().blocked() {
                 tauri_app.state::<Shared>().with(|app| app.login_all());
             }
             update::start(tauri_app.handle(), sample);
@@ -176,6 +180,7 @@ pub fn run() {
             commands::faults,
             commands::export_faults,
             commands::clear_faults,
+            commands::device_status,
             commands::update_status,
             commands::check_update,
             commands::install_update,

@@ -42,6 +42,15 @@ export type UpdateState =
 /** Tự cập nhật: the version running, then where its update stands. */
 export type UpdateView = { current: string } & UpdateState;
 
+/** Quản lý thiết bị (device.rs): the first 12 characters of this device's id, as the admin page shows them, and
+ * whether it may run. "blocked" covers the window; it holds offline too, from device.json. */
+export type DeviceView = { id: string } & (
+  | { state: "off" }
+  | { state: "unknown" }
+  | { state: "allowed"; checkedAt: number }
+  | { state: "blocked"; reason: string; checkedAt: number }
+);
+
 /** What a log line is about (LogKind of cllt-core's bot/types.rs); game/logKinds.ts names them. */
 export type LogKind = "connection" | "battle" | "quest" | "travel" | "character" | "item" | "server";
 
