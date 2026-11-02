@@ -184,6 +184,8 @@ export interface Api {
   /** Xuất dữ liệu trận: every saved battle into a new cllt-battles-<time>.db in Downloads; rejects with a message to
    * show. */
   exportBattles(): Promise<Exported>;
+  /** Xoá dữ liệu trận: every saved battle of every account; how many went. Rejects with a message to show. */
+  clearBattles(): Promise<number>;
   /** The file of an export, selected in Finder or Explorer. */
   revealExport(path: string): Promise<void>;
   /** Xuất JSON: the accounts `ids` with their passwords, and the Cài đặt of the app when `settings` (backup.rs). */
@@ -277,6 +279,7 @@ const tauri: Api = {
   settings: () => invoke("settings"),
   setSettings: (settings) => invoke("set_settings", { settings }),
   exportBattles: () => invoke("export_battles"),
+  clearBattles: () => invoke("clear_battles"),
   revealExport: (path) => invoke("reveal_export", { path }),
   exportAccounts: (ids, settings) => invoke("export_accounts", { ids, settings }),
   saveAccounts: (ids, settings) => invoke("save_accounts", { ids, settings }),
@@ -376,6 +379,7 @@ const preview: Api = {
   },
   setSettings: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu cài đặt")),
   exportBattles: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xuất được dữ liệu trận")),
+  clearBattles: async () => 1284,
   revealExport: nothing,
   // The sample accounts without passwords, and a rough reading of a JSON against them: enough to see both dialogs.
   exportAccounts: async (ids, settings) => {

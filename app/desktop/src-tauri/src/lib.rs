@@ -171,6 +171,7 @@ pub fn run() {
             commands::settings,
             commands::set_settings,
             commands::export_battles,
+            commands::clear_battles,
             commands::reveal_export,
             commands::export_accounts,
             commands::save_accounts,

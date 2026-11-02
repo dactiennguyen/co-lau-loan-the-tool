@@ -714,6 +714,22 @@ pub async fn export_battles(app: AppHandle, shared: State<'_, Shared>) -> Result
     .map_err(|e| e.to_string())?
 }
 
+/// Xoá dữ liệu trận: every saved battle of every account (Store::clear_battle_data); how many. The error is shown under
+/// the button.
+#[tauri::command]
+pub async fn clear_battles(shared: State<'_, Shared>) -> Result<usize, String> {
+    let store = shared
+        .store_handle()
+        .ok_or("Không mở được cllt.db nên không có dữ liệu trận")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        store
+            .clear_battle_data()
+            .map_err(|e| format!("Chưa xoá được: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Characters kept of a note of Báo lỗi, of the message of an error of the UI, and of its stack.
 const NOTE: usize = 2_000;
 const STACK: usize = 8_000;

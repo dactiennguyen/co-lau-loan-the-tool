@@ -575,6 +575,12 @@ impl Store {
         )
     }
 
+    /// Xoá dữ liệu trận: every battle Lưu dữ liệu trận kept, of every account; how many. The battle history (battles) and
+    /// the log stay.
+    pub fn clear_battle_data(&self) -> rusqlite::Result<usize> {
+        self.db().execute("DELETE FROM battle_data", [])
+    }
+
     /// Xuất dữ liệu trận: a new SQLite file at `to` that holds battle_data alone, as cllt.db has it; `npm run battles --
     /// --db=<file>` reads it. How many battles it holds. A file already at `to` is an error and stays as it is; a copy
     /// that fails takes away the file it began. The copy reads on a connection of its own: in WAL mode it does not hold
@@ -1413,6 +1419,36 @@ mod tests {
             row,
             ("manina2".into(), 1_000, d.uuid, 1, d.header, d.packets)
         );
+    }
+
+    #[test]
+    fn clearing_battle_data_takes_every_battle_and_leaves_the_history() {
+        let s = Store::memory().unwrap();
+        for (i, user) in ["manina2", "ttuananh"].into_iter().enumerate() {
+            let d = BattleData {
+                uuid: format!("uuid-{i}"),
+                started_at: 1_000 + i as u64,
+                format: 1,
+                header: "{}".into(),
+                packets: vec![1, 2, 3],
+            };
+            s.add_battle_data(user, &d).unwrap();
+        }
+        s.add_log("manina2", 1_000, LogKind::Battle, 0, "Trận 1: thắng");
+        assert_eq!(s.clear_battle_data().unwrap(), 2);
+        assert_eq!(
+            s.battle_data_size().unwrap(),
+            BattleDataSize {
+                battles: 0,
+                bytes: 0
+            }
+        );
+        assert_eq!(s.clear_battle_data().unwrap(), 0);
+        let logs: i64 = s
+            .db()
+            .query_row("SELECT COUNT(*) FROM logs", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(logs, 1, "the log stays");
     }
 
     #[test]

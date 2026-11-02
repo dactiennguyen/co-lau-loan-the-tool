@@ -27,7 +27,13 @@ const ON_CLOSE: { value: OnClose; title: string; text: string }[] = [
   { value: "quit", title: "Thoát ứng dụng", text: "Đóng hẳn ứng dụng, mọi nick đang trong game bị đăng xuất." },
 ];
 
-type Export = { state: "idle" } | { state: "working" } | { state: "done"; file: Exported } | { state: "fail"; text: string };
+/** What Xuất or Xoá dữ liệu trận did, beside their buttons. */
+type Export =
+  | { state: "idle" }
+  | { state: "working" }
+  | { state: "done"; file: Exported }
+  | { state: "cleared"; count: number }
+  | { state: "fail"; text: string };
 
 const message = (err: unknown) => String(err instanceof Error ? err.message : err);
 const sameServer = (a: Settings, b: Settings) => a.server.host.trim() === b.server.host && a.server.port === b.server.port;
@@ -42,8 +48,8 @@ const EXPORT_TEXT = "flex-[1_1_220px] m-0 text-[11.5px] text-fg-2 wrap-anywhere"
 /**
  * Cài đặt of the app, behind the button beside the name CLLT Tool, in four tabs. Server game: the address the next logins
  * connect to; Mặc định puts back play.colauloanthe.vn:1688. Dữ liệu trận: Lưu
- * dữ liệu trận for every account, and Xuất dữ liệu trận, which at once writes every saved battle to one file in
- * Downloads. Log lỗi (FaultsPage): the faults kept, read when the dialog opens, and Xuất and Xoá log lỗi, at once too.
+ * dữ liệu trận for every account, Xuất dữ liệu trận, which at once writes every saved battle to one file in
+ * Downloads, and Xoá dữ liệu trận, which asks once more (as Xoá log lỗi does), then deletes them all at once. Log lỗi (FaultsPage): the faults kept, read when the dialog opens, and Xuất and Xoá log lỗi, at once too.
  * Cửa sổ: what the close button of the window does. The tabs stay in the form, the hidden ones inert, so the dialog keeps
  * the height of the tallest and Lưu saves them all to settings.json.
  */
@@ -53,6 +59,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [exported, setExported] = useState<Export>({ state: "idle" });
+  const [confirmClear, setConfirmClear] = useState(false);
   const [page, setPage] = useState<Page>("server");
   const playing = useStore(inGame);
   const id = useId();
@@ -89,6 +96,18 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     setExported({ state: "working" });
     api.exportBattles().then(
       (file) => setExported({ state: "done", file }),
+      (err) => setExported({ state: "fail", text: message(err) }),
+    );
+  };
+
+  const clearBattles = () => {
+    setConfirmClear(false);
+    setExported({ state: "working" });
+    api.clearBattles().then(
+      (count) => {
+        setExported({ state: "cleared", count });
+        setView((v) => v && { ...v, battleData: v.battleData && { battles: 0, bytes: 0 } });
+      },
       (err) => setExported({ state: "fail", text: message(err) }),
     );
   };
@@ -167,9 +186,27 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 {/* The export: its button, then what it does or what it wrote, on a dark plate. */}
                 <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5 px-3 py-2.5 bg-ink">
                   <Button kind="outline" small icon="download" disabled={!data?.battles || exported.state === "working"} onClick={exportBattles}>
-                    {exported.state === "working" ? "Đang xuất…" : "Xuất dữ liệu trận"}
+                    {exported.state === "working" ? "Đang làm…" : "Xuất dữ liệu trận"}
                   </Button>
-                  {exported.state === "done" ? (
+                  {confirmClear ? (
+                    <>
+                      <Button kind="danger" small icon="trash" onClick={clearBattles}>
+                        Xoá {num(data?.battles ?? 0)} trận
+                      </Button>
+                      <Button kind="ghost" small onClick={() => setConfirmClear(false)}>
+                        Thôi
+                      </Button>
+                    </>
+                  ) : (
+                    <Button kind="ghost" small icon="trash" disabled={!data?.battles || exported.state === "working"} onClick={() => setConfirmClear(true)}>
+                      Xoá dữ liệu trận
+                    </Button>
+                  )}
+                  {confirmClear ? (
+                    <p className={cn(EXPORT_TEXT, "text-danger")} role="alert">
+                      Xoá hẳn mọi trận đã lưu của mọi nick, không lấy lại được. Muốn giữ thì Xuất trước.
+                    </p>
+                  ) : exported.state === "done" ? (
                     <>
                       <p className={cn(EXPORT_TEXT, "text-good")} role="status">
                         Đã xuất {num(exported.file.battles)} trận ({size(exported.file.bytes)}) vào{" "}
@@ -179,6 +216,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                         Mở thư mục
                       </Button>
                     </>
+                  ) : exported.state === "cleared" ? (
+                    <p className={EXPORT_TEXT} role="status">
+                      Đã xoá {num(exported.count)} trận. Lịch sử trận và nhật ký của các nick vẫn giữ.
+                    </p>
                   ) : exported.state === "fail" ? (
                     <p className={cn(EXPORT_TEXT, "text-danger")} role="alert">
                       {exported.text}
