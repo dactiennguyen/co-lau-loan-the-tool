@@ -10,11 +10,13 @@ const mb = (n: number) => (n / MB).toFixed(1).replace(".", ",");
 /**
  * Every newer version is mandatory (update.rs): from the moment one is found until the app opens again on it, this
  * covers the whole window, above any other dialog, with no way to close it. A check that fails shows nothing, so the
- * app stays usable without network; so does an install that fails, which update.rs reports as `failed`.
+ * app stays usable without network; so does an install that fails, which update.rs reports as `failed`. On a blocked
+ * device it stays hidden, so that DeviceGate is what shows: the update still installs, and the app opens on it locked.
  */
 export function UpdateGate() {
   const u = useStore((s) => s.update);
-  const on = u?.state === "downloading" || u?.state === "ready" || u?.state === "installing";
+  const blocked = useStore((s) => s.device?.state === "blocked");
+  const on = !blocked && (u?.state === "downloading" || u?.state === "ready" || u?.state === "installing");
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (on && !dialog.current?.open) dialog.current?.showModal();

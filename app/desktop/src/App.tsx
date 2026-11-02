@@ -40,7 +40,7 @@ export default function App() {
       <Toaster />
       {/* Last, so that it opens above any dialog: a newer version is mandatory. */}
       <UpdateGate />
-      {/* Above that too: a blocked device does nothing, not even update. */}
+      {/* A blocked device shows only this; UpdateGate stays hidden under it. */}
       <DeviceGate />
     </div>
   );
