@@ -2,6 +2,7 @@
 // the account it touched and wakes the flusher thread, which sends the UI only the accounts that changed, at most every
 // FLUSH and with the revision they were read at, so the UI can drop what is older than what it shows.
 use crate::backup::{self, Imported, Step};
+use crate::battle_window::{self, BattleState, WindowMsg};
 use crate::settings::{self, Settings};
 use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
@@ -45,6 +46,8 @@ pub struct Entry {
     /// that end and the line, which shows what is picked up after it.
     loot_next: Option<u64>,
     loot_line: Option<(u64, u64)>,
+    /// What its battle window shows (battle_window.rs).
+    pub battle: BattleState,
 }
 impl Entry {
     pub fn new(id: u64, account: Account) -> Self {
@@ -59,6 +62,7 @@ impl Entry {
             live: None,
             loot_next: None,
             loot_line: None,
+            battle: BattleState::default(),
         }
     }
     /// Numbers the line, so the UI can tell the lines it has from new ones, and keeps it.
@@ -134,6 +138,10 @@ pub struct App {
     settings: Settings,
     /// Notifications of jobs and quest runs that ended, for the flusher to show (notify.rs).
     notices: Vec<crate::notify::Notice>,
+    /// Messages for the battle windows not yet sent, in order, each with its number (battle_window.rs).
+    battle_out: Vec<(u64, u64, WindowMsg)>,
+    /// Counts the messages to the battle windows, of every account (BattleState::rev).
+    battle_rev: u64,
 }
 
 /// The key of an account in cllt.db: its username in lower case, as the server takes it.
@@ -446,6 +454,9 @@ pub fn spawn_flusher(handle: AppHandle, wake: Receiver<()>) {
                 continue;
             };
             let (update, lines) = shared.with(App::take_update);
+            for (id, rev, msg) in shared.with(|app| std::mem::take(&mut app.battle_out)) {
+                let _ = handle.emit_to(battle_window::label(id), "battle", msg.payload(rev));
+            }
             for n in shared.with(|app| std::mem::take(&mut app.notices)) {
                 if let Err(e) = crate::notify::show(&handle, &n) {
                     eprintln!("{e}");
@@ -481,6 +492,8 @@ impl App {
             store: None,
             settings: Settings::default(),
             notices: vec![],
+            battle_out: vec![],
+            battle_rev: 0,
         }
     }
 
@@ -597,6 +610,28 @@ impl App {
     }
     fn entry_mut(&mut self, id: u64) -> Option<&mut Entry> {
         self.entries.iter_mut().find(|e| e.id == id)
+    }
+    /// What the battle window of account `id` shows now (battle_window.rs).
+    pub fn battle_state(&self, id: u64) -> Option<BattleState> {
+        self.entry(id).map(|e| e.battle.clone())
+    }
+    /// The name of account `id` as the list shows it: its label, else its username.
+    pub fn account_label(&self, id: u64) -> Option<String> {
+        self.entry(id).map(|e| match e.account.label.trim() {
+            "" => e.account.username.clone(),
+            label => label.to_string(),
+        })
+    }
+    /// Queues `msg` for the battle window of account `id`, under the next number, which its BattleState, changed by it
+    /// already, takes too: a window that loads the state then drops that message (battle_window.rs).
+    fn send_battle_window(&mut self, id: u64, msg: WindowMsg) {
+        self.battle_rev += 1;
+        let rev = self.battle_rev;
+        if let Some(e) = self.entry_mut(id) {
+            e.battle.rev = rev;
+        }
+        self.battle_out.push((id, rev, msg));
+        let _ = self.wake.send(());
     }
     fn running(&self, id: u64) -> bool {
         self.manager.as_ref().is_some_and(|m| m.running(id))
@@ -868,9 +903,16 @@ impl App {
             }
             Event::Log(kind, text) => self.log(id, kind, &text),
             Event::Fault(f) => self.add_fault(Some(id), *f, None),
+            Event::BattleEvent(event) => {
+                if let Some(e) = self.entry_mut(id) {
+                    e.battle.apply(&event);
+                }
+                self.send_battle_window(id, WindowMsg::Event(event));
+            }
             Event::Battle(record) => {
                 if let Some(e) = self.entry_mut(id) {
                     e.loot_next = (record.result == BattleResult::Won).then_some(record.ended_at);
+                    e.battle.ended_at = Some(record.ended_at);
                 }
                 let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
                     return;
@@ -891,6 +933,12 @@ impl App {
             // Under the line of its battle, sent to the UI again; without that line (gone from the 500 kept), a line of
             // its own.
             Event::Pickup(record) => {
+                let picked = self
+                    .entry_mut(id)
+                    .and_then(|e| e.battle.pick(record.battle_at, &record.item));
+                if let Some(list) = picked {
+                    self.send_battle_window(id, WindowMsg::Picked(list));
+                }
                 if let (Some(store), Some(user)) = (&self.store, self.username(id)) {
                     if let Err(e) = store.add_pickup(&user, &record) {
                         eprintln!("cllt.db: không ghi được món nhặt: {e}");
@@ -1592,5 +1640,50 @@ mod tests {
             !views.contains("s3cret") && !views.contains("\"x\""),
             "{views}"
         );
+    }
+
+    #[test]
+    fn battle_window_messages_are_numbered_for_all_accounts_and_the_state_keeps_the_number_of_its_last(
+    ) {
+        use cllt_core::battle_view::BattleEvent;
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        let (a, b) = (app.add(account("Manina2")), app.add(account("Wangpt")));
+        let turn = |seq| {
+            Event::BattleEvent(Box::new(BattleEvent::Turn {
+                seq,
+                mine: true,
+                timed: false,
+            }))
+        };
+        app.on_event(
+            a,
+            Event::BattleEvent(Box::new(BattleEvent::Open(Box::default()))),
+        );
+        app.on_event(b, turn(1));
+        app.on_event(a, turn(2));
+        // A window of `a` opened now loads both of its messages: it drops them when they come, and takes the next.
+        let loaded = app.battle_state(a).unwrap();
+        assert_eq!((loaded.rev, loaded.turn.map(|t| t.0)), (3, Some(2)));
+        app.on_event(a, turn(3));
+        let sent: Vec<_> = app
+            .battle_out
+            .iter()
+            .map(|(id, rev, msg)| (*id, *rev, msg.payload(*rev)["rev"].as_u64()))
+            .collect();
+        assert_eq!(
+            sent,
+            [
+                (a, 1, Some(1)),
+                (b, 2, Some(2)),
+                (a, 3, Some(3)),
+                (a, 4, Some(4))
+            ]
+        );
+        let fresh: Vec<_> = sent
+            .iter()
+            .filter(|(id, rev, _)| *id == a && *rev > loaded.rev)
+            .map(|(_, rev, _)| *rev)
+            .collect();
+        assert_eq!(fresh, [4]);
     }
 }

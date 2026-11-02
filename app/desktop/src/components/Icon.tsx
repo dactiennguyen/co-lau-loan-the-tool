@@ -158,6 +158,8 @@ const paths = {
   ),
   /** Thu nhỏ vào khay: two arrows pointing in. */
   tray: <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />,
+  /* A window with an arrow going out of it: opens a window of its own (Cửa sổ trận). */
+  popout: <path d="M14 4h6v6M20 4l-8 8M10 5H5v14h14v-5" />,
   bell: (
     <>
       <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />

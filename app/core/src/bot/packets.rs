@@ -17,6 +17,11 @@ impl Bot {
         if let Some(b) = &mut self.battle {
             let mut acts = vec![];
             if b.on_packet(opcode, payload, now, &mut acts)? {
+                out.extend(
+                    b.take_views()
+                        .into_iter()
+                        .map(|v| Out::BattleEvent(Box::new(v))),
+                );
                 self.apply(acts, now, out);
                 return Ok(());
             }
@@ -767,6 +772,7 @@ impl Bot {
                 if self.left(36, now, out) {
                 } else if self.battle.take().is_some() {
                     out.push(Out::Log(LogKind::Battle, "Server đã huỷ trận".into()));
+                    Self::battle_end(EndKind::Cancelled, None, None, out);
                     self.record_end(serde_json::json!({ "cancelled": true }), now);
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                 }

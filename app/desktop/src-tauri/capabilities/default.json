@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window: app events and dragging the window by its top bar.",
-  "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-start-dragging"]
+  "description": "The main window and the battle windows (battle-<id>, battle_window.rs): app events, dragging the main window by its top bar, a battle window kept on top.",
+  "windows": ["main", "battle-*"],
+  "permissions": ["core:default", "core:window:allow-start-dragging", "core:window:allow-set-always-on-top"]
 }

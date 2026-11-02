@@ -216,12 +216,7 @@ pub fn apply_result(b: &mut Board, x: &BattleResult, fire: Option<bool>) -> Appl
     if let Some(m) = x.mv {
         swap(b, m);
     }
-    let cells: Vec<usize> = x
-        .cells
-        .iter()
-        .filter(|&&c| (0..(N * N) as i32).contains(&c))
-        .map(|&c| c as usize)
-        .collect();
+    let cells = skill_cells(x);
     let fits = |t: &Board, o: &Outcome| {
         o.refill_used == x.refill.len()
             && !t.iter().any(|&v| v == EMPTY || v == UNKNOWN)
@@ -250,6 +245,98 @@ pub fn apply_result(b: &mut Board, x: &BattleResult, fire: Option<bool>) -> Appl
         outcome: o,
         fire: turned,
     }
+}
+
+/// The cells of a skill's result (s2c/20) that are on the board.
+pub fn skill_cells(x: &BattleResult) -> Vec<usize> {
+    x.cells
+        .iter()
+        .filter(|&&c| (0..(N * N) as i32).contains(&c))
+        .map(|&c| c as usize)
+        .collect()
+}
+
+/// One step of a fall, as the battle window draws it (docs/app/events/05-battle.md#từng-đợt): the cells cleared, then
+/// the pieces that fell (from cell, to cell), then the new pieces of the refill (cell, piece; UNKNOWN once it ran out).
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Wave {
+    pub cleared: Vec<usize>,
+    pub falls: Vec<(usize, usize)>,
+    pub filled: Vec<(usize, i16)>,
+}
+
+/// What settle does to `before` for one result, wave by wave: the swap, then the skill's cells (destroyed, or turned
+/// into Kiếm lửa when `fire`, as apply_result chose), then every cascade. Returns the waves and the board they leave,
+/// which is the board apply_result leaves (test battle_frames.rs). The first wave of a destroying skill is its cells.
+pub fn frames(
+    before: &Board,
+    mv: Option<Move>,
+    cells: &[usize],
+    refill: &[i16],
+    fire: bool,
+) -> (Vec<Wave>, Board) {
+    let mut b = *before;
+    if let Some(m) = mv {
+        swap(&mut b, m);
+    }
+    let (mut waves, mut used) = (vec![], 0);
+    if fire {
+        for &c in cells {
+            b[c] = FIRE;
+        }
+    } else if !cells.is_empty() {
+        let mut hit = [false; N * N];
+        for &c in cells {
+            hit[c] = true;
+        }
+        blast(&b, &mut hit);
+        waves.push(fall(&mut b, &hit, refill, &mut used));
+    }
+    loop {
+        let (hit, count, _) = find_runs(&b);
+        if count == 0 {
+            break;
+        }
+        waves.push(fall(&mut b, &hit, refill, &mut used));
+    }
+    (waves, b)
+}
+
+/// Clears the `hit` cells, then collapse with what moved where recorded: the same order as collapse (gravity per
+/// column, then holes column by column left→right, bottom→top, from the refill at `used`).
+fn fall(b: &mut Board, hit: &[bool; N * N], refill: &[i16], used: &mut usize) -> Wave {
+    let mut w = Wave::default();
+    for i in (0..N * N).filter(|&i| hit[i]) {
+        w.cleared.push(i);
+        b[i] = EMPTY;
+    }
+    for c in 0..N {
+        let mut to = N;
+        for r in (0..N).rev() {
+            if b[r * N + c] != EMPTY {
+                to -= 1;
+                if to != r {
+                    w.falls.push((r * N + c, to * N + c));
+                    b[to * N + c] = b[r * N + c];
+                    b[r * N + c] = EMPTY;
+                }
+            }
+        }
+    }
+    for c in 0..N {
+        for r in (0..N).rev() {
+            if b[r * N + c] == EMPTY {
+                let piece = refill.get(*used).copied().unwrap_or(UNKNOWN);
+                if *used < refill.len() {
+                    *used += 1;
+                }
+                b[r * N + c] = piece;
+                w.filled.push((r * N + c, piece));
+            }
+        }
+    }
+    w
 }
 
 pub fn legal_moves(b: &Board) -> Vec<Move> {

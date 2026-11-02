@@ -108,6 +108,14 @@
   --animate-toast-in: toast-in var(--slow) var(--step);
   --animate-turn-in: turn-in var(--slow) var(--step);
   --animate-spin: spin 1.2s steps(8) infinite;
+  /* The battle window (src/battle): a piece that bursts or flashes in --dur, Kiếm lửa burning, a number floating up
+     off a side, a banner over the board. */
+  --animate-pop: pop var(--dur, 220ms) ease-in forwards;
+  --animate-flash: flash var(--dur, 260ms) steps(4, jump-none);
+  --animate-burn: burn 0.6s steps(2, jump-none) infinite;
+  --animate-float-up: float-up 1.3s ease-out forwards;
+  --animate-banner: banner 1.1s ease-out forwards;
+  --animate-banner-in: banner-in 0.35s ease-out;
 
   @keyframes blink {
     from { opacity: 1; }
@@ -125,6 +133,34 @@
   }
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+  @keyframes pop {
+    40% { transform: scale(1.25); filter: brightness(1.8); }
+    to { transform: scale(0.2); opacity: 0; filter: brightness(2.4); }
+  }
+  @keyframes flash {
+    from { filter: brightness(2.2); }
+    to { filter: brightness(1); }
+  }
+  @keyframes burn {
+    from { filter: brightness(1.25); }
+  }
+  /* Inside the picture of the side: its panel clips what goes past its frame. */
+  @keyframes float-up {
+    from { opacity: 0; transform: translate(-50%, 10px) scale(0.8); }
+    15% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+    30% { transform: translate(-50%, -4px) scale(1); }
+    to { opacity: 0; transform: translate(-50%, -22px); }
+  }
+  @keyframes banner {
+    from { opacity: 0; transform: scale(0.6); }
+    15% { opacity: 1; transform: scale(1.08); }
+    25% { transform: scale(1); }
+    80% { opacity: 1; }
+    to { opacity: 0; transform: scale(1); }
+  }
+  @keyframes banner-in {
+    from { opacity: 0; transform: scale(0.8); }
   }
 }
 
@@ -146,6 +182,8 @@
    and img blocks, buttons and inputs inheriting the font). */
 @layer base {
   html, body, #root { height: 100%; }
+  /* Nền xanh of the battle window: the green of a chroma key around its panels, for OBS to take out. */
+  html[data-chroma] body { background: #00ff00; }
 
   body {
     /* A faint 4 px grid, the pixel the whole UI is drawn on. */

@@ -965,10 +965,28 @@ pub fn dump(out: &Path) -> Result<(), String> {
         "logs": logs,
         "battleStats": s.stats(all).map_err(|e| e.to_string())?,
         "battleHistory": s.battles(all, None, 30).map_err(|e| e.to_string())?,
+        "battleReplay": battle_replay()?,
     });
     std::fs::write(
         out,
         serde_json::to_string_pretty(&body).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())
+}
+
+/// The battle window of the preview (`?battle=0`): manina against Hỏa Hầu as the app recorded it, fed to the bot
+/// (battle_view::replay), each event with the ms it came at, then what Tự nhặt đồ picked up after it.
+fn battle_replay() -> Result<serde_json::Value, String> {
+    let battle: cllt_core::battle_view::Recorded = serde_json::from_str(include_str!(
+        "../../../core/tests/fixtures/battle-hoa-hau.json"
+    ))
+    .map_err(|e| e.to_string())?;
+    let mut events: Vec<serde_json::Value> = cllt_core::battle_view::replay(&battle)?
+        .into_iter()
+        .map(|(ms, e)| json!({ "ms": ms, "event": e }))
+        .collect();
+    let end = events.last().and_then(|e| e["ms"].as_u64()).unwrap_or(0);
+    let picked = [Picked::of(41, 236), Picked::of(413, 1)];
+    events.push(json!({ "ms": end + 1500, "event": { "kind": "picked", "picked": picked } }));
+    Ok(json!(events))
 }

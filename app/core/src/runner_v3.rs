@@ -16,6 +16,7 @@ use crate::battle_actions::{
     best_action, potion_effect, skill_worth, sword_prior, Action, ActionOptions, Buffs, Potion,
     SkillEffect,
 };
+use crate::battle_view::{frame, BattleEvent};
 use crate::protocol::Result;
 use crate::requests::{build, Ctx};
 use crate::runner::{desync_line, Act, BattleEnd, Skill, Turn};
@@ -175,6 +176,8 @@ pub struct BattleRunner {
     missed: Option<(i32, bool)>,
     /// The latest result, for the status of the battle.
     pub last: Option<Turn>,
+    /// For the battle window: what changed since the Bot last took them (Runner::take_views).
+    pub views: Vec<crate::battle_view::BattleEvent>,
     /// The one skill of RunnerOptions.skill got no answer in this battle.
     skill_refused: bool,
     /// Learnt skills that got no answer in this battle, and the own turns left of each buff cast.
@@ -256,6 +259,7 @@ impl BattleRunner {
             surrendered: false,
             missed: None,
             last: None,
+            views: vec![],
             skill_refused: false,
             refused: HashSet::new(),
             buffs: Buffs::default(),
@@ -373,6 +377,12 @@ impl BattleRunner {
         match opcode {
             18 => {
                 self.timed = battle_join_ack(payload)?.timed == 1;
+                // The mob moves first in a turn battle; in a timed one the player moves at will.
+                self.views.push(BattleEvent::Turn {
+                    seq: 0,
+                    mine: self.timed,
+                    timed: self.timed,
+                });
                 if self.leaving {
                     self.missed = Some((0, self.timed));
                 } else if self.timed {
@@ -384,6 +394,11 @@ impl BattleRunner {
             24 => {
                 self.turn_wait = None;
                 let t = turn_state(payload)?;
+                self.views.push(BattleEvent::Turn {
+                    seq: t.seq,
+                    mine: t.player_turn == 1,
+                    timed: self.timed,
+                });
                 if self.leaving {
                     self.missed = Some((t.seq, t.player_turn == 1));
                 } else if t.player_turn == 1 {
@@ -621,7 +636,9 @@ impl BattleRunner {
             .flatten()
             .find(|e| skill && x.actor == self.name && Some(e.id) == x.skill)
             .map(|e| e.fire.is_some());
+        let before_board = self.board;
         let applied = apply_result(&mut self.board, &x, fire);
+        let fire_used = applied.fire;
         if applied.desync && !self.desynced {
             out.push(Act::Log(desync_line(&x, &self.name)));
         }
@@ -671,6 +688,18 @@ impl BattleRunner {
             }
         }
         self.last = Some(self.turn(&x, side, &o, before));
+        if let Some(t) = &self.last {
+            let v = frame(
+                &before_board,
+                &x,
+                fire_used,
+                &self.board,
+                t,
+                &self.me,
+                &self.mob,
+            );
+            self.views.push(v);
+        }
         if !x.end && self.leaving {
             let again = self.timed || (x.actor == self.name) == x.extra_turn;
             self.missed = Some((x.seq, again));
@@ -907,5 +936,12 @@ impl Runner {
     }
     pub fn last(&self) -> Option<&Turn> {
         both!(self, r => r.last.as_ref())
+    }
+    /// What the battle window has not been told yet (battle_view.rs), oldest first.
+    pub fn take_views(&mut self) -> Vec<BattleEvent> {
+        both!(self, r => std::mem::take(&mut r.views))
+    }
+    pub fn board(&self) -> &crate::battle::Board {
+        both!(self, r => &r.board)
     }
 }

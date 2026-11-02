@@ -38,6 +38,20 @@ export function listenThenLoad<T, R>(
   };
 }
 
+/**
+ * The messages to take after a load of the state at `rev`, when each message is numbered by the state it changed and the
+ * numbers rise (the battle window, src-tauri/src/battle_window.rs): the state changes before its message is sent, so one
+ * the load holds can still come, while it loaded or just after. Those, and any number seen already, are dropped.
+ */
+export function unseen(rev: number): (msg: { rev: number }) => boolean {
+  let seen = rev;
+  return (msg) => {
+    if (msg.rev <= seen) return false;
+    seen = msg.rev;
+    return true;
+  };
+}
+
 /** The accounts as the UI keeps them: their ids in order, each account by id, and the revision they were read at. */
 export interface Accounts {
   rev: number;

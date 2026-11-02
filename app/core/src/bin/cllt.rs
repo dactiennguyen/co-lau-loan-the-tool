@@ -634,7 +634,7 @@ fn main() {
                 ended += 1;
             }
             Event::State(ConnState::Connecting) => {}
-            Event::Battle(_) => {}
+            Event::Battle(_) | Event::BattleEvent(_) => {}
             // Log lỗi is the app's: its line was printed as it came.
             Event::Fault(_) => {}
             Event::Pickup(p) => println!("{}: nhặt {}", chosen[i].1.username, p.item.label()),

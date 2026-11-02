@@ -13,6 +13,7 @@ import { num } from "@/utils/format";
 import { useStore } from "@/store";
 import { api } from "@/api";
 import type { Account, Character, MapChoice } from "@/api/types";
+import { OpenBattleWindow } from "@/battle/OpenBattleWindow";
 import { BattlePanel } from "./BattlePanel";
 import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
@@ -136,7 +137,13 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
   const toggle = useStore((s) => s.toggleBattleDetails);
   const set = (patch: Partial<FightChoice>) => onChoice({ ...choice, ...patch });
   return (
-    <Card title="Tự đánh" icon="sword" tone="var(--accent)" subtitle="Quái và boss ở khu đang đứng">
+    <Card
+      title="Tự đánh"
+      icon="sword"
+      tone="var(--accent)"
+      subtitle="Quái và boss ở khu đang đứng"
+      aside={<OpenBattleWindow id={account.id} label={account.label} />}
+    >
       <div className={GRID}>
       {c && targets.length === 0 ? (
         <NoMobs account={account} busy={running || questing || !!battle} />

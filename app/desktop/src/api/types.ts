@@ -947,3 +947,89 @@ export interface ProxyForm {
   username: string;
   password: string;
 }
+
+/** HP, nội lực (s1) and sức mạnh (s2) of one side in the battle window; the mob's HP is not known before a result
+ * shows it (cllt_core::battle_view::Gauge). */
+export interface Gauge {
+  hp: number | null;
+  maxHp: number | null;
+  s1: number;
+  s2: number;
+}
+
+export interface BattleSide {
+  name: string;
+  level: number;
+  /** 1 Hỏa, 2 Lôi, 4 Thủy. */
+  element: number | null;
+  gauge: Gauge;
+}
+
+/** s2c/22: the board (64 pieces, row by row) and both sides as the battle opens. */
+export interface BattleOpen {
+  board: number[];
+  me: BattleSide;
+  mob: BattleSide;
+  mobId: string;
+  /** The mob's sprite sheet, 100000 + 10 n: its icon is data/icons/mobs/<n>.webp. */
+  sprite: number | null;
+  boss: boolean;
+  turnSeconds: number;
+}
+
+/** One step of a fall: cells cleared, pieces that fell [from, to], new pieces [cell, piece] (-2 when not known). */
+export interface Wave {
+  cleared: number[];
+  falls: [number, number][];
+  filled: [number, number][];
+}
+
+/** One result: the board before it, the swap or the skill's cells, each wave, the board after it. */
+export interface BattleFrame {
+  seq: number;
+  turn: Turn;
+  before: number[];
+  swap: [number, number] | null;
+  cells: number[];
+  /** Hỏa Kiếm Thuật turned the cells into Kiếm lửa (piece 10) instead of destroying them. */
+  fire: boolean;
+  waves: Wave[];
+  board: number[];
+  reshuffled: boolean;
+  me: Gauge;
+  mob: Gauge;
+  reward: { won: boolean; exp: number; coin: number } | null;
+}
+
+export type BattleEndKind = "won" | "lost" | "left" | "cancelled";
+
+export interface BattleEnd {
+  result: BattleEndKind;
+  exp: number | null;
+  coin: number | null;
+}
+
+/** What a message of the event "battle" to a battle window says (src-tauri/src/battle_window.rs). */
+export type BattleBody =
+  | ({ kind: "open" } & BattleOpen)
+  | { kind: "turn"; seq: number; mine: boolean; timed: boolean }
+  | ({ kind: "move" } & BattleFrame)
+  | ({ kind: "end" } & BattleEnd)
+  | { kind: "picked"; picked: Picked[] };
+/** A message of the event "battle" with its number: the app counts them for all accounts, so they only rise. */
+export type BattleMsg = BattleBody & { rev: number };
+
+/** What a battle window shows when it opens in the middle of a battle (battle_state). */
+export interface BattleState {
+  open: BattleOpen | null;
+  board: number[];
+  me: Gauge;
+  mob: Gauge;
+  /** [seq, the player's turn, timed]. */
+  turn: [number, boolean, boolean] | null;
+  last: Turn | null;
+  end: BattleEnd | null;
+  picked: Picked[];
+  /** The number of the last message that changed it: a window that loaded it drops the messages up to it. */
+  rev: number;
+}

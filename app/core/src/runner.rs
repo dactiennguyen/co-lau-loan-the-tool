@@ -5,6 +5,7 @@ use crate::battle::{
     apply_result, battle_join_ack, battle_result, best_move, fighter, timeout_result, turn_state,
     unknown_mob, BattleResult, Board, Fighter, Outcome, Setup, Strategy, Unit, N, UNKNOWN,
 };
+use crate::battle_view::{frame, BattleEvent};
 use crate::protocol::Result;
 use crate::requests::{build, Ctx};
 use std::collections::HashMap;
@@ -164,6 +165,8 @@ pub struct BattleRunner {
     missed: Option<(i32, bool)>,
     /// The latest result, for the status of the battle.
     pub last: Option<Turn>,
+    /// For the battle window: what changed since the Bot last took them (Runner::take_views).
+    pub views: Vec<crate::battle_view::BattleEvent>,
     skill_refused: bool,
     /// Running sums behind each learnt value: (total, pieces), seeded with the default as `prior` pieces.
     seen: HashMap<(Side, Key), (f64, f64)>,
@@ -200,6 +203,7 @@ impl BattleRunner {
             surrendered: false,
             missed: None,
             last: None,
+            views: vec![],
             skill_refused: false,
             seen: HashMap::new(),
             options,
@@ -292,6 +296,12 @@ impl BattleRunner {
         match opcode {
             18 => {
                 self.timed = battle_join_ack(payload)?.timed == 1;
+                // The mob moves first in a turn battle; in a timed one the player moves at will.
+                self.views.push(BattleEvent::Turn {
+                    seq: 0,
+                    mine: self.timed,
+                    timed: self.timed,
+                });
                 if self.leaving {
                     self.missed = Some((0, self.timed));
                 } else if self.timed {
@@ -303,6 +313,11 @@ impl BattleRunner {
             24 => {
                 self.turn_wait = None;
                 let t = turn_state(payload)?;
+                self.views.push(BattleEvent::Turn {
+                    seq: t.seq,
+                    mine: t.player_turn == 1,
+                    timed: self.timed,
+                });
                 if self.leaving {
                     self.missed = Some((t.seq, t.player_turn == 1));
                 } else if t.player_turn == 1 {
@@ -400,7 +415,9 @@ impl BattleRunner {
         }
         // v2 does not read skill effects: Kiếm lửa when only it fits the refill (apply_result).
         let fire = None;
+        let before_board = self.board;
         let applied = apply_result(&mut self.board, &x, fire);
+        let fire_used = applied.fire;
         if applied.desync && !self.desynced {
             out.push(Act::Log(desync_line(&x, &self.name)));
         }
@@ -450,6 +467,18 @@ impl BattleRunner {
             }
         }
         self.last = Some(self.turn(&x, side, &o, before));
+        if let Some(t) = &self.last {
+            let v = frame(
+                &before_board,
+                &x,
+                fire_used,
+                &self.board,
+                t,
+                &self.me,
+                &self.mob,
+            );
+            self.views.push(v);
+        }
         if !x.end && self.leaving {
             let again = self.timed || (x.actor == self.name) == x.extra_turn;
             self.missed = Some((x.seq, again));

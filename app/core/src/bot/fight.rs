@@ -119,6 +119,7 @@ impl Bot {
             out.push(Out::Battle(record));
         }
         self.record_end(serde_json::json!({ "left": format!("s2c/{by}") }), now);
+        Self::battle_end(EndKind::Left, None, None, out);
         (self.battle, self.leave_until) = (None, None);
         out.push(Out::Log(LogKind::Battle, format!("Đã rời trận (s2c/{by})")));
         if self.job_running() || self.quest_running() {
@@ -226,6 +227,8 @@ impl Bot {
     }
 
     pub(super) fn on_battle_end(&mut self, end: BattleEnd, now: Instant, out: &mut Vec<Out>) {
+        let kind = if end.won { EndKind::Won } else { EndKind::Lost };
+        Self::battle_end(kind, end.exp, end.coin, out);
         // The result that ended it reaches no snapshot with the battle on: the snapshot keeps it until the next battle.
         self.snap.turn = self.battle.take().and_then(|b| self.turn_of(&b));
         self.snap.hp = end.hp as i32;
@@ -395,8 +398,70 @@ impl Bot {
         self.battles_started += 1;
         // Before apply: its c2s/18 goes into the data through record_sent.
         self.record_start(payload, &setup.uuid, &mob_id, now, out);
+        out.push(Out::BattleEvent(Box::new(BattleEvent::Open(Box::new(
+            self.battle_open(&setup, payload, &mob_id),
+        )))));
         self.apply(acts, now, out);
         Ok(())
+    }
+
+    /// The battle window's first event of a battle: the board of s2c/22, both sides, the mob's sprite.
+    fn battle_open(&self, setup: &Setup, payload: &[u8], mob_id: &str) -> battle_view::Open {
+        let block = mob_block(payload, mob_id);
+        let known = self.mobs.iter().find(|m| m.id == mob_id);
+        battle_view::Open {
+            board: setup.board.clone(),
+            me: battle_view::Side {
+                name: setup.me.clone(),
+                level: setup.level,
+                element: self.snap.element,
+                gauge: Gauge {
+                    hp: Some(setup.hp),
+                    max_hp: Some(setup.max_hp),
+                    ..Gauge::default()
+                },
+            },
+            mob: battle_view::Side {
+                name: block
+                    .as_ref()
+                    .map(|b| b.name.clone())
+                    .or_else(|| known.map(|m| m.name.clone()))
+                    .unwrap_or_else(|| mob_id.to_string()),
+                level: block
+                    .as_ref()
+                    .map(|b| b.level)
+                    .or(known.map(|m| m.level))
+                    .unwrap_or(0),
+                element: block
+                    .as_ref()
+                    .map(|b| b.element as i32)
+                    .or_else(|| known.and_then(|m| m.element())),
+                gauge: Gauge {
+                    hp: block.as_ref().map(|b| b.hp),
+                    max_hp: block.as_ref().map(|b| b.max_hp),
+                    ..Gauge::default()
+                },
+            },
+            mob_id: mob_id.to_string(),
+            sprite: block.as_ref().map(|b| b.sprite),
+            boss: self.bosses.contains(mob_id),
+            turn_seconds: setup.turn_seconds,
+        }
+    }
+
+    pub(super) fn battle_end(
+        kind: EndKind,
+        exp: Option<i32>,
+        coin: Option<i32>,
+        out: &mut Vec<Out>,
+    ) {
+        out.push(Out::BattleEvent(Box::new(BattleEvent::End(
+            battle_view::End {
+                result: kind,
+                exp,
+                coin,
+            },
+        ))));
     }
 
     /// What a v3 battle plays with (onSetup and battleSkills of QuestBot): the learnt skills of the s2c/30 tree at their

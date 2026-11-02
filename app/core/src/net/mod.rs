@@ -110,6 +110,8 @@ pub enum Event {
     Pickup(Box<PickupRecord>),
     /// The packets of a battle and what both sides were (Out::BattleData), for battle_data of cllt.db.
     BattleData(Box<BattleData>),
+    /// For the battle window of the account (Out::BattleEvent).
+    BattleEvent(Box<crate::battle_view::BattleEvent>),
     /// A fault of the session or a Báo lỗi, with what went in and out before it (trace.rs), for Log lỗi. Comes after
     /// the log line or the state it is about.
     Fault(Box<Fault>),

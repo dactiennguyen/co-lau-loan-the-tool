@@ -12,6 +12,8 @@ pub enum Out {
     Pickup(Box<PickupRecord>),
     /// Lưu dữ liệu trận: the packets of a battle with what both sides were (battle_record.rs), for cllt.db.
     BattleData(Box<BattleData>),
+    /// For the battle window: the battle opened, a turn started, a result, the end (battle_view.rs).
+    BattleEvent(Box<crate::battle_view::BattleEvent>),
 }
 
 /// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/features.md#nhật-ký-và-thống-kê

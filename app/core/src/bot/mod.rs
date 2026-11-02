@@ -5,8 +5,9 @@
 //! of s2c/39 it knows (talk with c2s/13, kill, boss damage, level, a stat point, a skill level) and walks through portals
 //! when the NPC or mob of a step is in another map. Without I/O, like BattleRunner.
 use crate::atlas::{Atlas, MapRecord, Portal};
-use crate::battle::{battle_setup, mob_block, Strategy};
+use crate::battle::{battle_setup, mob_block, Setup, Strategy};
 use crate::battle_record::{BattleData, Recorder};
+use crate::battle_view::{self, BattleEvent, EndKind, Gauge};
 use crate::items::{
     bag_after, bag_slot, book, character_extra, character_gear, character_tail, currencies,
     gear_durability, gear_update, ground_item_add, ground_item_remove, ground_items, inventory,
@@ -601,6 +602,11 @@ impl Bot {
             if b.deadline().is_some_and(|d| d <= now) {
                 let mut acts = vec![];
                 b.on_timer(now, &mut acts);
+                out.extend(
+                    b.take_views()
+                        .into_iter()
+                        .map(|v| Out::BattleEvent(Box::new(v))),
+                );
                 self.apply(acts, now, out);
             }
         }

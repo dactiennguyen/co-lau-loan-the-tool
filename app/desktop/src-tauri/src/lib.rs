@@ -18,6 +18,7 @@
 // tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay).
 mod app;
 mod backup;
+mod battle_window;
 mod commands;
 mod device;
 mod notify;
@@ -114,6 +115,8 @@ pub fn run() {
         })
         .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
+            battle_window::battle_state,
+            battle_window::open_battle_window,
             commands::state,
             commands::logs,
             commands::login,

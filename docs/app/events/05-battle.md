@@ -60,6 +60,23 @@ Thêm lượt [Đo + Cẩm nang]:
 
 Bàn bị **xếp lại** khi hết nước đi: bàn mới 64 ô đi kèm `s2c/19` (xem bố cục dưới). Thấy 3 lần trong Q1/Q2 của [10-quests](10-quests.md#hai-điều-q1-phát-hiện). [Đo]
 
+<a id="từng-đợt"></a>
+
+**Từng đợt của một nước** (cho [cửa sổ trận](../../integration/rust/features.md#cửa-sổ-trận)). `battle::frames` (`app/core/src/battle.rs`) làm lại đúng các bước của `apply_result`, và ghi từng đợt. [Đo]
+1. Tráo hai ô.
+2. Xử lý các ô của kỹ năng:
+   - phá các ô đó, cùng vùng nổ của Kiếm lửa: đây là đợt đầu;
+   - hoặc, với Hỏa Kiếm Thuật, biến các ô thành Kiếm lửa.
+3. Lặp từng đợt cho tới khi không còn đoạn ≥3. Mỗi đợt gồm:
+   - **cleared:** các ô nổ;
+   - **falls:** các viên rơi, `[từ ô, tới ô]`, cột nào xong cột đó, viên dưới trước;
+   - **filled:** viên mới lấy từ danh sách của server, `[ô, viên]`, cột trái → phải, trong cột từ dưới lên; hết danh sách thì là `-2`.
+
+Phát lại các đợt (`tests/battle_frames.rs`) cho ra đúng bàn và đúng số viên đã ăn như `settle` / `apply_result`:
+- ở cả 52 nước đã ghi trong `vectors.json`;
+- ở mọi lần dùng Hỏa Kiếm Thuật của `fireCasts`;
+- ở cả trận manina đánh Hỏa Hầu phát lại qua Bot (`tests/fixtures/battle-hoa-hau.json`).
+
 Tên mã 3 và 4 đã đổi lại sau Q6, công thức EXP/xu ở [07-auto-battle](07-auto-battle.md#tác-dụng-của-các-viên).
 
 Asset liên quan (đều mã hoá, chưa giải): `chess0b.dat`…`chess8b.dat`, `chesscrystal.dat`, `play/bkboardh|v|hv.dat`, `focusmovechess1|2.dat`, `x1/play/hub-game-hp|mana|power|time.dat`, `strwin.dat`, `strlose.dat`, âm thanh `vs.wav`, `battle.mp3`, `attack.wav`.

@@ -16,6 +16,7 @@ import { useFightSetting } from "@/hooks/useFightSetting";
 import { BattlePanel } from "./BattlePanel";
 import { LootRow } from "./LootRow";
 import { LOSSES_LEFT_HINT, LossesLeftField } from "./LossesLeftField";
+import { OpenBattleWindow } from "@/battle/OpenBattleWindow";
 
 interface Props {
   account: Account;
@@ -98,7 +99,12 @@ export function QuestCard({ account, onStart, onStop }: Props) {
       icon="scroll"
       tone="var(--primary)"
       subtitle={q ? <>Nhiệm vụ chính <span className="px">#{q.id}</span></> : c ? "Server chưa gửi nhiệm vụ nào" : "Đăng nhập để xem nhiệm vụ"}
-      aside={q && <span className="text-13 text-primary px">{Math.min(q.current + 1, q.steps.length)}/{q.steps.length}</span>}
+      aside={
+        <span className="inline-flex items-center gap-2.5">
+          {q && <span className="text-13 text-primary px">{Math.min(q.current + 1, q.steps.length)}/{q.steps.length}</span>}
+          <OpenBattleWindow id={account.id} label={account.label} />
+        </span>
+      }
       className="[--frame:var(--primary)]"
     >
       {/* The steps take what the card has left and scroll when the window is short. */}

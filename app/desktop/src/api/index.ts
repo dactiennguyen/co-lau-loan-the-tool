@@ -2,8 +2,12 @@
 // shows public/sample.json, written by `npm run sample`, and the commands do nothing: enough to work on the design.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type {
   AccountForm,
+  BattleBody,
+  BattleMsg,
+  BattleState,
   AccountsUpdate,
   AppState,
   BattleSource,
@@ -218,6 +222,14 @@ export interface Api {
   onAccounts(handler: (update: AccountsUpdate) => void): Promise<UnlistenFn>;
   /** The lines logged since the last event, of every account. */
   onLog(handler: (events: LogEvent[]) => void): Promise<UnlistenFn>;
+  /** What the battle window of account `id` shows now (battle_window.rs); null for no account of that id. */
+  battleState(id: number): Promise<BattleState | null>;
+  /** Opens the battle window of account `id`, or brings it to the front. */
+  openBattleWindow(id: number, onTop: boolean, chroma: boolean): Promise<void>;
+  /** The messages to the battle window this page is, in order. Only this window's: the app sends each to its own. */
+  onBattle(handler: (msg: BattleMsg) => void): Promise<UnlistenFn>;
+  /** Luôn trên cùng of the window this page is. */
+  setOnTop(onTop: boolean): Promise<void>;
 }
 
 const tauri: Api = {
@@ -297,6 +309,11 @@ const tauri: Api = {
   onCloseAsked: (handler) => listen("close-asked", () => handler()),
   onAccounts: (handler) => listen<AccountsUpdate>("accounts", (e) => handler(e.payload)),
   onLog: (handler) => listen<LogEvent[]>("log", (e) => handler(e.payload)),
+  battleState: (id) => invoke("battle_state", { id }),
+  openBattleWindow: (id, onTop, chroma) => invoke("open_battle_window", { id, onTop, chroma }),
+  // The listen of the window, not the global one: that hears the "battle" of every battle window.
+  onBattle: (handler) => getCurrentWebviewWindow().listen<BattleMsg>("battle", (e) => handler(e.payload)),
+  setOnTop: (onTop) => getCurrentWebviewWindow().setAlwaysOnTop(onTop),
   updateStatus: () => invoke("update_status"),
   checkUpdate: () => invoke("check_update"),
   installUpdate: () => invoke("install_update"),
@@ -310,6 +327,8 @@ interface Sample extends AppState {
   /** What battle_stats and battle_history answer for the first account, with no filter. */
   battleStats?: BattleStats;
   battleHistory?: StoredBattle[];
+  /** The battle window of `?battle=0`: a recorded battle, each message with the ms it came at (sample.rs). */
+  battleReplay?: { ms: number; event: BattleBody }[];
 }
 
 let sample: Promise<Sample> | undefined;
@@ -441,6 +460,26 @@ const preview: Api = {
   onUpdate: async () => () => {},
   deviceStatus: async () => ({ id: "", state: "off" }),
   onDevice: async () => () => {},
+  battleState: async () => null,
+  openBattleWindow: async (id) => {
+    window.open(`${location.pathname}?battle=${id}`, "_blank");
+  },
+  onBattle: async (handler) => replayBattle(handler),
+  setOnTop: nothing,
 };
+
+/** The recorded battle of the sample played as it came, again and again: 2 s before it opens, 5 s after it ends. */
+async function replayBattle(handler: (msg: BattleMsg) => void): Promise<UnlistenFn> {
+  const events = (await loadSample()).battleReplay ?? [];
+  const timers: number[] = [];
+  const last = events[events.length - 1]?.ms ?? 0;
+  let rev = 0;
+  const play = () => {
+    for (const e of events) timers.push(window.setTimeout(() => handler({ ...e.event, rev: ++rev }), 2000 + e.ms));
+    timers.push(window.setTimeout(play, 2000 + last + 5000));
+  };
+  if (events.length) play();
+  return () => timers.forEach((t) => window.clearTimeout(t));
+}
 
 export const api: Api = isTauri() ? tauri : preview;

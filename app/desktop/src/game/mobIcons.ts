@@ -13,3 +13,7 @@ export const mobIcon = (name: string) => {
   const n = pictures[name];
   return n == null ? undefined : byNumber.get(n);
 };
+
+/** The picture of sprite sheet `sprite` (100000 + 10 n, the sheet s2c/22 names: Battle window), undefined without one. */
+export const sheetIcon = (sprite: number | null | undefined) =>
+  sprite == null ? undefined : byNumber.get((sprite - 100000) / 10);

@@ -6,7 +6,7 @@ import { num } from "@/utils/format";
 import type { Turn } from "@/api/types";
 
 /** The board's pieces by kind (docs/app/events/05-battle.md); `tone` sets the chip's colour (--piece). */
-const PIECES: Record<number, { name: string; icon: IconName; tone: string }> = {
+export const PIECES: Record<number, { name: string; icon: IconName; tone: string }> = {
   0: { name: "kiếm", icon: "sword", tone: "[--piece:var(--piece-sword)]" },
   1: { name: "tim", icon: "heart", tone: "[--piece:var(--piece-heart)]" },
   2: { name: "âm dương", icon: "yinyang", tone: "[--piece:var(--piece-yinyang)]" },
