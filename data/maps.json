@@ -7,12 +7,12 @@
   { "mapId": "M5", "level": 40, "locked": false },
   { "mapId": "M6", "level": 110, "locked": true },
   { "mapId": "M7", "level": 100, "locked": true },
-  { "mapId": "M8", "level": 50, "locked": true },
+  { "mapId": "M8", "level": 50, "locked": false },
   { "mapId": "M9", "level": 120, "locked": true },
   { "mapId": "M10", "level": 30, "locked": false },
   { "mapId": "M11", "level": 70, "locked": true },
   { "mapId": "M12", "level": 80, "locked": true },
-  { "mapId": "M13", "level": 60, "locked": true },
+  { "mapId": "M13", "level": 60, "locked": false },
   { "mapId": "M14", "level": 90, "locked": true },
   { "mapId": "M15", "level": 30, "locked": false },
   { "mapId": "M16", "level": 0, "locked": true },
@@ -97,12 +97,12 @@
      "ids": { "0": "mob86100001", "1": "mob86100101" },
      "tile": {
       "zone": 0,
-      "at": [ 82, 21 ]
+      "at": [ 144, 20 ]
      },
      "sprite": 100070
     }
    ],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
   },
   "M2": {
    "mapId": "M2",
@@ -180,7 +180,7 @@
      "ids": { "0": "mob90100003", "1": "mob90100103" },
      "tile": {
       "zone": 0,
-      "at": [ 57, 7 ]
+      "at": [ 50, 14 ]
      },
      "sprite": 100660
     },
@@ -190,12 +190,12 @@
      "ids": { "0": "mob89100002", "1": "mob89100102" },
      "tile": {
       "zone": 0,
-      "at": [ 61, 12 ]
+      "at": [ 11, 14 ]
      },
      "sprite": 100660
     }
    ],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
   },
   "M25": {
    "mapId": "M25",
@@ -207,7 +207,7 @@
    ],
    "mobs": [],
    "bosses": [],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
   },
   "M10": {
    "mapId": "M10",
@@ -269,11 +269,11 @@
      "ids": { "0": "mob96100005" },
      "tile": {
       "zone": 0,
-      "at": [ 131, 18 ]
+      "at": [ 97, 12 ]
      }
     }
    ],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
   },
   "M5": {
    "mapId": "M5",
@@ -333,11 +333,11 @@
      "ids": { "0": "mob98100006" },
      "tile": {
       "zone": 0,
-      "at": [ 8, 20 ]
+      "at": [ 62, 3 ]
      }
     }
    ],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
   },
   "M4": {
    "mapId": "M4",
@@ -411,12 +411,12 @@
      "ids": { "0": "mob93100004" },
      "tile": {
       "zone": 0,
-      "at": [ 110, 20 ]
+      "at": [ 56, 12 ]
      },
      "sprite": 101050
     }
    ],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
   },
   "M8": {
    "mapId": "M8",
@@ -485,27 +485,104 @@
      "ids": { "0": "mob101100007" },
      "tile": {
       "zone": 0,
-      "at": [ 130, 25 ]
+      "at": [ 97, 16 ]
      },
      "sprite": 101050
     }
    ],
-   "seen": "2026-11-01"
+   "seen": "2026-11-02"
+  },
+  "M13": {
+   "mapId": "M13",
+   "name": "Phong Nguyên",
+   "places": [
+    { "id": 12, "name": "Bản đồ", "type": 0, "x": 32, "y": 176, "w": 64, "h": 32 },
+    { "id": 1019, "name": "Lam Lĩnh", "type": 0, "x": 32, "y": 752, "w": 32, "h": 32 },
+    { "id": 1023, "name": "Huyền Hồ", "type": 0, "x": 4768, "y": 176, "w": 32, "h": 32 },
+    { "id": 1020, "name": "Cửu Phong", "type": 0, "x": 4768, "y": 464, "w": 32, "h": 32 },
+    { "id": 1022, "name": "Tam Khê", "type": 0, "x": 4768, "y": 752, "w": 32, "h": 32 },
+    { "id": 147, "name": "Hào trưởng địa phương", "type": 2, "x": 2288, "y": 384, "w": 32, "h": 32 }
+   ],
+   "mobs": [
+    {
+     "name": "Voi Điên",
+     "level": 70,
+     "ids": {
+      "0": [ "mob610", "mob611", "mob612", "mob613", "mob614" ]
+     }
+    },
+    {
+     "name": "Dơi Tím",
+     "level": 71,
+     "ids": {
+      "0": [ "mob24500", "mob24501", "mob24502", "mob24503", "mob24504" ]
+     }
+    },
+    {
+     "name": "Yêu Cáo Chiến Sĩ",
+     "level": 72,
+     "ids": {
+      "0": [ "mob391000", "mob391001", "mob391002", "mob391003", "mob391004", "mob391005" ]
+     }
+    },
+    {
+     "name": "Mãnh Hổ",
+     "level": 73,
+     "ids": {
+      "0": [ "mob591600", "mob591601", "mob591602", "mob591603", "mob591604" ]
+     }
+    },
+    {
+     "name": "Hoa Hồng Gai",
+     "level": 75,
+     "ids": {
+      "0": [ "mob252100", "mob252101", "mob252102", "mob252103", "mob252104" ]
+     }
+    },
+    {
+     "name": "Lam Linh",
+     "level": 79,
+     "ids": {
+      "0": [ "mob262600", "mob262601", "mob262602", "mob262603", "mob262604" ]
+     }
+    },
+    {
+     "name": "Quái Điểu",
+     "level": 80,
+     "ids": {
+      "0": [ "mob323100", "mob323101", "mob323102", "mob323103", "mob323104" ]
+     }
+    }
+   ],
+   "bosses": [
+    {
+     "name": "Tướng Trấn Vũ",
+     "level": 75,
+     "ids": { "0": "mob102100008" },
+     "tile": {
+      "zone": 0,
+      "at": [ 104, 11 ]
+     }
+    }
+   ],
+   "seen": "2026-11-02"
   }
  },
  "portals": {
   "1010": { "name": "Cổ Phong", "level": 130 },
-  "1011": { "name": "Bạch Nham", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
-  "1012": { "name": "Phong Nguyên", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+  "1011": { "name": "Bạch Nham", "mapId": "M8" },
+  "1012": { "name": "Phong Nguyên", "mapId": "M13" },
   "1013": { "name": "Lạc Cốc", "level": 40, "mapId": "M5" },
   "1014": { "name": "Làng Thanh Khê", "mapId": "M1" },
   "1015": { "name": "Vân Sơn", "mapId": "M2" },
   "1016": { "name": "Hồng Giang", "mapId": "M4" },
   "1017": { "name": "Tân Trạch", "level": 110 },
   "1018": { "name": "Nguyệt Đàm", "level": 100 },
+  "1019": { "name": "Lam Lĩnh", "level": 120 },
   "1020": { "name": "Cửu Phong", "mapId": "M10" },
   "1021": { "name": "Tiên Cốc", "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
-  "1022": { "name": "Tam Khê", "level": 80 },
+  "1022": { "name": "Tam Khê", "level": 80, "refused": "Bạn cần hoàn thành nhiệm vụ trước khi tới đây" },
+  "1023": { "name": "Huyền Hồ", "level": 90 },
   "1024": { "name": "Rìa Hồng Giang", "mapId": "M25" }
  }
 }
