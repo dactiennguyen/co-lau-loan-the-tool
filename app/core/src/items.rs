@@ -15,7 +15,8 @@ pub struct ItemStat {
 }
 
 /// One item of the bag, a gear slot or the ground (itemRecord of src/protocol/world.ts). `durability` is -1 for items without
-/// one; `element` 1 Hỏa, 2 Lôi, 4 Thủy, 0xff for plain items; the fields are not understood.
+/// one; `element` 1 Hỏa, 2 Lôi, 4 Thủy, 0xff for plain items; `field4` the quality of gear (quality_name), 0 for the rest;
+/// the other fields are not understood.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemRecord {
@@ -417,6 +418,19 @@ pub fn off_element(item: u8, character: Option<i32>) -> Option<String> {
     let name = |e: u8| book().element_name(e);
     let (mine, its) = (name(c)?, name(item)?);
     (item != c).then(|| format!("đồ hệ {its}, nhân vật hệ {mine}"))
+}
+
+/// The byte `hệ` of an item that is not gear (Xu khóa, stones, materials, eggs, pets).
+pub const NOT_GEAR: u8 = 0xff;
+
+/// The four qualities of gear, by field4 of the item record and the quality of a Chợ trời listing, as the item popup of
+/// the phone names them (13-drops-items.md#phẩm-chất): 1 Hiếm (every dropped gear opened, 31/10), 2 Quý (the ring Chế tạo
+/// made, O1), 3 Sử Thi (purple names in Chợ trời, CT1). Thường, the fourth name of the game, is taken to be 0: no gear
+/// with it seen yet.
+pub const QUALITY_NAMES: [&str; 4] = ["Thường", "Hiếm", "Quý", "Sử Thi"];
+/// "Hiếm" for 1; None past the four.
+pub fn quality_name(quality: u8) -> Option<&'static str> {
+    QUALITY_NAMES.get(quality as usize).copied()
 }
 
 /// data/items.json: the item table, the stat templates of `it0` ("#" is the value), and names of types and elements.

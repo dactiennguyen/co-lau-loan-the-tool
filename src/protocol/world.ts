@@ -197,7 +197,7 @@ export function shopList(payload: Uint8Array) {
   const r = new Reader(payload), kind = r.u8(), title = r.string(), items = [];
   for (let n = r.i32(); n > 0; n--) {
     const shopId = r.i32(), itemId = r.i32(), currency = r.u8(), price = r.i32(), durability = r.i32(), quantity = r.i32(), flag = r.u8(), element = r.u8();
-    r.i32(); r.u8(); r.u8(); // field2, field3, field4 (1 on gear) of the item record
+    r.i32(); r.u8(); r.u8(); // field2, field3, field4 (the quality of gear) of the item record
     const ranges = [];
     for (let k = r.i32(); k > 0; k--) {
       ranges.push({ stat: r.i32(), min: r.i32(), max: r.i32() });
@@ -280,7 +280,8 @@ export class ZonePlayers {
 
 /** Item record shared by the bag (s2c/42, s2c/1187), the gear slots of s2c/9 and items on the ground (s2c/1182): slot
  * (0xfe on the ground), durability -1 for items without one, element of this item (1 Hỏa, 2 Lôi, 4 Thủy as the item
- * popup draws it; 0xff for plain items), stats as (code, value) with the templates of it0 (12-skills-items.md#túi-đồ). */
+ * popup draws it; 0xff for plain items), field4 the quality of gear (1 Hiếm, 2 Quý, 3 Sử Thi; 0 for the rest,
+ * 13-drops-items.md#phẩm-chất), stats as (code, value) with the templates of it0 (12-skills-items.md#túi-đồ). */
 export function itemRecord(r: Reader) {
   const slot = r.u8(), itemId = r.i32(), uuid = r.string(), field0 = r.i32(), durability = r.i32(), quantity = r.i32();
   const field1 = r.u8(), element = r.u8(), field2 = r.i32(), field3 = r.u8(), field4 = r.u8(), stats = [];

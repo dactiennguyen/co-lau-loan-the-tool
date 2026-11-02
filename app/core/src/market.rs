@@ -16,13 +16,13 @@ pub const MIN_PRICE: i64 = 1000;
 /// The cut the market takes when a listing sells, in percent (the rules of Bán vật phẩm, the mail of NP1).
 pub const CUT_PERCENT: i64 = 5;
 
-/// The quality of gear in a listing as the item popup of the phone names it: 1 Hiếm, 3 Sử Thi; 2 not opened yet.
+/// The quality of gear in a listing as the item popup of the phone names it (items::quality_name): 1 Hiếm, 2 Quý, 3 Sử
+/// Thi; None for 0, what is not gear.
 pub fn quality_name(quality: i32) -> Option<&'static str> {
-    match quality {
-        1 => Some("Hiếm"),
-        3 => Some("Sử Thi"),
-        _ => None,
-    }
+    u8::try_from(quality)
+        .ok()
+        .filter(|&q| q > 0)
+        .and_then(crate::items::quality_name)
 }
 
 /// A stat of a listing, with the second value every listing seen had equal to the first.

@@ -797,6 +797,12 @@ export interface FightSettings {
   /** Chỉ nhặt trang bị đúng hệ, off unless turned on: gear of another element than the character's stays on the
    * ground. */
   pickupOwnElement: boolean;
+  /** Phẩm chất trang bị nhặt, all four ticked unless unticked: Tự nhặt đồ picks up gear of the qualities ticked
+   * (Thường, Hiếm, Quý, Sử Thi); gear of another stays on the ground. Items that are not gear are always picked up. */
+  pickupCommon: boolean;
+  pickupRare: boolean;
+  pickupPrecious: boolean;
+  pickupEpic: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

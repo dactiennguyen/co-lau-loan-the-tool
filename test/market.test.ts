@@ -54,7 +54,7 @@ test('the window: c2s/116 → s2c/116 the nine tabs and the rules; c2s/1192 a pa
   assert.equal(marketPageRequest(1, 2).toString('hex'), P['c2s/1192 Nón Nam trang 2']);
   assert.equal(buildRequest(1192, { tab: MARKET_MINE_TAB }).toString('hex'), P['c2s/1192 Đang bán']);
   assert.deepEqual(decodeEvent('c2s', 1192, hex('c2s/1192 Đang bán'))?.fields, { mode: 0, tab: -1, page: 1 });
-  assert.deepEqual(MARKET_QUALITY, { 1: 'Hiếm', 3: 'Sử Thi' });
+  assert.deepEqual(MARKET_QUALITY, { 1: 'Hiếm', 2: 'Quý', 3: 'Sử Thi' });
 });
 
 test('Mua is c2s/115 with the uuid of the listing; a full bag refuses it with a notice', () => {

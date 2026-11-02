@@ -3862,6 +3862,68 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
         logged(&out, "Bỏ qua Nhẫn Hào Kiệt: đồ hệ Lôi, nhân vật hệ Hỏa"),
         "{out:?}"
     );
+
+    // Phẩm chất trang bị nhặt, all four ticked by default: unticked Thường and Hiếm, a Hiếm ring stays on the ground,
+    // a Quý one is picked up, and so is a stone, which is not gear (its field4 0 is not Thường).
+    assert_eq!(FightSettings::default().qualities(), [true; 4]);
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    bot.set_fight(
+        FightSettings {
+            pickup_common: false,
+            pickup_rare: false,
+            ..FightSettings::default()
+        },
+        &mut out,
+    );
+    assert!(
+        logged(
+            &out,
+            "Phẩm chất trang bị nhặt: chỉ nhặt trang bị Quý, Sử Thi"
+        ),
+        "{out:?}"
+    );
+    bot.fight("Cóc Xanh", 50, 50, now, &mut out);
+    let end = now + Duration::from_secs(1);
+    for (uuid, id, element, quality) in [
+        ("hiem", 312, 1, 1),
+        ("quy", 312, 1, 2),
+        ("da", 412, 0xff, 0),
+    ] {
+        bot.on_packet(1182, &gear_drop(uuid, id, element, quality), end, &mut out)
+            .unwrap();
+    }
+    let out = win(&mut bot, &setup, end);
+    assert_eq!(picked(&out), [request("quy"), request("da")], "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Bỏ qua Nhẫn Hào Kiệt: trang bị Hiếm, phẩm chất này không được chọn nhặt"
+        ),
+        "{out:?}"
+    );
+    let mut out = vec![];
+    bot.set_fight(FightSettings::default(), &mut out);
+    assert!(
+        logged(&out, "Phẩm chất trang bị nhặt: nhặt trang bị mọi phẩm chất"),
+        "{out:?}"
+    );
+}
+
+/// drop_in in M2 with the quality `quality` in field4 of the item record (items::quality_name).
+fn gear_drop(uuid: &str, item_id: i32, element: u8, quality: u8) -> Vec<u8> {
+    let mut p = drop_in("M2", uuid, item_id, 1, element);
+    // string map ("M2"), u8 slot, i32 id, string uuid, 3 × i32, u8 field1, u8 element, i32 field2, u8 field3, then
+    // field4; a string is an i32 length and its bytes.
+    let at = (4 + 2) + 1 + 4 + (4 + uuid.len()) + 12 + 1 + 1 + 4 + 1;
+    assert_eq!(
+        (p[at - 6], p[at]),
+        (element, 0),
+        "the element byte, then field4"
+    );
+    p[at] = quality;
+    p
 }
 
 /// Nhặt cả đồ khác giới tính, on by default: Tự nhặt đồ picks up Giáp Tiên Phong nữ for manina too. Off, gear the

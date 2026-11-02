@@ -320,7 +320,7 @@ u8 ô (0xfe: trên đất); i32 mãVậtPhẩm; string uuid; i32 field0; i32 đ�
 u8 field1; u8 hệ (1 Hỏa, 2 Lôi, 4 Thủy; 0xff ở vật phẩm thường); i32 field2; u8 field3; u8 field4; u8 n; n × {i32 chỉSố; i32 giáTrị}
 ```
 
-Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0` là cấp cường hoá: 8 ở đồ "+8" của symap, 0 ở đồ của manina ([x2 EXP](#x2-exp)). `field1` là cờ khoá giao dịch: 1 chưa khoá, 0 đã khoá: mua bằng Xu khóa, vừa nâng cấp thành công [Đo J2, J3], hay đã mặc lần đầu [Cẩm nang] ([15-shops](15-shops.md#khoá)). `field2`, `field3` bằng 0 ở mọi mẫu. `field4` bằng 1 ở mọi trang bị, 0 ở thú cưng; có lẽ là phẩm chất. [Đo giá trị; field4 Suy luận]
+Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. Byte `hệ` trước đây ghi là "phẩm". Popup trên máy (31/10) vẽ biểu tượng hệ theo byte này: Rìu Âu Lạc và Áo Hào Kiệt (1) có ngọn lửa, Nón Âu Lạc (2) có tia sét. Cả ba đều ghi "Phẩm chất: Hiếm". 4 là Thủy theo cách đánh số hệ nhân vật của `s2c/9` (1 Hỏa, 4 Thủy). [Đo 1, 2; Suy luận 4] `field0` là cấp cường hoá: 8 ở đồ "+8" của symap, 0 ở đồ của manina ([x2 EXP](#x2-exp)). `field1` là cờ khoá giao dịch: 1 chưa khoá, 0 đã khoá: mua bằng Xu khóa, vừa nâng cấp thành công [Đo J2, J3], hay đã mặc lần đầu [Cẩm nang] ([15-shops](15-shops.md#khoá)). `field2`, `field3` bằng 0 ở mọi mẫu. `field4` là **phẩm chất**: 1 Hiếm, 2 Quý, 3 Sử Thi, 0 ở món không phải trang bị ([13-drops-items](13-drops-items.md#phẩm-chất)). [Đo]
 
 | Gói | Khi nào | Bố cục | Mẫu |
 |---|---|---|---|
@@ -349,7 +349,7 @@ Vật phẩm trên đất có thêm `i32 x; i32 y; i64 hếtHạn` ở cuối. B
 | Trang bị 2 | 261 | Rìu Âu Lạc | 1 | 0 | 1 Hỏa | 5: 8; 2: 10 | Popup: ngọn lửa, Hiếm, "Độ bền 0/60", "Cần 1 búa để sửa chữa". Vẫn hỏng, nên chỉ số không tính [Đo] |
 
 - **Mã chỉ số** theo bảng `it0` của game ([mã chỉ số](13-drops-items.md#mã-chỉ-số)): 2 nội lực, 3 thân pháp, 5 sức tấn công, 6 phòng thủ, 8 % chí mạng, 9 sinh lực. Mã 6 và 9 khớp popup Nón Âu Lạc. [Đo]
-- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm", dù byte hệ là 1 hay 2. Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi. Có lẽ phẩm chất là `field4` của bản ghi: 1 ở mọi trang bị, 0 ở thú cưng, mà popup thú cưng không có dòng phẩm chất (P4, [Cường hoá và phẩm chất](#cường-hoá)). Cần một món không phải Hiếm để chắc. [Suy luận]
+- **Phẩm chất**: `field4` của bản ghi, 1 Hiếm, 2 Quý, 3 Sử Thi; 0 ở thú cưng và mọi món không phải trang bị, mà popup thú cưng không có dòng phẩm chất (P4, [Cường hoá và phẩm chất](#cường-hoá)). Quý đo được ở nhẫn chế tạo của O1, Sử Thi ở đồ của symap ([13-drops-items](13-drops-items.md#phẩm-chất)). Tên phẩm trong `.so`: Thường, Hiếm, Quý, Sử Thi; Thường chưa thấy. [Đo]
 - **Đang mặc** (bảng Bản thân, 31/10): ô 0 Nón Âu Lạc (đang bật "Ẩn Nón" nên nón không hiện trên người), ô 2 Rìu Âu Lạc (hỏng). Áo Hào Kiệt, Nón Lá, Nhẫn Trơn còn trong túi, chưa mặc. Dưới bảng: Xu 500, Xu khóa 7.370, Lượng 0; thanh Vàng 2708/10000. Mỗi món trong túi có hình ổ khoá nhỏ (món đã khoá). [Đo]
 - Hai trang bị hỏng từ Q6 ([10-quests](10-quests.md#kết-quả-q3-q4)) chính là chiếc nón (mã 54) và vũ khí (mã 261), cả hai độ bền 0 trong `s2c/9`. [Đo]
 
@@ -381,7 +381,7 @@ Theo popup trên máy, một món gồm:
 | Số lượng ở góc icon | `sốLượng` của bản ghi. Máy vẽ số cho món xếp chồng được (`xếpChồng` > 1), kể cả khi chỉ có 1 (Kim Đan Dược "1"). Trang bị không có số |
 | Biểu tượng hệ, tên | Byte `hệ` (ngọn lửa 1, tia sét 2), `tên` trong bảng |
 | Cường hoá (+8 cạnh tên) | `field0` của bản ghi (P4: 8 ở cả 4 món +8 của symap, 0 ở đồ manina) |
-| Phẩm chất | Có lẽ `field4` (1 ở trang bị, 0 ở thú cưng); mọi trang bị đã xem đều Hiếm [Suy luận] |
+| Phẩm chất | `field4`: 1 Hiếm, 2 Quý, 3 Sử Thi, 0 ở món không phải trang bị ([13](13-drops-items.md#phẩm-chất)) [Đo] |
 | Yêu cầu cấp | `cấpMặc` trong bảng |
 | Độ bền | `độBền` của bản ghi / `độBềnTốiĐa` trong bảng, ví dụ 55/60. Màu đỏ khi bằng 0 |
 | Chỉ số | Từng `{chỉSố; giáTrị}` theo mẫu `it0`, ví dụ `+ 4 phòng thủ` |
@@ -728,7 +728,7 @@ i32; string tên sứ quân; u8; u8
 
 **Cường hoá và phẩm chất** cũng thấy trong bản ghi vật phẩm của symap [Đo]:
 - `field0` = 8 ở cả 4 món "+8" (Nón Hào Kiệt, Áo Thuật Sĩ, Chiến Đao, Nhẫn Đại Hiệp). Đồ chưa cường hoá của manina có 0. Vậy `field0` là cấp cường hoá.
-- `field4` = 1 ở mọi trang bị (popup ghi "Phẩm chất: Hiếm"), = 0 ở thú cưng (popup không có dòng phẩm chất). Có lẽ đó là phẩm chất. [Suy luận]
+- `field4` = 1 ở mọi trang bị (popup ghi "Phẩm chất: Hiếm"), = 0 ở thú cưng (popup không có dòng phẩm chất). Đó là phẩm chất: sau này thấy 2 ở món Quý và 3 ở món Sử Thi ([13](13-drops-items.md#phẩm-chất)). [Đo]
 
 ## Bình máu và nội lực
 

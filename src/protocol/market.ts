@@ -17,8 +17,9 @@ export const MARKET = {
 export const MARKET_HELP = 0, MARKET_LIST = 1, MARKET_MINE = 2;
 /** The tab of c2s/1192 that is Đang bán: the character's own listings. */
 export const MARKET_MINE_TAB = -1;
-/** The quality of gear in a listing, as the item popup of the phone names it (0 for everything that is not gear). */
-export const MARKET_QUALITY: Record<number, string> = { 1: 'Hiếm', 3: 'Sử Thi' };
+/** The quality of gear in a listing, as the item popup of the phone names it (0 for everything that is not gear): 1 Hiếm,
+ * 2 Quý, 3 Sử Thi, the scale of field4 of the item record (13-drops-items.md#phẩm-chất). */
+export const MARKET_QUALITY: Record<number, string> = { 1: 'Hiếm', 2: 'Quý', 3: 'Sử Thi' };
 
 const i64 = (r: Reader) => Number(r.take(8).readBigInt64BE());
 const writeI64 = (w: Writer, n: number) => w.i32(Math.floor(n / 2 ** 32)).i32(n % 2 ** 32);

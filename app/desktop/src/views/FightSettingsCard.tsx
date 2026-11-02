@@ -3,6 +3,8 @@ import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Icon } from "@/components/Icon";
+import { CheckRow } from "@/components/CheckRow";
+import { Hint } from "@/components/Hint";
 import { SETTING_FACT, SETTING_FACT_BAD, SettingRow } from "@/components/SettingRow";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
@@ -19,14 +21,24 @@ const HAMMER = 2;
  * change is saved to accounts.json and reaches a session at once; it shows as chosen while it saves. Beside Tự sửa đồ,
  * once in the game: the hammers of the bag and the worn items that are broken, with Mua búa when none is left (the bot
  * never buys one itself). Tự nhặt đồ is on unless turned off, and so are Nhặt cả đồ người khác (what others left, once
- * anyone may have it) and Nhặt cả đồ khác giới tính under it; Chỉ nhặt trang bị đúng hệ is off unless turned on. Lưu dữ
- * liệu trận is not here: it is the same for every account, in the Cài đặt of the app (SettingsDialog).
+ * anyone may have it) and Nhặt cả đồ khác giới tính under it; Chỉ nhặt trang bị đúng hệ is off unless turned on, and
+ * Phẩm chất trang bị nhặt has its four boxes ticked unless unticked. Lưu dữ liệu trận is not here: it is the same for
+ * every account, in the Cài đặt of the app (SettingsDialog).
  */
 /** Whether the settings under Tự nhặt đồ are shown, the same for every account; kept in localStorage. */
 const PICKUP_OPEN = "pickupOptionsOpen";
 
+/** The boxes of Phẩm chất trang bị nhặt, Thường to Sử Thi (items::QUALITY_NAMES of cllt-core: field4 of the item record
+ * 0–3), each name in the colour the phone gives it where it is known (Hiếm green, Sử Thi purple, as in Chợ trời). */
+const QUALITIES = [
+  { key: "pickupCommon", name: "Thường", className: "" },
+  { key: "pickupRare", name: "Hiếm", className: "text-good" },
+  { key: "pickupPrecious", name: "Quý", className: "" },
+  { key: "pickupEpic", name: "Sử Thi", className: "text-piece-yinyang" },
+] as const;
+
 /** The settings this card changes: the box shows the one being saved until the account comes back with it. */
-const KEYS = ["repair", "pickup", "pickupOthers", "pickupOtherGender", "pickupOwnElement"] as const;
+const KEYS = ["repair", "pickup", "pickupOthers", "pickupOtherGender", "pickupOwnElement", ...QUALITIES.map((q) => q.key)] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
   const saved = account.fightSettings;
@@ -34,14 +46,16 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const id = useId();
   const [saving, setSaving] = useState<FightSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // The three settings of Tự nhặt đồ fold under it, closed until opened once.
+  // The settings of Tự nhặt đồ fold under it, closed until opened once.
   const [pickupOpen, setPickupOpen] = useState(() => localStorage.getItem(PICKUP_OPEN) === "1");
   const togglePickup = () =>
     setPickupOpen((was) => {
       localStorage.setItem(PICKUP_OPEN, was ? "0" : "1");
       return !was;
     });
-  // Kept until the account comes back with it, so the box does not flick back between the answer and the update.
+  // Kept until the account comes back with it, so the box does not flick back between the answer and the update. The
+  // other boxes stay usable meanwhile: a save sends every setting, those still saving included, and src-tauri writes
+  // them one after another, so none is lost, and nothing on the card dims at each click.
   useEffect(() => {
     if (saving && KEYS.every((k) => saving[k] === saved[k])) {
       setSaving(null);
@@ -61,12 +75,12 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const unwearable = c?.bag?.items.filter((i) => misfit(i, c.gender)).length ?? 0;
   const element = c?.element != null ? ELEMENTS[c.element] : undefined;
   const offElement = c?.bag?.items.filter((i) => i.element != null && i.element !== c.element).length ?? 0;
+  const ticked = QUALITIES.filter((q) => settings[q.key]).length;
   return (
     <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
       <SettingRow
         id={`${id}repair`}
         on={settings.repair}
-        disabled={!!saving}
         onChange={(repair) => save({ ...settings, repair })}
         icon="hammer"
         title="Tự sửa đồ"
@@ -93,18 +107,18 @@ export function FightSettingsCard({ account }: { account: Account }) {
       <SettingRow
         id={`${id}pickup`}
         on={settings.pickup}
-        disabled={!!saving}
         onChange={(pickup) => save({ ...settings, pickup })}
         icon="gem"
         title="Tự nhặt đồ"
-        hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm. Bấm ▾ ở cuối dòng để xem ba tuỳ chọn của nó."
+        hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm. Bấm ▾ cạnh tên để xem các tuỳ chọn của nó."
         expand={{ open: pickupOpen, onToggle: togglePickup, controls: `${id}pickup-options` }}
       >
-        {/* Folded, how many of its three settings are on. */}
+        {/* Folded, how many of its three settings are on, and how many qualities are ticked. */}
         {!pickupOpen && (
           <span className={SETTING_FACT}>
             <Icon name="list" size={12} />
-            <b className="px">{[settings.pickupOthers, settings.pickupOtherGender, settings.pickupOwnElement].filter(Boolean).length}</b>/3 tuỳ chọn bật
+            <b className="px">{[settings.pickupOthers, settings.pickupOtherGender, settings.pickupOwnElement].filter(Boolean).length}</b>/3 tuỳ chọn bật ·
+            phẩm chất <b className="px">{ticked}</b>/4
           </span>
         )}
       </SettingRow>
@@ -113,7 +127,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
         <SettingRow
           id={`${id}others`}
           on={settings.pickupOthers}
-          disabled={!!saving || !settings.pickup}
+          disabled={!settings.pickup}
           onChange={(pickupOthers) => save({ ...settings, pickupOthers })}
           icon="users"
           title="Nhặt cả đồ người khác"
@@ -122,7 +136,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
         <SettingRow
           id={`${id}gender`}
           on={settings.pickupOtherGender}
-          disabled={!!saving || !settings.pickup}
+          disabled={!settings.pickup}
           onChange={(pickupOtherGender) => save({ ...settings, pickupOtherGender })}
           icon={c?.gender != null && GENDER_ICON[c.gender] ? GENDER_ICON[1 - c.gender] : "swap"}
           title="Nhặt cả đồ khác giới tính"
@@ -144,7 +158,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
         <SettingRow
           id={`${id}element`}
           on={settings.pickupOwnElement}
-          disabled={!!saving || !settings.pickup}
+          disabled={!settings.pickup}
           onChange={(pickupOwnElement) => save({ ...settings, pickupOwnElement })}
           icon="yinyang"
           title="Chỉ nhặt trang bị đúng hệ"
@@ -163,6 +177,34 @@ export function FightSettingsCard({ account }: { account: Account }) {
             </span>
           )}
         </SettingRow>
+        {/* Four boxes on one row, not Bật/Tắt, its icon at the left edge (no box of its own): green while any is ticked. */}
+        <div className={cn("@container grid bg-ink", ticked > 0 && "shadow-[inset_3px_0_0_var(--good)]")}>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-3 py-1.5">
+            <span className="flex items-center gap-2.5 py-1">
+              <span className={cn("grid place-items-center size-[26px] text-fg-2 bg-card", ticked > 0 && "text-ink bg-good bevel-sm")} aria-hidden="true">
+                <Icon name="star" size={14} />
+              </span>
+              <span id={`${id}quality`} className="text-13 font-extrabold text-fg">
+                Phẩm chất trang bị nhặt
+              </span>
+            </span>
+            <Hint label="Phẩm chất trang bị nhặt là gì?" id={`${id}quality-hint`}>
+              Trang bị rơi có một trong bốn phẩm chất: Thường, Hiếm, Quý, Sử Thi (chạm vào hòm trong game sẽ thấy). Bot chỉ nhặt trang bị có phẩm chất được tích, mặc định tích cả bốn. Bỏ tích một phẩm chất thì trang bị phẩm chất đó để lại dưới đất, Nhật ký ghi Bỏ qua. Đồ không phải trang bị (Xu khóa, đá, nguyên liệu…) luôn được nhặt.
+            </Hint>
+            <span
+              role="group"
+              aria-labelledby={`${id}quality`}
+              aria-describedby={`${id}quality-hint`}
+              className="flex-1 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 py-1"
+            >
+              {QUALITIES.map((q) => (
+                <CheckRow key={q.key} checked={settings[q.key]} disabled={!settings.pickup} onChange={(on) => save({ ...settings, [q.key]: on })}>
+                  <span className={cn("font-bold", q.className)}>{q.name}</span>
+                </CheckRow>
+              ))}
+            </span>
+          </div>
+        </div>
       </div>
       {error && (
         <p className="text-[11.5px] text-danger select-text" role="alert">

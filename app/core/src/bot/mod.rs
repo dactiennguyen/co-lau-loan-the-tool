@@ -115,12 +115,14 @@ const OTHERS_PER_WIN: usize = 8;
 const GROUND_LIFE: Duration = Duration::from_secs(601);
 
 /// An item fallen in the map (s2c/1182, s2c/1184), for Tự nhặt đồ: its uuid on the ground, what it is and how many, its
-/// element (0xff for an item that is not gear), when it fell, and whether it is another's (Nhặt cả đồ người khác).
+/// element (0xff for an item that is not gear) and quality (field4, items::quality_name), when it fell, and whether it
+/// is another's (Nhặt cả đồ người khác).
 #[derive(Debug, Clone)]
 struct Fallen {
     uuid: String,
     item: Picked,
     element: u8,
+    quality: u8,
     at: Instant,
     other: bool,
 }
@@ -130,6 +132,7 @@ impl Fallen {
             uuid: item.uuid.clone(),
             item: Picked::of(item.item_id, item.quantity.max(1) as i64),
             element: item.element,
+            quality: item.field4,
             at,
             other,
         }

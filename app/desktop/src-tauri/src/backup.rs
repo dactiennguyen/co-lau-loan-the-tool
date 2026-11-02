@@ -253,9 +253,20 @@ mod tests {
             "\"pickupOthers\": true",
             "\"pickupOwnElement\": false",
             "\"pickupOtherGender\": true",
+            "\"pickupCommon\": true",
+            "\"pickupRare\": true",
+            "\"pickupPrecious\": true",
+            "\"pickupEpic\": true",
         ] {
             assert_eq!(text.matches(key).count(), 2, "{key}");
         }
+        // Phẩm chất trang bị nhặt: a box unticked in the file comes in unticked.
+        let edited = text.replacen("\"pickupRare\": true", "\"pickupRare\": false", 1);
+        let back = parse(&edited).unwrap();
+        assert_eq!(
+            back.accounts[0].fight.qualities(),
+            [true, false, true, true]
+        );
         let edited = text.replacen("\"pickupOthers\": true", "\"pickupOthers\": false", 1);
         let back = parse(&edited).unwrap();
         assert!(!back.accounts[0].fight.pickup_others && back.accounts[1].fight.pickup_others);

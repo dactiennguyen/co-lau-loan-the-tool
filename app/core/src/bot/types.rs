@@ -276,6 +276,17 @@ pub struct FightSettings {
     /// ground, said once; items that are not gear are picked up as before (Bot::pick).
     #[serde(default)]
     pub pickup_own_element: bool,
+    /// Phẩm chất trang bị nhặt, all four ticked unless unticked: Tự nhặt đồ picks up gear of the qualities ticked,
+    /// Thường, Hiếm, Quý, Sử Thi (items::QUALITY_NAMES); gear of another stays on the ground, said once. Items that are
+    /// not gear are picked up as before (Bot::pick).
+    #[serde(default = "on")]
+    pub pickup_common: bool,
+    #[serde(default = "on")]
+    pub pickup_rare: bool,
+    #[serde(default = "on")]
+    pub pickup_precious: bool,
+    #[serde(default = "on")]
+    pub pickup_epic: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -308,6 +319,10 @@ impl Default for FightSettings {
             pickup_other_gender: true,
             pickup_others: true,
             pickup_own_element: false,
+            pickup_common: true,
+            pickup_rare: true,
+            pickup_precious: true,
+            pickup_epic: true,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -318,6 +333,23 @@ impl Default for FightSettings {
 impl FightSettings {
     pub fn is_default(&self) -> bool {
         *self == Self::default()
+    }
+    /// The boxes of Phẩm chất trang bị nhặt, Thường to Sử Thi, as items::QUALITY_NAMES.
+    pub fn qualities(&self) -> [bool; 4] {
+        [
+            self.pickup_common,
+            self.pickup_rare,
+            self.pickup_precious,
+            self.pickup_epic,
+        ]
+    }
+    /// Whether Tự nhặt đồ takes gear of quality `quality` (field4 of the item record): its box; a quality past the four
+    /// is taken.
+    pub fn picks_quality(&self, quality: u8) -> bool {
+        self.qualities()
+            .get(quality as usize)
+            .copied()
+            .unwrap_or(true)
     }
 }
 

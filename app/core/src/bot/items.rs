@@ -191,6 +191,23 @@ impl Bot {
                 .into(),
             ));
         }
+        if settings.qualities() != self.fight.qualities() {
+            let ticked: Vec<&str> = (crate::items::QUALITY_NAMES.iter())
+                .zip(settings.qualities())
+                .filter_map(|(name, on)| on.then_some(*name))
+                .collect();
+            out.push(Out::Log(
+                LogKind::Item,
+                match ticked.len() {
+                    0 => "Phẩm chất trang bị nhặt: không chọn phẩm chất nào, mọi trang bị sẽ để lại dưới đất".into(),
+                    4 => "Phẩm chất trang bị nhặt: nhặt trang bị mọi phẩm chất".into(),
+                    _ => format!(
+                        "Phẩm chất trang bị nhặt: chỉ nhặt trang bị {}",
+                        ticked.join(", ")
+                    ),
+                },
+            ));
+        }
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,
@@ -272,8 +289,9 @@ impl Bot {
         }
     }
     /// Queues an item for c2s/1188, once; one goes out every PICK_GAP. True when it was queued. Gear the character cannot
-    /// wear stays on the ground when Nhặt cả đồ khác giới tính is off, and gear of another element with Chỉ nhặt trang bị
-    /// đúng hệ, said once (another's is not looked at again).
+    /// wear stays on the ground when Nhặt cả đồ khác giới tính is off, gear of another element with Chỉ nhặt trang bị
+    /// đúng hệ, and gear of a quality not ticked in Phẩm chất trang bị nhặt, said once (another's is not looked at
+    /// again).
     pub(super) fn pick(&mut self, fallen: Fallen, now: Instant, out: &mut Vec<Out>) -> bool {
         if self.asked.contains(&fallen.uuid) || self.to_pick.iter().any(|p| p.uuid == fallen.uuid) {
             return false;
@@ -285,7 +303,13 @@ impl Bot {
         let element = (self.fight.pickup_own_element)
             .then(|| crate::items::off_element(fallen.element, self.snap.element))
             .flatten();
-        if let Some(why) = gender.or(element) {
+        let quality = (fallen.element != crate::items::NOT_GEAR
+            && !self.fight.picks_quality(fallen.quality))
+        .then(|| {
+            let name = crate::items::quality_name(fallen.quality).unwrap_or("?");
+            format!("trang bị {name}, phẩm chất này không được chọn nhặt")
+        });
+        if let Some(why) = gender.or(element).or(quality) {
             self.asked.insert(fallen.uuid.clone());
             self.ground.retain(|g| g.uuid != fallen.uuid);
             out.push(Out::Log(

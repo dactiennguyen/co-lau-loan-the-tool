@@ -27,6 +27,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Nhặt đồ người khác được không? | **Được, sau khoảng 16–17 s.** Trước đó server trả `s2c/1256` "Không thể nhặt vật phẩm của người khác" (16 lần thất bại khi món 5–7 s và 16 s tuổi; nhặt được ở 17, 18, 31 s). Bản ghi đồ trên đất không có trường chủ, server tự giữ. Xem [K3](#k3). [Đo] |
 | Phải đứng gần hòm không? | **Không.** Bot đứng ở (90, 640) vẫn nhặt được món ở (1520, 640), cách 1430 px, và món ở (3413, 192). [Đo K3] |
 | Đồ gì rơi? | 106 món đã thấy, gần hết ở M2: Xu khóa (mã 41) 54 đống, mỗi đống 124–250; Đá cấp 1–3 (411–413) 28 viên; Trứng Gà (3) 7 quả; 12 món trang bị cấp 1 (nón, áo, nhẫn, vũ khí), mỗi món 2 chỉ số. M1: 4 đống Xu khóa, 1 Đá cấp 2. M25 không có quái. Xem [Đồ đã thấy](#đồ-đã-thấy). [Đo] |
+| Đồ rơi có phẩm chất không? | **Có.** Trang bị có một trong bốn phẩm chất Thường, Hiếm, Quý, Sử Thi. Bản ghi đồ trên đất (`s2c/1182`, `s2c/1184`) mang phẩm chất ở `field4`: 1 Hiếm, 2 Quý, 3 Sử Thi; đồ không phải trang bị là 0. Mọi trang bị rơi đã thấy là Hiếm. App lọc được theo phẩm chất (Phẩm chất trang bị nhặt). Xem [Phẩm chất](#phẩm-chất). [Đo 1, 2, 3; Thường là 0 theo Suy luận] |
 | Mã 41 là gì? | **Xu khóa**. Trước đây đoán là tiền ([09](09-players-chat.md#ground-items)). Cẩm nang: "Kiếm Xu khóa: nhặt Xu khóa quái rơi". [Đo] |
 | Tên vật phẩm lấy ở đâu? | Không có trong APK, cũng không có gói nào khi mở popup vật phẩm. Game tải bảng `it1` về máy: 646 món (407 món "Ngừng dùng"), mỗi món có tên, mô tả, loại, cấp mặc, hệ, độ bền, số xếp chồng. Repo có bản sao ở `data/items.json`. Xem [Bảng vật phẩm](#bảng-vật-phẩm). [Đo] |
 | Icon vật phẩm ở đâu? | `files/dyncache/offline-a2/i<icon>.dat` trên máy, mã hoá AES-128 sau khi đảo 63 byte đầu. Đã giải mã cả 246 icon (PNG 96 × 96) và đổi sang WebP ở `data/icons/`. Xem [Giải mã asset](#giải-mã-asset). [Đo] |
@@ -237,7 +238,23 @@ Game vẽ mỗi món trên đất là **cùng một hình rương màu cam** ở
 
 - **Trang bị rơi** đều là món cấp mặc 1, độ bền 60, đủ các hệ. Mỗi món có đúng 2 chỉ số. Chỉ số đầu theo ô: nón và áo là 6 (phòng thủ), nhẫn và vũ khí là 5 (sức tấn công). Chỉ số sau thay đổi: 1–4 (tiềm năng), 8 (% chí mạng) hoặc 9 (sinh lực). [Đo]
 - **Hệ**: byte trước đây ghi là "phẩm" chính là hệ của món. Popup ngày 31/10: 1 có ngọn lửa (Hỏa), 2 có tia sét (Lôi). 4 là Thủy theo cách đánh số hệ nhân vật ([12](12-skills-items.md#bản-ghi-vật-phẩm)). Vật phẩm không phải trang bị có `0xff`. Cùng một món rơi ra với nhiều hệ khác nhau (Áo Âu Lạc có cả ba hệ). [Đo 1, 2; Suy luận 4]
-- **Phẩm chất**: mọi trang bị đã mở popup đều là "Hiếm". Bốn tên phẩm trong `.so` đứng cạnh nhau: "Hiếm", "Thường", "Quý", "Sử Thi". Có lẽ phẩm chất là `field4` của bản ghi vật phẩm: 1 ở mọi trang bị, 0 ở thú cưng ([12](12-skills-items.md#cường-hoá)). [Suy luận]
+- **Phẩm chất**: `field4` của bản ghi vật phẩm, xem [Phẩm chất](#phẩm-chất) ngay dưới. Mọi trang bị rơi đã thấy là Hiếm (1).
+
+<a id="phẩm-chất"></a>
+
+### Phẩm chất
+
+Trang bị có một trong bốn phẩm chất. Bốn tên trong `.so` đứng cạnh nhau: "Hiếm", "Thường", "Quý", "Sử Thi". Phẩm chất nằm ở **`field4`** của bản ghi vật phẩm, cùng một bản ghi cho túi đồ, ô trang bị (`s2c/9`) và đồ trên đất (`s2c/1182`, `s2c/1184`), nên bot biết phẩm chất của món rơi mà không cần chạm vào hòm. Kiểm 962 bản ghi khác uuid trong mọi capture của repo (02/11):
+
+| `field4` | Phẩm chất | Căn cứ |
+|---:|---|---|
+| 0 | Thường? Đồ không phải trang bị cũng là 0 | Mọi món không phải trang bị (Xu khóa, đá, nguyên liệu, trứng, thú cưng, bình) là 0. Chưa thấy trang bị nào có 0, nên "Thường là 0" là [Suy luận] |
+| 1 | Hiếm | 126 trang bị trong túi và trên đất, trong đó mọi trang bị rơi đã thấy. Mọi popup đã mở của đồ rơi ghi "Phẩm chất: Hiếm" (31/10). [Đo] |
+| 2 | Quý | Nhẫn Thái Cực vừa chế tạo ở O1: popup ghi "Phẩm chất: Quý", bản ghi `s2c/1187` loại 4 có `field4` 2 ([16-upgrade](16-upgrade.md#chế-tạo)). Nhẫn Chữ Thập +12 của symap cũng là 2. [Đo] |
+| 3 | Sử Thi | Khăn Long Quân +12 của symap. Ở Chợ trời, phẩm chất 3 là "Sử Thi", tên màu tím ([14-npc](14-npc.md#mua)). [Đo] |
+
+- Chợ trời (`s2c/1192`) có cùng phẩm chất 1–3 ở trang bị, 0 ở món khác. 594 món của CT1: đồ cấp 51 có 1, 2, 3 (ví dụ vũ khí 88, 44, 19), đồ cấp 101 có 2 và 3. Vậy trang bị Quý và Sử Thi có ngoài game, chỉ là chưa rơi ra ở các map đã đánh. [Đo CT1]
+- App: tuỳ chọn **Phẩm chất trang bị nhặt** ở Cài đặt đánh, bốn ô tích, mặc định tích cả bốn ([app Rust](../../integration/rust/features.md#tự-nhặt-đồ)). Trang bị có phẩm chất không được tích thì để lại dưới đất. Chưa chạy thật.
 - M2 có quái cấp 7–20 ([atlas](06-map-mobs.md#atlas)). Chưa biết món nào rơi từ quái nào. [Chưa rõ]
 
 <a id="bảng-vật-phẩm"></a>
@@ -368,4 +385,4 @@ Code đọc bảng và giải mã: [src/protocol/items.ts](../../../src/protocol
 - `c2s/1188`: túi đầy thì server trả gì; thời gian khoá có đổi theo loại món, hay khi người làm rơi ở trong tổ đội không.
 - Tỉ lệ rơi của từng loại quái: mỗi loại mới có 7–40 trận thắng, khoảng tin cậy còn rộng ([Tỉ lệ rơi](#tỉ-lệ-rơi)). Chênh cấp có làm giảm tỉ lệ không: Cẩm nang chỉ nói quái thấp hơn quá 20 cấp thì không rơi.
 - Loại thực thể thứ ba trong `sqhz.a17` (gửi `c2s/1181`).
-- Phẩm chất có đúng là `field4` không (cần một món không phải Hiếm); trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.
+- Phẩm chất Thường có đúng là `field4` 0 không (cần một trang bị Thường); trường `hệ` (`elementBits`), `e`, `g` của bảng vật phẩm; hệ 4 có đúng là Thủy không.

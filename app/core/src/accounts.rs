@@ -142,6 +142,10 @@ mod tests {
                 pickup_other_gender: false,
                 pickup_others: false,
                 pickup_own_element: true,
+                pickup_common: false,
+                pickup_rare: true,
+                pickup_precious: false,
+                pickup_epic: true,
                 fight_count: 30,
                 fight_losses: 4,
                 quest_losses: 2,
@@ -167,14 +171,16 @@ mod tests {
             assert_eq!(mode & 0o777, 0o600);
         }
         assert!(!dir.join("accounts.json.tmp").exists());
-        // Tự nhặt đồ, Nhặt cả đồ khác giới tính and Nhặt cả đồ người khác are on, Chỉ nhặt trang bị đúng hệ off, and the
-        // tabs offer 5 battles and 1 loss, for an account saved before they existed, or with only Tự sửa đồ set.
+        // Tự nhặt đồ, Nhặt cả đồ khác giới tính and Nhặt cả đồ người khác are on, Chỉ nhặt trang bị đúng hệ off, every
+        // box of Phẩm chất trang bị nhặt ticked, and the tabs offer 5 battles and 1 loss, for an account saved before
+        // they existed, or with only Tự sửa đồ set.
         std::fs::write(&path, r#"{"accounts":[{"username":"a","password":"x"},{"username":"b","password":"y","fight":{"repair":true}}]}"#).unwrap();
         let old = load(&path).unwrap();
         assert_eq!(old[0].fight, FightSettings::default());
         assert!(old[0].fight.pickup && old[1].fight.pickup && old[1].fight.repair);
         assert!(old[0].fight.pickup_other_gender && old[1].fight.pickup_other_gender);
         assert!(old[1].fight.pickup_others && !old[1].fight.pickup_own_element);
+        assert_eq!(old[1].fight.qualities(), [true; 4], "every quality ticked");
         let b = old[1].fight;
         assert_eq!((b.fight_count, b.fight_losses, b.quest_losses), (5, 1, 1));
         std::fs::remove_dir_all(&dir).unwrap();

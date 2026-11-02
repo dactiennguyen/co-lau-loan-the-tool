@@ -338,7 +338,7 @@ CT1 đọc hết 20 món, đúng 2638/2638 byte, rồi cả 33 trang của 9 m�
 
 - **Mã vật phẩm** có hai lần, luôn giống nhau. Mục "Vũ Khí" chỉ có loại 2 (vũ khí) trong `data/items.json`.
 - **Độ bền** 60 ở đồ cấp 21 và 51, 300 ở đồ cấp 101; -1 ở món không có độ bền (thú cưng, đá, vật dụng). Bảng chi tiết ghi "Độ bền: 60/60".
-- **Phẩm chất**: 1, 2 hoặc 3 ở đồ mặc, 0 ở mọi món khác. Bảng chi tiết: 1 là "Hiếm" (tên màu xanh lá), 3 là "Sử Thi" (tên màu tím). Món có 2 chưa mở xem [Chưa rõ]. Trước CT1 trường này bị đoán là hệ; sai.
+- **Phẩm chất**: 1, 2 hoặc 3 ở đồ mặc, 0 ở mọi món khác. Bảng chi tiết: 1 là "Hiếm" (tên màu xanh lá), 3 là "Sử Thi" (tên màu tím). Món có 2 chưa mở xem ở Chợ trời; 2 là "Quý" theo bản ghi vật phẩm, cùng thang ([13-drops-items](13-drops-items.md#phẩm-chất)), nên app ghi Quý. Trước CT1 trường này bị đoán là hệ; sai.
 - **field0** luôn 0. Trong túi field0 là cấp cường hoá (+N); chưa thấy món đã cường hoá nào [Chưa rõ].
 - **Hết hạn**: giờ hết hạn bằng mili giây, khoảng 24 giờ sau lúc đăng. Danh sách xếp theo giờ đăng, mới nhất trước.
 - **Loại tiền** luôn 0, tức Xu, như loại tiền 0 của cửa hàng ([15-shops](15-shops.md)). **Giá** từ 1.000 tới 50.000.000 Xu.

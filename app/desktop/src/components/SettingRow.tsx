@@ -10,7 +10,7 @@ export const SETTING_FACT_BAD = "text-danger [&_svg]:text-danger";
 interface Props {
   id: string;
   on: boolean;
-  disabled: boolean;
+  disabled?: boolean;
   onChange: (on: boolean) => void;
   icon: IconName;
   title: string;
@@ -18,15 +18,15 @@ interface Props {
   hint: string;
   /** What the bot or the app sees for it, beside the name (SETTING_FACT). */
   children?: ReactNode;
-  /** Settings that belong to this one, shown or hidden under it (`controls`, the id of that part): a ▾ after Bật/Tắt. */
+  /** Settings that belong to this one, shown or hidden under it (`controls`, the id of that part): a ▾ after the "?". */
   expand?: { open: boolean; onToggle: () => void; controls: string };
 }
 
 /**
- * One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it, Bật/Tắt; the card
- * or dialog stacks them. The box, its name and the space up to Bật/Tắt toggle it; the "?" between them only explains. A
- * setting that is on gets a green edge, as the proxy of the account form does. One with settings of its own under it
- * (`expand`) ends with a ▾ that shows or hides them.
+ * One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it; the card or dialog
+ * stacks them. The box and its name toggle it, the box alone says whether it is on (no Bật/Tắt word); the "?" only
+ * explains. A setting that is on gets a green edge, as the proxy of the account form does. One with settings of its own
+ * under it (`expand`) has a ▾ right after its "?" that shows or hides them.
  */
 export function SettingRow({ id, on, disabled, onChange, icon, title, hint, children, expand }: Props) {
   return (
@@ -60,32 +60,10 @@ export function SettingRow({ id, on, disabled, onChange, icon, title, hint, chil
         <Hint label={`${title} là gì?`} id={`${id}-hint`}>
           {hint}
         </Hint>
-        {/* After a rule; on a line of their own under the name when the card is narrow, Bật/Tắt left on the first line. */}
-        {children && (
-          <span
-            className={cn(
-              "flex flex-wrap items-center gap-x-3 gap-y-1 ml-2.5 py-1.5 pl-3 min-w-0 border-l-2 border-bg-2 text-[11.5px]",
-              "[@container(max-width:620px)]:order-1 [@container(max-width:620px)]:basis-full [@container(max-width:620px)]:ml-0 [@container(max-width:620px)]:pt-1.5 [@container(max-width:620px)]:pb-2 [@container(max-width:620px)]:pl-16 [@container(max-width:620px)]:border-l-0 [@container(max-width:620px)]:border-t-2",
-            )}
-          >
-            {children}
-          </span>
-        )}
-        {/* Bật/Tắt at the right; the row's empty middle is part of it, so a click there toggles too. */}
-        <label
-          htmlFor={id}
-          className={cn(
-            "flex-1 self-stretch flex items-center justify-end font-display font-extrabold text-[10.5px] leading-none tracking-[0.06em] uppercase text-fg-3 cursor-pointer",
-            on && "text-good",
-          )}
-          aria-hidden="true"
-        >
-          {on ? "Bật" : "Tắt"}
-        </label>
         {expand && (
           <button
             type="button"
-            className="grid place-items-center size-[26px] -mr-1.5 ml-1 text-fg-3 bg-transparent border-0 cursor-pointer hover:text-fg hover:bg-card focus-visible:outline-2 focus-visible:outline-ring aria-expanded:text-primary"
+            className="grid place-items-center size-[26px] text-fg-3 bg-transparent border-0 cursor-pointer hover:text-fg hover:bg-card focus-visible:outline-2 focus-visible:outline-ring aria-expanded:text-primary"
             aria-expanded={expand.open}
             aria-controls={expand.controls}
             aria-label={`${expand.open ? "Thu gọn" : "Mở"} tuỳ chọn của ${title}`}
@@ -98,6 +76,17 @@ export function SettingRow({ id, on, disabled, onChange, icon, title, hint, chil
               className={cn("transition-[transform] duration-(--fast) ease-[steps(2)]", expand.open && "[transform:rotate(180deg)]")}
             />
           </button>
+        )}
+        {/* After a rule; on a line of their own under the name when the card is narrow. */}
+        {children && (
+          <span
+            className={cn(
+              "flex flex-wrap items-center gap-x-3 gap-y-1 ml-2.5 py-1.5 pl-3 min-w-0 border-l-2 border-bg-2 text-[11.5px]",
+              "[@container(max-width:620px)]:order-1 [@container(max-width:620px)]:basis-full [@container(max-width:620px)]:ml-0 [@container(max-width:620px)]:pt-1.5 [@container(max-width:620px)]:pb-2 [@container(max-width:620px)]:pl-16 [@container(max-width:620px)]:border-l-0 [@container(max-width:620px)]:border-t-2",
+            )}
+          >
+            {children}
+          </span>
         )}
       </div>
     </div>
