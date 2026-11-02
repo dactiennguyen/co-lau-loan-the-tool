@@ -202,6 +202,14 @@ impl Bot {
                 },
                 "skill": self.options.skill.map(|k| json!({ "id": k.id, "cost": k.cost })),
                 "potionCost": self.options.potion_cost.filter(|_| algorithm == Algorithm::V3),
+                // Dùng bình máu, Dùng bình mana (v3 only): the potions the battle may drink and at what share of max HP,
+                // as Bot::battle_potions gave them to the runner just before, from the same bag.
+                "potions": (algorithm == Algorithm::V3).then(|| {
+                    super::fight::battle_potions(&self.fight, super::fight::bag_stacks(s.bag.as_ref()))
+                        .iter()
+                        .map(|p| json!({ "slot": p.slot, "itemId": p.item_id, "quantity": p.quantity, "costShare": p.cost_share }))
+                        .collect::<Vec<_>>()
+                }),
                 "source": self.battle_source.key(),
             },
             "memory": memory,

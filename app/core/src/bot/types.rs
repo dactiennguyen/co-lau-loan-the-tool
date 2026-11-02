@@ -221,7 +221,9 @@ pub struct BotOptions {
     /// The move search of v1 (Q20 `kill`). v3 plays Strategy::win(): the mob as it really plays and a look past an
     /// extra turn (07-auto-battle.md#thuật-toán-v2).
     pub strategy: Strategy,
-    /// v3: what one potion of the bag costs in HP for best_action; None (the default) never uses one.
+    /// v3: what a potion without its own cost share costs in HP for best_action; None (the default) never uses one. The
+    /// potions Dùng bình máu and Dùng bình mana give a battle all carry a cost share (Bot::battle_potions), so this is
+    /// for tests only.
     pub potion_cost: Option<f64>,
     pub timed_move: Duration,
     pub rest: Duration,
@@ -289,6 +291,23 @@ pub struct FightSettings {
     pub pickup_precious: bool,
     #[serde(default = "on")]
     pub pickup_epic: bool,
+    /// Dùng bình máu, off unless turned on: a v3 battle may drink Hoàn Linh Dược of the bag, at most hp_potion_max a
+    /// battle and never so many that fewer than hp_potion_keep are left; best_action drinks one when the mob's answer
+    /// could otherwise end the battle (HP_POTION_SHARE). None is ever bought (Bot::battle_potions).
+    #[serde(default)]
+    pub hp_potion: bool,
+    #[serde(default = "one")]
+    pub hp_potion_max: u32,
+    #[serde(default = "thirty")]
+    pub hp_potion_keep: u32,
+    /// Dùng bình mana, likewise for Kim Đan Dược (+25 nội lực), at most mp_potion_max a battle, keeping mp_potion_keep:
+    /// drunk when the skills it pays for are worth more than it costs (MP_POTION_SHARE).
+    #[serde(default)]
+    pub mp_potion: bool,
+    #[serde(default = "two")]
+    pub mp_potion_max: u32,
+    #[serde(default = "thirty")]
+    pub mp_potion_keep: u32,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -310,6 +329,14 @@ fn on() -> bool {
 fn one() -> u32 {
     1
 }
+fn two() -> u32 {
+    2
+}
+/// The most potions of a kind Dùng bình máu or Dùng bình mana lets a battle drink (the Tối đa mỗi trận of the UI).
+pub const POTION_MAX: u32 = 10;
+fn thirty() -> u32 {
+    30
+}
 fn five() -> u32 {
     5
 }
@@ -325,6 +352,12 @@ impl Default for FightSettings {
             pickup_rare: true,
             pickup_precious: true,
             pickup_epic: true,
+            hp_potion: false,
+            hp_potion_max: one(),
+            hp_potion_keep: thirty(),
+            mp_potion: false,
+            mp_potion_max: two(),
+            mp_potion_keep: thirty(),
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -344,6 +377,16 @@ impl FightSettings {
             self.pickup_precious,
             self.pickup_epic,
         ]
+    }
+    /// Dùng bình máu or Dùng bình mana for the potion `item_id` (Hoàn Linh Dược 0, Kim Đan Dược 1): (at most a battle,
+    /// up to POTION_MAX, kept in the bag) when it is on; 0 a battle (a file edited by hand) is off.
+    pub fn potion_rule(&self, item_id: i32) -> Option<(u32, u32)> {
+        let (on, max, keep) = match item_id {
+            0 => (self.hp_potion, self.hp_potion_max, self.hp_potion_keep),
+            1 => (self.mp_potion, self.mp_potion_max, self.mp_potion_keep),
+            _ => return None,
+        };
+        (on && max > 0).then_some((max.min(POTION_MAX), keep))
     }
     /// Whether Tự nhặt đồ takes gear of quality `quality` (field4 of the item record): its box; a quality past the four
     /// is taken.

@@ -594,8 +594,15 @@ function battleV3() {
     ['nothing charged', tiheo2(60, 50), 200, { spend: 0 }], ['the skill likely kills', tiheo2(150, 25), 30, {}], ['no nội lực', tiheo2(150, 24), 30, {}],
     ['no potion cost', tiheo2(40, 0), 200, { potions: potion }], ['a potion at 300', tiheo2(40, 0), 200, { potions: potion, potionCost: 300 }], ['no threat', tiheo2(100, 0), 200, { potions: potion, potionCost: 300 }],
     ['heal charged at 60', tiheo2(100, 60), 200, {}], ['heal free at 80', tiheo2(100, 80), 200, {}], ['timed heal', tiheo2(100, 60), 200, { strategy: timed(STRATEGIES.win) }],
-    ['a buff that keeps the turn', tiheo2(150, 75, 12), 200, { skills: [[1002, 1]] }], ['the buff lasts', tiheo2(150, 75, 12), 200, { skills: [[1002, 1]], buffs: { attack: 2 } }]] as [string, Fighter, number, Partial<Case>][])
+    ['a buff that keeps the turn', tiheo2(150, 75, 12), 200, { skills: [[1002, 1]] }], ['the buff lasts', tiheo2(150, 75, 12), 200, { skills: [[1002, 1]], buffs: { attack: 2 } }],
+    ['hoàn linh at its max HP', tiheo2(40, 0), 200, { potions: [{ ...potion[0], costShare: 1 }], potionCost: 0 }], ['no threat at its max HP', tiheo2(100, 0), 200, { potions: [{ ...potion[0], costShare: 1 }] }],
+    ['kim đan at a share', tiheo2(150, 0), 200, { potions: [{ slot: 9, itemId: 1, quantity: 2, costShare: 0.17 }] }],
+    ['no potion when timed', tiheo2(40, 0), 200, { potions: [{ ...potion[0], costShare: 1 }, { slot: 9, itemId: 1, quantity: 2, costShare: 0.17 }], potionCost: -1e9, strategy: timed(STRATEGIES.win) }]] as [string, Fighter, number, Partial<Case>][])
     cases.push({ name, board: two, me, mob: chiHuy(mobHp), strategy: STRATEGIES.win, skills: thuy, ...extra });
+  // ×40 (6000 max HP) at 15%: the cost share is capped at what the potion gives plus POTION_MARGIN.
+  const x40 = fighter(900, 6000, { s1: 0, sword: 320, heart: 133.2, yinyang: 2.3, peach: 5 }), mob40 = fighter(8000, 8080, { s1: 30, sword: 133.2, skillCost: 25, skillDamage: 1720 });
+  for (const [name, hp] of [['hoàn linh at 6000 max HP', 900], ['hoàn linh at 6000 max HP, 80%', 4800]] as [string, number][])
+    cases.push({ name, board: two, me: { ...x40, hp }, mob: mob40, strategy: STRATEGIES.win, skills: thuy, potions: [{ ...potion[0], costShare: 1 }] });
   const actions = cases.map(c => {
     const skills = c.skills.map(([id, l]) => effect(id, l)), me = { ...c.me, ...skillWorth(c.me.sword, skills) };
     const { all } = bestAction(c.board, me, c.mob, c.strategy, { skills, potions: c.potions, potionCost: c.potionCost, spend: c.spend, buffs: c.buffs });

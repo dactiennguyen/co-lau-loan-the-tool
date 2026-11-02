@@ -13,7 +13,9 @@ use cllt_core::battle_actions::{
     best_action, destroy_patterns, learnt_skills, skill_effect, skill_worth, sword_prior, Action,
     ActionOptions, Buffs, Potion, SkillEffect, Stat,
 };
-use cllt_core::bot::{Algorithm, Bot, BotOptions, Out};
+use cllt_core::bot::{
+    Algorithm, Bot, BotOptions, FightSettings, Out, HP_POTION_SHARE, MP_POTION_SHARE,
+};
 use cllt_core::protocol::{Reader, Writer};
 use cllt_core::requests::{build, Ctx};
 use cllt_core::runner::{Act, Skill};
@@ -301,6 +303,7 @@ fn best_action_picks_and_scores_what_the_ts_side_does() {
                 slot: p["slot"].as_i64().unwrap() as i32,
                 item_id: p["itemId"].as_i64().unwrap() as i32,
                 quantity: p["quantity"].as_i64().unwrap() as i32,
+                cost_share: p["costShare"].as_f64(),
             })
             .collect();
         let turns = |k: &str| c["buffs"][k].as_i64().unwrap_or(0) as i32;
@@ -356,7 +359,7 @@ fn best_action_picks_and_scores_what_the_ts_side_does() {
         }
         cases += 1;
     }
-    assert_eq!(cases, 69);
+    assert_eq!(cases, 75);
 }
 
 #[test]
@@ -518,6 +521,7 @@ fn a_potion_without_answer_is_not_tried_again_and_own_sword_is_kept_per_kind_of_
             slot: 8,
             item_id: 0,
             quantity: 1,
+            cost_share: None,
         }],
         potion_cost: Some(300.0),
         strategy: Strategy::win(),
@@ -659,6 +663,7 @@ fn s2c_44_sets_the_hp_and_counts_the_potion_down() {
             slot: 4,
             item_id: 0,
             quantity: 2,
+            cost_share: None,
         }],
         ..RunnerOptions::default()
     };
@@ -670,7 +675,36 @@ fn s2c_44_sets_the_hp_and_counts_the_potion_down() {
     assert_eq!((runner.me.hp, runner.potions()[0].quantity), (67.0, 1));
     assert_eq!(
         logs(&acts),
-        ["Đã dùng Hoàn Linh Dược (ô 4) ở lượt 1, còn 1"]
+        ["Đã dùng Hoàn Linh Dược (ô 4) ở lượt 1, trận này còn được dùng 1"]
+    );
+    // An answer that comes after the slot was taken as empty (turned off here) leaves it at 0, not -1.
+    let mut runner = BattleRunner::new(
+        &setup(
+            "Ttuananh",
+            15,
+            31,
+            145,
+            board(&all()["battles"][0]["board"]),
+        ),
+        "mob42017",
+        RunnerOptions {
+            skills: Some(vec![]),
+            potions: vec![Potion {
+                slot: 4,
+                item_id: 0,
+                quantity: 2,
+                cost_share: None,
+            }],
+            ..RunnerOptions::default()
+        },
+    );
+    runner.drop_potions(0);
+    let mut acts = vec![];
+    assert!(runner.on_packet(44, &item, now, &mut acts).unwrap());
+    assert_eq!(runner.potions()[0].quantity, 0);
+    assert_eq!(
+        logs(&acts),
+        ["Đã dùng Hoàn Linh Dược (ô 4) ở lượt 1, trận này còn được dùng 0"]
     );
 }
 
@@ -791,8 +825,17 @@ fn decoder(name: &str, pick: impl Fn(&Value) -> bool) -> Vec<u8> {
         .unwrap())
 }
 /// manina (s2c/9 at level 21: Hỏa Cầu Thuật 1, Tấn công 32) on M2 with one Cóc Xanh, the bag of E1 (Hoàn Linh Dược ×4 in
-/// slot 0, Kim Đan Dược in slot 7), with or without the s2c/30 tree, in battle up to its first own turn.
-fn manina_turn(options: BotOptions, tree: bool) -> Vec<Out> {
+/// slot 0, Kim Đan Dược in slot 7), with or without the s2c/30 tree, in battle up to its first own turn: what came of
+/// that turn, after what came of the setup.
+fn manina_turn(options: BotOptions, tree: bool) -> (Vec<Out>, Vec<Out>) {
+    let (mut bot, setup) = manina_battle(options, tree);
+    let mut out = vec![];
+    bot.on_packet(24, &packet("own"), Instant::now(), &mut out)
+        .unwrap();
+    (setup, out)
+}
+/// manina_turn up to the battle's start: the bot, and what came of the setup.
+fn manina_battle(options: BotOptions, tree: bool) -> (Bot, Vec<Out>) {
     let (mut bot, mut out, now) = (
         Bot::new(options, Arc::new(Atlas::default())),
         vec![],
@@ -832,9 +875,7 @@ fn manina_turn(options: BotOptions, tree: bool) -> Vec<Out> {
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     feed(&mut bot, 22, &decoder("battleSetup", |_| true), &mut out);
     feed(&mut bot, 18, &hex("000000000000"), &mut out);
-    out.clear();
-    feed(&mut bot, 24, &packet("own"), &mut out);
-    out
+    (bot, out)
 }
 
 #[test]
@@ -847,36 +888,103 @@ fn the_bot_plays_v3_with_the_skill_table_and_the_bag_and_v2_without_the_table() 
         ),
         (Algorithm::V3, Strategy::kill())
     );
-    let potions = BotOptions {
+    // Dùng bình máu and Dùng bình mana are off unless turned on: no potion, whatever it would be worth.
+    let off = BotOptions {
         potion_cost: Some(-1000.0),
         ..BotOptions::default()
     };
-    let out = manina_turn(potions.clone(), true);
-    let sent: Vec<&Vec<u8>> = out
-        .iter()
-        .filter_map(|o| match o {
-            Out::Send(44, p) => Some(p),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(sent.len(), 1, "{out:?}");
-    let mut r = Reader::new(sent[0]);
-    r.string().unwrap();
-    r.i32().unwrap();
-    // Kim Đan Dược: 25 nội lực at what Hỏa Cầu Thuật makes of it (W 12 from Tấn công 32 at level 21) beat the 30 HP.
-    assert_eq!(r.i32().unwrap(), 7);
-    // Why it picked the potion is not a log line: the log shows what happened in the game.
+    let (_, out) = manina_turn(off.clone(), true);
     assert!(
-        !out.iter()
-            .any(|o| matches!(o, Out::Log(_, t) if t.starts_with("Lượt "))),
+        !out.iter().any(|o| matches!(o, Out::Send(44, _))),
         "{out:?}"
     );
-    let out = manina_turn(potions, false);
+    // On, keeping 30 of each: the bag's 4 Hoàn Linh Dược and 1 Kim Đan Dược are too few, said once at the setup.
+    let kept = |o: &Out| matches!(o, Out::Log(_, t) if t.starts_with("Không dùng"));
+    let on = FightSettings {
+        hp_potion: true,
+        mp_potion: true,
+        ..FightSettings::default()
+    };
+    let (setup, out) = manina_turn(
+        BotOptions {
+            fight: on,
+            ..off.clone()
+        },
+        true,
+    );
+    let said: Vec<&Out> = setup.iter().filter(|o| kept(o)).collect();
+    assert_eq!(said.len(), 2, "{setup:?}");
+    assert!(
+        matches!(said[1], Out::Log(_, t) if t == "Không dùng Kim Đan Dược nữa: túi còn 1, giữ lại 30 (không tự mua)")
+    );
+    assert!(
+        !out.iter().any(|o| matches!(o, Out::Send(44, _))),
+        "{out:?}"
+    );
+    // Keeping none, they go to the runner at their cost shares, over potion_cost: at full HP on this board the swap is
+    // worth more than 25 nội lực less 0.17 of max HP, so the turn swaps (battle_potions and the bestAction vectors test
+    // the rest). Why it swapped is not a log line: the log shows what happened in the game.
+    let potions = BotOptions {
+        fight: FightSettings {
+            hp_potion_keep: 0,
+            mp_potion_keep: 0,
+            ..on
+        },
+        ..off.clone()
+    };
+    let (setup, out) = manina_turn(potions.clone(), true);
+    assert!(!setup.iter().any(kept), "{setup:?}");
     assert!(
         out.iter().any(|o| matches!(o, Out::Send(19, _)))
             && !out.iter().any(|o| matches!(o, Out::Send(44, _))),
         "{out:?}"
     );
+    assert!(
+        !out.iter()
+            .any(|o| matches!(o, Out::Log(_, t) if t.starts_with("Lượt "))),
+        "{out:?}"
+    );
+    let (_, out) = manina_turn(potions.clone(), false);
+    assert!(
+        out.iter().any(|o| matches!(o, Out::Send(19, _)))
+            && !out.iter().any(|o| matches!(o, Out::Send(44, _))),
+        "{out:?}"
+    );
+    // The battle got one of each at its cost share (none when off); turning one off empties it in the battle under way.
+    let left = |bot: &Bot| -> Vec<(i32, i32, i32, Option<f64>)> {
+        (bot.potions_left().iter())
+            .map(|p| (p.slot, p.item_id, p.quantity, p.cost_share))
+            .collect()
+    };
+    let (mut bot, _) = manina_battle(potions.clone(), true);
+    assert_eq!(
+        left(&bot),
+        [
+            (0, 0, 1, Some(HP_POTION_SHARE)),
+            (7, 1, 1, Some(MP_POTION_SHARE))
+        ]
+    );
+    let mut out = vec![];
+    bot.set_fight(
+        FightSettings {
+            mp_potion: false,
+            ..potions.fight
+        },
+        &mut out,
+    );
+    assert!(
+        out.iter()
+            .any(|o| matches!(o, Out::Log(_, t) if t == "Tắt dùng bình mana")),
+        "{out:?}"
+    );
+    assert_eq!(
+        left(&bot),
+        [
+            (0, 0, 1, Some(HP_POTION_SHARE)),
+            (7, 1, 0, Some(MP_POTION_SHARE))
+        ]
+    );
+    assert!(left(&manina_battle(off, true).0).is_empty());
 }
 
 /// The cast and the three results after it of a case of `fireCasts` (test/fixtures-fire.ts), with their opcodes.

@@ -65,8 +65,15 @@ export function learntSkills(tree: readonly { id: number; name: string; levels: 
   });
 }
 
-/** A potion of the bag: its bag slot (c2s/44), item id and how many are left. */
-export interface Potion { slot: number; itemId: number; quantity: number }
+/** A potion of the bag: its bag slot (c2s/44), item id and how many may still be used; `costShare`, what one costs as a
+ * share of own max HP, at most what it gives plus POTION_MARGIN, over ActionOptions.potionCost (the app: Hoàn Linh Dược
+ * at 1, Kim Đan Dược at 0.17, so the rule holds at every level, 07-auto-battle.md#bình-máu-và-mana). */
+export interface Potion { slot: number; itemId: number; quantity: number; costShare?: number }
+
+/** The most a potion of its own cost share costs over what it gives: a fifth of the 1e4 of a death, so a potion that
+ * saves the battle one time in five is drunk at any max HP. The share alone outgrows the 1e4 from about 5000 HP on, and
+ * then a potion would never be drunk. */
+export const POTION_MARGIN = 2000;
 /** What a potion does in battle (A1): Hoàn Linh Dược (item 0) heals ⌊25% max HP⌋, +36 at 145; Kim Đan Dược (item 1)
  * gives 25 nội lực. */
 export const POTIONS: Record<number, { name: string; hp?: number; s1?: number }> = {
@@ -96,8 +103,9 @@ export interface ActionOptions {
   skills?: readonly SkillEffect[];
   /** Potions of the bag. */
   potions?: readonly Potion[];
-  /** What one potion costs in HP: Infinity (default) never uses one. A potion is used when it beats every other action by
-   * this much, which for a few hundred means when the mob's answer could otherwise end the battle. */
+  /** What one potion costs in HP, unless it has its own costShare: Infinity (default) never uses one. A potion is used
+   * when it beats every other action by this much, which for a few hundred means when the mob's answer could otherwise
+   * end the battle. */
   potionCost?: number;
   /** Share of the worth of the nội lực a skill spends that is charged to it (default 1, SPEND). */
   spend?: number;
@@ -117,13 +125,16 @@ export function bestAction(b: Board, me: Fighter, mob: Fighter, s: Strategy, o: 
   // most). The same for every skill, so a dearer one is never free while a cheaper one is charged.
   const charged = !!s.reply && me.s1 + Math.min(...castable.map(e => e.cost)) <= 100;
   for (const e of castable) all.push({ action: { kind: 'skill', id: e.id }, score: skillScore(b, e, me, mob, s, charged ? perS1 * (o.spend ?? SPEND) : 0, perS1, o, pick?.score ?? 0), label: `skill ${e.id}` });
-  for (const p of o.potions ?? []) {
-    const fx = POTIONS[p.itemId], cost = o.potionCost ?? Infinity;
-    if (!fx || p.quantity <= 0 || cost === Infinity) continue;
+  // No potion in a timed battle (reply 0): the mob's clock hits are not scored, so neither is the death a potion saves
+  // from.
+  for (const p of s.reply ? o.potions ?? [] : []) {
+    const fx = POTIONS[p.itemId];
+    if (!fx || p.quantity <= 0) continue;
     const hp = fx.hp ? Math.min(me.maxHp - me.hp, Math.floor(fx.hp * me.maxHp)) : 0, s1 = fx.s1 ? Math.min(100 - me.s1, fx.s1) : 0;
-    if (!hp && !s1) continue;
+    const gain = hp + s1 * perS1, cost = typeof p.costShare === 'number' ? Math.min(p.costShare * me.maxHp, gain + POTION_MARGIN) : o.potionCost ?? Infinity;
+    if ((!hp && !s1) || cost === Infinity) continue;
     const after = { ...me, hp: me.hp + hp, s1: me.s1 + s1 };
-    all.push({ action: { kind: 'item', slot: p.slot, itemId: p.itemId }, score: hp + s1 * perS1 - cost - s.reply * answerValue(b, mob, after, s), label: `item ${p.itemId}` });
+    all.push({ action: { kind: 'item', slot: p.slot, itemId: p.itemId }, score: gain - cost - s.reply * answerValue(b, mob, after, s), label: `item ${p.itemId}` });
   }
   all.sort((x, y) => y.score - x.score);
   return { best: all[0] as Scored | undefined, all };

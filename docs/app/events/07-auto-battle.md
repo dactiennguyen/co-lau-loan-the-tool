@@ -26,6 +26,7 @@ Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bướ
 | Quái chọn nước thế nào? | Không chọn nước tốt nhất. Nó bốc thăm, nghiêng về nước ăn tim, kiếm, âm dương, nước được thêm lượt và nước nó gặp đầu tiên khi quét bàn. Có đủ nội lực thì một nửa số lượt nó dùng kỹ năng. | [Cách quái chọn nước](#cách-quái-chọn-nước) [Đo, 1011 nước] |
 | Bot đánh bằng thuật toán nào? | `--goal=win` (thắng nhiều nhất) hoặc `--goal=farm` (nhiều EXP nhất), thuật toán v2. Trên mô phỏng đã khớp trận thật, v2 thắng thêm 10% số trận mỗi giờ và `farm` thêm 33% EXP mỗi giờ so với cách cũ. | [Thuật toán v2](#thuật-toán-v2) [Mô phỏng] |
 | Bot có tự dùng kỹ năng, hồi máu, bình không? | **Có** (v3). Mỗi lượt bot so nước đổi chỗ, từng kỹ năng đã học đủ nội lực, và bình nếu được phép, tính hết ra HP. Hiệu ứng đọc từ mô tả kỹ năng trong `s2c/30` (cả 540 mô tả). Nội lực tiêu đi bị trừ đúng giá trị của nó, nên kỹ năng chỉ được dùng khi lượt này có lợi hơn để dành. Trên mô phỏng v3 thắng thêm 1,1–1,4 trận mỗi giờ so với v2. Chạy thật thắng 13/13 trận. | [Chọn hành động](#chọn-hành-động) [Mô phỏng; Đo A2] |
+| App có tự uống bình máu, bình mana không? | **Có, khi bật** Dùng bình máu hay Dùng bình mana ở Cài đặt đánh (mặc định tắt). Mặc định mỗi trận tối đa 1 bình máu và 2 bình mana, luôn giữ lại 30 bình mỗi loại trong túi, không tự mua. Bình máu chỉ uống khi sắp chết (khoảng 15–20% máu). Bình mana uống khi kỹ năng cần nội lực, gần như trận nào cũng đủ 2 bình: thắng thêm 40–70% số trận mỗi giờ. | [Bình máu và mana](#bình-máu-và-mana) [Mô phỏng] |
 | Nên cộng điểm tiềm năng vào đâu? | Tuỳ hệ. Theo mô phỏng với công thức F2 (01/11): manina (Hỏa) nên cộng Nội Lực, vì nội lực đang nạp quá chậm; Ttuananh (Thủy) chia đôi Nội Lực và Thể Lực; wangpt (Lôi) giữ Thân Pháp. | [Cộng điểm theo chỉ số](#cộng-điểm-f2) [Mô phỏng] |
 | Nên cộng điểm kỹ năng nào? | Kỹ năng gốc (Băng Tiễn, Hỏa Cầu) trước: nó cho nhiều sát thương nhất trên mỗi điểm nội lực. Tiheo2 nâng Băng Tiễn lên cấp 4 thì thắng thêm khoảng 13% trận mỗi giờ với quái khó. Hồi 11–12% máu gần như không được dùng. | [Kỹ năng và điểm kỹ năng](#chọn-hành-động) [Mô phỏng] |
 
@@ -427,10 +428,10 @@ Code ở `bestAction` trong [src/battle/battle-actions.ts](../../../src/battle/b
 **App Rust (31/10).** App desktop chơi v3, chọn mỗi lượt giống hệt bot TS. Code ở `app/core/src/battle_actions.rs` (bản port của `battle-actions.ts`), `battle.rs` (phần v2: `mob_move_odds`, `answer_value`, `cast_skill`, `mob_block`) và `runner_v3.rs` (`chooseAction` của `BattleRunner`).
 - Bot biết cây kỹ năng (`s2c/30`) thì dùng v3; chưa biết thì chơi v2, dùng kỹ năng ghi trong `accounts.json` theo `castSkill`. Nick có ghi kỹ năng thì v3 chỉ dùng kỹ năng đó, như `--skill` của bot TS.
 - Bot lấy kỹ năng đã học và cấp từ đuôi `s2c/9` và `s2c/10` kiểu 32, bình từ túi đồ, Tấn công và cấp từ `s2c/9`, HP quái từ khối quái của `s2c/22`. Thông số học được nhớ suốt phiên theo tên quái, kể cả `W` của mình (`me>tên.sword`).
-- App chưa dùng bình: giá bình mặc định là vô hạn, như bot TS khi không có `--potions` (`BotOptions::potion_cost`).
+- App dùng bình khi Dùng bình máu hay Dùng bình mana ở Cài đặt đánh được bật (mặc định tắt). Giá mỗi bình tính theo HP tối đa ([Bình máu và mana](#bình-máu-và-mana)).
 - **v1 vẫn giữ** ở `runner.rs`, không sửa dòng nào: chiến lược `kill`, kỹ năng của nick dùng ngay khi đủ nội lực, giá trị ban đầu cho kỹ năng của quái là 40 sát thương và 30 nội lực (v3 dùng 43 và 25 như bot TS). Giao diện không có chỗ chọn; `cllt fight --algo=v1` chơi v1 để so.
 - Gói kết quả không có viên rơi (kỹ năng chỉ hồi máu, `s2c/44` của bình) không còn byte xếp lại bàn và 3 byte sau đó; trước đây Rust luôn đọc 4 byte ấy, nay đọc như `battleResult` của TS, cho cả v1.
-- Kiểm bằng `npm run export:rust` rồi `cargo test` ([tests/battle_v3.rs](../../../app/core/tests/battle_v3.rs)): 69 thế cờ cho cùng danh sách hành động, cùng thứ tự, cùng điểm; 540 mô tả kỹ năng được đọc giống nhau. Ngày 31/10 thêm một lần trên mọi bàn của 119 trận đã ghi: 4865 trường hợp `best_action` và 4851 thế `bestMove` khớp hết; 47 960 lựa chọn không có cái nào sai luật ([status](../../integration/rust/status.md)).
+- Kiểm bằng `npm run export:rust` rồi `cargo test` ([tests/battle_v3.rs](../../../app/core/tests/battle_v3.rs)): 75 thế cờ cho cùng danh sách hành động, cùng thứ tự, cùng điểm; 540 mô tả kỹ năng được đọc giống nhau. Ngày 31/10 thêm một lần trên mọi bàn của 119 trận đã ghi: 4865 trường hợp `best_action` và 4851 thế `bestMove` khớp hết; 47 960 lựa chọn không có cái nào sai luật ([status](../../integration/rust/status.md)).
 - Rust tính `Math.exp` như V8 trên máy arm64 (`js_exp`: `exp` của fdlibm, phần đa thức tính bằng FMA); `f64::exp` lệch ở khoảng 10% giá trị. V8 trên x86 không dùng FMA nên có thể lệch bit cuối, vì vậy vector ghi những số phụ thuộc `Math.exp` đã làm tròn (HP tới 1e-6, xác suất tới 1e-9). [Đo]
 - App chưa đánh trận thật nào với v3.
 
@@ -474,7 +475,7 @@ Những viên kỹ năng phá được tính gấp 3 với tim, âm dương và 
 - Hai trường hợp không trừ giá nội lực:
   - thanh nội lực đầy tới mức không còn chỗ cho thêm một lần kỹ năng rẻ nhất (nội lực + giá rẻ nhất > 100), vì phần âm dương ăn thêm sẽ mất. Ngưỡng này chung cho mọi kỹ năng, để kỹ năng đắt (hồi máu 50) không được miễn trừ khi kỹ năng rẻ (25) vẫn bị trừ;
   - trận tính giờ, vì quái không đi nước nào, nên mỗi lượt chỉ cần gây nhiều sát thương nhất.
-- Bình bị trừ thêm giá `--potions=HP`. Mặc định không dùng bình. Với `300`, bot chỉ dùng bình khi nước sau của quái có thể kết thúc trận. Ở trận tính giờ bot chưa dùng bình, vì đòn theo đồng hồ của quái chưa được tính vào điểm. Server không trả lời một bình thì trong trận đó bot coi ô ấy đã hết.
+- Bình bị trừ thêm giá `--potions=HP`. Mặc định không dùng bình. Với `300`, bot chỉ dùng bình khi nước sau của quái có thể kết thúc trận. Ở trận tính giờ bot không dùng bình, vì đòn theo đồng hồ của quái chưa được tính vào điểm. Server không trả lời một bình thì trong trận đó bot coi ô ấy đã hết. Bình có `costShare` thì giá của nó là `costShare × HP tối đa`, không quá phần bình mang lại cộng 2000, thay cho `--potions` (app: [Bình máu và mana](#bình-máu-và-mana)).
 - Buff còn hiệu lực thì không dùng lại.
 
 **Mô phỏng** (`formula/sim2.ts`, `run2.ts` trong `captures/a2-2026-10-31/`). Mô phỏng v2 được thêm:
@@ -550,6 +551,47 @@ Mỗi giờ tốn khoảng 1500–2400 Xu khóa (120 mỗi bình) để thua ít
 - Tiheo2 (cấp 18; sau A1 còn 10 điểm kỹ năng) nên dùng **2 điểm nâng Băng Tiễn Thuật lên cấp 4**. Trên mô phỏng với quái khó, bot thắng thêm khoảng 13% trận mỗi giờ. Cấp 5 cần cấp nhân vật 22.
 - Chưa nên tốn điểm cho Hàn Lưu Thánh Thủy cấp 2, Băng Đao Kích hay Tuyết Sơn Áp Đỉnh khi Băng Tiễn còn nâng được.
 - Bình chỉ đáng dùng khi một trận thua đáng giá hơn khoảng 5–6 bình.
+
+<a id="bình-máu-và-mana"></a>
+
+### Bình máu và mana trong app (02/11)
+
+Cài đặt đánh có dòng **Dùng bình trong trận**. Bấm ▾ để mở hai ô tích **Bình máu** (Hoàn Linh Dược) và **Bình mana** (Kim Đan Dược), mặc định tắt, mỗi loại có hai số: **Tối đa mỗi trận** (mặc định 1 bình máu, 2 bình mana) và **Giữ lại trong túi** (mặc định 30 mỗi loại). Bot không tự mua bình.
+
+- **Số bình một trận được uống** là số nhỏ hơn trong hai số: tối đa mỗi trận, và số đang có trong túi trừ số giữ lại. Bot lấy từ ô túi đầu tiên có bình đó (`battle_potions` trong [bot/fight.rs](../../../app/core/src/bot/fight.rs)). Sau mỗi bình, server gửi `s2c/83` với số còn lại trong ô, nên trận sau tính lại đúng.
+- **Khi túi chỉ còn bằng số giữ lại hoặc ít hơn** (túi đã đọc được), nhật ký ghi một lần trong lượt chạy: "Không dùng Kim Đan Dược nữa: túi còn 30, giữ lại 30 (không tự mua)". Thẻ Cài đặt đánh hiện số bình trong túi bằng chữ đỏ, kèm nút Mua bình.
+- **Giá mỗi bình tính theo HP tối đa** (`costShare` của `Potion`, cả TS lẫn Rust): Hoàn Linh Dược `1 × HP tối đa`, Kim Đan Dược `0,17 × HP tối đa`, nhưng không quá phần bình mang lại cộng `POTION_MARGIN` (2000). Giá cố định như `--potions=300` chỉ hợp với cấp thấp. Với 174 HP, bot uống khi còn khoảng 18% máu; với 3480 HP (×20, tầm symap), nó uống ngay khi còn 70%, gần như trận nào cũng uống.
+  - Bình máu giá bằng cả HP tối đa nhưng chỉ hồi 25%. Vì vậy bot chỉ uống khi nước sau của quái có thể kết thúc trận, tức lúc sắp chết: còn khoảng 15–20% máu ở mọi cấp.
+  - **Vì sao có trần 2000:** cái chết được tính 10 000 điểm, cố định. Không có trần, từ khoảng 5000 HP tối đa giá bình máu đã vượt cái lợi nó cứu được, và bot không bao giờ uống (mô phỏng ×40, 7000 HP: 0 bình). Với trần, bình được uống khi nó cứu trận một lần trong năm. Ở ×40 và ×80, bot uống 0,11–0,2 bình mỗi trận, khi còn 13–22% máu, và thua ít hơn 2–3 trận mỗi giờ.
+  - **Giới hạn:** trên một thế cờ thử, bot vẫn uống tới 9000 HP tối đa nhưng không uống từ khoảng 10 000 HP. Ở mức đó đòn thường của quái đã gần 10 000 điểm của cái chết. Có nhân vật như vậy thì phải đổi điểm của cái chết theo HP, cho cả thuật toán chứ không riêng bình.
+  - Bình mana được uống khi 25 nội lực, tính theo sát thương của kỹ năng đánh tốt nhất trên mỗi điểm nội lực, đáng hơn giá của nó. Nhân vật không có kỹ năng đánh thì không uống.
+- **Trận tính giờ không dùng bình** (cả TS lẫn Rust): đòn theo đồng hồ của quái chưa vào điểm, nên cũng không tính được cái chết bình cứu được.
+- **Chưa có bảng kỹ năng** (`s2c/30` chưa đến hay đọc lỗi, bot chơi v2) thì không dùng bình.
+- **Tối đa mỗi trận** từ 1 tới 10; file sửa tay ghi 0 thì coi như tắt. Tắt một loại giữa trận thì bot thôi uống loại đó ngay trong trận đang đánh; đổi số tối đa hay số giữ lại thì có hiệu lực từ trận sau. Gõ số vào ô thì 0,5 giây sau lần gõ cuối mới lưu.
+- Dòng "Đã dùng Hoàn Linh Dược (ô 0) ở lượt 7, trận này còn được dùng 0" nói số bình trận này còn được uống, không phải số trong túi.
+- Mỗi trận ghi vào dữ liệu trận (`play.potions`) những bình được phép uống và giá của chúng.
+
+**Mô phỏng** (`capped.ts` trong `captures/p2-2026-11-02/`, cùng mô phỏng v3 ở trên). Bot uống tối đa 1 bình máu và 2 bình mana mỗi trận, giữ lại 30. Dòng "không dùng" là 24 giờ; các dòng khác là 8 giờ. "×20" là HP, `W` và máu mỗi tim của cả hai bên nhân 20, giống nhân vật cấp cao đánh quái cùng cấp; nội lực và `K` của kỹ năng giữ nguyên.
+
+| Nhân vật, quái | Bình | Thắng/giờ | Thua/giờ | EXP/giờ | Bình mỗi trận |
+|---|---|---:|---:|---:|---|
+| manina, Cóc Xanh | không dùng | 65,8 | 19,6 | 6669 | |
+| | máu | 66,9 | 19,0 | 6868 | 0,11 máu, uống khi còn 19% |
+| | mana | 114,8 | 14,5 | 8314 | 1,96 mana |
+| | cả hai | **115,3** | **12,5** | **8511** | 0,04 máu, 1,95 mana |
+| Tiheo2, Cóc Xanh | không dùng | 42,6 | 27,2 | 5036 | |
+| | máu | 45,4 | 24,9 | 5398 | 0,16 máu, uống khi còn 19% |
+| | mana | 65,5 | 23,8 | 6300 | 1,93 mana |
+| | cả hai | **66,4** | **20,8** | **6623** | 0,12 máu, 1,93 mana |
+| manina ×20 | không dùng | 58,7 | 18,8 | 6565 | |
+| | cả hai | **86,1** | **11,1** | **8011** | 0,05 máu (uống khi còn 16%), 1,84 mana |
+| Tiheo2 ×20 | không dùng | 36,4 | 26,5 | 4681 | |
+| | cả hai | **54,8** | **17,8** | **6585** | 0,11 máu (13%), 1,78 mana |
+
+- **Bình máu**: giá `0,5 × HP tối đa` cho kết quả gần như `1 ×`. Với giá cố định ở ×20: 300 làm bot uống khi còn 70% máu (0,9 bình mỗi trận, thua 12,4/giờ), 1000 khi còn 38%, 3000 khi còn 15%. Uống sớm thì thua ít hơn một chút nhưng tốn gấp khoảng 7 lần số bình.
+- **Bình mana**: giá `0,3 × HP tối đa` ở cấp thấp tốt ngang `0,17` (Tiheo2 thắng 68,5/giờ, thua 16,8/giờ), nhưng ở ×20 gần như không uống (0,24–0,32 bình mỗi trận). `0,17` uống đều ở mọi cấp nên được chọn.
+- **Chi phí**: 2 bình mana mỗi trận là 130–250 bình mỗi giờ, khoảng 15 000–30 000 Xu khóa mỗi giờ (120 mỗi bình). Có 200 bình và giữ lại 30 thì bot dùng được khoảng 1 giờ rồi thôi.
+- **Chưa chạy thật.** App chưa đánh trận nào với hai cài đặt này. [Mô phỏng]
 
 <a id="quái-mạnh-h1"></a>
 
@@ -702,7 +744,7 @@ Mỗi trận bot đánh được ghi thành một file, để sau này hiệu ch
    | `potions` | Bình trong túi: ô, mã, số lượng | `s2c/42`, `s2c/1187` |
    | `mob` | `id`, `name`, `level`, `element`, `elementName`, `hp`, `maxHp`, `boss` | khối quái của `s2c/22` |
    | `map`, `zone` | Chỗ đánh | `s2c/29`, `s2c/11` |
-   | `play` | `strategy` (các trọng số của `--goal`), `skills` (kỹ năng bot được dùng), `skill`, `potionCost` | tham số dòng lệnh |
+   | `play` | `strategy` (các trọng số của `--goal`), `skills` (kỹ năng bot được dùng), `skill`, `potionCost`; app thêm `potions` (bình trận được uống, kèm `costShare`) | tham số dòng lệnh, Cài đặt đánh của app |
    | `memory` | Thông số bot đã học từ các trận trước trong phiên: `[tổng, số lần]` theo `tên quái.sword`, `me>tên quái.sword`… | `BattleIo.memory` |
    | `before` | Bối cảnh trước trận: `session` (trận thứ mấy của phiên, từ 1), `restMs` (ms từ lúc trận trước kết thúc tới `s2c/22` này, tức bot đã nghỉ bao lâu), `last` (`won`, `hp`, `maxHp`, `mob` của trận trước). Trận đầu phiên có `restMs` và `last` là `null`. Dùng để học khi nào nên nghỉ hay hồi máu trước trận: máu lúc vào trận ảnh hưởng mạnh tới thắng thua (dưới 30% máu chỉ thắng 41% so với khoảng 80%, 567 trận v3 ngày 31/10–01/11) | bot, lúc trận trước kết thúc |
 

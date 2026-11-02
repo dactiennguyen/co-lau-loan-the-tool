@@ -146,6 +146,12 @@ mod tests {
                 pickup_rare: true,
                 pickup_precious: false,
                 pickup_epic: true,
+                hp_potion: true,
+                hp_potion_max: 2,
+                hp_potion_keep: 10,
+                mp_potion: true,
+                mp_potion_max: 3,
+                mp_potion_keep: 0,
                 fight_count: 30,
                 fight_losses: 4,
                 quest_losses: 2,
@@ -172,8 +178,8 @@ mod tests {
         }
         assert!(!dir.join("accounts.json.tmp").exists());
         // Tự nhặt đồ, Nhặt cả đồ khác giới tính and Nhặt cả đồ người khác are on, Chỉ nhặt trang bị đúng hệ off, every
-        // box of Phẩm chất trang bị nhặt ticked, and the tabs offer 5 battles and 1 loss, for an account saved before
-        // they existed, or with only Tự sửa đồ set.
+        // box of Phẩm chất trang bị nhặt ticked, Dùng bình máu and Dùng bình mana off at 1 and 2 a battle keeping 30, and
+        // the tabs offer 5 battles and 1 loss, for an account saved before they existed, or with only Tự sửa đồ set.
         std::fs::write(&path, r#"{"accounts":[{"username":"a","password":"x"},{"username":"b","password":"y","fight":{"repair":true}}]}"#).unwrap();
         let old = load(&path).unwrap();
         assert_eq!(old[0].fight, FightSettings::default());
@@ -182,6 +188,20 @@ mod tests {
         assert!(old[1].fight.pickup_others && !old[1].fight.pickup_own_element);
         assert_eq!(old[1].fight.qualities(), [true; 4], "every quality ticked");
         let b = old[1].fight;
+        assert_eq!(
+            (b.potion_rule(0), b.potion_rule(1)),
+            (None, None),
+            "no potion"
+        );
+        assert_eq!(
+            (
+                b.hp_potion_max,
+                b.hp_potion_keep,
+                b.mp_potion_max,
+                b.mp_potion_keep
+            ),
+            (1, 30, 2, 30)
+        );
         assert_eq!((b.fight_count, b.fight_losses, b.quest_losses), (5, 1, 1));
         std::fs::remove_dir_all(&dir).unwrap();
     }

@@ -11,7 +11,9 @@ interface Props {
   id: string;
   on: boolean;
   disabled?: boolean;
-  onChange: (on: boolean) => void;
+  /** Left out, the row has no box of its own (its settings, under its ▾, have theirs): `on` only lights its edge and
+   * icon. */
+  onChange?: (on: boolean) => void;
   icon: IconName;
   title: string;
   /** What the setting does, behind its "?". */
@@ -26,37 +28,50 @@ interface Props {
  * One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it; the card or dialog
  * stacks them. The box and its name toggle it, the box alone says whether it is on (no Bật/Tắt word); the "?" only
  * explains. A setting that is on gets a green edge, as the proxy of the account form does. One with settings of its own
- * under it (`expand`) has a ▾ right after its "?" that shows or hides them.
+ * under it (`expand`) has a ▾ right after its "?" that shows or hides them; one without `onChange` is only their head.
  */
 export function SettingRow({ id, on, disabled, onChange, icon, title, hint, children, expand }: Props) {
+  const head = (
+    <>
+      <span className={cn("grid place-items-center size-[26px] text-fg-2 bg-card", on && "text-ink bg-good bevel-sm")} aria-hidden="true">
+        <Icon name={icon} size={14} />
+      </span>
+      <span id={`${id}-title`} className="text-13 font-extrabold text-fg">
+        {title}
+      </span>
+    </>
+  );
   return (
     <div className={cn("@container grid bg-ink", on && "shadow-[inset_3px_0_0_var(--good)]")}>
       <div className="group/row flex flex-wrap items-center gap-x-1.5 gap-y-0 px-3 hover:bg-bg-2">
-        <input
-          id={id}
-          type="checkbox"
-          className="absolute opacity-0 w-px h-px"
-          checked={on}
-          disabled={disabled}
-          aria-describedby={`${id}-hint`}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <label htmlFor={id} className="flex items-center gap-2.5 py-2.5 cursor-pointer">
-          <span
-            className={cn(
-              "grid place-items-center size-[18px] group-has-[input:focus-visible]/row:outline-2 group-has-[input:focus-visible]/row:outline-ring group-has-[input:focus-visible]/row:outline-offset-2",
-              on ? "text-ink bg-good shadow-[inset_-2px_-2px_0_var(--good-shade)]" : "text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)]",
-              disabled && "opacity-60",
-            )}
-            aria-hidden="true"
-          >
-            <Icon name="check" size={12} />
-          </span>
-          <span className={cn("grid place-items-center size-[26px] text-fg-2 bg-card", on && "text-ink bg-good bevel-sm")} aria-hidden="true">
-            <Icon name={icon} size={14} />
-          </span>
-          <span className="text-13 font-extrabold text-fg">{title}</span>
-        </label>
+        {onChange ? (
+          <>
+            <input
+              id={id}
+              type="checkbox"
+              className="absolute opacity-0 w-px h-px"
+              checked={on}
+              disabled={disabled}
+              aria-describedby={`${id}-hint`}
+              onChange={(e) => onChange(e.target.checked)}
+            />
+            <label htmlFor={id} className="flex items-center gap-2.5 py-2.5 cursor-pointer">
+              <span
+                className={cn(
+                  "grid place-items-center size-[18px] group-has-[input:focus-visible]/row:outline-2 group-has-[input:focus-visible]/row:outline-ring group-has-[input:focus-visible]/row:outline-offset-2",
+                  on ? "text-ink bg-good shadow-[inset_-2px_-2px_0_var(--good-shade)]" : "text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)]",
+                  disabled && "opacity-60",
+                )}
+                aria-hidden="true"
+              >
+                <Icon name="check" size={12} />
+              </span>
+              {head}
+            </label>
+          </>
+        ) : (
+          <span className="flex items-center gap-2.5 py-2.5">{head}</span>
+        )}
         <Hint label={`${title} là gì?`} id={`${id}-hint`}>
           {hint}
         </Hint>

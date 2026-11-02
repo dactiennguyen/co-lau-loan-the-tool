@@ -803,6 +803,15 @@ export interface FightSettings {
   pickupRare: boolean;
   pickupPrecious: boolean;
   pickupEpic: boolean;
+  /** Dùng bình máu, off unless turned on: a battle may drink Hoàn Linh Dược when about to die, at most hpPotionMax a
+   * battle and never below hpPotionKeep in the bag; none is bought. Dùng bình mana likewise for Kim Đan Dược, when the
+   * skills need nội lực. */
+  hpPotion: boolean;
+  hpPotionMax: number;
+  hpPotionKeep: number;
+  mpPotion: boolean;
+  mpPotionMax: number;
+  mpPotionKeep: number;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

@@ -53,6 +53,7 @@ mod smith;
 mod stats;
 mod travel;
 mod types;
+pub use fight::{HP_POTION_SHARE, MP_POTION_SHARE};
 pub use types::*;
 
 /// Wall-clock ms since 1970, for the start and end of a job or quest run.
@@ -315,6 +316,9 @@ pub struct Bot {
     repairing: Option<(u8, String)>,
     repair_failed: HashSet<u8>,
     repair_warned: bool,
+    /// Dùng bình máu, Dùng bình mana: whether the run said the bag is down to what it keeps of Hoàn Linh Dược, of Kim
+    /// Đan Dược (Bot::battle_potions), so it says it once.
+    potions_kept: [bool; 2],
     /// Tự nhặt đồ: the items fallen in the last DROPS_KEPT; until when a won battle's drops are still coming, and that
     /// battle; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
     /// when the last c2s/1188 went; the ones it sent that the server has not answered yet, oldest first.
@@ -393,6 +397,7 @@ impl Bot {
             repairing: None,
             repair_failed: HashSet::new(),
             repair_warned: false,
+            potions_kept: [false; 2],
             drops: vec![],
             ground: vec![],
             loot_until: None,

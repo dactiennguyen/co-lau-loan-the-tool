@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { CheckRow } from "@/components/CheckRow";
 import { Hint } from "@/components/Hint";
 import { SETTING_FACT, SETTING_FACT_BAD, SettingRow } from "@/components/SettingRow";
+import { Stepper } from "@/components/Stepper";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { useStore } from "@/store";
@@ -22,8 +23,10 @@ const HAMMER = 2;
  * once in the game: the hammers of the bag and the worn items that are broken, with Mua búa when none is left (the bot
  * never buys one itself). Tự nhặt đồ is on unless turned off, and so are Nhặt cả đồ người khác (what others left, once
  * anyone may have it) and Nhặt cả đồ khác giới tính under it; Chỉ nhặt trang bị đúng hệ is off unless turned on, and
- * Phẩm chất trang bị nhặt has its four boxes ticked unless unticked. Lưu dữ liệu trận is not here: it is the same for
- * every account, in the Cài đặt of the app (SettingsDialog).
+ * Phẩm chất trang bị nhặt has its four boxes ticked unless unticked. Dùng bình trong trận holds Bình máu and Bình mana
+ * under its ▾, both off unless ticked, each with Tối đa/trận and Giữ lại (1 and 30, 2 and 30), and Mua bình once the bag
+ * holds no more than it keeps (the bot never buys one). Lưu dữ liệu trận is not here: it is the same for every account,
+ * in the Cài đặt of the app (SettingsDialog).
  */
 /** Whether the settings under Tự nhặt đồ are shown, the same for every account; kept in localStorage. */
 const PICKUP_OPEN = "pickupOptionsOpen";
@@ -37,8 +40,53 @@ const QUALITIES = [
   { key: "pickupEpic", name: "Sử Thi", className: "text-piece-yinyang" },
 ] as const;
 
+/** Whether the potions under Dùng bình trong trận are shown, the same for every account; kept in localStorage. */
+const POTIONS_OPEN = "potionOptionsOpen";
+
+/** The two potions of Dùng bình trong trận (Bot::battle_potions of cllt-core): the item id and name, its three settings,
+ * its word, icon and colour (máu red as the HP bar, mana blue as the drop piece; `factTone` over the grey icons of
+ * SETTING_FACT), and when the bot drinks it. */
+const POTION_ROWS = [
+  {
+    item: 0,
+    on: "hpPotion",
+    max: "hpPotionMax",
+    keep: "hpPotionKeep",
+    icon: "heart",
+    word: "Máu",
+    tone: "text-hp",
+    factTone: "text-hp!",
+    name: "Hoàn Linh Dược",
+    when: "khi sắp chết",
+  },
+  {
+    item: 1,
+    on: "mpPotion",
+    max: "mpPotionMax",
+    keep: "mpPotionKeep",
+    icon: "drop",
+    word: "Mana",
+    tone: "text-piece-drop",
+    factTone: "text-piece-drop!",
+    name: "Kim Đan Dược",
+    when: "khi kỹ năng cần nội lực",
+  },
+] as const;
+
+/** How long after the last change a number of the potion rows is saved (as useFightSetting): a typed number changes on
+ * every key, and each save is a line of the log. */
+const QUIET = 500;
+
 /** The settings this card changes: the box shows the one being saved until the account comes back with it. */
-const KEYS = ["repair", "pickup", "pickupOthers", "pickupOtherGender", "pickupOwnElement", ...QUALITIES.map((q) => q.key)] as const;
+const KEYS = [
+  "repair",
+  "pickup",
+  "pickupOthers",
+  "pickupOtherGender",
+  "pickupOwnElement",
+  ...QUALITIES.map((q) => q.key),
+  ...POTION_ROWS.flatMap((r) => [r.on, r.max, r.keep]),
+] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
   const saved = account.fightSettings;
@@ -53,6 +101,13 @@ export function FightSettingsCard({ account }: { account: Account }) {
       localStorage.setItem(PICKUP_OPEN, was ? "0" : "1");
       return !was;
     });
+  // Likewise the two potions under Dùng bình trong trận.
+  const [potionsOpen, setPotionsOpen] = useState(() => localStorage.getItem(POTIONS_OPEN) === "1");
+  const togglePotions = () =>
+    setPotionsOpen((was) => {
+      localStorage.setItem(POTIONS_OPEN, was ? "0" : "1");
+      return !was;
+    });
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update. The
   // other boxes stay usable meanwhile: a save sends every setting, those still saving included, and src-tauri writes
   // them one after another, so none is lost, and nothing on the card dims at each click.
@@ -62,13 +117,33 @@ export function FightSettingsCard({ account }: { account: Account }) {
     }
   }, [saving, saved]);
   const settings = saving ?? saved;
-  const save = (next: FightSettings) => {
-    setSaving(next);
-    setError(null);
+  // A number is saved QUIET ms after its last change (`quiet`), a box at once with any number still waiting, and a
+  // number still waiting when the card closes.
+  const pending = useRef<{ id: number; next: FightSettings } | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const send = (next: FightSettings) => {
+    window.clearTimeout(timer.current);
+    pending.current = null;
     api.setFight(account.id, next).catch((err) => {
       setSaving(null);
       setError(String(err?.message ?? err));
     });
+  };
+  useEffect(
+    () => () => {
+      window.clearTimeout(timer.current);
+      const p = pending.current;
+      if (p) api.setFight(p.id, p.next).catch(() => {});
+    },
+    [account.id],
+  );
+  const save = (next: FightSettings, quiet = false) => {
+    setSaving(next);
+    setError(null);
+    if (!quiet) return send(next);
+    pending.current = { id: account.id, next };
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => send(next), QUIET);
   };
   const hammers = c?.bag?.items.filter((i) => i.id === HAMMER).reduce((n, i) => n + Math.max(1, i.quantity), 0) ?? 0;
   const broken = (c?.gear ?? []).filter((g): g is Item & { durability: [number, number] } => g?.durability?.[0] === 0);
@@ -76,6 +151,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const element = c?.element != null ? ELEMENTS[c.element] : undefined;
   const offElement = c?.bag?.items.filter((i) => i.element != null && i.element !== c.element).length ?? 0;
   const ticked = QUALITIES.filter((q) => settings[q.key]).length;
+  const held = (item: number) => c?.bag?.items.filter((i) => i.id === item).reduce((n, i) => n + i.quantity, 0);
   return (
     <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
       <SettingRow
@@ -104,6 +180,80 @@ export function FightSettingsCard({ account }: { account: Account }) {
           </>
         )}
       </SettingRow>
+      {/* Both potions under one row: its box-less head lights while either is on; folded, what each does. */}
+      <SettingRow
+        id={`${id}potions`}
+        on={POTION_ROWS.some((r) => settings[r.on])}
+        icon="heart"
+        title="Dùng bình trong trận"
+        hint="Bot tự uống bình trong túi khi đánh (mỗi bình mất một lượt), không tự mua. Bình máu (Hoàn Linh Dược, hồi 25% máu tối đa): uống khi sắp chết, lúc nước tiếp của quái có thể kết thúc trận, thường khi còn khoảng 15–20% máu. Bình mana (Kim Đan Dược, +25 nội lực): uống khi kỹ năng đã học cần nội lực hơn là đổi viên, có kỹ năng gây sát thương thì gần như trận nào cũng uống đủ số tối đa. Mỗi loại có số bình tối đa mỗi trận và số bình giữ lại trong túi: túi chỉ còn bằng số giữ lại thì không uống loại đó nữa. Trận tính giờ không dùng bình. Mặc định tắt cả hai; bấm ▾ để chọn."
+        expand={{ open: potionsOpen, onToggle: togglePotions, controls: `${id}potions-options` }}
+      >
+        {!potionsOpen &&
+          POTION_ROWS.map((r) => {
+            const have = held(r.item);
+            const out = settings[r.on] && have !== undefined && have <= settings[r.keep];
+            return (
+              <span key={r.item} className={cn(SETTING_FACT, out && SETTING_FACT_BAD, out && "[&_b]:text-danger")}>
+                <Icon name={r.icon} size={12} className={cn(settings[r.on] && !out && r.factTone)} />
+                {r.word}
+                {settings[r.on] ? (
+                  <>
+                    {" "}
+                    <b className="px">{settings[r.max]}</b>/trận · giữ <b className="px">{num(settings[r.keep])}</b>
+                    {out && " · hết bình để dùng"}
+                  </>
+                ) : (
+                  " tắt"
+                )}
+              </span>
+            );
+          })}
+      </SettingRow>
+      {/* One block per potion, indented under it, folded until its ▾ opens them: its box and what the bag holds, then its
+          two numbers. The numbers can be set while it is off. */}
+      <div id={`${id}potions-options`} className="ml-6 grid gap-1" hidden={!potionsOpen} role="group" aria-labelledby={`${id}potions-title`}>
+        {POTION_ROWS.map((r) => {
+          const on = settings[r.on];
+          const have = held(r.item);
+          // On, and the bag holds no more than it keeps: the bot drinks none of it until more are bought.
+          const out = on && have !== undefined && have <= settings[r.keep];
+          return (
+            <div key={r.item} className={cn("@container grid gap-1.5 px-3 py-2 bg-ink", on && "shadow-[inset_3px_0_0_var(--good)]")}>
+              {/* Its box, icon, name and when it is drunk; at the right, what the bag holds of it. */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <CheckRow checked={on} onChange={(v) => save({ ...settings, [r.on]: v })} className="gap-2.5">
+                  <span className={cn("grid place-items-center size-[22px] bg-card", r.tone)} aria-hidden="true">
+                    <Icon name={r.icon} size={13} />
+                  </span>
+                  <span className="text-13 font-extrabold text-fg">Bình {r.word.toLowerCase()}</span>
+                  <span className="text-[11.5px] text-fg-3">{r.when}</span>
+                </CheckRow>
+                {have !== undefined && (
+                  <span className="ml-auto flex flex-wrap items-center justify-end gap-x-2.5 gap-y-1 text-[11.5px]">
+                    <span className={cn(SETTING_FACT, out && SETTING_FACT_BAD, out && "[&_b]:text-danger")}>
+                      {r.name} trong túi <b className="px">{num(have)}</b>
+                      {out && " · đã tới số giữ lại"}
+                    </span>
+                    {out && (
+                      <Button kind="outline" small icon="cart" onClick={() => open({ kind: "shop", id: account.id, item: r.item })}>
+                        Mua bình
+                      </Button>
+                    )}
+                  </span>
+                )}
+              </div>
+              {/* Its two numbers under its name, side by side; one above the other, in one column, when the card is narrow. */}
+              <div className="grid grid-cols-[repeat(2,auto_auto)] justify-start items-center gap-x-2 gap-y-1.5 pl-[58px] text-12 text-fg-2 [@container(max-width:520px)]:grid-cols-[auto_auto]">
+                <span>Tối đa mỗi trận</span>
+                <Stepper value={settings[r.max]} min={1} max={10} label={`số ${r.name} tối đa mỗi trận`} onChange={(v) => save({ ...settings, [r.max]: v }, true)} />
+                <span className="pl-5 [@container(max-width:520px)]:pl-0">Giữ lại trong túi</span>
+                <Stepper value={settings[r.keep]} min={0} max={9999} label={`số ${r.name} giữ lại trong túi`} onChange={(v) => save({ ...settings, [r.keep]: v }, true)} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
       <SettingRow
         id={`${id}pickup`}
         on={settings.pickup}

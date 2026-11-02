@@ -82,6 +82,7 @@ impl Bot {
         self.refused.clear();
         self.job_seq += 1;
         (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
+        self.potions_kept = [false; 2];
         out.push(Out::Log(
             LogKind::Quest,
             match &playing {

@@ -12540,16 +12540,6 @@
        }
       },
       "score": 24
-     },
-     {
-      "label": "item 0",
-      "action": { "kind": "item", "slot": 0, "itemId": 0 },
-      "score": -255
-     },
-     {
-      "label": "item 1",
-      "action": { "kind": "item", "slot": 7, "itemId": 1 },
-      "score": -259.904762
      }
     ]
    },
@@ -12857,11 +12847,6 @@
        }
       },
       "score": 23.356286
-     },
-     {
-      "label": "item 1",
-      "action": { "kind": "item", "slot": 5, "itemId": 1 },
-      "score": 8.428571
      }
     ]
    },
@@ -13499,16 +13484,6 @@
       "score": 88.043333
      },
      {
-      "label": "item 1",
-      "action": { "kind": "item", "slot": 7, "itemId": 1 },
-      "score": 63.333333
-     },
-     {
-      "label": "item 0",
-      "action": { "kind": "item", "slot": 0, "itemId": 0 },
-      "score": 45
-     },
-     {
       "label": "swap",
       "action": {
        "kind": "swap",
@@ -13830,11 +13805,6 @@
        }
       },
       "score": 0
-     },
-     {
-      "label": "item 1",
-      "action": { "kind": "item", "slot": 5, "itemId": 1 },
-      "score": -124
      }
     ]
    },
@@ -14858,6 +14828,248 @@
        }
       },
       "score": 14.5
+     }
+    ]
+   },
+   {
+    "name": "hoàn linh at its max HP",
+    "board": [ 4, 4, 2, -2, -2, -2, -2, -2, -2, -2, 4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 0, 0, 1, -2, -2, -2, -2, -2, -2, -2, 0, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 ],
+    "me": { "hp": 40, "maxHp": 150, "s1": 0, "s2": 0, "sword": 8, "heart": 3.33, "yinyang": 2.3, "peach": 5, "skillCost": 25, "skillDamage": 48.285714285714285 },
+    "mob": { "hp": 200, "maxHp": 202, "s1": 30, "s2": 0, "sword": 3.33, "heart": 5.5, "yinyang": 1.2, "peach": 4.4, "skillCost": 25, "skillDamage": 43 },
+    "strategy": {
+     "extraTurn": 10,
+     "reply": 1,
+     "bonus": {},
+     "mobModel": "odds",
+     "lookahead": 1
+    },
+    "skills": [
+     [ 4000, 2 ],
+     [ 4001, 1 ]
+    ],
+    "potions": [
+     { "slot": 8, "itemId": 0, "quantity": 1, "costShare": 1 }
+    ],
+    "potionCost": 0,
+    "spend": null,
+    "buffs": null,
+    "all": [
+     {
+      "label": "item 0",
+      "action": { "kind": "item", "slot": 8, "itemId": 0 },
+      "score": -137.390072
+     },
+     {
+      "label": "swap",
+      "action": {
+       "kind": "swap",
+       "move": {
+        "from": [ 5, 2 ],
+        "to": [ 6, 2 ]
+       }
+      },
+      "score": -4976
+     }
+    ]
+   },
+   {
+    "name": "no threat at its max HP",
+    "board": [ 4, 4, 2, -2, -2, -2, -2, -2, -2, -2, 4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 0, 0, 1, -2, -2, -2, -2, -2, -2, -2, 0, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 ],
+    "me": { "hp": 100, "maxHp": 150, "s1": 0, "s2": 0, "sword": 8, "heart": 3.33, "yinyang": 2.3, "peach": 5, "skillCost": 25, "skillDamage": 48.285714285714285 },
+    "mob": { "hp": 200, "maxHp": 202, "s1": 30, "s2": 0, "sword": 3.33, "heart": 5.5, "yinyang": 1.2, "peach": 4.4, "skillCost": 25, "skillDamage": 43 },
+    "strategy": {
+     "extraTurn": 10,
+     "reply": 1,
+     "bonus": {},
+     "mobModel": "odds",
+     "lookahead": 1
+    },
+    "skills": [
+     [ 4000, 2 ],
+     [ 4001, 1 ]
+    ],
+    "potions": [
+     { "slot": 8, "itemId": 0, "quantity": 1, "costShare": 1 }
+    ],
+    "potionCost": null,
+    "spend": null,
+    "buffs": null,
+    "all": [
+     {
+      "label": "swap",
+      "action": {
+       "kind": "swap",
+       "move": {
+        "from": [ 5, 2 ],
+        "to": [ 6, 2 ]
+       }
+      },
+      "score": 2.5
+     },
+     {
+      "label": "item 0",
+      "action": { "kind": "item", "slot": 8, "itemId": 0 },
+      "score": -137.390072
+     }
+    ]
+   },
+   {
+    "name": "kim đan at a share",
+    "board": [ 4, 4, 2, -2, -2, -2, -2, -2, -2, -2, 4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 0, 0, 1, -2, -2, -2, -2, -2, -2, -2, 0, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 ],
+    "me": { "hp": 150, "maxHp": 150, "s1": 0, "s2": 0, "sword": 8, "heart": 3.33, "yinyang": 2.3, "peach": 5, "skillCost": 25, "skillDamage": 48.285714285714285 },
+    "mob": { "hp": 200, "maxHp": 202, "s1": 30, "s2": 0, "sword": 3.33, "heart": 5.5, "yinyang": 1.2, "peach": 4.4, "skillCost": 25, "skillDamage": 43 },
+    "strategy": {
+     "extraTurn": 10,
+     "reply": 1,
+     "bonus": {},
+     "mobModel": "odds",
+     "lookahead": 1
+    },
+    "skills": [
+     [ 4000, 2 ],
+     [ 4001, 1 ]
+    ],
+    "potions": [
+     { "slot": 9, "itemId": 1, "quantity": 2, "costShare": 0.17 }
+    ],
+    "potionCost": null,
+    "spend": null,
+    "buffs": null,
+    "all": [
+     {
+      "label": "swap",
+      "action": {
+       "kind": "swap",
+       "move": {
+        "from": [ 5, 2 ],
+        "to": [ 6, 2 ]
+       }
+      },
+      "score": 2.5
+     },
+     {
+      "label": "item 1",
+      "action": { "kind": "item", "slot": 9, "itemId": 1 },
+      "score": -1.604358
+     }
+    ]
+   },
+   {
+    "name": "no potion when timed",
+    "board": [ 4, 4, 2, -2, -2, -2, -2, -2, -2, -2, 4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 0, 0, 1, -2, -2, -2, -2, -2, -2, -2, 0, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 ],
+    "me": { "hp": 40, "maxHp": 150, "s1": 0, "s2": 0, "sword": 8, "heart": 3.33, "yinyang": 2.3, "peach": 5, "skillCost": 25, "skillDamage": 48.285714285714285 },
+    "mob": { "hp": 200, "maxHp": 202, "s1": 30, "s2": 0, "sword": 3.33, "heart": 5.5, "yinyang": 1.2, "peach": 4.4, "skillCost": 25, "skillDamage": 43 },
+    "strategy": {
+     "extraTurn": 0,
+     "reply": 0,
+     "bonus": {},
+     "mobModel": "odds",
+     "lookahead": 0
+    },
+    "skills": [
+     [ 4000, 2 ],
+     [ 4001, 1 ]
+    ],
+    "potions": [
+     { "slot": 8, "itemId": 0, "quantity": 1, "costShare": 1 },
+     { "slot": 9, "itemId": 1, "quantity": 2, "costShare": 0.17 }
+    ],
+    "potionCost": -1000000000,
+    "spend": null,
+    "buffs": null,
+    "all": [
+     {
+      "label": "swap",
+      "action": {
+       "kind": "swap",
+       "move": {
+        "from": [ 5, 2 ],
+        "to": [ 6, 2 ]
+       }
+      },
+      "score": 24
+     }
+    ]
+   },
+   {
+    "name": "hoàn linh at 6000 max HP",
+    "board": [ 4, 4, 2, -2, -2, -2, -2, -2, -2, -2, 4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 0, 0, 1, -2, -2, -2, -2, -2, -2, -2, 0, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 ],
+    "me": { "hp": 900, "maxHp": 6000, "s1": 0, "s2": 0, "sword": 320, "heart": 133.2, "yinyang": 2.3, "peach": 5, "skillCost": 25, "skillDamage": 1296.2857142857142 },
+    "mob": { "hp": 8000, "maxHp": 8080, "s1": 30, "s2": 0, "sword": 133.2, "heart": 5.5, "yinyang": 1.2, "peach": 4.4, "skillCost": 25, "skillDamage": 1720 },
+    "strategy": {
+     "extraTurn": 10,
+     "reply": 1,
+     "bonus": {},
+     "mobModel": "odds",
+     "lookahead": 1
+    },
+    "skills": [
+     [ 4000, 2 ],
+     [ 4001, 1 ]
+    ],
+    "potions": [
+     { "slot": 8, "itemId": 0, "quantity": 1, "costShare": 1 }
+    ],
+    "potionCost": null,
+    "spend": null,
+    "buffs": null,
+    "all": [
+     {
+      "label": "item 0",
+      "action": { "kind": "item", "slot": 8, "itemId": 0 },
+      "score": -2975.602873
+     },
+     {
+      "label": "swap",
+      "action": {
+       "kind": "swap",
+       "move": {
+        "from": [ 5, 2 ],
+        "to": [ 6, 2 ]
+       }
+      },
+      "score": -4040
+     }
+    ]
+   },
+   {
+    "name": "hoàn linh at 6000 max HP, 80%",
+    "board": [ 4, 4, 2, -2, -2, -2, -2, -2, -2, -2, 4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 0, 0, 1, -2, -2, -2, -2, -2, -2, -2, 0, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 ],
+    "me": { "hp": 4800, "maxHp": 6000, "s1": 0, "s2": 0, "sword": 320, "heart": 133.2, "yinyang": 2.3, "peach": 5, "skillCost": 25, "skillDamage": 1296.2857142857142 },
+    "mob": { "hp": 8000, "maxHp": 8080, "s1": 30, "s2": 0, "sword": 133.2, "heart": 5.5, "yinyang": 1.2, "peach": 4.4, "skillCost": 25, "skillDamage": 1720 },
+    "strategy": {
+     "extraTurn": 10,
+     "reply": 1,
+     "bonus": {},
+     "mobModel": "odds",
+     "lookahead": 1
+    },
+    "skills": [
+     [ 4000, 2 ],
+     [ 4001, 1 ]
+    ],
+    "potions": [
+     { "slot": 8, "itemId": 0, "quantity": 1, "costShare": 1 }
+    ],
+    "potionCost": null,
+    "spend": null,
+    "buffs": null,
+    "all": [
+     {
+      "label": "swap",
+      "action": {
+       "kind": "swap",
+       "move": {
+        "from": [ 5, 2 ],
+        "to": [ 6, 2 ]
+       }
+      },
+      "score": 100
+     },
+     {
+      "label": "item 0",
+      "action": { "kind": "item", "slot": 8, "itemId": 0 },
+      "score": -2975.602873
      }
     ]
    }

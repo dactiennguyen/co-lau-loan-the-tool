@@ -316,13 +316,20 @@ pub fn learnt_skills(tree: &[SkillDef], levels: &BTreeMap<i32, i32>) -> Vec<Skil
         .collect()
 }
 
-/// A potion of the bag: its bag slot (c2s/44), item id and how many are left.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A potion of the bag: its bag slot (c2s/44), item id and how many may still be used; `cost_share`, what one costs as
+/// a share of own max HP, at most what it gives plus POTION_MARGIN, over ActionOptions::potion_cost (the app: Hoàn Linh
+/// Dược at 1, Kim Đan Dược at 0.17, so the rule holds at every level, 07-auto-battle.md#bình-máu-và-mana).
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Potion {
     pub slot: i32,
     pub item_id: i32,
     pub quantity: i32,
+    pub cost_share: Option<f64>,
 }
+/// POTION_MARGIN of battle-actions.ts: the most a potion of its own cost share costs over what it gives, a fifth of the
+/// 1e4 of a death, so a potion that saves the battle one time in five is drunk at any max HP. The share alone outgrows
+/// the 1e4 from about 5000 HP on, and then a potion would never be drunk.
+pub const POTION_MARGIN: f64 = 2000.0;
 /// What a potion does in battle (A1): Hoàn Linh Dược (item 0) heals ⌊25% max HP⌋, Kim Đan Dược (item 1) gives 25 nội
 /// lực. 0 where it does not.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -451,7 +458,7 @@ pub struct ActionOptions<'a> {
     /// Learnt skills (learnt_skills); those the nội lực does not pay for are skipped.
     pub skills: &'a [SkillEffect],
     pub potions: &'a [Potion],
-    /// What one potion costs in HP: infinite (the default) never uses one.
+    /// What one potion costs in HP, unless it has its own cost_share: infinite (the default) never uses one.
     pub potion_cost: f64,
     /// Share of the worth of the nội lực a skill spends that is charged to it (SPEND).
     pub spend: f64,
@@ -520,11 +527,14 @@ pub fn best_action(
             label: format!("skill {}", e.id),
         });
     }
-    for p in o.potions {
-        let (Some(fx), cost) = (potion_effect(p.item_id), o.potion_cost) else {
+    // No potion in a timed battle (reply 0): the mob's clock hits are not scored, so neither is the death a potion saves
+    // from.
+    let potions = if falsy(s.reply) { &[][..] } else { o.potions };
+    for p in potions {
+        let Some(fx) = potion_effect(p.item_id) else {
             continue;
         };
-        if p.quantity <= 0 || cost == f64::INFINITY {
+        if p.quantity <= 0 {
             continue;
         }
         let hp = if falsy(fx.hp) {
@@ -537,7 +547,11 @@ pub fn best_action(
         } else {
             js_min(100.0 - me.s1, fx.s1)
         };
-        if falsy(hp) && falsy(s1) {
+        let gain = hp + s1 * per_s1;
+        let cost = p.cost_share.map_or(o.potion_cost, |k| {
+            js_min(k * me.max_hp, gain + POTION_MARGIN)
+        });
+        if (falsy(hp) && falsy(s1)) || cost == f64::INFINITY {
             continue;
         }
         let after = Fighter {
@@ -550,7 +564,7 @@ pub fn best_action(
                 slot: p.slot,
                 item_id: p.item_id,
             },
-            score: hp + s1 * per_s1 - cost - s.reply * answer_value(b, mob, &after, s),
+            score: gain - cost - s.reply * answer_value(b, mob, &after, s),
             label: format!("item {}", p.item_id),
         });
     }

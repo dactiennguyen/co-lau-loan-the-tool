@@ -257,6 +257,12 @@ mod tests {
             "\"pickupRare\": true",
             "\"pickupPrecious\": true",
             "\"pickupEpic\": true",
+            "\"hpPotion\": false",
+            "\"hpPotionMax\": 1",
+            "\"hpPotionKeep\": 30",
+            "\"mpPotion\": false",
+            "\"mpPotionMax\": 2",
+            "\"mpPotionKeep\": 30",
         ] {
             assert_eq!(text.matches(key).count(), 2, "{key}");
         }
@@ -270,6 +276,15 @@ mod tests {
         let edited = text.replacen("\"pickupOthers\": true", "\"pickupOthers\": false", 1);
         let back = parse(&edited).unwrap();
         assert!(!back.accounts[0].fight.pickup_others && back.accounts[1].fight.pickup_others);
+        // Dùng bình máu turned on in the file, keeping 50.
+        let edited = (text.replacen("\"hpPotion\": false", "\"hpPotion\": true", 1)).replacen(
+            "\"hpPotionKeep\": 30",
+            "\"hpPotionKeep\": 50",
+            1,
+        );
+        let back = parse(&edited).unwrap();
+        assert_eq!(back.accounts[0].fight.potion_rule(0), Some((1, 50)));
+        assert_eq!(back.accounts[1].fight.potion_rule(0), None);
         assert_eq!(back.settings.map(|s| s.record), Some(false));
         assert!(parse(&export(&accounts, None, "t"))
             .unwrap()

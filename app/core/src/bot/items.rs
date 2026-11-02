@@ -208,6 +208,31 @@ impl Bot {
                 },
             ));
         }
+        for (id, kind, name, when) in [
+            (0, "máu", "Hoàn Linh Dược", "uống khi sắp chết"),
+            (1, "mana", "Kim Đan Dược", "uống khi kỹ năng cần nội lực"),
+        ] {
+            let rule = settings.potion_rule(id);
+            if rule == self.fight.potion_rule(id) {
+                continue;
+            }
+            out.push(Out::Log(
+                LogKind::Battle,
+                match rule {
+                    Some((max, keep)) => format!(
+                        "Dùng bình {kind}: tối đa {max} {name} mỗi trận, {when}; giữ lại {keep} trong túi, không tự mua"
+                    ),
+                    None => format!("Tắt dùng bình {kind}"),
+                },
+            ));
+            self.potions_kept[id as usize] = false;
+            // Off from now on, also in the battle under way; a new max or keep counts from the next battle.
+            if rule.is_none() {
+                if let Some(crate::runner_v3::Runner::V3(r)) = self.battle.as_mut() {
+                    r.drop_potions(id);
+                }
+            }
+        }
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,

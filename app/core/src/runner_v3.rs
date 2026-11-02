@@ -47,7 +47,8 @@ pub struct RunnerOptions {
     pub skills: Option<Vec<SkillEffect>>,
     /// Potions of the bag for best_action; the runner counts down what it uses.
     pub potions: Vec<Potion>,
-    /// What one potion costs in HP (ActionOptions::potion_cost); None, the default, never uses one.
+    /// What a potion without its own cost share costs in HP (ActionOptions::potion_cost); None, the default, never uses
+    /// one.
     pub potion_cost: Option<f64>,
     /// Own Tấn công (combat[0] of s2c/9) and level: damage per sword before the first hit, unless memory has it.
     pub attack: Option<i32>,
@@ -275,6 +276,12 @@ impl BattleRunner {
     pub fn potions(&self) -> &[Potion] {
         &self.potions
     }
+    /// None of the potion `item_id` is used for the rest of the battle (its setting was turned off).
+    pub fn drop_potions(&mut self, item_id: i32) {
+        for p in self.potions.iter_mut().filter(|p| p.item_id == item_id) {
+            p.quantity = 0;
+        }
+    }
 
     fn send(&self, out: &mut Vec<Act>, opcode: i32, ctx: Ctx) {
         let ctx = Ctx {
@@ -417,9 +424,11 @@ impl BattleRunner {
                     .as_ref()
                     .and_then(|p| potion_effect(p.item_id))
                     .map_or("vật phẩm", |e| e.name);
+                // What the battle may still drink of it (Bot::battle_potions), not what the bag holds. Never below 0: an
+                // answer late after the slot was taken as empty (no answer in time, or its setting turned off).
                 let left = p.map(|p| {
-                    p.quantity -= 1;
-                    format!(", còn {}", p.quantity)
+                    p.quantity = (p.quantity - 1).max(0);
+                    format!(", trận này còn được dùng {}", p.quantity)
                 });
                 out.push(Act::Log(format!(
                     "Đã dùng {name} (ô {}) ở lượt {}{}",

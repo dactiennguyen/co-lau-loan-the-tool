@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
 import { N, UNKNOWN, fighter, STRATEGIES, answerValue } from '../src/battle/battle.ts';
-import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type SkillEffect } from '../src/battle/battle-actions.ts';
+import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, POTION_MARGIN, type SkillEffect } from '../src/battle/battle-actions.ts';
 import { BattleRunner } from '../src/battle/battle-runner.ts';
 import { decodeEvent } from '../src/protocol/events.ts';
 
@@ -98,6 +98,32 @@ test('bestAction: a potion only at its cost; worth it when the mob could end the
   assert.ok(Math.abs(used.score - (37 - 300 - answerValue(twoMoves(), chiHuy(200), after, STRATEGIES.win))) < 1e-9, '⌊25% of 150⌋ = 37 HP');
   assert.equal(bestAction(twoMoves(), tiheo2(100, 0), chiHuy(200), STRATEGIES.win, { skills, potions, potionCost: 300 }).best!.label, 'swap', 'no threat: keep it');
   assert.equal(bestAction(twoMoves(), me, chiHuy(200), STRATEGIES.win, { skills, potions: [{ ...potions[0], quantity: 0 }], potionCost: 300 }).best!.label, 'swap');
+});
+
+test('bestAction: a potion of its own cost share pays that share of max HP, over potionCost', () => {
+  const me = tiheo2(40, 0), hp = [{ slot: 8, itemId: 0, quantity: 1, costShare: 1 }];
+  const used = bestAction(twoMoves(), me, chiHuy(200), STRATEGIES.win, { skills, potions: hp, potionCost: 0 }).best!;
+  assert.deepEqual(used.action, { kind: 'item', slot: 8, itemId: 0 }, 'about to die: drink');
+  assert.ok(Math.abs(used.score - (37 - 150 - answerValue(twoMoves(), chiHuy(200), { ...me, hp: 77 }, STRATEGIES.win))) < 1e-9, '1 × 150 max HP');
+  assert.equal(bestAction(twoMoves(), tiheo2(100, 0), chiHuy(200), STRATEGIES.win, { skills, potions: hp }).best!.label, 'swap', 'no threat: keep it');
+  const mp = [{ slot: 9, itemId: 1, quantity: 2, costShare: 0.17 }], full = tiheo2(150, 0), perS1 = full.skillDamage / full.skillCost;
+  const item = bestAction(twoMoves(), full, chiHuy(200), STRATEGIES.win, { skills, potions: mp }).all.find(a => a.label === 'item 1')!;
+  assert.ok(Math.abs(item.score - (25 * perS1 - 0.17 * 150 - answerValue(twoMoves(), chiHuy(200), { ...full, s1: 25 }, STRATEGIES.win))) < 1e-9, '25 nội lực at its worth, less 25.5');
+  // null is no share: potionCost applies, as on the Rust side.
+  const none = [{ slot: 8, itemId: 0, quantity: 1, costShare: null as unknown as undefined }];
+  assert.equal(bestAction(twoMoves(), me, chiHuy(200), STRATEGIES.win, { skills, potions: none }).best!.label, 'swap', 'no potionCost: never');
+});
+
+test('bestAction: a cost share costs at most what the potion gives plus POTION_MARGIN; no potion in a timed battle', () => {
+  // ×40, 6000 max HP at 15%: the share alone (6000 less 1500 healed) outweighs the 1e4 of the death it saves from.
+  const k = 40, me = { ...fighter(900, 150 * k, { s1: 0, sword: 8 * k, heart: 3.33 * k, yinyang: 2.3, peach: 5 }), ...skillWorth(8 * k, [skill(4000, 2)]) };
+  const mob = fighter(200 * k, 202 * k, { s1: 30, sword: 3.33 * k, skillCost: 25, skillDamage: 43 * k }), hp = [{ slot: 8, itemId: 0, quantity: 1, costShare: 1 }];
+  const used = bestAction(twoMoves(), me, mob, STRATEGIES.win, { skills, potions: hp }).best!;
+  assert.equal(used.label, 'item 0', 'about to die at 6000 max HP: drink');
+  assert.ok(Math.abs(used.score - (1500 - (1500 + POTION_MARGIN) - answerValue(twoMoves(), mob, { ...me, hp: 2400 }, STRATEGIES.win))) < 1e-6, 'cost 1500 + 2000');
+  assert.equal(bestAction(twoMoves(), { ...me, hp: 4800 }, mob, STRATEGIES.win, { skills, potions: hp }).best!.label, 'swap', 'at 80%: keep it');
+  const timed = { ...STRATEGIES.win, reply: 0, extraTurn: 0, lookahead: 0 }, both = [...hp, { slot: 9, itemId: 1, quantity: 2, costShare: 0.17 }];
+  assert.deepEqual(bestAction(twoMoves(), me, mob, timed, { skills, potions: both, potionCost: -1e9 }).all.filter(a => a.action.kind === 'item'), [], 'timed: none');
 });
 
 test('bestAction: a buff that keeps the turn is not cast again while it lasts', () => {
