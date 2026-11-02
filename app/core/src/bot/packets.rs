@@ -10,6 +10,20 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) -> crate::protocol::Result<()> {
+        let done = self.packet(opcode, payload, now, out);
+        // After every packet, those handled early too (an answer of Pháp sư, of a pickup, one that did not decode): the
+        // trip of Tự gộp đá goes on from where the packet left it, with nothing else to wake it.
+        self.merge_step(now, out);
+        done
+    }
+
+    fn packet(
+        &mut self,
+        opcode: i32,
+        payload: &[u8],
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) -> crate::protocol::Result<()> {
         // s2c/22 opens the battle data in on_setup and goes in after its header.
         if opcode != 22 {
             self.record_received(opcode, payload, now, out);

@@ -263,6 +263,9 @@ mod tests {
             "\"mpPotion\": false",
             "\"mpPotionMax\": 2",
             "\"mpPotionKeep\": 30",
+            "\"autoMerge\": false",
+            "\"mergeUpTo\": 12",
+            "\"mergeEvery\": 5",
         ] {
             assert_eq!(text.matches(key).count(), 2, "{key}");
         }

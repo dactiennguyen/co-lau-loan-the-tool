@@ -11,9 +11,13 @@ impl Bot {
 
     /// Why the character cannot move now: a battle, a job, a quest run, or a move under way.
     pub(super) fn busy(&self) -> Option<&'static str> {
+        self.busy_but(false)
+    }
+    /// busy(), a fight job left aside with `job`: the trip of Tự gộp đá khi túi đầy is the job's own (bot/merge.rs).
+    pub(super) fn busy_but(&self, job: bool) -> Option<&'static str> {
         if self.battle.is_some() {
             Some("đang đánh, đợi hết trận")
-        } else if self.job_running() {
+        } else if self.job_running() && !job {
             Some("đang tự đánh quái, bấm Dừng trước")
         } else if self.quest_running() {
             Some("đang tự làm nhiệm vụ, bấm Dừng trước")
@@ -76,9 +80,19 @@ impl Bot {
     /// character is in, and for a zone the last list does not have or shows full. The server puts the character back in
     /// zone 0 at the next login.
     pub fn change_zone(&mut self, zone: i32, now: Instant, out: &mut Vec<Out>) {
+        self.zone_to(zone, false, now, out);
+    }
+    /// change_zone, a fight job left aside with `job` (busy_but). Returns whether c2s/1173 went.
+    pub(super) fn zone_to(
+        &mut self,
+        zone: i32,
+        job: bool,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) -> bool {
         let listed = self.snap.zones.as_ref();
         let found = listed.and_then(|l| l.iter().find(|z| z.zone == zone));
-        let why = self.busy().map(String::from).or_else(|| {
+        let why = self.busy_but(job).map(String::from).or_else(|| {
             if zone == self.snap.zone {
                 Some(format!("đang ở khu {zone}"))
             } else if !(0..=255).contains(&zone) || (listed.is_some() && found.is_none()) {
@@ -90,10 +104,11 @@ impl Bot {
             }
         });
         if let Some(why) = why {
-            return out.push(Out::Log(
+            out.push(Out::Log(
                 LogKind::Travel,
                 format!("Chưa sang khu {zone}: {why}"),
             ));
+            return false;
         }
         out.push(Out::Log(LogKind::Travel, format!("Sang khu {zone}")));
         Self::send(
@@ -107,18 +122,29 @@ impl Bot {
         self.zoning = Some(zone);
         self.snap.moving = Some(format!("Sang khu {zone}"));
         self.move_until = Some(now + Duration::from_secs(8));
+        true
     }
 
     /// "Đổi map": walks through portals (c2s/13 with the portal id, B5) to the map by the shortest way the atlas knows,
     /// at most 6 portals, a portal the server refuses left out. Refused while busy, for the map the character is on, for
     /// one above the character's level (Atlas::needs_level), and for one no known way leads to.
     pub fn go_to(&mut self, map_id: &str, now: Instant, out: &mut Vec<Out>) {
+        self.travel_to(map_id, false, now, out);
+    }
+    /// go_to, a fight job left aside with `job` (busy_but). Returns whether the trip set off.
+    pub(super) fn travel_to(
+        &mut self,
+        map_id: &str,
+        job: bool,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) -> bool {
         let name = self
             .atlas
             .maps
             .get(map_id)
             .map_or_else(|| map_id.to_string(), |m| m.name.clone());
-        let why = self.busy().map(String::from).or_else(|| {
+        let why = self.busy_but(job).map(String::from).or_else(|| {
             let ways = self
                 .atlas
                 .hops(&self.snap.map_id, self.snap.level, &HashSet::new());
@@ -133,10 +159,11 @@ impl Bot {
             }
         });
         if let Some(why) = why {
-            return out.push(Out::Log(
+            out.push(Out::Log(
                 LogKind::Travel,
                 format!("Chưa đi tới {name}: {why}"),
             ));
+            return false;
         }
         out.push(Out::Log(
             LogKind::Travel,
@@ -145,6 +172,7 @@ impl Bot {
         (self.trip, self.hops, self.zone_after) = (Some((map_id.to_string(), name)), 0, None);
         self.refused.clear();
         self.trip_next(now, out);
+        true
     }
 
     /// The next portal of the trip, or its end: on the map, past 6 portals, or no known way left.
@@ -171,10 +199,12 @@ impl Bot {
         if let Some(end) = end {
             (self.trip, self.snap.moving, self.move_until) = (None, None, None);
             out.push(Out::Log(LogKind::Travel, format!("Kết thúc: {end}")));
-            // Back from the shop: the zone it started from, as the Khu vực panel would.
+            // Back from the shop or from Tự gộp đá (a job's own trip): the zone it started from, as the Khu vực panel
+            // would.
             let zone = self.zone_after.take();
             if let Some(z) = zone.filter(|&z| here == to && z != self.snap.zone) {
-                self.change_zone(z, now, out);
+                let job = self.merge_trip.is_some();
+                self.zone_to(z, job, now, out);
             }
             return;
         }

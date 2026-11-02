@@ -7,11 +7,13 @@ import { CheckRow } from "@/components/CheckRow";
 import { Hint } from "@/components/Hint";
 import { SETTING_FACT, SETTING_FACT_BAD, SettingRow } from "@/components/SettingRow";
 import { Stepper } from "@/components/Stepper";
+import { FilterChip } from "@/components/FilterChip";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { useStore } from "@/store";
 import { GENDER_ICON, GENDER_WORD, misfit } from "@/game/gender";
 import { ELEMENTS } from "@/game/potentials";
+import { stoneCounts } from "@/game/shops";
 import type { Account, FightSettings, Item } from "@/api/types";
 
 /** Item id of the Búa Sửa Chữa. */
@@ -25,7 +27,8 @@ const HAMMER = 2;
  * anyone may have it) and Nhặt cả đồ khác giới tính under it; Chỉ nhặt trang bị đúng hệ is off unless turned on, and
  * Phẩm chất trang bị nhặt has its four boxes ticked unless unticked. Dùng bình trong trận holds Bình máu and Bình mana
  * under its ▾, both off unless ticked, each with Tối đa/trận and Giữ lại (1 and 30, 2 and 30), and Mua bình once the bag
- * holds no more than it keeps (the bot never buys one). Lưu dữ liệu trận is not here: it is the same for every account,
+ * holds no more than it keeps (the bot never buys one). Tự gộp đá khi túi đầy is off unless turned on, with Gộp tới (Đá
+ * cấp 2–12, Max by default) and the minutes between two trips (5) under its ▾. Lưu dữ liệu trận is not here: it is the same for every account,
  * in the Cài đặt of the app (SettingsDialog).
  */
 /** Whether the settings under Tự nhặt đồ are shown, the same for every account; kept in localStorage. */
@@ -42,6 +45,14 @@ const QUALITIES = [
 
 /** Whether the potions under Dùng bình trong trận are shown, the same for every account; kept in localStorage. */
 const POTIONS_OPEN = "potionOptionsOpen";
+/** Likewise the numbers under Tự gộp đá khi túi đầy. */
+const MERGE_OPEN = "mergeOptionsOpen";
+/** Gộp tới at its Max: Đá cấp 12, the highest stone. */
+const MERGE_MAX = 12;
+/** The most of Mỗi lần sang cách nhau ít nhất, in minutes (MERGE_EVERY_MAX of cllt-core). */
+const MERGE_EVERY_MAX = 120;
+/** The most potions a battle (POTION_MAX of cllt-core). */
+const POTION_MAX = 10;
 
 /** The two potions of Dùng bình trong trận (Bot::battle_potions of cllt-core): the item id and name, its three settings,
  * its word, icon and colour (máu red as the HP bar, mana blue as the drop piece; `factTone` over the grey icons of
@@ -77,6 +88,21 @@ const POTION_ROWS = [
  * every key, and each save is a line of the log. */
 const QUIET = 500;
 
+/** The numbers set_fight of src-tauri keeps within bounds. The copy shown while saving is bounded the same way, or a
+ * number out of range in accounts.json (a hand-edited or imported file) would never match the account that comes back,
+ * and the card would keep its copy. */
+const BOUNDS = [
+  ["hpPotionMax", 1, POTION_MAX],
+  ["mpPotionMax", 1, POTION_MAX],
+  ["mergeUpTo", 2, MERGE_MAX],
+  ["mergeEvery", 1, MERGE_EVERY_MAX],
+] as const;
+const bounded = (s: FightSettings): FightSettings => {
+  const next = { ...s };
+  for (const [key, min, max] of BOUNDS) next[key] = Math.min(max, Math.max(min, next[key]));
+  return next;
+};
+
 /** The settings this card changes: the box shows the one being saved until the account comes back with it. */
 const KEYS = [
   "repair",
@@ -86,6 +112,9 @@ const KEYS = [
   "pickupOwnElement",
   ...QUALITIES.map((q) => q.key),
   ...POTION_ROWS.flatMap((r) => [r.on, r.max, r.keep]),
+  "autoMerge",
+  "mergeUpTo",
+  "mergeEvery",
 ] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -99,6 +128,13 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const togglePickup = () =>
     setPickupOpen((was) => {
       localStorage.setItem(PICKUP_OPEN, was ? "0" : "1");
+      return !was;
+    });
+  // Likewise the numbers of Tự gộp đá khi túi đầy.
+  const [mergeOpen, setMergeOpen] = useState(() => localStorage.getItem(MERGE_OPEN) === "1");
+  const toggleMerge = () =>
+    setMergeOpen((was) => {
+      localStorage.setItem(MERGE_OPEN, was ? "0" : "1");
       return !was;
     });
   // Likewise the two potions under Dùng bình trong trận.
@@ -137,7 +173,8 @@ export function FightSettingsCard({ account }: { account: Account }) {
     },
     [account.id],
   );
-  const save = (next: FightSettings, quiet = false) => {
+  const save = (raw: FightSettings, quiet = false) => {
+    const next = bounded(raw);
     setSaving(next);
     setError(null);
     if (!quiet) return send(next);
@@ -152,6 +189,9 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const offElement = c?.bag?.items.filter((i) => i.element != null && i.element !== c.element).length ?? 0;
   const ticked = QUALITIES.filter((q) => settings[q.key]).length;
   const held = (item: number) => c?.bag?.items.filter((i) => i.id === item).reduce((n, i) => n + i.quantity, 0);
+  const bag = c?.bag;
+  const bagFull = !!bag && bag.items.length >= bag.capacity;
+  const lockedStones = bag ? stoneCounts(bag.items).reduce((n, [locked]) => n + locked, 0) : 0;
   return (
     <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
       <SettingRow
@@ -246,7 +286,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
               {/* Its two numbers under its name, side by side; one above the other, in one column, when the card is narrow. */}
               <div className="grid grid-cols-[repeat(2,auto_auto)] justify-start items-center gap-x-2 gap-y-1.5 pl-[58px] text-12 text-fg-2 [@container(max-width:520px)]:grid-cols-[auto_auto]">
                 <span>Tối đa mỗi trận</span>
-                <Stepper value={settings[r.max]} min={1} max={10} label={`số ${r.name} tối đa mỗi trận`} onChange={(v) => save({ ...settings, [r.max]: v }, true)} />
+                <Stepper value={settings[r.max]} min={1} max={POTION_MAX} label={`số ${r.name} tối đa mỗi trận`} onChange={(v) => save({ ...settings, [r.max]: v }, true)} />
                 <span className="pl-5 [@container(max-width:520px)]:pl-0">Giữ lại trong túi</span>
                 <Stepper value={settings[r.keep]} min={0} max={9999} label={`số ${r.name} giữ lại trong túi`} onChange={(v) => save({ ...settings, [r.keep]: v }, true)} />
               </div>
@@ -354,6 +394,42 @@ export function FightSettingsCard({ account }: { account: Account }) {
               ))}
             </span>
           </div>
+        </div>
+      </div>
+      <SettingRow
+        id={`${id}merge`}
+        on={settings.autoMerge}
+        onChange={(autoMerge) => save({ ...settings, autoMerge })}
+        icon="grid"
+        title="Tự gộp đá khi túi đầy"
+        hint="Khi đang Tự đánh quái mà túi đầy hẳn (không còn ô trống), trước trận kế tiếp bot sang Làng Thanh Khê nhờ Pháp sư gộp đá: mỗi 4 viên đá khoá cùng cấp thành 1 viên cấp trên (tỉ lệ 100%, giữ nguyên giá trị khi nâng cấp), túi trống thêm 3 ô; đá vừa ra được gộp tiếp tới cấp đã chọn. Bot tính phí trước và chỉ trả bằng Xu khóa, không bao giờ dùng Xu: Xu khóa không đủ cho bộ nào thì không sang, đủ một phần thì gộp các bộ rẻ (cấp thấp) trước. Đá chưa khoá (mua bằng Lượng, bán được) giữ nguyên. Gộp xong bot quay về đúng map và khu cũ đánh tiếp. Hai lần sang cách nhau ít nhất số phút đã chọn; trong lúc đó túi đầy thì bot vẫn đánh, đồ rơi (trừ Xu khóa) để lại dưới đất. Mặc định tắt; bấm ▾ để chọn cấp và số phút."
+        expand={{ open: mergeOpen, onToggle: toggleMerge, controls: `${id}merge-options` }}
+      >
+        {bag && (
+          <span className={cn(SETTING_FACT, bagFull && SETTING_FACT_BAD, bagFull && "[&_b]:text-danger")}>
+            <Icon name="gem" size={12} />
+            Túi <b className="px">{bag.items.length}</b>/{bag.capacity} · <b className="px">{num(lockedStones)}</b> đá khoá
+          </span>
+        )}
+        {!mergeOpen && (
+          <span className={SETTING_FACT}>
+            <Icon name="list" size={12} />
+            tới Đá <b className="px">{Math.min(settings.mergeUpTo, MERGE_MAX)}</b>
+            {settings.mergeUpTo >= MERGE_MAX && " (Max)"} · <b className="px">{settings.mergeEvery}</b> phút
+          </span>
+        )}
+      </SettingRow>
+      {/* Its two numbers, indented under it, folded until its ▾ opens them; they can be set while it is off. */}
+      <div id={`${id}merge-options`} className="ml-6" hidden={!mergeOpen}>
+        <div className={cn("grid grid-cols-[auto_auto_auto] justify-start items-center gap-x-2 gap-y-1.5 px-3 py-2 bg-ink text-12 text-fg-2", settings.autoMerge && "shadow-[inset_3px_0_0_var(--good)]")}>
+          <span>Gộp tới Đá cấp</span>
+          <Stepper value={settings.mergeUpTo} min={2} max={MERGE_MAX} label="cấp đá cao nhất được gộp ra" onChange={(v) => save({ ...settings, mergeUpTo: v }, true)} />
+          <FilterChip on={settings.mergeUpTo >= MERGE_MAX} onClick={() => save({ ...settings, mergeUpTo: MERGE_MAX })}>
+            Max
+          </FilterChip>
+          <span>Mỗi lần sang cách nhau ít nhất</span>
+          <Stepper value={settings.mergeEvery} min={1} max={MERGE_EVERY_MAX} label="số phút giữa hai lần sang gộp đá" onChange={(v) => save({ ...settings, mergeEvery: v }, true)} />
+          <span>phút</span>
         </div>
       </div>
       {error && (

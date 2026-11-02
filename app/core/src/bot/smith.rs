@@ -222,7 +222,7 @@ fn fee_text(q: &Quote) -> String {
 }
 
 impl Bot {
-    fn bag_items(&self) -> Vec<BagItem> {
+    pub(super) fn bag_items(&self) -> Vec<BagItem> {
         self.snap
             .bag
             .iter()
@@ -251,7 +251,7 @@ impl Bot {
             .cloned()
     }
     /// (Xu, Xu khóa, Lượng), 0 while unknown.
-    fn money(&self) -> (i64, i64, i64) {
+    pub(super) fn money(&self) -> (i64, i64, i64) {
         self.snap
             .currencies
             .as_ref()
@@ -374,10 +374,20 @@ impl Bot {
     /// money are known, while an item action, a repair or a pickup waits for its answer, or for an item the task cannot
     /// take.
     pub fn smith(&mut self, task: SmithTask, now: Instant, out: &mut Vec<Out>) {
+        self.smith_begin(task, false, now, out);
+    }
+    /// smith, a fight job left aside with `job` (busy_but): Gộp đá of Tự gộp đá khi túi đầy. Returns whether it started.
+    pub(super) fn smith_begin(
+        &mut self,
+        task: SmithTask,
+        job: bool,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) -> bool {
         let (kind, title) = self.smith_title(&task);
         let item = |slot: u8| self.bag_record(slot as i32);
         let why = self
-            .busy()
+            .busy_but(job)
             .map(String::from)
             .or_else(|| {
                 self.shopping
@@ -497,7 +507,8 @@ impl Bot {
                 SmithTask::Daily { action } => self.daily_why(*action),
             });
         if let Some(why) = why {
-            return out.push(Out::Log(task_log(&task), format!("Chưa {title}: {why}")));
+            out.push(Out::Log(task_log(&task), format!("Chưa {title}: {why}")));
+            return false;
         }
         let shown = match &task {
             SmithTask::Upgrade {
@@ -568,6 +579,7 @@ impl Bot {
             }
             _ => self.smith_next(now, out),
         }
+        true
     }
 
     /// Nâng cấp of a worn item: Cởi ra (c2s/1186 action 1, as the button of Túi đồ), since the window of Pháp sư takes
@@ -766,6 +778,7 @@ impl Bot {
                     return self.smith_finish(why, now, out);
                 };
                 let (pay, money) = match set.locked {
+                    true if o.xu_khoa_only => (xu_khoa, "Xu khóa"),
                     true => (xu_khoa + xu, "Xu khóa"),
                     false => (xu, "Xu"),
                 };
@@ -1249,6 +1262,8 @@ impl Bot {
             sm.quote.clone(),
             matches!(sm.task, SmithTask::Upgrade { quote: true, .. }),
         );
+        // Xu khóa alone (Tự gộp đá khi túi đầy): what the server quotes is checked too, not only merge_fee.
+        let xu_khoa_only = matches!(sm.task, SmithTask::Merge(o) if o.xu_khoa_only);
         let why = if !sm.ready {
             Some(format!(
                 "Pháp sư chưa cho bấm Bắt đầu: {}",
@@ -1268,6 +1283,7 @@ impl Bot {
             let fee_short = q.fee.and_then(|f| {
                 let (have, money) = match f.money {
                     npc::Money::Xu => (xu, "Xu"),
+                    npc::Money::XuKhoa if xu_khoa_only => (xu_khoa, "Xu khóa"),
                     npc::Money::XuKhoa => (xu_khoa + xu, "Xu khóa"),
                 };
                 (f.amount > have).then(|| {

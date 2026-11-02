@@ -812,6 +812,12 @@ export interface FightSettings {
   mpPotion: boolean;
   mpPotionMax: number;
   mpPotionKeep: number;
+  /** Tự gộp đá khi túi đầy, off unless turned on: a fight job with a full bag goes to Pháp sư (M1), merges the locked
+   * stones up to Đá cấp mergeUpTo (12, Max, by default) with Xu khóa only, as much as the Xu khóa pays for, and comes
+   * back; at most once every mergeEvery minutes (5). */
+  autoMerge: boolean;
+  mergeUpTo: number;
+  mergeEvery: number;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

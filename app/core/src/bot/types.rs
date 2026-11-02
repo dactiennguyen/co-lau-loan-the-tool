@@ -308,6 +308,16 @@ pub struct FightSettings {
     pub mp_potion_max: u32,
     #[serde(default = "thirty")]
     pub mp_potion_keep: u32,
+    /// Tự gộp đá khi túi đầy, off unless turned on: when a fight job finds the bag full before its next battle, the bot
+    /// goes to Pháp sư (M1), merges the locked stones up to Đá cấp merge_up_to (12, Max, by default) with Xu khóa only,
+    /// as much as the Xu khóa on hand pays for, and comes back to the map and zone it left; never sooner than
+    /// merge_every minutes after it came back from the last one (Bot::auto_merge).
+    #[serde(default)]
+    pub auto_merge: bool,
+    #[serde(default = "twelve")]
+    pub merge_up_to: u32,
+    #[serde(default = "five")]
+    pub merge_every: u32,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -334,6 +344,11 @@ fn two() -> u32 {
 }
 /// The most potions of a kind Dùng bình máu or Dùng bình mana lets a battle drink (the Tối đa mỗi trận of the UI).
 pub const POTION_MAX: u32 = 10;
+fn twelve() -> u32 {
+    12
+}
+/// The most minutes Tự gộp đá khi túi đầy may wait between two trips (Mỗi lần sang cách nhau ít nhất of the UI).
+pub const MERGE_EVERY_MAX: u32 = 120;
 fn thirty() -> u32 {
     30
 }
@@ -358,6 +373,9 @@ impl Default for FightSettings {
             mp_potion: false,
             mp_potion_max: two(),
             mp_potion_keep: thirty(),
+            auto_merge: false,
+            merge_up_to: twelve(),
+            merge_every: five(),
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -387,6 +405,22 @@ impl FightSettings {
             _ => return None,
         };
         (on && max > 0).then_some((max.min(POTION_MAX), keep))
+    }
+    /// Gộp tới of Tự gộp đá khi túi đầy, Đá cấp 2–12 whatever the file says.
+    pub fn merge_level(&self) -> i32 {
+        self.merge_up_to.clamp(2, 12) as i32
+    }
+    /// Gộp tới as the log says it: "Đá cấp 12 (Max)" or "Đá cấp N".
+    pub fn merge_level_text(&self) -> String {
+        match self.merge_level() {
+            12 => "Đá cấp 12 (Max)".into(),
+            l => format!("Đá cấp {l}"),
+        }
+    }
+    /// Mỗi lần sang cách nhau ít nhất of Tự gộp đá khi túi đầy, 1 to MERGE_EVERY_MAX minutes whatever the file says: 0
+    /// would send a bag that the trip cannot free back to Pháp sư before every battle.
+    pub fn merge_minutes(&self) -> u32 {
+        self.merge_every.clamp(1, MERGE_EVERY_MAX)
     }
     /// Whether Tự nhặt đồ takes gear of quality `quality` (field4 of the item record): its box; a quality past the four
     /// is taken.

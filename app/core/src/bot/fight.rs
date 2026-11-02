@@ -68,7 +68,8 @@ impl Bot {
         self.waits = 0;
         self.job_seq += 1;
         (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
-        self.potions_kept = [false; 2];
+        // A trip of Tự gộp đá of the job before is not this job's.
+        (self.potions_kept, self.merge_said, self.merge_trip) = ([false; 2], None, None);
         out.push(Out::Log(
             LogKind::Battle,
             format!("Bắt đầu: đánh {target} {count} lần"),
@@ -130,6 +131,8 @@ impl Bot {
     }
 
     pub(super) fn finish(&mut self, reason: &str, out: &mut Vec<Out>) {
+        // Its trip of Tự gộp đá ends with it (Dừng): a job or quest run started next does not wait for it nor take it on.
+        self.merge_trip = None;
         if let Some(j) = &mut self.snap.job {
             let end = epoch_ms();
             (j.done, j.ended_at) = (Some(reason.into()), Some(end));
@@ -154,6 +157,10 @@ impl Bot {
         if self.trip.is_some() {
             return self.trip_next(now, out);
         }
+        // A trip of Tự gộp đá khi túi đầy goes on by itself (merge_step) and calls the next battle once back.
+        if self.merge_trip.is_some() {
+            return;
+        }
         // Before the next battle, or the next step of the quest run, a broken worn item is repaired first.
         if (self.quest_running() || self.job_running()) && self.auto_repair(now, out) {
             return;
@@ -171,6 +178,10 @@ impl Bot {
         };
         if job.fights >= job.count {
             return self.finish(&format!("Đã đánh đủ {} trận", job.count), out);
+        }
+        // A full bag: to Pháp sư first, when Tự gộp đá khi túi đầy may go.
+        if self.auto_merge(now, out) {
+            return;
         }
         let targets: Vec<Mob> = self
             .mobs

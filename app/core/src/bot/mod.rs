@@ -45,6 +45,7 @@ mod gift;
 mod items;
 mod mailbox;
 mod market;
+mod merge;
 mod packets;
 mod quest;
 mod record;
@@ -319,6 +320,11 @@ pub struct Bot {
     /// Dùng bình máu, Dùng bình mana: whether the run said the bag is down to what it keeps of Hoàn Linh Dược, of Kim
     /// Đan Dược (Bot::battle_potions), so it says it once.
     potions_kept: [bool; 2],
+    /// Tự gộp đá khi túi đầy (merge.rs): the trip under way, when the last one came back (merge_every counts from it,
+    /// for the session), and the reason a full bag did not go said last, so it is said once.
+    merge_trip: Option<merge::MergeTrip>,
+    merge_back_at: Option<Instant>,
+    merge_said: Option<&'static str>,
     /// Tự nhặt đồ: the items fallen in the last DROPS_KEPT; until when a won battle's drops are still coming, and that
     /// battle; the ones waiting for their c2s/1188, and when the next may go; the uuids asked since the last won battle;
     /// when the last c2s/1188 went; the ones it sent that the server has not answered yet, oldest first.
@@ -398,6 +404,9 @@ impl Bot {
             repair_failed: HashSet::new(),
             repair_warned: false,
             potions_kept: [false; 2],
+            merge_trip: None,
+            merge_back_at: None,
+            merge_said: None,
             drops: vec![],
             ground: vec![],
             loot_until: None,
@@ -700,6 +709,7 @@ impl Bot {
             }
         }
         self.walk_back(now, out);
+        self.merge_step(now, out);
     }
 
     /// Ends the job or quest run. A battle in progress is played out, or with `surrender` left as the game's Đầu hàng

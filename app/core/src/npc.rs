@@ -525,7 +525,8 @@ pub struct MergeSet {
 /// Options of Gộp đá ← MergeOptions of src/protocol/npc.ts. `up_to` is the highest level made (12 at most); `unlocked`
 /// false leaves unlocked stones be. `level` merges only the stones of that level (into the next, not further up) and
 /// `locked` only the locked (true) or unlocked (false) ones: the Gộp button of a row of the stones' table. `sets` is the
-/// most merges of the run.
+/// most merges of the run. `xu_khoa_only` pays the locked sets with Xu khóa alone, never with Xu as the server would when
+/// Xu khóa runs short: the run ends at the first set the Xu khóa left does not pay for (Tự gộp đá khi túi đầy).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MergeOptions {
@@ -534,6 +535,7 @@ pub struct MergeOptions {
     pub level: Option<i32>,
     pub locked: Option<bool>,
     pub sets: Option<i64>,
+    pub xu_khoa_only: bool,
 }
 impl Default for MergeOptions {
     fn default() -> Self {
@@ -543,6 +545,7 @@ impl Default for MergeOptions {
             level: None,
             locked: None,
             sets: None,
+            xu_khoa_only: false,
         }
     }
 }
@@ -615,7 +618,14 @@ pub struct MergeForecast {
 }
 /// What Gộp đá does in all, at most `sets` merges.
 pub fn merge_forecast(bag: &[BagItem], o: MergeOptions) -> MergeForecast {
-    // count[level][lock]
+    merge_forecast_paid(bag, o, i64::MAX)
+}
+
+/// merge_forecast of what `xu_khoa` pays for, the locked sets in the order Gộp đá takes them (lowest level first, then
+/// on the stones made), up to the first set whose fee is more than the Xu khóa left: what a run with `xu_khoa_only` does
+/// (Tự gộp đá khi túi đầy, planned before the trip to Pháp sư). Unlocked sets, paid in Xu, are counted as merge_forecast
+/// counts them.
+pub fn merge_forecast_paid(bag: &[BagItem], o: MergeOptions, xu_khoa: i64) -> MergeForecast {
     let mut count = [[0i64; 2]; 14];
     let mut made = [[0i64; 2]; 14];
     for i in bag {
@@ -624,19 +634,22 @@ pub fn merge_forecast(bag: &[BagItem], o: MergeOptions) -> MergeForecast {
             count[level as usize][i.locked() as usize] += 1;
         }
     }
-    let (mut merges, mut xu, mut xu_khoa) = (0, 0, 0);
-    for (level, lock) in o.kinds() {
-        let sets =
-            (count[level as usize][lock as usize] / 4).min(o.sets.unwrap_or(i64::MAX) - merges);
-        if sets <= 0 {
-            continue;
-        }
-        count[level as usize + 1][lock as usize] += sets;
-        made[level as usize + 1][lock as usize] += sets;
-        merges += sets;
-        match lock {
-            true => xu_khoa += sets * merge_fee(level + 1),
-            false => xu += sets * merge_fee(level + 1),
+    let (mut merges, mut xu, mut paid) = (0, 0, 0i64);
+    let most = o.sets.unwrap_or(i64::MAX);
+    'kinds: for (level, lock) in o.kinds() {
+        let fee = merge_fee(level + 1);
+        while count[level as usize][lock as usize] >= 4 && merges < most {
+            if lock && paid.saturating_add(fee) > xu_khoa {
+                break 'kinds;
+            }
+            count[level as usize][lock as usize] -= 4;
+            count[level as usize + 1][lock as usize] += 1;
+            made[level as usize + 1][lock as usize] += 1;
+            merges += 1;
+            match lock {
+                true => paid += fee,
+                false => xu += fee,
+            }
         }
     }
     let mut list = vec![];
@@ -654,7 +667,7 @@ pub fn merge_forecast(bag: &[BagItem], o: MergeOptions) -> MergeForecast {
     MergeForecast {
         merges,
         xu,
-        xu_khoa,
+        xu_khoa: paid,
         freed: merges * 3,
         made: list,
     }

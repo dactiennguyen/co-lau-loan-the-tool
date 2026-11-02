@@ -11,7 +11,7 @@ use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailTask, MarketTask, SmithTask,
-    POTION_MAX,
+    MERGE_EVERY_MAX, POTION_MAX,
 };
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
@@ -127,6 +127,8 @@ pub async fn set_fight(
     settings.quest_losses = settings.quest_losses.max(1);
     settings.hp_potion_max = settings.hp_potion_max.clamp(1, POTION_MAX);
     settings.mp_potion_max = settings.mp_potion_max.clamp(1, POTION_MAX);
+    settings.merge_up_to = settings.merge_up_to.clamp(2, 12);
+    settings.merge_every = settings.merge_every.clamp(1, MERGE_EVERY_MAX);
     shared.set_fight(id, settings).await
 }
 

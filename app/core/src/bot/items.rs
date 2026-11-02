@@ -233,6 +233,22 @@ impl Bot {
                 }
             }
         }
+        let merge = |f: &FightSettings| (f.auto_merge, f.merge_level(), f.merge_minutes());
+        if merge(&settings) != merge(&self.fight) && (settings.auto_merge || self.fight.auto_merge)
+        {
+            let level = settings.merge_level_text();
+            out.push(Out::Log(
+                LogKind::Item,
+                match settings.auto_merge {
+                    true => format!(
+                        "Tự gộp đá khi túi đầy: gộp đá khoá tới {level} chỉ bằng Xu khóa, mỗi lần sang Làng Thanh Khê cách nhau ít nhất {} phút",
+                        settings.merge_minutes()
+                    ),
+                    false => "Tắt tự gộp đá khi túi đầy".into(),
+                },
+            ));
+            self.merge_said = None;
+        }
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,
