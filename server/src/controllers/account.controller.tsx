@@ -6,7 +6,7 @@ import type { Ctx } from '../types/app.ts';
 import { bodyText, flash } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
 import { parse } from '../validators/account.validator.ts';
-import { accountsView } from '../views/accounts.view.ts';
+import { AccountsView } from '../views/accounts.view.tsx';
 
 const JSON_TYPE = { 'Content-Type': 'application/json; charset=utf-8' };
 
@@ -27,7 +27,7 @@ export async function sync(c: Ctx) {
 
 export async function page(c: Ctx) {
   const rows = await accounts.list(c.var.db);
-  return render(c, (n) => accountsView(n, rows, flash(c)));
+  return render(c, (n) => <AccountsView nonce={n} rows={rows} flash={flash(c)} />);
 }
 
 /** Tải JSON: the same JSON as GET /api/accounts, as a file of the day. */

@@ -5,11 +5,11 @@ import * as tokens from '../services/token.service.ts';
 import type { Ctx } from '../types/app.ts';
 import { field } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
-import { tokensView } from '../views/tokens.view.ts';
+import { TokensView } from '../views/tokens.view.tsx';
 
 export async function page(c: Ctx) {
   const list = await tokens.list(c.var.db);
-  return render(c, (n) => tokensView(n, list));
+  return render(c, (n) => <TokensView nonce={n} list={list} />);
 }
 
 export async function create(c: Ctx) {
@@ -17,11 +17,11 @@ export async function create(c: Ctx) {
   const name = field(c, 'name').trim();
   if (!name || name.length > MAX_TOKEN_NAME) {
     const list = await tokens.list(db);
-    return render(c, (n) => tokensView(n, list, null, HTTP.tokenName), 400);
+    return render(c, (n) => <TokensView nonce={n} list={list} error={HTTP.tokenName} />, 400);
   }
   const token = await tokens.create(db, name);
   const list = await tokens.list(db);
-  return render(c, (n) => tokensView(n, list, { name, token }));
+  return render(c, (n) => <TokensView nonce={n} list={list} made={{ name, token }} />);
 }
 
 export async function remove(c: Ctx) {

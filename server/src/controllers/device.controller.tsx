@@ -6,7 +6,7 @@ import type { Ctx } from '../types/app.ts';
 import { bodyText, clientIp, field, flash } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
 import { parseHello } from '../validators/device.validator.ts';
-import { devicesView } from '../views/devices.view.ts';
+import { DevicesView } from '../views/devices.view.tsx';
 
 /** POST /api/devices/hello: records the device and says whether it may run. */
 export async function hello(c: Ctx) {
@@ -19,7 +19,7 @@ export async function hello(c: Ctx) {
 
 export async function page(c: Ctx) {
   const list = await devices.list(c.var.db);
-  return render(c, (n) => devicesView(n, list, flash(c), Date.now()));
+  return render(c, (n) => <DevicesView nonce={n} list={list} flash={flash(c)} now={Date.now()} />);
 }
 
 /** Chặn, Bỏ chặn, Đặt tên, Xoá khỏi danh sách; back to the page with what was done. */

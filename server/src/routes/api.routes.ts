@@ -2,8 +2,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTP } from '../config/messages.ts';
-import * as account from '../controllers/account.controller.ts';
-import * as device from '../controllers/device.controller.ts';
+import * as account from '../controllers/account.controller.tsx';
+import * as device from '../controllers/device.controller.tsx';
 import { requireApiToken } from '../middlewares/api.middleware.ts';
 import type { AppEnv } from '../types/app.ts';
 

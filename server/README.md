@@ -177,16 +177,16 @@ Chia lớp như một backend thường gặp: request đi `routes/` → `middle
 | `src/types/app.ts` | Kiểu của app Hono: binding `DB`, biến của request (`db`, `form`, `me`, `source`) |
 | `src/routes/` | `api.routes.ts` (`/api`, CORS) và `admin.routes.ts` (`/admin`): đường dẫn nào, qua middleware nào, tới controller nào |
 | `src/middlewares/` | `context` (Drizzle, header bảo mật), `admin` (form cùng nguồn, bắt đăng nhập, bắt đổi mật khẩu mặc định), `api` (API token) |
-| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang: `auth`, `account`, `device`, `token` |
+| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang (`<AccountsView … />`): `auth`, `account`, `device`, `token` (`.tsx`) |
 | `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `token`, `account` (thêm/thay như Nhập JSON), `device` |
 | `src/validators/` | Đọc và kiểm JSON gửi lên: nick (giống `backup::parse` của app), `hello` của thiết bị |
-| `src/views/` | Trang quản trị bằng `hono/html`: mọi giá trị chèn vào đều được escape; `layout.ts`, `styles.ts`, `script.ts` và một file mỗi trang |
+| `src/views/` | Trang quản trị bằng JSX của Hono (`hono/jsx`, viết như component React, render ra HTML ở server): mọi giá trị chèn vào đều được escape. `layout.tsx` (khung trang, `Message`, `Table`), `styles.ts`, `script.ts`, và một file `*.view.tsx` mỗi trang |
 | `src/utils/` | `crypto` (PBKDF2, SHA-256), `http` (IP, cookie, body có giới hạn, field của form), `render` (trang kèm nonce của CSP), `format` (giờ Việt Nam) |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
 | `migrations/0001_init.sql`, `0002_devices.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts`; `devices` |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 
-**Giao diện không dùng EJS:** EJS biên dịch template bằng `new Function`, mà Cloudflare Workers cấm chạy code sinh ra lúc chạy. Trang quản trị dùng helper `html` của Hono: template string, tự escape mọi giá trị chèn vào, không cần bước build, nên test chạy thẳng bằng Node.
+**Giao diện:** JSX của Hono, cú pháp như React (component, props, `{list.map(…)}`), nhưng chỉ render ra HTML ở server: không tải React về trình duyệt. Không dùng EJS vì EJS biên dịch template bằng `new Function`, mà Cloudflare Workers cấm. Wrangler tự dịch JSX khi deploy (`jsx`, `jsxImportSource` trong `tsconfig.json`); test chạy trên Node qua `tsx` (`node --import tsx --test`).
 
 Kiểm tra: `yarn test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd): đăng nhập `admin`/`admin`, bị chuyển sang đổi mật khẩu, tạo token, gửi một nick lên, tải về có mật khẩu, trang Nick hiện nick đó, header CSP có nonce.

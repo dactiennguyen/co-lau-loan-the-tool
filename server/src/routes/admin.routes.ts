@@ -1,10 +1,10 @@
 // /admin: the admin page. The order is the order of the guards: a post is checked to be a form of this site; the
 // login opens without a session; Đổi mật khẩu needs one; everything else also needs the default password changed.
 import { Hono } from 'hono';
-import * as account from '../controllers/account.controller.ts';
-import * as auth from '../controllers/auth.controller.ts';
-import * as device from '../controllers/device.controller.ts';
-import * as token from '../controllers/token.controller.ts';
+import * as account from '../controllers/account.controller.tsx';
+import * as auth from '../controllers/auth.controller.tsx';
+import * as device from '../controllers/device.controller.tsx';
+import * as token from '../controllers/token.controller.tsx';
 import { adminForm, requireAdmin, requirePasswordChanged } from '../middlewares/admin.middleware.ts';
 import type { AppEnv } from '../types/app.ts';
 

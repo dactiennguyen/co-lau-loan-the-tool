@@ -1,6 +1,7 @@
 {
-  // Type-check of the Worker (src/) and its tests (test/): `npm run typecheck`, also run by `npm test`. Wrangler bundles
-  // src/ for Cloudflare; Node runs the tests as they are (--experimental-strip-types), so only syntax Node can strip.
+  // Type-check of the Worker (src/) and its tests (test/): `yarn typecheck`, also run by `yarn test`. Wrangler bundles
+  // src/ for Cloudflare; the tests run on Node through tsx, which also turns the JSX of src/views/*.tsx (hono/jsx) into
+  // calls.
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024"],
@@ -12,6 +13,8 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
     "skipLibCheck": true
   },
   "include": ["src", "test"]
