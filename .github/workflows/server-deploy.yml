@@ -79,7 +79,10 @@ jobs:
           # The step's shell has no pipefail: without it a failed deploy would pass through tee.
           set -o pipefail
           npx wrangler deploy 2>&1 | tee deploy.log
-          url=$(grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          # The address: the custom domain ("colau.olachat.net (custom domain)"), else the workers.dev one. Finding
+          # neither is no failure: the deploy above has already succeeded.
+          url=$( { grep -oE '^ +[A-Za-z0-9.-]+ \(custom domain\)' deploy.log | awk '{print "https://" $1}'
+                   grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log; } | head -1 || true)
           if [ -n "$url" ]; then
             echo "Trang quản trị: $url/admin" >> "$GITHUB_STEP_SUMMARY"
           fi
