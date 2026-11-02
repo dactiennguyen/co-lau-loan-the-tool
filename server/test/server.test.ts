@@ -126,6 +126,12 @@ test('an account another request added between the read and the write is replace
   assert.equal(await db.prepare('SELECT password FROM accounts').first('password'), 'moi');
 });
 
+test('pages keep the Origin of their own forms: Referrer-Policy same-origin, not no-referrer', async () => {
+  const { call } = client();
+  const r = await call('/admin/login');
+  assert.equal(r.res.headers.get('Referrer-Policy'), 'same-origin');
+});
+
 test('a form of another site is refused', async () => {
   const { call } = client();
   const r = await call('/admin/login', { form: { username: 'admin', password: 'admin' }, origin: 'https://evil.example' });

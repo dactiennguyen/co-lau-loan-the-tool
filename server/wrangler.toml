@@ -3,6 +3,10 @@
 name = "cllt-server"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
+# colau.olachat.net: the zone olachat.net is in the same Cloudflare account; the deploy makes its DNS record and certificate.
+routes = [{ pattern = "colau.olachat.net", custom_domain = true }]
+# Only colau.olachat.net: the workers.dev address is off.
+workers_dev = false
 
 [[d1_databases]]
 binding = "DB"

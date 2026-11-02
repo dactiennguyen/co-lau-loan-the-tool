@@ -1,6 +1,6 @@
 # CLLT Server
 
-Server riêng để giữ danh sách nick của app CLLT Tool trên Cloudflare. Gồm:
+Server riêng để giữ danh sách nick của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
 - một **Worker** (TypeScript, `src/`);
 - một database **D1** (SQLite của Cloudflare, `migrations/`);
 - **API** để gửi nick lên và tải nick về;
@@ -31,17 +31,17 @@ Cần Node.js ≥22.6 và một tài khoản Cloudflare. Mọi lệnh chạy tro
    npm install
    npx wrangler login
    ```
-2. Tạo database:
+2. Tìm hay tạo database `cllt` và ghi id của nó vào `database_id` của `wrangler.toml` (chạy được cả trên Windows):
    ```sh
-   npx wrangler d1 create cllt
+   npm run d1:id
    ```
-   Lệnh in ra `database_id`. Chép nó vào `database_id` trong `wrangler.toml`, thay chuỗi `00000000-…`.
+   Đừng commit id này: repo giữ chuỗi `00000000-…`, CI tự điền khi deploy.
 3. Tạo các bảng, rồi đưa Worker lên:
    ```sh
    npm run db:migrate
    npm run deploy
    ```
-   Lệnh deploy in ra địa chỉ, dạng `https://cllt-server.<tên-bạn>.workers.dev`.
+   Lệnh deploy in ra địa chỉ: tên miền trong `routes` của `wrangler.toml` (`colau.olachat.net`; Cloudflare tự tạo bản ghi DNS và chứng chỉ, vì zone `olachat.net` nằm cùng tài khoản). Địa chỉ `workers.dev` đã tắt (`workers_dev = false`); muốn bật lại thì đặt `true`.
 4. Mở `<địa chỉ>/admin` và đăng nhập `admin` / `admin`.
    - Trang buộc **đổi mật khẩu** trước (ít nhất 8 ký tự, khác `admin`). Đổi xong mới mở được các trang khác, vì trang Nick hiện mật khẩu game.
 5. Vào **API token**, đặt tên (ví dụ "Máy nhà") rồi **Tạo token**.

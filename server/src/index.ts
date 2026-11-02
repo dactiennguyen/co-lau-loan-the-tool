@@ -14,7 +14,9 @@ const MAX_BODY = 1 << 20;
 
 const SECURITY = {
   'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'no-referrer',
+  // Not no-referrer: under it a browser posts the forms of these very pages with "Origin: null", which the Origin check
+  // below refuses ("Sai nguồn gửi"). same-origin still sends nothing to other sites.
+  'Referrer-Policy': 'same-origin',
   'Cache-Control': 'no-store',
 };
 

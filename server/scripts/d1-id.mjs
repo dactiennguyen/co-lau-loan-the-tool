@@ -36,8 +36,10 @@ export function withId(toml, id) {
   return toml.replace(/^(\s*database_id\s*=\s*)"[^"]*"/m, `$1"${id}"`);
 }
 
+// The installed wrangler run by this node, not through npx: npx is npx.cmd on Windows, which execFileSync cannot start.
+const WRANGLER = fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url));
 const wrangler = (...args) =>
-  execFileSync('npx', ['wrangler', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  execFileSync(process.execPath, [WRANGLER, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const toml = readFileSync(TOML, 'utf8');
