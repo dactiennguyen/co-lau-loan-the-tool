@@ -1,9 +1,8 @@
 // API token: the list, Tạo token (shown once), Thu hồi.
-import { MAX_TOKEN_NAME } from '../config/constants.ts';
-import { HTTP } from '../config/messages.ts';
 import * as tokens from '../services/token.service.ts';
 import type { Ctx } from '../types/app.ts';
-import { field } from '../utils/http.ts';
+import { tokenForm } from '../validators/admin.validator.ts';
+import { check, formObject } from '../validators/form.ts';
 import { render } from '../utils/render.ts';
 import { TokensView } from '../views/tokens.view.tsx';
 
@@ -14,11 +13,12 @@ export async function page(c: Ctx) {
 
 export async function create(c: Ctx) {
   const db = c.var.db;
-  const name = field(c, 'name').trim();
-  if (!name || name.length > MAX_TOKEN_NAME) {
+  const form = check(tokenForm, formObject(c.var.form));
+  if (!form.ok) {
     const list = await tokens.list(db);
-    return render(c, (n) => <TokensView nonce={n} list={list} error={HTTP.tokenName} />, 400);
+    return render(c, (n) => <TokensView nonce={n} list={list} errors={form.fields} />, 400);
   }
+  const name = form.data.name;
   const token = await tokens.create(db, name);
   const list = await tokens.list(db);
   return render(c, (n) => <TokensView nonce={n} list={list} made={{ name, token }} />);

@@ -2,3 +2,5 @@
 .wrangler/
 # Yarn (nodeLinker node-modules): its install state; packages come from the global cache.
 .yarn/
+# Built by scripts/build-client.mjs (wrangler dev, wrangler deploy, yarn build:client).
+public/

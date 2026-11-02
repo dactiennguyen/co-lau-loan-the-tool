@@ -66,6 +66,9 @@ test('admin / admin logs in, and nothing but Đổi mật khẩu opens until it 
   const page = await call('/admin/password');
   assert.match(page.text, /mật khẩu mặc định &quot;admin&quot;/);
   assert.match(page.res.headers.get('Content-Security-Policy')!, /script-src 'nonce-/);
+  // The Material Web script loads with the nonce of the page's policy.
+  const nonce = /script-src 'nonce-([^']+)'/.exec(page.res.headers.get('Content-Security-Policy')!)![1];
+  assert.ok(page.text.includes(`<script type="module" nonce="${nonce}" src="/assets/admin.js">`));
   for (const [form, why] of [
     [{ current: 'sai', next: 'mat-khau-moi', confirm: 'mat-khau-moi' }, 'Mật khẩu hiện tại không đúng'],
     [{ current: 'admin', next: 'ngan', confirm: 'ngan' }, 'ít nhất 8 ký tự'],
@@ -73,7 +76,8 @@ test('admin / admin logs in, and nothing but Đổi mật khẩu opens until it 
   ] as const) {
     const r = await call('/admin/password', { form });
     assert.equal(r.status, 400);
-    assert.ok(r.text.includes(why), why);
+    // Under the field it is about, in red (Zod's path of the issue).
+    assert.match(r.text, new RegExp(`<md-outlined-text-field name="(current|next|confirm)"[^>]*error="true" error-text="[^"]*${why}`), why);
   }
   const changed = await call('/admin/password', { form: { current: 'admin', next: 'mat-khau-moi', confirm: 'mat-khau-moi' } });
   assert.equal(changed.location, '/admin?done=password');

@@ -8,6 +8,14 @@ routes = [{ pattern = "colau.olachat.net", custom_domain = true }]
 # Only colau.olachat.net: the workers.dev address is off.
 workers_dev = false
 
+# The script of the admin page (client/admin.ts with the Material Web components), bundled before `wrangler dev` and
+# `wrangler deploy` into public/, which Cloudflare serves as it is at /assets/admin.js, before the Worker.
+[build]
+command = "node scripts/build-client.mjs"
+
+[assets]
+directory = "./public"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "cllt"

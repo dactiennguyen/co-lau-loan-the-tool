@@ -1,7 +1,7 @@
 // The admin of the admin page and its logins (README.md#bảo-mật). The password is hashed with PBKDF2-SHA256, a session
 // cookie is kept as its SHA-256, and an IP that fails too often waits.
 import { and, eq, gt, lt, ne, sql } from 'drizzle-orm';
-import { ADMIN, DEFAULT_PASSWORD, FAIL_LIMIT, FAIL_WINDOW_MS, MIN_PASSWORD, SESSION_COOKIE, SESSION_MS } from '../config/constants.ts';
+import { ADMIN, DEFAULT_PASSWORD, FAIL_LIMIT, FAIL_WINDOW_MS, SESSION_COOKIE, SESSION_MS } from '../config/constants.ts';
 import { AUTH } from '../config/messages.ts';
 import type { Db } from '../db/client.ts';
 import { admins, loginFailures, sessions } from '../db/schema.ts';
@@ -72,13 +72,11 @@ export async function logout(db: Db, req: Request): Promise<void> {
   if (cookie) await db.delete(sessions).where(eq(sessions.id, await sha256(cookie)));
 }
 
-/** Đổi mật khẩu: null when changed, else why not. Every other login of the admin ends. */
-export async function changePassword(db: Db, req: Request, current: string, next: string, confirm: string): Promise<string | null> {
+/** Đổi mật khẩu to `next`, checked by passwordForm (validators/admin.validator.ts): null when changed, else why not.
+ * Every other login of the admin ends. */
+export async function changePassword(db: Db, req: Request, current: string, next: string): Promise<string | null> {
   const a = await admin(db);
   if (!(await checkPassword(current, a.passwordHash))) return AUTH.wrongCurrent;
-  if (next.length < MIN_PASSWORD) return AUTH.tooShort;
-  if (next === DEFAULT_PASSWORD || next === current) return AUTH.sameAsOld;
-  if (next !== confirm) return AUTH.mismatch;
   const keep = await sha256(cookieOf(req, SESSION_COOKIE) ?? '');
   await db.batch([
     db.update(admins).set({ passwordHash: await hashPassword(next), mustChange: 0, updatedAt: Date.now() }).where(eq(admins.username, a.username)),

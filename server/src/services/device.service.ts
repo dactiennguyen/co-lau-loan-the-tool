@@ -1,11 +1,9 @@
 // Devices of the desktop app (README.md#thiết-bị): recorded at each hello, blocked and unblocked on the admin page. A
 // device never seen is allowed.
 import { desc, eq } from 'drizzle-orm';
-import { MAX_BLOCK_REASON, MAX_DEVICE_LABEL } from '../config/constants.ts';
 import type { Db } from '../db/client.ts';
 import { devices as table } from '../db/schema.ts';
 import type { Device, Hello, HelloAnswer } from '../models/index.ts';
-import { text } from '../validators/device.validator.ts';
 
 /** Records the hello (a new device is allowed) and answers whether the device may run, with the reason if not. */
 export async function hello(db: Db, h: Hello, ip: string, now = Date.now()): Promise<HelloAnswer> {
@@ -45,7 +43,7 @@ export async function list(db: Db): Promise<Device[]> {
 }
 
 export async function block(db: Db, id: string, reason: string) {
-  await db.update(table).set({ blocked: 1, reason: text(reason, MAX_BLOCK_REASON) }).where(eq(table.id, id));
+  await db.update(table).set({ blocked: 1, reason }).where(eq(table.id, id));
 }
 
 export async function unblock(db: Db, id: string) {
@@ -53,7 +51,7 @@ export async function unblock(db: Db, id: string) {
 }
 
 export async function rename(db: Db, id: string, label: string) {
-  await db.update(table).set({ label: text(label, MAX_DEVICE_LABEL) }).where(eq(table.id, id));
+  await db.update(table).set({ label }).where(eq(table.id, id));
 }
 
 /** Forgets a device; it comes back, allowed, at its next hello. Blocking is what keeps it out. */

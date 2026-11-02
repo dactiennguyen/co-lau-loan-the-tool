@@ -1,8 +1,9 @@
-// Thiết bị: every device that said hello, with its accounts; Chặn with a reason, Bỏ chặn, Đặt tên, Xoá khỏi danh sách.
-import { DEFAULT_SERVER_ID, MAX_BLOCK_REASON, MAX_DEVICE_LABEL } from '../config/constants.ts';
+// Thiết bị: every device that said hello, with its accounts; Chặn with a reason, Bỏ chặn, Cho đồng bộ, Tắt đồng bộ,
+// Đặt tên, Xoá khỏi danh sách.
+import { DEFAULT_SERVER_ID } from '../config/constants.ts';
 import type { Device } from '../models/index.ts';
 import { ago, time } from '../utils/format.ts';
-import { Layout, Message, None, Table } from './layout.tsx';
+import { Chip, Field, Icon, Layout, Message, None, Table } from './layout.tsx';
 
 /** The accounts of the device's last hello, the game server after any but the usual one. */
 function Nicks({ accounts }: { accounts: string }) {
@@ -31,13 +32,25 @@ function Nicks({ accounts }: { accounts: string }) {
   );
 }
 
+/** One action of a row: a small form posting to /admin/devices/<id>/<action>. */
+function Act({ at, action, confirm, children }: { at: string; action: string; confirm?: string; children: unknown }) {
+  return (
+    <form method="post" action={`${at}/${action}`} data-confirm={confirm}>
+      {children}
+    </form>
+  );
+}
+
 function DeviceRow({ d, now }: { d: Device; now: number }) {
   const name = d.label || d.hostname || 'Không tên';
   const at = `/admin/devices/${d.id}`;
   return (
     <tr data-find={`${d.label} ${d.hostname} ${d.accounts} ${d.ip} ${d.id}`.toLowerCase()} class={d.blocked ? 'blocked' : undefined}>
       <td class="wrap">
-        <b>{name}</b>
+        <span class="cell">
+          <Icon name="computer" />
+          <b>{name}</b>
+        </span>
         {d.label && d.hostname && <div class="muted">{d.hostname}</div>}
         <div class="muted mono" title={d.id}>
           {d.id.slice(0, 12)}…
@@ -58,55 +71,64 @@ function DeviceRow({ d, now }: { d: Device; now: number }) {
       <td class="wrap">
         {d.blocked ? (
           <>
-            <span class="tag off">Bị chặn</span>
+            <Chip kind="off" icon="block">
+              Bị chặn
+            </Chip>
             {d.reason && <div class="muted wrap">{d.reason}</div>}
           </>
         ) : (
-          <span class="tag on">Được dùng</span>
+          <Chip kind="on" icon="check_circle">
+            Được dùng
+          </Chip>
         )}
         <div class="muted" title={d.settings ? `Cài đặt: ${d.settings}` : undefined}>
           {d.syncAllowed ? (d.syncedAt ? `Đồng bộ nick ${ago(d.syncedAt, now)}` : 'Cho đồng bộ, chưa gửi') : 'Chưa cho đồng bộ nick'}
         </div>
       </td>
       <td>
-        {d.blocked ? (
-          <form class="act" method="post" action={`${at}/unblock`}>
-            <button class="small" type="submit">
-              Bỏ chặn
-            </button>
-          </form>
-        ) : (
-          <form class="act" method="post" action={`${at}/block`} data-confirm={`Chặn ${name}? App trên máy đó bị khoá trong tối đa 15 phút.`}>
-            <input name="reason" type="text" maxlength={MAX_BLOCK_REASON} placeholder="Lý do (app hiện cho người dùng)" aria-label={`Lý do chặn ${name}`} />
-            <button class="small danger" type="submit">
-              Chặn
-            </button>
-          </form>
-        )}
-        {d.syncAllowed ? (
-          <form class="act" method="post" action={`${at}/sync-off`} data-confirm={`Tắt đồng bộ nick của ${name}? Nick đã gửi vẫn giữ.`}>
-            <button class="small" type="submit">
-              Tắt đồng bộ
-            </button>
-          </form>
-        ) : (
-          <form class="act" method="post" action={`${at}/sync-on`} data-confirm={`Cho ${name} đồng bộ nick lên server? Nick máy đó gửi sẽ gộp vào trang Nick.`}>
-            <button class="small primary" type="submit">
-              Cho đồng bộ
-            </button>
-          </form>
-        )}
-        <form class="act" method="post" action={`${at}/rename`}>
-          <input name="label" type="text" maxlength={MAX_DEVICE_LABEL} value={d.label} placeholder="Tên (ví dụ: Máy anh A)" aria-label={`Tên của ${name}`} />
-          <button class="small" type="submit">
-            Đặt tên
-          </button>
-        </form>
-        <form class="act" method="post" action={`${at}/delete`} data-confirm={`Xoá ${name} khỏi danh sách? Mở app lần tới nó sẽ hiện lại và vẫn được dùng.`}>
-          <button class="small" type="submit">
-            Xoá khỏi danh sách
-          </button>
-        </form>
+        <div class="acts">
+          {d.blocked ? (
+            <Act at={at} action="unblock">
+              <md-outlined-button type="submit">
+                <Icon name="lock_open" slot="icon" />
+                Bỏ chặn
+              </md-outlined-button>
+            </Act>
+          ) : (
+            <Act at={at} action="block" confirm={`Chặn ${name}? App trên máy đó bị khoá trong tối đa 15 phút.`}>
+              {/* No maxlength: Material would show a counter in every row; the server cuts it (blockForm). */}
+              <Field name="reason" label="Lý do (app hiện)" aria-label={`Lý do chặn ${name}`} />
+              <md-icon-button class="danger" type="submit" aria-label={`Chặn ${name}`} title="Chặn">
+                <Icon name="block" md />
+              </md-icon-button>
+            </Act>
+          )}
+          {d.syncAllowed ? (
+            <Act at={at} action="sync-off" confirm={`Tắt đồng bộ nick của ${name}? Nick đã gửi vẫn giữ.`}>
+              <md-icon-button type="submit" aria-label={`Tắt đồng bộ nick của ${name}`} title="Tắt đồng bộ">
+                <Icon name="sync_disabled" md />
+              </md-icon-button>
+            </Act>
+          ) : (
+            <Act at={at} action="sync-on" confirm={`Cho ${name} đồng bộ nick lên server? Nick máy đó gửi sẽ gộp vào trang Nick.`}>
+              <md-filled-tonal-button type="submit">
+                <Icon name="sync" slot="icon" />
+                Cho đồng bộ
+              </md-filled-tonal-button>
+            </Act>
+          )}
+          <Act at={at} action="rename">
+            <Field name="label" label="Tên máy" value={d.label} aria-label={`Tên của ${name}`} />
+            <md-icon-button type="submit" aria-label={`Đặt tên cho ${name}`} title="Đặt tên">
+              <Icon name="edit" md />
+            </md-icon-button>
+          </Act>
+          <Act at={at} action="delete" confirm={`Xoá ${name} khỏi danh sách? Mở app lần tới nó sẽ hiện lại và vẫn được dùng.`}>
+            <md-icon-button type="submit" aria-label={`Xoá ${name} khỏi danh sách`} title="Xoá khỏi danh sách">
+              <Icon name="delete" md />
+            </md-icon-button>
+          </Act>
+        </div>
       </td>
     </tr>
   );
@@ -118,15 +140,15 @@ export function DevicesView({ nonce, list, flash, now }: { nonce: string; list: 
     <Layout title="Thiết bị" nonce={nonce} nav="devices">
       <h1>Thiết bị</h1>
       <p class="sub">
-        Máy nào mở app cũng tự báo về khi mở và 15 phút một lần, kèm danh sách nick; máy được admin <b>Cho đồng bộ</b> thì gửi luôn nick và cài đặt lên trang Nick (máy không gửi bí mật nào, nên chỉ máy đã duyệt mới được ghi nick). Máy mới được dùng ngay; chặn một máy thì app trên máy đó bị
-        khoá, kể cả khi mất mạng.
+        Máy nào mở app cũng tự báo về khi mở và 15 phút một lần, kèm danh sách nick; máy được admin <b>Cho đồng bộ</b> thì gửi luôn nick và cài đặt lên
+        trang Nick (máy không gửi bí mật nào, nên chỉ máy đã duyệt mới được ghi nick). Chặn một máy thì app trên máy đó bị khoá, kể cả khi mất mạng.
       </p>
       <Message kind="ok" text={flash} />
       <div class="bar">
         <span class="count">
           {list.length} thiết bị{blocked ? `, ${blocked} bị chặn` : ''} <span id="shown"></span>
         </span>
-        <input id="find" type="search" placeholder="Tìm theo tên máy, nick, IP" aria-label="Tìm thiết bị" />
+        <Field id="find" name="find" label="Tìm theo tên máy, nick, IP" type="search" icon="search" aria-label="Tìm thiết bị" />
       </div>
       <Table head={['Thiết bị', 'Hệ điều hành', 'Nick', 'IP', 'Hoạt động', 'Trạng thái', <span class="muted">Thao tác</span>]}>
         {list.length ? (

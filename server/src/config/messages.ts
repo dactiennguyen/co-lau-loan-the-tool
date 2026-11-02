@@ -1,5 +1,5 @@
 // What the server says to people, in one place: the admin page's notices and errors, and the API's errors.
-import { FAIL_LIMIT, MAX_TOKEN_NAME, MIN_PASSWORD } from './constants.ts';
+import { EXPORT_FORMAT, FAIL_LIMIT, MAX_TOKEN_NAME, MIN_PASSWORD } from './constants.ts';
 
 /** The fixed lines a redirect may ask a page to show (?done=…): never text from the URL itself. */
 export const FLASH: Record<string, string> = {
@@ -17,6 +17,7 @@ export const AUTH = {
   wrongLogin: 'Sai tên đăng nhập hoặc mật khẩu',
   lockedOut: (minutes: number) => `Đăng nhập sai ${FAIL_LIMIT} lần liền: thử lại sau ${minutes} phút`,
   wrongCurrent: 'Mật khẩu hiện tại không đúng',
+  noCurrent: 'Nhập mật khẩu hiện tại',
   tooShort: `Mật khẩu mới cần ít nhất ${MIN_PASSWORD} ký tự`,
   sameAsOld: 'Mật khẩu mới phải khác mật khẩu cũ và khác "admin"',
   mismatch: 'Nhập lại mật khẩu mới không khớp',
@@ -37,4 +38,29 @@ export const HTTP = {
   blockedDevice: 'Thiết bị đã bị khoá, vui lòng liên hệ admin',
   syncNotAllowed: 'Admin chưa cho máy này đồng bộ nick (Cho đồng bộ trên trang Thiết bị)',
   tokenName: `Đặt tên token từ 1 tới ${MAX_TOKEN_NAME} ký tự`,
+};
+
+/** What is wrong with the accounts of a JSON (validators/account.validator.ts), in the words of Nhập JSON of the app. */
+export const ACCOUNT = {
+  empty: 'Chưa có JSON',
+  badJson: 'JSON không hợp lệ: {reason}',
+  newerFormat: (f: number) => `JSON của bản app mới hơn (format ${f} > ${EXPORT_FORMAT}): cập nhật server rồi gửi lại`,
+  notList: '"accounts" phải là một danh sách',
+  noAccounts: 'Không thấy nick nào: cần {"accounts": […]}, một danh sách nick, hoặc một nick có "username"',
+  none: 'JSON không có nick nào',
+  nth: (n: number, why: string) => `Nick thứ ${n}: ${why}`,
+  notObject: 'không phải một object',
+  noUsername: 'thiếu tài khoản (username)',
+  passwordText: '"password" phải là chuỗi',
+  labelText: '"label" phải là chuỗi',
+  serverIdInt: '"serverId" phải là số nguyên',
+};
+
+/** What is wrong with a hello or a sync of a device (validators/device.validator.ts). */
+export const DEVICE = {
+  badJson: 'JSON không đọc được',
+  notObject: 'Cần một object JSON',
+  badId: 'id phải là 64 ký tự hex (SHA-256)',
+  notList: '"accounts" phải là một danh sách',
+  tooMany: (n: number) => `Tối đa ${n} nick một lần`,
 };

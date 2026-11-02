@@ -1,5 +1,5 @@
-// Small helpers on a request: the client's IP, a cookie, a body with a size limit, the field of an admin form, the
-// session cookie, and the ?done= notice of a page.
+// Small helpers on a request: the client's IP, a cookie, a body with a size limit, the session cookie, and the ?done=
+// notice of a page. The fields of an admin form are read by validators/form.ts#formObject.
 import { SESSION_COOKIE } from '../config/constants.ts';
 import { FLASH } from '../config/messages.ts';
 import type { Ctx } from '../types/app.ts';
@@ -20,9 +20,6 @@ export async function bodyText(c: Ctx, max: number): Promise<string | null> {
   const text = await c.req.text();
   return text.length > max ? null : text;
 }
-
-/** A field of the admin form of the request, '' when absent. */
-export const field = (c: Ctx, name: string) => String(c.var.form?.get(name) ?? '');
 
 /** The Set-Cookie of the admin session; maxAge 0 ends it. Secure over HTTPS. */
 export function sessionCookie(c: Ctx, value: string, maxAge: number): string {

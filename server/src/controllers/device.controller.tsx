@@ -4,9 +4,10 @@ import { HTTP } from '../config/messages.ts';
 import * as accounts from '../services/account.service.ts';
 import * as devices from '../services/device.service.ts';
 import type { Ctx } from '../types/app.ts';
-import { bodyText, clientIp, field, flash } from '../utils/http.ts';
+import { bodyText, clientIp, flash } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
-import { parseHello, parseSync } from '../validators/device.validator.ts';
+import { blockForm, parseHello, parseSync, renameForm } from '../validators/device.validator.ts';
+import { formObject } from '../validators/form.ts';
 import { DevicesView } from '../views/devices.view.tsx';
 
 /** POST /api/devices/hello: records the device and says whether it may run. */
@@ -48,10 +49,11 @@ export async function page(c: Ctx) {
 export async function act(c: Ctx) {
   const { id, action } = c.req.param() as { id: string; action: 'block' | 'unblock' | 'rename' | 'delete' | 'sync-on' | 'sync-off' };
   const db = c.var.db;
+  const form = formObject(c.var.form);
   const done = {
-    block: () => devices.block(db, id, field(c, 'reason')).then(() => 'blocked'),
+    block: () => devices.block(db, id, blockForm.parse(form).reason).then(() => 'blocked'),
     unblock: () => devices.unblock(db, id).then(() => 'unblocked'),
-    rename: () => devices.rename(db, id, field(c, 'label')).then(() => 'renamed'),
+    rename: () => devices.rename(db, id, renameForm.parse(form).label).then(() => 'renamed'),
     delete: () => devices.forget(db, id).then(() => 'forgotten'),
     'sync-on': () => devices.allowSync(db, id, true).then(() => 'syncOn'),
     'sync-off': () => devices.allowSync(db, id, false).then(() => 'syncOff'),

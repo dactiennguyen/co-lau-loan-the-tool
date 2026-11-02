@@ -1,7 +1,7 @@
-// Nick: every account the app sent, with its password behind Hiện, Chép, and Xoá.
+// Nick: every account the devices synced or a token sent, with its password behind Hiện, Chép, and Xoá.
 import type { AccountRow } from '../models/index.ts';
 import { time } from '../utils/format.ts';
-import { Layout, Message, None, Table } from './layout.tsx';
+import { Field, Icon, Layout, Message, None, Table } from './layout.tsx';
 
 /** "host:port" of the account's proxy, "(tắt)" when it is off. */
 function proxyText(data: string): string {
@@ -21,30 +21,38 @@ function AccountRowView({ r }: { r: AccountRow }) {
       <td>{r.label || <None />}</td>
       <td class="mono">{r.username}</td>
       <td>
-        <span class="secret mono" id={secretId} data-secret={r.password}>
-          {r.password ? '••••••••' : <span class="muted">(trống)</span>}
+        <span class="cell">
+          <span class="secret mono" id={secretId} data-secret={r.password}>
+            {r.password ? '••••••••' : <span class="muted">(trống)</span>}
+          </span>
+          {r.password && (
+            <>
+              <md-icon-button
+                toggle
+                data-reveal={secretId}
+                aria-label={`Hiện mật khẩu của ${r.username}`}
+                aria-label-selected={`Ẩn mật khẩu của ${r.username}`}
+                title="Hiện / Ẩn"
+              >
+                <Icon name="visibility" md />
+                <Icon name="visibility_off" selected />
+              </md-icon-button>
+              <md-icon-button data-copy={r.password} aria-label={`Chép mật khẩu của ${r.username}`} title="Chép">
+                <Icon name="content_copy" md />
+              </md-icon-button>
+            </>
+          )}
         </span>
-        {r.password && (
-          <>
-            {' '}
-            <button class="small" type="button" data-reveal={secretId} aria-pressed="false" aria-label={`Hiện mật khẩu của ${r.username}`}>
-              Hiện
-            </button>{' '}
-            <button class="small" type="button" data-copy={r.password}>
-              Chép
-            </button>
-          </>
-        )}
       </td>
       <td>{r.serverId}</td>
       <td class="mono">{proxyText(r.data)}</td>
       <td>{r.source || <None />}</td>
       <td>{time(r.updatedAt)}</td>
       <td>
-        <form class="inline" method="post" action={`/admin/accounts/${r.id}/delete`} data-confirm={`Xoá nick ${r.username} khỏi server? App không bị ảnh hưởng.`}>
-          <button class="small danger" type="submit">
-            Xoá
-          </button>
+        <form method="post" action={`/admin/accounts/${r.id}/delete`} data-confirm={`Xoá nick ${r.username} khỏi server? App không bị ảnh hưởng.`}>
+          <md-icon-button class="danger" type="submit" aria-label={`Xoá nick ${r.username}`} title="Xoá">
+            <Icon name="delete" md />
+          </md-icon-button>
         </form>
       </td>
     </tr>
@@ -64,13 +72,15 @@ export function AccountsView({ nonce, rows, flash }: { nonce: string; rows: Acco
         <span class="count">
           {rows.length} nick <span id="shown"></span>
         </span>
-        <input id="find" type="search" placeholder="Tìm theo tên hay tài khoản" aria-label="Tìm nick" />
-        <button type="button" data-reveal-all aria-pressed="false">
-          Hiện mọi mật khẩu
-        </button>
-        <a class="btn" href="/admin/accounts.json" download>
+        <md-outlined-button data-reveal-all aria-pressed="false">
+          <Icon name="visibility" slot="icon" />
+          <span data-text>Hiện mọi mật khẩu</span>
+        </md-outlined-button>
+        <md-filled-tonal-button href="/admin/accounts.json" download="">
+          <Icon name="download" slot="icon" />
           Tải JSON (Nhập được vào app)
-        </a>
+        </md-filled-tonal-button>
+        <Field id="find" name="find" label="Tìm theo tên hay tài khoản" type="search" icon="search" aria-label="Tìm nick" />
       </div>
       <Table head={['Tên hiển thị', 'Tài khoản', 'Mật khẩu', 'Server', 'Proxy', 'Gửi từ', 'Cập nhật', <span class="muted">Xoá</span>]}>
         {rows.length ? (
@@ -78,7 +88,8 @@ export function AccountsView({ nonce, rows, flash }: { nonce: string; rows: Acco
         ) : (
           <tr>
             <td colspan={8} class="muted wrap">
-              Chưa có nick nào. App từ bản 1.1.4 tự đồng bộ nick lên; hoặc tạo một API token rồi gửi bằng <code>POST /api/accounts</code> (README.md của thư mục server).
+              Chưa có nick nào. App từ bản 1.1.4 tự đồng bộ nick lên, sau khi máy được Cho đồng bộ ở trang Thiết bị; hoặc tạo một API token rồi gửi bằng{' '}
+              <code>POST /api/accounts</code> (README.md của thư mục server).
             </td>
           </tr>
         )}
