@@ -1,9 +1,8 @@
-// The tables of the D1 database for Drizzle. migrations/*.sql stays what makes them (wrangler d1 migrations apply):
-// each table here mirrors its CREATE TABLE there, column for column, so the two must change together.
-import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
+// The models: the tables of the D1 database for Drizzle. migrations/*.sql stays what makes them (yarn db:migrate): each
+// table here mirrors its CREATE TABLE there, column for column, so the two must change together.
 import { index, integer, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 
-/** The one admin of the admin page (auth.ts). */
+/** The one admin of the admin page (services/auth.service.ts). */
 export const admins = sqliteTable('admins', {
   username: text('username').primaryKey(),
   passwordHash: text('password_hash').notNull(),
@@ -35,7 +34,7 @@ export const tokens = sqliteTable('tokens', {
   lastUsedAt: integer('last_used_at'),
 });
 
-/** The accounts of the desktop app, one per game server and username in lower case (accounts.ts). */
+/** The accounts of the desktop app, one per game server and username in lower case (services/account.service.ts). */
 export const accounts = sqliteTable(
   'accounts',
   {
@@ -53,7 +52,7 @@ export const accounts = sqliteTable(
   (t) => [unique().on(t.serverId, t.usernameKey)],
 );
 
-/** Devices of the desktop app (devices.ts, migrations/0002_devices.sql). */
+/** Devices of the desktop app (services/device.service.ts, migrations/0002_devices.sql). */
 export const devices = sqliteTable(
   'devices',
   {
@@ -72,8 +71,4 @@ export const devices = sqliteTable(
   (t) => [index('devices_last_seen').on(t.lastSeen)],
 );
 
-const schema = { admins, sessions, loginFailures, tokens, accounts, devices };
-export type Db = DrizzleD1Database<typeof schema>;
-
-/** The Drizzle client of the Worker's D1 binding. */
-export const database = (d1: D1Database): Db => drizzle(d1, { schema });
+export const schema = { admins, sessions, loginFailures, tokens, accounts, devices };

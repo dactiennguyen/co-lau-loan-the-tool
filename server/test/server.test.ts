@@ -2,8 +2,8 @@
 // accounts the API keeps, in the JSON of Xuất JSON of the desktop app.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { count, sync } from '../src/accounts.ts';
-import { database } from '../src/db.ts';
+import { count, sync } from '../src/services/account.service.ts';
+import { database } from '../src/db/client.ts';
 import worker from '../src/index.ts';
 import { d1 } from './d1.ts';
 

@@ -1,7 +1,7 @@
 # CLLT Server
 
 Server riêng để giữ danh sách nick và quản lý thiết bị của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
-- một **Worker** (TypeScript, `src/`), định tuyến bằng [Hono](https://hono.dev), đọc ghi database bằng [Drizzle ORM](https://orm.drizzle.team);
+- một **Worker** (TypeScript, `src/`, chia lớp route/controller/service, xem [Mã nguồn](#mã-nguồn)), định tuyến bằng [Hono](https://hono.dev), đọc ghi database bằng [Drizzle ORM](https://orm.drizzle.team);
 - một database **D1** (SQLite của Cloudflare, `migrations/`);
 - **API** để gửi nick lên và tải nick về, và để app báo thiết bị ([Thiết bị](#thiết-bị));
 - **trang quản trị** có đăng nhập.
@@ -163,18 +163,30 @@ Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 
 
 ## Mã nguồn
 
-| File | Làm gì |
+Chia lớp như một backend thường gặp: request đi `routes/` → `middlewares/` → `controllers/` → `services/` (dữ liệu gửi lên được `validators/` đọc và kiểm) → `db/`; `views/` dựng HTML của trang quản trị.
+
+| Thư mục / file | Làm gì |
 |---|---|
-| `src/index.ts` | App Hono: các route API và trang quản trị; middleware gắn header bảo mật, CORS cho `/api/*`, kiểm tra Origin của form, bắt đăng nhập, bắt đổi mật khẩu mặc định |
-| `src/db.ts` | Các bảng cho Drizzle. `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
-| `src/auth.ts` | Tài khoản quản trị, đăng nhập, phiên, đổi mật khẩu, API token |
-| `src/accounts.ts` | Đọc JSON (giống `backup::parse` của app), thêm/thay nick, xuất JSON |
-| `src/devices.ts` | Thiết bị: đọc hello, thêm/cập nhật, chặn, bỏ chặn, đặt tên, xoá |
-| `src/pages.ts` | HTML của trang quản trị |
+| `src/index.ts` | Entry của Worker (`main` trong `wrangler.toml`) |
+| `src/app.ts` | Tạo app [Hono](https://hono.dev): middleware chung, gắn `/api` và `/admin`, trả lời đường dẫn lạ và lỗi |
+| `src/config/constants.ts` | Mọi con số và tên cố định: thời hạn phiên, giới hạn đăng nhập sai, độ dài tối đa, header bảo mật, CSP |
+| `src/config/messages.ts` | Mọi câu chữ server nói: thông báo, lỗi của trang quản trị và API |
+| `src/db/schema.ts` | Model: 6 bảng cho [Drizzle ORM](https://orm.drizzle.team). `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
+| `src/db/client.ts` | Kết nối Drizzle với D1 |
+| `src/models/` | Kiểu dữ liệu: dòng của từng bảng (suy ra từ schema), nick theo JSON của app, `hello` của thiết bị |
+| `src/types/app.ts` | Kiểu của app Hono: binding `DB`, biến của request (`db`, `form`, `me`, `source`) |
+| `src/routes/` | `api.routes.ts` (`/api`, CORS) và `admin.routes.ts` (`/admin`): đường dẫn nào, qua middleware nào, tới controller nào |
+| `src/middlewares/` | `context` (Drizzle, header bảo mật), `admin` (form cùng nguồn, bắt đăng nhập, bắt đổi mật khẩu mặc định), `api` (API token) |
+| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang: `auth`, `account`, `device`, `token` |
+| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `token`, `account` (thêm/thay như Nhập JSON), `device` |
+| `src/validators/` | Đọc và kiểm JSON gửi lên: nick (giống `backup::parse` của app), `hello` của thiết bị |
+| `src/views/` | Trang quản trị bằng `hono/html`: mọi giá trị chèn vào đều được escape; `layout.ts`, `styles.ts`, `script.ts` và một file mỗi trang |
+| `src/utils/` | `crypto` (PBKDF2, SHA-256), `http` (IP, cookie, body có giới hạn, field của form), `render` (trang kèm nonce của CSP), `format` (giờ Việt Nam) |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
-| `migrations/0001_init.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts` |
-| `migrations/0002_devices.sql` | Bảng `devices` |
+| `migrations/0001_init.sql`, `0002_devices.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts`; `devices` |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
+
+**Giao diện không dùng EJS:** EJS biên dịch template bằng `new Function`, mà Cloudflare Workers cấm chạy code sinh ra lúc chạy. Trang quản trị dùng helper `html` của Hono: template string, tự escape mọi giá trị chèn vào, không cần bước build, nên test chạy thẳng bằng Node.
 
 Kiểm tra: `yarn test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd): đăng nhập `admin`/`admin`, bị chuyển sang đổi mật khẩu, tạo token, gửi một nick lên, tải về có mật khẩu, trang Nick hiện nick đó, header CSP có nonce.

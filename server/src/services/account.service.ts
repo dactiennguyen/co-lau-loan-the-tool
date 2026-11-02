@@ -1,68 +1,11 @@
-// The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): what POST
-// /api/accounts takes and GET /api/accounts gives back, so that Nhập JSON of the app reads it as it is.
+// The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): kept by POST
+// /api/accounts and given back by GET /api/accounts and Tải JSON, so that Nhập JSON of the app reads them as they are.
 import { and, asc, count as rowCount, eq, sql } from 'drizzle-orm';
-import { accounts as table, type Db } from './db.ts';
-
-/** As backup.rs writes them. */
-export const APP = 'CLLT Tool';
-export const FORMAT = 1;
-/** The game server of an account without "serverId" (opcodes::SERVER_ID of cllt-core). */
-export const SERVER_ID = 24;
-
-/** One account as accounts.json has it: label, username, password, serverId, and whatever else the app keeps (skill,
- * stats, fight, fightTargets, proxy), kept as sent. */
-export type Account = { [key: string]: unknown; label: string; username: string; password: string; serverId: number };
-
-/** An account as the admin page lists it. */
-export type Row = typeof table.$inferSelect;
-
-export interface Synced {
-  added: number;
-  updated: number;
-  unchanged: number;
-  /** Accounts after the first with the same username on the same server in the JSON: left out, as Nhập does. */
-  repeated: number;
-}
-
-type Json = { [key: string]: unknown };
-const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
-
-/** The accounts of a JSON, as backup::parse of the app reads them: Xuất JSON ({"accounts": […]}), an accounts.json, a
- * list, or one account with "username". An account without "password" comes with an empty one. The error says what is
- * wrong, in the words of the app. */
-export function parse(body: string): Account[] | { error: string } {
-  const trimmed = body.trim().replace(/^﻿/, '');
-  if (!trimmed) return { error: 'Chưa có JSON' };
-  let value: unknown;
-  try {
-    value = JSON.parse(trimmed);
-  } catch (e) {
-    return { error: `JSON không hợp lệ: ${(e as Error).message}` };
-  }
-  let list: unknown[];
-  if (Array.isArray(value)) list = value;
-  else if (isObject(value) && 'accounts' in value) {
-    if (typeof value.format === 'number' && value.format > FORMAT) {
-      return { error: `JSON của bản app mới hơn (format ${value.format}): cập nhật server rồi gửi lại` };
-    }
-    if (!Array.isArray(value.accounts)) return { error: '"accounts" phải là một danh sách' };
-    list = value.accounts;
-  } else if (isObject(value) && 'username' in value) list = [value];
-  else return { error: 'Không thấy nick nào: cần {"accounts": […]}, một danh sách nick, hoặc một nick có "username"' };
-  if (list.length === 0) return { error: 'JSON không có nick nào' };
-  const accounts: Account[] = [];
-  for (const [i, item] of list.entries()) {
-    const n = i + 1;
-    if (!isObject(item)) return { error: `Nick thứ ${n} không phải một object` };
-    const { username, password = '', label = '', serverId = SERVER_ID } = item;
-    if (typeof username !== 'string' || !username.trim()) return { error: `Nick thứ ${n}: thiếu tài khoản (username)` };
-    if (typeof password !== 'string') return { error: `Nick thứ ${n}: "password" phải là chuỗi` };
-    if (typeof label !== 'string') return { error: `Nick thứ ${n}: "label" phải là chuỗi` };
-    if (!Number.isInteger(serverId)) return { error: `Nick thứ ${n}: "serverId" phải là số nguyên` };
-    accounts.push({ ...item, label, username: username.trim(), password, serverId: serverId as number });
-  }
-  return accounts;
-}
+import { APP_NAME, EXPORT_FORMAT } from '../config/constants.ts';
+import type { Db } from '../db/client.ts';
+import { accounts as table } from '../db/schema.ts';
+import type { Account, AccountRow, Synced } from '../models/index.ts';
+import { isObject } from '../validators/account.validator.ts';
 
 /** JSON with the keys of every object in order, so that the same account is the same text however it was sent. */
 export function canonical(value: unknown): string {
@@ -144,7 +87,7 @@ export async function sync(db: Db, sent: Account[], source: string): Promise<Syn
 }
 
 /** Every account, first added first. */
-export async function rows(db: Db): Promise<Row[]> {
+export async function list(db: Db): Promise<AccountRow[]> {
   return db.select().from(table).orderBy(asc(table.id));
 }
 
@@ -154,8 +97,8 @@ export async function count(db: Db): Promise<number> {
 
 /** The JSON of GET /api/accounts and Tải JSON: Xuất JSON of the app, without its "settings". */
 export async function exported(db: Db): Promise<string> {
-  const accounts = (await rows(db)).map((r) => JSON.parse(r.data) as Account);
-  return JSON.stringify({ app: APP, format: FORMAT, exportedAt: new Date().toISOString(), accounts }, null, 2) + '\n';
+  const accounts = (await list(db)).map((r) => JSON.parse(r.data) as Account);
+  return JSON.stringify({ app: APP_NAME, format: EXPORT_FORMAT, exportedAt: new Date().toISOString(), accounts }, null, 2) + '\n';
 }
 
 /** True when there was one to delete. */
