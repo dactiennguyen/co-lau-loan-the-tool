@@ -1,6 +1,6 @@
 {
- "source": "the type of every mob name of data/maps.json (npm run mobs; docs/app/events/06-map-mobs.md#ảnh-quái); the icon is data/icons/mobs/<type>.webp",
- "types": {
+ "source": "the picture of every mob name of data/maps.json (npm run mobs; docs/app/events/06-map-mobs.md#ảnh-quái): data/icons/mobs/<n>.webp, cut from the sheet 100000 + 10 n",
+ "icons": {
   "Gà Điên": 0,
   "Heo Mọi": 1,
   "Kẻ Gây Rối": 2,
@@ -8,6 +8,8 @@
   "Sói Xám": 4,
   "Cóc Xanh": 5,
   "Cua Càng": 6,
+  "Chỉ Huy Sơn Tặc": 7,
+  "Thủ Lĩnh Sơn Tặc": 7,
   "Kẻ Quấy Phá": 7,
   "Chim Điên": 8,
   "Hỏa Hầu": 9,
@@ -26,14 +28,10 @@
   "Thỏ Hồng": 48,
   "Thỏ Xanh": 49,
   "Hổ Vằn": 56,
-  "Báo Đen": 59,
-  "Thủ Lĩnh Sơn Tặc": 85,
-  "Chỉ Huy Sơn Tặc": 86,
-  "Hào Trưởng phía Bắc": 88,
-  "Hào Trưởng phía Nam": 89,
-  "Tướng Xích Vũ": 92,
-  "Tướng Thiết Hổ": 95,
-  "Tướng Hùng Liệt": 97,
-  "Tướng Thiết Kích": 100
+  "Báo Đen": 60,
+  "Hào Trưởng phía Nam": 66,
+  "Hào Trưởng phía Bắc": 66,
+  "Tướng Xích Vũ": 105,
+  "Tướng Thiết Kích": 105
  }
 }

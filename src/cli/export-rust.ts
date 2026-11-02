@@ -46,7 +46,7 @@ const response = (stage: number, opcode: number) => fixtures.scenario.stages[sta
 const bossGone = new Writer().string('M1').u8(1).string('mob86100001').build();
 const setupBoard = fixtures.battles[0].board as number[];
 const setup = new Writer().u8(1).u8(0).string('manina').string('manina').u8(0).u8(0).u8(1).i32(21).i32(0).u8(0).i32(150).i32(180)
-  .string('mob61000').string('Cóc Xanh').u8(1).u8(0).u8(4).i32(13).i32(100000).u8(0).i32(249).i32(249)
+  .string('mob61000').string('Cóc Xanh').u8(1).u8(0).u8(4).i32(13).i32(100050).u8(0).i32(249).i32(249)
   .string('3f1c2a9e-6b1d-4c55-9a27-0d3e4b5c6d7e').i32(64).bytes(Buffer.alloc(0)).build();
 const setupPacket = Buffer.concat([setup.subarray(0, setup.length - 4), Buffer.from(setupBoard), Buffer.from([30, 0])]);
 
@@ -603,7 +603,7 @@ function battleV3() {
   });
 
   // A proper mob block behind a decoy without its length prefix; the s2c/20 of Hàn Lưu Thánh Thủy and the s2c/44 of P5.
-  const block = new Writer().u8(1).string('xmob61000').string('mob61000').string('Cóc Xanh').u8(0).u8(1).u8(2).i32(13).i32(7).u8(0).i32(201).i32(249).string('tail').build();
+  const block = new Writer().u8(1).string('xmob61000').string('mob61000').string('Cóc Xanh').u8(0).u8(1).u8(2).i32(13).i32(100050).u8(0).i32(201).i32(249).string('tail').build();
   const heal = '0000000700000000c85e76ba00000fa100000000000000000000000000000000000000000100000008547475616e616e68ffffffff000000002200000000ffffffff0000000100000008547475616e616e6800';
   const item = '0000000100000000fafab599000000000000000400000000000000000100000008547475616e616e68ffffffff0000000043ffffffffffffffff0000000100000008547475616e616e6800';
   const battleUuid = 'f88a4c00-bcb7-49bf-8a30-93e3dbbff9ca';

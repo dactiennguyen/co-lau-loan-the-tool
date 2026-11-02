@@ -37,7 +37,7 @@ export function parseRecord(data: Buffer, source: string): RecordedBattle {
 }
 
 /** The length-prefixed mob id ("mob61000") of an s2c/22. */
-function mobIdOf(payload: Buffer) {
+export function mobIdOf(payload: Buffer) {
   const mob = Buffer.from('mob');
   for (let i = payload.indexOf(mob); i >= 4; i = payload.indexOf(mob, i + 1)) {
     const n = payload.readInt32BE(i - 4), id = payload.subarray(i, i + n).toString();

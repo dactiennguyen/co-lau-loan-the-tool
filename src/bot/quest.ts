@@ -13,7 +13,7 @@ import { skillTree } from '../protocol/skills.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, slotLeft, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
 import { DAILY_DONE, DAILY_PROGRESS, dailyQuest, dailyText } from '../protocol/mail.ts';
-import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf, route } from './atlas.ts';
+import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, recordSprite, destination, portalsOf, route } from './atlas.ts';
 
 /** What a quest step asks for (10-quests.md#s2c-39). The fields of s2c/39 decide first: a step with an npcId is played at
  * that NPC, whatever its words ("Nói chuyện với", "Báo cáo với", "Tỷ thí với", "Đánh bại Tiên phong Hồng Giang" of quest
@@ -660,6 +660,8 @@ export class QuestBot implements WorldSession {
     // The mob block of s2c/22 starts with the length-prefixed mob id; a late setup may answer an earlier challenge.
     const s = battleSetup(payload), mobId = this.mobs.find(m => payload.includes(new Writer().string(m.id).build()))?.id ?? this.target?.id ?? '?';
     const mob = mobBlock(payload, mobId);
+    // The sheet of its picture, for the icons of the app (npm run mobs).
+    if (mob && recordSprite(this.atlas, mob.name, mob.sprite)) this.remember();
     this.battleStart = Date.now(); this.hp = s.hp; this.maxHp = s.maxHp; this.battlesStarted++;
     this.log('battle_setup', { uuid: s.uuid, mobId, hp: `${s.hp}/${s.maxHp}`, mob: mob && `${mob.name} ${mob.hp}/${mob.maxHp}`, msAfterChallenge: this.battleStart - this.challenged });
     const skills = this.battleSkills(), potions = this.bag.filter(i => POTIONS[i.itemId] && i.quantity > 0);

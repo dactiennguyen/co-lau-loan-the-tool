@@ -709,14 +709,16 @@ pub fn blast_cells(b: &Board, removed: &[usize]) -> [bool; N * N] {
     cells
 }
 
-/// The mob block of s2c/22 (mobBlock of src/battle/battle.ts): `string id; string name; u8; u8; u8 element; i32 level; i32;
-/// u8; i32 hp; i32 maxHp`. The element byte is 1 Hỏa, 2 Lôi, 4 Thủy as for items (07-auto-battle.md#s2c22-641-byte).
+/// The mob block of s2c/22 (mobBlock of src/battle/battle.ts): `string id; string name; u8; u8; u8 element; i32 level;
+/// i32 sprite; u8; i32 hp; i32 maxHp`. The element byte is 1 Hỏa, 2 Lôi, 4 Thủy as for items (07-auto-battle.md#s2c22-641-byte);
+/// `sprite` is the mob's sprite sheet, Báo Đen 100600, Tướng Thiết Kích 101050 (06-map-mobs.md#tấm-ảnh-của-quái).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MobBlock {
     pub name: String,
     pub element: u8,
     pub level: i32,
+    pub sprite: i32,
     pub hp: i32,
     pub max_hp: i32,
 }
@@ -738,12 +740,13 @@ pub fn mob_block(p: &[u8], mob_id: &str) -> Option<MobBlock> {
                 r.take(2)?;
                 let element = r.u8()?;
                 let level = r.i32()?;
-                r.i32()?;
+                let sprite = r.i32()?;
                 r.u8()?;
                 Ok(MobBlock {
                     name,
                     element,
                     level,
+                    sprite,
                     hp: r.i32()?,
                     max_hp: r.i32()?,
                 })

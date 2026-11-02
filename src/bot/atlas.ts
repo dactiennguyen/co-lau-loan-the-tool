@@ -9,10 +9,12 @@ export interface MapRecord {
   mapId: string; name: string;
   /** NPCs (type 2) and portals (type 0) with their box in server units. */
   places: Pick<Place, 'id' | 'name' | 'type' | 'x' | 'y' | 'w' | 'h'>[];
-  /** Mob kinds in s2c/43 order, with the ids of each zone seen (ids change with the zone, the kinds do not). */
-  mobs: { name: string; level: number; ids: Record<string, string[]> }[];
-  /** Bosses of s2c/1177: id of each zone seen, and the last tile (column, row; tiles of 32) with its zone. */
-  bosses: { name: string; level: number; ids: Record<string, string>; tile?: { zone: number; at: [number, number] } }[];
+  /** Mob kinds in s2c/43 order, with the ids of each zone seen (ids change with the zone, the kinds do not), and the
+   * sprite sheet the s2c/22 of a battle named (recordSprite). */
+  mobs: { name: string; level: number; ids: Record<string, string[]>; sprite?: number }[];
+  /** Bosses of s2c/1177: id of each zone seen, the last tile (column, row; tiles of 32) with its zone, and the sprite
+   * sheet as for mobs. */
+  bosses: { name: string; level: number; ids: Record<string, string>; tile?: { zone: number; at: [number, number] }; sprite?: number }[];
   /** Day of the last visit, YYYY-MM-DD. */
   seen: string;
 }
@@ -56,6 +58,14 @@ export function recordBoss(atlas: Atlas, mapId: string, zone: number, mob: Mob, 
   let b = m.bosses.find(b => b.name === mob.name);
   if (!b) m.bosses.push(b = { name: mob.name, level: mob.level, ids: {} });
   b.level = mob.level; b.ids[zone] = mob.id; b.tile = { zone, at: tile };
+}
+/** The sprite sheet of a mob or boss, from its block of s2c/22 (mobBlock), on every kind of that name in the atlas: a
+ * name has one sheet wherever it is (06-map-mobs.md#tấm-ảnh-của-quái). Returns whether the atlas changed. */
+export function recordSprite(atlas: Atlas, name: string, sprite: number) {
+  let changed = false;
+  for (const m of Object.values(atlas.maps)) for (const k of [...m.mobs, ...m.bosses])
+    if (k.name === name && k.sprite !== sprite) { k.sprite = sprite; changed = true; }
+  return changed;
 }
 /** A portal that let the character through drops a quest refusal but keeps the level it asked for: the server asks that
  * level of every character, and the atlas is shared (the scan S2 by a level 42 had dropped the 40 of Lạc Cốc). */

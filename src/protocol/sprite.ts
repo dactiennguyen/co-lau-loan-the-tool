@@ -6,9 +6,12 @@ import { Reader } from './protocol.ts';
 //   u8 motions; motions × (u8 id; u16 width; u16 height; u8 a; u8 loop; u16 b; u8 steps;
 //                          steps × (u8 parts; parts × (u16 frame; i16 dx; i16 dy)); u16 length; length × i16 step or −1)
 // Motion 0 is the mob standing (its steps breathe 0, 1, 2, 1); 4 blinks one step and −1 (nothing drawn), as a mob dying.
-// The sheet of a mob is 100000 + 10 × its type, the type of 06-map-mobs.md#mã-quái (Gà Điên 0 → 100000, Sơn Tặc 3 →
-// 100030): the 21 mobs of the atlas seen side by side with their sheets (06-map-mobs.md#ảnh-quái).
+// The sheet of a mob is most often 100000 + 10 × its type, the type of 06-map-mobs.md#mã-quái (Gà Điên 0 → 100000, Sơn
+// Tặc 3 → 100030). The s2c/22 of a battle names the sheet itself (mobBlock), and the bosses use others: Hào Trưởng
+// 100660, Tướng Thiết Kích 101050; Báo Đen 100600 (06-map-mobs.md#tấm-ảnh-của-quái).
 export const mobSheet = (type: number) => 100000 + 10 * type;
+/** The number n of sheet 100000 + 10 n, the name of its icon data/icons/mobs/<n>.webp (101050 → 105). */
+export const sheetNumber = (sheet: number) => (sheet - 100000) / 10;
 
 export interface Rect { x: number; y: number; w: number; h: number }
 /** One frame of the sheet drawn at (dx, dy) of the motion's box. */
@@ -53,8 +56,9 @@ export function standingParts(sheet: SpriteSheet): (Part & Rect)[] {
   return step.map(p => ({ ...p, ...sheet.frames[p.frame] }));
 }
 
-/** A mob of one map as data/maps.json has it: by zone, the ids of its mobs, or the one id of a boss. */
-export interface AtlasMob { name: string; ids: Record<string, string[] | string> }
+/** A mob of one map as data/maps.json has it: by zone, the ids of its mobs, or the one id of a boss; the sprite sheet
+ * s2c/22 named, once the bots fought it (recordSprite of atlas.ts). */
+export interface AtlasMob { name: string; ids: Record<string, string[] | string>; sprite?: number }
 type Split = { type: number; base: number };
 
 /** Every way to read the ids of one mob of one map. `mobId` = "mob" + (type + 1) + a serial, run together, so every
@@ -112,4 +116,15 @@ export function mobTypes(maps: Record<string, { mobs?: AtlasMob[]; bosses?: Atla
       if (sure.has(t) && sure.get(t) !== name) { types.delete(t); changed = true; }
   }
   return Object.fromEntries([...byName].filter(([, t]) => t.size === 1).map(([name, t]) => [name, [...t][0]] as const).sort(([, a], [, b]) => a - b));
+}
+
+/** The picture of every mob name of the atlas, as the n of its sheet 100000 + 10 n (06-map-mobs.md#tấm-ảnh-của-quái):
+ * the sheet s2c/22 named (`sprite`), else for a mob the sheet of its type (mobTypes). A boss never seen in a battle is
+ * left out: bosses use the sheets of other types (Hào Trưởng phía Bắc, type 88, is drawn with 100660). */
+export function mobPictures(maps: Record<string, { mobs?: AtlasMob[]; bosses?: AtlasMob[] }>): Record<string, number> {
+  const types = mobTypes(maps), out = new Map<string, number>();
+  const kinds = Object.values(maps).flatMap(m => [...(m.mobs ?? []).map(k => ({ k, boss: false })), ...(m.bosses ?? []).map(k => ({ k, boss: true }))]);
+  for (const { k } of kinds) if (k.sprite !== undefined) out.set(k.name, sheetNumber(k.sprite));
+  for (const { k, boss } of kinds) if (!boss && !out.has(k.name) && types[k.name] !== undefined) out.set(k.name, types[k.name]);
+  return Object.fromEntries([...out].sort(([, a], [, b]) => a - b));
 }

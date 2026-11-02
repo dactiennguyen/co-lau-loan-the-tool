@@ -243,13 +243,13 @@ Gốc của các nhóm quái trong một map nối thành một dãy: nhóm đ�
 
 ### Ảnh quái
 
-Mỗi loại quái có một tấm sprite trong `files/dyncache/offline-a2` của game: `<100000 + 10 × loại>.dat`, giải bằng `decodeAsset` như icon vật phẩm ([13-drops-items](13-drops-items.md#cách-lấy-lại-dữ-liệu)). File `.fx` cùng số + 9 là bảng khung hình của tấm đó. Ví dụ Gà Điên (loại 0) là `100000.dat` và `100009.fx`; Sơn Tặc (loại 3) là `100030.dat`. [Đo: 21 loại có ảnh, đặt cạnh tên đều đúng con]
+Mỗi loại quái có một tấm sprite trong `files/dyncache/offline-a2` của game, giải bằng `decodeAsset` như icon vật phẩm ([13-drops-items](13-drops-items.md#cách-lấy-lại-dữ-liệu)). File `.fx` cùng số + 9 là bảng khung hình của tấm đó. Quái thường dùng tấm `<100000 + 10 × loại>.dat`: Gà Điên (loại 0) là `100000.dat` và `100009.fx`; Sơn Tặc (loại 3) là `100030.dat`. Boss, Báo Đen và Chỉ Huy Sơn Tặc dùng tấm khác; quái nào dùng tấm nào thì `s2c/22` ghi rõ ([tấm ảnh của quái](#tấm-ảnh-của-quái)). [Đo]
 
 | File | Là gì |
 |---|---|
-| `100000`…`100780` (.dat, .fx) | Loại 0–78, thiếu 59. Mỗi tấm 5–9 khung hình |
-| `101000`…`101070` | Tấm lớn hơn (tới 2048 px): hồ ly chín đuôi, hổ, hạc, chó ba đầu, người tuyết, ba người cầm kiếm. **Không phải boss của map**: theo mã, Tướng Thiết Kích là loại 100, mà `101000` là con hồ ly, còn Tướng Thiết Kích là một vị tướng. Có lẽ là boss thế giới (Bạch Hổ…) [Suy luận] |
-| `100850`, `100860`, `100880`…`100970` | Không có trên máy: chưa biết ảnh của boss (loại 85, 88, 89, 92, 95, 97) và Chỉ Huy Sơn Tặc (86) [Chưa rõ] |
+| `100000`…`100780` (.dat, .fx) | Tấm 0–78, thiếu 59. Mỗi tấm 5–9 khung hình. Chưa quái nào đã gặp dùng tấm 59: Báo Đen, loại 59 theo mã, dùng `100600` |
+| `101000`…`101070` | Tấm lớn hơn (tới 2048 px): hồ ly chín đuôi, hổ, hạc, chó ba đầu, người tuyết, người cầm kiếm. `101050` là vị tướng tóc đỏ cầm kiếm của Tướng Thiết Kích, Tướng Xích Vũ và Võ Quan Đinh Mộc; `101060` là của Tiên phong, Phó Tướng Hồng Giang và Tướng phe Thiết Hổ. Các tấm còn lại chưa biết của ai [Đo `s2c/22`] |
+| `100850`, `100860`, `100880`…`100970` | Không có trên máy. Thủ Lĩnh Sơn Tặc (loại 85), Chỉ Huy Sơn Tặc (86), Hào Trưởng (88, 89) và Tướng Xích Vũ (92) không dùng tấm theo loại của mình; Tướng Thiết Hổ (95) và Tướng Hùng Liệt (97) chưa đánh trận nào nên chưa biết [Đo] |
 | `1`…`13`, `10000`…`10045` | Không phải quái: tileset và ảnh nền của map |
 
 Bố cục `.fx` (big endian), đọc hết tới byte cuối ở cả 86 file:
@@ -265,10 +265,31 @@ mỗi động tác: u8 id; u16 rộng; u16 cao; u8 a (36 hoặc 0); u8 lặp; u1
 
 Động tác 0 là quái đứng thở: Gà Điên lặp bước 0, 1, 2, 1, mỗi bước 7 nhịp. Ở Gà Điên, động tác 4 (không lặp) nháy bước 0 với −1, như lúc quái chết; các tấm `1010x0` có tới 8 động tác. Các động tác 1–3 chưa rõ là gì. Ở cả 86 tấm, bước đầu của động tác 0 chỉ có một mảnh, nên ảnh đứng yên là đúng một khung cắt ra.
 
-Icon trong app: `npm run mobs -- --adb=<máy>` ([mobs-run.ts](../../../src/cli/mobs-run.ts)) chép các tấm từ điện thoại (máy root, không mở game), cắt khung đầu của động tác 0, thu về cạnh dài 44 px (gấp đôi ô 22 px của danh sách) và lưu `data/icons/mobs/<loại>.webp` (86 file, tổng 119 KB). Lệnh cũng ghi `data/icons/mobs/names.json` là loại của từng tên quái trong `data/maps.json`. Sau khi bot gặp quái mới, chạy `npm run mobs` không tham số để ghi lại bảng tên mà không cần điện thoại.
-- Loại từ 100 trở lên không gắn ảnh (`mobIcon` của app, `without` của `npm run mobs`), vì các tấm `1010x0` không phải boss của map.
-- Ngày 02/11, khi `data/maps.json` có thêm M8 Bạch Nham (bot TS ghi lúc chạy B8), bảng có 34 tên, 25 tên có ảnh. Ảnh mới: Gà Lửa (loại 19), Gà Tinh (20), Gà Trống Yêu Tinh (21), Đại Yêu Dê (41).
-- Báo Đen (59) chưa có ảnh: điện thoại không có `100590.dat`, vì game chỉ tải tấm của quái khi gặp nó. Đi tới Bạch Nham trên điện thoại rồi chạy `npm run mobs -- --adb=…` là có. [Đo] App hiện ảnh ở đầu mỗi dòng của danh sách Tự đánh ([features](../../integration/rust/features.md#việc-đánh-x-n-lần)); tên chưa có ảnh vẫn hiện vương miện (boss) hay thanh kiếm. Test: [sprite.test.ts](../../../test/sprite.test.ts).
+<a id="tấm-ảnh-của-quái"></a>
+
+#### Tấm ảnh của quái
+
+**Số `i32` ngay sau cấp trong khối quái của `s2c/22` là tấm ảnh của quái.** Trước đây ghi là "i32 100000" chưa rõ. Quái thường có đúng `100000 + 10 × loại`. Boss, Báo Đen và các NPC đấu thì khác: [Đo]
+
+| Quái | Loại theo mã | Tấm trong `s2c/22` | Icon |
+|---|---:|---:|---|
+| Báo Đen | 59 | `100600` | `60.webp`, con báo đen |
+| Thủ Lĩnh Sơn Tặc (boss), Chỉ Huy Sơn Tặc | 85, 86 | `100070` | `7.webp`, như Kẻ Quấy Phá |
+| Hào Trưởng phía Bắc, phía Nam (boss) | 88, 89 | `100660` | `66.webp` |
+| Tướng Xích Vũ, Tướng Thiết Kích (boss) | 92, 100 | `101050` | `105.webp`, vị tướng tóc đỏ |
+| NPC đấu: Lính Hồng Giang, Lính Bạch Nham | | `100660` | |
+| NPC đấu: Võ Quan Đinh Mộc | | `101050` | |
+| NPC đấu: Tiên phong Hồng Giang, Phó Tướng Hồng Giang, Tiên phong Bạch Nham, Tướng phe Thiết Hổ | | `101060` | |
+
+- **Cách đo (02/11):** đọc `s2c/22` của 2.090 trận đã ghi (`captures/battles`, `app/cllt.db`, `cllt.db` của app đã cài) với 31 tên quái. Mỗi tên luôn một tấm. 20 loại quái thường có tấm đúng bằng loại; chỉ Báo Đen khác.
+- **Quái không đổi giữa các trận.** Ở cùng 2.090 trận, mỗi loại luôn cùng cấp, cùng hệ, cùng máu và cùng 9 kỹ năng, từ 31/10 tới 02/11 và với mọi cấp nhân vật. Ví dụ Sơn Tặc luôn cấp 9, 248 máu, dù nhân vật cấp 8 hay 32. Boss có máu tối đa cố định nhưng vào trận với máu còn lại sau người đánh trước: Hào Trưởng phía Bắc từ 3.389 tới 20.000 trên 20.000, Thủ Lĩnh Sơn Tặc có lần 74 trên 5.000. [Đo]
+- **Atlas:** mỗi quái và boss của `data/maps.json` có `sprite` khi bot đã đánh nó. `recordSprite` ([atlas.ts](../../../src/bot/atlas.ts)) ghi cho mọi quái cùng tên. Bot nhiệm vụ TS ghi khi vào trận; `npm run mobs -- --battles` ghi từ các trận đã lưu.
+- Code: `sprite` của `mobBlock` ([battle.ts](../../../src/battle/battle.ts)) và `MobBlock` (`app/core/src/battle.rs`); `mobPictures` của [sprite.ts](../../../src/protocol/sprite.ts). Test: [sprite.test.ts](../../../test/sprite.test.ts) với khối quái thật của 4 quái.
+
+Icon trong app: `npm run mobs -- --adb=<máy>` ([mobs-run.ts](../../../src/cli/mobs-run.ts)) chép các tấm từ điện thoại (máy root, không mở game), cắt khung đầu của động tác 0, thu về cạnh dài 44 px (gấp đôi ô 22 px của danh sách) và lưu `data/icons/mobs/<n>.webp` cho tấm `100000 + 10 × n` (86 file, tổng 119 KB). Lệnh cũng ghi `data/icons/mobs/names.json`: số ảnh của từng tên quái trong `data/maps.json` (`mobPictures`). Có `sprite` thì lấy theo `sprite`; không có thì quái thường lấy theo loại, còn boss chưa đánh trận nào thì không có ảnh, vì boss dùng tấm khác loại. Sau khi bot gặp quái mới, chạy `npm run mobs` không tham số để ghi lại bảng tên mà không cần điện thoại. Thêm `--battles` để lấy `sprite` từ các trận đã lưu trước (`--battles=<thư mục hay cllt.db>,…` để chọn nguồn).
+- Ngày 02/11, sau `npm run mobs -- --battles` trên mọi trận đã ghi, bảng có 32 tên và cả 32 có ảnh. Boss hiện đúng ảnh: Tướng Thiết Kích và Tướng Xích Vũ là vị tướng, Hào Trưởng là `66`, Thủ Lĩnh Sơn Tặc và Chỉ Huy Sơn Tặc là tên sơn tặc. Báo Đen là con báo đen `60`, có sẵn từ trước, nên không cần mở điện thoại.
+- Tướng Thiết Hổ và Tướng Hùng Liệt chưa đánh trận nào nên chưa có trong bảng; đánh một trận rồi chạy `npm run mobs -- --battles` là có.
+- App hiện ảnh ở đầu mỗi dòng của danh sách Tự đánh ([features](../../integration/rust/features.md#việc-đánh-x-n-lần)). Tên chưa có ảnh vẫn hiện vương miện (boss) hay thanh kiếm.
 
 ## Cách liệt kê toàn bộ bot của map
 

@@ -176,7 +176,7 @@ Phần đầu, khối người chơi:
 00000000 00000064 00000000 00000064  "971" "125" ...
 ```
 
-Trong đó: tên `manina` lặp hai lần, cấp `3`, HP `130/130` (`0x82`), hai cặp `0, 100` [Chưa rõ, có thể là nội lực/nộ], chuỗi `"971"`, `"125"` [Chưa rõ] và một uuid riêng của người chơi. Khối quái dùng cùng cấu trúc `u8 u8 u8; i32 cấp; i32; u8; i32 hp; i32 hpMax`, với i32 thứ hai là `100000`. Bản đồ offset đầy đủ của một gói thật ở [07-auto-battle](07-auto-battle.md#s2c22-641-byte). [Đo]
+Trong đó: tên `manina` lặp hai lần, cấp `3`, HP `130/130` (`0x82`), hai cặp `0, 100` [Chưa rõ, có thể là nội lực/nộ], chuỗi `"971"`, `"125"` [Chưa rõ] và một uuid riêng của người chơi. Khối quái dùng cùng cấu trúc `u8 u8 u8; i32 cấp; i32; u8; i32 hp; i32 hpMax`. Ở khối quái, i32 thứ hai là tấm ảnh của quái (`100000` ở Gà Điên, `100600` ở Báo Đen; [tấm ảnh của quái](06-map-mobs.md#tấm-ảnh-của-quái)). Bản đồ offset đầy đủ của một gói thật ở [07-auto-battle](07-auto-battle.md#s2c22-641-byte). [Đo]
 
 Khối bot của trận Chỉ Huy Sơn Tặc: `"mob872604"`, `"Chỉ Huy Sơn Tặc"`, cấp `10`, HP `202/202` (`0xca`), `100/100`, hai chuỗi `"Chưa có"`, rồi 9 số `2000…2008` (`0x7d0…0x7d8`). Mã kỹ năng 2000 trùng với kỹ năng bot dùng ở s2c/20, nên 9 số này là danh sách kỹ năng.
 

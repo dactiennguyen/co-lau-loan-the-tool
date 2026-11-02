@@ -220,17 +220,18 @@ export function castSkill(b: Board, me: Fighter, mob: Fighter, s: Strategy, swap
   return score >= swapScore;
 }
 
-/** The mob block of s2c/22, found by its length-prefixed id: `string id; string name; u8; u8; u8 element; i32 level; i32;
- * u8; i32 hp; i32 maxHp` (07-auto-battle.md#s2c22-641-byte). The element byte is 1 Hỏa, 2 Lôi, 4 Thủy as for items: Kẻ
- * Quấy Phá 1 (it casts Hỏa Cầu Thuật), Sói Xám 2, Cóc Xanh and Gà Điên 4 (its block lists the Thủy skills 4000–4008);
- * the player block has manina's 1 at the same place. Undefined when the id is not in the packet. */
+/** The mob block of s2c/22, found by its length-prefixed id: `string id; string name; u8; u8; u8 element; i32 level;
+ * i32 sprite; u8; i32 hp; i32 maxHp` (07-auto-battle.md#s2c22-641-byte). The element byte is 1 Hỏa, 2 Lôi, 4 Thủy as for
+ * items: Kẻ Quấy Phá 1 (it casts Hỏa Cầu Thuật), Sói Xám 2, Cóc Xanh and Gà Điên 4 (its block lists the Thủy skills
+ * 4000–4008); the player block has manina's 1 at the same place. `sprite` is the mob's sprite sheet (Gà Điên 100000, Báo
+ * Đen 100600, Tướng Thiết Kích 101050; 06-map-mobs.md#tấm-ảnh-của-quái). Undefined when the id is not in the packet. */
 export function mobBlock(payload: Uint8Array, mobId: string) {
   const id = Buffer.from(mobId), p = Buffer.from(payload);
   for (let i = p.indexOf(id); i >= 4; i = p.indexOf(id, i + 1)) {
     if (p.readInt32BE(i - 4) !== id.length) continue;
     const r = new Reader(p.subarray(i - 4)); r.string();
-    const name = r.string(); r.u8(); r.u8(); const element = r.u8(), level = r.i32(); r.i32(); r.u8();
-    return { name, element, level, hp: r.i32(), maxHp: r.i32() };
+    const name = r.string(); r.u8(); r.u8(); const element = r.u8(), level = r.i32(), sprite = r.i32(); r.u8();
+    return { name, element, level, sprite, hp: r.i32(), maxHp: r.i32() };
   }
 }
 

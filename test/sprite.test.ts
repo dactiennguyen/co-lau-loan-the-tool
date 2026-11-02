@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mobSheet, mobTypes, spriteSheet, standingParts, type AtlasMob } from '../src/protocol/sprite.ts';
+import { mobBlock } from '../src/battle/battle.ts';
+import { emptyAtlas, recordSprite } from '../src/bot/atlas.ts';
+import { mobPictures, mobSheet, mobTypes, sheetNumber, spriteSheet, standingParts, type AtlasMob } from '../src/protocol/sprite.ts';
+import { spriteBlocks } from './fixtures-sprites.ts';
 
 // offline-a2/100009.fx off the phone (01/11/2026): the table of Gà Điên's sheet 100000.dat (06-map-mobs.md#ảnh-quái).
 const GA_DIEN_FX = '02000186a0020001a0000007012a0118008a0086009e008e008a008a009e0000008c008c0000011a00d60086012a008e0084008800000000009c0092012c0000007e008c050000ea008e2401000003010000005400080100010054000401000200520002001c00000000000000000000000000000001000100010001000100010001000200020002000200020002000200010001000100010001000100010100ea008e240100000201000300000008010004004e00060008000000000000000000010001000100010200ea008e24010000010100050032fffc000100000300ea008e2401000001010006004800020008000000000000000000000000000000000400ea008e240000000101000600480002000c0000ffff0000ffff0000ffff0000ffff0000ffff0000ffff';
@@ -42,4 +45,33 @@ test('mobTypes: without the rest of its map a mob may be read two ways and is le
   // mob45500: type 44 from 500 or Sơn Tặc's 3 from 5500. Hổ Vằn mob570 is 56, never Sói Xám (4) from 70.
   assert.deepEqual(mobTypes({ M1: { mobs: [mob('Sơn Tặc', '4', 0, 5)] }, M5: { mobs: [mob('Báo Đốm', '45', 500, 6)] }, M9: { mobs: [mob('Hổ Vằn', '57', 0, 5), mob('Báo Đốm', '45', 500, 6)] } }),
     { 'Sơn Tặc': 3, 'Báo Đốm': 44, 'Hổ Vằn': 56 });
+});
+
+test('s2c/22 names the sheet of the mob: the type\'s for Gà Điên, another for Báo Đen and the bosses (06-map-mobs.md#tấm-ảnh-của-quái)', () => {
+  const sheets = Object.fromEntries(Object.entries(spriteBlocks).map(([name, b]) => {
+    const block = mobBlock(Buffer.from(b.hex, 'hex'), b.id);
+    assert.equal(block?.name, name);
+    return [name, block!.sprite];
+  }));
+  assert.deepEqual(sheets, { 'Gà Điên': 100000, 'Báo Đen': 100600, 'Hào Trưởng phía Bắc': 100660, 'Tướng Thiết Kích': 101050 });
+  assert.deepEqual(Object.values(sheets).map(sheetNumber), [0, 60, 66, 105]);
+  assert.deepEqual(mobBlock(Buffer.from(spriteBlocks['Hào Trưởng phía Bắc'].hex, 'hex'), 'mob89100002'),
+    { name: 'Hào Trưởng phía Bắc', element: 1, level: 21, sprite: 100660, hp: 19282, maxHp: 20000 });
+});
+
+test('mobPictures: the sheet a battle named first, else a mob\'s type; a boss never fought has none', () => {
+  const atlas = emptyAtlas();
+  atlas.maps.M2 = { mapId: 'M2', name: 'Trại Vân Sơn', places: [], seen: '2026-11-02',
+    mobs: [{ name: 'Cóc Xanh', level: 13, ids: { 0: ['mob61000', 'mob61001'] } }],
+    bosses: [{ name: 'Hào Trưởng phía Bắc', level: 21, ids: { 0: 'mob89100002' } }, { name: 'Hào Trưởng phía Nam', level: 21, ids: { 0: 'mob90100003' } }] };
+  atlas.maps.M8 = { mapId: 'M8', name: 'Bạch Nham', places: [], seen: '2026-11-02',
+    mobs: [{ name: 'Gà Lửa', level: 61, ids: { 0: ['mob200', 'mob201'] } }, { name: 'Báo Đen', level: 62, ids: { 0: ['mob60600', 'mob60601'] } }], bosses: [] };
+  // Without a battle: the types of the ids (Báo Đen 59, Gà Lửa 19), and no boss.
+  assert.deepEqual(mobPictures(atlas.maps), { 'Cóc Xanh': 5, 'Gà Lửa': 19, 'Báo Đen': 59 });
+  assert.equal(recordSprite(atlas, 'Báo Đen', 100600), true);
+  assert.equal(recordSprite(atlas, 'Báo Đen', 100600), false);
+  assert.equal(recordSprite(atlas, 'Hào Trưởng phía Bắc', 100660), true);
+  assert.equal(recordSprite(atlas, 'Không Có', 100000), false);
+  assert.equal(atlas.maps.M8.mobs[1].sprite, 100600);
+  assert.deepEqual(mobPictures(atlas.maps), { 'Cóc Xanh': 5, 'Gà Lửa': 19, 'Báo Đen': 60, 'Hào Trưởng phía Bắc': 66 });
 });

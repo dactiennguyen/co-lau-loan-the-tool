@@ -385,7 +385,7 @@ Proxy phải cho nối tới cổng 1688; có proxy chỉ cho 80/443. Chưa hỗ
 
 `bot/fight.rs` đánh theo đúng luật của `--farm` bên TS. Test TS: [quest.test.ts](../../../test/quest.test.ts). Test Rust: `fight_job_*` trong `tests/parity.rs`.
 
-- **Danh sách quái:** mỗi dòng có ảnh nhỏ của quái, cắt từ sprite của game (`data/icons/mobs`, `src/game/mobIcons.ts`, [ảnh quái](../../app/events/06-map-mobs.md#ảnh-quái)). Boss và Chỉ Huy Sơn Tặc chưa có ảnh nên vẫn hiện vương miện hay thanh kiếm.
+- **Danh sách quái:** mỗi dòng có ảnh nhỏ của quái, cắt từ sprite của game (`data/icons/mobs`, `src/game/mobIcons.ts`, [ảnh quái](../../app/events/06-map-mobs.md#ảnh-quái)). Ảnh lấy theo tấm mà `s2c/22` của một trận đã ghi, nên boss cũng có ảnh đúng (Tướng Thiết Kích là vị tướng, Báo Đen là con báo đen; [tấm ảnh của quái](../../app/events/06-map-mobs.md#tấm-ảnh-của-quái)). Boss chưa đánh trận nào (Tướng Thiết Hổ, Tướng Hùng Liệt) vẫn hiện vương miện.
 - **Thách đấu:** quái thường dùng `c2s/15`, boss (đã thấy qua `s2c/1177`, hoặc `data/maps.json` ghi có ở map này) dùng `c2s/1178`. Nếu có nhiều con cùng tên, bot đánh lần lượt từng con.
 - **Chờ trận:** server phải mở trận (`s2c/22`) trong 8 s. Không có thì bot ghi log và thách đấu tiếp.
 - **Boss đang đổi chỗ** (`s2c/1177` field 1): bot đợi 5 s, tối đa 6 lần, rồi mới báo không thấy.

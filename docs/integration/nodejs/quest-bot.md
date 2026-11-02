@@ -110,6 +110,7 @@ npm run scan
 | `maps.<mapId>.places` | NPC (loại 2) và cổng (loại 0): id, tên, x, y, w, h (đơn vị server) | `s2c/11` |
 | `maps.<mapId>.mobs` | Loại quái, cấp, và các `mobId` của từng khu đã gặp | `s2c/43` + byte `area` của `s2c/11` |
 | `maps.<mapId>.bosses` | Boss: `mobId` theo khu, ô đứng lần cuối thấy | `s2c/1177` |
+| `sprite` của mỗi quái và boss | Tấm ảnh của nó (Báo Đen `100600`), có khi bot đã đánh nó một trận; app lấy icon theo số này ([tấm ảnh của quái](../../app/events/06-map-mobs.md#tấm-ảnh-của-quái)) | `s2c/22` |
 | `portals.<id>` | Cổng dẫn tới map nào (`mapId`), hoặc cần cấp (`level`), hoặc lời từ chối khác (`refused`) | `s2c/13`, `s2c/1256` |
 
 Chỉ ghi những gì server đã gửi. Cổng bị từ chối vì cấp chỉ được thử lại khi nhân vật đủ cấp, và giữ cấp đó cả khi nhân vật cấp cao hơn đã đi qua (file dùng chung cho mọi tài khoản); cổng bị từ chối vì nhiệm vụ được thử lại ở mỗi lần quét. Bot nhiệm vụ ghi vào cùng file, nên mỗi lần chạy bot hay quét đều làm file đầy thêm.
