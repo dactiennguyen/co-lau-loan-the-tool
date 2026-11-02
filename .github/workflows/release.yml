@@ -110,6 +110,7 @@ jobs:
           set -euo pipefail
           # The tag is checked in this repository by the prepare job. In a separate release repository it does not exist
           # yet: gh creates it on that repository's default branch, and the notes list no commits of that repository.
+          # --target is needed there, as gh refuses a tag of the checkout that the release repository lacks.
           extra=(--verify-tag --generate-notes)
           if [ "$GH_REPO" != "$SOURCE_REPO" ]; then
             if [ -z "$RELEASE_TOKEN" ]; then
@@ -117,7 +118,7 @@ jobs:
               exit 1
             fi
             export GH_TOKEN="$RELEASE_TOKEN"
-            extra=()
+            extra=(--target "$(gh api "repos/$GH_REPO" --jq .default_branch)")
           fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" != "true" ]; then
