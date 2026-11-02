@@ -828,6 +828,10 @@ mod tests {
             LogTone::of("Lỗi: Server từ chối: tài khoản đang đăng nhập"),
             LogTone::Bad
         );
+        assert_eq!(
+            LogTone::of("Bàn cờ lệch với server ở lượt 7, sau kỹ năng 1001 của mình"),
+            LogTone::Bad
+        );
         assert_eq!(LogTone::of("Bắt đầu: đánh Heo Mọi 1 lần"), LogTone::Accent);
         assert_eq!(
             LogTone::of("Xong nhiệm vụ Thử Sức Tân Binh: 1190 kinh nghiệm"),

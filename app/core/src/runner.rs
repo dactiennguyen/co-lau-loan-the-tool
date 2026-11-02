@@ -2,14 +2,29 @@
 //! c2s/14 seq 0 → { s2c/19|20 result; s2c/24 turn → c2s/19 own swap | c2s/14 mob step } until a result carries end=1.
 //! Without I/O: packets and the clock come in, actions go out, and `deadline()` says when `on_timer` is due.
 use crate::battle::{
-    battle_join_ack, battle_result, best_move, fighter, find_runs, settle, swap, timeout_result,
-    turn_state, unknown_mob, BattleResult, Board, Fighter, Outcome, Setup, Strategy, Unit, EMPTY,
-    N, UNKNOWN,
+    apply_result, battle_join_ack, battle_result, best_move, fighter, timeout_result, turn_state,
+    unknown_mob, BattleResult, Board, Fighter, Outcome, Setup, Strategy, Unit, N, UNKNOWN,
 };
 use crate::protocol::Result;
 use crate::requests::{build, Ctx};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+/// The line of the first result the board stops matching (a fault, net::is_fault, so Log lỗi keeps the packets before
+/// it): the turn, and whose swap, skill or turn it was.
+pub(crate) fn desync_line(x: &BattleResult, me: &str) -> String {
+    let who = if x.actor == me {
+        "của mình"
+    } else {
+        "của quái"
+    };
+    let what = match (x.skill, x.mv) {
+        (Some(id), _) => format!("kỹ năng {id}"),
+        (None, Some(_)) => "nước đổi chỗ".into(),
+        (None, None) => "lượt".into(),
+    };
+    format!("Bàn cờ lệch với server ở lượt {}, sau {what} {who}", x.seq)
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Act {
@@ -136,6 +151,8 @@ pub struct BattleRunner {
     pub turns: u32,
     pub skills_cast: u32,
     pub damage: i32,
+    /// The board stopped matching the server's: "Bàn cờ lệch" is logged once, until a reshuffle sends the board again.
+    desynced: bool,
     /// s2c/18 timed 1: no turns; the mob hits on a ~30 s timer and the player may swap any time.
     pub timed: bool,
     /// Set by leave() until the session sees the battle end or gives up on it (resume): no move is sent, a result still
@@ -177,6 +194,7 @@ impl BattleRunner {
             turns: 0,
             skills_cast: 0,
             damage: 0,
+            desynced: false,
             timed: false,
             leaving: false,
             surrendered: false,
@@ -380,26 +398,19 @@ impl BattleRunner {
         if skill && x.actor == self.name {
             self.skills_cast += 1;
         }
-        if let Some(m) = x.mv {
-            swap(&mut self.board, m);
+        // v2 does not read skill effects: Kiếm lửa when only it fits the refill (apply_result).
+        let fire = None;
+        let applied = apply_result(&mut self.board, &x, fire);
+        if applied.desync && !self.desynced {
+            out.push(Act::Log(desync_line(&x, &self.name)));
         }
-        let cells: Vec<usize> = x
-            .cells
-            .iter()
-            .filter(|&&c| (0..(N * N) as i32).contains(&c))
-            .map(|&c| c as usize)
-            .collect();
-        let o = settle(&mut self.board, Some(&x.refill), &cells);
-        if o.refill_used != x.refill.len()
-            || self.board.iter().any(|&v| v == EMPTY || v == UNKNOWN)
-            || find_runs(&self.board).1 > 0
-        {
-            out.push(Act::Log(format!("Bàn cờ lệch với server ở lượt {}", x.seq)));
-        }
+        self.desynced |= applied.desync;
+        let o = applied.outcome;
         if let Some(b) = &x.new_board {
             for (i, &v) in b.iter().take(N * N).enumerate() {
                 self.board[i] = v;
             }
+            self.desynced = false;
         }
         let side = if x.actor == self.name {
             Side::Me

@@ -15,7 +15,7 @@ import { type Atlas, emptyAtlas, recordMap, recordMobs, recordPortal, recordRefu
 import { QuestBot, stepAction } from '../bot/quest.ts';
 // The v2 search and the v3 choice of an own turn (battleV3 below).
 import { readFileSync } from 'node:fs';
-import { UNKNOWN, mobMoveOdds, answerValue, castSkill, mobBlock, battleItemResult, type Board, type Strategy } from '../battle/battle.ts';
+import { UNKNOWN, mobMoveOdds, answerValue, castSkill, mobBlock, battleItemResult, applyResult, type Board, type Strategy } from '../battle/battle.ts';
 import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from '../battle/battle-actions.ts';
 import { fixtures } from '../../test/fixtures.ts';
 import { npcPackets, symapBag } from '../../test/fixtures-npc.ts';
@@ -36,6 +36,7 @@ import { Items } from '../protocol/items.ts';
 import { market, marketBuyRequest, marketDone, marketExtendRequest, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from '../protocol/market.ts';
 import { ct1Packets } from '../../test/fixtures-ct1.ts';
 import { np1Packets } from '../../test/fixtures-np1.ts';
+import { fireCasts } from '../../test/fixtures-fire.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -611,9 +612,25 @@ function battleV3() {
     effects, odds, answers, moves, casts, patterns, learnt, priors, worths, actions,
     mobBlocks: ([[block, 'mob61000'], [block, 'mob99'], [setupPacket, 'mob61000']] as [Uint8Array, string][]).map(([p, id]) => ({ hex: hex(p), id, expected: mobBlock(p, id) ?? null })),
     healResult: { hex: heal, expected: battleResult(new Reader(bytes(heal)), 20) },
+    fireCasts: fireCastCases(),
     itemResult: { hex: item, expected: battleItemResult(new Reader(bytes(item))) },
     request44: { ctx: { battleUuid, slot: 4 }, hex: hex(buildRequest(44, { battleUuid, slot: 4 })) },
   };
+}
+
+/** Hỏa Kiếm Thuật (test/fixtures-fire.ts): applyResult on the board before each cast with the skill's effect known
+ * (Kiếm lửa), unknown, and taken as destroying, then on the three results after it: the board and outcome after each. */
+function fireCastCases() {
+  return fireCasts.map(f => {
+    const play = (fire?: boolean) => {
+      const b = f.board.slice();
+      return [f.cast, ...f.next].map((h, i) => {
+        const o = applyResult(b, battleResult(new Reader(bytes(h)), i ? 19 : 20), i ? undefined : fire);
+        return { board: b.slice(), fire: o.fire, desync: o.desync, cleared: o.cleared, waves: o.waves, refillUsed: o.refillUsed };
+      });
+    };
+    return { source: f.source, board: f.board, cast: f.cast, next: f.next, known: play(true), unknown: play(undefined), destroyed: play(false) };
+  });
 }
 
 /** Indented JSON with every innermost array or object on one line (a board, a unit), as atlasJson does. */

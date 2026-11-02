@@ -83,6 +83,27 @@ export function swap(b: Board, m: Move) {
   [b[i], b[j]] = [b[j], b[i]];
 }
 
+/** Kiếm lửa, the piece Hỏa Kiếm Thuật (1001) turns the cells of its s2c/20 into. */
+export const FIRE = 10;
+
+/** Plays a result of the server (s2c/19, 20, 21, 44) on the board in place: the swap, then the cells of a skill, then
+ * the fall with its refill. A skill destroys its cells, or turns them into Kiếm lửa (`fire`, the effect of the actor's
+ * skill when known); undefined (a skill of the mob) destroys them unless only Kiếm lửa fits the refill. `desync`: the
+ * refill is not used exactly, or leaves a hole or a run (docs/app/events/05-battle.md#s2c-20). */
+export function applyResult(b: Board, x: { move?: Move; skill?: number; cells: readonly number[]; refill: readonly number[] }, fire?: boolean) {
+  if (x.move) swap(b, x.move);
+  const cells = x.cells.filter(c => c >= 0 && c < N * N);
+  const fits = (t: Board, o: Outcome) => o.refillUsed === x.refill.length && !t.some(v => v === EMPTY || v === UNKNOWN) && !findRuns(t).cells.size;
+  const turn = () => { const t = b.slice(); for (const c of cells) t[c] = FIRE; return { t, o: settle(t, x.refill) }; };
+  let t = b.slice(), o = settle(t, x.refill, cells), turned = false;
+  if (x.skill !== undefined && cells.length && fire !== false && (fire || !fits(t, o))) {
+    const f = turn();
+    if (fire || fits(f.t, f.o)) ({ t, o } = f), turned = true;
+  }
+  b.splice(0, b.length, ...t);
+  return { ...o, desync: !fits(t, o), fire: turned };
+}
+
 export function legalMoves(b: Board): Move[] {
   const out: Move[] = [];
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const [dr, dc] of [[0, 1], [1, 0]]) {

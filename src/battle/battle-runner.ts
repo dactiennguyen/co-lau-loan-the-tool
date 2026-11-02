@@ -2,7 +2,7 @@
 // s2c/22 setup → c2s/18 join → s2c/18 → c2s/14 seq 0 → { s2c/19|20 result; s2c/24 turn → c2s/19 own swap | c2s/14 mob step }
 // until a result carries end=1.
 import { Reader } from '../protocol/protocol.ts';
-import { EMPTY, UNKNOWN, swap, settle, findRuns, bestMove, castSkill, battleSetup, battleJoinAck, battleResult, battleItemResult, timeoutResult, turnState, fighter, unknownMob,
+import { applyResult, bestMove, castSkill, battleSetup, battleJoinAck, battleResult, battleItemResult, timeoutResult, turnState, fighter, unknownMob,
   STRATEGIES, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
 import { bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from './battle-actions.ts';
 import { buildRequest } from '../protocol/events.ts';
@@ -53,6 +53,8 @@ type Unit = ReturnType<typeof battleResult>['units'][number];
 export class BattleRunner {
   uuid: string; name: string; mobId: string; board: Board; me: Fighter; mob = unknownMob(); turns = 0;
   skillsCast = 0; skillRefused = false; damage = 0;
+  /** The board stopped matching the server's: board_desync is logged once, until a reshuffle sends the board again. */
+  private desynced = false;
   /** Skills that got no answer in this battle, and the own turns left of each buff cast. */
   private refused = new Set<number>(); private buffs: Partial<Record<'attack' | 'defense' | 'dodge', number>> = {};
   private potions: Potion[];
@@ -210,10 +212,11 @@ export class BattleRunner {
       if (e?.buff) this.buffs[e.buff.stat] = Math.ceil(e.buff.turns / 2);
       this.io.log('skill_cast', { seq: x.seq, skill: x.skill, targets: x.targets, cells: x.cells.length });
     }
-    if ('move' in x && x.move) swap(this.board, x.move);
-    const o = settle(this.board, x.refill, x.cells);
-    if (o.refillUsed !== x.refill.length || this.board.some(v => v === EMPTY || v === UNKNOWN) || findRuns(this.board).cells.size) this.io.log('board_desync', { seq: x.seq });
-    if ('newBoard' in x && x.newBoard) { this.board = x.newBoard; this.io.log('board_reshuffled', { seq: x.seq, actor: x.actor }); }
+    const mine = skill && x.actor === this.name ? this.io.skills?.find(k => k.id === x.skill) : undefined;
+    const o = applyResult(this.board, x, mine ? !!mine.fire : undefined);
+    if (o.desync && !this.desynced) this.io.log('board_desync', { seq: x.seq, actor: x.actor === this.name ? 'me' : 'mob', ...(skill ? { skill: x.skill } : {}) });
+    this.desynced ||= o.desync;
+    if ('newBoard' in x && x.newBoard) { this.board = x.newBoard; this.desynced = false; this.io.log('board_reshuffled', { seq: x.seq, actor: x.actor }); }
     const actor = x.actor === this.name ? this.me : this.mob, unit = x.units.find(u => u.name === x.actor);
     if (unit) this.learnFrom(actor, unit, o, skill);
     if (unit && actor === this.me && unit.damage > 0) this.damage += unit.damage;

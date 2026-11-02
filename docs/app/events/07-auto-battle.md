@@ -458,7 +458,7 @@ Code ở `bestAction` trong [src/battle/battle-actions.ts](../../../src/battle/b
 | "Tăng N lực phòng thủ … trong T lượt" | N/3 × 0,42 kiếm của quái mỗi lượt × T/2 | [Suy luận] |
 | "Tăng N né tránh …" | 0 | [Suy luận từ Đo]: Tiheo2 (Né tránh 96) vẫn bị trúng 9/11 lần, manina (20) bị trúng 85% |
 | "Triệt tiêu P% năng lượng của kẻ thù" | P × nội lực quái × giá trị nội lực của quái, và quái bớt nội lực ngay | [Suy luận]: coi "năng lượng" là nội lực |
-| "Biến từ a đến b quân cờ thành kiếm lửa, và có P% cơ hội đi tiếp" | Đặt Kiếm lửa vào các ô ngẫu nhiên, cho rơi như sau một nước đổi chỗ, P% được đi tiếp | [Suy luận]: chưa thấy trong trận |
+| "Biến từ a đến b quân cờ thành kiếm lửa, và có P% cơ hội đi tiếp" | Đặt Kiếm lửa vào các ô ngẫu nhiên, cho rơi như sau một nước đổi chỗ, P% được đi tiếp | [Đo 5 lần] các ô của `s2c/20` thành Kiếm lửa, không ô nào bị phá; hàng 3 chúng làm thành rơi ngay như sau một nước đổi chỗ ([s2c/20](05-battle.md#s2c-20)). Server chọn ô, bot đoán ô ngẫu nhiên |
 | Hoàn Linh Dược / Kim Đan Dược | ⌊25% HP tối đa⌋ / +25 nội lực. Dùng bình mất lượt | [Đo A1] |
 
 Những viên kỹ năng phá được tính gấp 3 với tim, âm dương và đào. Những viên rơi thành hàng sau đó tính như thường ([Đo A1](#đo-trên-máy-a1)).
@@ -900,7 +900,7 @@ Khi thua (B1), 16 byte sau `end` đều là 0. Đối chiếu s2c/10 trước v�
 ## Chưa biết
 
 - Giá nội lực của kỹ năng ngoài kỹ năng gốc: Hàn Lưu Thánh Thủy tốn đúng 50 như bảng `s2c/30` (A1). Các kỹ năng 75–100 chưa ai dùng.
-- Hiệu ứng thật của các kỹ năng chưa thấy trong trận: buff tấn công, phòng thủ, né tránh; hút máu; giảm phòng thủ; "triệt tiêu năng lượng"; Hỏa Kiếm Thuật biến quân thành Kiếm lửa. Bot đang tính theo các giả định ở [Chọn hành động](#chọn-hành-động).
+- Hiệu ứng thật của các kỹ năng chưa thấy trong trận: buff tấn công, phòng thủ, né tránh; hút máu; giảm phòng thủ; "triệt tiêu năng lượng". Bot đang tính theo các giả định ở [Chọn hành động](#chọn-hành-động). Hỏa Kiếm Thuật đã thấy 5 lần (symap 02/11): các ô được chọn thành Kiếm lửa, hàng chúng làm thành rơi ngay. Server chọn những ô nào thì chưa biết.
 - Sát thương của kỹ năng không phá ô (Liệt Hỏa Chi Kiếm, Băng Đao Kích…): có phần `W × 3` như kỹ năng gốc không.
 - `W` của Cóc Xanh khi đánh Tiheo2 (P.Thủ 16); mô phỏng đang lấy 10.
 - Mã viên đặc biệt khác `10`.

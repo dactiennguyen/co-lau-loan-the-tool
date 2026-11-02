@@ -80,7 +80,7 @@ events.ts    buildRequest() cho mọi gói gửi đi, decodeEvent() cho log
 | `talk`, `quest_progress`, `step_advanced` | Gửi `c2s/13`; nhận `s2c/34`; tự tăng bước |
 | `npc_menu`, `duel`, `duel_invite` | Hộp thoại `s2c/57` (tên NPC, câu hỏi, các dòng); gửi `c2s/57` "Đồng ý" để tỷ thí; `s2c/1180` (quái của trận), sau đó là `challenge` với `opcode: 1181` |
 | `challenge`, `battle_setup`, `battle_end`, `kill_counted`, `estimates` | Một trận, từ thách đấu tới kết quả; thông số hai bên học được trong trận (sát thương mỗi viên kiếm, kỹ năng, HP tối đa của quái) |
-| `board_reshuffled`, `board_desync`, `no_legal_move` | Server xếp lại bàn; mô hình lệch với server; không còn nước |
+| `board_reshuffled`, `board_desync`, `no_legal_move` | Server xếp lại bàn; mô hình lệch với server (một lần tới khi server xếp lại bàn, kèm `actor` và `skill` của kết quả lệch); không còn nước |
 | `move`, `skill_try`, `skill_cast`, `skill_no_answer`, `timed_attack`, `turn_inferred` | Từng nước (viên ăn được, sát thương); dùng kỹ năng; đòn của quái trong trận tính giờ; tự suy lượt khi thiếu `s2c/24` |
 | `map`, `travel`, `map_changed`, `arrived`, `portal_refused` | `s2c/11` (NPC, cổng của map); gửi `c2s/13` qua cổng; `s2c/13`; `s2c/43` của map mới; `s2c/1256` từ chối cổng (kèm lời server) |
 | `step_progress`, `boss_moving`, `waiting_for_mob` | `s2c/1201` (tiến độ server); `s2c/1177` field 1 (boss rời ô); quái của bước thuộc map này theo `data/maps.json` (như boss đang đổi chỗ) mà chưa thấy: đợi 5 s, tối đa 6 lần, rồi dừng, không đi map khác |

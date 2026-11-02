@@ -8,9 +8,9 @@
 //! among the swaps, the skills the nội lực pays for and the potions; without them, best_move and cast_skill for the one
 //! skill of RunnerOptions.skill (v2).
 use crate::battle::{
-    battle_item_result, battle_join_ack, battle_result, best_move, cast_skill, fighter, find_runs,
-    settle, swap, timeout_result, turn_state, unknown_mob, BattleResult, Board, Fighter, MobBlock,
-    Move, Outcome, Setup, Strategy, Unit, EMPTY, N, UNKNOWN,
+    apply_result, battle_item_result, battle_join_ack, battle_result, best_move, cast_skill,
+    fighter, timeout_result, turn_state, unknown_mob, BattleResult, Board, Fighter, MobBlock, Move,
+    Outcome, Setup, Strategy, Unit, N, UNKNOWN,
 };
 use crate::battle_actions::{
     best_action, potion_effect, skill_worth, sword_prior, Action, ActionOptions, Buffs, Potion,
@@ -18,7 +18,7 @@ use crate::battle_actions::{
 };
 use crate::protocol::Result;
 use crate::requests::{build, Ctx};
-use crate::runner::{Act, BattleEnd, Skill, Turn};
+use crate::runner::{desync_line, Act, BattleEnd, Skill, Turn};
 use serde_json::{json, Value};
 
 /// A score to a tenth, as the turn notes of the TS bot write it.
@@ -162,6 +162,8 @@ pub struct BattleRunner {
     pub turns: u32,
     pub skills_cast: u32,
     pub damage: i32,
+    /// The board stopped matching the server's: "Bàn cờ lệch" is logged once, until a reshuffle sends the board again.
+    desynced: bool,
     /// s2c/18 timed 1: no turns; the mob hits on a ~30 s timer and the player may swap any time.
     pub timed: bool,
     /// Set by leave() until the session sees the battle end or gives up on it (resume): no move is sent, a result still
@@ -248,6 +250,7 @@ impl BattleRunner {
             turns: 0,
             skills_cast: 0,
             damage: 0,
+            desynced: false,
             timed: false,
             leaving: false,
             surrendered: false,
@@ -610,26 +613,25 @@ impl BattleRunner {
                 self.buffs.set(b.stat, (b.turns as f64 / 2.0).ceil() as i32);
             }
         }
-        if let Some(m) = x.mv {
-            swap(&mut self.board, m);
-        }
-        let cells: Vec<usize> = x
-            .cells
+        // Hỏa Kiếm Thuật turns its cells into Kiếm lửa; the effect of a mob's skill is not known.
+        let fire = self
+            .options
+            .skills
             .iter()
-            .filter(|&&c| (0..(N * N) as i32).contains(&c))
-            .map(|&c| c as usize)
-            .collect();
-        let o = settle(&mut self.board, Some(&x.refill), &cells);
-        if o.refill_used != x.refill.len()
-            || self.board.iter().any(|&v| v == EMPTY || v == UNKNOWN)
-            || find_runs(&self.board).1 > 0
-        {
-            out.push(Act::Log(format!("Bàn cờ lệch với server ở lượt {}", x.seq)));
+            .flatten()
+            .find(|e| skill && x.actor == self.name && Some(e.id) == x.skill)
+            .map(|e| e.fire.is_some());
+        let applied = apply_result(&mut self.board, &x, fire);
+        if applied.desync && !self.desynced {
+            out.push(Act::Log(desync_line(&x, &self.name)));
         }
+        self.desynced |= applied.desync;
+        let o = applied.outcome;
         if let Some(b) = &x.new_board {
             for (i, &v) in b.iter().take(N * N).enumerate() {
                 self.board[i] = v;
             }
+            self.desynced = false;
         }
         let side = if x.actor == self.name {
             Side::Me

@@ -66,12 +66,14 @@ impl Fault {
 
 /// Lines of the bot that say the app got something wrong or could not finish it, saved in Log lỗi with the packets
 /// before them. The game saying no ("Không nhặt được …", "Vật phẩm không đủ số lượng") is not one: Báo lỗi is there for
-/// those.
+/// those. "Bàn cờ lệch …" is the board of the bot no longer matching the server's (runner::desync_line): the packets
+/// before it hold the result it got wrong.
 pub fn is_fault(text: &str) -> bool {
     text.starts_with("Không đọc được")
         || text.contains("không trả lời")
         || text.starts_with("Server không ")
         || text.contains("chưa biết làm")
+        || text.starts_with("Bàn cờ lệch")
 }
 
 /// The last packets and commands of a session, and the last fault it reported.
@@ -244,6 +246,7 @@ mod tests {
             "Kết thúc tự làm nhiệm vụ: NPC không trả lời (2 thắng, 1 thua)",
             "Chợ trời không trả lời sau 8 s: thôi mua",
             "Bot chưa biết làm bước \"Đến Cửu Phong\" (thamSố 9, cần 1, npcId -1)",
+            "Bàn cờ lệch với server ở lượt 7, sau kỹ năng 1001 của mình",
         ] {
             assert!(is_fault(line), "{line}");
         }

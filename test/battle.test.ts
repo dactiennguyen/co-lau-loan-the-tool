@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
-import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, type Move } from '../src/battle/battle.ts';
-import { Writer } from '../src/protocol/protocol.ts';
+import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, applyResult, battleResult, FIRE, type Move } from '../src/battle/battle.ts';
+import { Reader, Writer } from '../src/protocol/protocol.ts';
+import { fireCasts } from './fixtures-fire.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { BattleRunner, type BattleEnd } from '../src/battle/battle-runner.ts';
 
@@ -136,6 +137,25 @@ test('a special piece destroyed by a skill blasts its 3×3 neighbourhood too (Q5
   const o = settle(b, x.refill, x.cells);
   assert.deepEqual([x.cells.length, x.refill.length, o.refillUsed], [4, 9, 9]);
   assert.ok(!b.includes(EMPTY) && !b.includes(UNKNOWN) && !findRuns(b).cells.size);
+  const c: number[] = fixtures['board before skill on a special'].slice(), oc = applyResult(c, x);
+  assert.deepEqual([oc.fire, oc.desync, c], [false, false, b], 'a skill of the mob: destroyed, not turned');
+});
+
+test('Hỏa Kiếm Thuật (1001, symap 02/11): its s2c/20 turns its cells into Kiếm lửa, a run they make falls at once, and the next results fall on that board', () => {
+  const read = (hex: string, op: 19 | 20) => battleResult(new Reader(Buffer.from(hex, 'hex')), op);
+  for (const f of fireCasts) {
+    const x = read(f.cast, 20);
+    assert.deepEqual([x.skill, x.targets, x.newBoard, x.actor], [1001, [], undefined, 'symap'], f.source);
+    assert.ok(x.cells.length >= 7 && x.cells.length <= 10, `${f.source}: 7–10 pieces`);
+    assert.ok(applyResult(f.board.slice(), x, false).desync, `${f.source}: destroying the cells does not fit`);
+    for (const fire of [true, undefined]) {
+      const b = f.board.slice(), o = applyResult(b, x, fire);
+      assert.deepEqual([o.fire, o.desync, o.refillUsed, o.waves > 0], [true, false, x.refill.length, x.refill.length > 0], `${f.source}, effect ${fire ?? 'unknown'}`);
+      if (!x.refill.length) assert.ok(x.cells.every(c => b[c] === FIRE), `${f.source}: the cells are Kiếm lửa`);
+      for (const [i, hex] of f.next.entries()) assert.equal(applyResult(b, read(hex, 19)).desync, false, `${f.source}: result ${i + 1} after the cast`);
+    }
+  }
+  assert.deepEqual(fireCasts.map(f => read(f.cast, 20).refill.length), [0, 0, 15]);
 });
 
 test('timed battles (Q6–Q9 Sơn Tặc): s2c/18 flag, s2c/21 hit, s2c/1256 notice', () => {

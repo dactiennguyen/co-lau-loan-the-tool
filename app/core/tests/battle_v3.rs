@@ -878,3 +878,113 @@ fn the_bot_plays_v3_with_the_skill_table_and_the_bag_and_v2_without_the_table() 
         "{out:?}"
     );
 }
+
+/// The cast and the three results after it of a case of `fireCasts` (test/fixtures-fire.ts), with their opcodes.
+fn fire_packets(c: &Value) -> Vec<(i32, Vec<u8>)> {
+    let mut out = vec![(20, hex(c["cast"].as_str().unwrap()))];
+    for h in c["next"].as_array().unwrap() {
+        out.push((19, hex(h.as_str().unwrap())));
+    }
+    out
+}
+
+#[test]
+fn apply_result_turns_the_cells_of_hoa_kiem_thuat_into_kiem_lua_as_the_ts_side() {
+    for c in v3()["fireCasts"].as_array().unwrap() {
+        for (key, fire) in [
+            ("known", Some(true)),
+            ("unknown", None),
+            ("destroyed", Some(false)),
+        ] {
+            let mut b = board(&c["board"]);
+            for (i, ((op, p), want)) in fire_packets(c)
+                .into_iter()
+                .zip(c[key].as_array().unwrap())
+                .enumerate()
+            {
+                let where_ = format!("{} {key} result {i}", c["source"]);
+                let x = battle_result(&p, op).unwrap();
+                let a = battle::apply_result(&mut b, &x, if i == 0 { fire } else { None });
+                assert_eq!(b, board(&want["board"]), "{where_}: board");
+                assert_eq!(
+                    serde_json::to_value(&a.outcome.cleared).unwrap(),
+                    want["cleared"],
+                    "{where_}: cleared"
+                );
+                assert_eq!(
+                    (
+                        a.fire,
+                        a.desync,
+                        a.outcome.waves as i64,
+                        a.outcome.refill_used as i64
+                    ),
+                    (
+                        want["fire"].as_bool().unwrap(),
+                        want["desync"].as_bool().unwrap(),
+                        want["waves"].as_i64().unwrap(),
+                        want["refillUsed"].as_i64().unwrap()
+                    ),
+                    "{where_}: fire, desync, waves, refill used"
+                );
+            }
+        }
+        // Kiếm lửa fits every result, known or not; destroying the cells does not fit the cast.
+        let desync = |key: &str| -> Vec<bool> {
+            c[key]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| r["desync"].as_bool().unwrap())
+                .collect()
+        };
+        assert!(!desync("known").contains(&true), "{}", c["source"]);
+        assert!(!desync("unknown").contains(&true), "{}", c["source"]);
+        assert!(desync("destroyed")[0], "{}", c["source"]);
+    }
+}
+
+#[test]
+fn runner_plays_hoa_kiem_thuat_on_the_board_and_logs_a_desync_once_as_a_fault() {
+    let c = &v3()["fireCasts"][0];
+    let run = |skills: Vec<SkillEffect>| -> Vec<String> {
+        let options = RunnerOptions {
+            skills: Some(skills),
+            ..RunnerOptions::default()
+        };
+        let mut runner = BattleRunner::new(
+            &setup("symap", 86, 3354, 3354, board(&c["board"])),
+            "mob221802",
+            options,
+        );
+        let (mut acts, now) = (vec![], Instant::now());
+        for (op, p) in fire_packets(c) {
+            runner.on_packet(op, &p, now, &mut acts).unwrap();
+        }
+        logs(&acts)
+            .into_iter()
+            .filter(|l| l.starts_with("Bàn cờ lệch"))
+            .map(String::from)
+            .collect()
+    };
+    assert_eq!(
+        run(vec![effect(1001, 20)]),
+        Vec::<String>::new(),
+        "the effect read from s2c/30"
+    );
+    assert_eq!(
+        run(vec![]),
+        Vec::<String>::new(),
+        "no effect: Kiếm lửa is what fits"
+    );
+    // Taken as destroying, the board is off from the cast on: one line, a fault for Log lỗi.
+    let wrong = SkillEffect {
+        id: 1001,
+        ..effect(1000, 20)
+    };
+    let lines = run(vec![wrong]);
+    assert_eq!(
+        lines,
+        ["Bàn cờ lệch với server ở lượt 7, sau kỹ năng 1001 của mình"]
+    );
+    assert!(cllt_core::net::is_fault(&lines[0]));
+}

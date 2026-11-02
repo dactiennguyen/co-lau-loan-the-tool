@@ -702,7 +702,8 @@ fn skill_score(
 }
 
 /// Hỏa Kiếm Thuật: the chosen pieces turn into Kiếm lửa (code 10) and the runs that makes fall as after a swap; the turn
-/// is kept with the stated chance. Not seen in a battle yet: which pieces turn and whether runs fall are guesses.
+/// is kept with the stated chance. Seen 5 times (symap 02/11): runs fall at once, as here; the server picks the pieces,
+/// so they are guessed here.
 fn fire_value(
     t: &mut Board,
     cells: &[usize],

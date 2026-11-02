@@ -196,6 +196,62 @@ pub fn swap(b: &mut Board, m: Move) {
     b.swap(i, j);
 }
 
+/// Kiếm lửa, the piece Hỏa Kiếm Thuật (1001) turns the cells of its s2c/20 into.
+pub const FIRE: i16 = 10;
+
+/// What apply_result did: the fall, whether the board no longer matches the server's, whether a skill's cells turned
+/// into Kiếm lửa.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Applied {
+    pub outcome: Outcome,
+    pub desync: bool,
+    pub fire: bool,
+}
+
+/// applyResult of battle.ts: plays a result of the server (s2c/19, 20, 21, 44) on the board: the swap, then the cells of
+/// a skill, then the fall with its refill. A skill destroys its cells, or turns them into Kiếm lửa (`fire`, the effect
+/// of the actor's skill when known); None (a skill of the mob) destroys them unless only Kiếm lửa fits the refill.
+/// `desync`: the refill is not used exactly, or leaves a hole or a run (docs/app/events/05-battle.md#s2c-20).
+pub fn apply_result(b: &mut Board, x: &BattleResult, fire: Option<bool>) -> Applied {
+    if let Some(m) = x.mv {
+        swap(b, m);
+    }
+    let cells: Vec<usize> = x
+        .cells
+        .iter()
+        .filter(|&&c| (0..(N * N) as i32).contains(&c))
+        .map(|&c| c as usize)
+        .collect();
+    let fits = |t: &Board, o: &Outcome| {
+        o.refill_used == x.refill.len()
+            && !t.iter().any(|&v| v == EMPTY || v == UNKNOWN)
+            && find_runs(t).1 == 0
+    };
+    let mut t = *b;
+    let mut o = settle(&mut t, Some(&x.refill), &cells);
+    let mut turned = false;
+    if x.skill.is_some()
+        && !cells.is_empty()
+        && fire != Some(false)
+        && (fire == Some(true) || !fits(&t, &o))
+    {
+        let mut f = *b;
+        for &c in &cells {
+            f[c] = FIRE;
+        }
+        let of = settle(&mut f, Some(&x.refill), &[]);
+        if fire == Some(true) || fits(&f, &of) {
+            (t, o, turned) = (f, of, true);
+        }
+    }
+    *b = t;
+    Applied {
+        desync: !fits(&t, &o),
+        outcome: o,
+        fire: turned,
+    }
+}
+
 pub fn legal_moves(b: &Board) -> Vec<Move> {
     let mut out = vec![];
     for r in 0..N {

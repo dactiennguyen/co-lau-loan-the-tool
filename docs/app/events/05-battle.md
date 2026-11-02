@@ -333,8 +333,29 @@ Ví dụ nước của bot ăn kiếm:
 |---|---|---|---|---|
 | 2000 | Xích Lôi Công ("phá hủy ngẫu nhiên từ 1 đến 3 quân cờ" ở cấp 1) | 0 | 1–3 ô rải rác | Chỉ Huy Sơn Tặc (B1), Heo Mọi (Q2): 29 và 20 sát thương |
 | 1000 | Hỏa Cầu Thuật | 2 | 8: khối 2×2 tính từ mỗi mục tiêu sang phải và xuống dưới | Kẻ Gây Rối (Q4–Q6): 34–39 sát thương |
+| 1001 | Hỏa Kiếm Thuật ("Biến từ a đến b quân cờ thành kiếm lửa") | 0 | 7–10 ô, **không bị phá mà biến thành Kiếm lửa** (`10`); `n` là số viên rơi khi các Kiếm lửa đó làm thành hàng, không thì 0 | symap (Hỏa, cấp 86) đánh Gà Trống Yêu Tinh, Lam Linh, Heo Lửa, 02/11, 5 lần |
 
 Ô bị kỹ năng phá mà là viên đặc biệt (`10`) thì viên đó **cũng nổ 3×3**: Q5 seq 41, khối 2×2 chứa Kiếm lửa ở r3c3, server phá 9 ô và gửi 9 viên mới. [Đo] Quái dùng kỹ năng khi nội lực (`stat1` của nó trong danh sách unit) đủ; Kẻ Gây Rối tích tới 34 rồi dùng Hỏa Cầu Thuật, sau đó còn 22. [Đo 1 lần]
+
+**Hỏa Kiếm Thuật (1001) không phá ô.** [Đo 5 lần, symap 02/11] Danh sách `j` của nó là các ô biến thành Kiếm lửa (`10`), không có `xếpLại`. Đặt `10` vào các ô đó thì mọi kết quả sau đều khớp từng viên, kể cả nước đổi chỗ ngay sau đó làm nổ dây chuyền các Kiếm lửa và rơi 79 viên.
+- Kiếm lửa vừa biến mà làm thành hàng 3 với kiếm thì **hàng đó rơi ngay** như sau một nước đổi chỗ, và `n` viên của gói lấp chỗ trống: Lam Linh `n = 15`, Heo Lửa `n = 10`, mỗi lần 1 đợt rơi. Ba lần còn lại không thành hàng nào, `n = 0`.
+- Bot trước bản sửa coi `j` là ô bị phá, nên để lại lỗ trống. Từ lượt đó tới hết trận, lượt nào cũng báo "Bàn cờ lệch" (21/27 và 8/14 lượt), và bot chọn nước trên bàn sai.
+- Bot nay đặt Kiếm lửa rồi cho rơi (`applyResult` của `battle.ts`, `apply_result` của `battle.rs`). Kỹ năng của mình thì bot biết hiệu ứng từ mô tả (`s2c/30`). Với kỹ năng của quái, bot coi là phá ô, trừ khi chỉ cách "biến thành Kiếm lửa" mới khớp số viên rơi.
+
+**Kiểm từng kỹ năng trên các trận đã lưu** (1 595 trận trong `cllt.db` của app, 02/11): áp mỗi `s2c/20` vào bàn cờ như bot áp. [Đo]
+
+| Kỹ năng | Lần dùng (mình / quái) | Khớp với |
+|---|---|---|
+| 1000 Hỏa Cầu Thuật, 4000 Băng Tiễn Thuật (2×2) | 465 / 83, 681 / 185 | phá ô, mọi lần |
+| 4008 Mưa Sao Băng (2–4 vùng 2×2) | 0 / 1 | phá ô |
+| 2000 Xích Lôi Công (ngẫu nhiên) | 784 / 75 | phá ô, mọi lần |
+| 1006 Thiên Hỏa Kích, 4006 Tuyết Sơn Áp Đỉnh (3×3) | 14 / 0, 77 / 7 | phá ô, mọi lần |
+| 2006 Bách Lôi Uy Vũ (1 hàng ngang) | 37 / 1 | phá ô, mọi lần |
+| 4007 Bách Băng Chi Kiếm (4×4) | 48 / 1 | phá ô, mọi lần |
+| 1001 Hỏa Kiếm Thuật | 5 / 0 | biến thành Kiếm lửa, cả 5 lần |
+| 1002 Đại Lực Công (6 / 0), 2001 Kim Cang Hộ Thể (0 / 1), 2003 Lôi Tiễn Công (1 / 1), 4001 Hàn Lưu Thánh Thủy (0 / 9), 4003 Băng Đao Kích (1 / 4), 4005 Băng Long Chưởng (0 / 1) | ghi trong cột đầu | `j = 0`, bàn cờ không đổi |
+
+Chưa thấy trong trận nào: 1003–1005, 1007, 1008, 2002, 2004, 2005, 2007, 2008, 4002, 4004. Theo mô tả, các kỹ năng phá ô trong số đó (1007, 1008, 2007, 2008) đi theo cách phá ô như trên, còn các kỹ năng khác không đụng bàn cờ. Với cách áp mới, phát lại cả 1 595 trận không còn trận nào lệch (cách cũ lệch 2 trận, cả hai sau 1001).
 
 Kỹ năng 2000 (B1):
 

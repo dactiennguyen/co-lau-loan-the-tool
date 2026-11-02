@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { Reader, characterPrefix, characterProfile } from '../protocol/protocol.ts';
 import { ITEM_ELEMENTS } from '../protocol/items.ts';
-import { EMPTY, UNKNOWN, battleSetup, battleResult, battleItemResult, timeoutResult, findRuns, mobBlock, settle, swap } from './battle.ts';
+import { applyResult, battleSetup, battleResult, battleItemResult, timeoutResult, mobBlock } from './battle.ts';
 
 export interface RecordedPacket { ms: number; op: string; payload: Buffer }
 export interface RecordedBattle {
@@ -113,8 +113,8 @@ export interface ReplayedMove {
   units: [string, number, number, number, number][]; end: boolean; reward?: { won: boolean; exp: number; coin: number }; desync: boolean;
 }
 
-/** Plays the results of a battle on its s2c/22 board (BattleRunner.onResult): a move whose refill does not fill the
- * board exactly, or leaves a run, is a desync. Undefined without s2c/22 or with truncated hex. */
+/** Plays the results of a battle on its s2c/22 board (BattleRunner.onResult, applyResult): a move whose refill does not
+ * fill the board exactly, or leaves a run, is a desync. Undefined without s2c/22 or with truncated hex. */
 export function replay(b: RecordedBattle) {
   const setup = b.packets.find(p => p.op === 's2c/22');
   if (!setup || b.truncated) return undefined;
@@ -128,9 +128,7 @@ export function replay(b: RecordedBattle) {
     else if (p.op === 's2c/21') { x = timeoutResult(new Reader(p.payload)); kind = 'timer'; }
     else if (p.op === 's2c/44') { x = { ...battleItemResult(new Reader(p.payload)), cells: [] }; kind = 'item'; }
     else continue;
-    if (x.move) swap(board, x.move);
-    const o = settle(board, x.refill, x.cells);
-    const desync = o.refillUsed !== x.refill.length || board.some(v => v === EMPTY || v === UNKNOWN) || findRuns(board).cells.size > 0;
+    const o = applyResult(board, x), desync = o.desync;
     if (x.newBoard) board = [...x.newBoard];
     moves.push({ ms: p.ms, seq: x.seq, actor: x.actor === s.me ? 'me' : 'mob', kind, move: x.move, skill: x.skill,
       cleared: o.cleared, waves: o.waves, extraTurn: x.extraTurn, units: x.units.map(u => [u.name === s.me ? 'me' : 'mob', u.damage, u.hp, u.s1, u.s2]),

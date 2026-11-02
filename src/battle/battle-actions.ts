@@ -177,7 +177,8 @@ function skillScore(b: Board, e: SkillEffect, me: Fighter, mob: Fighter, s: Stra
 }
 
 /** Hỏa Kiếm Thuật: the chosen pieces turn into Kiếm lửa (code 10) and the runs that makes fall as after a swap; the
- * turn is kept with the stated chance. Not seen in a battle yet: which pieces turn and whether runs fall are guesses. */
+ * turn is kept with the stated chance. Seen 5 times (symap 02/11): runs fall at once, as here; the server picks the
+ * pieces, so they are guessed here. */
 function fireValue(t: Board, cells: number[], e: SkillEffect, me: Fighter, mob: Fighter, s: Strategy) {
   for (const i of cells) t[i] = 10;
   const out = settle(t, null), v = moveValue(out, me, mob, { ...s, extraTurn: 0 }, s.bonus);
