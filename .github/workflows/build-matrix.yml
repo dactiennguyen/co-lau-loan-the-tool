@@ -1,6 +1,7 @@
 name: Build Matrix
 
-# Tests, then the desktop app (app/desktop) built for macOS Apple Silicon, macOS Intel, Windows x64 and Ubuntu x64.
+# Tests, then the desktop app (app/desktop) built for macOS Apple Silicon, macOS Intel, Windows x64 and Ubuntu x64 (on a
+# release or a run started by hand; a push or pull request only tests).
 # The bundles stay as artifacts of the run; release.yml calls this workflow on a v* tag and publishes them. With the
 # updater key in the secrets, each bundle also gets its updater file and .sig (docs/integration/rust/release.md#tự-cập-nhật);
 # there is no Apple or Windows code signing (docs/integration/rust/release.md#cicd-và-phát-hành).
@@ -110,9 +111,12 @@ jobs:
         working-directory: app
         run: cargo test --workspace --locked
 
+  # The four builds only for a release (release.yml on a v* tag) or a run started by hand: a push or pull request runs
+  # the tests alone, as the macOS minutes of a private repository count ten times (about 115 minutes a full run).
   build:
     name: "Build: ${{ matrix.label }}"
     needs: [preflight-ts, preflight-rust]
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
