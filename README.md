@@ -9,6 +9,7 @@ Kho này lưu kết quả điều tra APK, phần tích hợp TypeScript (Node.j
 | Bot Node.js tự làm nhiệm vụ, đánh quái không giao diện | [Bot làm nhiệm vụ](docs/integration/nodejs/quest-bot.md) |
 | App desktop (Tauri 2, React + TypeScript, lõi Rust): nhiều nick; cấp, EXP, chỉ số, vị trí và số người xung quanh của từng nick; chọn quái/boss và số trận để tự đánh | [App Rust](docs/integration/rust/README.md) |
 | Build và phát hành app `colautool` cho macOS, Windows, Ubuntu bằng GitHub Actions | [CI/CD và phát hành](docs/integration/rust/release.md#cicd-và-phát-hành) |
+| Server trên Cloudflare (Worker + D1) giữ danh sách nick: API gửi/tải nick bằng token, trang quản trị đăng nhập | [CLLT Server](server/README.md) |
 | Tổng quan kiến trúc: các lớp từ APK tới giao diện, thư mục `src/` và `app/`, kiểm thử, cách thêm một tính năng | [Kiến trúc](docs/architecture.md) |
 | Toàn bộ mục lục tài liệu | [docs](docs/README.md) |
 | Nguồn dữ liệu và phạm vi regression | [test](test/README.md) |

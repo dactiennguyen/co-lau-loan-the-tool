@@ -1,0 +1,18 @@
+{
+  // Type-check of the Worker (src/) and its tests (test/): `npm run typecheck`, also run by `npm test`. Wrangler bundles
+  // src/ for Cloudflare; Node runs the tests as they are (--experimental-strip-types), so only syntax Node can strip.
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types", "node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "test"]
+}

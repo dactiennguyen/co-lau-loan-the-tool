@@ -1,0 +1,24 @@
+{
+  "name": "cllt-server",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker + D1 that keeps the accounts of CLLT Tool, with an admin page (README.md)",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply cllt --local",
+    "db:migrate": "wrangler d1 migrations apply cllt --remote",
+    "d1:id": "node scripts/d1-id.mjs",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "npm run typecheck && node --experimental-strip-types --no-warnings --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261101.1",
+    "@types/node": "22.20.5",
+    "typescript": "6.0.3",
+    "wrangler": "4.156.1"
+  }
+}

@@ -1,0 +1,13 @@
+# The Cloudflare Worker of CLLT Tool: the API that keeps the accounts of the desktop app in D1, and its admin page.
+# How to deploy it: README.md.
+name = "cllt-server"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cllt"
+# `npx wrangler d1 create cllt` prints the id of the database it made: put it here before `npm run db:migrate`.
+# `npm run dev` uses a local database and does not need it.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

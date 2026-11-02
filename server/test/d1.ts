@@ -1,0 +1,55 @@
+// An in-memory D1 for the tests, on node:sqlite (D1 is SQLite too): the migrations of ../migrations applied, and the
+// part of the D1 API the Worker uses (prepare, bind, first, all, run, batch).
+import { readdirSync, readFileSync } from 'node:fs';
+import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
+
+const MIGRATIONS = new URL('../migrations/', import.meta.url);
+
+class Statement {
+  private readonly db: DatabaseSync;
+  private readonly sql: string;
+  private readonly args: SQLInputValue[];
+  constructor(db: DatabaseSync, sql: string, args: SQLInputValue[] = []) {
+    this.db = db;
+    this.sql = sql;
+    this.args = args;
+  }
+  bind(...args: SQLInputValue[]) {
+    return new Statement(this.db, this.sql, args);
+  }
+  async first<T>(column?: string): Promise<T | null> {
+    const row = this.db.prepare(this.sql).get(...this.args) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return (column ? row[column] : { ...row }) as T;
+  }
+  async all<T>() {
+    const results = this.db.prepare(this.sql).all(...this.args).map((r) => ({ ...r }) as T);
+    return { results, success: true, meta: {} };
+  }
+  async run() {
+    const r = this.db.prepare(this.sql).run(...this.args);
+    return { success: true, meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
+  }
+}
+
+export function d1(): D1Database {
+  const db = new DatabaseSync(':memory:');
+  for (const file of readdirSync(MIGRATIONS).sort()) db.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'));
+  const fake = {
+    prepare: (sql: string) => new Statement(db, sql),
+    // As D1: all or none.
+    async batch(statements: Statement[]) {
+      db.exec('BEGIN');
+      try {
+        const out = [];
+        for (const s of statements) out.push(await s.run());
+        db.exec('COMMIT');
+        return out;
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+    },
+  };
+  return fake as unknown as D1Database;
+}
