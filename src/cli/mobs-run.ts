@@ -27,7 +27,8 @@ try {
   const lines = Object.entries(types).map(([name, type]) => `  ${JSON.stringify(name)}: ${type}`);
   const source = `the type of every mob name of ${atlasPath} (npm run mobs; docs/app/events/06-map-mobs.md#ảnh-quái); the icon is ${icons}/<type>.webp`;
   writeFileSync(out, `{\n "source": ${JSON.stringify(source)},\n "types": {\n${lines.join(',\n')}\n }\n}\n`);
-  const without = Object.keys(types).filter(name => !sheets.includes(types[name]));
+  // As mobIcon of the app: from type 100 on the sheets are not the map's bosses (the fox of 101000 is no general).
+  const without = Object.keys(types).filter(name => types[name] >= 100 || !sheets.includes(types[name]));
   show({ kind: 'summary', event: 'mob_types_written', path: out, names: lines.length, withIcon: lines.length - without.length, without });
 } finally { rmSync(work, { recursive: true, force: true }); }
 

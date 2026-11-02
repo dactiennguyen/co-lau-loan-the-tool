@@ -392,6 +392,74 @@
     }
    ],
    "seen": "2026-11-01"
+  },
+  "M8": {
+   "mapId": "M8",
+   "name": "Bạch Nham",
+   "places": [
+    { "id": 109, "name": "Tiên phong Bạch Nham", "type": 2, "x": 1008, "y": 448, "w": 32, "h": 32 },
+    { "id": 7, "name": "Bản đồ", "type": 0, "x": 32, "y": 304, "w": 64, "h": 32 },
+    { "id": 1019, "name": "Lam Lĩnh", "type": 0, "x": 32, "y": 816, "w": 32, "h": 32 },
+    { "id": 1020, "name": "Cửu Phong", "type": 0, "x": 4768, "y": 240, "w": 32, "h": 32 },
+    { "id": 1013, "name": "Lạc Cốc", "type": 0, "x": 4768, "y": 816, "w": 32, "h": 32 },
+    { "id": 134, "name": "Lính Bạch Nham", "type": 2, "x": 2416, "y": 224, "w": 32, "h": 32 }
+   ],
+   "mobs": [
+    {
+     "name": "Gà Lửa",
+     "level": 61,
+     "ids": {
+      "0": [ "mob200", "mob201", "mob202", "mob203", "mob204", "mob205" ]
+     }
+    },
+    {
+     "name": "Báo Đen",
+     "level": 62,
+     "ids": {
+      "0": [ "mob60600", "mob60601", "mob60602", "mob60603", "mob60604", "mob60605" ]
+     }
+    },
+    {
+     "name": "Đại Yêu Dê",
+     "level": 62,
+     "ids": {
+      "0": [ "mob421200", "mob421201", "mob421202", "mob421203", "mob421204", "mob421205" ]
+     }
+    },
+    {
+     "name": "Gà Trống Yêu Tinh",
+     "level": 68,
+     "ids": {
+      "0": [ "mob221800", "mob221801", "mob221802", "mob221803", "mob221804", "mob221805" ]
+     }
+    },
+    {
+     "name": "Gà Tinh",
+     "level": 65,
+     "ids": {
+      "0": [ "mob212400", "mob212401", "mob212402", "mob212403", "mob212404", "mob212405" ]
+     }
+    },
+    {
+     "name": "Voi Mập",
+     "level": 56,
+     "ids": {
+      "0": [ "mob183000", "mob183001", "mob183002", "mob183003", "mob183004" ]
+     }
+    }
+   ],
+   "bosses": [
+    {
+     "name": "Tướng Thiết Kích",
+     "level": 65,
+     "ids": { "0": "mob101100007" },
+     "tile": {
+      "zone": 0,
+      "at": [ 130, 25 ]
+     }
+    }
+   ],
+   "seen": "2026-11-01"
   }
  },
  "portals": {

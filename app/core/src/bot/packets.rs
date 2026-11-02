@@ -483,8 +483,12 @@ impl Bot {
                         .iter()
                         .any(|s| s.0 == b.map_id && s.1 == mob.name)
                     {
-                        self.seen_bosses
-                            .push((b.map_id.clone(), mob.name.clone(), mob.level));
+                        self.seen_bosses.push((
+                            b.map_id.clone(),
+                            mob.name.clone(),
+                            mob.level,
+                            mob.element(),
+                        ));
                     }
                     if !self.mobs.iter().any(|m| m.id == mob.id) {
                         self.mobs.push(mob);

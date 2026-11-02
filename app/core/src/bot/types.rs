@@ -330,6 +330,10 @@ pub struct Target {
     pub boss: bool,
     /// Seen in the current zone right now (a boss changing tiles is not).
     pub here: bool,
+    /// 1 Hỏa, 2 Lôi, 4 Thủy (Mob::element); unknown for a boss only the atlas names.
+    pub element: Option<i32>,
+    /// More than NO_EXP_GAP levels below the character: the battle gives no EXP, Xu or drops.
+    pub no_exp: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]

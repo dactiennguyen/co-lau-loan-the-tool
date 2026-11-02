@@ -4,6 +4,7 @@ import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { DetailsToggle } from "@/components/DetailsToggle";
 import { Elapsed } from "@/components/Elapsed";
+import { ELEMENT_ICON, ELEMENT_NAME, elementText } from "@/components/ElementTag";
 import { Icon } from "@/components/Icon";
 import { mobIcon } from "@/game/mobIcons";
 import { Stepper } from "@/components/Stepper";
@@ -22,6 +23,21 @@ function TargetIcon({ name, boss }: { name: string; boss: boolean }) {
   if (!src) return <Icon name={boss ? "crown" : "sword"} size={13} />;
   return <img src={src} alt="" draggable={false} className="w-[22px] h-[22px] object-contain" />;
 }
+
+/** The element of a mob as its icon in the element's colour, named on hover; nothing when it is not known. */
+function TargetElement({ element }: { element: number | null }) {
+  const icon = element != null ? ELEMENT_ICON[element] : undefined;
+  if (!icon) return null;
+  const name = `Hệ ${ELEMENT_NAME[element!]}`;
+  return (
+    <span className={cn("flex-none grid place-items-center", elementText(element))} title={name} role="img" aria-label={name}>
+      <Icon name={icon} size={12} />
+    </span>
+  );
+}
+
+/** Said on hover over "0 EXP" in the list. */
+const NO_EXP_HINT = "Thấp hơn nhân vật quá 20 cấp: thắng cũng không được EXP, Xu hay đồ rơi";
 
 /** The kinds of mobs of a map to name for a character of `level`: the strongest not above it, up to three; the weakest
  * when all are above. */
@@ -147,8 +163,14 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
             <span className={cn("grid place-items-center w-[22px] h-[22px] text-fg-2 bg-card", t.boss && "text-ink bg-accent bevel-sm")}>
               <TargetIcon name={t.name} boss={t.boss} />
             </span>
-            <span className="flex-1 min-w-0 truncate text-12 font-bold">{t.name}</span>
+            <TargetElement element={t.element} />
+            <span className={cn("flex-1 min-w-0 truncate text-12 font-bold", t.noExp && "text-fg-3")}>{t.name}</span>
             {!t.here && <span className="flex-none text-10 text-coin">đang đổi chỗ</span>}
+            {t.noExp && (
+              <span title={NO_EXP_HINT}>
+                <Badge tone="var(--fg-3)">0 EXP</Badge>
+              </span>
+            )}
             {t.boss && <Badge tone="var(--accent)">BOSS</Badge>}
             <span className="flex-none min-w-11 text-right text-11 text-fg-2 px">LV {t.level}</span>
           </li>

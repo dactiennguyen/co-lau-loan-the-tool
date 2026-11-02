@@ -418,11 +418,14 @@ fn map(id: &str, name: &str, level: i32, hops: Option<u32>) -> MapChoice {
 fn main_character() -> Snapshot {
     // Hỏa Cầu Thuật level 1, as at that login.
     let (skills, skill_levels) = skills("1", &[(1000, 1)]);
-    let target = |name: &str, level, boss, here| Target {
+    // The element of each as a of its s2c/43 or s2c/1177 says (Hỏa 1, Thủy 4); none is 20 levels below the level 21 here.
+    let target = |name: &str, level, boss, here, element| Target {
         name: name.into(),
         level,
         boss,
         here,
+        element: Some(element),
+        no_exp: false,
     };
     let boss = |id: &str, name: &str, moving| BossTile {
         id: id.into(),
@@ -488,11 +491,11 @@ fn main_character() -> Snapshot {
             player(8, "SongTu", 18),
         ],
         targets: vec![
-            target("Hào Trưởng phía Bắc", 21, true, true),
-            target("Hào Trưởng phía Nam", 21, true, false),
-            target("Kẻ Quấy Phá", 20, false, true),
-            target("Cua Càng", 15, false, true),
-            target("Cóc Xanh", 13, false, true),
+            target("Hào Trưởng phía Bắc", 21, true, true, 1),
+            target("Hào Trưởng phía Nam", 21, true, false, 4),
+            target("Kẻ Quấy Phá", 20, false, true, 1),
+            target("Cua Càng", 15, false, true, 4),
+            target("Cóc Xanh", 13, false, true, 4),
         ],
         // Quest 9 where Q20 left it (docs/app/events/10-quests.md).
         quest: Some(quest(

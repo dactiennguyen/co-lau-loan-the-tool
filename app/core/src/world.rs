@@ -14,6 +14,19 @@ pub struct Mob {
     pub c: i32,
     pub d: u8,
 }
+impl Mob {
+    /// The element of the mob from `a`, numbered as the character's (s2c/9) and the items': 0 is Hỏa (1), 2 Lôi, 4 Thủy.
+    /// It matched the element of the mob block of s2c/22 for 25 kinds in about 1.800 battles (06-map-mobs.md#hệ-của-quái).
+    pub fn element(&self) -> Option<i32> {
+        match self.a {
+            0 => Some(1),
+            2 => Some(2),
+            4 => Some(4),
+            _ => None,
+        }
+    }
+}
+
 fn mob_record(r: &mut Reader) -> Result<Mob> {
     Ok(Mob {
         id: r.string()?,

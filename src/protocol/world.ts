@@ -10,6 +10,11 @@ export const finish = <T>(r: Reader, value: T, what: string): T => {
 };
 
 const mobRecord = (r: Reader) => ({ id: r.string(), name: r.string(), level: r.i32(), a: r.u8(), b: r.i32(), c: r.i32(), d: r.u8() });
+
+/** The element of a mob from `a` of s2c/43 and s2c/1177, numbered as the character's (s2c/9) and the items' (1 Hỏa, 2 Lôi,
+ * 4 Thủy): 0 is Hỏa. It matched the element of the mob block of s2c/22 for 25 kinds in about 1.800 battles
+ * (06-map-mobs.md#hệ-của-quái); undefined for another value. Mob::element of app/core/src/world.rs is the same. */
+export const mobElement = (a: number): number | undefined => ({ 0: 1, 2: 2, 4: 4 } as Record<number, number>)[a];
 export type Mob = ReturnType<typeof mobRecord>;
 
 /** s2c/43: the mobs of the current map and zone. No coordinates: the client places and moves mobs itself. */

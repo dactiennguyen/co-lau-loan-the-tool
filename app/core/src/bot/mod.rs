@@ -79,6 +79,9 @@ struct Challenge {
 }
 /// A challenge left unanswered this long is taken as refused: no battle opens that late.
 const CHALLENGE_KEPT: Duration = Duration::from_secs(60);
+/// Cẩm nang: a mob more than 20 levels below the character gives no EXP, Xu or drops. Measured on 02/11: won battles 15–18
+/// levels below gave EXP, 21 and more none (cllt.db of the app, symap and the others).
+pub const NO_EXP_GAP: i32 = 20;
 
 /// A button of the item detail (12-skills-items.md#c2s-1186): Trang bị the item of a bag slot, Cởi ra the one of a gear
 /// slot, Sử dụng a bag slot, Sửa chữa a gear slot, Vứt bỏ a bag slot; and Sắp xếp under the bag (c2s/1257).
@@ -213,7 +216,7 @@ pub struct Bot {
     /// Ids of the bosses of s2c/1177.
     bosses: HashSet<String>,
     /// Bosses of s2c/1177 by map (name, level), kept while they change tiles, as recordBoss keeps them in the TS atlas.
-    seen_bosses: Vec<(String, String, i32)>,
+    seen_bosses: Vec<(String, String, i32, Option<i32>)>,
     zone: ZonePlayers,
     /// data/maps.json and what this session has seen since.
     atlas: Atlas,
@@ -510,21 +513,26 @@ impl Bot {
         b.last().cloned().map(|t| Turn { foe, ..t })
     }
 
-    /// Bosses of the current map: seen in this session, or in data/maps.json.
-    fn map_bosses(&self) -> Vec<(String, i32)> {
+    /// Bosses of the current map, with their element when seen: seen in this session, or in data/maps.json.
+    fn map_bosses(&self) -> Vec<(String, i32, Option<i32>)> {
         let map = &self.snap.map_id;
-        let mut out: Vec<(String, i32)> = self
+        let mut out: Vec<(String, i32, Option<i32>)> = self
             .seen_bosses
             .iter()
             .filter(|b| &b.0 == map)
-            .map(|b| (b.1.clone(), b.2))
+            .map(|b| (b.1.clone(), b.2, b.3))
             .collect();
         for k in self.atlas.bosses(map) {
             if !out.iter().any(|b| b.0 == k.name) {
-                out.push((k.name.clone(), k.level));
+                out.push((k.name.clone(), k.level, None));
             }
         }
         out
+    }
+
+    /// A mob of `level` gives no EXP, Xu or drops to this character (NO_EXP_GAP); false before the level is known.
+    fn no_exp(&self, level: i32) -> bool {
+        self.snap.level > 0 && self.snap.level - level > NO_EXP_GAP
     }
 
     /// Mob kinds of this zone, plus the bosses of this map changing tiles; bosses first, then the strongest.
@@ -537,17 +545,21 @@ impl Bot {
                     level: m.level,
                     boss: self.bosses.contains(&m.id),
                     here: true,
+                    element: m.element(),
+                    no_exp: self.no_exp(m.level),
                 });
             }
         }
-        for (name, level) in self.map_bosses() {
+        for (name, level, element) in self.map_bosses() {
             match out.iter_mut().find(|t| t.name == name) {
                 Some(t) => t.boss = true,
                 None => out.push(Target {
+                    no_exp: self.no_exp(level),
                     name,
                     level,
                     boss: true,
                     here: false,
+                    element,
                 }),
             }
         }

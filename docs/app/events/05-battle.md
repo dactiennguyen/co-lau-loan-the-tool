@@ -116,7 +116,7 @@ lặp tới hết payload: string mobId; string tên; i32 cấp; u8 a; i32 b; i3
 | `mob42000`…`mob42005` | Sơn Tặc | 9 | 0 | 11 | 1 | 0 |
 | `mob872600`…`mob872606` | Chỉ Huy Sơn Tặc | 10 | 2 | 6 | 1 | 2 |
 
-Gói không có toạ độ quái. Vị trí do client tự đặt và tự di chuyển: B2 đọc được toạ độ trong bộ nhớ, còn server không gửi gói vị trí quái nào. Danh sách, toạ độ và cách đọc xem [06-map-mobs](06-map-mobs.md). [Đo] Boss Thủ Lĩnh Sơn Tặc (`mob86100001`) đến riêng qua s2c/1177. `mobId` là chuỗi client gửi trong c2s/15.
+`a` là hệ của quái: 0 Hỏa, 2 Lôi, 4 Thủy ([Hệ của quái](06-map-mobs.md#hệ-của-quái)). Gói không có toạ độ quái. Vị trí do client tự đặt và tự di chuyển: B2 đọc được toạ độ trong bộ nhớ, còn server không gửi gói vị trí quái nào. Danh sách, toạ độ và cách đọc xem [06-map-mobs](06-map-mobs.md). [Đo] Boss Thủ Lĩnh Sơn Tặc (`mob86100001`) đến riêng qua s2c/1177. `mobId` là chuỗi client gửi trong c2s/15.
 
 <a id="c2s-15"></a>
 

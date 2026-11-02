@@ -205,6 +205,10 @@ export interface Target {
   boss: boolean;
   /** In the zone right now (a boss changing tiles is not). */
   here: boolean;
+  /** 1 Hỏa, 2 Lôi, 4 Thủy (Mob::element, from s2c/43 or s2c/1177); null for a boss only the atlas names. */
+  element: number | null;
+  /** More than 20 levels below the character (NO_EXP_GAP of bot/mod.rs): no EXP, Xu or drops. */
+  noExp: boolean;
 }
 
 export interface Job {

@@ -214,10 +214,30 @@ Chỉ có khu 0: bot quét không đổi khu. Chim Điên và Hỏa Hầu của 
 | Thủ Lĩnh Sơn Tặc (boss) | 85 | `mob86` | `mob86100001` |
 | Chỉ Huy Sơn Tặc | 86 | `mob87` | `mob872600` |
 | Cua Càng, Kẻ Quấy Phá, Hào Trưởng phía Bắc, phía Nam | chưa gặp trong nhiệm vụ | `mob7`, `mob8`, `mob89`, `mob90` | loại 6, 7, 88, 89 theo quy luật [Suy luận] |
+| Gà Trống Yêu Tinh (M8) | 21 | `mob22` | `mob221800` |
+| Tướng Thiết Kích (boss M8) | chưa gặp trong nhiệm vụ | `mob101` | `mob101100007`: loại 100, boss thứ 7 ở khu 0 [Suy luận theo quy luật boss] |
 
 Vì ghép chuỗi nên mã có thể nhập nhằng (`mob110` là Gà Điên số 10, không phải loại 10). Bot so tên quái, không tách mã.
 
 Gốc của các nhóm quái trong một map nối thành một dãy: nhóm đầu từ 0, nhóm sau bắt đầu ở gốc nhóm trước + 100 × số con mỗi khu. Ví dụ M4: Sơn Tặc 0 (5 con) → Chim Điên 500 (5) → Hỏa Hầu 1000 (5) → Cá Sấu 1500 (6) → Cóc Tía 2100 (5) → Huyết Lang 2600; M1: Gà Điên 0 (8) → Heo Mọi 800 → Kẻ Gây Rối 1400 → Sơn Tặc 2000 → Chỉ Huy Sơn Tặc 2600. [Đo: đúng ở M1, M4, M5, M10] Có đủ các nhóm của map thì dãy này tách được mã: `mob122100` chỉ có thể là loại 11 từ gốc 2100, không phải loại 121 từ gốc 100. `mobTypes` của [sprite.ts](../../../src/protocol/sprite.ts) làm như vậy và ra loại của cả 28 tên trong `data/maps.json`, khớp mọi loại đã biết từ nhiệm vụ. Một tên thiếu các nhóm còn lại của map mà vẫn đọc được hai cách thì bị bỏ, trừ khi một cách là loại tên khác đã chắc chắn có (Báo Đốm `mob45500` không thể là loại 3 của Sơn Tặc).
+
+<a id="hệ-của-quái"></a>
+
+### Hệ của quái
+
+**Byte `a` của mỗi quái trong `s2c/43`, và của boss trong `s2c/1177`, là hệ của quái.** Bot biết hệ ngay từ danh sách quái, không cần vào trận. [Đo]
+
+| `a` | Hệ | Số hệ ở `s2c/9`, `s2c/22`, vật phẩm | Ví dụ |
+|---:|---|---:|---|
+| 0 | Hỏa | 1 | Sơn Tặc, Kẻ Quấy Phá, Hỏa Hầu, Huyết Lang, Heo Lửa, Gà Lửa, Thủ Lĩnh Sơn Tặc, Tướng Xích Vũ |
+| 2 | Lôi | 2 | Heo Mọi, Sói Xám, Chỉ Huy Sơn Tặc, Chim Điên, Báo Đen, Gà Trống Yêu Tinh, Tướng Thiết Kích |
+| 4 | Thủy | 4 | Gà Điên, Cóc Xanh, Cua Càng, Cá Sấu, Cóc Tía, Thỏ Hồng, Voi Mập, Gà Tinh, Hào Trưởng phía Nam |
+
+- **Cách đo (02/11):** đối chiếu `a` của mọi `s2c/43` và `s2c/1177` trong `captures/` với byte hệ của khối quái trong `s2c/22` (`mobBlock` của [battle.ts](../../../src/battle/battle.ts)) của các trận đã ghi trong `cllt.db`. Khớp 25/25 loại, khoảng 1.800 trận. Mỗi loại luôn có cùng một `a`. Hỏa là 0 ở đây nhưng là 1 ở mọi gói khác.
+- Quái đấu với NPC (Võ Quan, Tiên phong, Lính…) không có trong `s2c/43`; hệ của chúng chỉ biết khi vào trận.
+- Code: `mobElement` trong [world.ts](../../../src/protocol/world.ts), `Mob::element` trong `app/core/src/world.rs`. App hiện icon hệ ở mỗi dòng của danh sách Tự đánh ([features](../../integration/rust/features.md)).
+
+**Quái không cho EXP.** Cẩm nang ghi: quái thấp hơn nhân vật quá 20 cấp thì không có kinh nghiệm, vàng và đồ rơi. Trận thắng trong `cllt.db` của app khớp với điều này: chênh 15–18 cấp vẫn có EXP; chênh từ 21 cấp trở lên thì 0 EXP ở mọi trận thắng: 57 trận chênh 21–25 cấp, cùng B6 (chênh 68) và B8 (chênh 21). Chưa có trận nào chênh đúng 19 hay 20 cấp. App đánh dấu "0 EXP" khi chênh hơn 20 cấp (`NO_EXP_GAP`). [Đo; ranh giới 20 theo Cẩm nang]
 
 <a id="ảnh-quái"></a>
 
@@ -228,7 +248,7 @@ Mỗi loại quái có một tấm sprite trong `files/dyncache/offline-a2` củ
 | File | Là gì |
 |---|---|
 | `100000`…`100780` (.dat, .fx) | Loại 0–78, thiếu 59. Mỗi tấm 5–9 khung hình |
-| `101000`…`101070` | Tấm lớn hơn (tới 2048 px), có thể là loại 100–107: hồ ly chín đuôi, hổ, hạc, chó ba đầu, người tuyết, ba người cầm kiếm [Suy luận] |
+| `101000`…`101070` | Tấm lớn hơn (tới 2048 px): hồ ly chín đuôi, hổ, hạc, chó ba đầu, người tuyết, ba người cầm kiếm. **Không phải boss của map**: theo mã, Tướng Thiết Kích là loại 100, mà `101000` là con hồ ly, còn Tướng Thiết Kích là một vị tướng. Có lẽ là boss thế giới (Bạch Hổ…) [Suy luận] |
 | `100850`, `100860`, `100880`…`100970` | Không có trên máy: chưa biết ảnh của boss (loại 85, 88, 89, 92, 95, 97) và Chỉ Huy Sơn Tặc (86) [Chưa rõ] |
 | `1`…`13`, `10000`…`10045` | Không phải quái: tileset và ảnh nền của map |
 
@@ -245,7 +265,10 @@ mỗi động tác: u8 id; u16 rộng; u16 cao; u8 a (36 hoặc 0); u8 lặp; u1
 
 Động tác 0 là quái đứng thở: Gà Điên lặp bước 0, 1, 2, 1, mỗi bước 7 nhịp. Ở Gà Điên, động tác 4 (không lặp) nháy bước 0 với −1, như lúc quái chết; các tấm `1010x0` có tới 8 động tác. Các động tác 1–3 chưa rõ là gì. Ở cả 86 tấm, bước đầu của động tác 0 chỉ có một mảnh, nên ảnh đứng yên là đúng một khung cắt ra.
 
-Icon trong app: `npm run mobs -- --adb=<máy>` ([mobs-run.ts](../../../src/cli/mobs-run.ts)) chép các tấm từ điện thoại (máy root, không mở game), cắt khung đầu của động tác 0, thu về cạnh dài 44 px (gấp đôi ô 22 px của danh sách) và lưu `data/icons/mobs/<loại>.webp` (86 file, tổng 119 KB). Lệnh cũng ghi `data/icons/mobs/names.json` là loại của từng tên quái trong `data/maps.json`. Sau khi bot gặp quái mới, chạy `npm run mobs` không tham số để ghi lại bảng tên mà không cần điện thoại. App hiện ảnh ở đầu mỗi dòng của danh sách Tự đánh ([features](../../integration/rust/features.md#việc-đánh-x-n-lần)); tên chưa có ảnh vẫn hiện vương miện (boss) hay thanh kiếm. Test: [sprite.test.ts](../../../test/sprite.test.ts).
+Icon trong app: `npm run mobs -- --adb=<máy>` ([mobs-run.ts](../../../src/cli/mobs-run.ts)) chép các tấm từ điện thoại (máy root, không mở game), cắt khung đầu của động tác 0, thu về cạnh dài 44 px (gấp đôi ô 22 px của danh sách) và lưu `data/icons/mobs/<loại>.webp` (86 file, tổng 119 KB). Lệnh cũng ghi `data/icons/mobs/names.json` là loại của từng tên quái trong `data/maps.json`. Sau khi bot gặp quái mới, chạy `npm run mobs` không tham số để ghi lại bảng tên mà không cần điện thoại.
+- Loại từ 100 trở lên không gắn ảnh (`mobIcon` của app, `without` của `npm run mobs`), vì các tấm `1010x0` không phải boss của map.
+- Ngày 02/11, khi `data/maps.json` có thêm M8 Bạch Nham (bot TS ghi lúc chạy B8), bảng có 34 tên, 25 tên có ảnh. Ảnh mới: Gà Lửa (loại 19), Gà Tinh (20), Gà Trống Yêu Tinh (21), Đại Yêu Dê (41).
+- Báo Đen (59) chưa có ảnh: điện thoại không có `100590.dat`, vì game chỉ tải tấm của quái khi gặp nó. Đi tới Bạch Nham trên điện thoại rồi chạy `npm run mobs -- --adb=…` là có. [Đo] App hiện ảnh ở đầu mỗi dòng của danh sách Tự đánh ([features](../../integration/rust/features.md#việc-đánh-x-n-lần)); tên chưa có ảnh vẫn hiện vương miện (boss) hay thanh kiếm. Test: [sprite.test.ts](../../../test/sprite.test.ts).
 
 ## Cách liệt kê toàn bộ bot của map
 

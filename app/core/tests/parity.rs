@@ -1072,6 +1072,83 @@ fn fight_job_challenges_a_boss_with_1178_waits_while_it_moves_and_goes_on_after_
     assert_eq!(bot.snap.job.as_ref().unwrap().fights, 2);
 }
 
+#[test]
+fn targets_carry_the_element_of_s2c_43_and_say_which_give_no_exp() {
+    let (mut bot, mut out, now) = (
+        Bot::new(BotOptions::default(), Arc::new(Atlas::default())),
+        vec![],
+        Instant::now(),
+    );
+    bot.on_packet(
+        29,
+        &Writer::new().string("symap").string("M8").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    // The kinds of M8 (B8, 02/11) with their a: 2 Lôi, 4 Thủy, 0 Hỏa.
+    let mut mobs = Writer::new().string("M8").u8(3);
+    for (id, name, level, a) in [
+        ("mob221800", "Gà Trống Yêu Tinh", 68, 2),
+        ("mob183000", "Voi Mập", 56, 4),
+        ("mob200", "Gà Lửa", 61, 0),
+    ] {
+        mobs = mobs
+            .string(id)
+            .string(name)
+            .i32(level)
+            .u8(a)
+            .i32(9)
+            .i32(1)
+            .u8(0);
+    }
+    bot.on_packet(43, &mobs.build(), now, &mut out).unwrap();
+    // Tướng Thiết Kích of s2c/1177 at the login of B8: level 65, a = 2.
+    let boss = Writer::new()
+        .string("M8")
+        .u8(0)
+        .string("mob101100007")
+        .string("Tướng Thiết Kích")
+        .i32(65)
+        .u8(2)
+        .i32(9)
+        .i32(1)
+        .u8(1)
+        .u8(1)
+        .i32(9)
+        .i32(16)
+        .build();
+    bot.on_packet(1177, &boss, now, &mut out).unwrap();
+    let row = |bot: &Bot, name: &str| {
+        let t = bot.targets().into_iter().find(|t| t.name == name).unwrap();
+        (t.element, t.no_exp, t.here)
+    };
+    // Level not known yet: nothing is marked.
+    assert_eq!(row(&bot, "Voi Mập"), (Some(4), false, true));
+    // symap at level 86: more than 20 levels above Voi Mập (30), Gà Lửa (25) and the boss (21), not Gà Trống (18).
+    bot.snap.level = 86;
+    assert_eq!(row(&bot, "Gà Trống Yêu Tinh"), (Some(2), false, true));
+    assert_eq!(row(&bot, "Voi Mập"), (Some(4), true, true));
+    assert_eq!(row(&bot, "Gà Lửa"), (Some(1), true, true));
+    assert_eq!(row(&bot, "Tướng Thiết Kích"), (Some(2), true, true));
+    // At level 85 the boss is 20 below: it still gives EXP.
+    bot.snap.level = 85;
+    assert!(!row(&bot, "Tướng Thiết Kích").1);
+    // Off its tile it stays in the list with the element it had.
+    bot.on_packet(
+        1177,
+        &Writer::new()
+            .string("M8")
+            .u8(1)
+            .string("mob101100007")
+            .build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(row(&bot, "Tướng Thiết Kích"), (Some(2), false, false));
+}
+
 /// A bot on M2 with one Cóc Xanh (mob61000) in the zone, and the s2c/22 that opens a battle against it.
 fn coc_xanh_bot() -> (Bot, Vec<Out>, Instant, Vec<u8>) {
     let all = v();
