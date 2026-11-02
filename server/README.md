@@ -26,22 +26,23 @@ App desktop chỉ gọi `POST /api/devices/hello`; phần đồng bộ nick tron
 
 ## Cài lên Cloudflare
 
-Cần Node.js ≥22.6 và một tài khoản Cloudflare. Mọi lệnh chạy trong thư mục `server/`.
+Cần Node.js ≥22.6 (có corepack, nên có Yarn 4 mà `package.json` ghim) và một tài khoản Cloudflare. Mọi lệnh chạy trong thư mục `server/`.
 
 1. Cài và đăng nhập Cloudflare (mở trình duyệt để cho phép):
    ```sh
-   npm install
-   npx wrangler login
+   corepack enable   # một lần: Node có sẵn Yarn qua corepack
+   yarn install
+   yarn wrangler login
    ```
 2. Tìm hay tạo database `cllt` và ghi id của nó vào `database_id` của `wrangler.toml` (chạy được cả trên Windows):
    ```sh
-   npm run d1:id
+   yarn d1:id
    ```
    Đừng commit id này: repo giữ chuỗi `00000000-…`, CI tự điền khi deploy.
 3. Tạo các bảng, rồi đưa Worker lên:
    ```sh
-   npm run db:migrate
-   npm run deploy
+   yarn db:migrate
+   yarn deploy
    ```
    Lệnh deploy in ra địa chỉ: tên miền trong `routes` của `wrangler.toml` (`colau.olachat.net`; Cloudflare tự tạo bản ghi DNS và chứng chỉ, vì zone `olachat.net` nằm cùng tài khoản). Địa chỉ `workers.dev` đã tắt (`workers_dev = false`); muốn bật lại thì đặt `true`.
 4. Mở `<địa chỉ>/admin` và đăng nhập `admin` / `admin`.
@@ -50,13 +51,13 @@ Cần Node.js ≥22.6 và một tài khoản Cloudflare. Mọi lệnh chạy tro
    - Chép token ngay: server chỉ giữ dấu băm của token, nên không hiện lại được.
    - Mỗi máy nên có một token riêng, để thu hồi riêng.
 
-Sửa code xong thì chỉ cần `npm run deploy` lại. Thêm file mới trong `migrations/` thì chạy `npm run db:migrate` trước.
+Sửa code xong thì chỉ cần `yarn deploy` lại. Thêm file mới trong `migrations/` thì chạy `yarn db:migrate` trước.
 
 ## Tự deploy bằng GitHub Actions
 
 Workflow [`.github/workflows/server-deploy.yml`](../.github/workflows/server-deploy.yml) tự chạy mỗi khi có commit trên `main` đổi gì trong `server/`. Cũng chạy được bằng tay: tab **Actions → Deploy Server → Run workflow**. Mỗi lần chạy:
-1. Chạy `npm test`. Test lỗi thì dừng, không deploy.
-2. Tìm database D1 `cllt` trên Cloudflare, chưa có thì tạo (`npm run d1:id`, file `scripts/d1-id.mjs`). Id của nó chỉ được ghi vào `wrangler.toml` trên máy chạy CI, nên không cần sửa `database_id` trong repo.
+1. Chạy `yarn test`. Test lỗi thì dừng, không deploy.
+2. Tìm database D1 `cllt` trên Cloudflare, chưa có thì tạo (`yarn d1:id`, file `scripts/d1-id.mjs`). Id của nó chỉ được ghi vào `wrangler.toml` trên máy chạy CI, nên không cần sửa `database_id` trong repo.
 3. Tạo hay cập nhật bảng (`wrangler d1 migrations apply --remote`).
 4. Deploy (`wrangler deploy`). Phần tóm tắt của lần chạy ghi địa chỉ trang quản trị.
 
@@ -67,7 +68,7 @@ Cần làm một lần trước:
    - Zone › **Workers Routes** › Edit và Zone › **DNS** › Edit, cho tên miền `colau.olachat.net` trong `routes` của `wrangler.toml`.
 
    Ở Account Resources chọn tài khoản của bạn; ở Zone Resources chọn zone `olachat.net`.
-2. **Account ID.** Lấy ở cột phải trang Workers & Pages của dashboard, hay bằng `npx wrangler whoami`.
+2. **Account ID.** Lấy ở cột phải trang Workers & Pages của dashboard, hay bằng `yarn wrangler whoami`.
 3. **Mở Workers & Pages trên dashboard một lần**, để tài khoản có tên miền `workers.dev`. Deploy từ CI không tự chọn tên miền này được.
 4. **Thêm secret vào repo.** GitHub → repo → Settings → Secrets and variables → Actions → New repository secret, thêm hai secret:
    - `CLOUDFLARE_API_TOKEN`;
@@ -82,9 +83,10 @@ Cần làm một lần trước:
 Chạy trên máy dùng database riêng trên máy, không đụng tới bản trên Cloudflare.
 
 ```sh
-npm install
-npm run db:migrate:local
-npm run dev        # http://localhost:8787/admin
+corepack enable
+yarn install
+yarn db:migrate:local
+yarn dev            # http://localhost:8787/admin
 ```
 
 ## API
@@ -168,10 +170,10 @@ Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 
 | `src/accounts.ts` | Đọc JSON (giống `backup::parse` của app), thêm/thay nick, xuất JSON |
 | `src/devices.ts` | Thiết bị: đọc hello, thêm/cập nhật, chặn, bỏ chặn, đặt tên, xoá |
 | `src/pages.ts` | HTML của trang quản trị |
-| `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`npm run d1:id`; workflow deploy dùng) |
+| `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
 | `migrations/0001_init.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts` |
 | `migrations/0002_devices.sql` | Bảng `devices` |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 
-Kiểm tra: `npm test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd): đăng nhập `admin`/`admin`, bị chuyển sang đổi mật khẩu, tạo token, gửi một nick lên, tải về có mật khẩu, trang Nick hiện nick đó, header CSP có nonce.
+Kiểm tra: `yarn test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd): đăng nhập `admin`/`admin`, bị chuyển sang đổi mật khẩu, tạo token, gửi một nick lên, tải về có mật khẩu, trang Nick hiện nick đó, header CSP có nonce.

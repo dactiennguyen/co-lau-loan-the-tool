@@ -46,14 +46,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: server/package-lock.json
+
+      # Yarn as packageManager of server/package.json pins it, through the corepack that comes with Node.
+      - name: Yarn
+        run: corepack enable
 
       - name: Install
-        run: npm ci
+        run: yarn install --immutable
 
       - name: Test
-        run: npm test
+        run: yarn test
 
       - name: Cloudflare secrets
         id: secrets
@@ -67,18 +69,18 @@ jobs:
 
       - name: D1 database
         if: steps.secrets.outputs.set == 'true'
-        run: npm run d1:id
+        run: yarn d1:id
 
       - name: Migrations
         if: steps.secrets.outputs.set == 'true'
-        run: npx wrangler d1 migrations apply cllt --remote
+        run: yarn wrangler d1 migrations apply cllt --remote
 
       - name: Deploy
         if: steps.secrets.outputs.set == 'true'
         run: |
           # The step's shell has no pipefail: without it a failed deploy would pass through tee.
           set -o pipefail
-          npx wrangler deploy 2>&1 | tee deploy.log
+          yarn wrangler deploy 2>&1 | tee deploy.log
           # The address: the custom domain ("colau.olachat.net (custom domain)"), else the workers.dev one. Finding
           # neither is no failure: the deploy above has already succeeded.
           url=$( { grep -oE '^ +[A-Za-z0-9.-]+ \(custom domain\)' deploy.log | awk '{print "https://" $1}'

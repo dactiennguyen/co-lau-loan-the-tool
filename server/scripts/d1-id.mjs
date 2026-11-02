@@ -1,6 +1,6 @@
 // The D1 database of wrangler.toml on Cloudflare: found by its database_name, made when the account has none, and its
 // id written into database_id of wrangler.toml. The deploy workflow (.github/workflows/server-deploy.yml) runs it before
-// the migrations, on the runner's copy only; by hand it is `npm run d1:id` after `npx wrangler login`.
+// the migrations, on the runner's copy only; by hand it is `yarn d1:id` after `yarn wrangler login`.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

@@ -1,2 +1,4 @@
 # wrangler dev keeps its local D1 and caches here.
 .wrangler/
+# Yarn (nodeLinker node-modules): its install state; packages come from the global cache.
+.yarn/

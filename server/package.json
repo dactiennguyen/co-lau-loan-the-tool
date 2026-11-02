@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "description": "Cloudflare Worker + D1 that keeps the accounts of CLLT Tool, with an admin page (README.md)",
+  "packageManager": "yarn@4.18.1",
   "engines": {
     "node": ">=22.6"
   },
@@ -13,7 +14,7 @@
     "db:migrate": "wrangler d1 migrations apply cllt --remote",
     "d1:id": "node scripts/d1-id.mjs",
     "typecheck": "tsc --noEmit -p .",
-    "test": "npm run typecheck && node --experimental-strip-types --no-warnings --test test/*.test.ts"
+    "test": "yarn typecheck && node --experimental-strip-types --no-warnings --test test/*.test.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261101.1",
