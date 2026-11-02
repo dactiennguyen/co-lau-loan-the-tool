@@ -55,8 +55,8 @@ export function Sidebar() {
         {/* The name with the Cài đặt button at the right of its line; the summary has the whole width under them. */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1.5">
-            <div className="flex items-center gap-1.5 min-w-0 font-pixel font-bold text-15 leading-[1.2] uppercase">
-              CLLT Tool
+            <div className="flex items-center gap-1.5 min-w-0 font-pixel font-bold text-15 leading-[1.2] uppercase whitespace-nowrap">
+              Co Lau Tool
               {import.meta.env.DEV && (
                 <span className="px-1 py-px text-10 leading-none text-ink bg-danger" title="Bản dev (npm run tauri dev)">
                   Dev

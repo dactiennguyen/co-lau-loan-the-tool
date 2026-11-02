@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CLLT Tool DEV",
+  "productName": "Co Lau Tool DEV",
   "identifier": "vn.colauloanthe.desktop.dev",
   "bundle": {
     "icon": [
@@ -11,7 +11,7 @@
       "icons-dev/icon.ico"
     ],
     "macOS": {
-      "bundleName": "CLLT Tool DEV"
+      "bundleName": "Co Lau Tool DEV"
     }
   }
 }

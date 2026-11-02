@@ -18,14 +18,17 @@ interface Props {
   hint: string;
   /** What the bot or the app sees for it, beside the name (SETTING_FACT). */
   children?: ReactNode;
+  /** Settings that belong to this one, shown or hidden under it (`controls`, the id of that part): a ▾ after Bật/Tắt. */
+  expand?: { open: boolean; onToggle: () => void; controls: string };
 }
 
 /**
  * One setting on one dark row: a pixel box, the icon, the name and its "?", what the bot sees for it, Bật/Tắt; the card
  * or dialog stacks them. The box, its name and the space up to Bật/Tắt toggle it; the "?" between them only explains. A
- * setting that is on gets a green edge, as the proxy of the account form does.
+ * setting that is on gets a green edge, as the proxy of the account form does. One with settings of its own under it
+ * (`expand`) ends with a ▾ that shows or hides them.
  */
-export function SettingRow({ id, on, disabled, onChange, icon, title, hint, children }: Props) {
+export function SettingRow({ id, on, disabled, onChange, icon, title, hint, children, expand }: Props) {
   return (
     <div className={cn("@container grid bg-ink", on && "shadow-[inset_3px_0_0_var(--good)]")}>
       <div className="group/row flex flex-wrap items-center gap-x-1.5 gap-y-0 px-3 hover:bg-bg-2">
@@ -79,6 +82,23 @@ export function SettingRow({ id, on, disabled, onChange, icon, title, hint, chil
         >
           {on ? "Bật" : "Tắt"}
         </label>
+        {expand && (
+          <button
+            type="button"
+            className="grid place-items-center size-[26px] -mr-1.5 ml-1 text-fg-3 bg-transparent border-0 cursor-pointer hover:text-fg hover:bg-card focus-visible:outline-2 focus-visible:outline-ring aria-expanded:text-primary"
+            aria-expanded={expand.open}
+            aria-controls={expand.controls}
+            aria-label={`${expand.open ? "Thu gọn" : "Mở"} tuỳ chọn của ${title}`}
+            title={expand.open ? "Thu gọn" : "Mở tuỳ chọn"}
+            onClick={expand.onToggle}
+          >
+            <Icon
+              name="chevron"
+              size={16}
+              className={cn("transition-[transform] duration-(--fast) ease-[steps(2)]", expand.open && "[transform:rotate(180deg)]")}
+            />
+          </button>
+        )}
       </div>
     </div>
   );

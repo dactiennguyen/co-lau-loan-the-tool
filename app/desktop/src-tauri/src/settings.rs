@@ -1,5 +1,5 @@
-// Cài đặt of the app, behind the button beside the name CLLT Tool: the game server, Lưu dữ liệu trận and what closing the window
-// does, the same for every account. settings.json beside accounts.json; local only (app/.gitignore).
+// Cài đặt of the app, behind the button beside the name Co Lau Tool: the game server, Lưu dữ liệu trận, the notifications
+// and what closing the window does, the same for every account. settings.json beside accounts.json; local only (app/.gitignore).
 use cllt_core::net::Server;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -13,6 +13,10 @@ pub struct Settings {
     pub record: bool,
     /// The close button of the window (tray.rs): ask, hide it in the tray with the accounts still playing, or quit.
     pub on_close: OnClose,
+    /// Thông báo (notify.rs): a notification when a fight job or quest run ends by itself (notify_done), and when it ends
+    /// because Thua tối đa was reached (notify_lost).
+    pub notify_done: bool,
+    pub notify_lost: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -20,6 +24,8 @@ impl Default for Settings {
             server: Server::default(),
             record: true,
             on_close: OnClose::Ask,
+            notify_done: true,
+            notify_lost: true,
         }
     }
 }
@@ -272,6 +278,8 @@ mod tests {
             },
             record: false,
             on_close: OnClose::Tray,
+            notify_done: true,
+            notify_lost: false,
         };
         save(&file, &changed).unwrap();
         assert_eq!(load(&file), changed);

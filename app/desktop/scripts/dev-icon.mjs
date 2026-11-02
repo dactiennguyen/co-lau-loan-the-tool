@@ -1,4 +1,4 @@
-// The icon of the dev app (CLLT Tool DEV, src-tauri/tauri.dev.conf.json): app-icon.png with a red DEV label at its
+// The icon of the dev app (Co Lau Tool DEV, src-tauri/tauri.dev.conf.json): app-icon.png with a red DEV label at its
 // bottom, saved as app-icon-dev.png, then the icons Tauri needs in src-tauri/icons-dev. Run it again after a new
 // app-icon.png (npm run tauri icon app-icon.png makes the icons of the app itself): npm run icon:dev.
 // Needs ImageMagick 7 (magick) and a heavy font: Arial Black of macOS, or FONT=/path/to/font.ttf.
@@ -22,4 +22,4 @@ execFileSync('npx', ['tauri', 'icon', dev, '-o', out], { stdio: 'inherit', cwd: 
 // Only what tauri.dev.conf.json names: the dev app is never bundled for a store or a phone.
 const keep = new Set(['32x32.png', '128x128.png', '128x128@2x.png', 'icon.icns', 'icon.ico', 'icon.png']);
 for (const f of readdirSync(out)) if (!keep.has(f)) rmSync(`${out}/${f}`, { recursive: true, force: true });
-console.log(`icons of CLLT Tool DEV in ${out}`);
+console.log(`icons of Co Lau Tool DEV in ${out}`);

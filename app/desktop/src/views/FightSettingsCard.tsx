@@ -22,6 +22,9 @@ const HAMMER = 2;
  * anyone may have it) and Nhặt cả đồ khác giới tính under it; Chỉ nhặt trang bị đúng hệ is off unless turned on. Lưu dữ
  * liệu trận is not here: it is the same for every account, in the Cài đặt of the app (SettingsDialog).
  */
+/** Whether the settings under Tự nhặt đồ are shown, the same for every account; kept in localStorage. */
+const PICKUP_OPEN = "pickupOptionsOpen";
+
 /** The settings this card changes: the box shows the one being saved until the account comes back with it. */
 const KEYS = ["repair", "pickup", "pickupOthers", "pickupOtherGender", "pickupOwnElement"] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
@@ -31,6 +34,13 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const id = useId();
   const [saving, setSaving] = useState<FightSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The three settings of Tự nhặt đồ fold under it, closed until opened once.
+  const [pickupOpen, setPickupOpen] = useState(() => localStorage.getItem(PICKUP_OPEN) === "1");
+  const togglePickup = () =>
+    setPickupOpen((was) => {
+      localStorage.setItem(PICKUP_OPEN, was ? "0" : "1");
+      return !was;
+    });
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update.
   useEffect(() => {
     if (saving && KEYS.every((k) => saving[k] === saved[k])) {
@@ -87,10 +97,19 @@ export function FightSettingsCard({ account }: { account: Account }) {
         onChange={(pickup) => save({ ...settings, pickup })}
         icon="gem"
         title="Tự nhặt đồ"
-        hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm."
-      />
-      {/* Part of Tự nhặt đồ: indented under it, and greyed while it is off. */}
-      <div className="ml-6">
+        hint="Sau mỗi trận thắng, bot nhặt ngay đồ của mình vừa rơi (Xu khóa, đá, trang bị…) từ chỗ đang đứng, không cần đi tới hòm. Đồ nhặt được ghi ở Nhật ký, loại Vật phẩm. Bấm ▾ ở cuối dòng để xem ba tuỳ chọn của nó."
+        expand={{ open: pickupOpen, onToggle: togglePickup, controls: `${id}pickup-options` }}
+      >
+        {/* Folded, how many of its three settings are on. */}
+        {!pickupOpen && (
+          <span className={SETTING_FACT}>
+            <Icon name="list" size={12} />
+            <b className="px">{[settings.pickupOthers, settings.pickupOtherGender, settings.pickupOwnElement].filter(Boolean).length}</b>/3 tuỳ chọn bật
+          </span>
+        )}
+      </SettingRow>
+      {/* Part of Tự nhặt đồ: indented under it, greyed while it is off, folded until its ▾ opens it. */}
+      <div id={`${id}pickup-options`} className="ml-6" hidden={!pickupOpen}>
         <SettingRow
           id={`${id}others`}
           on={settings.pickupOthers}

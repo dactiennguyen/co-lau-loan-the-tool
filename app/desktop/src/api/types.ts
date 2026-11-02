@@ -814,6 +814,9 @@ export interface Settings {
   record: boolean;
   /** The close button of the window: ask (Đóng cửa sổ), hide it in the tray with the accounts still playing, or quit. */
   onClose: OnClose;
+  /** Thông báo of the system when a fight job or quest run ends by itself, and when it ends for losses (notify.rs). */
+  notifyDone: boolean;
+  notifyLost: boolean;
 }
 
 /** OnClose of settings.rs. */

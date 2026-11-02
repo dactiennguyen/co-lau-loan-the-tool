@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "CLLT Tool",
+        "title": "Co Lau Tool",
         "width": 1280,
         "height": 860,
         "minWidth": 1080,
@@ -48,7 +48,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "bundleName": "CLLT Tool",
+      "bundleName": "Co Lau Tool",
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-"
     }

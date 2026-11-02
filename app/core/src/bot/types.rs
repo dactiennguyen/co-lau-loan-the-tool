@@ -336,7 +336,7 @@ pub struct Target {
     pub no_exp: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Job {
     pub target: String,
@@ -359,7 +359,7 @@ pub struct Job {
 }
 
 /// "Tự làm nhiệm vụ", or ▶ on one step: the quest run and what it has done so far.
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestRun {
     /// Number of the job or run in this session, so the UI tells a new run from the one before.

@@ -9,7 +9,7 @@ use cllt_core::accounts::Account;
 use serde::Serialize;
 use serde_json::Value;
 
-pub const APP: &str = "CLLT Tool";
+pub const APP: &str = "Co Lau Tool";
 /// Raised when a field changes meaning; a file of a later format is refused rather than half read.
 pub const FORMAT: u32 = 1;
 
@@ -245,7 +245,7 @@ mod tests {
             ..Settings::default()
         };
         let text = export(&accounts, Some(&settings), "2026-11-01T22:00:00+07:00");
-        assert!(text.contains("\"app\": \"CLLT Tool\"") && text.contains("\"format\": 1"));
+        assert!(text.contains("\"app\": \"Co Lau Tool\"") && text.contains("\"format\": 1"));
         let back = parse(&text).unwrap();
         assert_eq!(back.accounts, accounts);
         // Cài đặt đánh in full, also at its defaults, so that each setting can be changed in the file before Nhập.

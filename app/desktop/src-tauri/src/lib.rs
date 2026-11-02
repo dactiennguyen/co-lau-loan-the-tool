@@ -2,7 +2,7 @@
 // in, and see for each one its character (level, HP, EXP, stats), where it stands (map, zone), who else is in the zone,
 // and a fight job ("đánh X N lần").
 //
-//   npm run tauri dev                    window with the Vite dev server (hot reload of ../src), as CLLT Tool DEV:
+//   npm run tauri dev                    window with the Vite dev server (hot reload of ../src), as Co Lau Tool DEV:
 //                                        tauri.dev.conf.json over tauri.conf.json (scripts/tauri.mjs adds it), its own
 //                                        identifier and icon, so it runs beside the installed app without looking like it
 //   npm run app                          the app in app/target/release/bundle: macos/colautool.app (only that,
@@ -20,6 +20,7 @@ mod app;
 mod backup;
 mod commands;
 mod device;
+mod notify;
 mod paths;
 mod sample;
 mod settings;
@@ -33,11 +34,11 @@ use app::{App, Shared};
 use cllt_core::net::Manager;
 use tauri::Manager as _;
 
-/// The name of the app in its window title and its tray: CLLT Tool, CLLT Tool DEV under `npm run tauri dev`.
+/// The name of the app in its window title and its tray: Co Lau Tool, Co Lau Tool DEV under `npm run tauri dev`.
 pub fn app_name() -> &'static str {
     match tauri::is_dev() {
-        true => "CLLT Tool DEV",
-        false => "CLLT Tool",
+        true => "Co Lau Tool DEV",
+        false => "Co Lau Tool",
     }
 }
 
@@ -56,6 +57,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .manage(update::Updates::default())
         .setup(move |tauri_app| {
             // Session events come from tokio threads and update the accounts; the flusher thread tells the UI.
@@ -172,6 +174,7 @@ pub fn run() {
             commands::set_settings,
             commands::export_battles,
             commands::clear_battles,
+            commands::test_notification,
             commands::reveal_export,
             commands::export_accounts,
             commands::save_accounts,

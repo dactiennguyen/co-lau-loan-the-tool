@@ -132,6 +132,8 @@ pub struct App {
     store: Option<Arc<Store>>,
     /// Cài đặt of the app (settings.json), as the manager was last given them.
     settings: Settings,
+    /// Notifications of jobs and quest runs that ended, for the flusher to show (notify.rs).
+    notices: Vec<crate::notify::Notice>,
 }
 
 /// The key of an account in cllt.db: its username in lower case, as the server takes it.
@@ -444,6 +446,11 @@ pub fn spawn_flusher(handle: AppHandle, wake: Receiver<()>) {
                 continue;
             };
             let (update, lines) = shared.with(App::take_update);
+            for n in shared.with(|app| std::mem::take(&mut app.notices)) {
+                if let Err(e) = crate::notify::show(&handle, &n) {
+                    eprintln!("{e}");
+                }
+            }
             if !lines.is_empty() {
                 let _ = handle.emit("log", lines);
             }
@@ -473,6 +480,7 @@ impl App {
             load_error: None,
             store: None,
             settings: Settings::default(),
+            notices: vec![],
         }
     }
 
@@ -841,10 +849,21 @@ impl App {
                 }
             }
             Event::Snapshot(s) => {
+                let (done, lost) = (self.settings.notify_done, self.settings.notify_lost);
                 let Some(e) = self.entry_mut(id) else { return };
+                let who = match e.account.label.trim() {
+                    "" => e.account.username.clone(),
+                    label => label.to_string(),
+                };
+                let ended = crate::notify::ended(&who, &e.snap, &s);
                 if let Some(line) = e.take_snapshot(*s) {
                     self.pending.push((id, line));
                 }
+                self.notices
+                    .extend(ended.into_iter().filter(|n| match n.kind {
+                        crate::notify::Kind::Done => done,
+                        crate::notify::Kind::Lost => lost,
+                    }));
                 self.touch(id, false);
             }
             Event::Log(kind, text) => self.log(id, kind, &text),

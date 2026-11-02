@@ -12,10 +12,11 @@ import { inGame, useStore } from "@/store";
 import type { Exported, OnClose, Settings, SettingsView } from "@/api/types";
 import { FaultsPage } from "./FaultsPage";
 
-type Page = "server" | "data" | "faults" | "window";
+type Page = "server" | "data" | "notify" | "faults" | "window";
 const PAGES: Tab<Page>[] = [
   { key: "server", label: "Server game", icon: "server" },
   { key: "data", label: "Dữ liệu trận", icon: "chart" },
+  { key: "notify", label: "Thông báo", icon: "bell" },
   { key: "faults", label: "Log lỗi", icon: "bug" },
   { key: "window", label: "Cửa sổ", icon: "tray" },
 ];
@@ -46,10 +47,11 @@ const PAGE = "[grid-area:1/1] grid gap-2.5 [align-content:start] min-w-0 inert:i
 const EXPORT_TEXT = "flex-[1_1_220px] m-0 text-[11.5px] text-fg-2 wrap-anywhere";
 
 /**
- * Cài đặt of the app, behind the button beside the name CLLT Tool, in four tabs. Server game: the address the next logins
+ * Cài đặt of the app, behind the button beside the name Co Lau Tool, in five tabs. Server game: the address the next logins
  * connect to; Mặc định puts back play.colauloanthe.vn:1688. Dữ liệu trận: Lưu
  * dữ liệu trận for every account, Xuất dữ liệu trận, which at once writes every saved battle to one file in
- * Downloads, and Xoá dữ liệu trận, which asks once more (as Xoá log lỗi does), then deletes them all at once. Log lỗi (FaultsPage): the faults kept, read when the dialog opens, and Xuất and Xoá log lỗi, at once too.
+ * Downloads, and Xoá dữ liệu trận, which asks once more (as Xoá log lỗi does), then deletes them all at once. Thông báo: a notification
+ * when a job or quest run ends by itself, and when it ends for losses (notify.rs), with Gửi thử. Log lỗi (FaultsPage): the faults kept, read when the dialog opens, and Xuất and Xoá log lỗi, at once too.
  * Cửa sổ: what the close button of the window does. The tabs stay in the form, the hidden ones inert, so the dialog keeps
  * the height of the tallest and Lưu saves them all to settings.json.
  */
@@ -60,6 +62,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [exported, setExported] = useState<Export>({ state: "idle" });
   const [confirmClear, setConfirmClear] = useState(false);
+  const [tried, setTried] = useState<{ state: "idle" | "working" | "sent" } | { state: "fail"; text: string }>({ state: "idle" });
   const [page, setPage] = useState<Page>("server");
   const playing = useStore(inGame);
   const id = useId();
@@ -112,6 +115,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     );
   };
 
+  const tryNotification = () => {
+    setTried({ state: "working" });
+    api.testNotification().then(
+      () => setTried({ state: "sent" }),
+      (err) => setTried({ state: "fail", text: message(err) }),
+    );
+  };
+
   const set = (patch: Partial<Settings>) => form && setForm({ ...form, ...patch });
   const saved = view?.settings;
   const defaults = view?.defaults;
@@ -121,7 +132,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const data = view?.battleData;
 
   return (
-    <Dialog title="Cài đặt" subtitle="Dùng chung cho mọi nick" onSubmit={submit} onClose={onClose} className="w-[min(560px,92vw)]">
+    <Dialog title="Cài đặt" subtitle="Dùng chung cho mọi nick" onSubmit={submit} onClose={onClose} className="w-[min(620px,94vw)]">
       {!form ? (
         <p className={DIALOG.text}>{error ? "" : "Đang đọc cài đặt…"}</p>
       ) : (
@@ -229,6 +240,44 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       {data?.battles
                         ? "Mọi trận đã lưu của mọi nick vào một file .db trong Downloads, để gửi đi học thuật toán đánh."
                         : "Chưa có trận nào được lưu."}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className={PAGE} inert={page !== "notify"}>
+                <SettingRow
+                  id={`${id}notify-done`}
+                  on={form.notifyDone}
+                  disabled={saving}
+                  onChange={(notifyDone) => set({ notifyDone })}
+                  icon="flag"
+                  title="Báo khi xong việc"
+                  hint="Đánh quái đủ số trận, hay Tự làm nhiệm vụ kết thúc (xong bước đang làm, hoặc bot dừng vì không đi tiếp được), máy hiện thông báo kèm lý do, số trận thắng thua và EXP. Tự bấm Dừng thì không báo."
+                />
+                <SettingRow
+                  id={`${id}notify-lost`}
+                  on={form.notifyLost}
+                  disabled={saving}
+                  onChange={(notifyLost) => set({ notifyLost })}
+                  icon="sword"
+                  title="Báo khi thua hết lượt"
+                  hint="Đánh quái hay làm nhiệm vụ dừng vì đã thua đủ số trận Thua tối đa, máy hiện thông báo để vào xem nhân vật."
+                />
+                {/* Gửi thử, then what it did or how the systems ask, on a dark plate. */}
+                <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5 px-3 py-2.5 bg-ink">
+                  <Button kind="outline" small icon="bell" disabled={tried.state === "working"} onClick={tryNotification}>
+                    Gửi thử
+                  </Button>
+                  {tried.state === "fail" ? (
+                    <p className={cn(EXPORT_TEXT, "text-danger")} role="alert">
+                      {tried.text}
+                    </p>
+                  ) : (
+                    <p className={cn(EXPORT_TEXT, tried.state === "sent" && "text-good")} role="status">
+                      {tried.state === "sent"
+                        ? "Đã gửi. Không thấy thì xem Windows: Cài đặt → Hệ thống → Thông báo; macOS: Cài đặt hệ thống → Thông báo → colautool."
+                        : "Windows và Linux hiện thông báo ngay. macOS hỏi Cho phép ở lần đầu tiên, bấm Cho phép một lần là xong."}
                     </p>
                   )}
                 </div>

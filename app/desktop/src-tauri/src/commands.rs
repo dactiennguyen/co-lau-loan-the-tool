@@ -730,6 +730,21 @@ pub async fn clear_battles(shared: State<'_, Shared>) -> Result<usize, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Gửi thử of Cài đặt → Thông báo: one notification now, as a job that ends would show (notify.rs). The error is shown
+/// under the button.
+#[tauri::command]
+pub async fn test_notification(app: AppHandle) -> Result<(), String> {
+    crate::notify::show(
+        &app,
+        &crate::notify::Notice {
+            kind: crate::notify::Kind::Done,
+            title: "Co Lau Tool: thông báo đang bật".into(),
+            body: "Đánh quái hay làm nhiệm vụ kết thúc, hoặc thua hết lượt, sẽ báo như thế này."
+                .into(),
+        },
+    )
+}
+
 /// Characters kept of a note of Báo lỗi, of the message of an error of the UI, and of its stack.
 const NOTE: usize = 2_000;
 const STACK: usize = 8_000;

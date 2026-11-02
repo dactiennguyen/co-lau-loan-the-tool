@@ -34,7 +34,7 @@ Cần Rust 1.90 trở lên và Node 20 trở lên. App dùng Tauri 2.12, bản �
 ```bash
 npm install                                  # lần đầu
 npm run app                                  # đóng gói vào app/target/release/bundle (macOS: macos/colautool.app); về sau bấm đúp
-npm run tauri dev                            # cửa sổ app với Vite dev server: sửa src/ là thấy ngay; app tên CLLT Tool DEV
+npm run tauri dev                            # cửa sổ app với Vite dev server: sửa src/ là thấy ngay; app tên Co Lau Tool DEV
 npm run tauri dev -- -- --login-all          # mở và đăng nhập mọi nick luôn (cờ sau `-- --` đi vào app)
 npm run tauri dev -- -- --sample             # dữ liệu mẫu, không kết nối; lưu vào thư mục tạm, không đụng accounts.json thật
 npm run sample && npm run dev                # xem giao diện trong trình duyệt (http://localhost:1420) với dữ liệu mẫu
@@ -44,7 +44,7 @@ npm run icon:dev                             # làm lại icon DEV từ app-icon
 
 **Bản dev chạy cạnh bản cài.** `npm run tauri dev` đi qua `scripts/tauri.mjs`, script này thêm `src-tauri/tauri.dev.conf.json` lên trên `tauri.conf.json`:
 - định danh riêng `vn.colauloanthe.desktop.dev`;
-- tên **CLLT Tool DEV** ở tiêu đề cửa sổ, khay và thanh bên (có nhãn DEV đỏ);
+- tên **Co Lau Tool DEV** ở tiêu đề cửa sổ, khay và thanh bên (có nhãn DEV đỏ);
 - icon có nhãn DEV (`app-icon-dev.png`, `src-tauri/icons-dev/`) ở Dock và khay.
 
 Cargo build ra tệp `cllt-tool-dev`, nên macOS hiện tên đó ở Dock, Cmd-Tab và thanh menu. Đặt `mainBinaryName` hay đổi tên tiến trình lúc chạy đều không đổi được tên này: macOS lấy theo tên tệp chạy (đo 01/11 bằng `lsappinfo`). `tauri build` đổi tệp về `cllt-desktop` trong gói, nên bản cài, bộ cài và bản cập nhật giữ nguyên tên tệp.

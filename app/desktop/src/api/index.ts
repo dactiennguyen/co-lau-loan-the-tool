@@ -186,6 +186,8 @@ export interface Api {
   exportBattles(): Promise<Exported>;
   /** Xoá dữ liệu trận: every saved battle of every account; how many went. Rejects with a message to show. */
   clearBattles(): Promise<number>;
+  /** Gửi thử of Cài đặt → Thông báo: one notification now; rejects with a message to show. */
+  testNotification(): Promise<void>;
   /** The file of an export, selected in Finder or Explorer. */
   revealExport(path: string): Promise<void>;
   /** Xuất JSON: the accounts `ids` with their passwords, and the Cài đặt of the app when `settings` (backup.rs). */
@@ -280,6 +282,7 @@ const tauri: Api = {
   setSettings: (settings) => invoke("set_settings", { settings }),
   exportBattles: () => invoke("export_battles"),
   clearBattles: () => invoke("clear_battles"),
+  testNotification: () => invoke("test_notification"),
   revealExport: (path) => invoke("reveal_export", { path }),
   exportAccounts: (ids, settings) => invoke("export_accounts", { ids, settings }),
   saveAccounts: (ids, settings) => invoke("save_accounts", { ids, settings }),
@@ -374,17 +377,24 @@ const preview: Api = {
   testProxy: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không kiểm tra được proxy")),
   accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
   settings: async () => {
-    const defaults: Settings = { server: { host: "play.colauloanthe.vn", port: 1688 }, record: true, onClose: "ask" };
+    const defaults: Settings = {
+      server: { host: "play.colauloanthe.vn", port: 1688 },
+      record: true,
+      onClose: "ask",
+      notifyDone: true,
+      notifyLost: true,
+    };
     return { settings: defaults, defaults, battleData: { battles: 1284, bytes: 5_712_384 } };
   },
   setSettings: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu cài đặt")),
   exportBattles: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xuất được dữ liệu trận")),
   clearBattles: async () => 1284,
+  testNotification: async () => {},
   revealExport: nothing,
   // The sample accounts without passwords, and a rough reading of a JSON against them: enough to see both dialogs.
   exportAccounts: async (ids, settings) => {
     const accounts = (await loadSample()).accounts.filter((a) => ids.includes(a.id)).map((a) => ({ label: a.ownLabel, username: a.username, password: "", serverId: a.serverId }));
-    return JSON.stringify({ app: "CLLT Tool", format: 1, exportedAt: new Date().toISOString(), accounts, ...(settings && { settings: {} }) }, null, 2);
+    return JSON.stringify({ app: "Co Lau Tool", format: 1, exportedAt: new Date().toISOString(), accounts, ...(settings && { settings: {} }) }, null, 2);
   },
   saveAccounts: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu file")),
   previewImport: async (text) => {

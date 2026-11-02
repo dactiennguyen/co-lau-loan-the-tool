@@ -1,5 +1,5 @@
 // `npm run tauri …`: the Tauri CLI, with src-tauri/tauri.dev.conf.json over tauri.conf.json for `dev`, so the dev app is
-// CLLT Tool DEV (its own identifier, name and icon with DEV) and runs beside the installed CLLT Tool without looking like
+// Co Lau Tool DEV (its own identifier, name and icon with DEV) and runs beside the installed Co Lau Tool without looking like
 // it. Every other command (build, icon, signer…) goes to the CLI as it is.
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
