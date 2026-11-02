@@ -99,11 +99,12 @@
   --ease-step: var(--step);
 }
 
-/* Motion in steps, as sprites move: a light that blinks (a live status, a tab or a battle at work), a toast or a battle
-   line coming in, the gear of Pháp sư at work. */
+/* Motion in steps, as sprites move: a light that blinks (a live status, a tab or a battle at work), a tab that needs a
+   look (a full bag), a toast or a battle line coming in, the gear of Pháp sư at work. */
 @theme {
   --animate-*: initial;
   --animate-blink: blink 1s steps(2, jump-none) infinite;
+  --animate-alarm: alarm 1s steps(2, jump-none) infinite;
   --animate-toast-in: toast-in var(--slow) var(--step);
   --animate-turn-in: turn-in var(--slow) var(--step);
   --animate-spin: spin 1.2s steps(8) infinite;
@@ -111,6 +112,10 @@
   @keyframes blink {
     from { opacity: 1; }
     to { opacity: 0.25; }
+  }
+  /* A tab that needs a look (a full bag): red, then as it is. */
+  @keyframes alarm {
+    from { color: var(--danger); background: color-mix(in srgb, var(--danger) 28%, var(--bg-2)); }
   }
   @keyframes toast-in {
     from { opacity: 0; transform: translateX(18px); }
@@ -164,6 +169,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+    /* Without the blink, a tab that needs a look stays red. */
+    .animate-alarm { color: var(--danger); }
   }
 }
 

@@ -39,6 +39,7 @@ function keptTask(id: number): Task {
  */
 export function AccountPage({ account }: { account: Account }) {
   const c = account.character;
+  const bagFull = !!c?.bag && c.bag.capacity > 0 && c.bag.items.length >= c.bag.capacity;
   const id = account.id;
   const log = useStore(selectedLog);
   const open = useStore((s) => s.open);
@@ -108,7 +109,8 @@ export function AccountPage({ account }: { account: Account }) {
                 { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
                 { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
                 { key: "settings", label: "Cài đặt đánh", icon: "settings" },
-                { key: "bag", label: "Túi đồ", icon: "gem" },
+                // A full bag blinks: nothing more is picked up, bought or taken off until slots are freed.
+                { key: "bag", label: "Túi đồ", icon: "gem", ...(bagFull && { alert: "Đầy", alertLabel: "túi đồ đã đầy" }) },
               ]}
             />
             {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng, Hòm thư, Mã quà tặng (ShopModal). */}
