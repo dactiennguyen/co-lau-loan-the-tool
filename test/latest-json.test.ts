@@ -65,3 +65,16 @@ test('latest.json: the release workflow writes it before the release, and the ap
   // Local builds stay unsigned; CI turns the updater files on when it has the key.
   assert.equal(config.bundle.createUpdaterArtifacts, undefined);
 });
+
+test('release-retry.yml runs a Release run again only when GitHub cancelled a job of it, at most twice', () => {
+  const release = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
+  const retry = readFileSync(new URL('../.github/workflows/release-retry.yml', import.meta.url), 'utf8');
+  assert.match(release, /^name: Release$/m);
+  assert.match(retry, /workflows: \[Release\]/);
+  // A run cancelled by hand ends "cancelled", not "failure"; the third attempt is the last.
+  assert.match(retry, /conclusion == 'failure' && github\.event\.workflow_run\.run_attempt < 3/);
+  // A job that failed by itself (a test, a build) is looked for before anything runs again.
+  const failed = retry.indexOf("grep -q '^failure'");
+  assert.ok(failed > 0 && failed < retry.indexOf("grep -q '^cancelled'") && failed < retry.indexOf('gh run rerun'));
+  assert.match(retry, /gh run rerun "\$RUN" --failed/);
+});

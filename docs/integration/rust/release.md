@@ -10,6 +10,7 @@ Có hai workflow trong `.github/workflows`, làm theo cách của [cockpit-tools
 |---|---|---|
 | [build-matrix.yml](../../../.github/workflows/build-matrix.yml) | push lên `main`, mở pull request, hoặc bấm tay (Run workflow) | `npm ci` ở gốc và trong `app/desktop` (test import vài file của giao diện, cần kiểu của `@tauri-apps/api`), rồi `npm test` (`tsc --noEmit` trên `src/`, `test/` rồi mới chạy test); `cargo fmt`, `cargo clippy -D warnings`, `cargo test` trên Ubuntu. Push và pull request chỉ chạy chừng đó. Khi phát hành (tag `v*`) hoặc bấm tay, test qua hết mới build app trên 4 máy song song: repo private tính phút macOS gấp 10, một lần build đủ tốn khoảng 115 trong 2000 phút mỗi tháng của gói Free. Có khoá updater trong Secrets thì mỗi bản build có thêm file cập nhật và `.sig`; pull request từ fork không có Secrets nên build không ký. File build nằm 14 ngày trong mục Artifacts của lần chạy |
 | [release.yml](../../../.github/workflows/release.yml) | đẩy tag `v*` | Kiểm tra tag khớp version, gọi build-matrix.yml (chuyển Secrets sang), rồi tạo GitHub Release gồm mọi file, `.sig`, `SHA256SUMS.txt`, `latest.json` cho updater và [ghi chú cài đặt](../../../.github/release-notes.md). Thiếu chữ ký của một nền tảng nào thì dừng, không phát hành |
+| [release-retry.yml](../../../.github/workflows/release-retry.yml) | một lần chạy release.yml kết thúc | Nếu lần đó hỏng chỉ vì GitHub huỷ một job không cấp được máy, thì chạy lại các job bị huỷ, tối đa tới lần thứ 3 ([Chạy lại khi thiếu máy](#chạy-lại-khi-thiếu-máy)) |
 
 | Máy build | Target | File |
 |---|---|---|
@@ -24,6 +25,23 @@ Phát hành một bản mới, ví dụ 0.1.1:
 1. Đặt `version` thành `0.1.1` ở cả ba chỗ: [app/Cargo.toml](../../../app/Cargo.toml), [app/desktop/package.json](../../../app/desktop/package.json), [tauri.conf.json](../../../app/desktop/src-tauri/tauri.conf.json). Nếu tag lệch với bất kỳ chỗ nào, release dừng ngay.
 2. Commit với tiêu đề "Release 0.1.1", phần thân ghi những gì đã đổi: phần thân này thành mục **Có gì mới** trong app của người dùng (`notes` của `latest.json`; đoạn cuối chỉ gồm các dòng `Co-Authored-By:`, `Signed-off-by:` thì bị bỏ). Rồi chạy `git tag v0.1.1 && git push origin main v0.1.1`.
 3. Release hiện ra sau khi 4 bản build và bước publish xong. Bản đã publish không bao giờ bị ghi đè. Bản nháp do một lần chạy lỗi để lại thì bị thay.
+
+### Chạy lại khi thiếu máy
+
+**Lỗi đã gặp**
+- Ngày 02/11/2026, bản 1.1.7 không được phát hành.
+- GitHub thiếu máy macOS Apple Silicon, nên job build trên `macos-latest` chờ 15 phút rồi bị huỷ. GitHub ghi: "The job was not acquired by Runner of type hosted even after multiple attempts".
+- Ba bản kia build xong, nhưng bước publish cần đủ cả 4 bản nên bị bỏ qua. `latest.json` vẫn ở 1.1.6, và app không thấy có bản mới.
+- Bấm "Re-run failed jobs" thì chỉ job bị huỷ chạy lại, rồi publish. Bản 1.1.7 lên sau khoảng 10 phút.
+
+**release-retry.yml tự làm việc đó**
+- Nó chạy mỗi khi một lần chạy `Release` kết thúc. Lần đó phải hỏng (`failure`) và chưa tới lần thứ 3.
+- Nó xem các job của lần chạy:
+  - Có job lỗi thật (`failure`: test, build, publish): không chạy lại, vì chạy lại cũng lỗi như cũ.
+  - Có job bị huỷ (`cancelled`): `gh run rerun --failed`, chạy lại các job bị huỷ và các job sau nó.
+- Lần chạy bị huỷ bằng tay kết thúc là `cancelled` chứ không phải `failure`, nên không bị chạy lại.
+- Mỗi lần chạy lại lại chờ máy tới 15 phút, nên hai lần chạy lại phủ khoảng 45 phút.
+- Nếu GitHub thiếu máy lâu hơn thế, mở lần chạy Release trong tab Actions và bấm **Re-run failed jobs**.
 
 Lưu ý:
 - **Tên app là `colautool`** (`productName`), không dấu. Tên có dấu làm hỏng hai loại bộ cài:
