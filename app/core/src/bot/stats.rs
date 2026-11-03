@@ -45,7 +45,7 @@ impl Bot {
         };
         let refused = if self.battle.is_some() {
             Some("đang đánh, đợi hết trận")
-        } else if self.allotting {
+        } else if self.allotting.is_some() {
             Some("bot đang tự cộng điểm")
         } else if self.snap.stat_points.unwrap_or(0) <= 0 {
             Some("hết điểm tiềm năng")
@@ -94,11 +94,22 @@ impl Bot {
     }
 
     /// s2c/10 kind 8, the points left. It comes last of the three that answer c2s/10 (P1), so a point of the plan goes
-    /// on to the next in 250 ms; points that came with a level while nothing runs go out the same way.
-    pub(super) fn points_changed(&mut self, now: Instant) {
+    /// on to the next in 250 ms; points that came with a level while nothing runs go out the same way. An answer that
+    /// spent no point stops the plan until it is set again, as skill_answered does for Tự cộng kỹ năng: else the same
+    /// point would go out every 250 ms and the job or quest run never go on.
+    pub(super) fn points_changed(&mut self, now: Instant, out: &mut Vec<Out>) {
         let skills = self.fight.auto_skills && !self.skills_failed;
-        if self.allotting {
-            self.allotting = false;
+        if let Some(before) = self.allotting.take() {
+            let left = self.snap.stat_points.unwrap_or(0);
+            if left >= before {
+                self.allot_failed = true;
+                out.push(Out::Log(
+                    LogKind::Character,
+                    format!(
+                        "Server không cộng điểm tiềm năng (vẫn còn {left} điểm); thôi tự cộng điểm"
+                    ),
+                ));
+            }
             self.timer = Some((now + Duration::from_millis(250), Wake::Next));
         } else if ((self.stat_plan.is_some() && !self.allot_failed) || skills) && self.idle() {
             self.timer = Some((now + Duration::from_millis(250), Wake::Next));
@@ -156,7 +167,7 @@ impl Bot {
         let stat = next_stat(&weights, &self.given);
         self.given[stat] += 1;
         self.spent[stat] += 1;
-        self.allotting = true;
+        self.allotting = Some(left);
         let ctx = Ctx {
             stat: Some(stat as i32),
             amount: Some(1),

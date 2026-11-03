@@ -299,7 +299,7 @@ fn line(a: &Account, s: &Snapshot) -> String {
             " | nhiệm vụ {} {}: bước {}/{} {} ({}/{})",
             q.id,
             q.title,
-            q.current + 1,
+            q.current as i64 + 1,
             q.steps.len(),
             step.map_or("", |s| &s.text),
             q.progress,

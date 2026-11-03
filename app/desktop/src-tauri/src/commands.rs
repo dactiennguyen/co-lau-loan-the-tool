@@ -116,12 +116,18 @@ pub fn set_losses_left(shared: State<Shared>, id: u64, left: u32) {
 
 /// Cài đặt đánh of the account: Tự sửa đồ, Tự nhặt đồ, and the numbers last chosen in the Đánh quái and Nhiệm vụ tabs,
 /// kept within what fight and quest take. Saved to accounts.json; the error is shown in a toast.
+/// `settings` holds only the fields the tab changed (Shared::set_fight).
 #[tauri::command]
 pub async fn set_fight(
     shared: State<'_, Shared>,
     id: u64,
-    mut settings: FightSettings,
+    settings: serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), String> {
+    shared.set_fight(id, settings, bounded_fight).await
+}
+
+/// Cài đặt đánh within what fight and quest take.
+fn bounded_fight(mut settings: FightSettings) -> FightSettings {
     settings.fight_count = settings.fight_count.max(1);
     settings.fight_losses = settings.fight_losses.max(1);
     settings.quest_losses = settings.quest_losses.max(1);
@@ -129,7 +135,7 @@ pub async fn set_fight(
     settings.mp_potion_max = settings.mp_potion_max.clamp(1, POTION_MAX);
     settings.merge_up_to = settings.merge_up_to.clamp(2, 12);
     settings.merge_every = settings.merge_every.clamp(1, MERGE_EVERY_MAX);
-    shared.set_fight(id, settings).await
+    settings
 }
 
 /// The target the Đánh quái tab chose on a map, chosen again back on that map. Saved to accounts.json.
@@ -160,8 +166,15 @@ pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {
 
 /// A button of the item detail in the Túi đồ tab: "equip" the item of a bag slot, "unequip" the one of a gear slot,
 /// "use" a bag slot, "repair" a gear slot, "discard" (Vứt bỏ) a bag slot; "sort" is Sắp xếp of the bag, `slot` unused.
+/// `uuid` is the item the window showed: the bot does nothing when the slot holds another by now (Bot::item_of).
 #[tauri::command]
-pub fn item_action(shared: State<Shared>, id: u64, action: String, slot: u8) -> Result<(), String> {
+pub fn item_action(
+    shared: State<Shared>,
+    id: u64,
+    action: String,
+    slot: u8,
+    uuid: Option<String>,
+) -> Result<(), String> {
     let act = match action.as_str() {
         "equip" => ItemAct::Equip(slot),
         "unequip" => ItemAct::Unequip(slot),
@@ -171,7 +184,11 @@ pub fn item_action(shared: State<Shared>, id: u64, action: String, slot: u8) -> 
         "sort" => ItemAct::Sort,
         other => return Err(format!("Không biết thao tác {other}")),
     };
-    shared.with(|app| app.send(id, Command::Item(act)));
+    let command = match uuid {
+        Some(uuid) => Command::ItemOf(act, uuid),
+        None => Command::Item(act),
+    };
+    shared.with(|app| app.send(id, command));
     Ok(())
 }
 
@@ -400,10 +417,12 @@ pub fn market_buy(shared: State<Shared>, id: u64, uuid: String, price: i32) {
     shared.with(|app| app.send(id, Command::Market(MarketTask::Buy { uuid, price })));
 }
 
-/// Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu (the fee of s2c/116 is taken).
+/// Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu (the fee of s2c/116 is taken); `uuid`, the item
+/// the window showed, refused when the slot holds another by now.
 #[tauri::command]
-pub fn market_sell(shared: State<Shared>, id: u64, slot: u8, price: i64) {
-    shared.with(|app| app.send(id, Command::Market(MarketTask::Sell { slot, price })));
+pub fn market_sell(shared: State<Shared>, id: u64, slot: u8, price: i64, uuid: Option<String>) {
+    let task = MarketTask::Sell { slot, price, uuid };
+    shared.with(|app| app.send(id, Command::Market(task)));
 }
 
 /// Chợ trời, Thu hồi: the listing `uuid` of Đang bán back to the bag.
@@ -426,70 +445,86 @@ pub fn buy(shared: State<Shared>, id: u64, shop_id: i32, quantity: i32) {
 
 /// Older lines of the Nhật ký from cllt.db, oldest first as the card lists them: before row `before` (the oldest line
 /// the card has), of `kinds` (all when empty), only the red ones with `bad`. None without the database.
+/// The reads of cllt.db below run off the main thread: a long one would freeze the window.
 #[tauri::command]
-pub fn log_history(
-    shared: State<Shared>,
+pub async fn log_history(
+    shared: State<'_, Shared>,
     id: u64,
     before: Option<i64>,
     kinds: Vec<LogKind>,
     bad: bool,
     limit: u32,
 ) -> Result<Vec<LogLine>, String> {
-    let (Some(store), Some(user)) = (shared.store(), shared.with(|app| app.username(id))) else {
+    let (Some(store), Some(user)) = (shared.store_handle(), shared.with(|app| app.username(id)))
+    else {
         return Ok(vec![]);
     };
     let tone = bad.then_some(LogTone::Bad as u8);
-    let mut lines: Vec<LogLine> = store
-        .logs(&user, before, &kinds, tone, limit.clamp(1, 500))
-        .map_err(|e| e.to_string())?
-        .iter()
-        .map(LogLine::stored)
-        .collect();
-    lines.reverse();
-    Ok(lines)
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut lines: Vec<LogLine> = store
+            .logs(&user, before, &kinds, tone, limit.clamp(1, 500))
+            .map_err(|e| e.to_string())?
+            .iter()
+            .map(LogLine::stored)
+            .collect();
+        lines.reverse();
+        Ok(lines)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Thống kê: the battles of the account ended since `since` (ms since 1970, all when None), of one source or all;
 /// None without the database.
 #[tauri::command]
-pub fn battle_stats(
-    shared: State<Shared>,
+pub async fn battle_stats(
+    shared: State<'_, Shared>,
     id: u64,
     since: Option<u64>,
     source: Option<BattleSource>,
 ) -> Result<Option<BattleStats>, String> {
-    let (Some(store), Some(user)) = (shared.store(), shared.with(|app| app.username(id))) else {
+    let (Some(store), Some(user)) = (shared.store_handle(), shared.with(|app| app.username(id)))
+    else {
         return Ok(None);
     };
-    let filter = BattleFilter {
-        username: &user,
-        since,
-        source,
-    };
-    store.stats(filter).map(Some).map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        let filter = BattleFilter {
+            username: &user,
+            since,
+            source,
+        };
+        store.stats(filter).map(Some).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Thống kê: the battles themselves, newest first, before row `before`.
 #[tauri::command]
-pub fn battle_history(
-    shared: State<Shared>,
+pub async fn battle_history(
+    shared: State<'_, Shared>,
     id: u64,
     since: Option<u64>,
     source: Option<BattleSource>,
     before: Option<i64>,
     limit: u32,
 ) -> Result<Vec<StoredBattle>, String> {
-    let (Some(store), Some(user)) = (shared.store(), shared.with(|app| app.username(id))) else {
+    let (Some(store), Some(user)) = (shared.store_handle(), shared.with(|app| app.username(id)))
+    else {
         return Ok(vec![]);
     };
-    let filter = BattleFilter {
-        username: &user,
-        since,
-        source,
-    };
-    store
-        .battles(filter, before, limit.clamp(1, 200))
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        let filter = BattleFilter {
+            username: &user,
+            since,
+            source,
+        };
+        store
+            .battles(filter, before, limit.clamp(1, 200))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Quản lý thiết bị: the id of this device and whether it may run.

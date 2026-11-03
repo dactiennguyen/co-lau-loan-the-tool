@@ -16,10 +16,11 @@ tokio = { version = "1", features = ["net", "io-util", "time", "rt-multi-thread"
 tauri = "2.12.5"
 tauri-build = "2.7.4"
 
-# Size settings of the Tauri template (https://tauri.app/concept/size/); profiles live in the workspace root.
+# Size settings of the Tauri template (https://tauri.app/concept/size/); profiles live in the workspace root. Not its
+# panic = "abort": a panic in one account's session would end the app and every account; unwinding ends that session
+# alone (net/manager.rs).
 [profile.release]
 codegen-units = 1
 lto = true
 opt-level = 3
-panic = "abort"
 strip = true

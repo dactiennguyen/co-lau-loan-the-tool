@@ -67,11 +67,12 @@ interface Act {
  * the same buttons, greyed with the same reasons; Dùng, Sửa and Vứt bỏ from it ask once more in the strip, as the buttons
  * do.
  */
-export function InventoryCard({ account, onAction }: { account: Account; onAction: (action: ItemAction, slot: number) => void }) {
+export function InventoryCard({ account, onAction }: { account: Account; onAction: (action: ItemAction, slot: number, uuid?: string) => void }) {
   const c = account.character;
   const [pinned, setPinned] = useState<Key | null>(null);
   const [hover, setHover] = useState<Key | null>(null);
-  const [ask, setAsk] = useState<{ key: Key; action: ItemAction } | null>(null);
+  // The question is about the item it showed (uuid), not its slot: the bag changes under it (Tự gộp đá, Tự nhặt đồ).
+  const [ask, setAsk] = useState<{ key: Key; action: ItemAction; uuid: string } | null>(null);
   const [menu, setMenu] = useState<{ key: Key; x: number; y: number } | null>(null);
   // The gear and bag when the last action went out: the buttons wait until they change, or ANSWER_MS.
   const sig = c ? JSON.stringify([c.gear.map((g) => g && [g.id, g.durability?.[0]]), c.bag?.items.map((i) => [i.slot, i.id, i.quantity])]) : "";
@@ -160,7 +161,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
   const run = (action: ItemAction, item: Item) => {
     setAsk(null);
     setSent(sig);
-    onAction(action, item.slot);
+    onAction(action, item.slot, item.uuid);
     // Worn, the item sits in the gear slot of its type; taken off, in a bag slot the server picks.
     if (action === "equip" && item.kind != null) setPinned(`gear-${item.kind}`);
     if (action === "unequip" || action === "discard") setPinned(null);
@@ -183,7 +184,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       hint: busy ?? a.why ?? undefined,
       danger: a.danger,
       separated: a.danger,
-      onSelect: () => (a.confirm ? setAsk({ key: k, action: a.action }) : run(a.action, item)),
+      onSelect: () => (a.confirm ? setAsk({ key: k, action: a.action, uuid: item.uuid }) : run(a.action, item)),
     }));
     if (list.some((a) => a.why === NO_HAMMER)) items.push({ label: "Mua búa", icon: "cart", onSelect: () => shopFor(HAMMER) });
     if (item.kind === POTION || item.id === HAMMER) {
@@ -201,7 +202,8 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     if (shownKey !== pinned) {
       return <span className="max-w-[160px] text-11 text-fg-3 text-right">Bấm hoặc chuột phải vào món để {list.map((a) => a.label.toLowerCase()).join(", ")}</span>;
     }
-    const asking = ask?.key === shownKey ? list.find((a) => a.action === ask.action) : undefined;
+    // Another item in the slot by now: the question is gone with the item it was about.
+    const asking = ask?.key === shownKey && ask.uuid === shown.uuid ? list.find((a) => a.action === ask.action) : undefined;
     if (asking) {
       return (
         <div className={ACT}>
@@ -229,7 +231,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
               icon={a.icon}
               disabled={!!(busy ?? a.why)}
               title={busy ?? a.why ?? undefined}
-              onClick={() => (a.confirm ? setAsk({ key: shownKey, action: a.action }) : run(a.action, shown))}
+              onClick={() => (a.confirm ? setAsk({ key: shownKey, action: a.action, uuid: shown.uuid }) : run(a.action, shown))}
             >
               {a.label}
             </Button>

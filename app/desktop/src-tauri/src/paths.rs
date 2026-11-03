@@ -6,7 +6,13 @@ use tauri::{path::PathResolver, Runtime};
 
 const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../..");
 
+/// The repository, for a build made in it. Never for a build of GitHub Actions (GITHUB_ACTIONS is set there): REPO is
+/// then the runner's folder (D:\a\… on Windows), which anyone on a shared PC could make, and the app would keep its
+/// accounts.json there.
 fn repo() -> Option<PathBuf> {
+    if option_env!("GITHUB_ACTIONS").is_some() {
+        return None;
+    }
     let p = PathBuf::from(REPO);
     p.join("app").is_dir().then_some(p)
 }

@@ -3,7 +3,7 @@
 //! without a set the Xu khóa pays for. Pháp sư's answers are those of J3 (`vectors.json` "npc"), the maps those of the
 //! atlas (data/maps.json).
 use cllt_core::atlas::{find_upwards, Atlas};
-use cllt_core::bot::{Bot, BotOptions, FightSettings, Out, SmithTask};
+use cllt_core::bot::{Bot, BotOptions, FightSettings, ItemAct, Out, SmithTask};
 use cllt_core::npc::{self, BagItem, MergeOptions};
 use cllt_core::protocol::Writer;
 use serde_json::Value;
@@ -578,6 +578,97 @@ fn xu_khoa_only_ends_the_run_before_a_set_the_xu_khoa_left_does_not_pay_for() {
     assert!(
         out.iter()
             .any(|o| matches!(o, Out::Log(_, t) if t.contains("không đủ Xu khóa (cần 9, có 5)"))),
+        "{out:?}"
+    );
+}
+
+/// A packet of the world decoders of `vectors.json`: the first of decoder `f`.
+fn decoded(f: &str) -> Vec<u8> {
+    let all = v();
+    let case = all["decoders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["fn"] == f)
+        .unwrap_or_else(|| panic!("no {f}"))
+        .clone();
+    hex(case["hex"].as_str().unwrap())
+}
+
+#[test]
+fn an_item_action_or_a_repair_never_answered_does_not_keep_phap_su_refusing_gop_da() {
+    let stones = [(10, 411, 0), (11, 411, 0), (12, 411, 0), (13, 411, 0)];
+    // Sắp xếp, never answered (no s2c/1187), 6 s before the job: Pháp sư waits 5 s at most for it, as the buttons of
+    // Túi đồ do, so the trip merges instead of walking there and back for nothing every merge_every minutes.
+    let (mut bot, mut out, now) = manina(&full(&stones), 7_370);
+    bot.item(ItemAct::Sort, now, &mut out);
+    assert_eq!(sent(&out, 1257).len(), 1, "{out:?}");
+    let later = now + Duration::from_secs(6);
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, later, &mut out);
+    assert!(
+        logged(&out, "Túi đầy (54/54): sang Làng Thanh Khê"),
+        "{out:?}"
+    );
+    out.clear();
+    arrive(&mut bot, &mut out, later, "M1", "Làng Thanh Khê", 0);
+    assert!(logged(&out, "Gộp đá tới Đá cấp 12"), "{out:?}");
+    assert_eq!(sent(&out, 13), [PHAP_SU], "{out:?}");
+
+    // Tự sửa đồ: c2s/48 for the broken weapon, never answered. Dừng and Bắt đầu a second later give the repair up, and
+    // its wait with it: the trip that sets off then merges.
+    let mut items = full(&stones);
+    items[20] = (20, 2, 0); // a Búa Sửa Chữa
+    let (mut bot, mut out, now) = manina(&items, 7_370);
+    let fight = FightSettings {
+        auto_merge: true,
+        repair: true,
+        ..FightSettings::default()
+    };
+    bot.set_fight(fight, &mut out);
+    bot.on_packet(37, &decoded("gearUpdate"), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert_eq!(sent(&out, 48).len(), 1, "{out:?}");
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    let later = now + Duration::from_secs(1);
+    bot.stop(false, later, &mut out);
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, later, &mut out);
+    assert!(logged(&out, "Server không trả lời khi sửa "), "{out:?}");
+    assert!(
+        logged(&out, "Túi đầy (54/54): sang Làng Thanh Khê"),
+        "{out:?}"
+    );
+    out.clear();
+    arrive(&mut bot, &mut out, later, "M1", "Làng Thanh Khê", 0);
+    assert!(logged(&out, "Gộp đá tới Đá cấp 12"), "{out:?}");
+    assert_eq!(sent(&out, 13), [PHAP_SU], "{out:?}");
+}
+
+#[test]
+fn a_full_bag_does_not_set_off_while_an_item_action_waits_for_its_answer() {
+    // Sắp xếp just pressed: Pháp sư would refuse Gộp đá until its answer, so the job fights on, said once, and the trip
+    // goes at a later battle.
+    let stones = [(10, 411, 0), (11, 411, 0), (12, 411, 0), (13, 411, 0)];
+    let (mut bot, mut out, now) = manina(&full(&stones), 7_370);
+    bot.item(ItemAct::Sort, now, &mut out);
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert!(
+        logged(&out, "Túi đầy (54/54) nhưng chưa sang gộp đá: đang đợi server trả lời việc khác (mua, dùng hay sửa đồ); đánh tiếp"),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 15), [CHALLENGE], "{out:?}");
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    // Its answer in: the next battle's turn goes to Pháp sư.
+    let later = now + Duration::from_secs(6);
+    bot.stop(false, later, &mut out);
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, later, &mut out);
+    assert!(
+        logged(&out, "Túi đầy (54/54): sang Làng Thanh Khê"),
         "{out:?}"
     );
 }

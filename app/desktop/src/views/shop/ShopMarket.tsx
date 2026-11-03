@@ -298,7 +298,7 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
       ),
       confirm: `Đăng bán ${num(price)} Xu`,
       icon: "market",
-      run: () => api.marketSell(id, i.slot, price),
+      run: () => api.marketSell(id, i.slot, price, i.uuid),
     });
   return (
     <>

@@ -65,15 +65,29 @@ impl Manager {
             .entry(account.username.to_lowercase())
             .or_default()
             .clone();
-        self.runtime.spawn(run(
+        let emit: Arc<dyn Fn(Event) + Send + Sync> = Arc::new(move |e| emit(id, e));
+        let session = self.runtime.spawn(run(
             self.server.clone(),
             self.record,
             account,
             self.atlas.clone(),
             gift,
             rx,
-            Arc::new(move |e| emit(id, e)),
+            emit.clone(),
         ));
+        // A panic in a session (a bug of the app: bytes from the server that do not decode are errors, not panics) ends
+        // that account alone, which goes to Lỗi saying so, where run() would have said how it ended. The release build
+        // unwinds for this (app/Cargo.toml).
+        self.runtime.spawn(async move {
+            if let Err(e) = session.await {
+                if e.is_panic() {
+                    let what = panic_text(e.into_panic());
+                    emit(Event::State(ConnState::Error(format!(
+                        "Lỗi trong app: {what}"
+                    ))));
+                }
+            }
+        });
     }
     /// False when the account has no session.
     pub fn send(&self, id: u64, command: Command) -> bool {
@@ -81,4 +95,13 @@ impl Manager {
             .get(&id)
             .is_some_and(|s| s.send(command).is_ok())
     }
+}
+
+/// What a panic said, for the account it stopped.
+fn panic_text(payload: Box<dyn std::any::Any + Send>) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|s| s.to_string())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "không rõ".into())
 }

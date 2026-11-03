@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/api";
-import type { Account, FightSettings } from "@/api/types";
+import type { Account } from "@/api/types";
 
 /** The numbers of Cài đặt đánh that the Đánh quái and Nhiệm vụ tabs offer again. */
 type Key = "fightCount" | "fightLosses" | "questLosses";
@@ -10,8 +10,7 @@ const QUIET = 500;
 
 /**
  * One number of the account's Cài đặt đánh (FightSettings of cllt-core) that a tab lets the user change: it shows at
- * once, and is saved to accounts.json QUIET ms after the last change, with the account's other settings as they are
- * then. A change still waiting is saved when the tab closes. A save that fails (the browser preview saves nothing)
+ * once, and is saved to accounts.json QUIET ms after the last change, alone. A change still waiting is saved when the tab closes. A save that fails (the browser preview saves nothing)
  * leaves the number as chosen for as long as the tab is open.
  */
 export function useFightSetting(account: Account, key: Key): [number, (v: number) => void] {
@@ -25,8 +24,8 @@ export function useFightSetting(account: Account, key: Key): [number, (v: number
     pending.current = null;
     const a = latest.current;
     if (v == null || v === a.fightSettings[key]) return;
-    const next: FightSettings = { ...a.fightSettings, [key]: v };
-    api.setFight(a.id, next).catch(() => {});
+    // This number alone: the account's other settings may be on their way from another tab.
+    api.setFight(a.id, { [key]: v }).catch(() => {});
   };
   // On close only: send reads refs, so the first one is enough.
   useEffect(

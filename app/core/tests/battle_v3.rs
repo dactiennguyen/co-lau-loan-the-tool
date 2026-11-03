@@ -746,6 +746,10 @@ fn without_the_skill_table_the_one_skill_is_cast_when_cast_skill_says_so() {
 
 /// s2c/20 of own skill `skill` that destroys nothing: units unchanged.
 fn own_skill_result(seq: i32, skill: i32) -> Vec<u8> {
+    own_skill_dealing(seq, skill, -1)
+}
+/// own_skill_result whose unit says it dealt `damage` (-1: none said).
+fn own_skill_dealing(seq: i32, skill: i32, damage: i32) -> Vec<u8> {
     Writer::new()
         .i32(seq)
         .i32(0)
@@ -758,7 +762,7 @@ fn own_skill_result(seq: i32, skill: i32) -> Vec<u8> {
         .bytes(&[])
         .u8(1)
         .string("Ttuananh")
-        .i32(-1)
+        .i32(damage)
         .u8(0)
         .i32(-1)
         .i32(-1)
@@ -809,6 +813,123 @@ fn a_buff_is_not_cast_again_while_it_lasts() {
         .on_packet(24, &packet("own"), now, &mut acts)
         .unwrap();
     assert_eq!(last_sent(&acts), Some((20, 1002)), "over: cast again");
+}
+
+/// s2c/24: turn `seq`, own or the mob's.
+fn turn_of(seq: i32, own: bool) -> Vec<u8> {
+    Writer::new().i32(seq).i32(0).u8(own as u8).u8(0).build()
+}
+fn sent_ops(acts: &[Act]) -> Vec<i32> {
+    acts.iter()
+        .filter_map(|a| match a {
+            Act::Send(op, _) => Some(*op),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_late_s2c_24_or_one_while_a_potion_is_awaited_does_not_play_the_turn_twice() {
+    let options = RunnerOptions {
+        skills: Some(vec![effect(4000, 2), effect(4001, 1)]),
+        potions: vec![Potion {
+            slot: 8,
+            item_id: 0,
+            quantity: 2,
+            cost_share: None,
+        }],
+        potion_cost: Some(300.0),
+        strategy: Strategy::win(),
+        attack: Some(23),
+        level: 16,
+        mob: chi_huy(),
+        ..RunnerOptions::default()
+    };
+    let make = || {
+        let mut r = BattleRunner::new(
+            &setup("Ttuananh", 16, 40, 150, two_moves()),
+            "mob872600",
+            options.clone(),
+        );
+        (r.mob.s1, r.mob.skill_damage) = (30.0, 43.0);
+        r
+    };
+    let now = Instant::now();
+    // An own result with another turn after it (a skill that breaks nothing) and no s2c/24 within 2 s: the turn is
+    // played on the timer, the potion. Its s2c/24, half a second late, sends no second c2s/44 before the first is counted.
+    let (mut runner, mut acts) = (make(), vec![]);
+    runner
+        .on_packet(20, &own_skill_result(5, 9999), now, &mut acts)
+        .unwrap();
+    let inferred = now + Duration::from_secs(2);
+    assert_eq!(runner.deadline(), Some(inferred));
+    runner.on_timer(inferred, &mut acts);
+    assert_eq!(last_sent(&acts), Some((44, 8)));
+    let late = inferred + Duration::from_millis(500);
+    assert!(runner
+        .on_packet(24, &turn_of(5, true), late, &mut acts)
+        .unwrap());
+    assert_eq!(sent_ops(&acts), [44], "no second c2s/44 for turn 5");
+    // The potion's wait is still the one of that turn: no answer in 3 s, the swap, once.
+    assert_eq!(runner.deadline(), Some(inferred + Duration::from_secs(3)));
+    runner.on_timer(inferred + Duration::from_secs(3), &mut acts);
+    assert_eq!(sent_ops(&acts), [44, 19]);
+
+    // The same turn twice while the potion's answer is awaited: one c2s/44.
+    let (mut runner, mut acts) = (make(), vec![]);
+    for _ in 0..2 {
+        runner
+            .on_packet(24, &turn_of(5, true), now, &mut acts)
+            .unwrap();
+    }
+    assert_eq!(sent_ops(&acts), [44]);
+    assert_eq!(runner.potions()[0].quantity, 2);
+
+    // A swap on the timer, nothing awaited after it: its late s2c/24 sends no second c2s/19, the mob's turn of that seq
+    // goes as the server says.
+    let mut runner = BattleRunner::new(
+        &setup("Ttuananh", 16, 150, 150, two_moves()),
+        "mob872600",
+        RunnerOptions {
+            skills: Some(vec![]),
+            mob: chi_huy(),
+            ..RunnerOptions::default()
+        },
+    );
+    let mut acts = vec![];
+    runner
+        .on_packet(20, &own_skill_result(5, 9999), now, &mut acts)
+        .unwrap();
+    runner.on_timer(inferred, &mut acts);
+    assert_eq!(sent_ops(&acts), [19]);
+    runner
+        .on_packet(24, &turn_of(5, true), late, &mut acts)
+        .unwrap();
+    assert_eq!((sent_ops(&acts), runner.turns), (vec![19], 1));
+    runner
+        .on_packet(24, &turn_of(5, false), late, &mut acts)
+        .unwrap();
+    assert_eq!(sent_ops(&acts), [19, 14]);
+}
+
+#[test]
+fn own_damage_stops_at_the_largest_i32_instead_of_overflowing() {
+    let mut runner = BattleRunner::new(
+        &setup("Ttuananh", 16, 150, 150, two_moves()),
+        "mob872600",
+        RunnerOptions {
+            skills: Some(vec![]),
+            mob: chi_huy(),
+            ..RunnerOptions::default()
+        },
+    );
+    let (mut acts, now) = (vec![], Instant::now());
+    // Two own results that each say they dealt i32::MAX.
+    let hit = own_skill_dealing(5, 9999, i32::MAX);
+    for _ in 0..2 {
+        runner.on_packet(20, &hit, now, &mut acts).unwrap();
+    }
+    assert_eq!(runner.damage, i32::MAX);
 }
 
 // The bot fills the runner from what it knows: the skill tree and levels, the bag, Tấn công and level.

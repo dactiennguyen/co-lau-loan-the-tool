@@ -151,7 +151,7 @@ impl Bot {
     }
 
     pub(super) fn next(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if self.battle.is_some() || self.allotting || self.skilling.is_some() {
+        if self.battle.is_some() || self.allotting.is_some() || self.skilling.is_some() {
             return;
         }
         if self.trip.is_some() {

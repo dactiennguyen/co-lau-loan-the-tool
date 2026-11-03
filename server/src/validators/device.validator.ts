@@ -21,6 +21,9 @@ import { check, clipped, json } from './form.ts';
 /** SHA-256 (hex) of the operating system's machine id, as the app sends it. */
 export const deviceId = z.string({ error: DEVICE.badId }).regex(/^[0-9a-f]{64}$/, DEVICE.badId);
 
+/** The device key (device.key of the app: 32 random bytes in hex); absent from an app before 1.1.8. */
+const deviceKey = z.string({ error: DEVICE.badKey }).regex(/^[0-9a-f]{64}$/, DEVICE.badKey).nullish().transform((k) => k ?? undefined);
+
 /** An account of the hello: its username and game server, no password. One without a username is left out. */
 const helloAccount = z.object({
   username: clipped(MAX_USERNAME).pipe(z.string().min(1)),
@@ -30,6 +33,7 @@ const helloAccount = z.object({
 export const helloSchema = z.object(
   {
     id: deviceId,
+    key: deviceKey,
     hostname: clipped(MAX_HOSTNAME),
     os: clipped(MAX_OS),
     version: clipped(MAX_VERSION),
@@ -55,6 +59,7 @@ const stamps = z
 export const syncSchema = z.object(
   {
     id: deviceId,
+    key: deviceKey,
     accounts: z
       .array(z.object({ account: accountSchema, changed: stamps }, { error: DEVICE.notObject }), { error: DEVICE.notList })
       .max(MAX_SYNC_ACCOUNTS, DEVICE.tooMany(MAX_SYNC_ACCOUNTS)),

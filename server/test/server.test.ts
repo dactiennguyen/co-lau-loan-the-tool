@@ -249,17 +249,27 @@ test('the API keeps the accounts of Xuất JSON with their passwords, and gives 
 });
 
 const DEVICE = 'a'.repeat(64);
+/** The device key each test device keeps (device.key of the app). */
+const keyFor = (id: string) => (id === DEVICE ? 'c' : 'd').repeat(64);
 const hello = (call: ReturnType<typeof client>['call'], extra: Record<string, unknown> = {}) =>
   call('/api/devices/hello', {
-    body: JSON.stringify({ id: DEVICE, hostname: 'MAY-NHA', os: 'windows x86_64', version: '1.1.2', accounts: [{ username: 'manina', serverId: 24 }], ...extra }),
+    body: JSON.stringify({
+      id: DEVICE,
+      key: keyFor(typeof extra.id === 'string' ? extra.id : DEVICE),
+      hostname: 'MAY-NHA',
+      os: 'windows x86_64',
+      version: '1.1.2',
+      accounts: [{ username: 'manina', serverId: 24 }],
+      ...extra,
+    }),
   });
 
 test('devices: a new one is allowed and listed with its accounts; blocked, it is refused with the reason until unblocked', async () => {
   const c = await ready();
-  // No token: the app keeps no secret.
+  // No token: the device key its first hello brought.
   const first = await hello(c.call);
   assert.equal(first.status, 200);
-  assert.deepEqual(JSON.parse(first.text), { allowed: true });
+  assert.deepEqual(JSON.parse(first.text), { allowed: true, sync: false });
   assert.equal((await c.call('/api/devices/hello')).status, 405);
   for (const body of ['{', '[]', '{"id": "abc"}', JSON.stringify({ id: 'A'.repeat(64) })]) {
     assert.equal((await c.call('/api/devices/hello', { body })).status, 400, body);
@@ -281,12 +291,36 @@ test('devices: a new one is allowed and listed with its accounts; blocked, it is
   assert.ok(named.text.includes('Máy &lt;anh A&gt;') && !named.text.includes('<anh A>'));
 
   await c.call(`/admin/devices/${DEVICE}/unblock`, { form: {} });
-  assert.deepEqual(JSON.parse((await hello(c.call, { accounts: [] })).text), { allowed: true });
+  assert.deepEqual(JSON.parse((await hello(c.call, { accounts: [] })).text), { allowed: true, sync: false });
 
   // Forgotten, it comes back allowed at its next hello.
   assert.equal((await c.call(`/admin/devices/${DEVICE}/delete`, { form: {} })).location, '/admin/devices?done=forgotten');
   assert.match((await c.call('/admin/devices')).text, /Chưa có thiết bị nào/);
-  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true });
+  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true, sync: false });
+});
+
+test('device key: the first one is kept; the id alone neither rewrites the device nor syncs, and an app without a key never syncs', async () => {
+  const c = await ready();
+  const sync = (key?: string | null) => c.call('/api/devices/sync', { body: JSON.stringify({ id: DEVICE, key, accounts: [] }) });
+  // An app before 1.1.8 sends no key: it may say hello, never sync, even let.
+  assert.deepEqual(JSON.parse((await hello(c.call, { key: null })).text), { allowed: true, sync: false });
+  await c.call(`/admin/devices/${DEVICE}/sync-on`, { form: {} });
+  const keyless = await sync();
+  assert.deepEqual([keyless.status, JSON.parse(keyless.text).error], [403, 'Máy này chưa có khoá thiết bị: cập nhật app lên bản mới để đồng bộ nick']);
+  // Its first key is kept, and the hello tells the app it may sync.
+  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true, sync: true });
+  // Someone who knows the id only: refused, and the device stays as it said.
+  for (const key of ['e'.repeat(64), null]) {
+    const forged = await hello(c.call, { key, hostname: 'KE-GIA' });
+    assert.deepEqual([forged.status, JSON.parse(forged.text).error.startsWith('Khoá thiết bị không đúng')], [403, true]);
+    assert.equal((await sync(key)).status, 403);
+  }
+  assert.ok(!(await c.call('/admin/devices')).text.includes('KE-GIA'));
+  assert.equal((await sync(keyFor(DEVICE))).status, 200);
+  assert.equal((await hello(c.call, { key: 'xyz' })).status, 400);
+  // Forgotten (it lost its key), it says hello again with a new one, to be let sync again.
+  await c.call(`/admin/devices/${DEVICE}/delete`, { form: {} });
+  assert.deepEqual(JSON.parse((await hello(c.call, { key: 'e'.repeat(64) })).text), { allowed: true, sync: false });
 });
 
 test('devices: the page and its actions need the admin, and a form of another site cannot block', async () => {
@@ -297,7 +331,7 @@ test('devices: the page and its actions need the admin, and a form of another si
   await hello(c.call);
   const r = await c.call(`/admin/devices/${DEVICE}/block`, { form: { reason: 'x' }, origin: 'https://evil.example' });
   assert.equal(r.status, 403);
-  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true });
+  assert.deepEqual(JSON.parse((await hello(c.call)).text), { allowed: true, sync: false });
 });
 
 // ---- Đồng bộ nick from devices (POST /api/devices/sync) ------------------------------------------------------------
@@ -308,6 +342,7 @@ const OTHER = 'b'.repeat(64);
 function syncOf(call: ReturnType<typeof client>['call'], id: string, accounts: [Record<string, unknown>, Record<string, number> | number][], settings?: object) {
   const body = {
     id,
+    key: keyFor(id),
     settings,
     accounts: accounts.map(([account, at]) => ({
       account,

@@ -37,6 +37,8 @@ export const HTTP = {
   unknownDevice: 'Thiết bị chưa báo danh (POST /api/devices/hello trước)',
   blockedDevice: 'Thiết bị đã bị khoá, vui lòng liên hệ admin',
   syncNotAllowed: 'Admin chưa cho máy này đồng bộ nick (Cho đồng bộ trên trang Thiết bị)',
+  wrongDeviceKey: 'Khoá thiết bị không đúng: id này đã báo danh với khoá khác (Xoá khỏi danh sách trên trang Thiết bị để báo danh lại)',
+  noDeviceKey: 'Máy này chưa có khoá thiết bị: cập nhật app lên bản mới để đồng bộ nick',
   tokenName: `Đặt tên token từ 1 tới ${MAX_TOKEN_NAME} ký tự`,
 };
 
@@ -61,6 +63,7 @@ export const DEVICE = {
   badJson: 'JSON không đọc được',
   notObject: 'Cần một object JSON',
   badId: 'id phải là 64 ký tự hex (SHA-256)',
+  badKey: 'key phải là 64 ký tự hex',
   notList: '"accounts" phải là một danh sách',
   tooMany: (n: number) => `Tối đa ${n} nick một lần`,
 };

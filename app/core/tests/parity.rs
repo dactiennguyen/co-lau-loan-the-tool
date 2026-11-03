@@ -987,6 +987,137 @@ fn runner_tells_what_each_result_did() {
         .any(|a| matches!(a, Act::Log(t) if t.starts_with("Bàn cờ lệch"))));
 }
 
+/// s2c/24: turn `seq`, own or the mob's.
+fn turn_of(seq: i32, own: bool) -> Vec<u8> {
+    Writer::new().i32(seq).i32(0).u8(own as u8).u8(0).build()
+}
+fn acts_sent(acts: &[Act]) -> Vec<i32> {
+    acts.iter()
+        .filter_map(|a| match a {
+            Act::Send(op, _) => Some(*op),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn runner_plays_a_turn_once_when_its_s2c_24_comes_late_or_a_skill_answer_is_awaited() {
+    let all = v();
+    let b = &all["battles"][0];
+    let step0 = &b["steps"][0];
+    let ints = |k: &str| -> Vec<i32> {
+        step0[k]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_i64().unwrap() as i32)
+            .collect()
+    };
+    let refill: Vec<u8> = ints("refill").iter().map(|&x| x as u8).collect();
+    let setup = battle::Setup {
+        me: "manina".into(),
+        level: 3,
+        hp: 120,
+        max_hp: 130,
+        uuid: "u".into(),
+        board: board(&b["board"]).to_vec(),
+        turn_seconds: 30,
+    };
+    let now = Instant::now();
+    // B1 step 0, an own swap with another turn after it, and no s2c/24 in 2 s: the turn is played on the timer. Its
+    // s2c/24, half a second later, is not played again; the mob's turn of the same seq still is, as the server says so.
+    let own = swap_result(
+        3,
+        &ints("move"),
+        &refill,
+        &[("manina", -1, -1, -1, 20)],
+        "manina",
+        true,
+    );
+    let (mut runner, mut acts) = (
+        BattleRunner::new(&setup, "mob872604", RunnerOptions::default()),
+        vec![],
+    );
+    runner.on_packet(19, &own, now, &mut acts).unwrap();
+    let inferred = now + Duration::from_secs(2);
+    assert_eq!(runner.deadline(), Some(inferred));
+    runner.on_timer(inferred, &mut acts);
+    assert_eq!(acts_sent(&acts), [19]);
+    let late = inferred + Duration::from_millis(500);
+    assert!(runner
+        .on_packet(24, &turn_of(3, true), late, &mut acts)
+        .unwrap());
+    assert_eq!(acts_sent(&acts), [19], "no second c2s/19 for turn 3");
+    assert_eq!(runner.turns, 1);
+    runner
+        .on_packet(24, &turn_of(3, false), late, &mut acts)
+        .unwrap();
+    assert_eq!(acts_sent(&acts), [19, 14]);
+
+    // Hỏa Cầu Thuật waiting for its answer: the same turn again sends no second c2s/20; without an answer in 3 s, the
+    // swap goes, once.
+    let options = RunnerOptions {
+        skill: Some(cllt_core::runner::Skill { id: 1000, cost: 25 }),
+        ..RunnerOptions::default()
+    };
+    let (mut runner, mut acts) = (BattleRunner::new(&setup, "mob872604", options), vec![]);
+    runner.me.s1 = 30.0;
+    runner
+        .on_packet(24, &turn_of(4, true), now, &mut acts)
+        .unwrap();
+    assert_eq!(acts_sent(&acts), [20]);
+    runner
+        .on_packet(24, &turn_of(4, true), now, &mut acts)
+        .unwrap();
+    assert_eq!(acts_sent(&acts), [20], "no second c2s/20 for turn 4");
+    runner.on_timer(now + Duration::from_secs(3), &mut acts);
+    assert_eq!(acts_sent(&acts), [20, 19]);
+    assert_eq!(runner.deadline(), None);
+}
+
+#[test]
+fn damage_dealt_stops_at_the_largest_i32_instead_of_overflowing() {
+    let all = v();
+    let b = &all["battles"][0];
+    let step0 = &b["steps"][0];
+    let ints = |k: &str| -> Vec<i32> {
+        step0[k]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_i64().unwrap() as i32)
+            .collect()
+    };
+    let refill: Vec<u8> = ints("refill").iter().map(|&x| x as u8).collect();
+    let setup = battle::Setup {
+        me: "manina".into(),
+        level: 3,
+        hp: 120,
+        max_hp: 130,
+        uuid: "u".into(),
+        board: board(&b["board"]).to_vec(),
+        turn_seconds: 30,
+    };
+    let (mut runner, mut acts, now) = (
+        BattleRunner::new(&setup, "mob872604", RunnerOptions::default()),
+        vec![],
+        Instant::now(),
+    );
+    // B1 step 0 twice, each saying it dealt i32::MAX (the second does not match the board: a line, nothing more).
+    for seq in [3, 5] {
+        let hit = swap_result(
+            seq,
+            &ints("move"),
+            &refill,
+            &[("manina", i32::MAX, -1, -1, -1)],
+            "manina",
+            false,
+        );
+        runner.on_packet(19, &hit, now, &mut acts).unwrap();
+    }
+    assert_eq!(runner.damage, i32::MAX);
+}
+
 /// s2c/1177 of a boss in the layout of world.ts (field 0 at a tile, field 1 gone).
 fn boss(field: u8) -> Vec<u8> {
     if field == 1 {
@@ -1500,6 +1631,86 @@ fn a_map_that_does_not_read_stops_the_quest_run_and_leaves_the_atlas_alone() {
     assert_eq!(bot.snap.map_name, "Rừng Trúc");
 }
 
+/// The bot of quest replay `name` of vectors.json after its first `until` steps (packets, and the start of the run),
+/// with the time they all came at.
+fn replay_to(name: &str, until: usize) -> (Bot, Vec<Out>, Instant) {
+    let all = v();
+    let s = all["questReplays"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == name)
+        .unwrap_or_else(|| panic!("no replay {name}"));
+    let atlas = match &s["atlas"] {
+        Value::Null => Atlas::default(),
+        a => serde_json::from_value(a.clone()).unwrap(),
+    };
+    let (mut bot, mut out, now) = (
+        Bot::new(BotOptions::default(), Arc::new(atlas)),
+        vec![],
+        Instant::now(),
+    );
+    for step in &s["steps"].as_array().unwrap()[..until] {
+        match step["packet"].as_array() {
+            Some(p) => bot
+                .on_packet(
+                    p[0].as_i64().unwrap() as i32,
+                    &hex(p[1].as_str().unwrap()),
+                    now,
+                    &mut out,
+                )
+                .unwrap(),
+            None => bot.quest(1, None, now, &mut out),
+        }
+    }
+    (bot, out, now)
+}
+
+#[test]
+fn a_portal_whose_new_map_does_not_come_or_read_stops_the_quest_run_8_s_after_c2s_13() {
+    // After s2c/13 (which clears the portal's timer): an s2c/11 of a kind not read, so no c2s/43 goes, or an s2c/43 that
+    // does not read. Nothing else would wake the run, left on "Qua cổng …" with every other button refused.
+    let name = "an NPC in another map: through the portal the quest names";
+    let cases: [(usize, i32, Vec<u8>); 2] = [
+        (6, 11, vec![0]),
+        (7, 43, Writer::new().string("M2").build()),
+    ];
+    for (until, op, payload) in cases {
+        let (mut bot, mut out, now) = replay_to(name, until);
+        let doing = bot.snap.quest_run.as_ref().unwrap().doing.clone();
+        let portal = doing.strip_prefix("Qua cổng ").expect(&doing).to_string();
+        let _ = bot.on_packet(op, &payload, now, &mut out);
+        let at = now + Duration::from_secs(8);
+        assert_eq!(bot.deadline(), Some(at), "s2c/{op}");
+        out.clear();
+        bot.on_timer(at, &mut out);
+        assert!(
+            out.contains(&Out::Log(
+                LogKind::Travel,
+                format!("Server không gửi map mới sau cổng {portal} trong 8 s")
+            )),
+            "s2c/{op}: {out:?}"
+        );
+        assert_eq!(
+            bot.snap.quest_run.as_ref().unwrap().done,
+            Some(format!("Không vào được map sau cổng {portal}")),
+            "s2c/{op}"
+        );
+        assert_eq!(bot.deadline(), None, "s2c/{op}");
+        // Nothing waits any more: a fight job may start.
+        out.clear();
+        bot.fight("Cóc Xanh", 1, 1, at, &mut out);
+        assert!(logged(&out, "Bắt đầu: đánh Cóc Xanh 1 lần"), "{out:?}");
+    }
+    // The portal that does lead on is not cut short: the map in time, the run goes on and nothing fires 8 s later.
+    let (mut bot, mut out, now) = replay_to(name, 8);
+    assert!(bot.snap.quest_run.as_ref().unwrap().done.is_none());
+    assert_eq!(bot.deadline(), Some(now + Duration::from_secs(2)));
+    out.clear();
+    bot.on_timer(now + Duration::from_secs(2), &mut out);
+    assert!(!logged(&out, "Server không gửi map mới"), "{out:?}");
+}
+
 #[test]
 fn step_actions_read_what_step_action_reads() {
     for c in v()["stepActions"].as_array().unwrap() {
@@ -1510,6 +1721,47 @@ fn step_actions_read_what_step_action_reads() {
             c["param"].as_i64().unwrap() as i32,
         );
         assert_eq!(serde_json::to_value(got).unwrap(), c["action"], "{text}");
+    }
+}
+
+#[test]
+fn numbers_of_the_server_at_the_ends_of_their_range_do_not_overflow() {
+    // A step's param at i32::MAX names M2147483648, as the TS side would.
+    assert_eq!(
+        serde_json::to_value(step_action("Đến Cửu Phong", -1, i32::MAX)).unwrap(),
+        json!({ "kind": "visit", "place": "Cửu Phong", "mapId": "M2147483648" })
+    );
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    // s2c/39 at step i32::MAX: its line counts from 1 without overflowing.
+    bot.on_packet(39, &quest9(i32::MAX, 0), now, &mut out)
+        .unwrap();
+    assert_eq!(bot.snap.quest.as_ref().unwrap().current, i32::MAX);
+    assert!(
+        logged(&out, "Nhiệm vụ 9: Thử Sức Tân Binh; bước 2147483648/5: "),
+        "{out:?}"
+    );
+    // s2c/1184 with an item whose end is i64::MIN, or i64::MAX: taken as expired, or as just fallen.
+    for expires_at in [i64::MIN, i64::MAX] {
+        let ground = Writer::new()
+            .string("M2")
+            .i32(1)
+            .u8(0xfe)
+            .i32(3)
+            .string("uuid-1")
+            .i32(0)
+            .i32(-1)
+            .i32(1)
+            .u8(0)
+            .u8(0xff)
+            .i32(0)
+            .u8(0)
+            .u8(0)
+            .u8(0)
+            .i32(1400)
+            .i32(640)
+            .i64(expires_at)
+            .build();
+        bot.on_packet(1184, &ground, now, &mut out).unwrap();
     }
 }
 
@@ -2060,6 +2312,45 @@ fn the_stat_plan_spends_points_while_idle_and_between_battles_and_plus_one_waits
     );
     bot.on_packet(10, &points_left(4), now, &mut out).unwrap();
     assert_eq!(bot.deadline(), None);
+}
+
+#[test]
+fn an_answer_that_spends_no_potential_point_stops_the_plan_and_the_job_fights_on() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(10, &points_left(0), now, &mut out).unwrap();
+    bot.set_stats(Some(StatPlan::Weights([0, 0, 1, 0])), now, &mut out);
+    bot.fight("Cóc Xanh", 3, 3, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    // Two points of a level up in the battle, spent once it is over.
+    bot.on_packet(10, &points_left(2), now, &mut out).unwrap();
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!(out.last(), Some(&stat_point(2)));
+    // The server answers with the points unchanged: one line, and the job's next battle instead of c2s/10 every 250 ms.
+    out.clear();
+    bot.on_packet(10, &points_left(2), now, &mut out).unwrap();
+    assert_eq!(
+        out,
+        [Out::Log(
+            LogKind::Character,
+            "Server không cộng điểm tiềm năng (vẫn còn 2 điểm); thôi tự cộng điểm".into()
+        )]
+    );
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!((sends(&out, 10), sends(&out, 15)), (0, 1), "{out:?}");
+    // Points that come later are not spent either, until the plan is set again.
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.on_packet(10, &points_left(3), now, &mut out).unwrap();
+    bot.on_packet(19, &won_battle(), now, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!((sends(&out, 10), sends(&out, 15)), (0, 1), "{out:?}");
+    bot.stop(false, now, &mut out);
+    out.clear();
+    bot.set_stats(Some(StatPlan::Weights([0, 0, 1, 0])), now, &mut out);
+    assert_eq!(out.last(), Some(&stat_point(2)));
 }
 
 #[test]

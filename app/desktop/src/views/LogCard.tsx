@@ -115,6 +115,11 @@ export function LogCard({ id, lines, fighting }: Props) {
       keep.current = el ? el.scrollHeight - el.scrollTop : null;
       setOlder((o) => [...got, ...o]);
       if (got.length < PAGE) setEnd(true);
+    } catch (err) {
+      // cllt.db could not be read: said in a toast, and the button stays for another try.
+      if (at !== asked.current) return;
+      const { byId, toast } = useStore.getState();
+      toast({ tone: "warn", title: byId[id]?.label ?? "Nhật ký", text: `Không tải được dòng cũ hơn: ${err instanceof Error ? err.message : String(err)}` });
     } finally {
       setLoading(false);
     }

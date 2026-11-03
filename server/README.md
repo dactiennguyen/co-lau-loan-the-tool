@@ -129,24 +129,36 @@ API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie mà chỉ d�
 Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 phút một lần ([features.md#thiết-bị](../docs/integration/rust/features.md#thiết-bị)):
 
 ```json
-{"id": "<64 ký tự hex>", "hostname": "MAY-NHA", "os": "windows x86_64", "version": "1.1.2",
+{"id": "<64 ký tự hex>", "key": "<64 ký tự hex>", "hostname": "MAY-NHA", "os": "windows x86_64", "version": "1.1.8",
  "accounts": [{"username": "manina", "serverId": 24}]}
 ```
 
 - `id` là SHA-256 của mã máy do hệ điều hành giữ (`MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux). Gỡ app rồi cài lại vẫn là một thiết bị. Cài lại Windows hay Linux thì thành thiết bị mới.
-- Server trả `{"allowed": true}`, hay `{"allowed": false, "reason": "…"}` với máy bị chặn. Máy chưa từng thấy được thêm vào và **được dùng ngay**.
+- Server trả `{"allowed": true, "sync": …}`, hay `{"allowed": false, "reason": "…"}` với máy bị chặn. Máy chưa từng thấy được thêm vào và **được dùng ngay**. `sync` là `true` khi admin đã **Cho đồng bộ** và máy gửi đúng khoá ([Khoá thiết bị](#khoá-thiết-bị)): chỉ khi đó app mới gửi nick lên.
 - `accounts` chỉ có tài khoản và server game, **không có mật khẩu**. Server lưu IP, lần đầu và lần cuối thấy máy.
-- Không cần token: app không giữ được bí mật. Ai cũng gửi được hello, nên danh sách có thể có máy lạ; chặn máy đó, hay xoá khỏi danh sách.
+- Không cần token, nhưng cần khoá của máy ([Khoá thiết bị](#khoá-thiết-bị)). Ai cũng gửi được hello với một mã máy mới, nên danh sách có thể có máy lạ; chặn máy đó, hay xoá khỏi danh sách.
 - Trang **Thiết bị** (`/admin/devices`): tìm theo tên máy, nick hay IP; **Chặn** kèm lý do (app hiện lý do cho người dùng), **Bỏ chặn**, **Đặt tên**, **Xoá khỏi danh sách** (máy đó hiện lại ở lần mở app tới, vẫn được dùng; muốn ngăn thì Chặn).
 - Máy bị chặn thì khoá ở lần báo tiếp theo, tức tối đa 15 phút nếu app đang mở. App nhớ trạng thái, nên mất mạng vẫn khoá.
 - **Giới hạn:** mã máy do app tự báo. Người rành máy tính có thể đổi `MachineGuid` (cần quyền admin) hay sửa app để gửi mã khác. Cách này chặn người dùng thường, không chặn người cố tình.
 
+<a id="khoá-thiết-bị"></a>
+
+### Khoá thiết bị
+
+Từ app 1.1.8, mỗi máy tự tạo một khoá bí mật một lần: 32 byte ngẫu nhiên, lưu ở `device.key` cạnh `accounts.json`, chỉ chủ máy đọc được. App gửi khoá này (`key`) trong mọi lần hello và đồng bộ.
+
+- Server giữ SHA-256 của khoá đầu tiên một máy gửi lên (cột `key_hash`, [0004_device_key.sql](migrations/0004_device_key.sql)).
+- Từ đó, hello hay đồng bộ của mã máy đó mà thiếu khoá hay sai khoá đều bị từ chối (403) và **không ghi gì**. Biết mã máy thôi thì không đổi được tên máy, danh sách nick, hay nick trong kho.
+- **App cũ (trước 1.1.8)** không có khoá: vẫn báo danh được, nhưng không đồng bộ được ("Máy này chưa có khoá thiết bị: cập nhật app…"). Cập nhật app thì lần hello đầu mang khoá, server giữ khoá đó.
+- **Máy mất khoá** (xoá `device.key`, cài lại hệ điều hành mà mã máy vẫn giữ): hello bị từ chối, app giữ trạng thái cũ. Bấm **Xoá khỏi danh sách** trên trang Thiết bị: máy báo danh lại với khoá mới, và phải được **Cho đồng bộ** lại.
+- So khoá bằng phép so thời gian hằng; server không lưu khoá gốc.
+
 ## Đồng bộ nick
 
-Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem trên trang **Nick** và Tải JSON, app không tải gì về. Máy mới phải được admin bấm **Cho đồng bộ** trên trang Thiết bị (bấm **Tắt đồng bộ** để thôi; nick đã gửi vẫn giữ). Sau mỗi lần báo danh được phép (lúc mở app, rồi 15 phút một lần), app gửi `POST /api/devices/sync` với các nick đã đổi kể từ lần gửi trước. Mỗi nick gửi nguyên vẹn: mật khẩu, proxy, Cài đặt đánh, kỹ năng, chỉ số. Cài đặt của app cũng gửi kèm khi đổi (`src-tauri/src/sync.rs`):
+Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem trên trang **Nick** và Tải JSON, app không tải gì về. Máy mới phải được admin bấm **Cho đồng bộ** trên trang Thiết bị (bấm **Tắt đồng bộ** để thôi; nick đã gửi vẫn giữ). Sau mỗi lần báo danh mà server trả `"sync": true` (lúc mở app, rồi 15 phút một lần), app gửi `POST /api/devices/sync` với khoá của máy và các nick đã đổi kể từ lần gửi trước. Máy chưa được duyệt **không gửi gì**, kể cả mật khẩu. Mỗi nick gửi nguyên vẹn: mật khẩu, proxy, Cài đặt đánh, kỹ năng, chỉ số. Cài đặt của app cũng gửi kèm khi đổi (`src-tauri/src/sync.rs`):
 
 ```json
-{"id": "<64 ký tự hex>", "settings": {"server": …, "record": true, "onClose": "ask"},
+{"id": "<64 ký tự hex>", "key": "<64 ký tự hex>", "settings": {"server": …, "record": true, "onClose": "ask"},
  "accounts": [{"account": {"username": "tiheo1", "password": "…", "serverId": 24, "fight": {…}},
                "changed": {"password": 1762059000000, "fight": 0, "label": 0}}]}
 ```
@@ -162,9 +174,9 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
 - Gửi bằng API token (`POST /api/accounts`) thì mọi mục tính là sửa lúc gửi.
 - Xoá nick trên app không xoá trên server; xoá ở trang Nick.
 
-Server trả `{"added", "updated", "unchanged", "kept", "repeated"}`. Máy chưa báo danh bị từ chối (404); máy bị chặn hay chưa được cho đồng bộ cũng vậy (403). Mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi. Trang Thiết bị hiện lần đồng bộ cuối, rê chuột lên đó để xem Cài đặt của máy.
+Server trả `{"added", "updated", "unchanged", "kept", "repeated"}`. Máy chưa báo danh bị từ chối (404); máy chưa có khoá, sai khoá, bị chặn hay chưa được cho đồng bộ cũng vậy (403). Mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi. Trang Thiết bị hiện lần đồng bộ cuối, rê chuột lên đó để xem Cài đặt của máy.
 
-**Vì sao phải duyệt:** app không giữ được bí mật nên máy chỉ được nhận ra bằng mã máy. Ai biết API cũng báo danh được một mã mới, nhưng chưa được Cho đồng bộ thì không ghi được nick nào. Mã của máy đã duyệt là SHA-256 của mã máy, không đoán được; trang admin chỉ hiện 12 ký tự đầu.
+**Vì sao phải duyệt, và vì sao có khoá:** ai biết API cũng báo danh được một mã máy mới, nhưng chưa được Cho đồng bộ thì không ghi được nick nào. Mã máy (SHA-256 của mã do hệ điều hành giữ) không phải bí mật: mọi người dùng trên máy đó tính ra được. Vì vậy đồng bộ còn cần khoá của máy ([Khoá thiết bị](#khoá-thiết-bị)): biết mã của một máy đã duyệt cũng không ghi đè được mật khẩu hay proxy của nick nào trong kho.
 
 ## Bảo mật
 

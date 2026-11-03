@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { cn } from "@/utils/cn";
 import { Bar } from "@/components/Bar";
 import { Button } from "@/components/Button";
@@ -6,7 +7,11 @@ import { ELEMENT_ICON, ELEMENT_NAME, elementVar } from "@/components/ElementTag"
 import { Icon, type IconName } from "@/components/Icon";
 import { num } from "@/utils/format";
 import { mainStat, planText, POTENTIALS } from "@/game/potentials";
+import { useStore } from "@/store";
 import type { Account } from "@/api/types";
+
+/** A "+" the server has not answered in this long is let go, and the buttons come back (as Nâng cấp of SkillsModal). */
+const ANSWER_MS = 8000;
 
 // Labels of the game's character panel, in the order of `combat` and `stats`; both measured against the panel by the
 // P1 capture (docs/app/user-data.md). c2s/10 numbers the potentials in another order (12-skills-items.md).
@@ -19,8 +24,8 @@ const COMBAT: { label: string; icon: IconName; tone: string }[] = [
 ];
 interface Props {
   account: Account;
-  /** "Cộng +1" on the potential of that c2s/10 index. */
-  onAdd: (stat: number) => void;
+  /** "Cộng +1" on the potential of that c2s/10 index; a rejection lets the buttons come back. */
+  onAdd: (stat: number) => Promise<void> | void;
   /** Opens the choice of how points are spent on their own. */
   onPlan: () => void;
   /** Opens the Kỹ năng modal. */
@@ -34,8 +39,29 @@ interface Props {
  * (none at 0), and is lit while Tự cộng spends them. */
 export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
   const c = account.character;
-  // A point goes out between battles only, as Bot::add_stat requires.
-  const canAdd = account.status >= 2 && account.status <= 3 && (c?.statPoints ?? 0) > 0 && !c?.battle;
+  // The points left when the last "+" went out: the four wait until s2c/10 kind 8 changes them, the command fails or
+  // ANSWER_MS goes by, so a double click spends one point, not two (Bot::add_stat sends each one it gets).
+  const [sent, setSent] = useState<number | null>(null);
+  const points = c?.statPoints ?? null;
+  useEffect(() => {
+    if (sent == null) return;
+    if (points !== sent) {
+      setSent(null);
+      return;
+    }
+    const t = setTimeout(() => setSent(null), ANSWER_MS);
+    return () => clearTimeout(t);
+  }, [sent, points]);
+  const waiting = sent != null && points === sent;
+  const add = (stat: number) => {
+    setSent(points);
+    Promise.resolve(onAdd(stat)).catch((err: unknown) => {
+      setSent(null);
+      useStore.getState().toast({ tone: "warn", title: account.label, text: `Không cộng được điểm: ${err instanceof Error ? err.message : String(err)}` });
+    });
+  };
+  // A point goes out between battles only, as Bot::add_stat requires, and one at a time.
+  const canAdd = account.status >= 2 && account.status <= 3 && (points ?? 0) > 0 && !c?.battle && !waiting;
   // Bars against the strongest of the five, so they show the build rather than a scale the game does not give.
   const top = Math.max(1, ...(c?.combat ?? []));
   const plan = `Tự cộng điểm: ${planText(account.statPlan, c?.element)}`;
@@ -146,7 +172,8 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
                 {...(main != null &&
                   p.index !== main && { title: `Cộng 1 điểm vào ${p.name} (không phải chỉ số chính của hệ ${elementName})` })}
                 disabled={!canAdd}
-                onClick={() => onAdd(p.index)}
+                aria-busy={waiting || undefined}
+                onClick={() => add(p.index)}
               />
             </div>
           );

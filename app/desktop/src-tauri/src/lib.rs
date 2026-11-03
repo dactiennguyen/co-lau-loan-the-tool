@@ -90,6 +90,7 @@ pub fn run() {
                         }
                         app.set_store(std::sync::Arc::new(store));
                         app.load_history();
+                        app.start_db_writer();
                     }
                     Err(e) => eprintln!("Không mở được cllt.db: {e}"),
                 }
@@ -197,7 +198,16 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| match event {
-            tauri::RunEvent::Exit => update::install_on_quit(app),
+            tauri::RunEvent::Exit => {
+                // The writes still queued for cllt.db go in before the app ends (App::start_db_writer).
+                let writer = app
+                    .try_state::<Shared>()
+                    .and_then(|s| s.with(App::stop_db_writer));
+                if let Some(writer) = writer {
+                    let _ = writer.join();
+                }
+                update::install_on_quit(app)
+            }
             // The Dock icon clicked while the window is in the tray.
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen {

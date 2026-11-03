@@ -112,7 +112,7 @@ pub fn step_action(text: &str, npc_id: i32, param: i32) -> StepAction {
             if !place.is_empty() && param >= 0 {
                 return StepAction::Visit {
                     place: place.into(),
-                    map_id: format!("M{}", param + 1),
+                    map_id: format!("M{}", param as i64 + 1),
                 };
             }
         }

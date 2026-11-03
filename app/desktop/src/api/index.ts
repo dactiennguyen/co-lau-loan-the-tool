@@ -61,7 +61,9 @@ export interface Api {
    * Rejects with a message to show. */
   setStats(id: number, plan: StatPlan | null): Promise<void>;
   /** Saves the Cài đặt đánh of the account; its session follows it from the next battle. Rejects with a message to show. */
-  setFight(id: number, settings: FightSettings): Promise<void>;
+  /** Only the settings changed: src-tauri lays them over the account's settings as they are then (Shared::set_fight),
+   * so two tabs saving at once do not undo each other. */
+  setFight(id: number, settings: Partial<FightSettings>): Promise<void>;
   /** Saves the target the Đánh quái tab chose on a map, which it chooses again back there. Rejects with a message. */
   setFightTarget(id: number, mapId: string, target: string): Promise<void>;
   /** "Thua còn lại" of the fight job or quest run going on: it ends after that many more losses. */
@@ -72,7 +74,8 @@ export interface Api {
   upgradeSkill(id: number, skill: number): Promise<void>;
   /** A button of the item detail: wear, use or throw away (discard) the item of a bag slot, take off or repair the one of
    * a gear slot; "sort" is Sắp xếp of the bag, `slot` unused. */
-  itemAction(id: number, action: ItemAction, slot: number): Promise<void>;
+  /** `uuid`: the item shown, so the bot does nothing when the slot holds another item by now. */
+  itemAction(id: number, action: ItemAction, slot: number, uuid?: string): Promise<void>;
   /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
   listZones(id: number): Promise<void>;
   /** Another zone of the map (c2s/1173); the log tells how it went. */
@@ -145,7 +148,7 @@ export interface Api {
   /** Chợ trời, Mua: the listing `uuid` of the page shown, at `price` Xu as shown. */
   marketBuy(id: number, uuid: string, price: number): Promise<void>;
   /** Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu; the fee is taken at once. */
-  marketSell(id: number, slot: number, price: number): Promise<void>;
+  marketSell(id: number, slot: number, price: number, uuid?: string): Promise<void>;
   /** Chợ trời, Thu hồi: the listing `uuid` of Đang bán back to the bag. */
   marketWithdraw(id: number, uuid: string): Promise<void>;
   /** Chợ trời, Gia hạn: 24 more hours on the listing `uuid` of Đang bán, for the fee. */
@@ -248,7 +251,7 @@ const tauri: Api = {
   setLossesLeft: (id, left) => invoke("set_losses_left", { id, left }),
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
-  itemAction: (id, action, slot) => invoke("item_action", { id, action, slot }),
+  itemAction: (id, action, slot, uuid) => invoke("item_action", { id, action, slot, uuid: uuid ?? null }),
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
@@ -279,7 +282,7 @@ const tauri: Api = {
   marketOpen: (id, tab, page) => invoke("market_open", { id, tab, page }),
   marketPage: (id, tab, page) => invoke("market_page", { id, tab, page }),
   marketBuy: (id, uuid, price) => invoke("market_buy", { id, uuid, price }),
-  marketSell: (id, slot, price) => invoke("market_sell", { id, slot, price }),
+  marketSell: (id, slot, price, uuid) => invoke("market_sell", { id, slot, price, uuid: uuid ?? null }),
   marketWithdraw: (id, uuid) => invoke("market_withdraw", { id, uuid }),
   marketExtend: (id, uuid) => invoke("market_extend", { id, uuid }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),

@@ -142,7 +142,14 @@ pub struct App {
     battle_out: Vec<(u64, u64, WindowMsg)>,
     /// Counts the messages to the battle windows, of every account (BattleState::rev).
     battle_rev: u64,
+    /// Where the writes to cllt.db go once start_db_writer ran: a thread of their own, in order. Without it (the tests,
+    /// the sample) they are done at once.
+    db_writer: Option<Sender<DbJob>>,
+    db_thread: Option<std::thread::JoinHandle<()>>,
 }
+
+/// One write to cllt.db (App::write_db).
+type DbJob = Box<dyn FnOnce(&Store) + Send>;
 
 /// The key of an account in cllt.db: its username in lower case, as the server takes it.
 pub fn username(account: &Account) -> String {
@@ -179,9 +186,6 @@ impl Shared {
             app: Mutex::new(app),
             saving: Default::default(),
         }
-    }
-    pub fn store(&self) -> Option<&Store> {
-        self.store.as_deref()
     }
     /// For work off the async threads (Xuất dữ liệu trận).
     pub fn store_handle(&self) -> Option<Arc<Store>> {
@@ -275,13 +279,27 @@ impl Shared {
             .await
     }
 
-    /// Saves the Cài đặt đánh of the account and tells its session, if it has one.
-    pub async fn set_fight(&self, id: u64, settings: FightSettings) -> Result<(), String> {
-        self.change(
-            id,
-            |a| a.fight = settings,
-            Some(Command::FightSettings(settings)),
-        )
+    /// Cài đặt đánh: the fields of `patch` (named as the UI names them, camelCase) over the account's settings as they
+    /// are when accounts.json is written, kept within `bound`, then told to its session, if it has one. Only what a tab
+    /// changed is sent, so two tabs saving at once (a number of Đánh quái, a box of Cài đặt đánh) do not undo each other.
+    pub async fn set_fight(
+        &self,
+        id: u64,
+        patch: serde_json::Map<String, serde_json::Value>,
+        bound: fn(FightSettings) -> FightSettings,
+    ) -> Result<(), String> {
+        self.change_with(id, move |a| {
+            let mut fight = serde_json::to_value(a.fight).map_err(|e| e.to_string())?;
+            for (key, value) in patch {
+                fight[key] = value;
+            }
+            let fight = bound(
+                serde_json::from_value(fight)
+                    .map_err(|e| format!("Cài đặt đánh không hợp lệ: {e}"))?,
+            );
+            a.fight = fight;
+            Ok(Some(Command::FightSettings(fight)))
+        })
         .await
     }
 
@@ -310,16 +328,30 @@ impl Shared {
         set: impl FnOnce(&mut Account),
         command: Option<Command>,
     ) -> Result<(), String> {
+        self.change_with(id, move |a| {
+            set(a);
+            Ok(command)
+        })
+        .await
+    }
+
+    /// `change`, with the command made from the account as it is under the writing turn: what `set` returns. Its error
+    /// leaves accounts.json and the account as they were.
+    async fn change_with(
+        &self,
+        id: u64,
+        set: impl FnOnce(&mut Account) -> Result<Option<Command>, String>,
+    ) -> Result<(), String> {
         let _turn = self.saving.lock().await;
-        let (path, list, account) = self.with(|app| {
+        let (path, list, account, command) = self.with(|app| {
             let mut account = app
                 .entry(id)
                 .ok_or("Nick này không còn trong danh sách")?
                 .account
                 .clone();
-            set(&mut account);
+            let command = set(&mut account)?;
             let (path, list) = app.saved(Some(id), Some(&account))?;
-            Ok::<_, String>((path, list, account))
+            Ok::<_, String>((path, list, account, command))
         })?;
         write(path, list).await?;
         self.with(|app| {
@@ -494,6 +526,8 @@ impl App {
             notices: vec![],
             battle_out: vec![],
             battle_rev: 0,
+            db_writer: None,
+            db_thread: None,
         }
     }
 
@@ -513,6 +547,39 @@ impl App {
             m.set_record(settings.record);
         }
         self.settings = settings;
+    }
+
+    /// From now on the writes to cllt.db go to a thread of their own, in order: the sessions call on_event under the App
+    /// lock, and a long read of the window (Thống kê, Xuất log lỗi) holding the database must not hold them, nor their
+    /// heartbeats and turns, through it.
+    pub fn start_db_writer(&mut self) {
+        let Some(store) = self.store.clone() else {
+            return;
+        };
+        let (tx, rx) = std::sync::mpsc::channel::<DbJob>();
+        self.db_thread = Some(std::thread::spawn(move || {
+            for job in rx {
+                job(&store);
+            }
+        }));
+        self.db_writer = Some(tx);
+    }
+    /// Ends the writer once the writes queued are done; the caller joins the thread, out of the App lock.
+    pub fn stop_db_writer(&mut self) -> Option<std::thread::JoinHandle<()>> {
+        self.db_writer = None;
+        self.db_thread.take()
+    }
+    /// A write to cllt.db: queued for the writer thread, else done now. Nothing without the database.
+    fn write_db(&self, job: impl FnOnce(&Store) + Send + 'static) {
+        let Some(store) = &self.store else {
+            return;
+        };
+        match &self.db_writer {
+            Some(tx) => {
+                let _ = tx.send(Box::new(job));
+            }
+            None => job(store),
+        }
     }
 
     pub fn set_store(&mut self, store: Arc<Store>) {
@@ -785,17 +852,28 @@ impl App {
             .loot_next
             .take()
             .filter(|_| kind == LogKind::Battle && text.starts_with("Trận"));
-        if let Some(s) = &self.store {
-            line.id = s.add_log(&username(&e.account), line.at, kind, line.tone, text);
-            if let (Some(row), Some(at)) = (line.id, won) {
-                if let Err(err) = s.link_battle(row, at) {
-                    eprintln!("cllt.db: không ghi được trận của dòng nhật ký: {err}");
+        // The row id now, the row by write_db.
+        let write = self.store.as_ref().map(|s| {
+            let row = s.reserve_log();
+            line.id = Some(row);
+            let (user, at, tone, text) =
+                (username(&e.account), line.at, line.tone, text.to_string());
+            move |s: &Store| {
+                if let Err(err) = s.insert_log(row, &user, at, kind, tone, &text) {
+                    eprintln!("cllt.db: không ghi được dòng nhật ký: {err}");
+                } else if let Some(at) = won {
+                    if let Err(err) = s.link_battle(row, at) {
+                        eprintln!("cllt.db: không ghi được trận của dòng nhật ký: {err}");
+                    }
                 }
             }
-        }
+        });
         let line = e.push(line);
         if let Some(at) = won {
             e.loot_line = Some((at, line.seq));
+        }
+        if let Some(write) = write {
+            self.write_db(write);
         }
         self.pending.push((id, line));
         let _ = self.wake.send(());
@@ -805,7 +883,9 @@ impl App {
     /// knows of the account then (its card as the UI has it, without the proxy; its last FAULT_LINES log lines) and the
     /// app and system. Never the password: accounts.json is not read, and the session's trace leaves out c2s/4.
     pub fn add_fault(&mut self, id: Option<u64>, f: Fault, detail: Option<&str>) {
-        let Some(store) = &self.store else { return };
+        if self.store.is_none() {
+            return;
+        }
         let entry = id.and_then(|id| self.entries.iter().find(|e| e.id == id));
         let source = if f.reported {
             "report"
@@ -840,15 +920,12 @@ impl App {
             "packets": f.packets,
         });
         let user = entry.map(|e| username(&e.account));
-        if let Err(e) = store.add_fault(
-            epoch_ms(),
-            user.as_deref(),
-            source,
-            &f.text,
-            &report.to_string(),
-        ) {
-            eprintln!("cllt.db: không ghi được log lỗi: {e}");
-        }
+        let (at, text, report) = (epoch_ms(), f.text, report.to_string());
+        self.write_db(move |s| {
+            if let Err(e) = s.add_fault(at, user.as_deref(), source, &text, &report) {
+                eprintln!("cllt.db: không ghi được log lỗi: {e}");
+            }
+        });
     }
 
     /// Báo lỗi of account `id` with the user's `note`: through its session, which adds its last packets and commands
@@ -914,21 +991,25 @@ impl App {
                     e.loot_next = (record.result == BattleResult::Won).then_some(record.ended_at);
                     e.battle.ended_at = Some(record.ended_at);
                 }
-                let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
+                let Some(user) = self.username(id) else {
                     return;
                 };
-                if let Err(e) = store.add_battle(&user, &record) {
-                    eprintln!("cllt.db: không ghi được trận: {e}");
-                }
+                self.write_db(move |s| {
+                    if let Err(e) = s.add_battle(&user, &record) {
+                        eprintln!("cllt.db: không ghi được trận: {e}");
+                    }
+                });
             }
             // Lưu dữ liệu trận: for `npm run battles` and the training of the battle algorithm, never shown.
             Event::BattleData(data) => {
-                let (Some(store), Some(user)) = (&self.store, self.username(id)) else {
+                let Some(user) = self.username(id) else {
                     return;
                 };
-                if let Err(e) = store.add_battle_data(&user, &data) {
-                    eprintln!("cllt.db: không ghi được dữ liệu trận: {e}");
-                }
+                self.write_db(move |s| {
+                    if let Err(e) = s.add_battle_data(&user, &data) {
+                        eprintln!("cllt.db: không ghi được dữ liệu trận: {e}");
+                    }
+                });
             }
             // Under the line of its battle, sent to the UI again; without that line (gone from the 500 kept), a line of
             // its own.
@@ -939,10 +1020,13 @@ impl App {
                 if let Some(list) = picked {
                     self.send_battle_window(id, WindowMsg::Picked(list));
                 }
-                if let (Some(store), Some(user)) = (&self.store, self.username(id)) {
-                    if let Err(e) = store.add_pickup(&user, &record) {
-                        eprintln!("cllt.db: không ghi được món nhặt: {e}");
-                    }
+                if let Some(user) = self.username(id) {
+                    let record = record.clone();
+                    self.write_db(move |s| {
+                        if let Err(e) = s.add_pickup(&user, &record) {
+                            eprintln!("cllt.db: không ghi được món nhặt: {e}");
+                        }
+                    });
                 }
                 let line = self.entry_mut(id).and_then(|e| {
                     let (_, seq) = e.loot_line.filter(|l| l.0 == record.battle_at)?;
@@ -1370,12 +1454,23 @@ mod tests {
         // The same account twice would log itself out.
         assert!(block_on(shared.add(account("A"))).is_err());
 
-        // Tự sửa đồ is saved on its own, and the edit form (which does not send it) keeps it.
+        // Tự sửa đồ is saved on its own, and the edit form (which does not send it) keeps it. A save names only what it
+        // changed: the second keeps the first, as two tabs saving at once must.
+        let patch = |v: serde_json::Value| v.as_object().unwrap().clone();
+        let same = |f: FightSettings| f;
+        block_on(shared.set_fight(id, patch(serde_json::json!({ "repair": true })), same)).unwrap();
+        block_on(shared.set_fight(id, patch(serde_json::json!({ "fightCount": 7 })), same))
+            .unwrap();
         let repair = FightSettings {
             repair: true,
+            fight_count: 7,
             ..FightSettings::default()
         };
-        block_on(shared.set_fight(id, repair)).unwrap();
+        assert_eq!(accounts::load(&path).unwrap()[0].fight, repair);
+        // A value of the wrong kind changes nothing.
+        let wrong =
+            block_on(shared.set_fight(id, patch(serde_json::json!({ "repair": "có" })), same));
+        assert!(wrong.is_err());
         assert_eq!(accounts::load(&path).unwrap()[0].fight, repair);
         // So is the target chosen on each map, the last one of a map winning.
         for (map, target) in [
@@ -1685,5 +1780,43 @@ mod tests {
             .map(|(_, rev, _)| *rev)
             .collect();
         assert_eq!(fresh, [4]);
+    }
+
+    #[test]
+    fn with_the_writer_thread_log_lines_keep_the_row_ids_they_were_given_and_every_write_lands() {
+        // A line from an earlier start of the app: the row ids go on after it.
+        let file = std::env::temp_dir().join(format!("cllt-writer-{}.db", std::process::id()));
+        let old = Store::open(&file)
+            .unwrap()
+            .add_log("manina2", 1, LogKind::Travel, 0, "trước")
+            .unwrap();
+        let store = Arc::new(Store::open(&file).unwrap());
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        app.set_store(store.clone());
+        app.start_db_writer();
+        let id = app.add(account("Manina2"));
+        for text in ["Sang khu 4", "Sang khu 5", "Sang khu 6"] {
+            app.on_event(id, Event::Log(LogKind::Travel, text.into()));
+        }
+        let given: Vec<_> = app
+            .logs(id)
+            .iter()
+            .map(|l| (l.id.unwrap(), l.text.clone()))
+            .collect();
+        app.stop_db_writer().unwrap().join().unwrap();
+        let mut rows: Vec<_> = store
+            .logs("manina2", None, &[], None, 10)
+            .unwrap()
+            .into_iter()
+            .map(|l| (l.id, l.text))
+            .filter(|(_, t)| t.starts_with("Sang"))
+            .collect();
+        rows.sort();
+        assert_eq!(rows, given);
+        assert!(given.iter().all(|(row, _)| *row > old));
+        drop(store);
+        for end in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{end}", file.display()));
+        }
     }
 }

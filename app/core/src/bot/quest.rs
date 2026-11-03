@@ -127,7 +127,11 @@ impl Bot {
         if !matches!(self.timer, Some((_, Wake::ChallengeTimeout))) {
             self.timer = None;
         }
-        (self.travelling, self.awaiting_reply) = (None, false);
+        // The deadline of a portal of the run goes with it (through); a trip or a zone change keeps its own.
+        if self.travelling.take().is_some() && self.trip.is_none() && self.zoning.is_none() {
+            self.move_until = None;
+        }
+        self.awaiting_reply = false;
         let what = match self.playing.take() {
             Some(_) => "làm bước",
             None => "tự làm nhiệm vụ",
@@ -160,7 +164,7 @@ impl Bot {
         let Some(q) = &mut self.snap.quest else {
             return;
         };
-        (q.current, q.progress) = (q.current + 1, 0);
+        (q.current, q.progress) = (q.current.saturating_add(1), 0);
         (self.hops, self.duels) = (0, 0);
         let next = q.steps.get(q.current as usize).map(|s| s.text.as_str());
         out.push(Out::Log(
@@ -481,8 +485,9 @@ impl Bot {
         portal.is_some_and(|p| self.through(p, reason, now, out))
     }
 
-    /// c2s/13 with the id of a portal of this map; s2c/13 or the refusal s2c/1256 must answer within 8 s. At most 6 for a
-    /// step.
+    /// c2s/13 with the id of a portal of this map; s2c/13 or the refusal s2c/1256 must answer within 8 s, and the new map
+    /// (s2c/43 after its s2c/11) must be in within the same 8 s: s2c/13 clears the timer, so `move_until` holds that
+    /// deadline, as for a trip (on_timer). At most 6 for a step.
     pub(super) fn through(
         &mut self,
         portal: Place,
@@ -517,6 +522,7 @@ impl Bot {
             now + Duration::from_secs(8),
             Wake::Silence("Cổng không trả lời"),
         ));
+        self.move_until = Some(now + Duration::from_secs(8));
         true
     }
 
@@ -671,14 +677,14 @@ impl Bot {
                 if action.mob().is_some() && action.mob() == name.as_deref() {
                     match action {
                         StepAction::Damage { amount, .. } => {
-                            q.progress += end.damage;
+                            q.progress = q.progress.saturating_add(end.damage);
                             out.push(Out::Log(
                                 LogKind::Quest,
                                 format!("Sát thương lên boss: {}/{amount}", q.progress),
                             ));
                         }
                         StepAction::Kill { .. } if end.won => {
-                            q.progress += 1;
+                            q.progress = q.progress.saturating_add(1);
                             out.push(Out::Log(
                                 LogKind::Quest,
                                 format!("Đã diệt {}/{}", q.progress, step.required),

@@ -117,7 +117,8 @@ impl Bot {
 
     /// What a trip would merge (merge_forecast_paid), or why there is none now, keyed to be said once: merge_every
     /// minutes not yet gone by since the last trip came back (merged or not, so a trip that fails does not set off again
-    /// before every battle), no known way back from M1, no set of four locked stones, or none the Xu khóa pays for.
+    /// before every battle), no known way back from M1, no set of four locked stones, none the Xu khóa pays for, or
+    /// something Pháp sư would refuse Gộp đá for still waiting for its answer (a purchase, an item action, a repair).
     fn merge_ready(&self, now: Instant) -> Result<MergeForecast, (&'static str, String)> {
         let minutes = self.fight.merge_minutes();
         let every = Duration::from_secs(minutes as u64 * 60);
@@ -141,6 +142,14 @@ impl Bot {
         let (o, bag, xu_khoa) = (self.merge_options(), self.bag_items(), self.money().1);
         let plan = merge_forecast_paid(&bag, o, xu_khoa);
         if plan.merges > 0 {
+            // smith_begin would refuse Gộp đá at Pháp sư for these, after the whole way there and back; a pickup's
+            // answer is waited for at M1 instead (merge_step).
+            if self.shopping.is_some() || self.item_pending(now) || self.repairing.is_some() {
+                return Err((
+                    "answer",
+                    "đang đợi server trả lời việc khác (mua, dùng hay sửa đồ)".into(),
+                ));
+            }
             return Ok(plan);
         }
         Err(match merge_plan(&bag, o).first() {

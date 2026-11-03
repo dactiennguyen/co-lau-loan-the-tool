@@ -158,6 +158,11 @@ struct Merged {
     kept: u32,
 }
 
+/// sync.json, readable by the owner only: its hashes come from the passwords.
+fn write(file: &Path, state: &State) -> Result<(), String> {
+    cllt_core::accounts::write_private(file, &serde_json::to_vec(state).unwrap_or_default())
+}
+
 async fn post(server: &str, body: &Value) -> reqwest::Result<Merged> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let client = reqwest::Client::builder().timeout(TIMEOUT).build()?;
@@ -172,7 +177,7 @@ async fn post(server: &str, body: &Value) -> reqwest::Result<Merged> {
 }
 
 /// One sync of device `id`; `file` is sync.json. A failure leaves sync.json as it was, to send it all again next time.
-pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, file: &Path) {
+pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &str, file: &Path) {
     let Some(shared) = app.try_state::<Shared>() else {
         return;
     };
@@ -196,7 +201,7 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, file: &
     let marks = std::mem::take(&mut *IMPORTED.lock().unwrap());
     if let Some(state) = saved.as_mut().filter(|_| !marks.is_empty()) {
         mark_old(state, &marks);
-        if let Err(e) = std::fs::write(file, serde_json::to_vec(state).unwrap_or_default()) {
+        if let Err(e) = write(file, state) {
             eprintln!("Đồng bộ nick: không ghi được {}: {e}", file.display());
             IMPORTED.lock().unwrap().extend(marks);
         }
@@ -211,11 +216,11 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, file: &
     if plan.accounts.is_empty() && plan.settings.is_none() {
         return;
     }
-    let body = json!({ "id": id, "settings": plan.settings, "accounts": plan.accounts });
+    let body =
+        json!({ "id": id, "key": key, "settings": plan.settings, "accounts": plan.accounts });
     match post(server, &body).await {
         Ok(m) => {
-            if let Err(e) = std::fs::write(file, serde_json::to_vec(&plan.next).unwrap_or_default())
-            {
+            if let Err(e) = write(file, &plan.next) {
                 eprintln!("Đồng bộ nick: không ghi được {}: {e}", file.display());
             }
             eprintln!(

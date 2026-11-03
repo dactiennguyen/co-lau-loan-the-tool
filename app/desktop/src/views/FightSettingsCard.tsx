@@ -145,8 +145,9 @@ export function FightSettingsCard({ account }: { account: Account }) {
       return !was;
     });
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update. The
-  // other boxes stay usable meanwhile: a save sends every setting, those still saving included, and src-tauri writes
-  // them one after another, so none is lost, and nothing on the card dims at each click.
+  // other boxes stay usable meanwhile: a save sends only what changed (with the numbers still waiting), src-tauri lays it
+  // over the settings as they are then, one save after another, so none is lost, and nothing on the card dims at each
+  // click.
   useEffect(() => {
     if (saving && KEYS.every((k) => saving[k] === saved[k])) {
       setSaving(null);
@@ -155,12 +156,12 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const settings = saving ?? saved;
   // A number is saved QUIET ms after its last change (`quiet`), a box at once with any number still waiting, and a
   // number still waiting when the card closes.
-  const pending = useRef<{ id: number; next: FightSettings } | null>(null);
+  const pending = useRef<{ id: number; patch: Partial<FightSettings> } | null>(null);
   const timer = useRef<number | undefined>(undefined);
-  const send = (next: FightSettings) => {
+  const send = (patch: Partial<FightSettings>) => {
     window.clearTimeout(timer.current);
     pending.current = null;
-    api.setFight(account.id, next).catch((err) => {
+    api.setFight(account.id, patch).catch((err) => {
       setSaving(null);
       setError(String(err?.message ?? err));
     });
@@ -169,18 +170,21 @@ export function FightSettingsCard({ account }: { account: Account }) {
     () => () => {
       window.clearTimeout(timer.current);
       const p = pending.current;
-      if (p) api.setFight(p.id, p.next).catch(() => {});
+      if (p) api.setFight(p.id, p.patch).catch(() => {});
     },
     [account.id],
   );
   const save = (raw: FightSettings, quiet = false) => {
     const next = bounded(raw);
+    // What this click or number changed against the card as shown, with the numbers still waiting to go.
+    const patch: Partial<FightSettings> = { ...(pending.current?.id === account.id ? pending.current.patch : {}) };
+    for (const k of KEYS) if (next[k] !== settings[k]) Object.assign(patch, { [k]: next[k] });
     setSaving(next);
     setError(null);
-    if (!quiet) return send(next);
-    pending.current = { id: account.id, next };
+    if (!quiet) return send(patch);
+    pending.current = { id: account.id, patch };
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => send(next), QUIET);
+    timer.current = window.setTimeout(() => send(patch), QUIET);
   };
   const hammers = c?.bag?.items.filter((i) => i.id === HAMMER).reduce((n, i) => n + Math.max(1, i.quantity), 0) ?? 0;
   const broken = (c?.gear ?? []).filter((g): g is Item & { durability: [number, number] } => g?.durability?.[0] === 0);

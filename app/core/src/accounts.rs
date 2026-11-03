@@ -73,13 +73,20 @@ pub fn save(path: &Path, accounts: &[Account]) -> Result<(), String> {
     })
     .unwrap()
         + "\n";
-    let tmp = path.with_extension("json.tmp");
+    write_private(path, text.as_bytes())
+}
+/// Writes `bytes` to `path` readable by its owner only on unix (accounts.json, and beside it the device key and
+/// sync.json of the desktop app), through a temporary file so a failed write leaves the old one whole.
+pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = std::path::PathBuf::from(tmp);
     let write = || -> std::io::Result<()> {
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create(true).truncate(true);
         #[cfg(unix)]
         std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-        std::io::Write::write_all(&mut options.open(&tmp)?, text.as_bytes())?;
+        std::io::Write::write_all(&mut options.open(&tmp)?, bytes)?;
         std::fs::rename(&tmp, path)
     };
     write().map_err(|e| {

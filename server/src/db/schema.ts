@@ -74,6 +74,8 @@ export const devices = sqliteTable(
     syncedAt: integer('synced_at'),
     /** 1 once the admin lets it sync (Cho đồng bộ); 0 refuses its accounts. */
     syncAllowed: integer('sync_allowed').notNull().default(0),
+    /** SHA-256 (hex) of the key the device first sent (migrations/0004_device_key.sql); '' before any. */
+    keyHash: text('key_hash').notNull().default(''),
   },
   (t) => [index('devices_last_seen').on(t.lastSeen)],
 );

@@ -16,11 +16,13 @@ export async function hello(c: Ctx) {
   if (text === null) return c.json({ error: HTTP.helloTooLarge }, 413);
   const h = parseHello(text);
   if ('error' in h) return c.json(h, 400);
-  return c.json(await devices.hello(c.var.db, h, clientIp(c)));
+  const answer = await devices.hello(c.var.db, h, clientIp(c));
+  if ('wrongKey' in answer) return c.json({ error: HTTP.wrongDeviceKey }, 403);
+  return c.json(answer);
 }
 
-/** POST /api/devices/sync: the accounts and Cài đặt of a device that said hello, is not blocked and that the admin let
- * sync, merged into the accounts kept (services/account.service.ts#merge). */
+/** POST /api/devices/sync: the accounts and Cài đặt of a device that said hello with its key, brings that key, is not
+ * blocked and that the admin let sync, merged into the accounts kept (services/account.service.ts#merge). */
 export async function sync(c: Ctx) {
   const text = await bodyText(c, MAX_ACCOUNTS_BODY);
   if (text === null) return c.json({ error: HTTP.accountsTooLarge }, 413);
@@ -28,6 +30,8 @@ export async function sync(c: Ctx) {
   if ('error' in s) return c.json(s, 400);
   const device = await devices.get(c.var.db, s.id);
   if (!device) return c.json({ error: HTTP.unknownDevice }, 404);
+  if (!device.keyHash) return c.json({ error: HTTP.noDeviceKey }, 403);
+  if (!(await devices.keyOf(device, s.key))) return c.json({ error: HTTP.wrongDeviceKey }, 403);
   if (device.blocked) return c.json({ error: HTTP.blockedDevice }, 403);
   if (!device.syncAllowed) return c.json({ error: HTTP.syncNotAllowed }, 403);
   try {

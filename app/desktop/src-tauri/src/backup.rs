@@ -99,6 +99,18 @@ pub fn parse(text: &str) -> Result<Parsed, String> {
             if username.is_empty() {
                 return Err(format!("Nick thứ {n}: thiếu tài khoản (username)"));
             }
+            // What the add and edit form checks (commands.rs form): a file edited by hand does not get past it either,
+            // to fail only at the login.
+            if a.server_id <= 0 {
+                return Err(format!(
+                    "Nick thứ {n} ({username}): máy chủ phải là số dương"
+                ));
+            }
+            if let Some(proxy) = &a.proxy {
+                proxy
+                    .check_fields()
+                    .map_err(|e| format!("Nick thứ {n} ({username}): {e}"))?;
+            }
             Ok(Account { username, ..a })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -235,6 +247,23 @@ mod tests {
         .unwrap()
         .accounts
         .remove(0)
+    }
+
+    #[test]
+    fn an_account_the_form_would_refuse_is_refused_by_nhap_too() {
+        let socks = |user: &str| {
+            serde_json::json!([{ "username": "a", "password": "p", "serverId": 24,
+                "proxy": { "enabled": true, "kind": "socks5", "host": "1.2.3.4", "port": 1080, "username": user, "password": "x" } }])
+            .to_string()
+        };
+        assert!(parse(&socks("u")).is_ok());
+        let long = parse(&socks(&"u".repeat(256))).unwrap_err();
+        assert!(
+            long.starts_with("Nick thứ 1 (a): ") && long.contains("255 byte"),
+            "{long}"
+        );
+        let server = parse(r#"[{ "username": "a", "password": "p", "serverId": 0 }]"#).unwrap_err();
+        assert_eq!(server, "Nick thứ 1 (a): máy chủ phải là số dương");
     }
 
     #[test]

@@ -54,6 +54,9 @@ pub enum Command {
     UpgradeSkill(i32),
     /// A button of the item detail: wear, take off, use, repair (Bot::item).
     Item(ItemAct),
+    /// Command::Item for the one item the window showed, by its uuid: refused when its slot holds another item by now
+    /// (Bot::item_of).
+    ItemOf(ItemAct, String),
     /// The zones of the map and their players (Bot::list_zones).
     ListZones,
     /// Another zone of the map (Bot::change_zone).
@@ -142,6 +145,12 @@ impl Server {
 type Emit = Arc<dyn Fn(Event) + Send + Sync>;
 type Error = String;
 const STEP: Duration = Duration::from_secs(8);
+/// In the game, how long the server may send nothing (it answers the heartbeat every 2 s) before the connection is
+/// taken as gone (session.rs). Shorter in the tests, still over the heartbeat.
+#[cfg(not(test))]
+const SILENT: Duration = Duration::from_secs(30);
+#[cfg(test)]
+const SILENT: Duration = Duration::from_secs(3);
 /// After s2c/43, how long to wait for s2c/1263: a zone with no other player sends none (M25, 31/10; snapshotWaitMs of
 /// src/net/client.ts).
 const PLAYERS_WAIT: Duration = Duration::from_millis(1500);

@@ -20,9 +20,10 @@ const TIERS = [1, 21, 51] as const;
 /**
  * Mua (15-shops.md): a category of the 14 shops, with its money (Xu or Xu khóa) and, for Nón and Giáp, men's or women's;
  * the shop opens on its own (c2s/13, c2s/57 down its menus) and lists its lines with the stat gear rolls, its tier and
- * price. Mua buys the line picked in the count chosen (c2s/1190); the result is the bot's line in the log.
+ * price. Mua buys the line picked in the count chosen (c2s/1190), asked once more with the total; the result is the
+ * bot's line in the log.
  */
-export function ShopBuy({ account, why, item }: ShopContext & { item?: number }) {
+export function ShopBuy({ account, why, ask, item }: ShopContext & { item?: number }) {
   const c = account.character!;
   // Mua búa opens on Dược phẩm with the hammer picked.
   const [category, setCategory] = useState<Category>(() => (item != null ? "potion" : ((recalled("shop.category") as Category) ?? "potion")));
@@ -51,6 +52,14 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
   const wanted = item == null || picked != null ? [] : lines.filter((l) => l.itemId === item);
   const pays = (l: ShopLine) => (wallet(l) ?? 0) >= l.price;
   const line = lines.find((l) => l.shopId === picked) ?? wanted.find((l) => l.currency === 1 && pays(l)) ?? wanted.find(pays) ?? wanted[0] ?? null;
+  // The count is of the line it was chosen for: another line, of this shop or another (category, money, gender, tier), or
+  // none while a shop opens, starts again at 1, so 50 potions never become 50 Đá cấp 11.
+  const lineKey = line ? `${kind}:${line.shopId}` : null;
+  const [countOf, setCountOf] = useState(lineKey);
+  if (countOf !== lineKey) {
+    setCountOf(lineKey);
+    setQuantity(1);
+  }
   const cost = line ? line.price * quantity : 0;
   const have = line ? wallet(line) : null;
   const short = line != null && have != null && cost > have;
@@ -61,10 +70,33 @@ export function ShopBuy({ account, why, item }: ShopContext & { item?: number })
   const [mark, setMark] = useState<number | null>(null);
   const result = mark == null ? undefined : log.find((l) => l.seq > mark && RESULT.test(l.text));
   const waiting = mark != null && !result;
+  // Asked once more, as every spend of Tiện ích: the line, count and total as they are now go in the box and are what
+  // Mua sends, whatever is picked behind it.
   const buy = () => {
     if (!line) return;
-    setMark(log.length ? log[log.length - 1].seq : 0);
-    api.buy(account.id, line.shopId, quantity);
+    const { shopId, name, price, currency, locks } = line;
+    const count = quantity;
+    const total = price * count;
+    const money = MONEY[currency];
+    ask({
+      title: `Mua ở ${cat.npc}`,
+      message: (
+        <>
+          Mua <b>{num(count)} {name}</b> với giá <b>{num(total)} {money}</b>
+          {count > 1 && ` (${num(price)} ${money} một món)`}?
+          {have != null && ` Còn ${num(have - total)} ${money} sau khi mua.`}
+          {locks && " Món mua bằng Xu khóa bị khoá giao dịch."}
+        </>
+      ),
+      confirm: `Mua ${num(total)} ${money}`,
+      icon: "cart",
+      run: async () => {
+        // The result is the first line after the confirm.
+        const logged = selectedLog(useStore.getState());
+        setMark(logged.length ? logged[logged.length - 1].seq : 0);
+        await api.buy(account.id, shopId, count);
+      },
+    });
   };
 
   return (

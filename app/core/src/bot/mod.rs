@@ -271,12 +271,13 @@ pub struct Bot {
     /// timer past END_WAIT after it (record_received). Not a deadline of its own, so it never moves a job's timers.
     recorder: Option<Recorder>,
     /// How potential points are spent on their own (set_stats). `given` counts the points it gave each stat (c2s/10
-    /// index) since it was set, `spent` those since the last summary; `allotting` while its c2s/10 waits for s2c/10 kind
-    /// 8, `allot_failed` once one went unanswered, until the plan is set again.
+    /// index) since it was set, `spent` those since the last summary; `allotting`, the potential points when its c2s/10
+    /// went, while it waits for s2c/10 kind 8; `allot_failed` once one went unanswered or spent no point, until the plan
+    /// is set again.
     stat_plan: Option<StatPlan>,
     given: [u32; 4],
     spent: [u32; 4],
-    allotting: bool,
+    allotting: Option<i32>,
     allot_failed: bool,
     plan_warned: bool,
     /// Tự cộng kỹ năng (FightSettings::auto_skills): `skilling`, the skill points when its c2s/1191 went, while it waits
@@ -379,7 +380,7 @@ impl Bot {
             stat_plan,
             given: [0; 4],
             spent: [0; 4],
-            allotting: false,
+            allotting: None,
             allot_failed: false,
             skilling: None,
             skills_failed: false,
@@ -641,7 +642,7 @@ impl Bot {
                 }
                 Wake::Silence(reason) => self.finish_quest(reason, out),
                 Wake::StatSilence => {
-                    (self.allotting, self.allot_failed) = (false, true);
+                    (self.allotting, self.allot_failed) = (None, true);
                     let reason = "Server không trả lời khi cộng điểm tiềm năng";
                     out.push(Out::Log(
                         LogKind::Character,
@@ -694,6 +695,16 @@ impl Bot {
                     LogKind::Travel,
                     format!("Kết thúc: cổng không trả lời sau 8 s, thôi đi tới {name}"),
                 ));
+            } else if let Some((_, name)) = self.travelling.take() {
+                // A portal of the quest run (through): s2c/13 came and cleared its timer, but the new map did not
+                // follow, or its s2c/11 or s2c/43 did not read. Nothing else would wake the run, still "Qua cổng …".
+                out.push(Out::Log(
+                    LogKind::Travel,
+                    format!("Server không gửi map mới sau cổng {name} trong 8 s"),
+                ));
+                if self.quest_running() {
+                    self.finish_quest(&format!("Không vào được map sau cổng {name}"), out);
+                }
             }
         }
         if self.leave_until.is_some_and(|t| t <= now) {

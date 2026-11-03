@@ -94,10 +94,11 @@ pub fn battle_state(shared: State<Shared>, id: u64) -> Option<BattleState> {
 
 /// Opens the battle window of account `id`, or brings it to the front. `on_top` keeps it above other windows; `chroma`
 /// gives it the green of a chroma key until the page paints its own (BattleWindow.tsx keeps both in localStorage).
+/// Async: a window built in a synchronous command deadlocks on Windows (WebviewWindowBuilder::new, "Known issues").
 #[tauri::command]
-pub fn open_battle_window(
+pub async fn open_battle_window(
     app: AppHandle,
-    shared: State<Shared>,
+    shared: State<'_, Shared>,
     id: u64,
     on_top: bool,
     chroma: bool,

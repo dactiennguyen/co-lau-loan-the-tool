@@ -3,17 +3,38 @@
 import { desc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
 import { devices as table } from '../db/schema.ts';
+import { same, sha256 } from '../utils/crypto.ts';
 import type { Device, Hello, HelloAnswer } from '../models/index.ts';
 
-/** Records the hello (a new device is allowed) and answers whether the device may run, with the reason if not. */
-export async function hello(db: Db, h: Hello, ip: string, now = Date.now()): Promise<HelloAnswer> {
-  const seen = { hostname: h.hostname, os: h.os, version: h.version, accounts: JSON.stringify(h.accounts), ip, lastSeen: now };
+/** Whether `key` is the key the device keeps (migrations/0004_device_key.sql): never without one on either side. */
+export async function keyOf(device: Device, key: string | undefined): Promise<boolean> {
+  return !!device.keyHash && !!key && same(device.keyHash, await sha256(key));
+}
+
+/** Records the hello (a new device is allowed) and answers whether the device may run, with the reason if not, and
+ * whether it may sync. The first key a device brings is kept; after that a hello without that key changes nothing and
+ * is refused (`wrongKey`), so the id alone, which is no secret, cannot rewrite what the device said. */
+export async function hello(db: Db, h: Hello, ip: string, now = Date.now()): Promise<HelloAnswer | { wrongKey: true }> {
+  const known = await get(db, h.id);
+  const keyHash = h.key ? await sha256(h.key) : '';
+  if (known?.keyHash && !same(known.keyHash, keyHash)) return { wrongKey: true };
+  const seen = {
+    hostname: h.hostname,
+    os: h.os,
+    version: h.version,
+    accounts: JSON.stringify(h.accounts),
+    ip,
+    lastSeen: now,
+    ...(keyHash && !known?.keyHash ? { keyHash } : {}),
+  };
   const [row] = await db
     .insert(table)
     .values({ id: h.id, ...seen, firstSeen: now })
     .onConflictDoUpdate({ target: table.id, set: seen })
-    .returning({ blocked: table.blocked, reason: table.reason });
-  return row?.blocked ? { allowed: false, reason: row.reason } : { allowed: true };
+    .returning({ blocked: table.blocked, reason: table.reason, syncAllowed: table.syncAllowed, keyHash: table.keyHash });
+  if (!row) return { allowed: true, sync: false };
+  if (row.blocked) return { allowed: false, reason: row.reason };
+  return { allowed: true, sync: row.syncAllowed === 1 && !!keyHash && row.keyHash === keyHash };
 }
 
 /** The device of that id, if it said hello. */

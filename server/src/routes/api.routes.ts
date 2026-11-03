@@ -13,7 +13,8 @@ api.use(cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'], allowHeade
 
 api.get('/health', (c) => c.json({ ok: true, app: 'cllt-server' }));
 
-// The app on every device, as it opens and every 15 minutes: no token, as the app keeps no secret.
+// The app on every device, as it opens and every 15 minutes: no token, but the device key its first hello brought
+// (services/device.service.ts#hello).
 api.post('/devices/hello', device.hello);
 api.all('/devices/hello', (c) => c.json({ error: HTTP.onlyPost }, 405, { Allow: 'POST, OPTIONS' }));
 // After an allowed hello: the accounts that changed on the device, by the id of a device that said hello.

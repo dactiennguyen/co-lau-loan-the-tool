@@ -7,6 +7,9 @@ settings.json
 
 # The last answer of CLLT Server about this device (desktop/src-tauri/src/device.rs); local only.
 device.json
+# The key of this device at CLLT Server, and what its last sync sent (device.rs, sync.rs); local only.
+device.key
+sync.json
 
 # The log lines and battles of the accounts (desktop/src-tauri/src/store.rs); local only.
 cllt.db

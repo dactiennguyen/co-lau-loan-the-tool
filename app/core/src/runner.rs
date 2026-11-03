@@ -175,6 +175,8 @@ pub struct BattleRunner {
     skill_wait: Option<(Instant, i32)>,
     /// Next own swap of a timed battle, or the turn inferred 2 s after a result whose s2c/24 did not come.
     turn_wait: Option<(Instant, Wake)>,
+    /// The turn (seq, own) the inferred turn played: its s2c/24, come late, is not played again.
+    inferred: Option<(i32, bool)>,
 }
 
 impl BattleRunner {
@@ -209,6 +211,7 @@ impl BattleRunner {
             options,
             skill_wait: None,
             turn_wait: None,
+            inferred: None,
         }
     }
 
@@ -275,6 +278,7 @@ impl BattleRunner {
             match self.turn_wait.take().unwrap().1 {
                 Wake::TimedMove(seq) => self.my_move(seq, now, out),
                 Wake::Infer(seq, mine) => {
+                    self.inferred = Some((seq, mine));
                     if mine {
                         self.my_move(seq, now, out)
                     } else {
@@ -283,6 +287,12 @@ impl BattleRunner {
                 }
             }
         }
+    }
+
+    /// The s2c/24 of a turn already taken: the one the inferred turn played (s2c/24 more than 2 s late), or an own turn
+    /// while the answer to its skill is awaited. Playing it would send a second c2s/19 or c2s/20 for the same turn.
+    fn played(&self, seq: i32, mine: bool) -> bool {
+        self.inferred == Some((seq, mine)) || (mine && self.skill_wait.is_some())
     }
 
     /// Returns false for packets that are not part of the battle.
@@ -311,8 +321,12 @@ impl BattleRunner {
                 }
             }
             24 => {
-                self.turn_wait = None;
                 let t = turn_state(payload)?;
+                // Left as it is: the turn after it may be inferred already.
+                if self.played(t.seq, t.player_turn == 1) {
+                    return Ok(true);
+                }
+                self.turn_wait = None;
                 self.views.push(BattleEvent::Turn {
                     seq: t.seq,
                     mine: t.player_turn == 1,
@@ -438,7 +452,7 @@ impl BattleRunner {
         if let Some(unit) = x.units.iter().find(|u| u.name == x.actor) {
             self.learn_from(side, unit, &o, skill);
             if side == Side::Me && unit.damage > 0 {
-                self.damage += unit.damage;
+                self.damage = self.damage.saturating_add(unit.damage);
             }
         }
         for u in &x.units {

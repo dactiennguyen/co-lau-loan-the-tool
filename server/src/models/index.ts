@@ -34,6 +34,7 @@ export interface Stamped {
  * null when not sent). */
 export interface DeviceSync {
   id: string;
+  key?: string;
   settings: string | null;
   accounts: Stamped[];
 }
@@ -52,6 +53,8 @@ export interface Merged {
 /** What the app sends to POST /api/devices/hello. `id` is the SHA-256 (hex) of the operating system's machine id. */
 export interface Hello {
   id: string;
+  /** The device key (64 hex), from app 1.1.8 on. */
+  key?: string;
   hostname: string;
   os: string;
   version: string;
@@ -59,4 +62,4 @@ export interface Hello {
 }
 
 /** The answer of POST /api/devices/hello. */
-export type HelloAnswer = { allowed: true } | { allowed: false; reason: string };
+export type HelloAnswer = { allowed: true; sync: boolean } | { allowed: false; reason: string };

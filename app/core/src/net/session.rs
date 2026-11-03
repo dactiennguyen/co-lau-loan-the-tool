@@ -18,6 +18,7 @@ pub async fn run(
 ) {
     emit(Event::State(ConnState::Connecting));
     let mut trace = Trace::default();
+    let (mut out, mut in_game) = (vec![], false);
     let ended = session(
         server.addr(),
         record,
@@ -27,8 +28,18 @@ pub async fn run(
         &mut commands,
         &emit,
         &mut trace,
+        &mut out,
+        &mut in_game,
     )
     .await;
+    // What the bot said in the game before an error ended the session (a packet later in the same read that did not
+    // decode, a send that failed): its log lines and records still reach the app, before the state; its sends cannot.
+    // During the login the error itself says what went wrong.
+    if in_game {
+        for o in out.drain(..) {
+            deliver(o, &emit, &mut trace);
+        }
+    }
     // Log lỗi: an error of the session, not the server saying no to the login ("Vui lòng chờ 8 giây", the account
     // playing elsewhere), with the packets before it.
     let fault = ended
@@ -99,6 +110,8 @@ pub(super) async fn session(
     commands: &mut UnboundedReceiver<Command>,
     emit: &Emit,
     trace: &mut Trace,
+    out: &mut Vec<Out>,
+    in_game: &mut bool,
 ) -> Result<(), Error> {
     // Logout works at every step: the connect and the seed wait end on it too, as the login steps below do.
     let proxy = account.proxy.as_ref().filter(|p| p.enabled);
@@ -142,22 +155,25 @@ pub(super) async fn session(
     let mut heartbeat = interval(Duration::from_secs(2));
     heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut buf = vec![0u8; 65536];
-    let mut out: Vec<Out> = vec![];
     let mut last = Snapshot::default();
+    // When the server last sent anything. It answers each c2s/1 of the heartbeat: in the game, SILENT without a byte is a
+    // connection gone (a NAT that forgot it, a network switch) that would otherwise look online for minutes.
+    let mut heard = Instant::now();
 
     macro_rules! send {
         ($op:expr, $ctx:expr) => {{
             let payload = build($op, &$ctx).map_err(|e| e.to_string())?;
             trace.packet(true, $op, &payload);
             let frame = proto.encode($op, &payload).map_err(|e| e.to_string())?;
-            stream.write_all(&frame).await.map_err(|e| e.to_string())?;
+            write(&mut stream, &frame).await?;
         }};
     }
     macro_rules! online {
         () => {{
             step = Step::Ready;
+            *in_game = true;
             emit(Event::State(ConnState::Online));
-            bot.on_ready(std::time::Instant::now(), &mut out);
+            bot.on_ready(std::time::Instant::now(), out);
         }};
     }
     send!(-1, Ctx::default());
@@ -170,12 +186,13 @@ pub(super) async fn session(
                 if n == 0 {
                     return Err(if step == Step::Ready { "Server đã đóng kết nối".into() } else { format!("Server đóng kết nối lúc đăng nhập ({step:?})") });
                 }
+                heard = Instant::now();
                 proto.push(&buf[..n]);
                 while let Some(p) = proto.next_packet().map_err(|e| e.to_string())? {
                     let Some(op) = p.opcode else { continue };
                     trace.packet(false, op, &p.payload);
                     let now = std::time::Instant::now();
-                    if let Err(e) = bot.on_packet(op, &p.payload, now, &mut out) {
+                    if let Err(e) = bot.on_packet(op, &p.payload, now, out) {
                         out.push(Out::Log(LogKind::Server, format!("Không đọc được s2c/{op}: {e}")));
                     }
                     if op == 0 && step != Step::Ready {
@@ -271,69 +288,66 @@ pub(super) async fn session(
                     // At any step, with what went in and out so far.
                     Some(Command::Report(note)) => emit(Event::Fault(Box::new(trace.report(&note)))),
                     // Sent once to every session, so kept even before the game is ready.
-                    Some(Command::Record(on)) => bot.set_record(on, &mut out),
+                    Some(Command::Record(on)) => bot.set_record(on, out),
                     // Closing the dialog of a nick not in the game is nothing to say.
-                    Some(Command::ShopClosed) => bot.shop_closed(now, &mut out),
+                    Some(Command::ShopClosed) => bot.shop_closed(now, out),
                     Some(_) if step != Step::Ready => out.push(Out::Log(LogKind::Connection, NOT_READY.into())),
-                    Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, &mut out),
-                    Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, &mut out),
-                    Some(Command::Stop { surrender }) => bot.stop(surrender, now, &mut out),
-                    Some(Command::Stats(plan)) => bot.set_stats(plan, now, &mut out),
+                    Some(Command::Fight { target, count, max_losses }) => bot.fight(&target, count, max_losses, now, out),
+                    Some(Command::Quest { max_losses, step }) => bot.quest(max_losses, step, now, out),
+                    Some(Command::Stop { surrender }) => bot.stop(surrender, now, out),
+                    Some(Command::Stats(plan)) => bot.set_stats(plan, now, out),
                     Some(Command::FightSettings(settings)) => {
-                        bot.set_fight(settings, &mut out);
-                        bot.spend_points(now, &mut out);
+                        bot.set_fight(settings, out);
+                        bot.spend_points(now, out);
                     }
-                    Some(Command::LossesLeft(left)) => bot.set_losses_left(left, &mut out),
-                    Some(Command::AddStat(stat)) => bot.add_stat(stat, &mut out),
-                    Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, &mut out),
-                    Some(Command::Item(act)) => bot.item(act, now, &mut out),
-                    Some(Command::ListZones) => bot.list_zones(&mut out),
-                    Some(Command::ChangeZone(zone)) => bot.change_zone(zone, now, &mut out),
-                    Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, &mut out),
-                    Some(Command::ShopTrip { back }) => bot.go_to_shop(back, now, &mut out),
-                    Some(Command::OpenShop) => bot.open_shop(now, &mut out),
-                    Some(Command::OpenShopKind(kind)) => bot.open_shop_kind(kind, now, &mut out),
-                    Some(Command::Smith(task)) => bot.smith(task, now, &mut out),
-                    Some(Command::Buy { shop_id, quantity }) => bot.buy(shop_id, quantity, now, &mut out),
-                    Some(Command::Gift(codes)) => bot.redeem(&codes, now, &mut out),
-                    Some(Command::GiftReset) => bot.gift_reset(&mut out),
-                    Some(Command::Mail(task)) => bot.mail(task, now, &mut out),
-                    Some(Command::Market(task)) => bot.market(task, now, &mut out),
+                    Some(Command::LossesLeft(left)) => bot.set_losses_left(left, out),
+                    Some(Command::AddStat(stat)) => bot.add_stat(stat, out),
+                    Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, out),
+                    Some(Command::Item(act)) => bot.item(act, now, out),
+                    Some(Command::ItemOf(act, uuid)) => bot.item_of(act, &uuid, now, out),
+                    Some(Command::ListZones) => bot.list_zones(out),
+                    Some(Command::ChangeZone(zone)) => bot.change_zone(zone, now, out),
+                    Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, out),
+                    Some(Command::ShopTrip { back }) => bot.go_to_shop(back, now, out),
+                    Some(Command::OpenShop) => bot.open_shop(now, out),
+                    Some(Command::OpenShopKind(kind)) => bot.open_shop_kind(kind, now, out),
+                    Some(Command::Smith(task)) => bot.smith(task, now, out),
+                    Some(Command::Buy { shop_id, quantity }) => bot.buy(shop_id, quantity, now, out),
+                    Some(Command::Gift(codes)) => bot.redeem(&codes, now, out),
+                    Some(Command::GiftReset) => bot.gift_reset(out),
+                    Some(Command::Mail(task)) => bot.mail(task, now, out),
+                    Some(Command::Market(task)) => bot.market(task, now, out),
                 }
             }
-            _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), &mut out),
+            _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), out),
             // Alone in the zone, the server sends no s2c/1263 at all.
             _ = sleep_until(players_wait.unwrap_or_else(Instant::now)), if players_wait.is_some() && step == Step::Entities => {
                 out.push(Out::Log(LogKind::Connection, "Không có người chơi nào khác trong khu (server không gửi s2c/1263)".into()));
                 online!();
             }
             _ = sleep_until(deadline), if step != Step::Ready => return Err(format!("Hết giờ chờ server ở bước {step:?}")),
-        }
-        for o in out.drain(..) {
-            match o {
-                Out::Send(op, payload) => {
-                    trace.packet(true, op, &payload);
-                    let frame = proto.encode(op, &payload).map_err(|e| e.to_string())?;
-                    stream.write_all(&frame).await.map_err(|e| e.to_string())?;
-                    // Lưu dữ liệu trận: what goes out during a battle goes into its data.
-                    bot.record_sent(op, &payload, std::time::Instant::now());
-                }
-                Out::Log(kind, text) => {
-                    let fault = if is_fault(&text) {
-                        trace.fault(kind, &text, std::time::Instant::now())
-                    } else {
-                        None
-                    };
-                    emit(Event::Log(kind, text));
-                    if let Some(f) = fault {
-                        emit(Event::Fault(Box::new(f)));
-                    }
-                }
-                Out::Battle(record) => emit(Event::Battle(record)),
-                Out::Pickup(record) => emit(Event::Pickup(record)),
-                Out::BattleData(data) => emit(Event::BattleData(data)),
-                Out::BattleEvent(e) => emit(Event::BattleEvent(e)),
+            _ = sleep_until(heard + SILENT), if step == Step::Ready => {
+                return Err(format!("Mất kết nối: server không gửi gì trong {} giây", SILENT.as_secs()));
             }
+        }
+        // One at a time: a send that fails leaves what follows it in `out`, for run() to deliver.
+        let mut batch = std::mem::take(out).into_iter();
+        while let Some(o) = batch.next() {
+            let Out::Send(op, payload) = o else {
+                deliver(o, emit, trace);
+                continue;
+            };
+            trace.packet(true, op, &payload);
+            let sent = match proto.encode(op, &payload) {
+                Ok(frame) => write(&mut stream, &frame).await,
+                Err(e) => Err(e.to_string()),
+            };
+            if let Err(e) = sent {
+                out.extend(batch);
+                return Err(e);
+            }
+            // Lưu dữ liệu trận: what goes out during a battle goes into its data.
+            bot.record_sent(op, &payload, std::time::Instant::now());
         }
         let snap = bot.snapshot();
         if snap != last {
@@ -341,4 +355,37 @@ pub(super) async fn session(
             last = snap;
         }
     }
+}
+
+/// A log line (with its Log lỗi when it is a fault) or a record of the bot, to the app; a send is not this.
+fn deliver(o: Out, emit: &Emit, trace: &mut Trace) {
+    match o {
+        Out::Send(..) => {}
+        Out::Log(kind, text) => {
+            let fault = if is_fault(&text) {
+                trace.fault(kind, &text, std::time::Instant::now())
+            } else {
+                None
+            };
+            emit(Event::Log(kind, text));
+            if let Some(f) = fault {
+                emit(Event::Fault(Box::new(f)));
+            }
+        }
+        Out::Battle(record) => emit(Event::Battle(record)),
+        Out::Pickup(record) => emit(Event::Pickup(record)),
+        Out::BattleData(data) => emit(Event::BattleData(data)),
+        Out::BattleEvent(e) => emit(Event::BattleEvent(e)),
+    }
+}
+
+/// Writes a frame, within STEP: a server that stops reading must not hold the session, deaf to Đăng xuất.
+async fn write<S: tokio::io::AsyncWrite + Unpin>(
+    stream: &mut S,
+    frame: &[u8],
+) -> Result<(), Error> {
+    timeout(STEP, stream.write_all(frame))
+        .await
+        .map_err(|_| format!("Gửi tới server quá {} giây", STEP.as_secs()))?
+        .map_err(|e| e.to_string())
 }

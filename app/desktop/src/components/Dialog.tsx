@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type ReactNode, type SyntheticEvent } from "react";
 import { cn } from "@/utils/cn";
 
 /** The parts views put in a Dialog: a line of text (its <b> brighter), a note on a dark plate, an error, the footer of
@@ -30,6 +30,11 @@ export function Dialog({ title, subtitle, onSubmit, onClose, className, formClas
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
+  // React bubbles cancel and close up its own tree, portals included: Escape in a confirm box opened from this dialog,
+  // or a file picker dismissed in it, would close this one too. Only this dialog's own events close it.
+  const own = (e: SyntheticEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
   return (
     <dialog
       ref={dialog}
@@ -37,8 +42,8 @@ export function Dialog({ title, subtitle, onSubmit, onClose, className, formClas
         "w-[400px] m-auto p-0 border-[length:var(--px)] border-line-strong bg-card text-fg notch bevel backdrop:bg-[rgb(15_17_21/0.8)]",
         className,
       )}
-      onClose={onClose}
-      onCancel={onClose}
+      onClose={own}
+      onCancel={own}
     >
       <form className={cn("grid gap-3 p-5", formClassName)} onSubmit={onSubmit}>
         <header>

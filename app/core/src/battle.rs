@@ -1,7 +1,7 @@
 //! Port of src/battle/battle.ts (docs/app/events/07-auto-battle.md): the 8×8 board, cascades, legal moves, the HP-value move
 //! search, and the battle packets of docs/app/events/05-battle.md. tests/parity.rs checks every function against what
 //! the TS code computes on the captured battles (`npm run export:rust`).
-use crate::protocol::{Reader, Result};
+use crate::protocol::{err, Reader, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -190,10 +190,17 @@ pub fn settle(b: &mut Board, refill: Option<&[i16]>, removed: &[usize]) -> Outco
     o
 }
 
+/// Swaps the two cells of `m`; a move off the board (never one battle_result lets through) changes nothing.
 pub fn swap(b: &mut Board, m: Move) {
-    let i = m.from.0 as usize * N + m.from.1 as usize;
-    let j = m.to.0 as usize * N + m.to.1 as usize;
-    b.swap(i, j);
+    if let (Some(i), Some(j)) = (cell_of(m.from), cell_of(m.to)) {
+        b.swap(i, j);
+    }
+}
+
+/// The index of (row, col) on the board, None off it.
+fn cell_of((row, col): (i32, i32)) -> Option<usize> {
+    let on = |v: i32| (0..N as i32).contains(&v);
+    (on(row) && on(col)).then(|| row as usize * N + col as usize)
 }
 
 /// Kiếm lửa, the piece Hỏa Kiếm Thuật (1001) turns the cells of its s2c/20 into.
@@ -1023,18 +1030,34 @@ pub fn battle_result(p: &[u8], opcode: i32) -> Result<BattleResult> {
     let seq = r.i32()?;
     r.i32()?;
     r.i32()?;
+    // The wire counts rows and columns from 2. A cell off the board is -1, which skill_cells drops; values from the
+    // server never overflow here (a debug build would panic).
     fn cell_list(r: &mut Reader) -> Result<Vec<i32>> {
         let n = r.i32()?.max(0);
         (0..n)
-            .map(|_| Ok((r.i32()? - 2) * N as i32 + (r.i32()? - 2)))
+            .map(|_| {
+                let at = (r.i32()?.wrapping_sub(2), r.i32()?.wrapping_sub(2));
+                Ok(cell_of(at).map_or(-1, |c| c as i32))
+            })
             .collect()
     }
     let (mut mv, mut skill, mut targets, mut cells) = (None, None, None, vec![]);
     if opcode == 19 {
-        mv = Some(Move {
-            from: (r.i32()? - 2, r.i32()? - 2),
-            to: (r.i32()? - 2, r.i32()? - 2),
-        });
+        let mut at =
+            || -> Result<(i32, i32)> { Ok((r.i32()?.wrapping_sub(2), r.i32()?.wrapping_sub(2))) };
+        let m = Move {
+            from: at()?,
+            to: at()?,
+        };
+        // A move off the board would index past it: the result is not read, as any packet that does not decode (the
+        // runner then finds the board out of step), rather than the app stopping.
+        if cell_of(m.from).is_none() || cell_of(m.to).is_none() {
+            return err(
+                "BATTLE_MOVE",
+                format!("s2c/19: nước đi ngoài bàn {:?} → {:?}", m.from, m.to),
+            );
+        }
+        mv = Some(m);
     } else {
         skill = Some(r.i32()?);
         r.i32()?;
@@ -1177,7 +1200,66 @@ fn result_tail(r: &mut Reader) -> Result<Tail> {
 
 #[cfg(test)]
 mod tests {
-    use super::js_exp;
+    use super::{battle_result, js_exp, swap, Board, Move};
+    use crate::protocol::Writer;
+
+    /// s2c/19 up to its refill: seq, two ints, the move as wire rows and columns (counted from 2), an int, no refill.
+    fn move_packet(from: (i32, i32), to: (i32, i32)) -> Vec<u8> {
+        Writer::new()
+            .i32(5)
+            .i32(0)
+            .i32(0)
+            .i32(from.0)
+            .i32(from.1)
+            .i32(to.0)
+            .i32(to.1)
+            .i32(0)
+            .bytes(&[])
+            .build()
+    }
+
+    /// A move off the board is a packet that does not read, never an index past the board: with the release build
+    /// unwinding or not, one bad s2c/19 must not stop the app (battle_result, swap).
+    #[test]
+    fn a_move_off_the_board_does_not_read_and_swap_leaves_such_a_move_alone() {
+        for (from, to) in [
+            ((0, 2), (2, 3)),
+            ((10, 2), (9, 2)),
+            ((2, 2), (i32::MIN, 2)),
+            ((2, 2), (2, i32::MAX)),
+        ] {
+            let e = battle_result(&move_packet(from, to), 19).expect_err("off the board");
+            assert_eq!(e.code, "BATTLE_MOVE", "{from:?} {to:?}");
+        }
+        // On the board it reads on to the tail, which this short packet lacks: a different error.
+        let e = battle_result(&move_packet((2, 2), (2, 3)), 19).unwrap_err();
+        assert_ne!(e.code, "BATTLE_MOVE");
+        let mut b: Board = std::array::from_fn(|i| i as i16);
+        let before = b;
+        swap(
+            &mut b,
+            Move {
+                from: (-1, 0),
+                to: (0, 0),
+            },
+        );
+        swap(
+            &mut b,
+            Move {
+                from: (0, 0),
+                to: (0, 8),
+            },
+        );
+        assert_eq!(b, before);
+        swap(
+            &mut b,
+            Move {
+                from: (0, 0),
+                to: (7, 7),
+            },
+        );
+        assert_eq!((b[0], b[63]), (63, 0));
+    }
 
     /// Math.exp of Node 22 on macOS arm64 (the machine the vectors come from), by IEEE bits: the first four are where
     /// fdlibm without the fused polynomial is a bit off, as on x86. 200 000 values were checked this way.

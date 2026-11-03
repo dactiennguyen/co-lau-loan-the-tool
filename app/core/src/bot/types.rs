@@ -718,7 +718,12 @@ pub enum MarketTask {
     /// c2s/115: the listing `uuid` of the page last read, which must still cost `price` Xu.
     Buy { uuid: String, price: i32 },
     /// c2s/112 kind 1: one of the item of bag slot `slot`, at `price` Xu.
-    Sell { slot: u8, price: i64 },
+    /// `uuid`, when given, is the item the window showed: refused when the slot holds another by now.
+    Sell {
+        slot: u8,
+        price: i64,
+        uuid: Option<String>,
+    },
     /// c2s/113: the listing `uuid` of Đang bán back to the bag.
     Withdraw(String),
     /// c2s/112 kind 2: 24 more hours on the listing `uuid` of Đang bán, for the fee.

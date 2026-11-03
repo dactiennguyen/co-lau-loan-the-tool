@@ -3,8 +3,10 @@ import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { Menu, type MenuItem } from "@/components/Menu";
 import appIcon from "../../app-icon.png";
-import { inGame, useStore, type Dialog } from "@/store";
+import { inGame, useStore, type Dialog, type Store } from "@/store";
+import { logoutAllText, sessions } from "@/store/sessions";
 import type { Account } from "@/api/types";
+import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { AccountCard } from "./AccountCard";
 import { UpdateBox } from "./UpdateBox";
 
@@ -22,9 +24,28 @@ function accountMenu(a: Account, open: (d: Dialog) => void): MenuItem[] {
   ];
 }
 
+/** The question of Đăng xuất tất cả for the accounts as they are; null when none has a session. */
+const logoutQuestion = (s: Store) => logoutAllText(sessions(s.order.map((id) => s.byId[id])));
+
+/** Đăng xuất tất cả asks first: how many accounts leave the game, and whose Tự đánh, quest run or battle it cuts short.
+ * The counts follow the accounts while it is open. */
+function LogoutAllDialog({ onClose }: { onClose: () => void }) {
+  const question = useStore(logoutQuestion);
+  return (
+    <ConfirmDialog
+      title="Đăng xuất tất cả"
+      message={question ?? "Không nick nào còn trong game."}
+      confirm="Đăng xuất tất cả"
+      icon="logout"
+      onConfirm={api.logoutAll}
+      onClose={onClose}
+    />
+  );
+}
+
 /**
- * Brand with the Cài đặt of the app, "Thêm nick", the accounts with their menus, the update of the app, and login/logout of every account. Its top
- * strip drags the window.
+ * Brand with the Cài đặt of the app, "Thêm nick", the accounts with their menus, the update of the app, and login/logout of every account
+ * (logout asks first while an account has a session). Its top strip drags the window.
  * It re-renders when the order of the accounts or the count in the game changes; each card follows its own account.
  */
 export function Sidebar() {
@@ -43,6 +64,12 @@ export function Sidebar() {
     [select],
   );
   const closeMenu = useCallback(() => setMenu(null), []);
+  // Đăng xuất tất cả cuts battles, jobs and quest runs short: it asks first, unless no account has a session to end.
+  const [askLogout, setAskLogout] = useState(false);
+  const logoutAll = () => {
+    if (logoutQuestion(useStore.getState())) setAskLogout(true);
+    else void api.logoutAll();
+  };
   return (
     // The 40 px top leaves room for the macOS window buttons.
     <aside className="relative flex flex-col gap-3 min-h-0 pt-10 px-3 pb-3 bg-bg-2 border-r-[length:var(--px)] border-r-ink not-mac:pt-3">
@@ -100,8 +127,9 @@ export function Sidebar() {
         <Button kind="outline" icon="bolt" block disabled={order.length === 0} onClick={api.loginAll}>
           Đăng nhập tất cả
         </Button>
-        <Button kind="outline" icon="logout" aria-label="Đăng xuất tất cả" disabled={order.length === 0} onClick={api.logoutAll} />
+        <Button kind="outline" icon="logout" aria-label="Đăng xuất tất cả" aria-haspopup="dialog" disabled={order.length === 0} onClick={logoutAll} />
       </div>
+      {askLogout && <LogoutAllDialog onClose={() => setAskLogout(false)} />}
     </aside>
   );
 }

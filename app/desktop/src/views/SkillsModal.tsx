@@ -47,7 +47,7 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
     const next = { ...settings, autoSkills };
     setSaving(next);
     setError(null);
-    api.setFight(account.id, next).catch((err) => {
+    api.setFight(account.id, { autoSkills }).catch((err) => {
       setSaving(null);
       setError(String(err?.message ?? err));
     });

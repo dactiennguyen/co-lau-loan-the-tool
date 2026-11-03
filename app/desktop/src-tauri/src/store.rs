@@ -9,6 +9,7 @@ use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, Row};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
 /// Log lines, and battles with the items picked up after them, older than this many days are deleted when the app starts
@@ -414,6 +415,9 @@ pub struct Store {
     db: Mutex<Connection>,
     /// The file, for the connection of its own that Xuất dữ liệu trận reads with; None in memory.
     path: Option<PathBuf>,
+    /// The row id of the next log line, handed out before the line is written: the App queues its writes (App::write_db)
+    /// and the Nhật ký needs the cursor at once. As SQLite would give it: one past the largest.
+    next_log: AtomicI64,
 }
 impl Store {
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
@@ -427,16 +431,22 @@ impl Store {
         db.pragma_update_and_check(None, "journal_mode", "WAL", |_| Ok(()))?;
         db.pragma_update(None, "synchronous", "NORMAL")?;
         migrate(&mut db)?;
+        let next_log = db.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM logs", [], |r| {
+            r.get(0)
+        })?;
         Ok(Self {
             db: Mutex::new(db),
             path,
+            next_log: AtomicI64::new(next_log),
         })
     }
     fn db(&self) -> MutexGuard<'_, Connection> {
         self.db.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// Keeps the line; its row id, the cursor of the Nhật ký for older lines.
+    /// Keeps the line; its row id, the cursor of the Nhật ký for older lines. The app reserves and writes apart
+    /// (App::log); the tests write at once.
+    #[cfg(test)]
     pub fn add_log(
         &self,
         username: &str,
@@ -445,13 +455,32 @@ impl Store {
         tone: u8,
         text: &str,
     ) -> Option<i64> {
-        let db = self.db();
-        db.execute(
-            "INSERT INTO logs (username, at, kind, tone, text) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![username, at as i64, kind.key(), tone, text],
-        )
-        .ok()?;
-        Some(db.last_insert_rowid())
+        let id = self.reserve_log();
+        self.insert_log(id, username, at, kind, tone, text)
+            .ok()
+            .map(|()| id)
+    }
+
+    /// The row id the next log line gets, before it is written (insert_log).
+    pub fn reserve_log(&self) -> i64 {
+        self.next_log.fetch_add(1, Ordering::Relaxed)
+    }
+
+    /// Writes the log line of row id `id` (reserve_log).
+    pub fn insert_log(
+        &self,
+        id: i64,
+        username: &str,
+        at: u64,
+        kind: LogKind,
+        tone: u8,
+        text: &str,
+    ) -> rusqlite::Result<()> {
+        self.db().execute(
+            "INSERT INTO logs (id, username, at, kind, tone, text) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, username, at as i64, kind.key(), tone, text],
+        )?;
+        Ok(())
     }
 
     /// Line `id` is the one of the won battle that ended at `battle_at`: the items picked up after it come with it.

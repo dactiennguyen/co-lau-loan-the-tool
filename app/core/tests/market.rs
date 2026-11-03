@@ -2,7 +2,7 @@
 //! TS decoders read in the packets of CT1 and in Đang bán around Gia hạn of NP1, the bytes of c2s/1192, c2s/115, c2s/112
 //! (kind 1 and 2) and c2s/113 as on the wire, and Bot::market driven by those packets.
 use cllt_core::atlas::Atlas;
-use cllt_core::bot::{Bot, BotOptions, MailTask, MarketTask, Out, Picked};
+use cllt_core::bot::{Bot, BotOptions, ItemAct, MailTask, MarketTask, Out, Picked};
 use cllt_core::market::{self, Market, MarketListing, MarketPage};
 use cllt_core::protocol::Writer;
 use cllt_core::requests::{build, Ctx};
@@ -356,6 +356,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
         MarketTask::Sell {
             slot: SLIME_SLOT,
             price: 1_000_000,
+            uuid: None,
         },
         now,
         &mut out,
@@ -370,6 +371,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
             MarketTask::Sell {
                 slot: SLIME_SLOT,
                 price,
+                uuid: None,
             },
             now,
             &mut out,
@@ -379,6 +381,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
         MarketTask::Sell {
             slot: 41,
             price: 1000,
+            uuid: None,
         },
         now,
         &mut out,
@@ -393,11 +396,51 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
     );
     assert!(sent(&out).is_empty());
 
+    // The window showed another item in that slot (the bag changed under its question): neither sold nor thrown away.
+    out.clear();
+    let slime = b
+        .snapshot()
+        .bag
+        .unwrap()
+        .items
+        .into_iter()
+        .find(|i| i.slot == SLIME_SLOT)
+        .unwrap()
+        .uuid;
+    b.market(
+        MarketTask::Sell {
+            slot: SLIME_SLOT,
+            price: 1_000_000,
+            uuid: Some("món khác".into()),
+        },
+        now,
+        &mut out,
+    );
+    b.item_of(ItemAct::Discard(SLIME_SLOT), "món khác", now, &mut out);
+    assert_eq!(
+        lines(&out),
+        [
+            format!(
+                "Chưa đăng bán: ô túi {} giờ là Thú cưng Slime, không phải món đã chọn",
+                SLIME_SLOT as u32 + 1
+            ),
+            format!(
+                "Không làm: ô túi {} giờ là món khác, không phải món đã chọn",
+                SLIME_SLOT as u32 + 1
+            ),
+        ]
+    );
+    assert!(sent(&out).is_empty());
+    b.item_of(ItemAct::Discard(SLIME_SLOT), &slime, now, &mut out);
+    assert_eq!(sent(&out).len(), 1, "the item shown is thrown away");
+    let (mut b, mut out, now) = opened(1);
+
     out.clear();
     b.market(
         MarketTask::Sell {
             slot: SLIME_SLOT,
             price: 1_000_000,
+            uuid: None,
         },
         now,
         &mut out,

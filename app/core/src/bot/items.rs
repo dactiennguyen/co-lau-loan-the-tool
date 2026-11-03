@@ -476,13 +476,22 @@ impl Bot {
         }
     }
 
+    /// An item action (a button of the Túi đồ tab, a repair of Tự sửa đồ) waits for its answer: for 5 s at most, as Bot::item
+    /// and notice_awaited count it, so one never answered (a Sắp xếp answered late, a repair given up) does not hold the
+    /// next task for good.
+    pub(super) fn item_pending(&self, now: Instant) -> bool {
+        (self.item_wait.as_ref()).is_some_and(|w| now < w.at + Duration::from_secs(5))
+    }
+
     /// Tự sửa đồ (FightSettings::repair), from next() between the battles of a fight job or quest run: the first worn
     /// item at durability 0 is repaired with a Búa Sửa Chữa of the bag (c2s/48), and the run goes on once s2c/48 answers,
     /// or REPAIR_WAIT later. An item the server did not repair is left for the rest of the run; without a hammer the run
     /// goes on with the item broken, said once per run. Nothing goes out while a button of the Túi đồ tab waits for its
-    /// answer: that one may be the same repair. True while the repair waits for its answer.
+    /// answer: that one may be the same repair. True while the repair waits for its answer. A repair given up leaves no
+    /// item action waiting either: Pháp sư (smith_begin) would take it for one still waiting.
     pub(super) fn auto_repair(&mut self, now: Instant, out: &mut Vec<Out>) -> bool {
         if let Some((slot, name)) = self.repairing.take() {
+            self.item_wait.take_if(|w| w.act == ItemAct::Repair(slot));
             self.repair_failed.insert(slot);
             out.push(Out::Log(
                 LogKind::Item,
@@ -548,5 +557,37 @@ impl Bot {
         self.repairing = Some((slot, name));
         self.timer = Some((now + REPAIR_WAIT, Wake::Next));
         true
+    }
+}
+
+impl Bot {
+    /// Bot::item for the one item the window showed, by its uuid. The bag can change while the user reads the question
+    /// (Tự gộp đá, Tự nhặt đồ, a potion stack used up): when the slot holds another item by now, nothing is done, so the
+    /// item that came in its place is not used or thrown away. Sắp xếp has no item.
+    pub fn item_of(&mut self, act: ItemAct, uuid: &str, now: Instant, out: &mut Vec<Out>) {
+        let (slot, worn) = match act {
+            ItemAct::Sort => return self.item(act, now, out),
+            ItemAct::Equip(s) | ItemAct::Use(s) | ItemAct::Discard(s) => (s, false),
+            ItemAct::Unequip(s) | ItemAct::Repair(s) => (s, true),
+        };
+        let item = match worn {
+            true => self.snap.gear.get(slot as usize).and_then(Option::as_ref),
+            false => self
+                .snap
+                .bag
+                .as_ref()
+                .and_then(|b| b.items.iter().find(|i| i.slot == slot)),
+        };
+        if item.is_some_and(|i| i.uuid != uuid) {
+            let place = match worn {
+                true => format!("ô trang bị {slot}"),
+                false => format!("ô túi {}", slot as u32 + 1),
+            };
+            return out.push(Out::Log(
+                LogKind::Item,
+                format!("Không làm: {place} giờ là món khác, không phải món đã chọn"),
+            ));
+        }
+        self.item(act, now, out)
     }
 }

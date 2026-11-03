@@ -371,8 +371,8 @@ impl Bot {
 
     /// Starts a task of Tiện ích (SmithTask). Refused, with the reason in the log and nothing sent: busy (a
     /// battle, a job or quest run, a move, a step of a shop or of another task), away from M1, before the bag and the
-    /// money are known, while an item action, a repair or a pickup waits for its answer, or for an item the task cannot
-    /// take.
+    /// money are known, while an item action (5 s at most), a repair or a pickup waits for its answer, or for an item the
+    /// task cannot take.
     pub fn smith(&mut self, task: SmithTask, now: Instant, out: &mut Vec<Out>) {
         self.smith_begin(task, false, now, out);
     }
@@ -395,9 +395,10 @@ impl Bot {
                     .then(|| "đang đợi cửa hàng trả lời".into())
             })
             // Their answers come as s2c/1256 too, and would be taken for the task's ("Bạn vừa nhận được …" of a pickup
-            // for an exchange, "Vật phẩm không thể sử dụng!" for a refusal of Pháp sư).
+            // for an exchange, "Vật phẩm không thể sử dụng!" for a refusal of Pháp sư). An item action 5 s old is not
+            // waited for any more (item_pending), as for the next button of the Túi đồ tab.
             .or_else(|| {
-                (self.item_wait.is_some()
+                (self.item_pending(now)
                     || self.repairing.is_some()
                     || self.picked_at.is_some_and(|t| now < t + PICK_ANSWER))
                 .then(|| "đang đợi server trả lời việc khác (dùng, sửa hay nhặt đồ), thử lại sau vài giây".into())

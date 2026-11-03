@@ -18,7 +18,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
-/// CLLT Server; CLLT_DEVICE_SERVER changes it, and `off` there turns the hello off (development).
+/// CLLT Server; CLLT_DEVICE_SERVER changes it, and `off` there turns the hello off (development). Another server must be
+/// https, or on this machine: the sync sends passwords (server_of).
 const SERVER: &str = "https://colau.olachat.net";
 const EVERY: Duration = Duration::from_secs(15 * 60);
 const TIMEOUT: Duration = Duration::from_secs(15);
@@ -66,6 +67,9 @@ struct Saved {
 
 struct Inner {
     id: String,
+    /// The secret of this device (device.key): the server keeps the first one it gets and takes no hello or sync of
+    /// this id without it, so knowing the id is not enough to pass for the device. None when it could not be kept.
+    key: Option<String>,
     state: DeviceState,
     file: PathBuf,
 }
@@ -104,6 +108,57 @@ pub fn machine_id() -> String {
     hash(&raw)
 }
 
+/// The device key of device.key beside accounts.json (`file` is device.json): made once, 32 random bytes in hex, readable
+/// by the owner only. None when it can be neither read nor made: the hello then goes without one (the server answers,
+/// but takes no sync), rather than with a key the next start would not have, which the server would refuse.
+fn device_key(file: &Path) -> Option<String> {
+    let path = file.with_file_name("device.key");
+    let valid = |k: &str| k.len() == 64 && k.bytes().all(|b| b.is_ascii_hexdigit());
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        let key = text.trim();
+        if valid(key) {
+            return Some(key.to_string());
+        }
+    }
+    let mut bytes = [0u8; 32];
+    if let Err(e) = getrandom::fill(&mut bytes) {
+        eprintln!("Quản lý thiết bị: không tạo được khoá thiết bị ({e})");
+        return None;
+    }
+    let key: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    match cllt_core::accounts::write_private(&path, key.as_bytes()) {
+        Ok(()) => Some(key),
+        Err(e) => {
+            eprintln!("Quản lý thiết bị: không ghi được khoá thiết bị: {e}");
+            None
+        }
+    }
+}
+
+/// CLLT_DEVICE_SERVER when it is "off", https, or on this machine; else CLLT Server, as the hello and the sync carry the
+/// device key and the passwords.
+fn server_of(var: Option<String>) -> String {
+    match var {
+        Some(s) if s == "off" || s.starts_with("https://") => s,
+        Some(s)
+            if ["http://localhost", "http://127.0.0.1"]
+                .iter()
+                .any(|local| {
+                    s == *local
+                        || s.starts_with(&format!("{local}:"))
+                        || s.starts_with(&format!("{local}/"))
+                }) =>
+        {
+            s
+        }
+        Some(s) => {
+            eprintln!("Quản lý thiết bị: bỏ qua CLLT_DEVICE_SERVER {s}: phải là https");
+            SERVER.into()
+        }
+        None => SERVER.into(),
+    }
+}
+
 fn hash(raw: &str) -> String {
     let digest = Sha256::digest(format!("colautool-device:{}", raw.trim()).as_bytes());
     digest.iter().map(|b| format!("{b:02x}")).collect()
@@ -135,7 +190,7 @@ fn state_of(saved: &Saved) -> DeviceState {
 
 /// Sets up the state from device.json (`accounts` is accounts.json, which it sits beside) and starts the hellos.
 pub fn start<R: Runtime>(app: &AppHandle<R>, accounts: &Path, sample: bool) {
-    let server = std::env::var("CLLT_DEVICE_SERVER").unwrap_or_else(|_| SERVER.into());
+    let server = server_of(std::env::var("CLLT_DEVICE_SERVER").ok());
     let off = sample || server == "off";
     let file = accounts.with_file_name("device.json");
     let state = if off {
@@ -143,8 +198,10 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, accounts: &Path, sample: bool) {
     } else {
         state_of(&load(&file))
     };
+    let key = if off { None } else { device_key(&file) };
     app.manage(Devices(Mutex::new(Inner {
         id: machine_id(),
+        key,
         state,
         file,
     })));
@@ -174,6 +231,10 @@ struct Answer {
     allowed: bool,
     #[serde(default)]
     reason: String,
+    /// The admin let this device sync (Cho đồng bộ) and its key is the one the server keeps: only then does the sync go,
+    /// with the passwords. A server from before it says nothing: no sync.
+    #[serde(default)]
+    sync: bool,
 }
 
 /// POST /api/devices/hello and its answer.
@@ -204,13 +265,18 @@ async fn hello<R: Runtime>(app: &AppHandle<R>, server: &str) {
             })
         })
         .unwrap_or_default();
-    let (id, file) = {
+    let (id, key, file) = {
         let devices = app.state::<Devices>();
         let inner = devices.0.lock().unwrap();
-        (inner.id.clone(), inner.file.with_file_name("sync.json"))
+        (
+            inner.id.clone(),
+            inner.key.clone(),
+            inner.file.with_file_name("sync.json"),
+        )
     };
     let body = serde_json::json!({
         "id": id,
+        "key": key,
         "hostname": hostname(),
         "os": format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
         "version": env!("CARGO_PKG_VERSION"),
@@ -218,11 +284,12 @@ async fn hello<R: Runtime>(app: &AppHandle<R>, server: &str) {
     });
     match ask(server, &body).await {
         Ok(a) => {
-            let allowed = a.allowed;
+            let sync = a.allowed && a.sync;
             settle(app, a);
-            // Đồng bộ nick lên server, only from a device that may run (sync.rs).
-            if allowed {
-                crate::sync::run(app, server, &id, &file).await;
+            // Đồng bộ nick lên server (sync.rs): only from a device that may run, that the admin let sync and whose key
+            // the server holds. Nothing with the passwords goes before that.
+            if let (true, Some(key)) = (sync, key) {
+                crate::sync::run(app, server, &id, &key, &file).await;
             }
         }
         Err(e) => eprintln!("Quản lý thiết bị: không hỏi được server ({e}), giữ trạng thái cũ"),
@@ -254,6 +321,62 @@ fn settle<R: Runtime>(app: &AppHandle<R>, answer: Answer) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_device_key_is_made_once_kept_for_the_owner_and_made_again_when_broken() {
+        let dir = std::env::temp_dir().join(format!("cllt-key-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("device.json");
+        let key = device_key(&file).unwrap();
+        assert!(key.len() == 64 && key.bytes().all(|b| b.is_ascii_hexdigit()));
+        assert_eq!(
+            device_key(&file),
+            Some(key.clone()),
+            "the same at the next start"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(dir.join("device.key"))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
+        std::fs::write(dir.join("device.key"), "hỏng").unwrap();
+        let again = device_key(&file).unwrap();
+        assert!(again != key && again.len() == 64);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn another_device_server_must_be_https_or_on_this_machine() {
+        for kept in [
+            "off",
+            "https://x.example",
+            "http://localhost:8787",
+            "http://127.0.0.1",
+            "http://127.0.0.1/a",
+        ] {
+            assert_eq!(server_of(Some(kept.into())), kept);
+        }
+        for refused in [
+            "http://x.example",
+            "http://localhost.evil.example",
+            "ftp://x",
+        ] {
+            assert_eq!(server_of(Some(refused.into())), SERVER, "{refused}");
+        }
+        assert_eq!(server_of(None), SERVER);
+    }
+
+    #[test]
+    fn an_answer_says_sync_only_when_the_server_does() {
+        let a: Answer = serde_json::from_str(r#"{"allowed": true}"#).unwrap();
+        assert!(a.allowed && !a.sync);
+        let a: Answer = serde_json::from_str(r#"{"allowed": true, "sync": true}"#).unwrap();
+        assert!(a.sync);
+    }
 
     #[test]
     fn the_id_is_a_sha256_of_the_machine_id_and_stays_the_same() {

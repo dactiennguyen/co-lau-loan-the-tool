@@ -20,6 +20,8 @@ enum Fault {
     StallMap,
     /// No other player in the zone: s2c/43 without s2c/1263 (M25, 31/10).
     Alone,
+    /// In the game, answers nothing, not even the heartbeat: a connection gone without a close.
+    Mute,
 }
 
 /// Made-up answers to each login request, enough for the parsers of FLOW.
@@ -44,6 +46,9 @@ fn answers(op: i32, fault: Fault) -> Vec<(i32, Vec<u8>)> {
         .i32(1)
         .u8(0);
     match op {
+        // The heartbeat: the game server answers each c2s/1 with s2c/1.
+        1 if fault == Fault::Mute => vec![],
+        1 => vec![(1, vec![])],
         1206 => vec![(1207, w().string("").build()), (1209, w().u8(1).build())],
         5 => vec![(5, w().u8(1).string("").build())],
         2 => vec![(2, w().string("").build())],
@@ -312,6 +317,31 @@ async fn a_login_whose_answers_read_goes_online() {
         states(&events),
         [ConnState::Connecting, ConnState::Online, ConnState::Offline]
     );
+}
+
+#[tokio::test]
+async fn a_server_that_goes_silent_in_the_game_ends_the_session_as_a_lost_connection() {
+    let (events, _tx, task) = login(Fault::Mute).await;
+    online(&events).await;
+    timeout(SILENT + Duration::from_secs(3), task)
+        .await
+        .expect("the silent session did not end")
+        .unwrap();
+    let last = states(&events).pop();
+    assert!(
+        matches!(&last, Some(ConnState::Error(e)) if e.starts_with("Mất kết nối")),
+        "{last:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_server_that_answers_the_heartbeat_keeps_the_session_past_the_silence_limit() {
+    let (events, tx, task) = login(Fault::None).await;
+    online(&events).await;
+    tokio::time::sleep(SILENT + Duration::from_secs(1)).await;
+    assert_eq!(states(&events).last(), Some(&ConnState::Online));
+    tx.send(Command::Logout).unwrap();
+    ends(task).await;
 }
 
 #[tokio::test]

@@ -229,7 +229,8 @@ impl Bot {
                 self.ground = ground_items(payload)?
                     .iter()
                     .map(|g| {
-                        let left = Duration::from_millis((g.expires_at - epoch).max(0) as u64);
+                        let left =
+                            Duration::from_millis(g.expires_at.saturating_sub(epoch).max(0) as u64);
                         let age = GROUND_LIFE.saturating_sub(left);
                         Fallen::of(&g.item, now.checked_sub(age).unwrap_or(now), true)
                     })
@@ -541,7 +542,7 @@ impl Bot {
                 if st.stat_points.is_some() {
                     s.stat_points = st.stat_points;
                     s.skill_points = st.fields.as_ref().and_then(|f| f.first().copied());
-                    self.points_changed(now);
+                    self.points_changed(now, out);
                 }
             }
             1172 => self.snap.zones = Some(zone_list(payload)?.zones),
@@ -696,7 +697,7 @@ impl Bot {
                         "Nhiệm vụ {}: {}; bước {}/{}: {step}",
                         q.id,
                         q.title,
-                        q.current + 1,
+                        q.current as i64 + 1,
                         q.steps.len()
                     ),
                 ));

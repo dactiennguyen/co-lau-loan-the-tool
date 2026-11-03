@@ -189,7 +189,7 @@ impl Bot {
                 };
                 (step, MarketCtx::Uuid(115, uuid.clone()), words, Some(uuid))
             }
-            MarketTask::Sell { slot, price } => {
+            MarketTask::Sell { slot, price, uuid } => {
                 let tabs = self.snap.market.tabs.as_ref().ok_or("chưa mở Chợ trời")?;
                 let item = self
                     .snap
@@ -198,6 +198,12 @@ impl Bot {
                     .and_then(|b| b.items.iter().find(|i| i.slot == slot))
                     .ok_or_else(|| format!("ô túi {slot} trống"))?;
                 let name = Picked::of(item.item_id, 1).name;
+                if uuid.as_ref().is_some_and(|u| *u != item.uuid) {
+                    return Err(format!(
+                        "ô túi {} giờ là {name}, không phải món đã chọn",
+                        slot as u32 + 1
+                    ));
+                }
                 if item.field1 == 0 {
                     return Err(format!("{name} đã khoá, không rao bán được"));
                 }

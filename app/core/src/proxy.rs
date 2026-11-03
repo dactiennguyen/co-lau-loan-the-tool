@@ -149,6 +149,13 @@ impl<'a> Tunnel<'a> {
                             self.proxy.username.as_bytes(),
                             self.proxy.password.as_bytes(),
                         );
+                        // RFC 1929 gives each one byte of length: a longer one would be cut, and the proxy would read
+                        // the rest as something else (an account of Nhập JSON skips the form's check_fields).
+                        if u.len() > 255 || p.len() > 255 {
+                            return Err(
+                                "Tài khoản và mật khẩu proxy SOCKS5 dài tối đa 255 byte".into()
+                            );
+                        }
                         let mut out = vec![1, u.len() as u8];
                         out.extend_from_slice(u);
                         out.push(p.len() as u8);

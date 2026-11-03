@@ -2,11 +2,14 @@
 // battle_window.rs played one after the other as the game draws them. A move: the swap, the skill's cells (or Kiếm lửa),
 // then each wave: the cleared pieces burst, the others fall, new ones drop in from above; then the HP, the numbers that
 // float up, "Thêm lượt". The bot plays a move a second while a long cascade takes seconds to draw, so the later a message
-// is drawn the faster its steps go, and one more than LATE behind is drawn at once: the window never runs far behind.
+// is drawn the faster its steps go, and one more than LATE behind is drawn at once, with no numbers or banners: the
+// window never runs far behind. Minimized, it draws no frames: the wait for one ends on a timer too, and the queue drops
+// what a later message draws over (queue.ts), so it stays short for hours and is drawn at once when the window is back.
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/api";
 import { listenThenLoad, unseen } from "@/store/sync";
 import type { BattleEnd, BattleMsg, BattleOpen, BattleState, Gauge, Picked, Turn } from "@/api/types";
+import { compact, LONG } from "./queue";
 
 /** One piece on the board: its own id, so React moves it rather than redraws it; `lift` rows above its cell while it
  * waits to drop in. */
@@ -75,7 +78,19 @@ const pace = (late: number) => (late < 800 ? 1 : late < 2000 ? 0.6 : late < LATE
 let ids = 0;
 const fromBoard = (board: number[]): Piece[] => board.map((v, cell) => ({ id: ++ids, v, cell, phase: "idle", lift: 0 }));
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
-const frame = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+/** The longest wait for the two frames below: a minimized or hidden window draws none. */
+const FRAME_MS = 100;
+/** Two frames, so the new pieces are drawn above the board before they drop in; or FRAME_MS, whichever ends first. */
+const frame = () =>
+  new Promise<void>((r) => {
+    const t = window.setTimeout(r, FRAME_MS);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        window.clearTimeout(t);
+        r();
+      }),
+    );
+  });
 
 export function useBattle(id: number) {
   const [view, setView] = useState<View>(EMPTY);
@@ -150,9 +165,11 @@ export function useBattle(id: number) {
       if (f.reshuffled || !fixed || pieces.length !== 64) pieces = fromBoard(f.board);
       if (f.reshuffled && k > 0) banner("Xáo bàn");
       set({ pieces: pieces.map((p) => ({ ...p, phase: "idle", lift: 0 })), swap: null, me: f.me, mob: f.mob, last: f.turn });
+      // Drawn at once (k 0), a move shows no numbers or banners: a window back from minimized would pile up one per move.
+      if (k === 0) return;
       if (f.turn.damage > 0) float(f.turn.mine ? "mob" : "me", `−${f.turn.damage}`, "damage");
       if (f.turn.heal > 0) float(f.turn.mine ? "me" : "mob", `+${f.turn.heal}`, "heal");
-      if (f.turn.extraTurn && !f.turn.end && k > 0) banner("Thêm lượt");
+      if (f.turn.extraTurn && !f.turn.end) banner("Thêm lượt");
     };
 
     const step = async (msg: BattleMsg, k: number) => {
@@ -192,7 +209,10 @@ export function useBattle(id: number) {
     let fresh = unseen(0);
     const push = (msg: BattleMsg) => {
       if (!fresh(msg)) return;
-      queue.current.push({ msg, at: performance.now() });
+      const now = performance.now();
+      queue.current.push({ msg, at: now });
+      // Long only while the window cannot draw: what is past LATE will be drawn at once, and only its result shows.
+      if (queue.current.length > LONG) queue.current = compact(queue.current, now - LATE);
       void run();
     };
     /** A window opened in the middle of a battle starts from where it is, without motion. */

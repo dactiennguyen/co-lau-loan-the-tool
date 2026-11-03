@@ -501,6 +501,7 @@ dependencies = [
  "chrono",
  "cllt-core",
  "gethostname",
+ "getrandom 0.3.4",
  "machine-uid",
  "objc2-foundation",
  "reqwest",
