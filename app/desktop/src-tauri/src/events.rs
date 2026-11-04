@@ -8,7 +8,8 @@
 use cllt_core::accounts::Account;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 /// The most events kept while the server cannot be reached; the oldest go first.
 const KEEP: usize = 1000;
@@ -27,6 +28,9 @@ pub enum Kind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
+    /// Made once, kept when the event is sent again (a send whose answer was lost): the server takes an id once.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub id: String,
     pub at: u64,
     pub kind: Kind,
     pub username: String,
@@ -71,6 +75,7 @@ impl Queue {
             return;
         }
         self.list.push(Event {
+            id: new_id(at),
             at,
             kind,
             username: account.username.clone(),
@@ -101,6 +106,23 @@ impl Queue {
         self.save();
         self.fresh |= !self.list.is_empty();
     }
+}
+
+/// An id no other event of this app has: the time in hex, then a counter mixed with the clock's nanoseconds of the start.
+fn new_id(at: u64) -> String {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    static SEED: OnceLock<u64> = OnceLock::new();
+    let seed = *SEED.get_or_init(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or_default()
+    });
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    format!(
+        "{at:x}-{:x}",
+        seed.wrapping_add(n.wrapping_mul(0x9E37_79B9_7F4A_7C15))
+    )
 }
 
 fn load(file: &Path) -> Vec<Event> {
@@ -180,10 +202,17 @@ mod tests {
         // Kept for the next start, which then syncs at once; the JSON is what the server reads.
         let again = Queue::started(file.clone());
         assert!(again.list.len() == 4 && again.fresh);
+        let first = serde_json::to_value(&q.pending()[0]).unwrap();
+        let id = first["id"].as_str().unwrap().to_string();
+        assert!(id.starts_with("1-") && id.len() <= 40, "{id}");
         assert_eq!(
-            serde_json::to_value(&q.pending()[0]).unwrap(),
-            serde_json::json!({"at": 1, "kind": "add", "username": "manina", "serverId": 24, "label": "Nick"})
+            first,
+            serde_json::json!({"id": id, "at": 1, "kind": "add", "username": "manina", "serverId": 24, "label": "Nick"})
         );
+        let ids: std::collections::HashSet<String> =
+            q.pending().into_iter().map(|e| e.id).collect();
+        assert_eq!(ids.len(), 4, "each event its own id");
+        assert_eq!(again.list[0].id, id, "kept in the file");
         q.fresh = false;
         q.sent(3);
         assert_eq!(q.pending().len(), 1);
