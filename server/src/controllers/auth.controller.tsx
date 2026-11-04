@@ -1,4 +1,4 @@
-// Đăng nhập, Đăng xuất, Đổi mật khẩu.
+// Đăng nhập, Đăng xuất, Đổi mật khẩu: each a line of the Log page (services/auth.service.ts).
 import { SESSION_MS } from '../config/constants.ts';
 import { FLASH } from '../config/messages.ts';
 import * as auth from '../services/auth.service.ts';
@@ -23,7 +23,7 @@ export async function login(c: Ctx) {
 }
 
 export async function logout(c: Ctx) {
-  await auth.logout(c.var.db, c.req.raw);
+  await auth.logout(c.var.db, c.req.raw, clientIp(c));
   c.header('Set-Cookie', sessionCookie(c, '', 0));
   return c.redirect('/admin/login', 303);
 }
@@ -34,7 +34,7 @@ export async function changePassword(c: Ctx) {
   const mustChange = c.var.me.mustChange === 1;
   const form = check(passwordForm, formObject(c.var.form));
   if (!form.ok) return render(c, (n) => <PasswordView nonce={n} mustChange={mustChange} errors={form.fields} />, 400);
-  const wrong = await auth.changePassword(c.var.db, c.req.raw, form.data.current, form.data.next);
+  const wrong = await auth.changePassword(c.var.db, c.req.raw, form.data.current, form.data.next, clientIp(c));
   if (wrong) return render(c, (n) => <PasswordView nonce={n} mustChange={mustChange} errors={{ current: wrong }} />, 400);
   // The first change goes on to the accounts; a later one stays here and says so.
   return mustChange ? c.redirect('/admin?done=password', 303) : render(c, (n) => <PasswordView nonce={n} mustChange={false} ok={FLASH.password} />);

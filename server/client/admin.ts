@@ -3,8 +3,8 @@
 // its own is here, on plain HTML. Toasts (the server's notices, Đã chép); Hiện/Ẩn and Chép of secrets; the native
 // dialogs (data-open): the action dialog of every page, Tạo key, Sửa and Khoá of the Key page, and the key just made;
 // the menu of a key (a popover, placed under its button, arrow keys between its items); the state filter and search box
-// of a table; the two ways to end a key, with "Số ngày" and "Ngày hết hạn" linked both ways; the key filter of the Nick
-// page.
+// of a table; the two ways to end a key, with "Số ngày" and "Ngày hết hạn" linked both ways; the filters of the Nick and
+// Log pages, sent as they change.
 const HIDDEN = '••••••••';
 const DAY = 86_400_000;
 const TOAST_MS = 3200;
@@ -264,7 +264,7 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ---- Changes: the way to end a key, the key filter of the Nick page --------------------------------------------------
+// ---- Changes: the way to end a key, the filters of the Nick and Log pages --------------------------------------------
 
 document.addEventListener('change', (e) => {
   const target = e.target as HTMLInputElement;

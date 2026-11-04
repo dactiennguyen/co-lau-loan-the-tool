@@ -1,8 +1,9 @@
 // Nick: a strip of stats, then every account the app of a key synced, with its password behind Hiện and Chép, its game
-// server, proxy and key, and Xoá; the accounts of one key alone with ?key=<id>; Tải JSON of them all.
+// server, proxy and key, and Xoá; "Đã xoá ở máy" on those the app removed, and a filter for them; the accounts of one
+// key alone with ?key=<id>; Tải JSON of them all.
 import type { Listed } from '../services/account.service.ts';
 import { ago, keyName, time } from '../utils/format.ts';
-import { actOf, Empty, Field, Icon, Layout, None, Select, Stat, Table } from './layout.tsx';
+import { actOf, Empty, Field, Icon, Layout, None, Pill, Select, Stat, Table } from './layout.tsx';
 
 /** A key in the filter of the page: its id, and its note or its start. */
 export type KeyName = { id: number; key: string; note: string };
@@ -24,10 +25,17 @@ function AccountRowView({ r, now }: { r: Listed; now: number }) {
   const secretId = `pw${r.id}`;
   const proxy = proxyText(r.data);
   return (
-    <tr data-find={`${r.label} ${r.username}`.toLowerCase()}>
+    <tr data-find={`${r.label} ${r.username}`.toLowerCase()} data-state={r.removedAt !== null ? 'removed' : 'kept'}>
       <td>
         <div class="strong">{r.label || r.username}</div>
         <div class="mono faint small">{r.username}</div>
+        {r.removedAt !== null && (
+          <div class="removed">
+            <Pill kind="warn" title={`App xoá nick này lúc ${time(r.removedAt)}; server vẫn giữ`}>
+              Đã xoá ở máy
+            </Pill>
+          </div>
+        )}
       </td>
       <td>
         <span class="cell">
@@ -103,6 +111,7 @@ export function AccountsView({ nonce, rows, now, flash, keys, shown }: AccountsP
   const withProxy = rows.filter((r) => proxyText(r.data)).length;
   const keyed = new Set(rows.flatMap((r) => (r.license ? [r.license.id] : []))).size;
   const loose = rows.filter((r) => !r.license).length;
+  const removed = rows.filter((r) => r.removedAt !== null).length;
   return (
     <Layout title="Nick" nonce={nonce} nav="accounts" toasts={[flash ? { kind: 'ok', text: flash } : null]}>
       <div class="stats">
@@ -113,6 +122,16 @@ export function AccountsView({ nonce, rows, now, flash, keys, shown }: AccountsP
       </div>
       <div class="toolbar">
         <h1>Nick</h1>
+        {removed > 0 && (
+          <div class="seg" role="group" aria-label="Lọc nick đã xoá ở máy" data-filter>
+            <button type="button" aria-pressed="true" data-state="">
+              Tất cả <span class="n">{rows.length}</span>
+            </button>
+            <button type="button" aria-pressed="false" data-state="removed">
+              Đã xoá ở máy <span class="n">{removed}</span>
+            </button>
+          </div>
+        )}
         <span class="grow" />
         <Field id="find" name="find" type="search" placeholder="Tìm tên hay tài khoản" icon="search" class="search" aria-label="Tìm nick" />
         <form method="get" action="/admin" data-autosubmit>

@@ -16,10 +16,12 @@ function client() {
   let cookie = '';
   const call = async (
     path: string,
-    o: { form?: Record<string, string>; body?: string; method?: string; origin?: string } = {},
+    o: { form?: Record<string, string>; body?: string; method?: string; origin?: string; ip?: string } = {},
   ) => {
     const headers = new Headers();
     if (cookie) headers.set('Cookie', `cllt_admin=${cookie}`);
+    // As Cloudflare says it; none is 'local'.
+    if (o.ip) headers.set('CF-Connecting-IP', o.ip);
     let body: BodyInit | undefined = o.body;
     if (o.form) {
       body = new URLSearchParams(o.form);
@@ -118,7 +120,7 @@ function racing(db: D1Database, between: () => void) {
     ...db,
     prepare: (sql: string) => {
       const real = db.prepare(sql);
-      if (done || !sql.startsWith('select "id", "server_id", "username_key", "data", "changed", "license_id" from "accounts"')) return real;
+      if (done || !sql.startsWith('select "id", "server_id", "username_key", "data", "changed", "license_id", "removed_at" from "accounts"')) return real;
       return {
         bind: (...args: unknown[]) => {
           const bound = real.bind(...args);
@@ -436,15 +438,30 @@ test('key: the page and its actions need the admin, and a form of another site c
   assert.equal((await verify(c.call, key)).json.ok, true);
 });
 
-test('key: a check is two D1 queries, the first one too', async () => {
+test('key: a check is two D1 queries, the first one too (its log in the batch of its write); a refusal one more for its log', async () => {
   const db = d1();
   let queries = 0;
-  const counted = { ...db, prepare: (sql: string) => (queries++, db.prepare(sql)) } as unknown as D1Database;
+  // A batch is one query for D1, whatever it holds.
+  const counted = {
+    ...db,
+    prepare: (sql: string) => (queries++, db.prepare(sql)),
+    batch: (list: D1PreparedStatement[]) => ((queries -= list.length - 1), db.batch(list)),
+  } as unknown as D1Database;
   const v = { key: await keyOf(db, await createLicense(database(db), '', 100, { mode: 'activation', duration: 1, unit: 'year' })), id: DEVICE, hostname: 'h', os: 'o', version: 'v', accounts: 1 };
   assert.equal((await verifyLicense(database(counted), v, 'local')).ok, true);
   assert.equal(queries, 2);
   queries = 0;
   assert.equal((await verifyLicense(database(counted), v, 'local')).ok, true);
+  assert.equal(queries, 2);
+  assert.equal(await db.prepare("SELECT COUNT(*) AS n FROM logs WHERE kind = 'key.activate'").first('n'), 1);
+  // Refused: the read, and the log counted in one batch; a key that cannot be one is not even read.
+  for (const [key, n] of [['CLLT-0000-0000-0000-0000', 2], ['abc', 1]] as const) {
+    queries = 0;
+    assert.equal((await verifyLicense(database(counted), { ...v, key }, 'local')).ok, false);
+    assert.equal(queries, n, key);
+  }
+  queries = 0;
+  assert.equal((await verifyLicense(database(counted), { ...v, id: OTHER }, 'local')).ok, false);
   assert.equal(queries, 2);
 });
 
@@ -529,14 +546,14 @@ test('key sync: a key never writes nor takes an account another key holds; its o
   assert.equal((await c.call('/api/license/sync')).status, 405);
 
   const first = await syncOf(c.call, home, DEVICE, [[nick, 0]], { record: true });
-  assert.deepEqual(first.json, { added: 1, updated: 0, unchanged: 0, kept: 0, repeated: 0, refused: 0, taken: 0 });
+  assert.deepEqual(first.json, { added: 1, updated: 0, unchanged: 0, kept: 0, repeated: 0, refused: 0, taken: 0, logged: 0 });
   const row = await c.env.DB.prepare('SELECT license_id, source FROM accounts').first<{ license_id: number; source: string }>();
   assert.equal(row!.source, 'Key Nhà');
 
   // The office key sends the same account (any case), later: not written, still the home key's.
   const other = { ...nick, username: 'TIHEO1', password: 'p-ke-khac', fight: { autoRepair: true } };
   const refused = await syncOf(c.call, office, OTHER, [[other, Date.now()]]);
-  assert.deepEqual(refused.json, { added: 0, updated: 0, unchanged: 0, kept: 0, repeated: 0, refused: 1, taken: 1 });
+  assert.deepEqual(refused.json, { added: 0, updated: 0, unchanged: 0, kept: 0, repeated: 0, refused: 1, taken: 1, logged: 0 });
   assert.deepEqual((await kept(c)).map((x) => [x.password, x.fight]), [['p1', { autoRepair: false }]]);
   assert.equal(await c.env.DB.prepare('SELECT license_id FROM accounts').first('license_id'), row!.license_id);
 
@@ -667,4 +684,485 @@ test('API tokens are gone: their page, /api/accounts and the nav item; Tải JSO
   const id = /&quot;action&quot;:&quot;\/admin\/accounts\/(\d+)\/delete&quot;/.exec(page.text)![1];
   assert.equal((await c.call(`/admin/accounts/${id}/delete`, { form: {} })).location, '/admin?done=deleted');
   assert.equal((await kept(c)).length, 1);
+});
+
+// ---- Log (the Log page, services/log.service.ts) ------------------------------------------------------------------
+
+type LogRow = {
+  kind: string;
+  level: string;
+  license_id: number | null;
+  actor: string;
+  ip: string;
+  device_id: string;
+  hostname: string;
+  username: string;
+  server_id: number | null;
+  message: string;
+  detail: string | null;
+  count: number;
+  at: number;
+  last_at: number;
+};
+
+/** Every log row of a kind (all with none), first written first. */
+const logsOf = async (db: D1Database, kind?: string) =>
+  (await db.prepare(`SELECT * FROM logs ${kind ? 'WHERE kind = ?' : ''} ORDER BY id`).bind(...(kind ? [kind] : [])).all<LogRow>()).results;
+
+/** POST /api/license/verify from the IP `ip`. */
+const verifyFrom = (call: ReturnType<typeof client>['call'], key: string, ip: string, extra: Record<string, unknown> = {}) =>
+  call('/api/license/verify', {
+    body: JSON.stringify({ key, id: DEVICE, hostname: 'MAY-NHA', os: 'windows x86_64', version: '1.1.8', accounts: 3, ...extra }),
+    ip,
+  }).then((r) => JSON.parse(r.text));
+
+test('log: a refusal of verify is logged with its IP, device and the key as typed; one IP and code within 10 minutes is one row, danger from 10', async () => {
+  const c = await ready();
+  for (let i = 0; i < 3; i++) assert.equal((await verifyFrom(c.call, `CLLT-0000-0000-0000-000${i}`, '1.2.3.4')).code, 'unknown');
+  let [row, ...rest] = await logsOf(c.env.DB, 'key.unknown');
+  assert.equal(rest.length, 0);
+  assert.deepEqual(
+    [row!.count, row!.level, row!.actor, row!.ip, row!.device_id, row!.hostname, row!.license_id],
+    [3, 'warn', 'ip', '1.2.3.4', DEVICE, 'MAY-NHA', null],
+  );
+  assert.equal(row!.message, 'Nhập key sai "CLLT-0000-0000-0000-0000" trên máy MAY-NHA');
+  assert.deepEqual(JSON.parse(row!.detail!), { key: 'CLLT-0000-0000-0000-0000', code: 'unknown', os: 'windows x86_64', version: '1.1.8' });
+  assert.ok(row!.last_at >= row!.at);
+  // Another IP is another row; the key as typed is kept to 40 characters.
+  await verifyFrom(c.call, 'x'.repeat(60), '5.6.7.8');
+  const other = (await logsOf(c.env.DB, 'key.unknown'))[1]!;
+  assert.deepEqual([other.ip, other.count, JSON.parse(other.detail!).key], ['5.6.7.8', 1, 'x'.repeat(40)]);
+  // The tenth within the window: danger, and said so.
+  for (let i = 0; i < 7; i++) await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '1.2.3.4');
+  [row] = await logsOf(c.env.DB, 'key.unknown');
+  assert.deepEqual([row!.count, row!.level, row!.message], [10, 'danger', 'IP 1.2.3.4 nhập key sai 10 lần trong 10 phút']);
+  await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '1.2.3.4');
+  assert.equal((await logsOf(c.env.DB, 'key.unknown'))[0]!.message, 'IP 1.2.3.4 nhập key sai 11 lần trong 10 phút');
+  // Past the window, a new row.
+  await c.env.DB.prepare('UPDATE logs SET at = at - 11 * 60000').run();
+  await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '1.2.3.4');
+  const rows = await logsOf(c.env.DB, 'key.unknown');
+  assert.deepEqual(
+    rows.map((r) => [r.ip, r.count, r.level]),
+    [
+      ['1.2.3.4', 11, 'danger'],
+      ['5.6.7.8', 1, 'warn'],
+      ['1.2.3.4', 1, 'warn'],
+    ],
+  );
+});
+
+test('log: an activation is logged once, a check that works never; refusals of a known key name it, by why', async () => {
+  const c = await ready();
+  const key = await newKey(c, { note: 'Anh A' });
+  const id = Number(await keyId(c, key));
+  for (let i = 0; i < 3; i++) assert.equal((await verifyFrom(c.call, key, '1.2.3.4')).ok, true);
+  const [activation, ...more] = await logsOf(c.env.DB, 'key.activate');
+  assert.equal(more.length, 0);
+  assert.deepEqual(
+    [activation!.message, activation!.level, activation!.actor, activation!.license_id, activation!.ip, activation!.device_id],
+    ['Kích hoạt key Anh A trên máy MAY-NHA', 'info', 'app', id, '1.2.3.4', DEVICE],
+  );
+  assert.equal((await logsOf(c.env.DB)).filter((r) => r.kind.startsWith('key.')).length, 1);
+  // Another device: taken, with the key and that device.
+  await verifyFrom(c.call, key, '9.9.9.9', { id: OTHER, hostname: 'MAY-KHAC' });
+  const [taken] = await logsOf(c.env.DB, 'key.taken');
+  assert.deepEqual(
+    [taken!.message, taken!.license_id, taken!.actor, taken!.device_id],
+    ['Key Anh A đang ở máy khác: máy MAY-KHAC bị từ chối', id, 'app', OTHER],
+  );
+  // Gỡ thiết bị: the old device is 'released'; then revoked; then ended.
+  await c.call(`/admin/licenses/${id}/release`, { form: {} });
+  await verifyFrom(c.call, key, '1.2.3.4');
+  assert.equal((await logsOf(c.env.DB, 'key.released'))[0]!.message, 'Key Anh A đã gỡ khỏi máy MAY-NHA: máy đó bị từ chối');
+  await verifyFrom(c.call, key, '9.9.9.9', { id: OTHER, hostname: 'MAY-KHAC' });
+  assert.equal((await logsOf(c.env.DB, 'key.activate')).length, 2);
+  await c.call(`/admin/licenses/${id}/revoke`, { form: { reason: 'Chưa trả tiền' } });
+  await verifyFrom(c.call, key, '9.9.9.9', { id: OTHER, hostname: 'MAY-KHAC' });
+  assert.equal((await logsOf(c.env.DB, 'key.revoked'))[0]!.message, 'Key Anh A đã bị khoá: máy MAY-KHAC bị từ chối');
+  await c.call(`/admin/licenses/${id}/restore`, { form: {} });
+  await c.call(`/admin/licenses/${id}/edit`, { form: { note: 'Anh A', maxAccounts: '100', date: '2020-01-31' } });
+  await verifyFrom(c.call, key, '9.9.9.9', { id: OTHER, hostname: 'MAY-KHAC' });
+  assert.equal((await logsOf(c.env.DB, 'key.expired'))[0]!.message, 'Key Anh A hết hạn ngày 31/01/2020: máy MAY-KHAC bị từ chối');
+});
+
+/** POST /api/license/sync of the app of `key` on DEVICE with `events`, and the accounts given (none by default). */
+const syncEvents = (call: ReturnType<typeof client>['call'], key: string, events: unknown, accounts: unknown[] = []) =>
+  call('/api/license/sync', { body: JSON.stringify({ key, id: DEVICE, accounts, events }), ip: '1.2.3.4' }).then((r) => ({
+    ...r,
+    json: JSON.parse(r.text),
+  }));
+
+const removedAt = (db: D1Database, username = 'manina') => db.prepare('SELECT removed_at FROM accounts WHERE username = ?').bind(username).first('removed_at');
+
+test('log: the events of a sync are logged; a removal keeps the account and marks it, an add or the account sent clears it; bad events are left out', async () => {
+  const c = await ready();
+  const key = await newKey(c, { note: 'Nhà' });
+  const id = Number(await keyId(c, key));
+  await verify(c.call, key);
+  const nick = { label: 'Nick chính', username: 'manina', password: 'p', serverId: 24 };
+  const first = await syncOf(c.call, key, DEVICE, [[nick, 0]]);
+  assert.equal(first.json.logged, 0);
+  // One line of what a sync took; a sync that takes nothing new has none.
+  const [summary] = await logsOf(c.env.DB, 'sync.summary');
+  assert.deepEqual([summary!.message, summary!.level, summary!.license_id], ['Đồng bộ: thêm 1 nick', 'info', id]);
+  await syncOf(c.call, key, DEVICE, [[{ ...nick, password: 'p2' }, Date.now()]]);
+  await syncOf(c.call, key, DEVICE, [[{ ...nick, password: 'p2' }, Date.now()]]);
+  assert.equal((await logsOf(c.env.DB, 'sync.summary')).length, 1);
+
+  // Removed on the app, no account sent: still on the server, marked, and logged; the bad events left out.
+  const at = Date.now() - 60_000;
+  const removed = await syncEvents(c.call, key, [
+    { at, kind: 'remove', username: 'MANINA', serverId: 24, label: 'Nick chính', extra: true },
+    { at, kind: 'fly', username: 'manina', serverId: 24 },
+    { at: 'x', kind: 'add', username: 'manina', serverId: 24 },
+    { at, kind: 'add', username: '  ', serverId: 24 },
+    { at, kind: 'add', username: 'manina', serverId: 2.5 },
+    5,
+    null,
+  ]);
+  assert.equal(removed.status, 200, removed.text);
+  assert.deepEqual(removed.json, { added: 0, updated: 0, unchanged: 0, kept: 0, repeated: 0, refused: 0, taken: 0, logged: 1 });
+  assert.equal(await count(database(c.env.DB)), 1);
+  assert.equal(await removedAt(c.env.DB), at);
+  const [line] = await logsOf(c.env.DB, 'app.remove');
+  assert.deepEqual(
+    [line!.message, line!.level, line!.actor, line!.license_id, line!.device_id, line!.hostname, line!.username, line!.server_id, line!.at, line!.ip],
+    ['Xoá nick MANINA (S24) trên máy', 'warn', 'app', id, DEVICE, 'MAY-NHA', 'MANINA', 24, at, '1.2.3.4'],
+  );
+  assert.deepEqual(JSON.parse(line!.detail!), { label: 'Nick chính' });
+  // The Nick page says so, with a filter for them.
+  const page = (await c.call('/admin')).text;
+  assert.match(page, /<tr data-find="[^"]*" data-state="removed">/);
+  assert.match(page, /<span class="pill warn" title="App xoá nick này lúc [^"]+; server vẫn giữ">Đã xoá ở máy<\/span>/);
+  assert.match(page, /data-state="removed">Đã xoá ở máy <span class="n">1<\/span>/);
+
+  // Added again: cleared. Removed, then the account sent: cleared too.
+  assert.equal((await syncEvents(c.call, key, [{ at: Date.now(), kind: 'add', username: 'manina', serverId: 24 }])).json.logged, 1);
+  assert.equal(await removedAt(c.env.DB), null);
+  assert.equal((await logsOf(c.env.DB, 'app.add'))[0]!.message, 'Thêm nick manina (S24)');
+  await syncEvents(c.call, key, [{ at: Date.now(), kind: 'remove', username: 'manina', serverId: 24 }]);
+  assert.notEqual(await removedAt(c.env.DB), null);
+  assert.ok((await c.call('/admin')).text.includes('Đã xoá ở máy'));
+  await syncOf(c.call, key, DEVICE, [[{ ...nick, password: 'p2' }, 0]]);
+  assert.equal(await removedAt(c.env.DB), null);
+  assert.ok(!(await c.call('/admin')).text.includes('Đã xoá ở máy'));
+
+  // The last event of an account decides; edit and import are logged; a time ahead of the server counts as now.
+  const before = Date.now();
+  const many = await syncEvents(c.call, key, [
+    { at: before - 2000, kind: 'import', username: 'tiheo1', serverId: 25 },
+    { at: before - 1000, kind: 'remove', username: 'manina', serverId: 24 },
+    { at: before - 3000, kind: 'edit', username: 'manina', serverId: 24 },
+    { at: before + 9e9, kind: 'edit', username: 'tiheo1', serverId: 25 },
+  ]);
+  assert.equal(many.json.logged, 4);
+  assert.equal(await removedAt(c.env.DB), before - 1000);
+  assert.equal((await logsOf(c.env.DB, 'app.import'))[0]!.message, 'Nhập nick tiheo1 (S25) từ JSON');
+  const edits = await logsOf(c.env.DB, 'app.edit');
+  assert.equal(edits[0]!.message, 'Sửa nick manina (S24)');
+  assert.ok(edits[1]!.at >= before && edits[1]!.at <= Date.now());
+
+  // An account another key holds is never marked by this one.
+  const office = await newKey(c, { note: 'Cty' });
+  await verify(c.call, office, { id: OTHER });
+  await syncOf(c.call, office, OTHER, [[{ label: '', username: 'cuacty', password: 'p', serverId: 24 }, 0]]);
+  await syncEvents(c.call, key, [{ at: Date.now(), kind: 'remove', username: 'cuacty', serverId: 24 }]);
+  assert.equal(await removedAt(c.env.DB, 'cuacty'), null);
+
+  // More than 200, or not a list: 400, nothing logged. 200 at once are.
+  const n = (await logsOf(c.env.DB)).length;
+  const tooMany = Array.from({ length: 201 }, () => ({ at: Date.now(), kind: 'add', username: 'x', serverId: 24 }));
+  for (const events of [tooMany, 'x', { kind: 'add' }]) assert.equal((await syncEvents(c.call, key, events)).status, 400);
+  assert.equal((await logsOf(c.env.DB)).length, n);
+  assert.equal((await syncEvents(c.call, key, tooMany.slice(0, 200))).json.logged, 200);
+  assert.equal((await logsOf(c.env.DB, 'app.add')).length, 201);
+});
+
+test('log: a sync that refuses accounts is a warning that says why', async () => {
+  const c = await ready();
+  const key = await newKey(c, { maxAccounts: '1' });
+  await verify(c.call, key);
+  const other = await newKey(c);
+  await verify(c.call, other, { id: OTHER });
+  await syncOf(c.call, other, OTHER, [[{ label: '', username: 'cua-khac', password: 'p', serverId: 24 }, 0]]);
+  const a = (n: number) => ({ label: '', username: `nick${n}`, password: 'p', serverId: 24 });
+  await syncOf(c.call, key, DEVICE, [[a(1), 0], [a(2), 0], [{ label: '', username: 'cua-khac', password: 'x', serverId: 24 }, 0]]);
+  const last = (await logsOf(c.env.DB, 'sync.summary')).at(-1)!;
+  assert.deepEqual([last.message, last.level], ['Đồng bộ: thêm 1 nick, 1 nick vượt số nick tối đa, 1 nick của key khác', 'warn']);
+});
+
+test("log: the admin's actions are logged with the IP; failed logins of one IP are one row, counted", async () => {
+  const { env, call } = client();
+  for (let i = 0; i < 3; i++) await call('/admin/login', { form: { username: 'ke-gian', password: `sai${i}` }, ip: '6.6.6.6' });
+  const [fail, ...more] = await logsOf(env.DB, 'admin.login_fail');
+  assert.equal(more.length, 0);
+  assert.deepEqual([fail!.count, fail!.level, fail!.ip, fail!.actor, fail!.message], [3, 'warn', '6.6.6.6', 'ip', 'Đăng nhập sai (tên "ke-gian")']);
+  // Ten and more, those made to wait too: danger.
+  for (let i = 0; i < 9; i++) await call('/admin/login', { form: { username: 'admin', password: 'sai' }, ip: '6.6.6.6' });
+  const [burst] = await logsOf(env.DB, 'admin.login_fail');
+  assert.deepEqual([burst!.count, burst!.level, burst!.message], [12, 'danger', 'IP 6.6.6.6 đăng nhập sai 12 lần trong 10 phút']);
+
+  // The rest from one IP.
+  const c = { env, call: (path: string, o: Parameters<typeof call>[1] = {}) => call(path, { ip: '7.7.7.7', ...o }) };
+  await c.call('/admin/login', { form: { username: 'admin', password: 'admin' } });
+  await c.call('/admin/password', { form: { current: 'admin', next: 'mat-khau-moi', confirm: 'mat-khau-moi' } });
+  const made = await c.call('/admin/licenses', { form: { note: 'Quán net', maxAccounts: '20', mode: 'fixed', date: '2099-12-31', count: '3' } });
+  assert.equal(made.status, 303);
+  const key = await newKey(c, { note: 'Anh A' });
+  const id = Number(await keyId(c, key));
+  await verify(c.call, key);
+  // An action that changes nothing is not logged: Mở khoá of a key not revoked, Khoá of a revoked one, Gỡ thiết bị of a
+  // key no device holds, Sửa that changes nothing.
+  await c.call(`/admin/licenses/${id}/restore`, { form: {} });
+  await c.call(`/admin/licenses/${id}/revoke`, { form: { reason: 'Chưa trả tiền' } });
+  await c.call(`/admin/licenses/${id}/revoke`, { form: { reason: 'Lý do khác' } });
+  await c.call(`/admin/licenses/${id}/restore`, { form: {} });
+  await c.call(`/admin/licenses/${id}/release`, { form: {} });
+  await c.call(`/admin/licenses/${id}/release`, { form: {} });
+  await c.call(`/admin/licenses/${id}/edit`, { form: { note: 'Anh B', maxAccounts: '30', date: '2099-12-31' } });
+  await c.call(`/admin/licenses/${id}/edit`, { form: { note: 'Anh B', maxAccounts: '30', date: '' } });
+  await c.call(`/admin/licenses/${id}/edit`, { form: { note: 'Anh B', maxAccounts: '30', date: '2099-12-31' } });
+  // A failed edit, and an action on a key that is not there, are not logged.
+  await c.call(`/admin/licenses/${id}/edit`, { form: { maxAccounts: 'x' } });
+  await c.call(`/admin/licenses/${id}/delete`, { form: {} });
+  await c.call('/admin/licenses/999/revoke', { form: { reason: 'x' } });
+  const other = await newKey(c, { note: '' });
+  await verify(c.call, other);
+  await syncOf(c.call, other, DEVICE, [[{ label: '', username: 'manina', password: 'p', serverId: 24 }, 0]]);
+  const account = await env.DB.prepare('SELECT id FROM accounts').first<{ id: number }>();
+  await c.call(`/admin/accounts/${account!.id}/delete`, { form: {} });
+  // Logged out once: the second has no session.
+  await c.call('/admin/logout', { form: {} });
+  await c.call('/admin/logout', { form: {} });
+
+  const admin = (await logsOf(env.DB)).filter((r) => r.kind.startsWith('admin.') && r.kind !== 'admin.login_fail');
+  assert.ok(admin.every((r) => r.actor === 'admin' && r.ip === '7.7.7.7' && r.level === 'info'));
+  assert.deepEqual(
+    admin.map((r) => r.kind),
+    [
+      'admin.login',
+      'admin.password',
+      'admin.create',
+      'admin.create',
+      'admin.revoke',
+      'admin.restore',
+      'admin.release',
+      'admin.edit',
+      'admin.delete',
+      'admin.create',
+      'admin.account_delete',
+      'admin.logout',
+    ],
+  );
+  const messages = admin.map((r) => r.message);
+  assert.deepEqual(messages.slice(0, 7), [
+    'Đăng nhập trang quản trị',
+    'Đổi mật khẩu quản trị',
+    'Tạo 3 key: Quán net',
+    'Tạo key Anh A',
+    'Khoá key Anh A: Chưa trả tiền',
+    'Mở khoá key Anh A',
+    'Gỡ máy MAY-NHA khỏi key Anh A',
+  ]);
+  // Sửa says what changed: the end it had from its activation (10 years) to the day chosen.
+  assert.match(messages[7]!, /^Sửa key Anh A: ghi chú "Anh A" → "Anh B", số nick 100 → 30, hạn \d\d\/\d\d\/\d{4} → 31\/12\/2099$/);
+  assert.deepEqual(messages.slice(8), [
+    `Xoá key Anh B (${key})`,
+    `Tạo key ${other.slice(0, 9)}`,
+    'Xoá nick manina (S24) khỏi server',
+    'Đăng xuất',
+  ]);
+  const of = (kind: string) => admin.find((r) => r.kind === kind)!;
+  assert.equal(JSON.parse(of('admin.create').detail!).ids.length, 3);
+  assert.equal(of('admin.create').license_id, null);
+  assert.equal(of('admin.revoke').license_id, id);
+  assert.deepEqual([of('admin.release').device_id, of('admin.release').hostname], [DEVICE, 'MAY-NHA']);
+  assert.deepEqual([of('admin.account_delete').username, of('admin.account_delete').server_id], ['manina', 24]);
+});
+
+test('log: the Log page needs the admin; it filters by level, kind, key and search on the server, 100 rows a page, Xem thêm', async () => {
+  const { call } = client();
+  assert.equal((await call('/admin/logs')).location, '/admin/login');
+  const c = await ready();
+  assert.match((await c.call('/admin/logs?kind=app')).text, /Không có log nào khớp/);
+  const key = await newKey(c, { note: 'Anh A' });
+  const id = await keyId(c, key);
+  // The Key page links the Log of each key.
+  assert.ok((await c.call('/admin/licenses')).text.includes(`href="/admin/logs?key=${id}"`));
+  await verifyFrom(c.call, key, '1.2.3.4');
+  for (let i = 0; i < 12; i++) await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '6.6.6.6', { hostname: 'MAY-LA' });
+  await c.call(`/admin/licenses/${id}/revoke`, { form: { reason: 'Chưa trả tiền' } });
+
+  const rows = (text: string) => [...text.matchAll(/<tr(?: class="danger")? data-level="(\w+)"/g)].map((m) => m[1]);
+  const all = await c.call('/admin/logs');
+  assert.equal(all.status, 200);
+  assert.match(all.text, /<a href="\/admin\/logs" aria-current="page">Log<\/a>/);
+  // Newest first: the revoke, the wrong keys counted (12, danger, from when to when), the activation.
+  assert.match(
+    all.text,
+    /Khoá key Anh A: Chưa trả tiền[\s\S]*IP 6\.6\.6\.6 nhập key sai 12 lần trong 10 phút<span class="times">×12<\/span><div class="faint small">từ \d\d:\d\d tới \d\d:\d\d<\/div>[\s\S]*Kích hoạt key Anh A trên máy MAY-NHA/,
+  );
+  assert.match(all.text, /Nhập key sai 24h<\/div><div class="num">12<\/div><div class="cap">từ 1 IP<\/div>/);
+  assert.match(all.text, /Cảnh báo 24h<\/div><div class="num">1<\/div><div class="cap">1 nguy hiểm<\/div>/);
+  assert.ok(!all.text.includes('>Xem thêm</a>'));
+  // Who: the key (its Log), the admin, an IP.
+  assert.match(all.text, new RegExp(`<a class="tag" href="/admin/logs\\?key=${id}"[^>]*>[\\s\\S]*?Anh A</a>`));
+  assert.match(all.text, /<span class="tag">[\s\S]*?admin<\/span>/);
+  assert.match(all.text, /<span class="mono small">6\.6\.6\.6<\/span>/);
+
+  assert.deepEqual(rows((await c.call('/admin/logs?level=danger')).text), ['danger']);
+  assert.deepEqual(rows((await c.call('/admin/logs?level=warn')).text), ['danger']);
+  const ofKey = (await c.call(`/admin/logs?key=${id}`)).text;
+  assert.ok(ofKey.includes('Khoá key Anh A') && ofKey.includes('Kích hoạt key') && !ofKey.includes('6.6.6.6'));
+  assert.match(ofKey, new RegExp(`<option value="${id}" selected="">Anh A`));
+  const admin = (await c.call('/admin/logs?kind=admin')).text;
+  assert.ok(admin.includes('Đổi mật khẩu quản trị') && !admin.includes('Kích hoạt key'));
+  assert.equal(rows((await c.call('/admin/logs?q=may-la')).text).length, 1);
+  assert.equal(rows((await c.call('/admin/logs?q=6.6.6')).text).length, 1);
+  // "_" and "%" are themselves, not wildcards.
+  assert.equal(rows((await c.call('/admin/logs?q=_')).text).length, 0);
+  // Nonsense is no filter.
+  assert.equal(rows((await c.call('/admin/logs?level=x&kind=y&key=z&before=-1')).text).length, rows(all.text).length);
+
+  // 150 more: 100 a page, then the rest with Xem thêm.
+  const now = Date.now();
+  for (let i = 0; i < 150; i++) {
+    await c.env.DB.prepare("INSERT INTO logs (at, kind, actor, message, last_at) VALUES (?, 'app.edit', 'app', ?, ?)").bind(now, `Sửa nick n${i} (S24)`, now).run();
+  }
+  const total = (await logsOf(c.env.DB)).length;
+  const first = await c.call('/admin/logs');
+  assert.equal(rows(first.text).length, 100);
+  assert.match(first.text, /Việc của app 24h<\/div><div class="num">150<\/div>/);
+  const next = /<a class="btn" href="(\/admin\/logs\?before=\d+-\d+)">Xem thêm<\/a>/.exec(first.text)![1]!;
+  const second = await c.call(next);
+  assert.equal(rows(second.text).length, total - 100);
+  assert.ok(!second.text.includes('>Xem thêm</a>') && second.text.includes('Về mới nhất'));
+  // The cursor keeps the filter.
+  assert.match((await c.call('/admin/logs?kind=app')).text, /href="\/admin\/logs\?kind=app&amp;before=\d+-\d+">Xem thêm/);
+});
+
+test('log: rows older than 90 days go as the Log page opens', async () => {
+  const c = await ready();
+  const day = 86_400_000;
+  for (const [age, message] of [
+    [91, 'cũ quá'],
+    [89, 'còn giữ'],
+  ] as const) {
+    const at = Date.now() - age * day;
+    await c.env.DB.prepare("INSERT INTO logs (at, kind, actor, message, last_at) VALUES (?, 'admin.login', 'admin', ?, ?)").bind(at, message, at).run();
+  }
+  const page = await c.call('/admin/logs');
+  assert.ok(page.text.includes('còn giữ') && !page.text.includes('cũ quá'));
+  const kept = (await logsOf(c.env.DB)).map((r) => r.message);
+  assert.ok(kept.includes('còn giữ') && !kept.includes('cũ quá'));
+});
+
+test('log: refusals of a known key are counted by IP and key over 24 hours, never danger; two keys from one IP are two rows', async () => {
+  const c = await ready();
+  const a = await newKey(c, { note: 'Anh A', mode: 'fixed', date: '2099-12-31' });
+  const b = await newKey(c, { note: 'Chị B', mode: 'fixed', date: '2099-12-31' });
+  await verify(c.call, a, { id: OTHER });
+  await verify(c.call, b, { id: OTHER });
+  // The same IP tries both keys from another device: one row each, never merged.
+  for (let i = 0; i < 12; i++) {
+    await verifyFrom(c.call, a, '1.2.3.4');
+    await verifyFrom(c.call, b, '1.2.3.4');
+  }
+  const taken = await logsOf(c.env.DB, 'key.taken');
+  assert.deepEqual(
+    taken.map((r) => [r.license_id, r.count, r.level, r.message]),
+    [
+      [Number(await keyId(c, a)), 12, 'warn', 'Key Anh A đang ở máy khác: máy MAY-NHA bị từ chối'],
+      [Number(await keyId(c, b)), 12, 'warn', 'Key Chị B đang ở máy khác: máy MAY-NHA bị từ chối'],
+    ],
+  );
+  // An app whose key ended checks every hour: still the same row 23 hours later, a new one after 24.
+  const idA = await keyId(c, a);
+  await c.call(`/admin/licenses/${idA}/edit`, { form: { note: 'Anh A', maxAccounts: '100', date: '2020-01-31' } });
+  await verifyFrom(c.call, a, '9.9.9.9', { id: OTHER });
+  await c.env.DB.prepare("UPDATE logs SET at = at - 23 * 3600000 WHERE kind = 'key.expired'").run();
+  await verifyFrom(c.call, a, '9.9.9.9', { id: OTHER });
+  assert.deepEqual((await logsOf(c.env.DB, 'key.expired')).map((r) => [r.count, r.level]), [[2, 'warn']]);
+  await c.env.DB.prepare("UPDATE logs SET at = at - 2 * 3600000 WHERE kind = 'key.expired'").run();
+  await verifyFrom(c.call, a, '9.9.9.9', { id: OTHER });
+  assert.deepEqual((await logsOf(c.env.DB, 'key.expired')).map((r) => r.count), [2, 1]);
+  // Keys not known still count within 10 minutes, whatever was typed.
+  await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '1.2.3.4');
+  await verifyFrom(c.call, 'CLLT-1111-1111-1111-1111', '1.2.3.4');
+  assert.deepEqual((await logsOf(c.env.DB, 'key.unknown')).map((r) => [r.count, r.license_id]), [[2, null]]);
+});
+
+test('log: an event with an id is logged once for its key, a sync sent again logs nothing twice; its time is whole ms within 90 days', async () => {
+  const c = await ready();
+  const key = await newKey(c, { note: 'Nhà' });
+  await verify(c.call, key);
+  await syncOf(c.call, key, DEVICE, [[{ label: '', username: 'manina', password: 'p', serverId: 24 }, 0]]);
+  const now = Date.now();
+  const events = [
+    { id: 'ev-1', at: now - 5000, kind: 'remove', username: 'manina', serverId: 24 },
+    { id: 'ev_2', at: now - 4000, kind: 'add', username: 'tiheo1', serverId: 25 },
+    { at: now - 3000, kind: 'edit', username: 'tiheo1', serverId: 25 },
+    // An id that is not 1 to 40 of [A-Za-z0-9_-]: a bad event, left out.
+    { id: 'có dấu', at: now, kind: 'add', username: 'x', serverId: 24 },
+    { id: 'a'.repeat(41), at: now, kind: 'add', username: 'x', serverId: 24 },
+    { id: '', at: now, kind: 'add', username: 'x', serverId: 24 },
+  ];
+  assert.equal((await syncEvents(c.call, key, events)).json.logged, 3);
+  // Sent again (the app did not get the answer): only the event without an id is logged again.
+  const again = await syncEvents(c.call, key, events);
+  assert.equal(again.status, 200);
+  assert.equal(again.json.logged, 1);
+  assert.deepEqual(
+    (await logsOf(c.env.DB)).filter((r) => r.kind.startsWith('app.')).map((r) => r.kind),
+    ['app.remove', 'app.add', 'app.edit', 'app.edit'],
+  );
+  assert.equal(await removedAt(c.env.DB), now - 5000);
+  // The same id twice in one sync is one row; another key may use the same id.
+  assert.equal((await syncEvents(c.call, key, [{ id: 'ev-3', at: now, kind: 'edit', username: 'a', serverId: 24 }, { id: 'ev-3', at: now, kind: 'edit', username: 'a', serverId: 24 }])).json.logged, 1);
+  const other = await newKey(c, { note: 'Cty' });
+  await verify(c.call, other, { id: OTHER });
+  const fromOther = await c.call('/api/license/sync', { body: JSON.stringify({ key: other, id: OTHER, accounts: [], events: [{ id: 'ev-1', at: now, kind: 'add', username: 'b', serverId: 24 }] }) });
+  assert.equal(JSON.parse(fromOther.text).logged, 1);
+
+  // A time is whole milliseconds, and no earlier than 90 days ago, so the write that logs it does not prune it.
+  const before = Date.now();
+  await syncEvents(c.call, key, [
+    { id: 'old', at: 1, kind: 'edit', username: 'cu', serverId: 24 },
+    { id: 'frac', at: before - 1000.75, kind: 'edit', username: 'le', serverId: 24 },
+  ]);
+  const rows = await logsOf(c.env.DB, 'app.edit');
+  const old = rows.find((r) => r.username === 'cu')!;
+  assert.ok(old.at >= before - 90 * 86_400_000 && old.at <= Date.now() - 90 * 86_400_000, String(old.at));
+  assert.equal(old.last_at, old.at);
+  assert.equal(rows.find((r) => r.username === 'le')!.at, Math.floor(before - 1000.75));
+});
+
+test('log: the Log page shows the last to happen first, a counted row by its last time, and pages by it', async () => {
+  const c = await ready();
+  await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '1.2.3.4');
+  const key = await newKey(c, { note: 'Anh A' });
+  // Counted once more after the key was made: it comes first again.
+  await new Promise((r) => setTimeout(r, 5));
+  await verifyFrom(c.call, 'CLLT-0000-0000-0000-0000', '1.2.3.4');
+  const page = (await c.call('/admin/logs')).text;
+  assert.ok(key && page.indexOf('<span class="times">×2</span>') < page.indexOf('Tạo key Anh A'), 'counted row first');
+  // Rows of the same time are by id, and the cursor goes on from the last shown, none twice, none left out.
+  const at = Date.now() + 60_000;
+  for (let i = 0; i < 130; i++) {
+    await c.env.DB.prepare("INSERT INTO logs (at, kind, actor, message, last_at) VALUES (?, 'app.edit', 'app', ?, ?)").bind(at - (i % 3), `m${i}`, at - (i % 3)).run();
+  }
+  const seen: string[] = [];
+  let path = '/admin/logs?kind=app';
+  for (;;) {
+    const text = (await c.call(path)).text;
+    seen.push(...[...text.matchAll(/<td class="msg">(m\d+)/g)].map((m) => m[1]!));
+    const next = /<a class="btn" href="([^"]+)">Xem thêm<\/a>/.exec(text);
+    if (!next) break;
+    path = next[1]!.replace(/&amp;/g, '&');
+  }
+  assert.equal(seen.length, 130);
+  assert.equal(new Set(seen).size, 130);
+  // Within a time, the later row first.
+  assert.deepEqual(seen.slice(0, 3), ['m129', 'm126', 'm123']);
 });

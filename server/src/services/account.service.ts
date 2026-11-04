@@ -1,10 +1,10 @@
 // The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): kept by POST
 // /api/license/sync and given back by Tải JSON, so that Nhập JSON of the app reads them as they are.
-import { and, asc, count as rowCount, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, count as rowCount, eq, getTableColumns, isNotNull, isNull, or } from 'drizzle-orm';
 import { APP_NAME, EXPORT_FORMAT } from '../config/constants.ts';
 import type { Db } from '../db/client.ts';
 import { licenses, accounts as table } from '../db/schema.ts';
-import type { Account, AccountRow, Changed, Merged, Stamped } from '../models/index.ts';
+import type { Account, AccountRow, AppEvent, Changed, Merged, Stamped } from '../models/index.ts';
 import { isObject } from '../validators/account.validator.ts';
 
 /** JSON with the keys of every object in order, so that the same account is the same text however it was sent. */
@@ -24,16 +24,27 @@ const key = (a: Account) => a.username.toLowerCase();
 const IDENTITY = new Set(['username', 'serverId']);
 const fieldsOf = (a: object) => Object.keys(a).filter((f) => !IDENTITY.has(f));
 
-type Kept = { id: number; data: string; changed: string; licenseId: number | null };
+/** A row as a send reads it; `removedAt` set when the app of a key removed it (marks). */
+type Kept = { id: number; data: string; changed: string; licenseId: number | null; removedAt: number | null };
 const rowKey = (serverId: number, usernameKey: string) => `${serverId}\n${usernameKey}`;
 
 /** Every account kept, by server and username in lower case: one query for a whole send, as D1 takes only 50 queries
  * a request on the Workers Free plan (a batch counts as one). */
 async function keptRows(db: Db): Promise<Map<string, Kept>> {
   const rows = await db
-    .select({ id: table.id, serverId: table.serverId, usernameKey: table.usernameKey, data: table.data, changed: table.changed, licenseId: table.licenseId })
+    .select({
+      id: table.id,
+      serverId: table.serverId,
+      usernameKey: table.usernameKey,
+      data: table.data,
+      changed: table.changed,
+      licenseId: table.licenseId,
+      removedAt: table.removedAt,
+    })
     .from(table);
-  return new Map(rows.map((r) => [rowKey(r.serverId, r.usernameKey), { id: r.id, data: r.data, changed: r.changed, licenseId: r.licenseId }]));
+  return new Map(
+    rows.map((r) => [rowKey(r.serverId, r.usernameKey), { id: r.id, data: r.data, changed: r.changed, licenseId: r.licenseId, removedAt: r.removedAt }]),
+  );
 }
 
 function stampsOf(text: string): Changed {
@@ -49,7 +60,8 @@ function stampsOf(text: string): Changed {
 type Sender = { source: string; licenseId: number };
 
 /** The write that puts `next` in place of `old`, or adds it, only if the row is still as it was read: the same data,
- * times and key, or still none. Its D1 result says how many rows it changed, 0 when another send got there first. */
+ * times and key, or still none. An account sent is one the app has: no longer removed. Its D1 result says how many rows
+ * it changed, 0 when another send got there first. */
 function save(db: Db, old: Kept | undefined, next: Account, changed: Changed, by: Sender, now: number) {
   const fields = {
     username: next.username,
@@ -59,6 +71,7 @@ function save(db: Db, old: Kept | undefined, next: Account, changed: Changed, by
     changed: canonical(changed),
     source: by.source,
     licenseId: by.licenseId,
+    removedAt: null,
     updatedAt: now,
   };
   if (old) {
@@ -94,7 +107,7 @@ type Sent<T> = { account: T; at: Changed };
  * read and the write is read again and decided again, so that two sends at once are both merged (TRIES times, then
  * Busy). `admit`, at each read, leaves out what is not taken over the rows as they are then. Gives what was decided for
  * each account taken and the row it was decided over. An account that does not change is written only to note the key
- * that sent it. */
+ * that sent it, or that the app has it again (removedAt). */
 async function write<T extends Account>(
   db: Db,
   sent: Sent<T>[],
@@ -117,7 +130,7 @@ async function write<T extends Account>(
       const next = decide(old, one.account, one.at);
       out.set(id, { old, next });
       const moved = old?.licenseId !== by.licenseId;
-      if (old?.data !== canonical(next.account) || moved) writes.push({ one, query: save(db, old, next.account, next.changed, by, now) });
+      if (old?.data !== canonical(next.account) || moved || old?.removedAt != null) writes.push({ one, query: save(db, old, next.account, next.changed, by, now) });
     }
     const [first, ...rest] = writes.map((w) => w.query);
     const results = first ? await db.batch([first, ...rest]) : [];
@@ -138,7 +151,7 @@ function once<T extends { account: Account }>(sent: T[]): [T[], number] {
 }
 
 /** A time the app sent: whole milliseconds, 0 for none, never later than `now` (a clock ahead would win every time). */
-const stamp = (t: number | undefined, now: number) => (t && t > 0 ? Math.min(Math.floor(t), now) : 0);
+export const stamp = (t: number | undefined, now: number) => (t && t > 0 ? Math.min(Math.floor(t), now) : 0);
 
 /** The account after an app sent `sent`, its fields changed at `at`, over `old` (none: a new account). Each field
  * takes the sent value (or goes, when the app has it no more) only when the app changed it later than the kept one
@@ -252,8 +265,33 @@ export async function exported(db: Db): Promise<string> {
   return JSON.stringify({ app: APP_NAME, format: EXPORT_FORMAT, exportedAt: new Date().toISOString(), accounts }, null, 2) + '\n';
 }
 
-/** True when there was one to delete. */
-export async function remove(db: Db, id: number): Promise<boolean> {
-  const gone = await db.delete(table).where(eq(table.id, id)).returning({ id: table.id });
-  return gone.length > 0;
+/** Xoá: the account deleted, or undefined when there was none. */
+export async function remove(db: Db, id: number) {
+  const [gone] = await db
+    .delete(table)
+    .where(eq(table.id, id))
+    .returning({ username: table.username, serverId: table.serverId, licenseId: table.licenseId });
+  return gone;
+}
+
+/** The writes of what the app of the key `licenseId` did to its accounts (POST /api/license/sync "events"), to go in a
+ * batch: the last event of each account (by `at`) says whether the app has it. A removal marks it removed at that
+ * time, the server keeping it (the Nick page shows "Đã xoá ở máy"); an add, import or edit clears that. Only accounts
+ * the key holds, or no key holds, are marked. */
+export function marks(db: Db, events: AppEvent[], licenseId: number) {
+  const last = new Map<string, AppEvent>();
+  for (const e of [...events].sort((a, b) => a.at - b.at)) last.set(rowKey(e.serverId, e.username.toLowerCase()), e);
+  return [...last.values()].map((e) =>
+    db
+      .update(table)
+      .set({ removedAt: e.kind === 'remove' ? e.at : null })
+      .where(
+        and(
+          eq(table.serverId, e.serverId),
+          eq(table.usernameKey, e.username.toLowerCase()),
+          or(eq(table.licenseId, licenseId), isNull(table.licenseId)),
+          e.kind === 'remove' ? undefined : isNotNull(table.removedAt),
+        ),
+      ),
+  );
 }

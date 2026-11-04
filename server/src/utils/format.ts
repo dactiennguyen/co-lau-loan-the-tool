@@ -30,6 +30,15 @@ export const lastDayInput = (expiresAt: number) => vnDate(expiresAt - 1);
 /** Today in Vietnam, "yyyy-mm-dd". */
 export const today = (now: number) => vnDate(now);
 
+/** Midnight in Vietnam that began the day of `ms`. */
+export const startOfDay = (ms: number) => Date.parse(`${vnDate(ms)}T00:00:00Z`) - VN_OFFSET_MS;
+
+/** "10:09", the time of day in Vietnam. */
+export const clock = (ms: number) => new Date(ms + VN_OFFSET_MS).toISOString().slice(11, 16);
+
+/** The same day in Vietnam. */
+export const sameDay = (a: number, b: number) => vnDate(a) === vnDate(b);
+
 /** The day `n` days after "yyyy-mm-dd". */
 export const addDays = (date: string, n: number) => new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 

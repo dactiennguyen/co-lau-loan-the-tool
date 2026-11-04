@@ -1,5 +1,6 @@
 // The shapes the server works with: rows of the tables (from db/schema.ts), and what the app sends.
-import type { accounts, admins, licenses } from '../db/schema.ts';
+import type { LOG_GROUPS } from '../config/constants.ts';
+import type { accounts, admins, licenses, logs } from '../db/schema.ts';
 
 export type Admin = typeof admins.$inferSelect;
 /** An account as the admin page lists it. */
@@ -18,13 +19,26 @@ export interface Stamped {
   changed: Changed;
 }
 
+/** What the app did to one of its accounts, as POST /api/license/sync tells it ("events"): added, removed, edited,
+ * or added by Nhập JSON; `at` epoch ms on the app's clock, `label` '' when not sent; `id` the app's id of the event, so
+ * that one sent again is logged once (none from an app that sends none). */
+export interface AppEvent {
+  id?: string;
+  at: number;
+  kind: 'add' | 'remove' | 'edit' | 'import';
+  username: string;
+  serverId: number;
+  label: string;
+}
+
 /** What the app sends to POST /api/license/sync: its key (as typed) and device id, the accounts that changed since its
- * last sync, and its Cài đặt (JSON, null when not sent). */
+ * last sync, its Cài đặt (JSON, null when not sent), and what it did to its accounts since then. */
 export interface LicenseSync {
   key: string;
   id: string;
   settings: string | null;
   accounts: Stamped[];
+  events: AppEvent[];
 }
 
 /** What POST /api/license/sync did. */
@@ -67,3 +81,35 @@ export type SyncRefusal = Refusal | 'inactive';
 
 /** A license row with how many accounts it last sent (Key page). */
 export type LicenseRow = License & { synced: number };
+
+/** What a row of the Log page is about, "<group>.<what>" (README.md#log):
+ * - key: POST /api/license/verify activated a key, or refused it (why: unknown, revoked, taken, released, expired);
+ * - sync: what a POST /api/license/sync took, when it took or refused something;
+ * - app: what the app of a key did to an account (the "events" of a sync);
+ * - admin: the admin's login and actions. */
+export type LogKind =
+  | 'key.activate'
+  | `key.${KeyRefusal}`
+  | 'sync.summary'
+  | `app.${AppEvent['kind']}`
+  | 'admin.login'
+  | 'admin.login_fail'
+  | 'admin.logout'
+  | 'admin.password'
+  | 'admin.create'
+  | 'admin.revoke'
+  | 'admin.restore'
+  | 'admin.release'
+  | 'admin.edit'
+  | 'admin.delete'
+  | 'admin.account_delete';
+
+/** Why POST /api/license/verify refused a key, as the Log page tells them apart: Refusal, and 'released' for the device
+ * Gỡ thiết bị took the key from (answered 'taken'). */
+export type KeyRefusal = Refusal | 'released';
+
+/** The groups of LogKind, as the Log page filters them. */
+export type LogGroup = (typeof LOG_GROUPS)[number];
+
+export type LogLevel = 'info' | 'warn' | 'danger';
+export type Log = typeof logs.$inferSelect;

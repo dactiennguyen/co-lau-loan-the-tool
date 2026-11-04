@@ -1,9 +1,11 @@
 // Keys, checked with Zod: what the app sends to POST /api/license/verify (as it opens and every hour) and to POST
-// /api/license/sync (its accounts), and the forms of the Key page (Tạo key, Sửa, Khoá). Each error of a form is that of
+// /api/license/sync (its accounts, and what it did to them), and the forms of the Key page (Tạo key, Sửa, Khoá). Each error of a form is that of
 // a field, so the page shows it under the field.
 import { z } from 'zod';
 import {
+  EVENT_ID,
   MAX_DURATION_DAYS,
+  MAX_EVENT_TEXT,
   MAX_HOSTNAME,
   MAX_LICENSE_ACCOUNTS,
   MAX_LICENSE_BATCH,
@@ -12,10 +14,11 @@ import {
   MAX_REVOKE_REASON,
   MAX_SETTINGS,
   MAX_SYNC_ACCOUNTS,
+  MAX_SYNC_EVENTS,
   MAX_VERSION,
 } from '../config/constants.ts';
 import { LICENSE } from '../config/messages.ts';
-import type { Changed, DurationUnit, LicenseSync, Verify } from '../models/index.ts';
+import type { AppEvent, Changed, DurationUnit, LicenseSync, Verify } from '../models/index.ts';
 import { endOfDay, type Term } from '../services/license.service.ts';
 import { today } from '../utils/format.ts';
 import { accountError, accountSchema } from './account.validator.ts';
@@ -52,6 +55,36 @@ const stamps = z
   .catch({})
   .transform((o) => Object.fromEntries(Object.entries(o).filter(([, t]) => typeof t === 'number' && Number.isFinite(t))) as Changed);
 
+/** One thing the app did to an account: its id (optional: apps before it send none), when (epoch ms), what, which
+ * account, and its label. Other fields are left out; an id that is not EVENT_ID makes the event a bad one. */
+const eventSchema = z.object({
+  id: z.string().regex(EVENT_ID).optional(),
+  at: z.number().finite().positive(),
+  kind: z.enum(['add', 'remove', 'edit', 'import']),
+  username: z
+    .string()
+    .trim()
+    .min(1)
+    .transform((s) => s.slice(0, MAX_EVENT_TEXT)),
+  serverId: z.int(),
+  label: clipped(MAX_EVENT_TEXT).optional().transform((s) => s ?? ''),
+}) satisfies z.ZodType<AppEvent, unknown>;
+
+/** What the app did to its accounts since its last sync: up to MAX_SYNC_EVENTS, none when not sent; one that is not
+ * such an event is left out. */
+const events = z
+  .array(z.unknown(), { error: LICENSE.notEvents })
+  .max(MAX_SYNC_EVENTS, LICENSE.tooManyEvents)
+  .optional()
+  .transform((list) =>
+    (list ?? []).flatMap((e) => {
+      const r = eventSchema.safeParse(e);
+      if (!r.success) return [];
+      const { id, ...event } = r.data;
+      return [id === undefined ? event : { id, ...event }];
+    }),
+  );
+
 export const syncSchema = z.object(
   {
     key: typedKey,
@@ -68,12 +101,14 @@ export const syncSchema = z.object(
         const text = s ? JSON.stringify(s) : null;
         return text && text.length <= MAX_SETTINGS ? text : null;
       }),
+    events,
   },
   { error: LICENSE.notObject },
 );
 
 /** A sync read from its JSON, or the reason it is refused: {"key", "id", "settings"?, "accounts": [{"account",
- * "changed"}]}. Each account is checked as POST /api/accounts checks it. */
+ * "changed"}], "events"?: [{"id"?, "at", "kind", "username", "serverId", "label"?}]}. Each account is checked as Nhập JSON of
+ * the app checks it; "accounts" may be empty, as for a sync of events only. */
 export function parseSync(body: string): LicenseSync | { error: string } {
   const read = json(body, LICENSE.badJson);
   if (!read.ok) return { error: read.error };

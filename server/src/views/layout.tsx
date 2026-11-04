@@ -1,6 +1,6 @@
 // The frame of every admin page and the parts the pages share. Views are hono/jsx components, written as React
 // components are and rendered to HTML on the Worker: every value put in them is escaped, so text from the database
-// cannot become markup. Plain HTML and CSS (styles.ts, a dark dashboard) with Lucide icons drawn inline (icons.ts): no
+// cannot become markup. Plain HTML and CSS (styles.ts, a dark dashboard) with Phosphor icons drawn inline (icons.ts): no
 // component library. The stylesheet and /assets/admin.js go in with the nonce of the page's Content-Security-Policy;
 // the script does all the page does on its own (dialogs, menus, filters, toasts), as the policy runs no inline script.
 import { raw } from 'hono/html';
@@ -11,11 +11,12 @@ import { STYLE } from './styles.ts';
 /** Where the script of the page is served from (public/, wrangler.toml [assets]). */
 export const SCRIPT_SRC = '/assets/admin.js';
 
-export type Section = 'accounts' | 'licenses' | 'password';
+export type Section = 'accounts' | 'licenses' | 'logs' | 'password';
 
 const SECTIONS: [Section, string, string][] = [
   ['accounts', '/admin', 'Nick'],
   ['licenses', '/admin/licenses', 'Key'],
+  ['logs', '/admin/logs', 'Log'],
   ['password', '/admin/password', 'Mật khẩu'],
 ];
 
@@ -170,8 +171,12 @@ export const None = () => <span class="faint">—</span>;
 
 export type PillKind = 'on' | 'off' | 'warn' | 'idle';
 
-/** A status: a dot and its text, green (on), red (off), orange (warn) or grey (idle). */
-export const Pill = ({ kind, children }: PropsWithChildren<{ kind: PillKind }>) => <span class={`pill ${kind}`}>{children}</span>;
+/** A status: a dot and its text, green (on), red (off), orange (warn) or grey (idle); `title` shows on hover. */
+export const Pill = ({ kind, title, children }: PropsWithChildren<{ kind: PillKind; title?: string }>) => (
+  <span class={`pill ${kind}`} title={title}>
+    {children}
+  </span>
+);
 
 type FieldProps = {
   name: string;

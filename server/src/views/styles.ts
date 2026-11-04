@@ -1,6 +1,6 @@
 // The stylesheet of the admin page, inline with the nonce of the page's Content-Security-Policy (views/layout.tsx): a
 // dark dashboard only. Tokens first (colors, radii, fonts), then the parts: top bar, stat cards, toolbar, segmented
-// pills, buttons, fields, tables, status pills, the menu of a row, dialogs, toasts, the login card. The fonts are served
+// pills, buttons, fields, tables, status pills, the menu of a row, the Log page, dialogs, toasts, the login card. The fonts are served
 // from /assets/fonts (scripts/build-client.mjs), as the policy takes fonts of this site only.
 export const STYLE = `
 @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/fonts/inter-vietnamese-wght-normal.woff2) format("woff2-variations");unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}
@@ -71,12 +71,14 @@ h1{font-size:20px;line-height:28px;font-weight:600;margin:0;letter-spacing:-.01e
 .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0 0 12px}
 .toolbar .grow{flex:1}
 .toolbar h1{margin-right:8px}
+.toolbar form{margin:0}
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
 
-/* Segmented pills: the state filter, and the two ways to end a key */
+/* Segmented pills: the state filter, the two ways to end a key, the level of the Log page (links) */
 .seg{display:inline-flex;padding:3px;gap:2px;border-radius:var(--r-control);background:var(--surface);border:1px solid var(--border)}
-.seg button,.seg label{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--muted);cursor:pointer;white-space:nowrap;transition:background var(--t),color var(--t)}
-.seg button:hover,.seg label:hover{color:var(--text)}
-.seg button[aria-pressed=true],.seg label:has(input:checked){background:var(--raised);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.seg button,.seg label,.seg a{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--muted);text-decoration:none;cursor:pointer;white-space:nowrap;transition:background var(--t),color var(--t)}
+.seg button:hover,.seg label:hover,.seg a:hover{color:var(--text)}
+.seg button[aria-pressed=true],.seg label:has(input:checked),.seg a[aria-current]{background:var(--raised);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
 .seg .n{color:var(--faint);font-variant-numeric:tabular-nums}
 .seg button[aria-pressed=true] .n{color:var(--muted)}
 .seg input{position:absolute;opacity:0;pointer-events:none}
@@ -167,11 +169,24 @@ a.tag:hover{border-color:var(--accent);color:var(--accent-text)}
 /* The menu of a row (popover) */
 .menu{position:fixed;inset:auto;margin:0;min-width:180px;padding:4px;border-radius:var(--r-card);border:1px solid var(--border);background:var(--raised);color:var(--text);box-shadow:0 12px 32px -8px rgba(0,0,0,.6)}
 .menu:popover-open{display:flex;flex-direction:column}
-.menu button{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--text);text-align:left;cursor:pointer}
-.menu button:hover,.menu button:focus-visible{background:#24242A;outline:none}
+.menu button,.menu a{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.menu button:hover,.menu button:focus-visible,.menu a:hover,.menu a:focus-visible{background:#24242A;outline:none}
 .menu button.danger{color:var(--danger)}
 .menu button.danger:hover,.menu button.danger:focus-visible{background:var(--danger-soft)}
 .menu hr{width:100%;height:1px;margin:4px 0;border:0;background:var(--border)}
+
+/* The Log page: the level of a row (a dot), how many times (×57) and from when to when, Xem thêm */
+.lvl{display:block;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.lvl.warn{background:var(--warn)}
+.lvl.danger{background:var(--danger);box-shadow:0 0 0 3px var(--danger-soft)}
+th.col-lvl,td.col-lvl{width:1%;padding-right:0}
+tr.danger td{background:rgba(239,68,68,.045)}
+.msg{overflow-wrap:anywhere}
+.times{display:inline-grid;place-items:center;height:18px;margin-left:8px;padding:0 6px;border-radius:9px;background:var(--warn-soft);color:var(--warn);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;vertical-align:1px}
+tr.danger .times{background:var(--danger-soft);color:var(--danger)}
+.kind-filter{width:170px}
+.more{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.removed{margin-top:4px}
 
 /* Dialogs */
 dialog{width:min(480px,calc(100vw - 32px));padding:0;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);box-shadow:0 24px 64px -16px rgba(0,0,0,.7)}

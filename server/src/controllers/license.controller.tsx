@@ -1,10 +1,13 @@
 // Keys: POST /api/license/verify and /api/license/sync for the app, and the Key page with Tạo key and the actions of a
-// key.
+// key, each one a line of the Log page.
 import { MAX_ACCOUNTS_BODY, MAX_VERIFY_BODY } from '../config/constants.ts';
-import { HTTP } from '../config/messages.ts';
+import { HTTP, LOG } from '../config/messages.ts';
 import * as accounts from '../services/account.service.ts';
 import * as licenses from '../services/license.service.ts';
+import * as logs from '../services/log.service.ts';
+import type { License } from '../models/index.ts';
 import type { Ctx } from '../types/app.ts';
+import { keyName } from '../utils/format.ts';
 import { bodyText, clientIp, flash, flashError } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
 import { check, formObject } from '../validators/form.ts';
@@ -23,7 +26,8 @@ export async function verify(c: Ctx) {
 
 /** POST /api/license/sync: the accounts and Cài đặt of the app of a key that works on its device (it holds the key,
  * which is neither revoked nor ended), merged into the accounts kept (services/account.service.ts#syncLicense), new
- * ones up to the key's max_accounts. Else 403 with why ("code"). */
+ * ones up to the key's max_accounts; and what the app did to its accounts ("events"), each a line of the Log page.
+ * The answer says what was merged, and how many events were logged ("logged"). Else 403 with why ("code"). */
 export async function sync(c: Ctx) {
   const text = await bodyText(c, MAX_ACCOUNTS_BODY);
   if (text === null) return c.json({ error: HTTP.accountsTooLarge }, 413);
@@ -34,8 +38,8 @@ export async function sync(c: Ctx) {
   const l = held.license;
   try {
     const done = await accounts.syncLicense(c.var.db, s.accounts, l, licenses.sourceOf(l));
-    await licenses.synced(c.var.db, l.id, s.settings);
-    return c.json(done);
+    const logged = await licenses.synced(c.var.db, l, s.settings, s.events, done, clientIp(c));
+    return c.json({ ...done, logged });
   } catch (e) {
     if (e instanceof accounts.Busy) return c.json({ error: e.message }, 503);
     throw e;
@@ -62,26 +66,55 @@ export async function create(c: Ctx) {
   if (!form.ok) return show(c, { errors: form.fields, values: formObject(c.var.form) }, 400);
   const { note, maxAccounts, term, count } = form.data;
   const ids = await licenses.createMany(c.var.db, note, maxAccounts, term, count);
+  const first = count === 1 ? await licenses.get(c.var.db, ids[0]!) : undefined;
+  await logs.add(c.var.db, {
+    ...logs.byAdmin(clientIp(c)),
+    kind: 'admin.create',
+    licenseId: first?.id ?? null,
+    message: LOG.created(count, first ? keyName(first) : note),
+    detail: { ids, maxAccounts, term },
+  });
   return c.redirect(`/admin/licenses?created=${ids.join(',')}`, 303);
 }
 
-/** Khoá, Mở khoá, Gỡ thiết bị, Sửa, Xoá; back to the page with what was done. */
+/** Khoá, Mở khoá, Gỡ thiết bị, Sửa, Xoá; back to the page with what was done. Each is a line of the Log page, naming
+ * the key as it was (read before), when it changed something: Khoá of a key not revoked, Mở khoá of a revoked one, Gỡ
+ * thiết bị of a key a device holds, Sửa that changes something, Xoá of a key that is there. The line goes in the batch of
+ * the action, Sửa's after it. */
 export async function act(c: Ctx) {
   const id = Number(c.req.param('id'));
   const action = c.req.param('action') as 'revoke' | 'restore' | 'release' | 'edit' | 'delete';
   const db = c.var.db;
   const form = formObject(c.var.form);
+  const l = await licenses.get(db, id);
+  /** The line of the action, for a key that is there. */
+  const lineOf = (message: (name: string, l: License) => string): logs.Entry | undefined =>
+    l && {
+      ...logs.byAdmin(clientIp(c)),
+      kind: `admin.${action}`,
+      licenseId: id,
+      // Gỡ thiết bị: the device it is taken from.
+      ...(action === 'release' ? { deviceId: l.deviceId ?? '', hostname: l.hostname } : {}),
+      message: message(keyName(l), l),
+    };
   if (action === 'edit') {
     const e = check(editForm, form);
     if (!e.ok) return show(c, { error: e.error }, 400);
+    const changes = l ? licenses.changes(l, e.data) : [];
     const done = await licenses.edit(db, id, e.data);
+    const line = lineOf((name) => LOG.edited(name, changes));
+    if (done === 'saved' && changes.length && line) await logs.add(db, line);
     return c.redirect(done === 'saved' ? '/admin/licenses?done=saved' : `/admin/licenses?error=${done}`, 303);
   }
-  const done = {
-    revoke: () => licenses.revoke(db, id, revokeForm.parse(form).reason).then(() => 'revoked'),
-    restore: () => licenses.restore(db, id).then(() => 'restored'),
-    release: () => licenses.release(db, id).then(() => 'released'),
-    delete: () => licenses.remove(db, id).then(() => 'removed'),
-  }[action];
-  return c.redirect(`/admin/licenses?done=${await done()}`, 303);
+  const reason = revokeForm.parse(form).reason;
+  // Each with its line, and the notice of the page after it (FLASH).
+  const acts: Record<typeof action, [() => Promise<void>, string]> = {
+    revoke: [() => licenses.revoke(db, id, reason, lineOf((name) => LOG.revoked(name, reason))), 'revoked'],
+    restore: [() => licenses.restore(db, id, lineOf(LOG.restored)), 'restored'],
+    release: [() => licenses.release(db, id, lineOf((name, l) => LOG.released(name, l.hostname))), 'released'],
+    delete: [() => licenses.remove(db, id, lineOf((name, l) => LOG.deleted(name, l.key))), 'removed'],
+  };
+  const [run, done] = acts[action];
+  await run();
+  return c.redirect(`/admin/licenses?done=${done}`, 303);
 }

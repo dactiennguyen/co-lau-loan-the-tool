@@ -1,5 +1,5 @@
 // Key: four stat cards; the keys filtered by state (segmented pills) and searched on the page; each with its state, end,
-// accounts and the device that holds it, and its menu (Sửa, Khoá / Mở khoá, Gỡ thiết bị, Xoá). Tạo key, Sửa, Khoá and
+// accounts and the device that holds it, and its menu (Sửa, Khoá / Mở khoá, Gỡ thiết bị, Xem log, Xoá). Tạo key, Sửa, Khoá and
 // the key just made are native dialogs, filled and opened by client/admin.ts.
 import {
   DEFAULT_DURATION,
@@ -303,7 +303,8 @@ function Device({ l, now }: { l: LicenseRow; now: number }) {
   );
 }
 
-/** The menu of a key (a popover): Sửa, Khoá or Mở khoá, Gỡ thiết bị (when a device holds it), Xoá; each opens its dialog. */
+/** The menu of a key (a popover): Sửa, Khoá or Mở khoá, Gỡ thiết bị (when a device holds it), Xoá, each opening its
+ * dialog; Xem log, the Log page of the key. */
 function Menu({ l }: { l: LicenseRow }) {
   const at = `/admin/licenses/${l.id}`;
   const who = keyName(l);
@@ -347,6 +348,10 @@ function Menu({ l }: { l: LicenseRow }) {
               danger: true,
             }),
           )}
+        <a role="menuitem" href={`/admin/logs?key=${l.id}`}>
+          <Icon name="scroll" />
+          Xem log
+        </a>
         <hr />
         {item(
           'trash-2',

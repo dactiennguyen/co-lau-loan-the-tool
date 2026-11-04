@@ -1,6 +1,8 @@
 // The models: the tables of the D1 database for Drizzle. migrations/*.sql stays what makes them (yarn db:migrate): each
 // table here mirrors its CREATE TABLE there, column for column, so the two must change together.
-import { index, integer, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import type { LogKind } from '../models/index.ts';
 
 /** The one admin of the admin page (services/auth.service.ts). */
 export const admins = sqliteTable('admins', {
@@ -43,6 +45,9 @@ export const accounts = sqliteTable(
     /** The key whose app sent it last (POST /api/license/sync, migrations/0006_licenses_sync.sql); null when an API
      * token sent it before 0007, or that key was deleted. */
     licenseId: integer('license_id'),
+    /** When the app of a key removed it (an event "remove" of POST /api/license/sync, migrations/0008_logs.sql): the
+     * server keeps it; null while the app has it. */
+    removedAt: integer('removed_at'),
   },
   (t) => [unique().on(t.serverId, t.usernameKey), index('accounts_license').on(t.licenseId)],
 );
@@ -78,4 +83,37 @@ export const licenses = sqliteTable('licenses', {
   createdAt: integer('created_at').notNull(),
 });
 
-export const schema = { admins, sessions, loginFailures, accounts, licenses };
+/** What happened, for the Log page (services/log.service.ts, migrations/0008_logs.sql): one row each, or one row with
+ * `count` for the refusals of one IP, code and key within a window. */
+export const logs = sqliteTable(
+  'logs',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    at: integer('at').notNull(),
+    kind: text('kind').$type<LogKind>().notNull(),
+    level: text('level', { enum: ['info', 'warn', 'danger'] }).notNull().default('info'),
+    /** The key it is about; null for none. Kept when the key is deleted. */
+    licenseId: integer('license_id'),
+    actor: text('actor', { enum: ['admin', 'app', 'ip'] }).notNull(),
+    ip: text('ip').notNull().default(''),
+    deviceId: text('device_id').notNull().default(''),
+    hostname: text('hostname').notNull().default(''),
+    username: text('username').notNull().default(''),
+    serverId: integer('server_id'),
+    message: text('message').notNull(),
+    /** JSON of more about it; null for nothing more. */
+    detail: text('detail'),
+    count: integer('count').notNull().default(1),
+    lastAt: integer('last_at').notNull(),
+    /** The app's id of an event of a sync, unique for its key: an event sent again is not logged twice. */
+    eventId: text('event_id'),
+  },
+  (t) => [
+    index('logs_at').on(t.at),
+    index('logs_last_at').on(t.lastAt),
+    index('logs_kind_ip_at').on(t.kind, t.ip, t.at),
+    uniqueIndex('logs_event').on(t.licenseId, t.eventId).where(sql`event_id IS NOT NULL`),
+  ],
+);
+
+export const schema = { admins, sessions, loginFailures, accounts, licenses, logs };

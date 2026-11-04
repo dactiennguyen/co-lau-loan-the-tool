@@ -1,5 +1,5 @@
 // What the server says to people, in one place: the admin page's notices and errors, and the API's errors.
-import { FAIL_LIMIT, MAX_LICENSE_ACCOUNTS, MAX_LICENSE_BATCH, MIN_PASSWORD } from './constants.ts';
+import { FAIL_LIMIT, LOG_WINDOW_MS, MAX_LICENSE_ACCOUNTS, MAX_LICENSE_BATCH, MAX_SYNC_EVENTS, MIN_PASSWORD } from './constants.ts';
 
 /** The fixed lines a redirect may ask a page to show (?done=…): never text from the URL itself. */
 export const FLASH: Record<string, string> = {
@@ -64,10 +64,63 @@ export const LICENSE = {
   badId: 'id phải là 64 ký tự hex (SHA-256)',
   notList: '"accounts" phải là một danh sách',
   tooMany: (n: number) => `Tối đa ${n} nick một lần`,
+  notEvents: '"events" phải là một danh sách',
+  tooManyEvents: `Tối đa ${MAX_SYNC_EVENTS} việc (events) một lần`,
   maxAccounts: `Số nick tối đa là số nguyên từ 1 tới ${MAX_LICENSE_ACCOUNTS.toLocaleString('vi-VN')}`,
   count: `Số lượng là số nguyên từ 1 tới ${MAX_LICENSE_BATCH}`,
   duration: 'Thời hạn là số nguyên từ 1, tối đa 100 năm',
   date: 'Chọn ngày hết hạn',
   pastDate: 'Ngày hết hạn phải từ hôm nay trở đi',
   mode: 'Chọn cách tính hạn',
+};
+
+const WINDOW = `${LOG_WINDOW_MS / 60_000} phút`;
+const host = (hostname: string) => hostname || 'không tên';
+const nick = (username: string, serverId: number | null) => `${username}${serverId === null ? '' : ` (S${serverId})`}`;
+
+/** The lines of the Log page (services/log.service.ts): each row says what happened in one line. */
+export const LOG = {
+  activated: (key: string, hostname: string) => `Kích hoạt key ${key} trên máy ${host(hostname)}`,
+  /** A refusal of POST /api/license/verify, by why: the key as typed (unknown) or its name. */
+  refused: {
+    unknown: (typed: string, hostname: string) => `Nhập key sai "${typed || '(trống)'}" trên máy ${host(hostname)}`,
+    revoked: (key: string, hostname: string) => `Key ${key} đã bị khoá: máy ${host(hostname)} bị từ chối`,
+    taken: (key: string, hostname: string) => `Key ${key} đang ở máy khác: máy ${host(hostname)} bị từ chối`,
+    released: (key: string, hostname: string) => `Key ${key} đã gỡ khỏi máy ${host(hostname)}: máy đó bị từ chối`,
+    expired: (key: string, hostname: string, day: string) => `Key ${key} hết hạn ngày ${day}: máy ${host(hostname)} bị từ chối`,
+  },
+  /** A row of a key not known or of failed logins counted LOG_DANGER_COUNT times or more: what the IP did, how many
+   * times (`n`, filled in by the database). */
+  burst: {
+    unknown: (ip: string, n: string) => `IP ${ip} nhập key sai ${n} lần trong ${WINDOW}`,
+    login: (ip: string, n: string) => `IP ${ip} đăng nhập sai ${n} lần trong ${WINDOW}`,
+  },
+  /** What the app of a key did to an account. */
+  app: {
+    add: (username: string, serverId: number) => `Thêm nick ${nick(username, serverId)}`,
+    remove: (username: string, serverId: number) => `Xoá nick ${nick(username, serverId)} trên máy`,
+    edit: (username: string, serverId: number) => `Sửa nick ${nick(username, serverId)}`,
+    import: (username: string, serverId: number) => `Nhập nick ${nick(username, serverId)} từ JSON`,
+  },
+  /** What a sync took, from its parts ("thêm 3 nick", …). */
+  synced: (parts: string[]) => `Đồng bộ: ${parts.join(', ')}`,
+  added: (n: number) => `thêm ${n} nick`,
+  updated: (n: number) => `cập nhật ${n} nick`,
+  overMax: (n: number) => `${n} nick vượt số nick tối đa`,
+  ofOther: (n: number) => `${n} nick của key khác`,
+  login: 'Đăng nhập trang quản trị',
+  loginFail: (username: string) => `Đăng nhập sai (tên "${username}")`,
+  logout: 'Đăng xuất',
+  password: 'Đổi mật khẩu quản trị',
+  created: (n: number, name: string) => (n === 1 ? `Tạo key ${name}` : `Tạo ${n} key${name ? `: ${name}` : ''}`),
+  revoked: (key: string, reason: string) => `Khoá key ${key}${reason ? `: ${reason}` : ''}`,
+  restored: (key: string) => `Mở khoá key ${key}`,
+  released: (key: string, hostname: string) => `Gỡ máy ${host(hostname)} khỏi key ${key}`,
+  edited: (key: string, changes: string[]) => `Sửa key ${key}: ${changes.join(', ')}`,
+  deleted: (key: string, full: string) => `Xoá key ${key} (${full})`,
+  accountDeleted: (username: string, serverId: number) => `Xoá nick ${nick(username, serverId)} khỏi server`,
+  /** The changes Sửa made. */
+  note: (from: string, to: string) => `ghi chú "${from}" → "${to}"`,
+  maxAccounts: (from: number, to: number) => `số nick ${from} → ${to}`,
+  ends: (from: string, to: string) => `hạn ${from} → ${to}`,
 };

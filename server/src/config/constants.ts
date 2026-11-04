@@ -50,9 +50,36 @@ export const MAX_OS = 60;
 export const MAX_VERSION = 30;
 /** The most accounts one POST /api/license/sync takes, and the largest Cài đặt kept for a key. */
 export const MAX_SYNC_ACCOUNTS = 500;
+/** The most "events" (what the app did to its accounts) one POST /api/license/sync takes; the longest username and
+ * label of one that is kept; the app's id of one: 1 to 40 of these characters. */
+export const MAX_SYNC_EVENTS = 200;
+export const MAX_EVENT_TEXT = 100;
+export const EVENT_ID = /^[A-Za-z0-9_-]{1,40}$/;
 export const MAX_SETTINGS = 4 * 1024;
 /** Vietnam's time (UTC+7, no summer time): a date of the Key page ends at midnight there. */
 export const VN_OFFSET_MS = 7 * 3600_000;
+
+// ---- Log (the Log page, services/log.service.ts) ------------------------------------------------------------------
+
+/** The groups of the kinds of a log row (models/index.ts#LogKind), as the Log page filters them. */
+export const LOG_GROUPS = ['key', 'sync', 'app', 'admin'] as const;
+/** Rows older than this are deleted: as the Log page opens, and with LOG_PRUNE_CHANCE as one is written. */
+export const LOG_KEEP_MS = 90 * 24 * 3600_000;
+export const LOG_PRUNE_CHANCE = 0.01;
+/** Refusals of a key not known, and failed logins, of one IP within this are one row, counted; LOG_DANGER_COUNT of them
+ * make it 'danger'. */
+export const LOG_WINDOW_MS = 10 * 60_000;
+export const LOG_DANGER_COUNT = 10;
+/** Refusals of a known key (revoked, taken, released, ended) from one IP within this are one row, counted, never
+ * 'danger': the app of a key that ended checks every hour, a row a day. */
+export const LOG_KEY_WINDOW_MS = 24 * 3600_000;
+/** The key as typed is kept to this length. */
+export const LOG_TYPED_KEY = 40;
+/** Rows a page of the Log page shows, then Xem thêm; the longest search kept. */
+export const LOG_PAGE = 100;
+export const MAX_LOG_SEARCH = 100;
+/** The most bound parameters of one D1 query: a write of many rows goes in pieces under it. */
+export const D1_MAX_PARAMS = 100;
 
 // ---- HTTP ---------------------------------------------------------------------------------------------------------
 

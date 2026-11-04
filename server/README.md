@@ -17,6 +17,7 @@ App desktop gọi `POST /api/license/verify` (kiểm tra key) và `POST /api/lic
 | Trang quản trị | `/admin` | Đăng nhập. Lần đầu là `admin` / `admin` |
 | Danh sách nick (xem, hiện mật khẩu, xoá, Tải JSON, lọc theo key) | `/admin` | Đăng nhập |
 | Key (tạo, khoá, mở khoá, gỡ thiết bị, sửa, xoá) | `/admin/licenses` | Đăng nhập |
+| Log (key kích hoạt và bị từ chối, việc của app, việc của admin) | `/admin/logs` | Đăng nhập |
 | Đổi mật khẩu quản trị | `/admin/password` | Đăng nhập |
 | App kiểm tra key | `POST /api/license/verify` | Key |
 | App gửi nick lên | `POST /api/license/sync` | Key đã kích hoạt trên máy đó |
@@ -148,7 +149,7 @@ Hết hạn, bị khoá hay bị xoá thì app khoá ở lần kiểm tra tới,
     | `expired` | "Key đã hết hạn ngày dd/mm/yyyy", kèm `expiresAt` |
 
 - JSON sai thì trả 400, quá 4 KB thì 413.
-- Mỗi lần kiểm tra là 2 truy vấn D1. Các lần ghi có điều kiện:
+- Mỗi lần kiểm tra là 2 truy vấn D1. Lần kích hoạt ghi [Log](#log) trong cùng batch với lần ghi key; mỗi lần từ chối ghi Log bằng 1 truy vấn nữa; lần kiểm tra mỗi giờ mà key dùng được thì không ghi Log. Các lần ghi có điều kiện:
   - Lần kích hoạt chỉ ghi khi key còn chưa máy nào giữ, nên hai máy nhập cùng lúc thì chỉ một máy giữ được.
   - Key đã hết hạn thì không được kích hoạt.
   - Lần ghi của máy đang giữ key chỉ đi khi máy đó còn giữ key và key chưa bị khoá. Admin khoá hay gỡ đúng lúc máy đang kiểm tra thì máy đó không bao giờ nhận `ok: true`.
@@ -182,11 +183,42 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
 - Tên hiển thị hay mật khẩu để trống không xoá cái đã có. Thời điểm vượt giờ server tính bằng giờ server.
 - **Nhập JSON** trên app thì các nick vừa nhập tính là "từ trước" (thời điểm 0). Sửa tay sau đó mới tính là sửa lúc đó.
 - Hai lần gửi cùng lúc cho cùng một nick: server chỉ ghi khi dòng còn y như lúc đọc (cả key đang giữ nó). Dòng đã bị lần gửi kia đổi thì đọc lại và gộp lại, thử tối đa 3 lần. Quá nữa thì trả 503 để app gửi lại sau.
-- Xoá nick trên app không xoá trên server; xoá ở trang Nick.
+- Xoá nick trên app không xoá trên server: server chỉ đánh dấu (xem `events` dưới đây), trang Nick hiện "Đã xoá ở máy". Xoá hẳn ở trang Nick.
 
-**Kết quả:** server trả `{"added", "updated", "unchanged", "kept", "repeated", "refused", "taken"}`. JSON sai thì 400, quá 1 MB thì 413.
+**Việc của app (`events`)**, không bắt buộc: những gì app đã làm với nick kể từ lần gửi trước. Gửi được cả khi `accounts` rỗng:
 
-**Giới hạn D1:** mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi.
+```json
+{"key": "…", "id": "<64 ký tự hex>", "accounts": [],
+ "events": [{"id": "7f3c9a2e-01", "at": 1762059000000, "kind": "remove", "username": "manina", "serverId": 24, "label": "Nick chính"}]}
+```
+
+- `id` tuỳ chọn (app cũ không gửi): mã của việc do app đặt, 1–40 ký tự `A-Z a-z 0-9 - _`. Cùng một key, việc có `id` đã ghi rồi thì không ghi lại: app gửi lại (không nhận được câu trả lời) cũng không ghi Log hai lần. `id` sai dạng thì cả việc đó bị bỏ qua.
+- `at`: lúc làm trên app (ms, số dương). Server làm tròn xuống ms nguyên, và giữ trong khoảng 90 ngày trước tới giờ server (sớm hơn tính là 90 ngày trước, muộn hơn tính là giờ server). `kind`: `add` (thêm), `remove` (xoá), `edit` (sửa), `import` (Nhập JSON). `username` (không rỗng, giữ tối đa 100 ký tự), `serverId` (số nguyên). `label` tuỳ chọn.
+- Tối đa 200 việc một lần (hơn thì 400; `events` không phải danh sách cũng 400). Việc sai dạng thì bỏ qua, trường thừa bỏ qua.
+- Mỗi việc là một dòng [Log](#log) ("Thêm nick manina (S24)", "Xoá nick manina (S24) trên máy", "Sửa nick …", "Nhập nick … từ JSON"), kèm key, mã máy và tên máy của key.
+- `remove` **không xoá** nick trên server: nick đó (cùng server game, tài khoản không phân biệt hoa thường), nếu key này hay không key nào giữ, được ghi `removed_at` = `at`. Trang Nick hiện "Đã xoá ở máy" (rê chuột xem lúc nào) và có nút lọc riêng các nick này. `add`, `import`, `edit`, hay chính nick đó gửi lại trong `accounts`, thì bỏ đánh dấu. Nhiều việc cho cùng một nick thì việc có `at` sau cùng quyết định.
+
+**Kết quả:** server trả `{"added", "updated", "unchanged", "kept", "repeated", "refused", "taken", "logged"}`, `logged` là số việc trong `events` lần này mới ghi Log (việc có `id` đã ghi rồi không tính). JSON sai thì 400, quá 1 MB thì 413. Lần gửi có nick mới hay bị từ chối (`added` hay `refused` > 0) thì ghi thêm một dòng Log tóm tắt ("Đồng bộ: thêm 3 nick, 1 nick của key khác"); lần gửi chỉ cập nhật thì không.
+
+**Giới hạn D1:** mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi. Lần đồng bộ của key, các dấu "Đã xoá ở máy" và các dòng Log đi chung một batch nữa.
+
+## Log
+
+Trang **Log** (`/admin/logs`) ghi lại những gì đã xảy ra, mới nhất trước, giữ 90 ngày (dòng cũ hơn bị xoá mỗi khi mở trang Log, và thỉnh thoảng khi ghi). Bảng `logs` ([0008_logs.sql](migrations/0008_logs.sql)).
+
+**Ghi những gì:**
+- **Key** (`POST /api/license/verify`): lần kích hoạt ("Kích hoạt key … trên máy …") và mọi lần từ chối: key sai, bị khoá, ở máy khác, đã gỡ khỏi máy, hết hạn; kèm IP, mã máy, tên máy và key đúng như đã gõ (tối đa 40 ký tự). Lần kiểm tra mỗi giờ mà key dùng được thì không ghi.
+- **Đồng bộ**: một dòng tóm tắt khi lần gửi có nick mới hay bị từ chối.
+- **Nick ở app**: từng việc trong `events` ([Đồng bộ nick](#đồng-bộ-nick)).
+- **Admin**: đăng nhập, đăng nhập sai, đăng xuất, đổi mật khẩu, tạo key (một dòng mỗi lần bấm: "Tạo 8 key: …"), khoá (kèm lý do), mở khoá, gỡ thiết bị, sửa (đổi gì), xoá key, xoá nick ở trang Nick; kèm IP. Thao tác không đổi gì thì không ghi: khoá key đang khoá, mở khoá key không khoá, gỡ thiết bị của key chưa có máy, sửa mà không đổi gì. Dòng Log đi chung batch với thao tác (sửa key thì ghi sau, một truy vấn nữa).
+
+**Gộp theo IP:** các lần từ chối của cùng một IP, cùng một lý do và cùng một key là **một dòng**: đếm số lần (`×57`) và ghi từ lúc nào tới lúc nào, mức cảnh báo.
+- Key sai (key không có) và đăng nhập sai: gộp trong 10 phút; từ 10 lần trở lên là mức nguy hiểm và dòng đó ghi "IP 1.2.3.4 nhập key sai 57 lần trong 10 phút".
+- Key có thật (bị khoá, ở máy khác, đã gỡ khỏi máy, hết hạn): gộp trong 24 giờ, không bao giờ thành nguy hiểm. App có key hết hạn kiểm tra mỗi giờ thì mỗi ngày một dòng `×24`. Hai key khác nhau từ một IP là hai dòng.
+
+Mỗi lần chỉ tốn một truy vấn D1 (cập nhật dòng đang có hay thêm dòng mới, chung một batch).
+
+**Trang Log:** bốn thẻ số (Hôm nay, Cảnh báo 24h, Nhập key sai 24h, Việc của app 24h); lọc theo mức (Tất cả, Cảnh báo, Nguy hiểm), loại (Key, Đồng bộ, Nick ở app, Admin), key, và ô tìm (nội dung, IP, nick, tên máy). Lọc trên server (`?level=warn|danger&kind=key|sync|app|admin&key=<id>&q=…`). Việc xảy ra sau cùng lên đầu (dòng gộp tính theo lần cuối, `last_at`), mỗi trang 100 dòng, **Xem thêm** để xem tiếp (`before=<last_at>-<id>` của dòng cuối trang). Mỗi dòng: lúc nào (rê chuột xem giờ đầy đủ), mức, loại, nội dung (rê chuột xem chi tiết), ai làm (key, admin hay IP), IP và tên máy. Menu ⋮ của mỗi key trên trang Key có **Xem log** (`/admin/logs?key=<id>`).
 
 **Bỏ quản lý thiết bị:** trang Thiết bị, `POST /api/devices/hello` và `/api/devices/sync` đã bỏ. [0006_licenses_sync.sql](migrations/0006_licenses_sync.sql) xoá bảng `devices` cùng mọi thiết bị trong đó. Key thay cho việc duyệt từng máy.
 
@@ -216,21 +248,21 @@ Chia lớp như một backend thường gặp: request đi `routes/` → `middle
 | `src/app.ts` | Tạo app [Hono](https://hono.dev): middleware chung, gắn `/api` và `/admin`, trả lời đường dẫn lạ và lỗi |
 | `src/config/constants.ts` | Mọi con số và tên cố định: thời hạn phiên, giới hạn đăng nhập sai, độ dài tối đa, header bảo mật, CSP |
 | `src/config/messages.ts` | Mọi câu chữ server nói: thông báo, lỗi của trang quản trị và API |
-| `src/db/schema.ts` | Model: 6 bảng cho [Drizzle ORM](https://orm.drizzle.team). `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
+| `src/db/schema.ts` | Model: 6 bảng (cả `logs`) cho [Drizzle ORM](https://orm.drizzle.team). `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
 | `src/db/client.ts` | Kết nối Drizzle với D1 |
 | `src/models/` | Kiểu dữ liệu: dòng của từng bảng (suy ra từ schema), nick theo JSON của app, kiểm tra key và đồng bộ của app |
 | `src/types/app.ts` | Kiểu của app Hono: binding `DB`, biến của request (`db`, `form`, `me`) |
 | `src/routes/` | `api.routes.ts` (`/api`, CORS) và `admin.routes.ts` (`/admin`): đường dẫn nào, qua middleware nào, tới controller nào |
 | `src/middlewares/` | `context` (Drizzle, header bảo mật), `admin` (form cùng nguồn, bắt đăng nhập, bắt đổi mật khẩu mặc định) |
 | `src/controllers/` | Nhận request, gọi service, trả JSON hay trang (`<AccountsView … />`): `auth`, `account`, `license` (`.tsx`) |
-| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `account` (gộp từng mục khi đồng bộ, danh sách, Tải JSON), `license` (key: tạo, kiểm tra, kích hoạt) |
+| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `account` (gộp từng mục khi đồng bộ, đánh dấu "Đã xoá ở máy", danh sách, Tải JSON), `license` (key: tạo, kiểm tra, kích hoạt), `log` (ghi Log chung batch với việc nó ghi, gộp theo IP, trang Log, xoá dòng cũ) |
 | `src/validators/` | Kiểm dữ liệu bằng [Zod](https://zod.dev): nick (giống `backup::parse` của app), kiểm tra key và đồng bộ của app, các form admin (đăng nhập, đổi mật khẩu, tạo và sửa key, khoá key). `form.ts`: `check` trả dữ liệu hoặc lỗi theo từng ô, để trang hiện lỗi ngay dưới ô đó |
 | `src/views/` | Trang quản trị bằng JSX của Hono (`hono/jsx`, viết như component React, render ra HTML ở server): mọi giá trị chèn vào đều được escape. `layout.tsx` (khung trang, thanh trên, toast, và các phần dùng chung `Icon`, `Field`, `Select`, `Dialog`, `Pill`, `Stat`, `Table`, `Empty`, `Alert`, hộp xác nhận chung `actOf`), `styles.ts` (giao diện tối: màu, bo góc, font, từng phần), `icons.ts` (sinh tự động), và một file `*.view.tsx` mỗi trang |
 | `client/admin.ts` | Script chạy trên trình duyệt, HTML thường, không thư viện: toast (tự ẩn), Hiện/Ẩn và Chép (nút thành "Đã chép ✓"), các hộp thoại `<dialog>` (`data-open`, tự mở với `data-autoopen`, bấm ra ngoài là đóng), menu ⋮ của key (popover, đặt dưới nút, phím mũi tên, Escape, bấm ra ngoài là đóng), lọc theo trạng thái và ô tìm, hai cách tính hạn của Tạo key với Số ngày và Ngày hết hạn liên kết hai chiều, ô lọc theo key. `scripts/build-client.mjs` gói bằng esbuild vào `public/assets/admin.js` (khoảng 6 KB) và chép font vào `public/assets/fonts/`; Wrangler tự chạy trước `dev` và `deploy` (`[build]`), Cloudflare phục vụ các file đó trực tiếp (`[assets]`) |
-| `scripts/icons.mjs` | Sinh `src/views/icons.ts` từ [Lucide](https://lucide.dev) (`lucide-static`): icon vẽ thẳng bằng SVG (nét 1.75), không tải gì từ nơi khác. Thêm icon: thêm tên vào `NAMES` rồi `yarn icons` |
+| `scripts/icons.mjs` | Sinh `src/views/icons.ts` từ [Phosphor](https://phosphoricons.com) (`@phosphor-icons/core`), bản thường và duotone: icon vẽ thẳng bằng SVG, không tải gì từ nơi khác. Thêm icon: thêm tên vào `NAMES` rồi `yarn icons` |
 | `src/utils/` | `crypto` (PBKDF2, SHA-256), `http` (IP, cookie, body có giới hạn), `render` (trang kèm nonce của CSP), `format` (giờ Việt Nam) |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
-| `migrations/0001_init.sql` … `0007_drop_tokens.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens` (bỏ ở 0007), `accounts` (0001); `devices` (0002–0004, bỏ ở 0006); cột `changed` của `accounts` (0003); `licenses` (0005); cột `license_id` của `accounts` (0006) |
+| `migrations/0001_init.sql` … `0008_logs.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens` (bỏ ở 0007), `accounts` (0001); `devices` (0002–0004, bỏ ở 0006); cột `changed` của `accounts` (0003); `licenses` (0005); cột `license_id` của `accounts` (0006); `logs` và cột `removed_at` của `accounts` (0008) |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 

@@ -1,8 +1,10 @@
-// The accounts: the Nick page with Tải JSON and Xoá.
+// The accounts: the Nick page with Tải JSON and Xoá (a line of the Log page).
+import { LOG } from '../config/messages.ts';
 import * as accounts from '../services/account.service.ts';
 import * as licenses from '../services/license.service.ts';
+import * as logs from '../services/log.service.ts';
 import type { Ctx } from '../types/app.ts';
-import { flash } from '../utils/http.ts';
+import { clientIp, flash } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
 import { AccountsView } from '../views/accounts.view.tsx';
 
@@ -27,6 +29,16 @@ export async function download(c: Ctx) {
 }
 
 export async function remove(c: Ctx) {
-  await accounts.remove(c.var.db, Number(c.req.param('id')));
+  const gone = await accounts.remove(c.var.db, Number(c.req.param('id')));
+  if (gone) {
+    await logs.add(c.var.db, {
+      ...logs.byAdmin(clientIp(c)),
+      kind: 'admin.account_delete',
+      licenseId: gone.licenseId,
+      username: gone.username,
+      serverId: gone.serverId,
+      message: LOG.accountDeleted(gone.username, gone.serverId),
+    });
+  }
   return c.redirect('/admin?done=deleted', 303);
 }
