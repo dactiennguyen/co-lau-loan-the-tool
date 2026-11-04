@@ -13,14 +13,15 @@
 //
 // app.rs keeps the accounts and sessions and sends the UI what changed; commands.rs is what the UI can call; view.rs is what the
 // UI is sent (../src/api/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
-// update.rs updates the installed app from the GitHub releases; device.rs says hello to CLLT Server and locks a blocked
-// device; settings.rs is the Cài đặt of the app (settings.json);
+// update.rs updates the installed app from the GitHub releases; license.rs checks the key with CLLT Server (machine.rs is
+// this machine, sync.rs sends its accounts); settings.rs is the Cài đặt of the app (settings.json);
 // tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay).
 mod app;
 mod backup;
 mod battle_window;
 mod commands;
-mod device;
+mod license;
+mod machine;
 mod notify;
 mod paths;
 mod sample;
@@ -97,11 +98,8 @@ pub fn run() {
             }
             tauri_app.manage(Shared::new(app));
             app::spawn_flusher(tauri_app.handle().clone(), woken);
-            // Before --login-all: a device blocked at its last answer logs nothing in.
-            device::start(tauri_app.handle(), &accounts, sample);
-            if login_all && !tauri_app.state::<device::Devices>().blocked() {
-                tauri_app.state::<Shared>().with(|app| app.login_all());
-            }
+            // --login-all waits for the first yes of the key (license.rs).
+            license::start(tauri_app.handle(), &accounts, sample, login_all);
             update::start(tauri_app.handle(), sample);
             tray::create(tauri_app.handle())?;
             // The title of tauri.conf.json is the installed app's; the dev app says so (tauri.dev.conf.json cannot, as it
@@ -123,6 +121,9 @@ pub fn run() {
             commands::login,
             commands::logout,
             commands::login_all,
+            commands::license_status,
+            commands::activate_license,
+            commands::recheck_license,
             commands::logout_all,
             commands::fight,
             commands::quest,
@@ -189,7 +190,6 @@ pub fn run() {
             commands::faults,
             commands::export_faults,
             commands::clear_faults,
-            commands::device_status,
             commands::update_status,
             commands::check_update,
             commands::install_update,

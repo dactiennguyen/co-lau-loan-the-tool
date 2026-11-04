@@ -1,4 +1,4 @@
-// The accounts of a JSON sent to POST /api/accounts or POST /api/devices/sync, checked with Zod as backup::parse of the
+// The accounts of a JSON sent to POST /api/accounts or POST /api/license/sync, checked with Zod as backup::parse of the
 // app reads them.
 import { z } from 'zod';
 import { DEFAULT_SERVER_ID, EXPORT_FORMAT } from '../config/constants.ts';

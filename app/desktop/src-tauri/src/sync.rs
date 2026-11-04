@@ -1,17 +1,18 @@
-// Đồng bộ nick (server/README.md#đồng-bộ-nick): after each allowed hello (device.rs), the accounts that changed since
-// the last sync go to CLLT Server (POST /api/devices/sync), whole, with their passwords, proxy and Cài đặt đánh, and the
-// Cài đặt of the app with them when those changed.
+// Đồng bộ nick (server/README.md#đồng-bộ-nick): while the key holds (license.rs), after each check of it and every 15
+// minutes, the accounts that changed since the last sync go to CLLT Server (POST /api/license/sync, with the key and
+// this machine's id), whole, with their passwords, proxy and Cài đặt đánh, and the Cài đặt of the app with them when
+// those changed. The server takes them for that key, new accounts only up to its Số nick tối đa.
 //
 // Two devices may have the same account. For each field of each account (label, password, proxy, fight, …) the app keeps
-// in sync.json, beside accounts.json, a hash of its value and the time it saw that value change; the server keeps each
+// in license-sync.json, beside accounts.json, a hash of its value and the time it saw that value change; the server keeps each
 // field as the device that changed it last sent it. So the same account sent twice makes one, an edit on each device is
-// kept, and a device with an old copy does not undo a newer edit. At the first sync (no sync.json) every value counts as
+// kept, and a device with an old copy does not undo a newer edit. At the first sync (no license-sync.json) every value counts as
 // from before (time 0): a device joining late does not overwrite what the others sent.
 //
 // Nhập JSON brings old data, not an edit made now: what it adds or replaces counts as from before too (`imported`), so
 // it fills in an account the server lacks but does not undo a later edit of another device.
 //
-// sync.json holds hashes and times, no password. Nothing comes back: the server keeps a copy, the app does not read it.
+// license-sync.json holds hashes and times, no password. Nothing comes back: the server keeps a copy, the app does not read it.
 use crate::app::Shared;
 use crate::settings::Settings;
 use cllt_core::accounts::Account;
@@ -28,7 +29,7 @@ const TIMEOUT: Duration = Duration::from_secs(30);
 /// Fields that name the account: they find it on the server and are never merged.
 const IDENTITY: [&str; 2] = ["username", "serverId"];
 
-/// sync.json: what the server last took.
+/// license-sync.json: what the server last took.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
     /// By server and username in lower case, as the server keys them.
@@ -49,7 +50,7 @@ struct Fields {
     sent: String,
 }
 
-/// Accounts of Nhập JSON not yet marked in sync.json (`imported`, then `run`).
+/// Accounts of Nhập JSON not yet marked in license-sync.json (`imported`, then `run`).
 static IMPORTED: Mutex<Vec<Account>> = Mutex::new(Vec::new());
 
 /// Nhập JSON added or replaced these: the next sync counts their values as from before (time 0).
@@ -57,7 +58,7 @@ pub fn imported(accounts: &[Account]) {
     IMPORTED.lock().unwrap().extend_from_slice(accounts);
 }
 
-/// Each field of `accounts` whose value sync.json has not got is recorded with time 0, as at the first sync; the server
+/// Each field of `accounts` whose value license-sync.json has not got is recorded with time 0, as at the first sync; the server
 /// then takes it only where it has nothing later.
 fn mark_old(state: &mut State, accounts: &[Account]) {
     for a in accounts {
@@ -75,7 +76,7 @@ fn mark_old(state: &mut State, accounts: &[Account]) {
     }
 }
 
-/// What one sync sends, and sync.json once the server took it.
+/// What one sync sends, and license-sync.json once the server took it.
 #[derive(Debug)]
 pub struct Plan {
     pub accounts: Vec<Value>,
@@ -95,7 +96,7 @@ fn key(a: &Account) -> String {
 }
 
 /// The accounts to send, each with the time each field changed, and the Cài đặt if they changed. A field whose value
-/// differs from the one of sync.json is stamped `now` (0 at the `first` sync); an account is sent when it differs as a
+/// differs from the one of license-sync.json is stamped `now` (0 at the `first` sync); an account is sent when it differs as a
 /// whole from the one the server took.
 pub fn plan(
     state: &State,
@@ -149,25 +150,29 @@ fn load(file: &Path) -> Option<State> {
     serde_json::from_slice(&std::fs::read(file).ok()?).ok()
 }
 
-/// What the server did, as POST /api/devices/sync answers (server/src/models/index.ts, Merged).
+/// What the server did, as POST /api/license/sync answers (server/src/models/index.ts, Merged); `refused` the accounts
+/// not taken: new ones over the Số nick tối đa of the key, and those another key holds.
 #[derive(Debug, Deserialize)]
 struct Merged {
     added: u32,
     updated: u32,
     unchanged: u32,
     kept: u32,
+    #[serde(default)]
+    refused: u32,
+    /// Of those refused, the accounts another key holds: never written.
+    #[serde(default)]
+    taken: u32,
 }
 
-/// sync.json, readable by the owner only: its hashes come from the passwords.
+/// license-sync.json, readable by the owner only: its hashes come from the passwords.
 fn write(file: &Path, state: &State) -> Result<(), String> {
     cllt_core::accounts::write_private(file, &serde_json::to_vec(state).unwrap_or_default())
 }
 
 async fn post(server: &str, body: &Value) -> reqwest::Result<Merged> {
-    let _ = rustls::crypto::ring::default_provider().install_default();
-    let client = reqwest::Client::builder().timeout(TIMEOUT).build()?;
-    client
-        .post(format!("{server}/api/devices/sync"))
+    crate::machine::client(TIMEOUT)?
+        .post(format!("{server}/api/license/sync"))
         .json(body)
         .send()
         .await?
@@ -176,7 +181,8 @@ async fn post(server: &str, body: &Value) -> reqwest::Result<Merged> {
         .await
 }
 
-/// One sync of device `id`; `file` is sync.json. A failure leaves sync.json as it was, to send it all again next time.
+/// One sync of machine `id` with the key `key`; `file` is license-sync.json. A failure leaves it as it was, to send it
+/// all again next time.
 pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &str, file: &Path) {
     let Some(shared) = app.try_state::<Shared>() else {
         return;
@@ -220,12 +226,26 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &s
         json!({ "id": id, "key": key, "settings": plan.settings, "accounts": plan.accounts });
     match post(server, &body).await {
         Ok(m) => {
-            if let Err(e) = write(file, &plan.next) {
+            let mut next = plan.next;
+            if m.refused > 0 {
+                // Which new accounts the key had no room for is not said: every account new to the server is sent
+                // again next time, with the times it has (the server takes those it already has as unchanged).
+                let before = saved.as_ref();
+                for (k, f) in next.accounts.iter_mut() {
+                    if before
+                        .and_then(|s| s.accounts.get(k))
+                        .is_none_or(|b| b.sent.is_empty())
+                    {
+                        f.sent.clear();
+                    }
+                }
+            }
+            if let Err(e) = write(file, &next) {
                 eprintln!("Đồng bộ nick: không ghi được {}: {e}", file.display());
             }
             eprintln!(
-                "Đồng bộ nick: {} nick mới, {} cập nhật, {} như cũ, {} có mục máy khác sửa sau",
-                m.added, m.updated, m.unchanged, m.kept
+                "Đồng bộ nick: {} nick mới, {} cập nhật, {} như cũ, {} có mục máy khác sửa sau, {} không nhận ({} thuộc key khác)",
+                m.added, m.updated, m.unchanged, m.kept, m.refused, m.taken
             );
         }
         Err(e) => eprintln!("Đồng bộ nick: không gửi được ({e}), gửi lại lần sau"),

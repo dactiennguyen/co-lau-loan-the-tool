@@ -5,7 +5,7 @@ import type { LogLine } from "@/api/types";
 import { append, listenThenLoad } from "@/store/sync";
 
 /** Keeps the store in step with src-tauri: every account, the log of the selected one, the update of the app and
- * whether this device may run.
+ * the key of the app.
  * Mounted once, in App. */
 export function useSync() {
   useEffect(() => {
@@ -18,8 +18,8 @@ export function useSync() {
     return listenThenLoad(api.onUpdate, api.updateStatus, (now, early) => updateChanged(early[early.length - 1] ?? now), updateChanged);
   }, []);
   useEffect(() => {
-    const { deviceChanged } = useStore.getState();
-    return listenThenLoad(api.onDevice, api.deviceStatus, (now, early) => deviceChanged(early[early.length - 1] ?? now), deviceChanged);
+    const { licenseChanged } = useStore.getState();
+    return listenThenLoad(api.onLicense, api.licenseStatus, (now, early) => licenseChanged(early[early.length - 1] ?? now), licenseChanged);
   }, []);
   useEffect(() => {
     // The close button of the window asks first (tray.rs), in place of the dialog open, which comes back after.

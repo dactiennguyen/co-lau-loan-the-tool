@@ -5,9 +5,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const NAMES = [
-  'add', 'admin_panel_settings', 'block', 'cancel', 'check', 'check_circle', 'computer', 'content_copy', 'delete',
-  'devices', 'download', 'edit', 'error', 'group', 'info', 'key', 'key_off', 'lock_open', 'lock_reset', 'login', 'logout',
-  'password', 'person', 'search', 'sync', 'sync_disabled', 'visibility', 'visibility_off', 'warning',
+  'add', 'admin_panel_settings', 'cancel', 'check', 'check_circle', 'computer', 'content_copy', 'delete', 'download',
+  'edit', 'error', 'event', 'group', 'info', 'key', 'key_off', 'license', 'link_off', 'lock', 'lock_open', 'lock_reset',
+  'login', 'logout', 'password', 'person', 'save', 'search', 'visibility', 'visibility_off', 'warning',
 ];
 
 const require = createRequire(import.meta.url);

@@ -3,7 +3,7 @@
 // async: Tauri runs them off the main thread, and the file is written outside the App lock.
 use crate::app::Shared;
 use crate::backup;
-use crate::device::{self, DeviceView, Devices};
+use crate::license::{self, LicenseView, Licenses};
 use crate::settings::{self, Exported, ExportedFaults, OnClose, Settings, SettingsView};
 use crate::store::{BattleFilter, BattleStats, FaultList, StoredBattle};
 use crate::update::{self, UpdateView};
@@ -38,8 +38,8 @@ pub fn logs(shared: State<Shared>, id: u64) -> Vec<LogLine> {
 }
 
 #[tauri::command]
-pub fn login(shared: State<Shared>, devices: State<Devices>, id: u64) {
-    if !devices.blocked() {
+pub fn login(shared: State<Shared>, licenses: State<Licenses>, id: u64) {
+    if licenses.valid() {
         shared.with(|app| app.login(id));
     }
 }
@@ -50,8 +50,8 @@ pub fn logout(shared: State<Shared>, id: u64) {
 }
 
 #[tauri::command]
-pub fn login_all(shared: State<Shared>, devices: State<Devices>) {
-    if !devices.blocked() {
+pub fn login_all(shared: State<Shared>, licenses: State<Licenses>) {
+    if licenses.valid() {
         shared.with(|app| app.login_all());
     }
 }
@@ -527,10 +527,23 @@ pub async fn battle_history(
     .map_err(|e| e.to_string())?
 }
 
-/// Quản lý thiết bị: the id of this device and whether it may run.
+/// Key: the key kept (its middle hidden) and where it stands.
 #[tauri::command]
-pub fn device_status(app: AppHandle) -> DeviceView {
-    device::view(&app)
+pub fn license_status(app: AppHandle) -> LicenseView {
+    license::view(&app)
+}
+
+/// Kích hoạt of the key screen: the server checks the key with this device; its no is the error shown.
+#[tauri::command]
+pub async fn activate_license(app: AppHandle, key: String) -> Result<LicenseView, String> {
+    license::activate(&app, key).await
+}
+
+/// Thử lại of the key screen: the key kept is checked again now.
+#[tauri::command]
+pub fn recheck_license(app: AppHandle) -> LicenseView {
+    license::recheck(&app);
+    license::view(&app)
 }
 
 /// Tự cập nhật: the version running and where its update stands.
@@ -633,9 +646,13 @@ pub async fn add_account(
     server_id: i32,
     label: String,
     proxy: Option<ProxyForm>,
+    licenses: State<'_, Licenses>,
 ) -> Result<u64, String> {
     shared
-        .add(form(username, password, server_id, label, proxy, false)?)
+        .add(
+            form(username, password, server_id, label, proxy, false)?,
+            licenses.max_accounts(),
+        )
         .await
 }
 
@@ -962,9 +979,12 @@ pub async fn import_accounts(
     text: String,
     replace: bool,
     settings: bool,
+    licenses: State<'_, Licenses>,
 ) -> Result<backup::Imported, String> {
     let parsed = backup::parse(&text)?;
-    let mut done = shared.import(parsed.accounts, replace).await?;
+    let mut done = shared
+        .import(parsed.accounts, replace, licenses.max_accounts())
+        .await?;
     // Old data, not an edit made now: it does not undo a later edit of another device (sync.rs).
     crate::sync::imported(&done.accounts);
     if let Some(s) = parsed.settings.filter(|_| settings) {

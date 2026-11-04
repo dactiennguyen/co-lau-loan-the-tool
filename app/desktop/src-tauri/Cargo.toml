@@ -28,14 +28,12 @@ serde_json.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 tauri-plugin-updater = "2.14"
-# device.rs: the hello to CLLT Server, with the reqwest and rustls (ring) the updater already brings; the machine id of
+# license.rs, sync.rs, machine.rs: the key and the sync with CLLT Server, with the reqwest and rustls (ring) the updater already brings; the machine id of
 # the system, hashed with sha2; the host name.
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 sha2 = "0.10"
 machine-uid = "0.5"
-# device.rs: the device key, 32 bytes of the system's random source (already in the tree).
-getrandom = "0.3"
 gethostname = "1"
 tauri-plugin-notification = "2"
 

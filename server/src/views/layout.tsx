@@ -11,11 +11,11 @@ import { STYLE } from './styles.ts';
 /** Where the script of the page is served from (public/, wrangler.toml [assets]). */
 export const SCRIPT_SRC = '/assets/admin.js';
 
-export type Section = 'accounts' | 'devices' | 'tokens' | 'password';
+export type Section = 'accounts' | 'licenses' | 'tokens' | 'password';
 
 const SECTIONS: [Section, string, string, IconName][] = [
   ['accounts', '/admin', 'Nick', 'group'],
-  ['devices', '/admin/devices', 'Thiết bị', 'devices'],
+  ['licenses', '/admin/licenses', 'Key', 'license'],
   ['tokens', '/admin/tokens', 'API token', 'key'],
   ['password', '/admin/password', 'Đổi mật khẩu', 'password'],
 ];
@@ -138,6 +138,8 @@ type FieldProps = {
   autofocus?: boolean;
   minlength?: number;
   maxlength?: number;
+  /** The earliest day a date field takes, "yyyy-mm-dd". */
+  min?: string;
   /** Shown under the field. */
   hint?: string;
   /** What the server found wrong with it, shown under it in red. */

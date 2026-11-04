@@ -33,7 +33,7 @@ import type {
   StatPlan,
   StoredBattle,
   UpdateView,
-  DeviceView,
+  LicenseView,
 } from "./types";
 
 export interface LogEvent {
@@ -169,9 +169,13 @@ export interface Api {
    * message to show. */
   installUpdate(): Promise<void>;
   onUpdate(handler: (update: UpdateView) => void): Promise<UnlistenFn>;
-  /** Quản lý thiết bị: whether this device may run; the "device" event brings each answer of the server. */
-  deviceStatus(): Promise<DeviceView>;
-  onDevice(handler: (device: DeviceView) => void): Promise<UnlistenFn>;
+  /** Key: the key kept and where it stands; the "license" event brings each change. */
+  licenseStatus(): Promise<LicenseView>;
+  /** Kích hoạt: the server checks the key with this machine; rejects with its reason. */
+  activateLicense(key: string): Promise<LicenseView>;
+  /** Thử lại: the key kept is checked again now. */
+  recheckLicense(): Promise<LicenseView>;
+  onLicense(handler: (license: LicenseView) => void): Promise<UnlistenFn>;
   /** Resolves to the id of the new account; rejects with a message to show. */
   addAccount(account: AccountForm): Promise<number>;
   /** An empty password keeps the saved one; rejects with a message to show. */
@@ -321,8 +325,10 @@ const tauri: Api = {
   checkUpdate: () => invoke("check_update"),
   installUpdate: () => invoke("install_update"),
   onUpdate: (handler) => listen<UpdateView>("update", (e) => handler(e.payload)),
-  deviceStatus: () => invoke("device_status"),
-  onDevice: (handler) => listen<DeviceView>("device", (e) => handler(e.payload)),
+  licenseStatus: () => invoke("license_status"),
+  activateLicense: (key) => invoke("activate_license", { key }),
+  recheckLicense: () => invoke("recheck_license"),
+  onLicense: (handler) => listen<LicenseView>("license", (e) => handler(e.payload)),
 };
 
 interface Sample extends AppState {
@@ -340,6 +346,31 @@ const loadSample = () =>
     .then((r) => (r.ok ? (r.json() as Promise<Sample>) : Promise.reject(new Error(r.statusText))))
     .catch((): Sample => ({ rev: 0, accounts: [], accountsError: null, logs: {} })));
 const nothing = async () => {};
+
+const validLicense = (key: string): LicenseView => ({
+  key: key || "CLLT-AB12-…-GH78",
+  state: "valid",
+  expiresAt: Date.now() + 3650 * 86_400_000,
+  maxAccounts: 100,
+  activatedAt: Date.now(),
+  checkedAt: Date.now(),
+});
+let previewLicense: LicenseView = ((state) => {
+  switch (state) {
+    case "missing":
+    case "checking":
+      return { key: state === "checking" ? "CLLT-AB12-…-GH78" : "", state };
+    case "refused":
+      return { key: "CLLT-AB12-…-GH78", state, code: "expired", message: "Key đã hết hạn ngày 01/11/2026" };
+    case "unreachable":
+      return { key: "CLLT-AB12-…-GH78", state, message: "Không kết nối được server kiểm tra key: error sending request" };
+    case "valid":
+      return validLicense("");
+    default:
+      return { key: "", state: "off" };
+  }
+})(typeof location === "undefined" ? null : new URLSearchParams(location.search).get("license"));
+const licenseListeners = new Set<(l: LicenseView) => void>();
 
 const preview: Api = {
   state: () => loadSample(),
@@ -461,8 +492,20 @@ const preview: Api = {
   checkUpdate: nothing,
   installUpdate: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không cập nhật")),
   onUpdate: async () => () => {},
-  deviceStatus: async () => ({ id: "", state: "off" }),
-  onDevice: async () => () => {},
+  // ?license=missing (or refused, unreachable, checking, valid) shows the key screen in the preview; Kích hoạt takes
+  // any key but "sai".
+  licenseStatus: async () => previewLicense,
+  activateLicense: async (key) => {
+    if (key.trim().toLowerCase() === "sai") throw new Error("Key không đúng");
+    previewLicense = validLicense(key.trim().toUpperCase());
+    licenseListeners.forEach((h) => h(previewLicense));
+    return previewLicense;
+  },
+  recheckLicense: async () => previewLicense,
+  onLicense: async (handler) => {
+    licenseListeners.add(handler);
+    return () => licenseListeners.delete(handler);
+  },
   battleState: async () => null,
   openBattleWindow: async (id) => {
     window.open(`${location.pathname}?battle=${id}`, "_blank");

@@ -58,6 +58,12 @@ const paths = {
   ),
   gem: <path d="M6 3h12l3.5 6L12 21 2.5 9zM2.5 9h19M9 3l3 6 3-6M12 9v12" />,
   shield: <path d="M12 3 20 6v6c0 4.6-3.4 8.1-8 9-4.6-.9-8-4.4-8-9V6z" />,
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4.5" />
+      <path d="m11.2 11.8 9.3-9.3M17.5 5.5l3 3M14.5 8.5l2 2" />
+    </>
+  ),
   crosshair: (
     <>
       <circle cx="12" cy="12" r="8" />

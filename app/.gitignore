@@ -5,9 +5,11 @@ accounts.json
 # The Cài đặt of the desktop app (desktop/src-tauri/src/settings.rs); local only.
 settings.json
 
-# The last answer of CLLT Server about this device (desktop/src-tauri/src/device.rs); local only.
+# The key of the app and what its last sync sent (desktop/src-tauri/src/license.rs, sync.rs); local only.
+license.json
+license-sync.json
+# Left by Quản lý thiết bị before 1.1.8 (the app removes them when it starts).
 device.json
-# The key of this device at CLLT Server, and what its last sync sent (device.rs, sync.rs); local only.
 device.key
 sync.json
 

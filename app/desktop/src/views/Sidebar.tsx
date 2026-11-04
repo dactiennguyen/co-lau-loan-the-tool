@@ -8,6 +8,7 @@ import { logoutAllText, sessions } from "@/store/sessions";
 import type { Account } from "@/api/types";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { AccountCard } from "./AccountCard";
+import { LicenseLine } from "./LicenseLine";
 import { UpdateBox } from "./UpdateBox";
 
 /** The menu of an account: log in, or log out (cancel while connecting); edit; remove once it has no session. */
@@ -122,6 +123,7 @@ export function Sidebar() {
       {menu && menuAccount && (
         <Menu x={menu.x} y={menu.y} label={`Nick ${menuAccount.label}`} items={accountMenu(menuAccount, open)} onClose={closeMenu} />
       )}
+      <LicenseLine />
       <UpdateBox />
       <div className="flex gap-1.5">
         <Button kind="outline" icon="bolt" block disabled={order.length === 0} onClick={api.loginAll}>

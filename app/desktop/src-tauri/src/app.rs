@@ -197,9 +197,12 @@ impl Shared {
 
     /// Adds the account once accounts.json holds it; nothing is added when the file cannot be written, nor when its
     /// proxy is on and does not reach the game server.
-    pub async fn add(&self, account: Account) -> Result<u64, String> {
+    pub async fn add(&self, account: Account, max: Option<usize>) -> Result<u64, String> {
         let _turn = self.saving.lock().await;
         self.with(|app| app.unique(&account, None))?;
+        if let Some(why) = crate::license::over_limit(max, self.with(|app| app.entries.len()), 1) {
+            return Err(why);
+        }
         if needs_check(None, account.proxy.as_ref()) {
             check(&self.server(), account.proxy.as_ref().unwrap()).await?;
         }
@@ -389,10 +392,19 @@ impl Shared {
     /// when added on the machine that exported them, and Kiểm tra of Sửa nick tests one. A session already running goes
     /// on as it logged in: a replaced account counts from its next login. Nothing changes when the file cannot be
     /// written.
-    pub async fn import(&self, accounts: Vec<Account>, replace: bool) -> Result<Imported, String> {
+    pub async fn import(
+        &self,
+        accounts: Vec<Account>,
+        replace: bool,
+        max: Option<usize>,
+    ) -> Result<Imported, String> {
         let _turn = self.saving.lock().await;
         let (path, list, steps) = self.with(|app| {
             let steps = backup::plan(&accounts, replace, |a| app.find(a));
+            let adding = steps.iter().filter(|s| matches!(s, Step::Add)).count();
+            if let Some(why) = crate::license::over_limit(max, app.entries.len(), adding) {
+                return Err(why);
+            }
             let (path, mut list) = app.saved(None, None)?;
             for (step, account) in steps.iter().zip(&accounts) {
                 match step {
@@ -1447,12 +1459,12 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("cllt-desktop-{}", std::process::id()));
         let path = dir.join("accounts.json");
         let shared = Shared::new(App::new(None, path.clone(), channel().0));
-        let id = block_on(shared.add(account("a"))).unwrap();
+        let id = block_on(shared.add(account("a"), None)).unwrap();
         assert_eq!(accounts::load(&path).unwrap().len(), 1);
         assert_eq!(shared.with(|app| app.entries.len()), 1);
 
         // The same account twice would log itself out.
-        assert!(block_on(shared.add(account("A"))).is_err());
+        assert!(block_on(shared.add(account("A"), None)).is_err());
 
         // Tự sửa đồ is saved on its own, and the edit form (which does not send it) keeps it. A save names only what it
         // changed: the second keeps the first, as two tabs saving at once must.
@@ -1516,9 +1528,9 @@ mod tests {
 
         // A file that did not read is never written over: adding fails, and so does removing, which says so and keeps
         // the account.
-        let id = block_on(shared.add(account("b"))).unwrap();
+        let id = block_on(shared.add(account("b"), None)).unwrap();
         shared.with(|app| app.load_error = Some("bad".into()));
-        assert!(block_on(shared.add(account("c"))).is_err());
+        assert!(block_on(shared.add(account("c"), None)).is_err());
         assert!(block_on(shared.remove(id))
             .unwrap_err()
             .contains("accounts.json đang lỗi"));
@@ -1531,10 +1543,13 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("cllt-import-{}", std::process::id()));
         let path = dir.join("accounts.json");
         let shared = Shared::new(App::new(None, path.clone(), channel().0));
-        let id = block_on(shared.add(Account {
-            label: "Cũ".into(),
-            ..account("a")
-        }))
+        let id = block_on(shared.add(
+            Account {
+                label: "Cũ".into(),
+                ..account("a")
+            },
+            None,
+        ))
         .unwrap();
         let repair = FightSettings {
             repair: true,
@@ -1554,7 +1569,7 @@ mod tests {
         ];
 
         // Without Ghi đè the account the list has stays as it was; "B" repeats "b" and counts once.
-        let done = block_on(shared.import(json.clone(), false)).unwrap();
+        let done = block_on(shared.import(json.clone(), false, None)).unwrap();
         assert_eq!((done.added, done.replaced, done.skipped), (1, 0, 2));
         let saved = accounts::load(&path).unwrap();
         assert_eq!(
@@ -1568,7 +1583,7 @@ mod tests {
         assert!(!saved[0].fight.repair);
 
         // With it, "a" takes the settings of the JSON but keeps its label and password, which the JSON left empty.
-        let done = block_on(shared.import(json, true)).unwrap();
+        let done = block_on(shared.import(json, true, None)).unwrap();
         assert_eq!((done.added, done.replaced, done.skipped), (0, 2, 1));
         let saved = accounts::load(&path).unwrap();
         assert_eq!(
@@ -1583,10 +1598,24 @@ mod tests {
         assert_eq!(shared.with(|app| app.find(&account("A"))), Some(id));
         assert_eq!(shared.with(|app| app.accounts_of(&[id]).len()), 1);
 
+        // The key allows 3 accounts: one more is added, two more are refused whole, and Ghi đè of those it has is not
+        // adding; Thêm nick then stops at 3.
+        let over = vec![account("c"), account("d")];
+        let err = block_on(shared.import(over, false, Some(3))).unwrap_err();
+        assert!(err.contains("tối đa 3 nick"), "{err}");
+        assert_eq!(shared.with(|app| app.entries.len()), 2);
+        let done =
+            block_on(shared.import(vec![account("a"), account("c")], true, Some(3))).unwrap();
+        assert_eq!((done.added, done.replaced), (1, 1));
+        let err = block_on(shared.add(account("d"), Some(3))).unwrap_err();
+        assert_eq!(err, "Key chỉ cho tối đa 3 nick (đang có 3)");
+        assert!(block_on(shared.add(account("d"), Some(0))).is_err());
+        assert_eq!(shared.with(|app| app.entries.len()), 3);
+
         // A file that did not read is never written over.
         shared.with(|app| app.load_error = Some("bad".into()));
-        assert!(block_on(shared.import(vec![account("c")], false)).is_err());
-        assert_eq!(shared.with(|app| app.entries.len()), 2);
+        assert!(block_on(shared.import(vec![account("e")], false, None)).is_err());
+        assert_eq!(shared.with(|app| app.entries.len()), 3);
         std::fs::remove_dir_all(dir).ok();
     }
 
@@ -1614,7 +1643,7 @@ mod tests {
             ..account("a")
         };
         // Off, it is saved as it is, untested.
-        let id = block_on(shared.add(with(off.clone()))).unwrap();
+        let id = block_on(shared.add(with(off.clone()), None)).unwrap();
         assert_eq!(accounts::load(&path).unwrap()[0].proxy, Some(off.clone()));
         // Turned on, it must reach the game server first: nothing changes when it does not.
         let on = Proxy {
@@ -1631,10 +1660,13 @@ mod tests {
         );
         assert!(!err.contains("s3cret"));
         assert_eq!(accounts::load(&path).unwrap()[0].proxy, Some(off.clone()));
-        assert!(block_on(shared.add(with(Proxy {
-            enabled: true,
-            ..off.clone()
-        })))
+        assert!(block_on(shared.add(
+            with(Proxy {
+                enabled: true,
+                ..off.clone()
+            }),
+            None
+        ))
         .is_err());
         // Left off with another label: no test, and the empty password keeps the saved one.
         let edit = Account {

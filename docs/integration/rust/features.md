@@ -398,26 +398,29 @@ Dạng JSON: mỗi nick có đúng các khoá của `accounts.json`, `settings` 
 
 **Lưu ý an toàn:** JSON chứa mật khẩu ở dạng chữ thường. Ứng dụng khác trên máy đọc được clipboard. Không gửi file hay JSON này cho người khác.
 
-## Thiết bị
+## Key
 
-Mỗi máy chạy app được quản lý trên [CLLT Server](../../../server/README.md#thiết-bị) (`https://colau.olachat.net/admin/devices`). Code ở `desktop/src-tauri/src/device.rs` và [DeviceGate.tsx](../../../app/desktop/src/views/DeviceGate.tsx).
+App chỉ cho đăng nhập nick khi có một key còn hạn của [CLLT Server](../../../server/README.md#key) (admin tạo ở trang **Key**, `https://colau.olachat.net/admin/licenses`). Code ở `desktop/src-tauri/src/license.rs`, `machine.rs`, `sync.rs`, [LicenseGate.tsx](../../../app/desktop/src/views/LicenseGate.tsx) và [LicenseLine.tsx](../../../app/desktop/src/views/LicenseLine.tsx). Key thay cho Quản lý thiết bị của các bản trước 1.1.8 (báo danh, chặn máy, Cho đồng bộ): app mới xoá `device.json`, `device.key` và `sync.json` cũ.
 
-- **Mã thiết bị:** SHA-256 của mã máy do hệ điều hành giữ (thư viện `machine-uid`: `MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux), kèm tên app. Gỡ app rồi cài lại vẫn là một thiết bị. Mã gốc không rời máy.
-- **Báo về:** ngay khi mở app, rồi 15 phút một lần, app gửi `POST /api/devices/hello`: mã thiết bị, khoá thiết bị, tên máy, hệ điều hành, phiên bản app, và **tài khoản cùng server game của mọi nick, không có mật khẩu**.
-- **Khoá thiết bị** ([server/README.md#khoá-thiết-bị](../../../server/README.md#khoá-thiết-bị)): lần đầu mở, app tạo 32 byte ngẫu nhiên, lưu ở `device.key` cạnh `accounts.json`, chỉ chủ máy đọc được. Server giữ khoá đầu tiên nhận được; từ đó hello hay đồng bộ thiếu khoá đó đều bị từ chối, nên biết mã thiết bị thôi thì không giả được máy. Không tạo hay ghi được khoá thì app báo danh không có khoá và không đồng bộ.
-- **Máy mới** được dùng ngay. Admin chặn sau trên trang Thiết bị.
-- **Máy bị chặn:**
-  - hộp **Thiết bị đã bị khoá** che cả cửa sổ: "Thiết bị này đã bị khoá, vui lòng liên hệ admin", lý do admin ghi, và 12 ký tự đầu của mã thiết bị để gửi cho admin. Hộp không đóng được, kể cả Escape, và nằm trên cả hộp Cập nhật bắt buộc;
-  - mọi nick bị đăng xuất; Đăng nhập, Đăng nhập tất cả và `--login-all` không làm gì.
-  - Admin bỏ chặn thì hộp tự đóng ở lần báo tiếp theo (tối đa 15 phút).
-- **Không kết nối được server** (mất mạng, server lỗi): app giữ câu trả lời cuối, lưu trong `device.json` cạnh `accounts.json`. Máy đã bị chặn vẫn khoá; máy được dùng, hay chưa từng hỏi được, vẫn dùng bình thường.
-- **Đồng bộ nick lên server** (chỉ chiều lên, app không tải gì về; `desktop/src-tauri/src/sync.rs`, [server/README.md#đồng-bộ-nick](../../../server/README.md#đồng-bộ-nick)):
-  - chỉ khi lần báo được phép **và** server trả `"sync": true` (admin đã bấm **Cho đồng bộ** cho máy, và khoá đúng), app mới gửi `POST /api/devices/sync` kèm khoá, với những nick đã đổi kể từ lần gửi trước. Mỗi nick gửi nguyên vẹn, kể cả mật khẩu, proxy, Cài đặt đánh. Cài đặt của app gửi kèm khi đổi;
-  - máy chưa được duyệt **không gửi gì**: trước bản 1.1.8 app vẫn gửi trọn bộ mật khẩu mỗi 15 phút, server chỉ từ chối sau khi đã nhận;
-  - `sync.json` cạnh `accounts.json` nhớ mã băm và thời điểm đổi của từng mục, không chứa mật khẩu, chỉ chủ máy đọc được (mã băm làm từ mật khẩu). Server gộp nick trùng của nhiều máy theo từng mục, lần sửa sau thắng. Lần gửi đầu tính mọi mục là "từ trước", nên không đè máy khác;
+- **Nhập key:** chưa có key thì hộp **Nhập key để dùng app** che cả cửa sổ, không đóng được, kể cả Escape. Nhập key (chữ hoa hay thường, có gạch hay không đều được) rồi bấm **Kích hoạt**. Server đồng ý thì app lưu key vào `license.json` cạnh `accounts.json` (chỉ chủ máy đọc được); các lần mở sau app tự kiểm tra lại, không hỏi nữa.
+- **Một key, một máy:** lần kiểm tra đầu tiên gắn key với mã máy. Mã máy là SHA-256 của mã do hệ điều hành giữ (thư viện `machine-uid`: `MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux) kèm tên app: gỡ app rồi cài lại vẫn là một máy, mã gốc không rời máy. Máy khác nhập key đó thì bị từ chối "Key đã được kích hoạt trên máy khác". Đổi máy thì admin bấm **Gỡ thiết bị** trên trang Key.
+- **Kiểm tra:** gửi `POST /api/license/verify` (key, mã thiết bị, tên máy, hệ điều hành, phiên bản app, số nick) mỗi lần mở app, rồi **1 giờ một lần** khi app đang mở. Server ghi lại thông tin máy mỗi lần.
+- **Trong lúc kiểm tra key lúc mở app** thanh bên hiện "Đang kiểm tra key…" (hộp key không nháy lên); bấm Đăng nhập lúc đó chưa có tác dụng.
+- **Hộp Cập nhật bắt buộc** nằm trên hộp key: cập nhật không cần key.
+- **Lúc mở app chưa kiểm tra được** (mất mạng, server lỗi): không đăng nhập được nick; hộp hiện lý do, nút **Thử lại**, và tự hỏi lại 30 giây một lần. `--login-all` chờ tới lần kiểm tra được đầu tiên.
+- **Đang chạy mà một lần kiểm tra mất mạng:** các nick chạy tiếp, 5 phút sau hỏi lại. Tới đúng giờ hết hạn thì vẫn khoá. Giờ hết hạn tính theo đồng hồ của server (app trừ độ lệch đồng hồ máy theo `Date` của câu trả lời), nên đồng hồ máy chạy sai không làm key hết hạn sớm hay muộn.
+- **Server trả lỗi khác** (key quá dài, dữ liệu sai): hộp hiện đúng lời server, không phải "không kết nối được".
+- **Key bị từ chối** (sai, bị khoá, ở máy khác, hết hạn): mọi nick bị đăng xuất, hộp hiện lý do của server, nhập được key khác, hoặc **Thử lại** sau khi admin mở khoá hay gia hạn. App vẫn kiểm tra key cũ mỗi giờ.
+- **Số nick tối đa:** **Thêm nick** và **Nhập JSON** bị chặn khi vượt ("Key chỉ cho tối đa N nick"); nhập JSON vượt thì không nhập nick nào. Nick đã có vẫn giữ và chạy, kể cả khi admin hạ giới hạn xuống dưới số nick đang có; Nhập JSON chỉ ghi đè nick đã có vẫn được.
+- **Thanh bên** hiện "Key hạn dd/mm/yyyy" và số nick / tối đa (đỏ khi đầy); rê chuột xem key (che phần giữa), ngày kích hoạt và lần kiểm tra cuối.
+- **Đồng bộ nick lên server** (chỉ chiều lên, app không tải gì về; [server/README.md#đồng-bộ-nick](../../../server/README.md#đồng-bộ-nick)):
+  - khi key còn hạn, sau mỗi lần kiểm tra và 15 phút một lần, app gửi `POST /api/license/sync` kèm key và mã máy, với những nick đã đổi kể từ lần gửi trước. Không cần admin duyệt. Mỗi nick gửi nguyên vẹn, kể cả mật khẩu, proxy, Cài đặt đánh. Cài đặt của app gửi kèm khi đổi;
+  - server chỉ nhận từ máy đang giữ key, key không bị khoá và còn hạn. Nick mới chỉ được nhận tới **số nick tối đa** của key; nick key đã có thì luôn được cập nhật. Nick đang thuộc key khác thì không bao giờ bị ghi đè (máy khác gửi trùng tên nick không lấy được mật khẩu hay proxy của nó). Trang Nick ghi nick thuộc key nào;
+  - `license-sync.json` cạnh `accounts.json` nhớ mã băm và thời điểm đổi của từng mục, không chứa mật khẩu, chỉ chủ máy đọc được (mã băm làm từ mật khẩu). Server gộp nick trùng của nhiều máy theo từng mục, lần sửa sau thắng. Lần gửi đầu tính mọi mục là "từ trước", nên không đè máy khác;
   - **Nhập JSON** thì các nick vừa nhập tính là "từ trước", nên không đè lần sửa mới hơn của máy khác;
-  - gửi lỗi thì lần sau gửi lại. `accounts.json` đọc lỗi thì không gửi gì. Máy bị chặn không gửi.
-- `--sample` không báo. `CLLT_DEVICE_SERVER` đổi địa chỉ server, phải là `https://`, hoặc `http://localhost` / `http://127.0.0.1` khi chạy server trên máy (địa chỉ khác bị bỏ qua, dùng CLLT Server); `CLLT_DEVICE_SERVER=off` tắt hẳn (khi phát triển).
+  - gửi lỗi thì lần sau gửi lại. `accounts.json` đọc lỗi thì không gửi gì. Server báo có nick mới bị từ chối vì quá số nick của key thì các nick mới đó được gửi lại lần sau (khi admin nâng giới hạn, server nhận);
+  - **Kích hoạt key khác** thì `license-sync.json` bị xoá: key mới nhận lại đủ mọi nick.
+- `--sample` và `CLLT_SERVER=off` không cần key và không đồng bộ. `CLLT_SERVER` đổi địa chỉ server, phải là `https://`, hoặc `http://localhost` / `http://127.0.0.1` khi chạy server trên máy (địa chỉ khác bị bỏ qua, dùng CLLT Server). Bản xem thử trong trình duyệt: thêm `?license=missing` (hay `refused`, `unreachable`) vào địa chỉ để xem hộp key, `checking` hay `valid` để xem dòng key ở thanh bên; Kích hoạt nhận mọi key trừ "sai".
 
 ## Thông báo
 

@@ -50,34 +50,42 @@ export const accounts = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
     /** JSON {"field": epoch ms}: when each field of `data` was last changed (migrations/0003_sync.sql). */
     changed: text('changed').notNull().default('{}'),
+    /** The key whose app sent it last (POST /api/license/sync, migrations/0006_licenses_sync.sql); null when a token
+     * sent it, or that key was deleted. */
+    licenseId: integer('license_id'),
   },
-  (t) => [unique().on(t.serverId, t.usernameKey)],
+  (t) => [unique().on(t.serverId, t.usernameKey), index('accounts_license').on(t.licenseId)],
 );
 
-/** Devices of the desktop app (services/device.service.ts, migrations/0002_devices.sql). */
-export const devices = sqliteTable(
-  'devices',
-  {
-    id: text('id').primaryKey(),
-    label: text('label').notNull().default(''),
-    hostname: text('hostname').notNull().default(''),
-    os: text('os').notNull().default(''),
-    version: text('version').notNull().default(''),
-    accounts: text('accounts').notNull().default('[]'),
-    ip: text('ip').notNull().default(''),
-    firstSeen: integer('first_seen').notNull(),
-    lastSeen: integer('last_seen').notNull(),
-    blocked: integer('blocked').notNull().default(0),
-    reason: text('reason').notNull().default(''),
-    /** Cài đặt of the app at the last sync, JSON; '' before any. */
-    settings: text('settings').notNull().default(''),
-    syncedAt: integer('synced_at'),
-    /** 1 once the admin lets it sync (Cho đồng bộ); 0 refuses its accounts. */
-    syncAllowed: integer('sync_allowed').notNull().default(0),
-    /** SHA-256 (hex) of the key the device first sent (migrations/0004_device_key.sql); '' before any. */
-    keyHash: text('key_hash').notNull().default(''),
-  },
-  (t) => [index('devices_last_seen').on(t.lastSeen)],
-);
+/** Keys of the desktop app (services/license.service.ts, migrations/0005_licenses.sql). */
+export const licenses = sqliteTable('licenses', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  key: text('key').notNull().unique(),
+  note: text('note').notNull().default(''),
+  maxAccounts: integer('max_accounts').notNull().default(100),
+  /** 'activation': `duration` `durationUnit` from its first activation; 'fixed': until expiresAt, set when made. */
+  mode: text('mode', { enum: ['activation', 'fixed'] }).notNull(),
+  duration: integer('duration'),
+  durationUnit: text('duration_unit', { enum: ['day', 'month', 'year'] }),
+  /** Epoch ms it stops working; null for an 'activation' key never activated. */
+  expiresAt: integer('expires_at'),
+  revoked: integer('revoked').notNull().default(0),
+  reason: text('reason').notNull().default(''),
+  /** The device that holds it; null for a key no device holds. */
+  deviceId: text('device_id'),
+  hostname: text('hostname').notNull().default(''),
+  os: text('os').notNull().default(''),
+  version: text('version').notNull().default(''),
+  ip: text('ip').notNull().default(''),
+  accounts: integer('accounts').notNull().default(0),
+  activatedAt: integer('activated_at'),
+  /** The device Gỡ thiết bị took it from: refused while no device holds it. */
+  releasedDevice: text('released_device'),
+  lastCheckAt: integer('last_check_at'),
+  /** Cài đặt of the app at its last POST /api/license/sync, JSON; '' before any. */
+  settings: text('settings').notNull().default(''),
+  syncedAt: integer('synced_at'),
+  createdAt: integer('created_at').notNull(),
+});
 
-export const schema = { admins, sessions, loginFailures, tokens, accounts, devices };
+export const schema = { admins, sessions, loginFailures, tokens, accounts, licenses };

@@ -1,9 +1,9 @@
 // The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): kept by POST
 // /api/accounts and given back by GET /api/accounts and Tải JSON, so that Nhập JSON of the app reads them as they are.
-import { and, asc, count as rowCount, eq } from 'drizzle-orm';
+import { and, asc, count as rowCount, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
 import { APP_NAME, EXPORT_FORMAT } from '../config/constants.ts';
 import type { Db } from '../db/client.ts';
-import { accounts as table } from '../db/schema.ts';
+import { licenses, accounts as table } from '../db/schema.ts';
 import type { Account, AccountRow, Changed, Merged, Stamped, Synced } from '../models/index.ts';
 import { isObject } from '../validators/account.validator.ts';
 
@@ -35,16 +35,16 @@ const key = (a: Account) => a.username.toLowerCase();
 const IDENTITY = new Set(['username', 'serverId']);
 const fieldsOf = (a: object) => Object.keys(a).filter((f) => !IDENTITY.has(f));
 
-type Kept = { id: number; data: string; changed: string };
+type Kept = { id: number; data: string; changed: string; licenseId: number | null };
 const rowKey = (serverId: number, usernameKey: string) => `${serverId}\n${usernameKey}`;
 
 /** Every account kept, by server and username in lower case: one query for a whole send, as D1 takes only 50 queries
  * a request on the Workers Free plan (a batch counts as one). */
 async function keptRows(db: Db): Promise<Map<string, Kept>> {
   const rows = await db
-    .select({ id: table.id, serverId: table.serverId, usernameKey: table.usernameKey, data: table.data, changed: table.changed })
+    .select({ id: table.id, serverId: table.serverId, usernameKey: table.usernameKey, data: table.data, changed: table.changed, licenseId: table.licenseId })
     .from(table);
-  return new Map(rows.map((r) => [rowKey(r.serverId, r.usernameKey), { id: r.id, data: r.data, changed: r.changed }]));
+  return new Map(rows.map((r) => [rowKey(r.serverId, r.usernameKey), { id: r.id, data: r.data, changed: r.changed, licenseId: r.licenseId }]));
 }
 
 function stampsOf(text: string): Changed {
@@ -56,23 +56,35 @@ function stampsOf(text: string): Changed {
   }
 }
 
-/** The write that puts `next` in place of `old`, or adds it, only if the row is still as it was read: the same data
- * and times, or still none. Its D1 result says how many rows it changed, 0 when another send got there first. */
-function save(db: Db, old: Kept | undefined, next: Account, changed: Changed, source: string, now: number) {
+/** Who sends: the name the Nick page shows, and the key whose app sent it (none for a token, which leaves the key of an
+ * account as it is). */
+type Sender = { source: string; licenseId?: number };
+
+/** The write that puts `next` in place of `old`, or adds it, only if the row is still as it was read: the same data,
+ * times and key, or still none. Its D1 result says how many rows it changed, 0 when another send got there first. */
+function save(db: Db, old: Kept | undefined, next: Account, changed: Changed, by: Sender, now: number) {
   const fields = {
     username: next.username,
     label: next.label,
     password: next.password,
     data: canonical(next),
     changed: canonical(changed),
-    source,
+    source: by.source,
+    ...(by.licenseId === undefined ? {} : { licenseId: by.licenseId }),
     updatedAt: now,
   };
   if (old) {
     return db
       .update(table)
       .set(fields)
-      .where(and(eq(table.id, old.id), eq(table.data, old.data), eq(table.changed, old.changed)));
+      .where(
+        and(
+          eq(table.id, old.id),
+          eq(table.data, old.data),
+          eq(table.changed, old.changed),
+          old.licenseId === null ? isNull(table.licenseId) : eq(table.licenseId, old.licenseId),
+        ),
+      );
   }
   return db
     .insert(table)
@@ -88,21 +100,36 @@ const TRIES = 3;
  * whether a field differing was kept as the server had it. */
 type Decided = { account: Account; changed: Changed; kept: boolean };
 
+type Sent<T> = { account: T; at: Changed };
+
 /** Each account written as `decide` makes it over the row kept, in one batch. A row another send changed between the
  * read and the write is read again and decided again, so that two sends at once are both merged (TRIES times, then
- * Busy). Gives what was decided for each account and the row it was decided over. */
-async function write<T extends Account>(db: Db, sent: { account: T; at: Changed }[], decide: (old: Kept | undefined, one: T, at: Changed) => Decided, source: string, now: number) {
+ * Busy). `admit`, at each read, leaves out what is not taken over the rows as they are then. Gives what was decided for
+ * each account taken and the row it was decided over. An account that does not change is written only to note the key
+ * that sent it. */
+async function write<T extends Account>(
+  db: Db,
+  sent: Sent<T>[],
+  decide: (old: Kept | undefined, one: T, at: Changed) => Decided,
+  by: Sender,
+  now: number,
+  admit: (rows: Map<string, Kept>, sent: Sent<T>[]) => Sent<T>[] = (_, all) => all,
+) {
   const out = new Map<string, { old: Kept | undefined; next: Decided }>();
   let pending = sent;
   for (let i = 0; i < TRIES && pending.length; i++) {
     const rows = await keptRows(db);
+    const admitted = admit(rows, pending);
+    for (const one of pending) if (!admitted.includes(one)) out.delete(rowKey(one.account.serverId, key(one.account)));
+    pending = admitted;
     const writes = [];
     for (const one of pending) {
       const id = rowKey(one.account.serverId, key(one.account));
       const old = rows.get(id);
       const next = decide(old, one.account, one.at);
       out.set(id, { old, next });
-      if (old?.data !== canonical(next.account)) writes.push({ one, query: save(db, old, next.account, next.changed, source, now) });
+      const moved = by.licenseId !== undefined && old?.licenseId !== by.licenseId;
+      if (old?.data !== canonical(next.account) || moved) writes.push({ one, query: save(db, old, next.account, next.changed, by, now) });
     }
     const [first, ...rest] = writes.map((w) => w.query);
     const results = first ? await db.batch([first, ...rest]) : [];
@@ -135,7 +162,7 @@ export async function sync(db: Db, sent: Account[], source: string, now = Date.n
       const changed = { ...(old ? stampsOf(old.changed) : {}), ...Object.fromEntries(fieldsOf(account).map((f) => [f, now])) };
       return { account, changed, kept: false };
     },
-    source,
+    { source },
     now,
   );
   const done: Synced = { added: 0, updated: 0, unchanged: 0, repeated };
@@ -146,9 +173,9 @@ export async function sync(db: Db, sent: Account[], source: string, now = Date.n
 /** A time the app sent: whole milliseconds, 0 for none, never later than `now` (a clock ahead would win every time). */
 const stamp = (t: number | undefined, now: number) => (t && t > 0 ? Math.min(Math.floor(t), now) : 0);
 
-/** The account after a device sent `sent`, its fields changed at `at`, over `old` (none: a new account). Each field
- * takes the sent value (or goes, when the device has it no more) only when the device changed it later than the kept
- * one was; an empty label or password never replaces one. `kept`: some field differs, but the server's is the later. */
+/** The account after an app sent `sent`, its fields changed at `at`, over `old` (none: a new account). Each field
+ * takes the sent value (or goes, when the app has it no more) only when the app changed it later than the kept one
+ * was; an empty label or password never replaces one. `kept`: some field differs, but the server's is the later. */
 export function merge(old: { account: Account; changed: Changed } | null, sent: Account, at: Changed, now: number) {
   if (!old) {
     const changed = Object.fromEntries(fieldsOf({ ...at, ...sent }).map((f) => [f, stamp(at[f], now)]));
@@ -173,19 +200,46 @@ export function merge(old: { account: Account; changed: Changed } | null, sent: 
   return { account, changed, kept };
 }
 
-/** Đồng bộ from a device (POST /api/devices/sync): each account merged field by field with the one kept (merge), so
- * that two devices sending the same account make one, and the later edit of each field is the one kept. `source` names
- * the device. */
-export async function syncDevice(db: Db, sent: Stamped[], source: string, now = Date.now()): Promise<Merged> {
+/** Đồng bộ from the app of a key (POST /api/license/sync): each account merged field by field with the one kept
+ * (merge), so that the same account sent twice makes one, and the later edit of each field is the one kept.
+ * - An account another key holds is never written, nor taken over: counted in `taken` (and `refused`).
+ * - The accounts the key holds always go.
+ * - One no key holds (new, never synced, or sent by a token) is taken only while the key holds fewer than its
+ *   max_accounts; the rest are counted in `refused`.
+ * Each account taken notes the key. */
+export async function syncLicense(
+  db: Db,
+  sent: Stamped[],
+  license: { id: number; maxAccounts: number },
+  source: string,
+  now = Date.now(),
+): Promise<Merged> {
   const [list, repeated] = once(sent.map(({ account, changed }) => ({ account, at: changed })));
+  const refused = new Set<string>();
+  const taken = new Set<string>();
   const decided = await write(
     db,
     list,
     (old, one, at) => merge(old ? { account: JSON.parse(old.data) as Account, changed: stampsOf(old.changed) } : null, one, at, now),
-    source,
+    { source, licenseId: license.id },
     now,
+    (rows, pending) => {
+      let held = [...rows.values()].filter((r) => r.licenseId === license.id).length;
+      return pending.filter((one) => {
+        const id = rowKey(one.account.serverId, key(one.account));
+        const holder = rows.get(id)?.licenseId ?? null;
+        if (holder === license.id) return true;
+        if (holder === null && held < license.maxAccounts) {
+          held++;
+          return true;
+        }
+        refused.add(id);
+        if (holder !== null) taken.add(id);
+        return false;
+      });
+    },
   );
-  const done: Merged = { added: 0, updated: 0, unchanged: 0, kept: 0, repeated };
+  const done: Merged = { added: 0, updated: 0, unchanged: 0, kept: 0, repeated, refused: refused.size, taken: taken.size };
   for (const { old, next } of decided.values()) {
     if (next.kept) done.kept++;
     done[!old ? 'added' : old.data === canonical(next.account) ? 'unchanged' : 'updated']++;
@@ -193,9 +247,31 @@ export async function syncDevice(db: Db, sent: Stamped[], source: string, now = 
   return done;
 }
 
-/** Every account, first added first. */
-export async function list(db: Db): Promise<AccountRow[]> {
-  return db.select().from(table).orderBy(asc(table.id));
+/** An account of the Nick page, with the key whose app sent it last. */
+export type Listed = AccountRow & { license: { id: number; key: string; note: string } | null };
+
+/** Every account, first added first; only those a key sent last, when `licenseId` is given. */
+export async function list(db: Db, licenseId?: number): Promise<Listed[]> {
+  const rows = await db
+    .select({ ...getTableColumns(table), licenseKey: licenses.key, licenseNote: licenses.note })
+    .from(table)
+    .leftJoin(licenses, eq(licenses.id, table.licenseId))
+    .where(licenseId === undefined ? undefined : eq(table.licenseId, licenseId))
+    .orderBy(asc(table.id));
+  return rows.map(({ licenseKey, licenseNote, ...r }) => ({
+    ...r,
+    license: r.licenseId !== null && licenseKey !== null ? { id: r.licenseId, key: licenseKey, note: licenseNote ?? '' } : null,
+  }));
+}
+
+/** How many accounts each key sent last, by the id of the key. */
+export async function countsByLicense(db: Db): Promise<Map<number, number>> {
+  const rows = await db
+    .select({ id: table.licenseId, n: rowCount() })
+    .from(table)
+    .where(isNotNull(table.licenseId))
+    .groupBy(table.licenseId);
+  return new Map(rows.map((r) => [r.id!, r.n]));
 }
 
 export async function count(db: Db): Promise<number> {
@@ -204,7 +280,8 @@ export async function count(db: Db): Promise<number> {
 
 /** The JSON of GET /api/accounts and Tải JSON: Xuất JSON of the app, without its "settings". */
 export async function exported(db: Db): Promise<string> {
-  const accounts = (await list(db)).map((r) => JSON.parse(r.data) as Account);
+  const rows = await db.select({ data: table.data }).from(table).orderBy(asc(table.id));
+  const accounts = rows.map((r) => JSON.parse(r.data) as Account);
   return JSON.stringify({ app: APP_NAME, format: EXPORT_FORMAT, exportedAt: new Date().toISOString(), accounts }, null, 2) + '\n';
 }
 

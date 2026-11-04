@@ -42,13 +42,15 @@ export type UpdateState =
 /** Tự cập nhật: the version running, then where its update stands. */
 export type UpdateView = { current: string } & UpdateState;
 
-/** Quản lý thiết bị (device.rs): the first 12 characters of this device's id, as the admin page shows them, and
- * whether it may run. "blocked" covers the window; it holds offline too, from device.json. */
-export type DeviceView = { id: string } & (
+/** Key (license.rs): the key kept, its middle hidden ("" without one), and where it stands. Anything but "valid" and
+ * "off" covers the window (LicenseGate) and no account logs in. */
+export type LicenseView = { key: string } & (
   | { state: "off" }
-  | { state: "unknown" }
-  | { state: "allowed"; checkedAt: number }
-  | { state: "blocked"; reason: string; checkedAt: number }
+  | { state: "missing" }
+  | { state: "checking" }
+  | { state: "valid"; expiresAt: number; maxAccounts: number; activatedAt: number; checkedAt: number }
+  | { state: "refused"; code: string; message: string }
+  | { state: "unreachable"; message: string }
 );
 
 /** What a log line is about (LogKind of cllt-core's bot/types.rs); game/logKinds.ts names them. */

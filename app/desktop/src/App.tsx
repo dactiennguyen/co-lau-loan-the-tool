@@ -19,7 +19,7 @@ import { StopDialog } from "@/views/dialogs/StopDialog";
 import { Toaster } from "@/views/Toaster";
 import { UpdateDialog } from "@/views/dialogs/UpdateDialog";
 import { UpdateGate } from "@/views/UpdateGate";
-import { DeviceGate } from "@/views/DeviceGate";
+import { LicenseGate } from "@/views/LicenseGate";
 
 /** Sidebar of accounts, the selected account, the dialog the store says is open, the toasts, and the cover of a
  * mandatory update. */
@@ -38,10 +38,10 @@ export default function App() {
       </main>
       <Dialogs />
       <Toaster />
+      {/* Until a key holds (license.rs) no account logs in; under UpdateGate, as an update needs no key. */}
+      <LicenseGate />
       {/* Last, so that it opens above any dialog: a newer version is mandatory. */}
       <UpdateGate />
-      {/* A blocked device shows only this; UpdateGate stays hidden under it. */}
-      <DeviceGate />
     </div>
   );
 }

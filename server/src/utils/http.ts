@@ -1,7 +1,7 @@
 // Small helpers on a request: the client's IP, a cookie, a body with a size limit, the session cookie, and the ?done=
 // notice of a page. The fields of an admin form are read by validators/form.ts#formObject.
 import { SESSION_COOKIE } from '../config/constants.ts';
-import { FLASH } from '../config/messages.ts';
+import { FLASH, FLASH_ERROR } from '../config/messages.ts';
 import type { Ctx } from '../types/app.ts';
 
 export const clientIp = (c: Ctx) => c.req.header('CF-Connecting-IP') ?? 'local';
@@ -31,4 +31,10 @@ export function sessionCookie(c: Ctx, value: string, maxAge: number): string {
 export function flash(c: Ctx): string | null {
   const key = c.req.query('done') ?? '';
   return Object.hasOwn(FLASH, key) ? FLASH[key] : null;
+}
+
+/** The error ?error=<key> asks for, when it is one of FLASH_ERROR. */
+export function flashError(c: Ctx): string | null {
+  const key = c.req.query('error') ?? '';
+  return Object.hasOwn(FLASH_ERROR, key) ? FLASH_ERROR[key] : null;
 }

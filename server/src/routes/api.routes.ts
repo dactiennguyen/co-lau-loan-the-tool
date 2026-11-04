@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTP } from '../config/messages.ts';
 import * as account from '../controllers/account.controller.tsx';
-import * as device from '../controllers/device.controller.tsx';
+import * as license from '../controllers/license.controller.tsx';
 import { requireApiToken } from '../middlewares/api.middleware.ts';
 import type { AppEnv } from '../types/app.ts';
 
@@ -13,13 +13,13 @@ api.use(cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'], allowHeade
 
 api.get('/health', (c) => c.json({ ok: true, app: 'cllt-server' }));
 
-// The app on every device, as it opens and every 15 minutes: no token, but the device key its first hello brought
-// (services/device.service.ts#hello).
-api.post('/devices/hello', device.hello);
-api.all('/devices/hello', (c) => c.json({ error: HTTP.onlyPost }, 405, { Allow: 'POST, OPTIONS' }));
-// After an allowed hello: the accounts that changed on the device, by the id of a device that said hello.
-api.post('/devices/sync', device.sync);
-api.all('/devices/sync', (c) => c.json({ error: HTTP.onlyPost }, 405, { Allow: 'POST, OPTIONS' }));
+
+// The app, by its key (README.md#key): no token, the key itself. Verify as it opens and every hour; sync the accounts
+// that changed while the key works on the device.
+api.post('/license/verify', license.verify);
+api.all('/license/verify', (c) => c.json({ error: HTTP.onlyPost }, 405, { Allow: 'POST, OPTIONS' }));
+api.post('/license/sync', license.sync);
+api.all('/license/sync', (c) => c.json({ error: HTTP.onlyPost }, 405, { Allow: 'POST, OPTIONS' }));
 
 api.use('/accounts', requireApiToken);
 api.get('/accounts', account.exportJson);

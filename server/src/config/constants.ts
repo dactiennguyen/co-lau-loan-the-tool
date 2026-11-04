@@ -32,21 +32,32 @@ export const DEFAULT_SERVER_ID = 24;
 /** The largest body POST /api/accounts takes. */
 export const MAX_ACCOUNTS_BODY = 1 << 20;
 
-// ---- Devices ------------------------------------------------------------------------------------------------------
+// ---- Keys (Key page, POST /api/license/verify and /api/license/sync) ---------------------------------------------
 
-/** The largest hello POST /api/devices/hello takes. */
-export const MAX_HELLO_BODY = 16 * 1024;
-export const MAX_HELLO_ACCOUNTS = 200;
-/** The most accounts one POST /api/devices/sync takes (its body is limited as POST /api/accounts), and the largest
- * Cài đặt kept for a device. */
-export const MAX_SYNC_ACCOUNTS = 500;
-export const MAX_SETTINGS = 4 * 1024;
+/** A key is "CLLT-XXXX-XXXX-XXXX-XXXX": LICENSE_LENGTH characters of Crockford's base32 (no I, L, O, U). */
+export const LICENSE_PREFIX = 'CLLT';
+export const LICENSE_CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+export const LICENSE_LENGTH = 16;
+/** What a new key takes unless the admin says otherwise: 100 accounts, 10 years from its activation. */
+export const DEFAULT_MAX_ACCOUNTS = 100;
+export const DEFAULT_DURATION = 10;
+export const DEFAULT_DURATION_UNIT = 'year';
+export const MAX_LICENSE_ACCOUNTS = 100_000;
+/** The longest duration in days a key may be given (100 years). */
+export const MAX_DURATION_DAYS = 36_500;
+export const MAX_LICENSE_NOTE = 100;
+export const MAX_REVOKE_REASON = 200;
+/** The largest body POST /api/license/verify takes; POST /api/license/sync takes as POST /api/accounts. */
+export const MAX_VERIFY_BODY = 4 * 1024;
+/** What the app says of the device that holds a key: its name, its system and the version of the app. */
 export const MAX_HOSTNAME = 100;
 export const MAX_OS = 60;
 export const MAX_VERSION = 30;
-export const MAX_USERNAME = 60;
-export const MAX_BLOCK_REASON = 200;
-export const MAX_DEVICE_LABEL = 60;
+/** The most accounts one POST /api/license/sync takes, and the largest Cài đặt kept for a key. */
+export const MAX_SYNC_ACCOUNTS = 500;
+export const MAX_SETTINGS = 4 * 1024;
+/** Vietnam's time (UTC+7, no summer time): a date of the Key page ends at midnight there. */
+export const VN_OFFSET_MS = 7 * 3600_000;
 
 // ---- HTTP ---------------------------------------------------------------------------------------------------------
 

@@ -1,25 +1,26 @@
 # CLLT Server
 
-Server riêng để giữ danh sách nick và quản lý thiết bị của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
+Server riêng để giữ danh sách nick và key của app CLLT Tool trên Cloudflare, chạy tại **https://colau.olachat.net** (trang quản trị: `/admin`). Gồm:
 - một **Worker** (TypeScript, `src/`, chia lớp route/controller/service, xem [Mã nguồn](#mã-nguồn)), định tuyến bằng [Hono](https://hono.dev), đọc ghi database bằng [Drizzle ORM](https://orm.drizzle.team);
 - một database **D1** (SQLite của Cloudflare, `migrations/`);
-- **API** để gửi nick lên và tải nick về, và để app báo thiết bị ([Thiết bị](#thiết-bị));
+- **API** để gửi nick lên và tải nick về, và để app kiểm tra key và đồng bộ nick ([Key](#key));
 - **trang quản trị** có đăng nhập.
 
 Gói miễn phí của Cloudflare (Workers và D1) là đủ.
 
-App desktop chỉ gọi `POST /api/devices/hello`; phần đồng bộ nick trong app làm sau. Bây giờ dùng API bằng `curl`, hay tải JSON từ trang quản trị rồi Nhập JSON vào app.
+App desktop gọi `POST /api/license/verify` (kiểm tra key) và `POST /api/license/sync` (gửi nick lên). Ngoài ra dùng API bằng `curl`, hay tải JSON từ trang quản trị rồi Nhập JSON vào app.
 
 ## Có gì
 
 | Phần | Đường dẫn | Cần gì |
 |---|---|---|
 | Trang quản trị | `/admin` | Đăng nhập. Lần đầu là `admin` / `admin` |
-| Danh sách nick (xem, hiện mật khẩu, xoá, Tải JSON) | `/admin` | Đăng nhập |
+| Danh sách nick (xem, hiện mật khẩu, xoá, Tải JSON, lọc theo key) | `/admin` | Đăng nhập |
+| Key (tạo, khoá, mở khoá, gỡ thiết bị, sửa, xoá) | `/admin/licenses` | Đăng nhập |
 | Tạo và thu hồi API token | `/admin/tokens` | Đăng nhập |
 | Đổi mật khẩu quản trị | `/admin/password` | Đăng nhập |
-| Thiết bị (xem, chặn, bỏ chặn, đặt tên, xoá khỏi danh sách) | `/admin/devices` | Đăng nhập |
-| App báo thiết bị | `POST /api/devices/hello` | Không cần gì |
+| App kiểm tra key | `POST /api/license/verify` | Key |
+| App gửi nick lên | `POST /api/license/sync` | Key đã kích hoạt trên máy đó |
 | Kiểm tra server sống | `GET /api/health` | Không cần gì |
 | Tải mọi nick về | `GET /api/accounts` | API token |
 | Gửi nick lên | `POST /api/accounts` | API token |
@@ -124,59 +125,96 @@ curl -H "Authorization: Bearer $CLLT_TOKEN" https://cllt-server.<tên-bạn>.wor
 
 API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie mà chỉ dùng token.
 
-## Thiết bị
+## Key
 
-Mỗi máy mở app báo về `POST /api/devices/hello` ngay khi mở, rồi 15 phút một lần ([features.md#thiết-bị](../docs/integration/rust/features.md#thiết-bị)):
+Mỗi người dùng app cần một **key** dạng `CLLT-XXXX-XXXX-XXXX-XXXX` (16 ký tự base32 của Crockford, không có I, L, O, U). Admin tạo key trên trang **Key** (`/admin/licenses`) rồi gửi cho người dùng; app hỏi key ở lần mở đầu, lưu lại, rồi kiểm tra khi mở và mỗi giờ một lần ([features.md](../docs/integration/rust/features.md)).
+
+**Tạo key**:
+- **Ghi chú** (key của ai) và **số nick tối đa**, mặc định 100;
+- **hạn**:
+  - **tính từ lúc kích hoạt**, mặc định 10 năm: đếm từ lần đầu một máy nhập key (cộng theo lịch: 10 năm từ 04/11/2026 là 04/11/2036, cùng giờ);
+  - **ngày cố định**: key dùng tới hết ngày đó theo giờ Việt Nam.
+
+Tạo xong, trang quay về danh sách và hiện key mới để chép (tải lại trang không tạo thêm key).
+
+**Một key, một máy:**
+- Máy đầu tiên nhập key **giữ key** đó. Server ghi tên máy, hệ điều hành, bản app, IP, số nick trong app, lúc kích hoạt và lần kiểm tra cuối.
+- Máy khác nhập cùng key bị từ chối ("Key đã được kích hoạt trên máy khác").
+- **Gỡ thiết bị** chuyển key sang máy khác:
+  - Máy cũ bị từ chối ngay ở lần kiểm tra tới ("Key đã được gỡ khỏi máy này, liên hệ admin"). Nó cũng không kích hoạt lại được, dù app của nó kiểm tra lại mỗi giờ và key đang trống.
+  - Máy khác nhập key là kích hoạt được; từ đó máy cũ chỉ còn là "máy khác".
+  - Hạn giữ nguyên như đã tính ở lần kích hoạt đầu.
+
+**Thao tác khác trên trang Key:**
+- **Khoá** kèm lý do (app hiện lý do), **Mở khoá**.
+- **Sửa** ghi chú, số nick tối đa, và ngày hết hạn (key chưa kích hoạt thì sửa thời hạn). Chọn một ngày đã qua là cho key hết hạn ngay. Key được kích hoạt trong lúc đang sửa thời hạn thì không lưu gì, và trang báo lý do.
+- **Xoá** key: app dùng key đó bị khoá; các nick key đó đã đồng bộ vẫn giữ.
+
+Hết hạn, bị khoá hay bị xoá thì app khoá ở lần kiểm tra tới, tức tối đa 1 giờ nếu app đang mở.
+
+**Kiểm tra key**: `POST /api/license/verify`, không cần token:
 
 ```json
-{"id": "<64 ký tự hex>", "key": "<64 ký tự hex>", "hostname": "MAY-NHA", "os": "windows x86_64", "version": "1.1.8",
- "accounts": [{"username": "manina", "serverId": 24}]}
+{"key": "cllt 26wm py7q trp8 k2ne", "id": "<64 ký tự hex>", "hostname": "MAY-NHA", "os": "windows x86_64", "version": "1.1.8", "accounts": 12}
 ```
 
-- `id` là SHA-256 của mã máy do hệ điều hành giữ (`MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux). Gỡ app rồi cài lại vẫn là một thiết bị. Cài lại Windows hay Linux thì thành thiết bị mới.
-- Server trả `{"allowed": true, "sync": …}`, hay `{"allowed": false, "reason": "…"}` với máy bị chặn. Máy chưa từng thấy được thêm vào và **được dùng ngay**. `sync` là `true` khi admin đã **Cho đồng bộ** và máy gửi đúng khoá ([Khoá thiết bị](#khoá-thiết-bị)): chỉ khi đó app mới gửi nick lên.
-- `accounts` chỉ có tài khoản và server game, **không có mật khẩu**. Server lưu IP, lần đầu và lần cuối thấy máy.
-- Không cần token, nhưng cần khoá của máy ([Khoá thiết bị](#khoá-thiết-bị)). Ai cũng gửi được hello với một mã máy mới, nên danh sách có thể có máy lạ; chặn máy đó, hay xoá khỏi danh sách.
-- Trang **Thiết bị** (`/admin/devices`): tìm theo tên máy, nick hay IP; **Chặn** kèm lý do (app hiện lý do cho người dùng), **Bỏ chặn**, **Đặt tên**, **Xoá khỏi danh sách** (máy đó hiện lại ở lần mở app tới, vẫn được dùng; muốn ngăn thì Chặn).
-- Máy bị chặn thì khoá ở lần báo tiếp theo, tức tối đa 15 phút nếu app đang mở. App nhớ trạng thái, nên mất mạng vẫn khoá.
-- **Giới hạn:** mã máy do app tự báo. Người rành máy tính có thể đổi `MachineGuid` (cần quyền admin) hay sửa app để gửi mã khác. Cách này chặn người dùng thường, không chặn người cố tình.
+- `key` viết sao cũng được: hoa thường, dấu cách, dấu gạch, có hay không có `CLLT` đầu, O thay cho 0, I/L thay cho 1.
+- `id` là SHA-256 của mã máy do hệ điều hành giữ (`MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux). Gỡ app rồi cài lại vẫn là một máy.
+- `accounts` là số nick trong app.
+- Trả lời luôn là 200, để app phân biệt câu trả lời của server với lỗi mạng:
+  - key dùng được: `{"ok": true, "maxAccounts": 100, "expiresAt": <ms>, "activatedAt": <ms>}`;
+  - key không dùng được: `{"ok": false, "code": "…", "error": "<câu cho người dùng>"}`, `code` là:
 
-<a id="khoá-thiết-bị"></a>
+    | `code` | Câu báo |
+    |---|---|
+    | `unknown` | "Key không đúng" |
+    | `revoked` | "Key đã bị khoá: <lý do>" |
+    | `taken` | "Key đã được kích hoạt trên máy khác" |
+    | `expired` | "Key đã hết hạn ngày dd/mm/yyyy", kèm `expiresAt` |
 
-### Khoá thiết bị
+- JSON sai thì trả 400, quá 4 KB thì 413.
+- Mỗi lần kiểm tra là 2 truy vấn D1. Các lần ghi có điều kiện:
+  - Lần kích hoạt chỉ ghi khi key còn chưa máy nào giữ, nên hai máy nhập cùng lúc thì chỉ một máy giữ được.
+  - Key đã hết hạn thì không được kích hoạt.
+  - Lần ghi của máy đang giữ key chỉ đi khi máy đó còn giữ key và key chưa bị khoá. Admin khoá hay gỡ đúng lúc máy đang kiểm tra thì máy đó không bao giờ nhận `ok: true`.
 
-Từ app 1.1.8, mỗi máy tự tạo một khoá bí mật một lần: 32 byte ngẫu nhiên, lưu ở `device.key` cạnh `accounts.json`, chỉ chủ máy đọc được. App gửi khoá này (`key`) trong mọi lần hello và đồng bộ.
-
-- Server giữ SHA-256 của khoá đầu tiên một máy gửi lên (cột `key_hash`, [0004_device_key.sql](migrations/0004_device_key.sql)).
-- Từ đó, hello hay đồng bộ của mã máy đó mà thiếu khoá hay sai khoá đều bị từ chối (403) và **không ghi gì**. Biết mã máy thôi thì không đổi được tên máy, danh sách nick, hay nick trong kho.
-- **App cũ (trước 1.1.8)** không có khoá: vẫn báo danh được, nhưng không đồng bộ được ("Máy này chưa có khoá thiết bị: cập nhật app…"). Cập nhật app thì lần hello đầu mang khoá, server giữ khoá đó.
-- **Máy mất khoá** (xoá `device.key`, cài lại hệ điều hành mà mã máy vẫn giữ): hello bị từ chối, app giữ trạng thái cũ. Bấm **Xoá khỏi danh sách** trên trang Thiết bị: máy báo danh lại với khoá mới, và phải được **Cho đồng bộ** lại.
-- So khoá bằng phép so thời gian hằng; server không lưu khoá gốc.
+**Giới hạn:** mã máy do app tự báo. Người rành máy tính có thể đổi `MachineGuid` (cần quyền admin) hay sửa app để gửi mã khác. Key chặn người dùng thường dùng chung key, không chặn người cố tình.
 
 ## Đồng bộ nick
 
-Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem trên trang **Nick** và Tải JSON, app không tải gì về. Máy mới phải được admin bấm **Cho đồng bộ** trên trang Thiết bị (bấm **Tắt đồng bộ** để thôi; nick đã gửi vẫn giữ). Sau mỗi lần báo danh mà server trả `"sync": true` (lúc mở app, rồi 15 phút một lần), app gửi `POST /api/devices/sync` với khoá của máy và các nick đã đổi kể từ lần gửi trước. Máy chưa được duyệt **không gửi gì**, kể cả mật khẩu. Mỗi nick gửi nguyên vẹn: mật khẩu, proxy, Cài đặt đánh, kỹ năng, chỉ số. Cài đặt của app cũng gửi kèm khi đổi (`src-tauri/src/sync.rs`):
+Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem trên trang **Nick** và Tải JSON, app không tải gì về.
+
+**Khi nào app gửi:** khi key của app dùng được trên máy đó, app gửi `POST /api/license/sync` với key và các nick đã đổi kể từ lần gửi trước. Mỗi nick gửi nguyên vẹn: mật khẩu, proxy, Cài đặt đánh, kỹ năng, chỉ số. Cài đặt của app cũng gửi kèm khi đổi:
 
 ```json
-{"id": "<64 ký tự hex>", "key": "<64 ký tự hex>", "settings": {"server": …, "record": true, "onClose": "ask"},
+{"key": "CLLT-26WM-PY7Q-TRP8-K2NE", "id": "<64 ký tự hex>", "settings": {"server": …, "record": true, "onClose": "ask"},
  "accounts": [{"account": {"username": "tiheo1", "password": "…", "serverId": 24, "fight": {…}},
                "changed": {"password": 1762059000000, "fight": 0, "label": 0}}]}
 ```
 
-**Hai máy cùng một nick** (cùng server game, tài khoản không phân biệt hoa thường) thì server gộp thành **một dòng**, gộp **từng mục**:
+**Server chỉ nhận khi** key có thật, không bị khoá, chưa hết hạn, và đang được đúng máy `id` đó giữ. Không thì trả 403 `{"error": "…", "code": "…"}`, với `code` là `unknown`, `revoked`, `taken`, `expired`, hay `inactive` (key chưa kích hoạt trên máy nào). Biết key mà không ở đúng máy thì không ghi được nick nào.
 
+**Nick của ai thì key đó giữ.** Server xét từng nick:
+- Nick key đó đã gửi thì luôn được cập nhật.
+- Nick **key khác đang giữ** thì không ghi gì và không chiếm được. Mật khẩu hay proxy của nick đó giữ nguyên. Nick này đếm trong `taken` và `refused`.
+- Nick chưa key nào giữ (mới, hay do token gửi, hay key cũ đã bị xoá) chỉ được nhận khi key còn dưới **số nick tối đa**. Phần còn lại không ghi, đếm trong `refused`.
+- Mỗi nick nhận được ghi lại key đã gửi nó (cột `license_id`). Trang Nick có cột **Key** và ô lọc theo key; trang Key hiện số nick đã đồng bộ (bấm để xem) và lần đồng bộ cuối. Rê chuột lên đó để xem Cài đặt của app.
+
+**Gộp từng mục:** mỗi nick (cùng server game, tài khoản không phân biệt hoa thường) là **một dòng**. Lần gửi của key đang giữ nick, hay của token, gộp vào đó **từng mục**:
 - `changed` ghi lúc app thấy từng mục đổi. Server giữ cho mỗi mục giá trị của lần sửa **sau cùng** (cột `changed` của bảng `accounts`).
-- Hai máy gửi giống nhau: không đổi gì. Máy A sửa mật khẩu, máy B bật Tự sửa đồ: giữ cả hai. Cùng sửa một mục: lần sửa sau thắng.
-- Máy còn bản cũ gửi lại thì không đè lần sửa mới hơn (trả về `kept`). Lần đồng bộ đầu của một máy tính mọi mục là "từ trước" (thời điểm 0), nên máy vào sau không đè dữ liệu đã có.
+- Gửi lại y như cũ: không đổi gì. Lần này sửa mật khẩu, lần sau bật Tự sửa đồ: giữ cả hai. Cùng sửa một mục: lần sửa sau thắng.
+- App còn bản cũ gửi lại thì không đè lần sửa mới hơn (trả về `kept`). Lần đồng bộ đầu tính mọi mục là "từ trước" (thời điểm 0), nên app vào sau không đè dữ liệu đã có.
 - Tên hiển thị hay mật khẩu để trống không xoá cái đã có. Thời điểm vượt giờ server tính bằng giờ server.
-- **Nhập JSON** trên app thì các nick vừa nhập tính là "từ trước" (thời điểm 0): nick server chưa có thì được thêm, nhưng không đè lần sửa mới hơn của máy khác. Sửa tay sau đó mới tính là sửa lúc đó.
-- Hai lần gửi cùng lúc cho cùng một nick: server chỉ ghi khi dòng còn y như lúc đọc. Dòng đã bị lần gửi kia đổi thì đọc lại và gộp lại, thử tối đa 3 lần, quá nữa thì trả 503 để app gửi lại sau.
-- Gửi bằng API token (`POST /api/accounts`) thì mọi mục tính là sửa lúc gửi.
+- **Nhập JSON** trên app thì các nick vừa nhập tính là "từ trước" (thời điểm 0). Sửa tay sau đó mới tính là sửa lúc đó.
+- Hai lần gửi cùng lúc cho cùng một nick: server chỉ ghi khi dòng còn y như lúc đọc (cả key đang giữ nó). Dòng đã bị lần gửi kia đổi thì đọc lại và gộp lại, thử tối đa 3 lần. Quá nữa thì trả 503 để app gửi lại sau.
+- Gửi bằng API token (`POST /api/accounts`) thì mọi mục tính là sửa lúc gửi, và nick giữ key cũ của nó.
 - Xoá nick trên app không xoá trên server; xoá ở trang Nick.
 
-Server trả `{"added", "updated", "unchanged", "kept", "repeated"}`. Máy chưa báo danh bị từ chối (404); máy chưa có khoá, sai khoá, bị chặn hay chưa được cho đồng bộ cũng vậy (403). Mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi. Trang Thiết bị hiện lần đồng bộ cuối, rê chuột lên đó để xem Cài đặt của máy.
+**Kết quả:** server trả `{"added", "updated", "unchanged", "kept", "repeated", "refused", "taken"}`. JSON sai thì 400, quá 1 MB thì 413.
 
-**Vì sao phải duyệt, và vì sao có khoá:** ai biết API cũng báo danh được một mã máy mới, nhưng chưa được Cho đồng bộ thì không ghi được nick nào. Mã máy (SHA-256 của mã do hệ điều hành giữ) không phải bí mật: mọi người dùng trên máy đó tính ra được. Vì vậy đồng bộ còn cần khoá của máy ([Khoá thiết bị](#khoá-thiết-bị)): biết mã của một máy đã duyệt cũng không ghi đè được mật khẩu hay proxy của nick nào trong kho.
+**Giới hạn D1:** mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi.
+
+**Bỏ quản lý thiết bị:** trang Thiết bị, `POST /api/devices/hello` và `/api/devices/sync` đã bỏ. [0006_licenses_sync.sql](migrations/0006_licenses_sync.sql) xoá bảng `devices` cùng mọi thiết bị trong đó. Key thay cho việc duyệt từng máy.
 
 ## Bảo mật
 
@@ -210,19 +248,19 @@ Chia lớp như một backend thường gặp: request đi `routes/` → `middle
 | `src/config/messages.ts` | Mọi câu chữ server nói: thông báo, lỗi của trang quản trị và API |
 | `src/db/schema.ts` | Model: 6 bảng cho [Drizzle ORM](https://orm.drizzle.team). `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
 | `src/db/client.ts` | Kết nối Drizzle với D1 |
-| `src/models/` | Kiểu dữ liệu: dòng của từng bảng (suy ra từ schema), nick theo JSON của app, `hello` của thiết bị |
+| `src/models/` | Kiểu dữ liệu: dòng của từng bảng (suy ra từ schema), nick theo JSON của app, kiểm tra key và đồng bộ của app |
 | `src/types/app.ts` | Kiểu của app Hono: binding `DB`, biến của request (`db`, `form`, `me`, `source`) |
 | `src/routes/` | `api.routes.ts` (`/api`, CORS) và `admin.routes.ts` (`/admin`): đường dẫn nào, qua middleware nào, tới controller nào |
 | `src/middlewares/` | `context` (Drizzle, header bảo mật), `admin` (form cùng nguồn, bắt đăng nhập, bắt đổi mật khẩu mặc định), `api` (API token) |
-| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang (`<AccountsView … />`): `auth`, `account`, `device`, `token` (`.tsx`) |
-| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `token`, `account` (thêm/thay như Nhập JSON), `device` |
-| `src/validators/` | Kiểm dữ liệu bằng [Zod](https://zod.dev): nick (giống `backup::parse` của app), `hello` và `sync` của thiết bị, các form admin (đăng nhập, đổi mật khẩu, tạo token, chặn, đặt tên). `form.ts`: `check` trả dữ liệu hoặc lỗi theo từng ô, để trang hiện lỗi ngay dưới ô đó |
+| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang (`<AccountsView … />`): `auth`, `account`, `license`, `token` (`.tsx`) |
+| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `token`, `account` (thêm/thay như Nhập JSON, gộp từng mục khi đồng bộ), `license` (key: tạo, kiểm tra, kích hoạt) |
+| `src/validators/` | Kiểm dữ liệu bằng [Zod](https://zod.dev): nick (giống `backup::parse` của app), kiểm tra key và đồng bộ của app, các form admin (đăng nhập, đổi mật khẩu, tạo token, tạo và sửa key, khoá key). `form.ts`: `check` trả dữ liệu hoặc lỗi theo từng ô, để trang hiện lỗi ngay dưới ô đó |
 | `src/views/` | Trang quản trị bằng JSX của Hono (`hono/jsx`, viết như component React, render ra HTML ở server): mọi giá trị chèn vào đều được escape. `layout.tsx` (khung trang và các component dùng chung `Icon`, `Field`, `Message`, `Chip`, `Table`), `styles.ts` (token màu Material 3, sáng và tối), `icons.ts` (sinh tự động), và một file `*.view.tsx` mỗi trang |
-| `client/admin.ts` | Script chạy trên trình duyệt: nạp các component [Material Web](https://github.com/material-components/material-web) (`md-filled-button`, `md-outlined-text-field`, `md-icon-button`, `md-dialog`…), Hiện/Ẩn và Chép mật khẩu, hộp xác nhận, ô tìm. `scripts/build-client.mjs` gói bằng esbuild vào `public/assets/admin.js` (khoảng 145 KB, nén gzip còn 32 KB); Wrangler tự chạy trước `dev` và `deploy` (`[build]`), Cloudflare phục vụ file đó trực tiếp (`[assets]`) |
+| `client/admin.ts` | Script chạy trên trình duyệt: nạp các component [Material Web](https://github.com/material-components/material-web) (`md-filled-button`, `md-outlined-text-field`, `md-icon-button`, `md-dialog`, `md-radio`, `md-outlined-select`…), Hiện/Ẩn và Chép mật khẩu, hộp xác nhận, ô tìm, hai cách tính hạn của Tạo key, ô lọc theo key. `scripts/build-client.mjs` gói bằng esbuild vào `public/assets/admin.js` (khoảng 145 KB, nén gzip còn 32 KB); Wrangler tự chạy trước `dev` và `deploy` (`[build]`), Cloudflare phục vụ file đó trực tiếp (`[assets]`) |
 | `scripts/icons.mjs` | Sinh `src/views/icons.ts` từ [Material Symbols](https://fonts.google.com/icons) (`@material-symbols/svg-400`, kiểu outlined): icon vẽ thẳng bằng SVG, không tải font, không gọi Google. Thêm icon: thêm tên vào `NAMES` rồi `yarn icons` |
 | `src/utils/` | `crypto` (PBKDF2, SHA-256), `http` (IP, cookie, body có giới hạn), `render` (trang kèm nonce của CSP), `format` (giờ Việt Nam) |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
-| `migrations/0001_init.sql`, `0002_devices.sql`, `0003_sync.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts`; `devices`; cột `changed` của `accounts`, `settings` và `synced_at` của `devices` |
+| `migrations/0001_init.sql` … `0006_licenses_sync.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts` (0001); `devices` (0002–0004, bỏ ở 0006); cột `changed` của `accounts` (0003); `licenses` (0005); cột `license_id` của `accounts` (0006) |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 

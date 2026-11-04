@@ -1,7 +1,11 @@
-// Nick: every account the devices synced or a token sent, with its password behind Hiện, Chép, and Xoá.
-import type { AccountRow } from '../models/index.ts';
-import { time } from '../utils/format.ts';
+// Nick: every account the app of a key synced or a token sent, with its password behind Hiện, Chép, and Xoá; the
+// accounts of one key alone with ?key=<id>.
+import type { Listed } from '../services/account.service.ts';
+import { keyName, time } from '../utils/format.ts';
 import { Field, Icon, Layout, Message, None, Table } from './layout.tsx';
+
+/** A key in the filter of the page: its id, and its note or its start. */
+export type KeyName = { id: number; key: string; note: string };
 
 /** "host:port" of the account's proxy, "(tắt)" when it is off. */
 function proxyText(data: string): string {
@@ -14,7 +18,7 @@ function proxyText(data: string): string {
   }
 }
 
-function AccountRowView({ r }: { r: AccountRow }) {
+function AccountRowView({ r }: { r: Listed }) {
   const secretId = `pw${r.id}`;
   return (
     <tr data-find={`${r.label} ${r.username}`.toLowerCase()}>
@@ -46,6 +50,16 @@ function AccountRowView({ r }: { r: AccountRow }) {
       </td>
       <td>{r.serverId}</td>
       <td class="mono">{proxyText(r.data)}</td>
+      <td>
+        {r.license ? (
+          <a href={`/admin?key=${r.license.id}`} class="cell" title={`Chỉ nick của key ${r.license.key}`}>
+            <Icon name="key" />
+            {keyName(r.license)}
+          </a>
+        ) : (
+          <None />
+        )}
+      </td>
       <td>{r.source || <None />}</td>
       <td>{time(r.updatedAt)}</td>
       <td>
@@ -59,19 +73,41 @@ function AccountRowView({ r }: { r: AccountRow }) {
   );
 }
 
-export function AccountsView({ nonce, rows, flash }: { nonce: string; rows: AccountRow[]; flash?: string | null }) {
+type AccountsProps = {
+  nonce: string;
+  rows: Listed[];
+  flash?: string | null;
+  /** Every key, for the filter; `shown` the one filtered on. */
+  keys: KeyName[];
+  shown?: KeyName | null;
+};
+
+export function AccountsView({ nonce, rows, flash, keys, shown }: AccountsProps) {
   return (
     <Layout title="Nick" nonce={nonce} nav="accounts">
       <h1>Nick đã đồng bộ</h1>
       <p class="sub">
-        Nick các máy tự đồng bộ lên (15 phút một lần) hoặc gửi bằng API token, mỗi server game và tài khoản một dòng. Hai máy cùng một nick thì gộp
-        từng mục, mục nào sửa sau thì giữ. Mật khẩu lưu nguyên văn, không mã hoá.
+        Nick app của mỗi key tự đồng bộ lên (khi key còn dùng được, tối đa số nick của key) hoặc gửi bằng API token, mỗi server game và tài khoản
+        một dòng. Hai máy cùng một nick thì gộp từng mục, mục nào sửa sau thì giữ. Mật khẩu lưu nguyên văn, không mã hoá.
       </p>
       <Message kind="ok" text={flash} />
       <div class="bar">
         <span class="count">
-          {rows.length} nick <span id="shown"></span>
+          {rows.length} nick{shown ? ` của key ${keyName(shown)}` : ''} <span id="shown"></span>
         </span>
+        <form method="get" action="/admin" data-autosubmit>
+          <md-outlined-select name="key" label="Key" aria-label="Chỉ nick của một key">
+            <md-select-option value="" selected={shown ? undefined : true}>
+              <div slot="headline">Mọi key</div>
+            </md-select-option>
+            {keys.map((k) => (
+              <md-select-option value={String(k.id)} selected={shown?.id === k.id ? true : undefined}>
+                <div slot="headline">{keyName(k)}</div>
+                <div slot="supporting-text">{k.key}</div>
+              </md-select-option>
+            ))}
+          </md-outlined-select>
+        </form>
         <md-outlined-button data-reveal-all aria-pressed="false">
           <Icon name="visibility" slot="icon" />
           <span data-text>Hiện mọi mật khẩu</span>
@@ -82,13 +118,13 @@ export function AccountsView({ nonce, rows, flash }: { nonce: string; rows: Acco
         </md-filled-tonal-button>
         <Field id="find" name="find" label="Tìm theo tên hay tài khoản" type="search" icon="search" aria-label="Tìm nick" />
       </div>
-      <Table head={['Tên hiển thị', 'Tài khoản', 'Mật khẩu', 'Server', 'Proxy', 'Gửi từ', 'Cập nhật', <span class="muted">Xoá</span>]}>
+      <Table head={['Tên hiển thị', 'Tài khoản', 'Mật khẩu', 'Server', 'Proxy', 'Key', 'Gửi từ', 'Cập nhật', <span class="muted">Xoá</span>]}>
         {rows.length ? (
           rows.map((r) => <AccountRowView r={r} />)
         ) : (
           <tr>
-            <td colspan={8} class="muted wrap">
-              Chưa có nick nào. App từ bản 1.1.4 tự đồng bộ nick lên, sau khi máy được Cho đồng bộ ở trang Thiết bị; hoặc tạo một API token rồi gửi bằng{' '}
+            <td colspan={9} class="muted wrap">
+              {shown ? 'Key này chưa đồng bộ nick nào.' : 'Chưa có nick nào.'} App có key tự đồng bộ nick lên; hoặc tạo một API token rồi gửi bằng{' '}
               <code>POST /api/accounts</code> (README.md của thư mục server).
             </td>
           </tr>

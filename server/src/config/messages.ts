@@ -1,16 +1,21 @@
 // What the server says to people, in one place: the admin page's notices and errors, and the API's errors.
-import { EXPORT_FORMAT, FAIL_LIMIT, MAX_TOKEN_NAME, MIN_PASSWORD } from './constants.ts';
+import { EXPORT_FORMAT, FAIL_LIMIT, MAX_LICENSE_ACCOUNTS, MAX_TOKEN_NAME, MIN_PASSWORD } from './constants.ts';
 
 /** The fixed lines a redirect may ask a page to show (?done=…): never text from the URL itself. */
 export const FLASH: Record<string, string> = {
   deleted: 'Đã xoá nick khỏi server.',
   password: 'Đã đổi mật khẩu.',
-  blocked: 'Đã chặn thiết bị: app trên máy đó bị khoá ở lần báo tiếp theo (tối đa 15 phút).',
-  unblocked: 'Đã bỏ chặn thiết bị.',
-  renamed: 'Đã đặt tên thiết bị.',
-  forgotten: 'Đã xoá thiết bị khỏi danh sách. Lần mở app tới nó sẽ hiện lại, vẫn được dùng; muốn ngăn thì Chặn.',
-  syncOn: 'Đã cho máy đồng bộ nick: nick của máy lên trang Nick ở lần báo tiếp theo (tối đa 15 phút).',
-  syncOff: 'Đã tắt đồng bộ nick của máy. Nick máy đó đã gửi vẫn giữ trên trang Nick.',
+  revoked: 'Đã khoá key: app dùng key đó bị khoá ở lần kiểm tra tiếp theo (tối đa 1 giờ).',
+  restored: 'Đã mở khoá key.',
+  released: 'Đã gỡ thiết bị khỏi key: máy đó không dùng key này được nữa, máy khác nhập key này là kích hoạt được, hạn vẫn giữ.',
+  saved: 'Đã lưu key.',
+  removed: 'Đã xoá key: app dùng key đó bị khoá ở lần kiểm tra tiếp theo. Nick key đó đã đồng bộ vẫn giữ.',
+};
+
+/** The fixed errors a redirect may ask a page to show (?error=…), as FLASH. */
+export const FLASH_ERROR: Record<string, string> = {
+  activated: 'Chưa lưu gì: key vừa được kích hoạt nên đã có ngày hết hạn, không còn sửa thời hạn được. Xem lại rồi sửa theo ngày.',
+  gone: 'Chưa lưu gì: key không còn nữa (đã bị xoá).',
 };
 
 export const AUTH = {
@@ -33,12 +38,7 @@ export const HTTP = {
   onlyGetPost: 'Chỉ có GET và POST',
   onlyPost: 'Chỉ có POST',
   accountsTooLarge: 'JSON quá lớn (tối đa 1 MB)',
-  helloTooLarge: 'JSON quá lớn',
-  unknownDevice: 'Thiết bị chưa báo danh (POST /api/devices/hello trước)',
-  blockedDevice: 'Thiết bị đã bị khoá, vui lòng liên hệ admin',
-  syncNotAllowed: 'Admin chưa cho máy này đồng bộ nick (Cho đồng bộ trên trang Thiết bị)',
-  wrongDeviceKey: 'Khoá thiết bị không đúng: id này đã báo danh với khoá khác (Xoá khỏi danh sách trên trang Thiết bị để báo danh lại)',
-  noDeviceKey: 'Máy này chưa có khoá thiết bị: cập nhật app lên bản mới để đồng bộ nick',
+  tooLarge: 'JSON quá lớn',
   tokenName: `Đặt tên token từ 1 tới ${MAX_TOKEN_NAME} ký tự`,
 };
 
@@ -58,12 +58,24 @@ export const ACCOUNT = {
   serverIdInt: '"serverId" phải là số nguyên',
 };
 
-/** What is wrong with a hello or a sync of a device (validators/device.validator.ts). */
-export const DEVICE = {
+/** What POST /api/license/verify and /api/license/sync tell the app when a key does not work, what is wrong with what
+ * the app sent, and with a form of the Key page (validators/license.validator.ts). */
+export const LICENSE = {
+  unknown: 'Key không đúng',
+  revoked: (reason: string) => (reason ? `Key đã bị khoá: ${reason}` : 'Key đã bị khoá'),
+  taken: 'Key đã được kích hoạt trên máy khác',
+  released: 'Key đã được gỡ khỏi máy này, liên hệ admin',
+  expired: (day: string) => `Key đã hết hạn ngày ${day}`,
+  inactive: 'Key chưa được kích hoạt trên máy này: mở app để kiểm tra key trước',
+  badKey: '"key" phải là chuỗi',
   badJson: 'JSON không đọc được',
   notObject: 'Cần một object JSON',
   badId: 'id phải là 64 ký tự hex (SHA-256)',
-  badKey: 'key phải là 64 ký tự hex',
   notList: '"accounts" phải là một danh sách',
   tooMany: (n: number) => `Tối đa ${n} nick một lần`,
+  maxAccounts: `Số nick tối đa là số nguyên từ 1 tới ${MAX_LICENSE_ACCOUNTS.toLocaleString('vi-VN')}`,
+  duration: 'Thời hạn là số nguyên từ 1, tối đa 100 năm',
+  date: 'Chọn ngày hết hạn',
+  pastDate: 'Ngày hết hạn phải từ hôm nay trở đi',
+  mode: 'Chọn cách tính hạn',
 };
