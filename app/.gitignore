@@ -8,6 +8,8 @@ settings.json
 # The key of the app and what its last sync sent (desktop/src-tauri/src/license.rs, sync.rs); local only.
 license.json
 license-sync.json
+# Thêm, Sửa, Xoá, Nhập nick waiting for the next sync (desktop/src-tauri/src/events.rs); local only.
+license-events.json
 # Left by Quản lý thiết bị before 1.1.8 (the app removes them when it starts).
 device.json
 device.key

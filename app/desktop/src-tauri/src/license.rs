@@ -181,6 +181,9 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, accounts: &Path, sample: bool, logi
     for old in ["device.json", "device.key", "sync.json"] {
         let _ = std::fs::remove_file(accounts.with_file_name(old));
     }
+    if !off {
+        crate::events::start(accounts.with_file_name("license-events.json"));
+    }
     let key = if off { None } else { load(&file) };
     let state = match (&key, off) {
         (_, true) => LicenseState::Off,
@@ -219,7 +222,10 @@ async fn tick<R: Runtime>(app: &AppHandle<R>) {
         let valid = l.valid();
         let mut inner = l.0.lock().unwrap();
         match (valid, inner.key.clone()) {
-            (true, Some(key)) if Instant::now() >= inner.next_sync => {
+            // A new Thêm, Sửa, Xoá nick (events.rs) goes now rather than within 15 minutes.
+            (true, Some(key))
+                if Instant::now() >= inner.next_sync || crate::events::take_fresh() =>
+            {
                 inner.next_sync = Instant::now() + SYNC_EVERY;
                 Some((key, inner.server.clone(), inner.sync_file.clone()))
             }

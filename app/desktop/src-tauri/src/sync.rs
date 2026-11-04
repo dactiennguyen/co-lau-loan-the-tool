@@ -219,13 +219,15 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &s
         saved.is_none(),
         crate::app::epoch_ms(),
     );
-    if plan.accounts.is_empty() && plan.settings.is_none() {
+    // Thêm, Sửa, Xoá, Nhập nick since the last sync (events.rs): they go even when no account changed.
+    let events = crate::events::pending();
+    if plan.accounts.is_empty() && plan.settings.is_none() && events.is_empty() {
         return;
     }
-    let body =
-        json!({ "id": id, "key": key, "settings": plan.settings, "accounts": plan.accounts });
+    let body = json!({ "id": id, "key": key, "settings": plan.settings, "accounts": plan.accounts, "events": events });
     match post(server, &body).await {
         Ok(m) => {
+            crate::events::sent(events.len());
             let mut next = plan.next;
             if m.refused > 0 {
                 // Which new accounts the key had no room for is not said: every account new to the server is sent

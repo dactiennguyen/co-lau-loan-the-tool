@@ -20,6 +20,7 @@ mod app;
 mod backup;
 mod battle_window;
 mod commands;
+mod events;
 mod license;
 mod machine;
 mod notify;

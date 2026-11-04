@@ -209,6 +209,7 @@ impl Shared {
         let (path, mut list) = self.with(|app| app.saved(None, None))?;
         list.push(account.clone());
         write(path, list).await?;
+        crate::events::note(crate::events::Kind::Add, &account);
         Ok(self.with(|app| {
             let id = app.add(account);
             app.touch(id, true);
@@ -222,7 +223,7 @@ impl Shared {
     /// counts from the next login.
     pub async fn update(&self, id: u64, edit: Account) -> Result<(), String> {
         let _turn = self.saving.lock().await;
-        let (account, old_proxy) = self.with(|app| {
+        let (account, before) = self.with(|app| {
             let old = &app
                 .entry(id)
                 .ok_or("Nick này không còn trong danh sách")?
@@ -241,13 +242,15 @@ impl Shared {
                 ..edit
             };
             app.unique(&account, Some(id))?;
-            Ok::<_, String>((account, old.proxy.clone()))
+            Ok::<_, String>((account, old.clone()))
         })?;
+        let old_proxy = before.proxy.clone();
         if needs_check(old_proxy.as_ref(), account.proxy.as_ref()) {
             check(&self.server(), account.proxy.as_ref().unwrap()).await?;
         }
         let (path, list) = self.with(|app| app.saved(Some(id), Some(&account)))?;
         write(path, list).await?;
+        crate::events::edited(&before, &account);
         self.with(|app| {
             if let Some(e) = app.entry_mut(id) {
                 e.account = account;
@@ -373,16 +376,20 @@ impl Shared {
     /// asked, when it has a session or the file cannot be written: the account then stays.
     pub async fn remove(&self, id: u64) -> Result<(), String> {
         let _turn = self.saving.lock().await;
-        let (path, list) = self.with(|app| {
-            if app.entry(id).is_none() {
+        let (path, list, gone) = self.with(|app| {
+            let Some(entry) = app.entry(id) else {
                 return Err("Nick này không còn trong danh sách".to_string());
-            }
+            };
+            let gone = entry.account.clone();
             if app.running(id) {
                 return Err("Nick đang đăng nhập: đăng xuất trước khi xoá".into());
             }
-            app.saved(Some(id), None)
+            let (path, list) = app.saved(Some(id), None)?;
+            Ok((path, list, gone))
         })?;
         write(path, list).await?;
+        // The server keeps it, marked "Đã xoá ở máy" (events.rs).
+        crate::events::note(crate::events::Kind::Remove, &gone);
         self.with(|app| app.drop_entry(id));
         Ok(())
     }
@@ -424,6 +431,7 @@ impl Shared {
             for (step, account) in steps.into_iter().zip(accounts) {
                 match step {
                     Step::Add => {
+                        crate::events::note(crate::events::Kind::Import, &account);
                         done.accounts.push(account.clone());
                         let id = app.add(account);
                         app.touch(id, true);
@@ -432,6 +440,7 @@ impl Shared {
                     Step::Replace(id) => {
                         if let Some(at) = app.entries.iter().position(|e| e.id == id) {
                             app.entries[at].account = list[at].clone();
+                            crate::events::note(crate::events::Kind::Import, &list[at]);
                             done.accounts.push(list[at].clone());
                             app.touch(id, false);
                         }

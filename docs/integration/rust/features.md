@@ -420,6 +420,8 @@ App chỉ cho đăng nhập nick khi có một key còn hạn của [CLLT Server
   - **Nhập JSON** thì các nick vừa nhập tính là "từ trước", nên không đè lần sửa mới hơn của máy khác;
   - gửi lỗi thì lần sau gửi lại. `accounts.json` đọc lỗi thì không gửi gì. Server báo có nick mới bị từ chối vì quá số nick của key thì các nick mới đó được gửi lại lần sau (khi admin nâng giới hạn, server nhận);
   - **Kích hoạt key khác** thì `license-sync.json` bị xoá: key mới nhận lại đủ mọi nick.
+- **Log nick lên server** (`desktop/src-tauri/src/events.rs`, [server/README.md#log](../../../server/README.md#log)): mỗi lần **Thêm nick**, **Sửa nick**, **Xoá nick** hay **Nhập JSON**, app ghi một sự kiện (lúc nào, loại, tài khoản, server game, tên hiển thị; không có mật khẩu) vào `license-events.json` cạnh `accounts.json`, rồi gửi ngay ở lượt kế của luồng key (tối đa 15 giây) trong trường `events` của `POST /api/license/sync`. Mất mạng thì sự kiện nằm chờ, tối đa 1.000 cái, mở app lại vẫn còn; server nhận rồi mới bỏ. Sửa nick đổi tài khoản hay server game thì thành xoá nick cũ và thêm nick mới.
+  - **Xoá nick ở app không xoá trên server:** server giữ nick, ghi log và gắn nhãn "Đã xoá ở máy" ở trang Nick; thêm lại thì nhãn mất.
 - `--sample` và `CLLT_SERVER=off` không cần key và không đồng bộ. `CLLT_SERVER` đổi địa chỉ server, phải là `https://`, hoặc `http://localhost` / `http://127.0.0.1` khi chạy server trên máy (địa chỉ khác bị bỏ qua, dùng CLLT Server). Bản xem thử trong trình duyệt: thêm `?license=missing` (hay `refused`, `unreachable`) vào địa chỉ để xem hộp key, `checking` hay `valid` để xem dòng key ở thanh bên; Kích hoạt nhận mọi key trừ "sai".
 
 ## Thông báo
