@@ -31,7 +31,7 @@ function toast(text: string) {
   const el = document.createElement('div');
   el.className = 'toast ok';
   el.setAttribute('role', 'status');
-  el.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>';
+  el.innerHTML = '<svg class="icon" viewBox="0 0 256 256" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>';
   const span = document.createElement('span');
   span.textContent = text;
   el.append(span);
@@ -244,6 +244,15 @@ document.addEventListener('click', (e) => {
   const copier = target.closest<HTMLElement>('[data-copy]');
   if (copier) {
     copy(copier);
+    return;
+  }
+  // Tải .txt of the keys just made: the text as a file, made here (nothing goes to the server).
+  const saver = target.closest<HTMLElement>('[data-download]');
+  if (saver) {
+    const url = URL.createObjectURL(new Blob([`${saver.dataset.download ?? ''}\n`], { type: 'text/plain;charset=utf-8' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: saver.dataset.filename ?? 'key.txt' });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     return;
   }
   // The state filter: one at a time.

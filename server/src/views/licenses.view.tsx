@@ -6,6 +6,7 @@ import {
   DEFAULT_DURATION_UNIT,
   DEFAULT_MAX_ACCOUNTS,
   MAX_LICENSE_ACCOUNTS,
+  MAX_LICENSE_BATCH,
   MAX_LICENSE_NOTE,
   MAX_REVOKE_REASON,
 } from '../config/constants.ts';
@@ -21,8 +22,8 @@ export type LicensesProps = {
   flash?: string | null;
   /** What a redirect or Sửa found wrong. */
   error?: string | null;
-  /** The key Tạo key just made (?created=<id>), shown in a dialog to copy. */
-  made?: LicenseRow | null;
+  /** The keys Tạo key just made (?created=<id>,<id>…), shown in a dialog to copy. */
+  made?: LicenseRow[];
   /** What Tạo key found wrong, by field, with what was typed: the dialog opens again with them. */
   errors?: Record<string, string>;
   values?: Record<string, string>;
@@ -92,8 +93,8 @@ function CreateDialog({ now, errors, values }: { now: number; errors: Record<str
       }
     >
       <form id="create-form" method="post" action="/admin/licenses" class="stack" data-modes>
-        <div class="pair wide-first">
-          <Field name="note" label="Ghi chú" placeholder="Key của ai, ví dụ tên khách" value={values.note} maxlength={MAX_LICENSE_NOTE} error={errors.note} />
+        <Field name="note" label="Ghi chú" placeholder="Key của ai, ví dụ tên khách" value={values.note} maxlength={MAX_LICENSE_NOTE} error={errors.note} />
+        <div class="pair">
           <Field
             name="maxAccounts"
             type="number"
@@ -104,6 +105,18 @@ function CreateDialog({ now, errors, values }: { now: number; errors: Record<str
             suffix="nick"
             required
             error={errors.maxAccounts}
+          />
+          <Field
+            name="count"
+            type="number"
+            label="Số lượng"
+            value={values.count ?? '1'}
+            min="1"
+            max={String(MAX_LICENSE_BATCH)}
+            suffix="key"
+            required
+            hint={`Tạo nhiều key giống nhau một lúc, tối đa ${MAX_LICENSE_BATCH}`}
+            error={errors.count}
           />
         </div>
         <div class="field">
@@ -194,34 +207,63 @@ function RevokeDialog() {
 const endText = (l: LicenseRow) =>
   l.expiresAt !== null ? `Dùng tới hết ngày ${lastDay(l.expiresAt)}` : `${durationText(l.duration ?? 0, l.durationUnit ?? 'day')} sau khi kích hoạt`;
 
-/** The key Tạo key just made, open as the page loads: the key to copy, its note, accounts and end. */
-function MadeDialog({ made }: { made: LicenseRow }) {
+/** The keys Tạo key just made, open as the page loads: one key large with Chép, or the list of them with Chép tất cả
+ * and Tải .txt (one key a line); their note, accounts and end, which they share. */
+function MadeDialog({ made }: { made: LicenseRow[] }) {
+  const first = made[0]!;
+  const all = made.map((l) => l.key).join('\n');
+  const many = made.length > 1;
   return (
     <Dialog
       id="created"
       open
-      title="Đã tạo key"
-      sub="Gửi key này cho người dùng: app hỏi key khi mở."
+      title={many ? `Đã tạo ${made.length} key` : 'Đã tạo key'}
+      sub={many ? 'Gửi mỗi người một key: mỗi key dùng cho một máy.' : 'Gửi key này cho người dùng: app hỏi key khi mở.'}
       foot={
         <button type="button" class="btn primary" data-close>
           Xong
         </button>
       }
     >
-      <div class="made-key">
-        <code data-made="true">{made.key}</code>
-        <button type="button" class="btn" data-copy={made.key} data-copied="Đã chép ✓">
-          <Icon name="copy" />
-          <span data-label>Chép</span>
-        </button>
-      </div>
+      {many ? (
+        <>
+          <ol class="made-list" data-made="true">
+            {made.map((l) => (
+              <li>
+                <code>{l.key}</code>
+                <button type="button" class="icon-btn" data-copy={l.key} aria-label={`Chép ${l.key}`} title="Chép">
+                  <Icon name="copy" />
+                </button>
+              </li>
+            ))}
+          </ol>
+          <div class="row-actions">
+            <button type="button" class="btn" data-copy={all} data-copied="Đã chép ✓">
+              <Icon name="copy" />
+              <span data-label>Chép tất cả</span>
+            </button>
+            <button type="button" class="btn" data-download={all} data-filename={`cllt-key-${made.length}.txt`}>
+              <Icon name="download" />
+              Tải .txt
+            </button>
+          </div>
+        </>
+      ) : (
+        <div class="made-key">
+          <code data-made="true">{first.key}</code>
+          <button type="button" class="btn" data-copy={first.key} data-copied="Đã chép ✓">
+            <Icon name="copy" />
+            <span data-label>Chép</span>
+          </button>
+        </div>
+      )}
       <dl class="facts">
         <dt>Ghi chú</dt>
-        <dd>{made.note || <None />}</dd>
+        <dd>{first.note || <None />}</dd>
         <dt>Số nick tối đa</dt>
-        <dd>{made.maxAccounts}</dd>
+        <dd>{first.maxAccounts}</dd>
         <dt>Hạn</dt>
-        <dd>{endText(made)}</dd>
+        <dd>{endText(first)}</dd>
       </dl>
     </Dialog>
   );
@@ -382,10 +424,10 @@ export function LicensesView({ nonce, list, now, flash, error, made, errors = {}
   return (
     <Layout title="Key" nonce={nonce} nav="licenses" toasts={[error ? { kind: 'error', text: error } : null, flash ? { kind: 'ok', text: flash } : null]}>
       <div class="stats">
-        <Stat icon="key-round" label="Tổng key" value={list.length} cap={`${counts.get('idle') ?? 0} chưa kích hoạt`} />
-        <Stat icon="circle-check" label="Đang dùng" value={counts.get('using') ?? 0} cap={`${counts.get('revoked') ?? 0} bị khoá · ${counts.get('expired') ?? 0} hết hạn`} />
-        <Stat icon="clock" label="Sắp hết hạn" value={soon} cap="trong 7 ngày tới" kind={soon ? 'warn' : undefined} />
-        <Stat icon="users" label="Nick đã đồng bộ" value={synced} cap={`trên ${allowed.toLocaleString('vi-VN')} nick được phép`} />
+        <Stat icon="key-round" tone="violet" label="Tổng key" value={list.length} cap={`${counts.get('idle') ?? 0} chưa kích hoạt`} />
+        <Stat icon="circle-check" tone="green" label="Đang dùng" value={counts.get('using') ?? 0} cap={`${counts.get('revoked') ?? 0} bị khoá · ${counts.get('expired') ?? 0} hết hạn`} />
+        <Stat icon="clock" tone="amber" label="Sắp hết hạn" value={soon} cap="trong 7 ngày tới" kind={soon ? 'warn' : undefined} />
+        <Stat icon="users" tone="blue" label="Nick đã đồng bộ" value={synced} cap={`trên ${allowed.toLocaleString('vi-VN')} nick được phép`} />
       </div>
       <div class="toolbar">
         <h1>Key</h1>
@@ -425,7 +467,7 @@ export function LicensesView({ nonce, list, now, flash, error, made, errors = {}
       <CreateDialog now={now} errors={errors} values={values} />
       <EditDialog now={now} />
       <RevokeDialog />
-      {made && <MadeDialog made={made} />}
+      {made && made.length > 0 && <MadeDialog made={made} />}
     </Layout>
   );
 }

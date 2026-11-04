@@ -47,11 +47,11 @@ async function show(c: Ctx, props: Omit<LicensesProps, 'nonce' | 'list' | 'now'>
   return render(c, (n) => <LicensesView nonce={n} list={list} now={Date.now()} {...props} />, status);
 }
 
-/** The Key page; ?created=<id> shows the key Tạo key just made, to copy. */
+/** The Key page; ?created=<id>,<id>… shows the keys Tạo key just made, to copy. */
 export async function page(c: Ctx) {
   const list = await licenses.list(c.var.db);
-  const created = Number(c.req.query('created'));
-  const made = list.find((l) => l.id === created) ?? null;
+  const created = new Set((c.req.query('created') ?? '').split(',').map(Number));
+  const made = list.filter((l) => created.has(l.id)).sort((a, b) => a.id - b.id);
   return render(c, (n) => <LicensesView nonce={n} list={list} now={Date.now()} flash={flash(c)} error={flashError(c)} made={made} />);
 }
 
@@ -60,9 +60,9 @@ export async function page(c: Ctx) {
 export async function create(c: Ctx) {
   const form = check(createForm, formObject(c.var.form));
   if (!form.ok) return show(c, { errors: form.fields, values: formObject(c.var.form) }, 400);
-  const { note, maxAccounts, term } = form.data;
-  const id = await licenses.create(c.var.db, note, maxAccounts, term);
-  return c.redirect(`/admin/licenses?created=${id}`, 303);
+  const { note, maxAccounts, term, count } = form.data;
+  const ids = await licenses.createMany(c.var.db, note, maxAccounts, term, count);
+  return c.redirect(`/admin/licenses?created=${ids.join(',')}`, 303);
 }
 
 /** Khoá, Mở khoá, Gỡ thiết bị, Sửa, Xoá; back to the page with what was done. */

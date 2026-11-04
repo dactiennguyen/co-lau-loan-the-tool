@@ -1,5 +1,5 @@
 // What the server says to people, in one place: the admin page's notices and errors, and the API's errors.
-import { FAIL_LIMIT, MAX_LICENSE_ACCOUNTS, MIN_PASSWORD } from './constants.ts';
+import { FAIL_LIMIT, MAX_LICENSE_ACCOUNTS, MAX_LICENSE_BATCH, MIN_PASSWORD } from './constants.ts';
 
 /** The fixed lines a redirect may ask a page to show (?done=…): never text from the URL itself. */
 export const FLASH: Record<string, string> = {
@@ -65,6 +65,7 @@ export const LICENSE = {
   notList: '"accounts" phải là một danh sách',
   tooMany: (n: number) => `Tối đa ${n} nick một lần`,
   maxAccounts: `Số nick tối đa là số nguyên từ 1 tới ${MAX_LICENSE_ACCOUNTS.toLocaleString('vi-VN')}`,
+  count: `Số lượng là số nguyên từ 1 tới ${MAX_LICENSE_BATCH}`,
   duration: 'Thời hạn là số nguyên từ 1, tối đa 100 năm',
   date: 'Chọn ngày hết hạn',
   pastDate: 'Ngày hết hạn phải từ hôm nay trở đi',

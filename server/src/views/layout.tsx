@@ -5,7 +5,7 @@
 // the script does all the page does on its own (dialogs, menus, filters, toasts), as the policy runs no inline script.
 import { raw } from 'hono/html';
 import type { Child, PropsWithChildren } from 'hono/jsx';
-import { ICONS, type IconName } from './icons.ts';
+import { DUOTONE, ICONS, type IconName } from './icons.ts';
 import { STYLE } from './styles.ts';
 
 /** Where the script of the page is served from (public/, wrangler.toml [assets]). */
@@ -19,10 +19,11 @@ const SECTIONS: [Section, string, string][] = [
   ['password', '/admin/password', 'Mật khẩu'],
 ];
 
-/** A Lucide icon drawn inline, 16 px with a 1.75 stroke (styles.ts); `cls` adds a class. */
-export function Icon({ name, cls }: { name: IconName; cls?: string }) {
-  // The paths come from icons.ts, generated from lucide-static: markup of the repository, never of a request.
-  return raw(`<svg class="icon${cls ? ` ${cls}` : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`);
+/** A Phosphor icon drawn inline, 16 px (styles.ts); `duo` in two tones; `cls` adds a class. */
+export function Icon({ name, cls, duo }: { name: IconName; cls?: string; duo?: boolean }) {
+  // The paths come from icons.ts, generated from @phosphor-icons/core: markup of the repository, never of a request.
+  const body = duo ? DUOTONE[name] : ICONS[name];
+  return raw(`<svg class="icon${cls ? ` ${cls}` : ''}" viewBox="0 0 256 256" aria-hidden="true">${body}</svg>`);
 }
 
 /** The mark and name of the site. */
@@ -293,21 +294,38 @@ export function Empty({ icon, children }: PropsWithChildren<{ icon: IconName }>)
   return (
     <div class="card empty">
       <span class="ring">
-        <Icon name={icon} />
+        <Icon name={icon} duo />
       </span>
       <p>{children}</p>
     </div>
   );
 }
 
-/** A stat card: a caption with its icon, a big number, and a line under it. */
-export function Stat({ icon, label, value, cap, kind }: { icon: IconName; label: string; value: string | number; cap?: string; kind?: 'warn' }) {
+/** The colour of a stat card's icon badge. */
+export type Tone = 'violet' | 'green' | 'amber' | 'blue' | 'red';
+
+/** A stat card: a caption, its icon in a tinted badge at the right, a big number, and a line under it. */
+export function Stat({
+  icon,
+  label,
+  value,
+  cap,
+  kind,
+  tone = 'violet',
+}: {
+  icon: IconName;
+  label: string;
+  value: string | number;
+  cap?: string;
+  kind?: 'warn';
+  tone?: Tone;
+}) {
   return (
     <div class={`stat${kind ? ` ${kind}` : ''}`}>
-      <div class="label">
-        <Icon name={icon} />
-        {label}
-      </div>
+      <span class={`badge ${tone}`}>
+        <Icon name={icon} duo />
+      </span>
+      <div class="label">{label}</div>
       <div class="num">{typeof value === 'number' ? value.toLocaleString('vi-VN') : value}</div>
       {cap && <div class="cap">{cap}</div>}
     </div>

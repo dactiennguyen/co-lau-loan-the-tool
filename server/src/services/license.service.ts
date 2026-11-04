@@ -64,19 +64,27 @@ export const sourceOf = (l: License) => `Key ${keyName(l)}`;
 
 /** A new key, by its id; the rare clash with a key there is takes another one. */
 export async function create(db: Db, note: string, maxAccounts: number, term: Term, now = Date.now()): Promise<number> {
+  return (await createMany(db, note, maxAccounts, term, 1, now))[0]!;
+}
+
+/** Tạo key with Số lượng: `count` keys alike (note, accounts, end), in one batch of writes; a key that happens to be
+ * taken already (never seen: 80 random bits) is made again. Their ids, in the order made. */
+export async function createMany(db: Db, note: string, maxAccounts: number, term: Term, count: number, now = Date.now()): Promise<number[]> {
   const ends =
     term.mode === 'activation'
       ? { mode: 'activation' as const, duration: term.duration, durationUnit: term.unit, expiresAt: null }
       : { mode: 'fixed' as const, duration: null, durationUnit: null, expiresAt: term.expiresAt };
-  for (;;) {
-    const key = newKey();
-    const [made] = await db
-      .insert(table)
-      .values({ key, note, maxAccounts, ...ends, createdAt: now })
-      .onConflictDoNothing()
-      .returning({ id: table.id });
-    if (made) return made.id;
+  const ids: number[] = [];
+  while (ids.length < count) {
+    const keys = new Set<string>();
+    while (keys.size < count - ids.length) keys.add(newKey());
+    const inserts = [...keys].map((key) =>
+      db.insert(table).values({ key, note, maxAccounts, ...ends, createdAt: now }).onConflictDoNothing().returning({ id: table.id }),
+    );
+    const made = await db.batch(inserts as [(typeof inserts)[0], ...typeof inserts]);
+    for (const [row] of made) if (row) ids.push(row.id);
   }
+  return ids;
 }
 
 /** Why a key does not work on the device `id` before anything is written: none, revoked, held by another device, or

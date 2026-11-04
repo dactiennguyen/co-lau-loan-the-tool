@@ -106,10 +106,10 @@ export function AccountsView({ nonce, rows, now, flash, keys, shown }: AccountsP
   return (
     <Layout title="Nick" nonce={nonce} nav="accounts" toasts={[flash ? { kind: 'ok', text: flash } : null]}>
       <div class="stats">
-        <Stat icon="users" label={shown ? `Nick của key ${keyName(shown)}` : 'Tổng nick'} value={rows.length} cap="mật khẩu lưu nguyên văn" />
-        <Stat icon="globe" label="Có proxy" value={withProxy} cap={`${rows.length - withProxy} đi thẳng`} />
-        <Stat icon="key-round" label="Theo key" value={keyed} cap="key đã đồng bộ nick" />
-        <Stat icon="triangle-alert" label="Không key" value={loose} cap="không key nào giữ" />
+        <Stat icon="users" tone="violet" label={shown ? `Nick của key ${keyName(shown)}` : 'Tổng nick'} value={rows.length} cap="mật khẩu lưu nguyên văn" />
+        <Stat icon="globe" tone="blue" label="Có proxy" value={withProxy} cap={`${rows.length - withProxy} đi thẳng`} />
+        <Stat icon="key-round" tone="green" label="Theo key" value={keyed} cap="key đã đồng bộ nick" />
+        <Stat icon="triangle-alert" tone="amber" label="Không key" value={loose} cap="không key nào giữ" />
       </div>
       <div class="toolbar">
         <h1>Nick</h1>

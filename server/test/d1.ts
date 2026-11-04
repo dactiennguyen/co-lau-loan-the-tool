@@ -34,6 +34,14 @@ class Statement {
     const r = this.db.prepare(this.sql).run(...this.args);
     return { success: true, meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
   }
+  /** What a batch gives for it: the rows it returns (none for a plain write) and its meta. */
+  async result() {
+    if (!/\breturning\b|^\s*select\b/i.test(this.sql)) return { results: [], ...(await this.run()) };
+    const before = this.db.prepare('SELECT total_changes() AS n').get() as { n: number };
+    const results = this.db.prepare(this.sql).all(...this.args).map((r) => ({ ...r }));
+    const after = this.db.prepare('SELECT total_changes() AS n').get() as { n: number };
+    return { results, success: true, meta: { changes: Number(after.n) - Number(before.n) } };
+  }
 }
 
 export function d1(): D1Database {
@@ -41,12 +49,12 @@ export function d1(): D1Database {
   for (const file of readdirSync(MIGRATIONS).sort()) db.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'));
   const fake = {
     prepare: (sql: string) => new Statement(db, sql),
-    // As D1: all or none.
+    // As D1: all or none, and each result with its rows (RETURNING, SELECT) as well as its meta.
     async batch(statements: Statement[]) {
       db.exec('BEGIN');
       try {
         const out = [];
-        for (const s of statements) out.push(await s.run());
+        for (const s of statements) out.push(await s.result());
         db.exec('COMMIT');
         return out;
       } catch (e) {

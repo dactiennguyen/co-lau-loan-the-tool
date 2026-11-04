@@ -6,6 +6,7 @@ import {
   MAX_DURATION_DAYS,
   MAX_HOSTNAME,
   MAX_LICENSE_ACCOUNTS,
+  MAX_LICENSE_BATCH,
   MAX_LICENSE_NOTE,
   MAX_OS,
   MAX_REVOKE_REASON,
@@ -100,6 +101,11 @@ export const createForm = z
   .object({
     note: clipped(MAX_LICENSE_NOTE),
     maxAccounts,
+    // How many keys alike: 1 when the form has no such field.
+    count: z.preprocess(
+      (v) => (v === undefined || v === '' ? '1' : v),
+      z.coerce.number({ error: LICENSE.count }).int(LICENSE.count).min(1, LICENSE.count).max(MAX_LICENSE_BATCH, LICENSE.count),
+    ),
     mode: z.enum(['activation', 'fixed'], { error: LICENSE.mode }),
     duration: z.string().trim().catch(''),
     unit,
@@ -118,6 +124,7 @@ export const createForm = z
   .transform((v) => ({
     note: v.note,
     maxAccounts: v.maxAccounts,
+    count: v.count,
     term: (v.mode === 'activation'
       ? { mode: 'activation', duration: Number(v.duration), unit: v.unit }
       : { mode: 'fixed', expiresAt: endOfDay(v.date) }) satisfies Term as Term,

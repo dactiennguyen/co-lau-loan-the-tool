@@ -36,6 +36,8 @@ export const DEFAULT_MAX_ACCOUNTS = 100;
 export const DEFAULT_DURATION = 10;
 export const DEFAULT_DURATION_UNIT = 'year';
 export const MAX_LICENSE_ACCOUNTS = 100_000;
+/** Tạo key: the most keys one press makes. */
+export const MAX_LICENSE_BATCH = 100;
 /** The longest duration in days a key may be given (100 years). */
 export const MAX_DURATION_DAYS = 36_500;
 export const MAX_LICENSE_NOTE = 100;

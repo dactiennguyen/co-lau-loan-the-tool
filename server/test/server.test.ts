@@ -244,6 +244,40 @@ async function newKey(c: Awaited<ReturnType<typeof ready>>, form: Record<string,
   return /<code data-made="true">(CLLT-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4})<\/code>/.exec(page.text)![1];
 }
 
+test('key: Số lượng makes up to 100 keys alike in one press, all shown to copy and download; more is refused', async () => {
+  const c = await ready();
+  assert.match((await c.call('/admin/licenses')).text, /name="count" type="number" value="1"/);
+  const r = await c.call('/admin/licenses', {
+    form: { note: 'Quán net', maxAccounts: '20', mode: 'fixed', date: '2099-12-31', count: '3' },
+  });
+  assert.equal(r.status, 303, r.text);
+  assert.match(r.location!, /^\/admin\/licenses\?created=\d+,\d+,\d+$/);
+  const page = (await c.call(r.location!)).text;
+  assert.match(page, /Đã tạo 3 key/);
+  const keys = [...page.matchAll(/<li><code>(CLLT-[0-9A-Z-]{19})<\/code>/g)].map((m) => m[1]);
+  assert.equal(new Set(keys).size, 3);
+  // The keys of Tải .txt, one a line (the newline written as &#10; in the attribute or as itself).
+  const download = /data-download="([^"]*)"/.exec(page)![1].replace(/&#10;/g, '\n');
+  assert.deepEqual(download.split('\n'), keys);
+  const rows = await c.env.DB.prepare('SELECT note, max_accounts, mode FROM licenses').all<Record<string, unknown>>();
+  assert.equal(rows.results.length, 3);
+  for (const row of rows.results) assert.deepEqual([row.note, row.max_accounts, row.mode], ['Quán net', 20, 'fixed']);
+  // One key keeps the large single view.
+  const one = await c.call('/admin/licenses', { form: { maxAccounts: '5', mode: 'activation', duration: '7', unit: 'day' } });
+  assert.match((await c.call(one.location!)).text, /<code data-made="true">CLLT-/);
+  // 101 or 0: the dialog again, with the reason under Số lượng, nothing made.
+  for (const count of ['101', '0']) {
+    const bad = await c.call('/admin/licenses', { form: { maxAccounts: '5', mode: 'activation', duration: '7', unit: 'day', count } });
+    assert.equal(bad.status, 400);
+    assert.match(bad.text, /Số lượng là số nguyên từ 1 tới 100/);
+  }
+  assert.equal(await c.env.DB.prepare('SELECT COUNT(*) AS n FROM licenses').first('n'), 4);
+  // The most at once.
+  const most = await c.call('/admin/licenses', { form: { maxAccounts: '5', mode: 'activation', duration: '7', unit: 'day', count: '100' } });
+  assert.equal(most.location!.split(',').length, 100);
+  assert.equal(await c.env.DB.prepare('SELECT COUNT(*) AS n FROM licenses').first('n'), 104);
+});
+
 /** The id of the key in the actions of the Key page. */
 async function keyId(c: Awaited<ReturnType<typeof ready>>, key: string) {
   const page = (await c.call('/admin/licenses')).text;
