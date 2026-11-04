@@ -2,7 +2,8 @@ name: Build Matrix
 
 # Tests, then the desktop app (app/desktop) built for macOS Apple Silicon, macOS Intel, Windows x64 and Ubuntu x64 (on a
 # release or a run started by hand; a push or pull request only tests).
-# The bundles stay as artifacts of the run; release.yml calls this workflow on a v* tag and publishes them. With the
+# The bundles stay as artifacts of the run for a day; release.yml calls this workflow on a v* tag, publishes them, then
+# deletes them. With the
 # updater key in the secrets, each bundle also gets its updater file and .sig (docs/integration/rust/release.md#tự-cập-nhật);
 # there is no Apple or Windows code signing (docs/integration/rust/release.md#cicd-và-phát-hành).
 
@@ -199,4 +200,7 @@ jobs:
           name: bundles-${{ matrix.target }}
           path: staged/*
           if-no-files-found: error
-          retention-days: 14
+          # Only to hand them to the publish job of release.yml, which deletes them once published. Kept 14 days, the
+          # ~210 MB of each build filled the storage of artifacts (12 GB) and the upload of 1.1.9 failed on 04/11/2026.
+          # A day is enough to re-run a failed publish, or to download a build started by hand.
+          retention-days: 1
