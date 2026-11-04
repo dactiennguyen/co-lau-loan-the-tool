@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -28,8 +28,10 @@ const HAMMER = 2;
  * Phẩm chất trang bị nhặt has its four boxes ticked unless unticked. Dùng bình trong trận holds Bình máu and Bình mana
  * under its ▾, both off unless ticked, each with Tối đa/trận and Giữ lại (1 and 30, 2 and 30), and Mua bình once the bag
  * holds no more than it keeps (the bot never buys one). Tự gộp đá khi túi đầy is off unless turned on, with Gộp tới (Đá
- * cấp 2–12, Max by default) and the minutes between two trips (5) under its ▾. Lưu dữ liệu trận is not here: it is the same for every account,
- * in the Cài đặt of the app (SettingsDialog).
+ * cấp 2–12, Max by default) and the minutes between two trips (5) under its ▾. Thời gian chờ holds the waits of the bot
+ * under its ▾, every one off unless ticked: Chờ giữa các trận, Chờ trước mỗi lượt đi and Chờ giữa các bước nhiệm vụ with
+ * their seconds (1 each), Nghỉ giải lao (2 minutes after 30 battles) and Thời gian ngẫu nhiên. Lưu dữ liệu trận is not
+ * here: it is the same for every account, in the Cài đặt of the app (SettingsDialog).
  */
 /** Whether the settings under Tự nhặt đồ are shown, the same for every account; kept in localStorage. */
 const PICKUP_OPEN = "pickupOptionsOpen";
@@ -53,6 +55,47 @@ const MERGE_MAX = 12;
 const MERGE_EVERY_MAX = 120;
 /** The most potions a battle (POTION_MAX of cllt-core). */
 const POTION_MAX = 10;
+
+/** Whether the waits under Thời gian chờ are shown, the same for every account; kept in localStorage. */
+const PACE_OPEN = "paceOptionsOpen";
+/** The most of each number of Thời gian chờ (MOB_DELAY_MAX, TURN_DELAY_MAX, STEP_DELAY_MAX, BREAK_EVERY_MAX and
+ * BREAK_MINUTES_MAX of cllt-core): a turn has 30 s, so twice the most of Chờ trước mỗi lượt đi still leaves 10. */
+const MOB_DELAY_MAX = 60;
+const TURN_DELAY_MAX = 10;
+const STEP_DELAY_MAX = 30;
+const BREAK_EVERY_MAX = 1000;
+const BREAK_MINUTES_MAX = 120;
+/** The three waits of Thời gian chờ in seconds (bot/pace.rs, runner_v3.rs of cllt-core): its box and number, the most
+ * seconds, its icon, its name, its word on the folded row, and when it waits. */
+const WAIT_ROWS = [
+  {
+    on: "mobDelay",
+    secs: "mobDelaySecs",
+    max: MOB_DELAY_MAX,
+    icon: "sword",
+    name: "Chờ giữa các trận",
+    word: "Giữa trận",
+    when: "sau mỗi trận, thay cho 3 giây",
+  },
+  {
+    on: "turnDelay",
+    secs: "turnDelaySecs",
+    max: TURN_DELAY_MAX,
+    icon: "swap",
+    name: "Chờ trước mỗi lượt đi",
+    word: "Mỗi lượt",
+    when: "trước mỗi nước đi, kỹ năng hay bình",
+  },
+  {
+    on: "stepDelay",
+    secs: "stepDelaySecs",
+    max: STEP_DELAY_MAX,
+    icon: "scroll",
+    name: "Chờ giữa các bước nhiệm vụ",
+    word: "Bước nhiệm vụ",
+    when: "trước khi qua cổng, nói chuyện với NPC",
+  },
+] as const;
 
 /** The two potions of Dùng bình trong trận (Bot::battle_potions of cllt-core): the item id and name, its three settings,
  * its word, icon and colour (máu red as the HP bar, mana blue as the drop piece; `factTone` over the grey icons of
@@ -96,6 +139,11 @@ const BOUNDS = [
   ["mpPotionMax", 1, POTION_MAX],
   ["mergeUpTo", 2, MERGE_MAX],
   ["mergeEvery", 1, MERGE_EVERY_MAX],
+  ["mobDelaySecs", 1, MOB_DELAY_MAX],
+  ["turnDelaySecs", 1, TURN_DELAY_MAX],
+  ["stepDelaySecs", 1, STEP_DELAY_MAX],
+  ["breakEvery", 1, BREAK_EVERY_MAX],
+  ["breakMinutes", 1, BREAK_MINUTES_MAX],
 ] as const;
 const bounded = (s: FightSettings): FightSettings => {
   const next = { ...s };
@@ -115,6 +163,11 @@ const KEYS = [
   "autoMerge",
   "mergeUpTo",
   "mergeEvery",
+  ...WAIT_ROWS.flatMap((r) => [r.on, r.secs]),
+  "restBreak",
+  "breakEvery",
+  "breakMinutes",
+  "delayRandom",
 ] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -142,6 +195,13 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const togglePotions = () =>
     setPotionsOpen((was) => {
       localStorage.setItem(POTIONS_OPEN, was ? "0" : "1");
+      return !was;
+    });
+  // Likewise the waits of Thời gian chờ.
+  const [paceOpen, setPaceOpen] = useState(() => localStorage.getItem(PACE_OPEN) === "1");
+  const togglePace = () =>
+    setPaceOpen((was) => {
+      localStorage.setItem(PACE_OPEN, was ? "0" : "1");
       return !was;
     });
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update. The
@@ -196,6 +256,34 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const bag = c?.bag;
   const bagFull = !!bag && bag.items.length >= bag.capacity;
   const lockedStones = bag ? stoneCounts(bag.items).reduce((n, [locked]) => n + locked, 0) : 0;
+  // Folded, what Thời gian chờ has on, one fact each so a narrow card wraps them: "Giữa trận 1 s", "Nghỉ 2 phút/30 trận",
+  // "Ngẫu nhiên"; "Tắt hết" when none is.
+  const paceOn = WAIT_ROWS.some((r) => settings[r.on]) || settings.restBreak;
+  const paceFacts: { key: string; icon: PaceIconName; text: ReactNode }[] = [
+    ...WAIT_ROWS.filter((r) => settings[r.on]).map((r) => ({
+      key: r.on,
+      icon: r.icon,
+      text: (
+        <>
+          {r.word} <b className="px">{settings[r.secs]}</b> s
+        </>
+      ),
+    })),
+    ...(settings.restBreak
+      ? [
+          {
+            key: "break",
+            icon: "flag" as const,
+            text: (
+              <>
+                Nghỉ <b className="px">{settings.breakMinutes}</b> phút/<b className="px">{settings.breakEvery}</b> trận
+              </>
+            ),
+          },
+        ]
+      : []),
+    ...(paceOn && settings.delayRandom ? [{ key: "random", icon: "refresh" as const, text: "Ngẫu nhiên" }] : []),
+  ];
   return (
     <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
       <SettingRow
@@ -436,11 +524,98 @@ export function FightSettingsCard({ account }: { account: Account }) {
           <span>phút</span>
         </div>
       </div>
+      {/* The waits under one row without a box of its own, lit while any wait is on; folded, what is on. */}
+      <SettingRow
+        id={`${id}pace`}
+        on={paceOn}
+        icon="clock"
+        title="Thời gian chờ"
+        hint="Chỉnh nhịp của bot, cho giống người chơi hay chậm lại để xem Cửa sổ trận. Chờ giữa các trận: số giây từ lúc trận kết thúc tới lúc thách đấu con tiếp, thay cho 3 giây bot vẫn nghỉ (tắt thì vẫn 3 giây); còn đồ người khác đang nhặt dở thì nhặt xong mới đánh, không quá 3 giây. Chờ trước mỗi lượt đi: tới lượt thì đợi rồi mới đổi viên, dùng kỹ năng hay uống bình; mỗi lượt có 30 giây nên tối đa 10 giây; trận tính giờ thì quái vẫn đánh theo giờ trong lúc chờ. Chờ giữa các bước nhiệm vụ: khi tự làm nhiệm vụ, đợi trước mỗi việc không phải trận (qua cổng, nói chuyện với NPC, cộng điểm). Nghỉ giải lao: đánh đủ số trận thì nghỉ số phút đã chọn rồi chạy tiếp; bấm Bắt đầu lại thì đếm lại từ đầu. Thời gian ngẫu nhiên: mỗi lần chờ đang bật kéo dài ngẫu nhiên từ số đã đặt tới gấp đôi. Đổi khi đang chạy thì có hiệu lực ngay. Mặc định tắt hết; bấm ▾ để chọn."
+        expand={{ open: paceOpen, onToggle: togglePace, controls: `${id}pace-options` }}
+      >
+        {!paceOpen && paceFacts.length === 0 && (
+          <span className={SETTING_FACT}>
+            <Icon name="list" size={12} />
+            Tắt hết
+          </span>
+        )}
+        {!paceOpen &&
+          paceFacts.map((f) => (
+            <span key={f.key} className={SETTING_FACT}>
+              <Icon name={f.icon} size={12} />
+              {f.text}
+            </span>
+          ))}
+      </SettingRow>
+      {/* One block per wait, indented under it, folded until its ▾ opens them: its box, name and when it waits, then its
+          number at the right (one row under the other when the card is narrow). The numbers can be set while it is off. */}
+      <div id={`${id}pace-options`} className="ml-6 grid gap-1" hidden={!paceOpen} role="group" aria-labelledby={`${id}pace-title`}>
+        {WAIT_ROWS.map((r) => (
+          <div key={r.on} className={cn(PACE_BLOCK, settings[r.on] && "shadow-[inset_3px_0_0_var(--good)]")}>
+            <CheckRow checked={settings[r.on]} onChange={(v) => save({ ...settings, [r.on]: v })} className="gap-2.5">
+              <PaceIcon icon={r.icon} />
+              <PaceName name={r.name} when={r.when} />
+            </CheckRow>
+            <span className={PACE_NUMBERS}>
+              <Stepper value={settings[r.secs]} min={1} max={r.max} label={`số giây ${r.name.toLowerCase()}`} onChange={(v) => save({ ...settings, [r.secs]: v }, true)} />
+              <span>giây</span>
+            </span>
+          </div>
+        ))}
+        <div className={cn(PACE_BLOCK, settings.restBreak && "shadow-[inset_3px_0_0_var(--good)]")}>
+          <CheckRow checked={settings.restBreak} onChange={(restBreak) => save({ ...settings, restBreak })} className="gap-2.5">
+            <PaceIcon icon="flag" />
+            <PaceName name="Nghỉ giải lao" when="đánh đủ số trận thì nghỉ" />
+          </CheckRow>
+          <span className={PACE_NUMBERS}>
+            <span className="flex items-center gap-2 whitespace-nowrap">
+              Sau
+              <Stepper value={settings.breakEvery} min={1} max={BREAK_EVERY_MAX} label="số trận giữa hai lần nghỉ giải lao" onChange={(v) => save({ ...settings, breakEvery: v }, true)} />
+              trận
+            </span>
+            <span className="flex items-center gap-2 whitespace-nowrap">
+              nghỉ
+              <Stepper value={settings.breakMinutes} min={1} max={BREAK_MINUTES_MAX} label="số phút mỗi lần nghỉ giải lao" onChange={(v) => save({ ...settings, breakMinutes: v }, true)} />
+              phút
+            </span>
+          </span>
+        </div>
+        <div className={cn(PACE_BLOCK, settings.delayRandom && "shadow-[inset_3px_0_0_var(--good)]")}>
+          <CheckRow checked={settings.delayRandom} onChange={(delayRandom) => save({ ...settings, delayRandom })} className="gap-2.5">
+            <PaceIcon icon="refresh" />
+            <PaceName name="Thời gian ngẫu nhiên" when="mỗi lần chờ từ số đã đặt tới gấp đôi (1 giây thành 1–2 giây)" />
+          </CheckRow>
+        </div>
+      </div>
       {error && (
         <p className="text-[11.5px] text-danger select-text" role="alert">
           Chưa lưu được: {error}
         </p>
       )}
     </Card>
+  );
+}
+
+/** A block of Thời gian chờ: its box and words at the left, its numbers at the right, wrapping under when narrow. */
+const PACE_BLOCK = "flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 bg-ink";
+const PACE_NUMBERS = "ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-12 text-fg-2";
+
+/** The name of a wait on one line, and when it waits after it, or under it when the card is narrow. */
+function PaceName({ name, when }: { name: string; when: string }) {
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className="text-13 font-extrabold text-fg whitespace-nowrap">{name}</span>
+      <span className="text-[11.5px] text-fg-3">{when}</span>
+    </span>
+  );
+}
+
+/** The icon of a wait, in a small square as the potions have theirs. */
+type PaceIconName = "sword" | "swap" | "scroll" | "flag" | "refresh";
+function PaceIcon({ icon }: { icon: PaceIconName }) {
+  return (
+    <span className="grid place-items-center size-[22px] bg-card text-fg-2" aria-hidden="true">
+      <Icon name={icon} size={13} />
+    </span>
   );
 }

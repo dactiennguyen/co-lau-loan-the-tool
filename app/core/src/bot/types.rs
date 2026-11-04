@@ -318,6 +318,36 @@ pub struct FightSettings {
     pub merge_up_to: u32,
     #[serde(default = "five")]
     pub merge_every: u32,
+    /// Thời gian chờ, every one off unless turned on (Bot::rest_after_battle, Bot::take_break, Bot::step_hold,
+    /// RunnerOptions::turn_delay of runner_v3.rs). Chờ giữa các trận: mob_delay_secs (1–MOB_DELAY_MAX) from the end of
+    /// a battle of a fight job or quest run to the next challenge, instead of BotOptions::rest (3 s).
+    #[serde(default)]
+    pub mob_delay: bool,
+    #[serde(default = "one")]
+    pub mob_delay_secs: u32,
+    /// Chờ trước mỗi lượt đi: every own action of a battle (swap, skill, potion) waits turn_delay_secs
+    /// (1–TURN_DELAY_MAX) after the turn came; in a timed battle the longer of it and BotOptions::timed_move.
+    #[serde(default)]
+    pub turn_delay: bool,
+    #[serde(default = "one")]
+    pub turn_delay_secs: u32,
+    /// Chờ giữa các bước nhiệm vụ: step_delay_secs (1–STEP_DELAY_MAX) before each thing a quest run does that is not a
+    /// battle: a portal, a zone, a talk to an NPC, a stat or skill point.
+    #[serde(default)]
+    pub step_delay: bool,
+    #[serde(default = "one")]
+    pub step_delay_secs: u32,
+    /// Nghỉ giải lao: after break_every battles (1–BREAK_EVERY_MAX) of the fight job or quest run on, it waits
+    /// break_minutes (1–BREAK_MINUTES_MAX) before going on.
+    #[serde(default)]
+    pub rest_break: bool,
+    #[serde(default = "thirty")]
+    pub break_every: u32,
+    #[serde(default = "two")]
+    pub break_minutes: u32,
+    /// Thời gian ngẫu nhiên: each of the four waits above that is on lasts from its time to twice it (delay::Jitter).
+    #[serde(default)]
+    pub delay_random: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -355,6 +385,16 @@ fn thirty() -> u32 {
 fn five() -> u32 {
     5
 }
+/// The most seconds of Chờ giữa các trận.
+pub const MOB_DELAY_MAX: u32 = 60;
+/// The most seconds of Chờ trước mỗi lượt đi: twice it (Thời gian ngẫu nhiên) still leaves 10 s of the 30 s of a turn
+/// (05-battle.md).
+pub const TURN_DELAY_MAX: u32 = 10;
+/// The most seconds of Chờ giữa các bước nhiệm vụ.
+pub const STEP_DELAY_MAX: u32 = 30;
+/// The most battles of Nghỉ giải lao between two breaks, and the most minutes of a break.
+pub const BREAK_EVERY_MAX: u32 = 1000;
+pub const BREAK_MINUTES_MAX: u32 = 120;
 impl Default for FightSettings {
     fn default() -> Self {
         Self {
@@ -376,6 +416,16 @@ impl Default for FightSettings {
             auto_merge: false,
             merge_up_to: twelve(),
             merge_every: five(),
+            mob_delay: false,
+            mob_delay_secs: one(),
+            turn_delay: false,
+            turn_delay_secs: one(),
+            step_delay: false,
+            step_delay_secs: one(),
+            rest_break: false,
+            break_every: thirty(),
+            break_minutes: two(),
+            delay_random: false,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -421,6 +471,33 @@ impl FightSettings {
     /// would send a bag that the trip cannot free back to Pháp sư before every battle.
     pub fn merge_minutes(&self) -> u32 {
         self.merge_every.clamp(1, MERGE_EVERY_MAX)
+    }
+    /// Chờ giữa các trận in seconds, 1 to MOB_DELAY_MAX whatever the file says.
+    pub fn mob_delay_seconds(&self) -> u32 {
+        self.mob_delay_secs.clamp(1, MOB_DELAY_MAX)
+    }
+    /// Chờ trước mỗi lượt đi in seconds, 1 to TURN_DELAY_MAX.
+    pub fn turn_delay_seconds(&self) -> u32 {
+        self.turn_delay_secs.clamp(1, TURN_DELAY_MAX)
+    }
+    /// Chờ trước mỗi lượt đi as a battle takes it: zero while off.
+    pub fn turn_pause(&self) -> Duration {
+        match self.turn_delay {
+            true => Duration::from_secs(self.turn_delay_seconds() as u64),
+            false => Duration::ZERO,
+        }
+    }
+    /// Chờ giữa các bước nhiệm vụ in seconds, 1 to STEP_DELAY_MAX.
+    pub fn step_delay_seconds(&self) -> u32 {
+        self.step_delay_secs.clamp(1, STEP_DELAY_MAX)
+    }
+    /// Nghỉ giải lao: the battles between two breaks (1 to BREAK_EVERY_MAX) and the minutes of a break (1 to
+    /// BREAK_MINUTES_MAX).
+    pub fn break_battles(&self) -> u32 {
+        self.break_every.clamp(1, BREAK_EVERY_MAX)
+    }
+    pub fn break_mins(&self) -> u32 {
+        self.break_minutes.clamp(1, BREAK_MINUTES_MAX)
     }
     /// Whether Tự nhặt đồ takes gear of quality `quality` (field4 of the item record): its box; a quality past the four
     /// is taken.
@@ -891,6 +968,8 @@ pub struct Snapshot {
     /// The current main quest (s2c/39), with the step and progress the bot has seen since.
     pub quest: Option<Quest>,
     pub quest_run: Option<QuestRun>,
+    /// Nghỉ giải lao: when the break of the fight job or quest run on ends (ms since 1970); None when there is none.
+    pub break_until: Option<u64>,
     pub battle: Option<BattleView>,
     /// The latest result of the battle on, or of the battle just over until the next one opens.
     pub turn: Option<Turn>,

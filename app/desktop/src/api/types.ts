@@ -350,6 +350,8 @@ export interface Character {
   job: Job | null;
   quest: Quest | null;
   questRun: QuestRun | null;
+  /** Nghỉ giải lao: when the break of the fight job or quest run on ends (ms since 1970); null when there is none. */
+  breakUntil: number | null;
   battle: Battle | null;
   /** Timed effects at login, such as x2 EXP; no packet is known yet to update them in the session. */
   boosts: Boost[];
@@ -820,6 +822,21 @@ export interface FightSettings {
   autoMerge: boolean;
   mergeUpTo: number;
   mergeEvery: number;
+  /** Thời gian chờ, every one off unless turned on. Chờ giữa các trận: mobDelaySecs (1–60) from the end of a battle to
+   * the next challenge, instead of 3 s. Chờ trước mỗi lượt đi: every own action of a battle waits turnDelaySecs (1–10).
+   * Chờ giữa các bước nhiệm vụ: stepDelaySecs (1–30) before each thing of a quest run that is not a battle. Nghỉ giải
+   * lao: breakMinutes (1–120) after every breakEvery battles (1–1000). Thời gian ngẫu nhiên: each wait that is on lasts
+   * from its time to twice it. */
+  mobDelay: boolean;
+  mobDelaySecs: number;
+  turnDelay: boolean;
+  turnDelaySecs: number;
+  stepDelay: boolean;
+  stepDelaySecs: number;
+  restBreak: boolean;
+  breakEvery: number;
+  breakMinutes: number;
+  delayRandom: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

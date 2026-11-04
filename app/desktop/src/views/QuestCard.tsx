@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { QuestStepRef } from "@/api";
 import { Bar } from "@/components/Bar";
+import { BreakNotice } from "@/components/BreakNotice";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { DetailsToggle } from "@/components/DetailsToggle";
@@ -157,6 +158,12 @@ export function QuestCard({ account, onStart, onStop }: Props) {
             <b className="text-s-online">{run.wins} thắng</b> · <b className="text-danger">{run.losses} thua</b> · +{num(run.exp)} EXP · +{num(run.coin)} xu
             {run.completed > 0 && <> · xong {run.completed} nhiệm vụ</>} · <Elapsed from={run.startedAt} to={run.endedAt} />
           </span>
+        </div>
+      )}
+      {/* Nghỉ giải lao of Cài đặt đánh under way: when the run goes on. */}
+      {running && c?.breakUntil != null && (
+        <div className="-mt-2.5 pt-0 px-2.5 pb-[5px] bg-ink">
+          <BreakNotice until={c.breakUntil} what="làm tiếp" />
         </div>
       )}
       {/* Đã nhặt of the run, as a second line of the row above. */}

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/Badge";
 import { Bar } from "@/components/Bar";
+import { BreakNotice } from "@/components/BreakNotice";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { DetailsToggle } from "@/components/DetailsToggle";
@@ -235,6 +236,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
           </div>
           <Bar value={job.fights / Math.max(1, job.count)} />
           <LootRow items={job.picked} />
+          {running && <BreakNotice until={c?.breakUntil ?? null} what="đánh tiếp" />}
           {job.done && <div className="text-11 text-coin">{job.done}</div>}
           {battle && details && <BattlePanel battle={battle} id="fight-battle" />}
         </div>

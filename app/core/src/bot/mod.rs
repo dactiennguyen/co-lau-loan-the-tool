@@ -46,6 +46,7 @@ mod items;
 mod mailbox;
 mod market;
 mod merge;
+mod pace;
 mod packets;
 mod quest;
 mod record;
@@ -214,6 +215,8 @@ enum Wake {
     StatSilence,
     /// A level of Tự cộng kỹ năng the server did not answer in 8 s.
     SkillSilence,
+    /// Chờ giữa các bước nhiệm vụ is over: the quest run does what it waited to do (Bot::step_hold).
+    Step,
 }
 
 pub struct Bot {
@@ -339,6 +342,15 @@ pub struct Bot {
     asked: HashSet<String>,
     picked_at: Option<Instant>,
     unanswered: VecDeque<Fallen>,
+    /// Thời gian chờ (pace.rs): Thời gian ngẫu nhiên; the battles of the fight job or quest run on since it started or
+    /// since its last Nghỉ giải lao, and when the break under way ends; whether the wait of Chờ giữa các bước nhiệm vụ is
+    /// over for the thing the quest run does next; when the last battle ended (Chờ giữa các trận lets the items of
+    /// others be picked up until BotOptions::rest after it).
+    jitter: crate::delay::Jitter,
+    since_break: u32,
+    break_until: Option<Instant>,
+    step_ready: bool,
+    battle_ended: Option<Instant>,
 }
 
 impl Bot {
@@ -417,6 +429,11 @@ impl Bot {
             asked: HashSet::new(),
             picked_at: None,
             unanswered: VecDeque::new(),
+            jitter: crate::delay::Jitter::default(),
+            since_break: 0,
+            break_until: None,
+            step_ready: false,
+            battle_ended: None,
         }
     }
 
@@ -662,6 +679,10 @@ impl Bot {
                         "Server không trả lời khi tự cộng kỹ năng; thôi tự cộng tới lần bật sau"
                             .into(),
                     ));
+                    self.next(now, out);
+                }
+                Wake::Step => {
+                    self.step_ready = true;
                     self.next(now, out);
                 }
             }

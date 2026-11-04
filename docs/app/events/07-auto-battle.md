@@ -42,7 +42,7 @@ Trận đánh quái **chạy trên server**. Client chỉ hiển thị và gửi
 | Kiểm tra nước đi của người chơi | Server | Nước sai (run2, sai `seq` và sai ô) không được trả lời. Lượt hết sau đúng 34 s rồi chuyển cho quái [Đo] |
 | AI của quái | Server | Nước của quái chỉ tới khi client gửi c2s/14 [Đo] |
 | Sát thương, máu, nội lực, `s2` | Server (danh sách `units` trong s2c/19/20) | Client không gửi số liệu nào [Đo] |
-| Đồng hồ lượt | Server | Hết 30 s (+~4 s) thì server tự gửi s2c/24 `playerTurn=0` [Đo] |
+| Đồng hồ lượt | Server | Hết 30 s (+~4 s) thì server tự gửi s2c/24 `playerTurn=0` [Đo]. Vì vậy Chờ trước mỗi lượt đi của app tối đa 10 s, gấp đôi khi ngẫu nhiên là 20 s ([Thời gian chờ](../../integration/rust/features.md#thời-gian-chờ)) |
 | Thắng/thua, phần thưởng, nhiệm vụ | Server (s2c/19 `end=1`, s2c/10, s2c/34) | run4 [Đo] |
 | Di chuyển trên bản đồ | Client, báo vị trí bằng c2s/1169 | [06-map-mobs](06-map-mobs.md) [Đo] |
 | Vị trí quái, va chạm với quái | **Chỉ client** | Server không gửi toạ độ quái, và nhận c2s/15 từ xa [Đo] |

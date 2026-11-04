@@ -7,6 +7,7 @@ pub mod battle_actions;
 pub mod battle_record;
 pub mod battle_view;
 pub mod bot;
+pub mod delay;
 pub mod items;
 pub mod mail;
 pub mod market;

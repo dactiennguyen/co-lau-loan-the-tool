@@ -60,6 +60,11 @@ pub struct RunnerOptions {
     pub strategy: Strategy,
     /// Pause between own swaps in a timed battle.
     pub timed_move: Duration,
+    /// Chờ trước mỗi lượt đi (FightSettings::turn_pause): every own action waits this long after its turn came, zero to
+    /// act at once; in a timed battle the pause between swaps is the longer of it and `timed_move`. With `turn_random`
+    /// (Thời gian ngẫu nhiên) each wait lasts from it to twice it.
+    pub turn_delay: Duration,
+    pub turn_random: bool,
 }
 impl Default for RunnerOptions {
     fn default() -> Self {
@@ -74,6 +79,8 @@ impl Default for RunnerOptions {
             memory: Memory::default(),
             strategy: Strategy::kill(),
             timed_move: Duration::from_millis(1000),
+            turn_delay: Duration::ZERO,
+            turn_random: false,
         }
     }
 }
@@ -192,10 +199,13 @@ pub struct BattleRunner {
     options: RunnerOptions,
     /// Without an answer to c2s/20 or c2s/44 in 3 s the turn falls back to a swap.
     skill_wait: Option<Wait>,
-    /// Next own swap of a timed battle, or the turn inferred 2 s after a result whose s2c/24 did not come.
+    /// Next own swap of a timed battle, an own turn waiting for Chờ trước mỗi lượt đi, or the turn inferred 2 s after a
+    /// result whose s2c/24 did not come.
     turn_wait: Option<(Instant, Wake)>,
     /// The turn (seq, own) the inferred turn played: its s2c/24, come late, is not played again.
     inferred: Option<(i32, bool)>,
+    /// Thời gian ngẫu nhiên of Chờ trước mỗi lượt đi.
+    jitter: crate::delay::Jitter,
 }
 
 impl BattleRunner {
@@ -272,6 +282,28 @@ impl BattleRunner {
             skill_wait: None,
             turn_wait: None,
             inferred: None,
+            jitter: crate::delay::Jitter::default(),
+        }
+    }
+
+    /// Chờ trước mỗi lượt đi changed in Cài đặt đánh during the battle: the turns from the next one wait the new time; a
+    /// turn waiting already keeps its time.
+    pub fn set_turn_delay(&mut self, delay: Duration, random: bool) {
+        (self.options.turn_delay, self.options.turn_random) = (delay, random);
+    }
+
+    /// Chờ trước mỗi lượt đi as it is now: zero while off.
+    fn pause(&mut self) -> Duration {
+        self.jitter
+            .wait(self.options.turn_delay, self.options.turn_random)
+    }
+
+    /// An own turn came (s2c/24, s2c/18 of a timed battle, inferred, or given back by resume): played at once, or after
+    /// Chờ trước mỗi lượt đi, through the timer of turn_wait.
+    fn own_turn(&mut self, seq: i32, now: Instant, out: &mut Vec<Act>) {
+        match self.pause() {
+            d if d.is_zero() => self.my_move(seq, now, out),
+            d => self.turn_wait = Some((now + d, Wake::TimedMove(seq))),
         }
     }
 
@@ -304,7 +336,12 @@ impl BattleRunner {
     /// Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map, then c2s/40. The session reads
     /// the server's answer; clearing `leaving` plays on from the next turn (s2c/24, or s2c/21 in a timed battle).
     pub fn leave(&mut self, map_id: &str, out: &mut Vec<Act>) {
-        (self.skill_wait, self.turn_wait, self.missed) = (None, None, None);
+        // An own turn of a turn battle waiting for Chờ trước mỗi lượt đi is the turn passed over: resume() plays it.
+        let waiting = match self.turn_wait {
+            Some((_, Wake::TimedMove(seq))) if !self.timed => Some((seq, true)),
+            _ => None,
+        };
+        (self.skill_wait, self.turn_wait, self.missed) = (None, None, waiting);
         (self.leaving, self.surrendered) = (true, true);
         let map = Ctx {
             map_id: Some(map_id),
@@ -317,6 +354,7 @@ impl BattleRunner {
     /// Gives up a surrender the server did not take: plays the turn passed over while leaving, if one came.
     pub fn resume(&mut self, now: Instant, out: &mut Vec<Act>) {
         self.leaving = false;
+        // At once, without Chờ trước mỗi lượt đi: the turn has waited for the surrender already.
         match self.missed.take() {
             Some((seq, true)) => self.my_move(seq, now, out),
             Some((seq, false)) => self.step(seq, out),
@@ -368,7 +406,7 @@ impl BattleRunner {
                 Wake::Infer(seq, mine) => {
                     self.inferred = Some((seq, mine));
                     if mine {
-                        self.my_move(seq, now, out)
+                        self.own_turn(seq, now, out)
                     } else {
                         self.step(seq, out)
                     }
@@ -404,7 +442,7 @@ impl BattleRunner {
                 if self.leaving {
                     self.missed = Some((0, self.timed));
                 } else if self.timed {
-                    self.my_move(0, now, out)
+                    self.own_turn(0, now, out)
                 } else {
                     self.step(0, out)
                 }
@@ -413,6 +451,11 @@ impl BattleRunner {
                 let t = turn_state(payload)?;
                 // Left as it is: the turn after it may be inferred already.
                 if self.played(t.seq, t.player_turn == 1) {
+                    return Ok(true);
+                }
+                // The s2c/24 again of the own turn waiting for Chờ trước mỗi lượt đi: it keeps its time.
+                let waiting = matches!(self.turn_wait, Some((_, Wake::TimedMove(s))) if s == t.seq);
+                if waiting && t.player_turn == 1 && !self.timed {
                     return Ok(true);
                 }
                 self.turn_wait = None;
@@ -424,7 +467,7 @@ impl BattleRunner {
                 if self.leaving {
                     self.missed = Some((t.seq, t.player_turn == 1));
                 } else if t.player_turn == 1 {
-                    self.my_move(t.seq, now, out)
+                    self.own_turn(t.seq, now, out)
                 } else {
                     self.step(t.seq, out)
                 }
@@ -731,7 +774,8 @@ impl BattleRunner {
         }
         if !x.end {
             self.turn_wait = Some(if self.timed {
-                (now + self.options.timed_move, Wake::TimedMove(x.seq))
+                let pause = self.options.timed_move.max(self.pause());
+                (now + pause, Wake::TimedMove(x.seq))
             } else {
                 let again = (x.actor == self.name) == x.extra_turn;
                 (now + Duration::from_secs(2), Wake::Infer(x.seq, again))

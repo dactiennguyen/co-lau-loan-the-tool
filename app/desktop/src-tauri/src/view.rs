@@ -197,6 +197,8 @@ pub struct CharacterView<'a> {
     /// The current main quest (s2c/39) with the step and progress seen since.
     pub quest: Option<&'a Quest>,
     pub quest_run: Option<&'a QuestRun>,
+    /// Nghỉ giải lao of Cài đặt đánh: when the break of the fight job or quest run on ends (ms since 1970).
+    pub break_until: Option<u64>,
     pub battle: Option<&'a BattleView>,
     /// Timed effects at login, such as x2 EXP, each with its end.
     pub boosts: &'a [Boost],
@@ -693,6 +695,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             job: s.job.as_ref(),
             quest: s.quest.as_ref(),
             quest_run: s.quest_run.as_ref(),
+            break_until: s.break_until,
             battle: s.battle.as_ref(),
             boosts: &s.boosts,
             gear: s

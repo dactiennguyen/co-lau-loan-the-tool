@@ -162,6 +162,16 @@ mod tests {
                 auto_merge: true,
                 merge_up_to: 6,
                 merge_every: 10,
+                mob_delay: true,
+                mob_delay_secs: 2,
+                turn_delay: true,
+                turn_delay_secs: 4,
+                step_delay: true,
+                step_delay_secs: 5,
+                rest_break: true,
+                break_every: 40,
+                break_minutes: 3,
+                delay_random: true,
                 fight_count: 30,
                 fight_losses: 4,
                 quest_losses: 2,
@@ -218,6 +228,23 @@ mod tests {
             (false, 12, 5),
             "Tự gộp đá off, up to Max, 5 minutes apart"
         );
+        // Thời gian chờ: every wait off, at 1 s, a break of 2 minutes after 30 battles, nothing random.
+        assert_eq!(
+            (
+                b.mob_delay,
+                b.turn_delay,
+                b.step_delay,
+                b.rest_break,
+                b.delay_random
+            ),
+            (false, false, false, false, false)
+        );
+        assert_eq!(
+            (b.mob_delay_secs, b.turn_delay_secs, b.step_delay_secs),
+            (1, 1, 1)
+        );
+        assert_eq!((b.break_every, b.break_minutes), (30, 2));
+        assert_eq!(b.turn_pause(), std::time::Duration::ZERO);
         assert_eq!((b.fight_count, b.fight_losses, b.quest_losses), (5, 1, 1));
         std::fs::remove_dir_all(&dir).unwrap();
     }

@@ -249,6 +249,7 @@ impl Bot {
             ));
             self.merge_said = None;
         }
+        self.pace_changed(&settings, out);
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,

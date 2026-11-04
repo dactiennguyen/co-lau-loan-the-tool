@@ -11,7 +11,8 @@ use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailTask, MarketTask, SmithTask,
-    MERGE_EVERY_MAX, POTION_MAX,
+    BREAK_EVERY_MAX, BREAK_MINUTES_MAX, MERGE_EVERY_MAX, MOB_DELAY_MAX, POTION_MAX, STEP_DELAY_MAX,
+    TURN_DELAY_MAX,
 };
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
@@ -135,6 +136,11 @@ fn bounded_fight(mut settings: FightSettings) -> FightSettings {
     settings.mp_potion_max = settings.mp_potion_max.clamp(1, POTION_MAX);
     settings.merge_up_to = settings.merge_up_to.clamp(2, 12);
     settings.merge_every = settings.merge_every.clamp(1, MERGE_EVERY_MAX);
+    settings.mob_delay_secs = settings.mob_delay_secs.clamp(1, MOB_DELAY_MAX);
+    settings.turn_delay_secs = settings.turn_delay_secs.clamp(1, TURN_DELAY_MAX);
+    settings.step_delay_secs = settings.step_delay_secs.clamp(1, STEP_DELAY_MAX);
+    settings.break_every = settings.break_every.clamp(1, BREAK_EVERY_MAX);
+    settings.break_minutes = settings.break_minutes.clamp(1, BREAK_MINUTES_MAX);
     settings
 }
 
@@ -1001,4 +1007,49 @@ pub async fn import_accounts(
 #[tauri::command]
 pub async fn remove_account(shared: State<'_, Shared>, id: u64) -> Result<(), String> {
     shared.remove(id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_fight_keeps_the_times_of_thoi_gian_cho_within_their_bounds() {
+        let low = bounded_fight(FightSettings {
+            mob_delay_secs: 0,
+            turn_delay_secs: 0,
+            step_delay_secs: 0,
+            break_every: 0,
+            break_minutes: 0,
+            ..FightSettings::default()
+        });
+        assert_eq!(
+            (
+                low.mob_delay_secs,
+                low.turn_delay_secs,
+                low.step_delay_secs,
+                low.break_every,
+                low.break_minutes
+            ),
+            (1, 1, 1, 1, 1)
+        );
+        let high = bounded_fight(FightSettings {
+            mob_delay_secs: 999,
+            turn_delay_secs: 999,
+            step_delay_secs: 999,
+            break_every: 99_999,
+            break_minutes: 999,
+            ..FightSettings::default()
+        });
+        assert_eq!(
+            (
+                high.mob_delay_secs,
+                high.turn_delay_secs,
+                high.step_delay_secs,
+                high.break_every,
+                high.break_minutes
+            ),
+            (60, 10, 30, 1000, 120)
+        );
+    }
 }

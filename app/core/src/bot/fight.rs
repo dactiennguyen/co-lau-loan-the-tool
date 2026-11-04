@@ -67,6 +67,7 @@ impl Bot {
         self.run_started = now;
         self.waits = 0;
         self.job_seq += 1;
+        self.reset_pace();
         (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
         // A trip of Tự gộp đá of the job before is not this job's.
         (self.potions_kept, self.merge_said, self.merge_trip) = ([false; 2], None, None);
@@ -133,6 +134,7 @@ impl Bot {
     pub(super) fn finish(&mut self, reason: &str, out: &mut Vec<Out>) {
         // Its trip of Tự gộp đá ends with it (Dừng): a job or quest run started next does not wait for it nor take it on.
         self.merge_trip = None;
+        self.end_break();
         if let Some(j) = &mut self.snap.job {
             let end = epoch_ms();
             (j.done, j.ended_at) = (Some(reason.into()), Some(end));
@@ -163,6 +165,12 @@ impl Bot {
         }
         // Before the next battle, or the next step of the quest run, a broken worn item is repaired first.
         if (self.quest_running() || self.job_running()) && self.auto_repair(now, out) {
+            return;
+        }
+        // Thời gian chờ (pace.rs): the items of others of a short Chờ giữa các trận, then Nghỉ giải lao.
+        if (self.quest_running() || self.job_running())
+            && (self.wait_for_pickups(now) || self.take_break(now, out))
+        {
             return;
         }
         if self.quest_running() {
@@ -268,6 +276,9 @@ impl Bot {
         }
         self.remember_battle(&record);
         out.push(Out::Battle(record));
+        let counted =
+            self.battle_seq == self.job_seq && (self.job_running() || self.quest_running());
+        self.battle_over(counted, now);
         if self.battle_seq != self.job_seq {
             out.push(Out::Log(
                 LogKind::Battle,
@@ -278,7 +289,7 @@ impl Bot {
                 ),
             ));
             if self.job_running() || self.quest_running() {
-                self.timer = Some((now + self.options.rest, Wake::Next));
+                self.timer = Some((now + self.rest_after_battle(), Wake::Next));
             }
             return;
         }
@@ -322,7 +333,7 @@ impl Bot {
             let n = j.count;
             return self.finish(&format!("Đã đánh đủ {n} trận"), out);
         }
-        self.timer = Some((now + self.options.rest, Wake::Next));
+        self.timer = Some((now + self.rest_after_battle(), Wake::Next));
     }
 
     pub(super) fn on_setup(
@@ -544,6 +555,8 @@ impl Bot {
             memory: Arc::clone(&self.battle_memory),
             strategy: Strategy::win(),
             timed_move: self.options.timed_move,
+            turn_delay: self.fight.turn_pause(),
+            turn_random: self.fight.delay_random,
         }
     }
 }

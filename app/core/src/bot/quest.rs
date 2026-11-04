@@ -81,6 +81,7 @@ impl Bot {
         self.duels = 0;
         self.refused.clear();
         self.job_seq += 1;
+        self.reset_pace();
         (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
         self.potions_kept = [false; 2];
         out.push(Out::Log(
@@ -132,6 +133,7 @@ impl Bot {
             self.move_until = None;
         }
         self.awaiting_reply = false;
+        (self.step_ready, self.break_until, self.snap.break_until) = (false, None, None);
         let what = match self.playing.take() {
             Some(_) => "làm bước",
             None => "tự làm nhiệm vụ",
@@ -211,6 +213,10 @@ impl Bot {
             return;
         }
         if !matches!(action, StepAction::Skill) && self.auto_skill(now, out) {
+            return;
+        }
+        // Chờ giữa các bước nhiệm vụ before a portal, a talk or a point; a battle here waits Chờ giữa các trận instead.
+        if !self.fights_here(&action) && self.step_hold(now) {
             return;
         }
         if self.elsewhere(&action, &q, &step.text, now, out) {
@@ -704,6 +710,6 @@ impl Bot {
         if !end.won && !boss && losses >= max_losses {
             return self.finish_quest(&format!("Thua {losses} trận"), out);
         }
-        self.timer = Some((now + self.options.rest, Wake::Next));
+        self.timer = Some((now + self.rest_after_battle(), Wake::Next));
     }
 }
