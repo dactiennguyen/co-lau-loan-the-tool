@@ -1,6 +1,6 @@
 {
   // Type-check of the script of the admin page (client/), which runs in the browser: `yarn typecheck`. esbuild bundles it
-  // with the Material Web components into public/assets/admin.js (scripts/build-client.mjs).
+  // into public/assets/admin.js (scripts/build-client.mjs).
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

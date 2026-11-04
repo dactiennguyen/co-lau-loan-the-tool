@@ -16,20 +16,13 @@ export const SESSION_COOKIE = 'cllt_admin';
 export const FAIL_LIMIT = 10;
 export const FAIL_WINDOW_MS = 15 * 60_000;
 
-// ---- API tokens ---------------------------------------------------------------------------------------------------
-
-export const TOKEN_PREFIX = 'cllt_';
-/** Characters of a token kept in clear to tell tokens apart ("cllt_" and 5 more). */
-export const TOKEN_SHOWN = 10;
-export const MAX_TOKEN_NAME = 60;
-
 // ---- Accounts (Xuất JSON of the desktop app, app/desktop/src-tauri/src/backup.rs) ---------------------------------
 
 export const APP_NAME = 'CLLT Tool';
 export const EXPORT_FORMAT = 1;
 /** The game server of an account without "serverId" (opcodes::SERVER_ID of cllt-core). */
 export const DEFAULT_SERVER_ID = 24;
-/** The largest body POST /api/accounts takes. */
+/** The largest body POST /api/license/sync takes. */
 export const MAX_ACCOUNTS_BODY = 1 << 20;
 
 // ---- Keys (Key page, POST /api/license/verify and /api/license/sync) ---------------------------------------------
@@ -47,7 +40,7 @@ export const MAX_LICENSE_ACCOUNTS = 100_000;
 export const MAX_DURATION_DAYS = 36_500;
 export const MAX_LICENSE_NOTE = 100;
 export const MAX_REVOKE_REASON = 200;
-/** The largest body POST /api/license/verify takes; POST /api/license/sync takes as POST /api/accounts. */
+/** The largest body POST /api/license/verify takes. */
 export const MAX_VERIFY_BODY = 4 * 1024;
 /** What the app says of the device that holds a key: its name, its system and the version of the app. */
 export const MAX_HOSTNAME = 100;
@@ -71,4 +64,4 @@ export const SECURITY_HEADERS = {
 
 /** The Content-Security-Policy of an admin page: only its own inline style and script, which carry `nonce`. */
 export const contentSecurityPolicy = (nonce: string) =>
-  `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`;
+  `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`;

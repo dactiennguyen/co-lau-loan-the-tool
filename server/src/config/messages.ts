@@ -1,5 +1,5 @@
 // What the server says to people, in one place: the admin page's notices and errors, and the API's errors.
-import { EXPORT_FORMAT, FAIL_LIMIT, MAX_LICENSE_ACCOUNTS, MAX_TOKEN_NAME, MIN_PASSWORD } from './constants.ts';
+import { FAIL_LIMIT, MAX_LICENSE_ACCOUNTS, MIN_PASSWORD } from './constants.ts';
 
 /** The fixed lines a redirect may ask a page to show (?done=…): never text from the URL itself. */
 export const FLASH: Record<string, string> = {
@@ -34,22 +34,13 @@ export const HTTP = {
   noPage: 'Không có trang này',
   noApi: 'Không có API này',
   serverError: 'Lỗi server, xem log của Worker (yarn wrangler tail)',
-  noToken: 'Thiếu hoặc sai API token (Authorization: Bearer …)',
-  onlyGetPost: 'Chỉ có GET và POST',
   onlyPost: 'Chỉ có POST',
   accountsTooLarge: 'JSON quá lớn (tối đa 1 MB)',
   tooLarge: 'JSON quá lớn',
-  tokenName: `Đặt tên token từ 1 tới ${MAX_TOKEN_NAME} ký tự`,
 };
 
 /** What is wrong with the accounts of a JSON (validators/account.validator.ts), in the words of Nhập JSON of the app. */
 export const ACCOUNT = {
-  empty: 'Chưa có JSON',
-  badJson: 'JSON không hợp lệ: {reason}',
-  newerFormat: (f: number) => `JSON của bản app mới hơn (format ${f} > ${EXPORT_FORMAT}): cập nhật server rồi gửi lại`,
-  notList: '"accounts" phải là một danh sách',
-  noAccounts: 'Không thấy nick nào: cần {"accounts": […]}, một danh sách nick, hoặc một nick có "username"',
-  none: 'JSON không có nick nào',
   nth: (n: number, why: string) => `Nick thứ ${n}: ${why}`,
   notObject: 'không phải một object',
   noUsername: 'thiếu tài khoản (username)',

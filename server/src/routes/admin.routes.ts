@@ -4,7 +4,6 @@ import { Hono } from 'hono';
 import * as account from '../controllers/account.controller.tsx';
 import * as auth from '../controllers/auth.controller.tsx';
 import * as license from '../controllers/license.controller.tsx';
-import * as token from '../controllers/token.controller.tsx';
 import { adminForm, requireAdmin, requirePasswordChanged } from '../middlewares/admin.middleware.ts';
 import type { AppEnv } from '../types/app.ts';
 
@@ -29,6 +28,3 @@ admin.get('/licenses', license.page);
 admin.post('/licenses', license.create);
 admin.post('/licenses/:id{[0-9]+}/:action{revoke|restore|release|edit|delete}', license.act);
 
-admin.get('/tokens', token.page);
-admin.post('/tokens', token.create);
-admin.post('/tokens/:id{[0-9]+}/delete', token.remove);

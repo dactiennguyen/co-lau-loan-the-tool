@@ -1,5 +1,5 @@
-// Hashes and random values (README.md#bảo-mật): admin passwords with PBKDF2-SHA256; cookies and tokens kept as their
-// SHA-256 only, so the database alone opens nothing.
+// Hashes and random values (README.md#bảo-mật): admin passwords with PBKDF2-SHA256; cookies kept as their SHA-256 only,
+// so the database alone opens nothing.
 import { PBKDF2_ITERATIONS } from '../config/constants.ts';
 
 const text = new TextEncoder();

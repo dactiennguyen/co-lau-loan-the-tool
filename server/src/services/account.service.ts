@@ -1,10 +1,10 @@
 // The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): kept by POST
-// /api/accounts and given back by GET /api/accounts and Tải JSON, so that Nhập JSON of the app reads them as they are.
+// /api/license/sync and given back by Tải JSON, so that Nhập JSON of the app reads them as they are.
 import { and, asc, count as rowCount, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
 import { APP_NAME, EXPORT_FORMAT } from '../config/constants.ts';
 import type { Db } from '../db/client.ts';
 import { licenses, accounts as table } from '../db/schema.ts';
-import type { Account, AccountRow, Changed, Merged, Stamped, Synced } from '../models/index.ts';
+import type { Account, AccountRow, Changed, Merged, Stamped } from '../models/index.ts';
 import { isObject } from '../validators/account.validator.ts';
 
 /** JSON with the keys of every object in order, so that the same account is the same text however it was sent. */
@@ -16,17 +16,6 @@ export function canonical(value: unknown): string {
         ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])]))
         : v;
   return JSON.stringify(sort(value));
-}
-
-/** The account replacing `old`, as Ghi đè of the app (backup::replacement): everything sent, but an empty label or
- * password keeps the old one, and so does an empty proxy password for the same proxy user. */
-export function replacement(old: Account, sent: Account): Account {
-  const next: Account = { ...sent, label: sent.label.trim() ? sent.label : old.label, password: sent.password || old.password };
-  const [was, now] = [old.proxy, sent.proxy];
-  if (isObject(was) && isObject(now) && now.username && !now.password && now.username === was.username && was.password) {
-    next.proxy = { ...now, password: was.password };
-  }
-  return next;
 }
 
 const key = (a: Account) => a.username.toLowerCase();
@@ -56,9 +45,8 @@ function stampsOf(text: string): Changed {
   }
 }
 
-/** Who sends: the name the Nick page shows, and the key whose app sent it (none for a token, which leaves the key of an
- * account as it is). */
-type Sender = { source: string; licenseId?: number };
+/** Who sends: the name the Nick page shows, and the key whose app sent it. */
+type Sender = { source: string; licenseId: number };
 
 /** The write that puts `next` in place of `old`, or adds it, only if the row is still as it was read: the same data,
  * times and key, or still none. Its D1 result says how many rows it changed, 0 when another send got there first. */
@@ -70,7 +58,7 @@ function save(db: Db, old: Kept | undefined, next: Account, changed: Changed, by
     data: canonical(next),
     changed: canonical(changed),
     source: by.source,
-    ...(by.licenseId === undefined ? {} : { licenseId: by.licenseId }),
+    licenseId: by.licenseId,
     updatedAt: now,
   };
   if (old) {
@@ -128,7 +116,7 @@ async function write<T extends Account>(
       const old = rows.get(id);
       const next = decide(old, one.account, one.at);
       out.set(id, { old, next });
-      const moved = by.licenseId !== undefined && old?.licenseId !== by.licenseId;
+      const moved = old?.licenseId !== by.licenseId;
       if (old?.data !== canonical(next.account) || moved) writes.push({ one, query: save(db, old, next.account, next.changed, by, now) });
     }
     const [first, ...rest] = writes.map((w) => w.query);
@@ -147,27 +135,6 @@ function once<T extends { account: Account }>(sent: T[]): [T[], number] {
     return !seen.has(id) && !!seen.add(id);
   });
   return [list, sent.length - list.length];
-}
-
-/** Đồng bộ lên by token: each account added, or put in place of the one of the same server and username (any case).
- * Every field it sends is stamped `now`, so a device that changed one earlier does not undo it. `source` is the name of
- * the token. */
-export async function sync(db: Db, sent: Account[], source: string, now = Date.now()): Promise<Synced> {
-  const [list, repeated] = once(sent.map((account) => ({ account, at: {} })));
-  const decided = await write(
-    db,
-    list,
-    (old, one) => {
-      const account = old ? replacement(JSON.parse(old.data) as Account, one) : one;
-      const changed = { ...(old ? stampsOf(old.changed) : {}), ...Object.fromEntries(fieldsOf(account).map((f) => [f, now])) };
-      return { account, changed, kept: false };
-    },
-    { source },
-    now,
-  );
-  const done: Synced = { added: 0, updated: 0, unchanged: 0, repeated };
-  for (const { old, next } of decided.values()) done[!old ? 'added' : old.data === canonical(next.account) ? 'unchanged' : 'updated']++;
-  return done;
 }
 
 /** A time the app sent: whole milliseconds, 0 for none, never later than `now` (a clock ahead would win every time). */
@@ -204,7 +171,7 @@ export function merge(old: { account: Account; changed: Changed } | null, sent: 
  * (merge), so that the same account sent twice makes one, and the later edit of each field is the one kept.
  * - An account another key holds is never written, nor taken over: counted in `taken` (and `refused`).
  * - The accounts the key holds always go.
- * - One no key holds (new, never synced, or sent by a token) is taken only while the key holds fewer than its
+ * - One no key holds (new, or its key deleted) is taken only while the key holds fewer than its
  *   max_accounts; the rest are counted in `refused`.
  * Each account taken notes the key. */
 export async function syncLicense(
@@ -278,7 +245,7 @@ export async function count(db: Db): Promise<number> {
   return (await db.select({ n: rowCount() }).from(table).get())?.n ?? 0;
 }
 
-/** The JSON of GET /api/accounts and Tải JSON: Xuất JSON of the app, without its "settings". */
+/** The JSON of Tải JSON: Xuất JSON of the app, without its "settings". */
 export async function exported(db: Db): Promise<string> {
   const rows = await db.select({ data: table.data }).from(table).orderBy(asc(table.id));
   const accounts = rows.map((r) => JSON.parse(r.data) as Account);

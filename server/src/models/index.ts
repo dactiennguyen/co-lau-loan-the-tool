@@ -1,24 +1,13 @@
 // The shapes the server works with: rows of the tables (from db/schema.ts), and what the app sends.
-import type { accounts, admins, licenses, tokens } from '../db/schema.ts';
+import type { accounts, admins, licenses } from '../db/schema.ts';
 
 export type Admin = typeof admins.$inferSelect;
-/** A token as the admin page lists it: everything but its hash. */
-export type Token = Omit<typeof tokens.$inferSelect, 'hash'>;
 /** An account as the admin page lists it. */
 export type AccountRow = typeof accounts.$inferSelect;
 
 /** One account as accounts.json of the app has it: label, username, password, serverId, and whatever else the app keeps
  * (skill, stats, fight, fightTargets, proxy), kept as sent. */
 export type Account = { [key: string]: unknown; label: string; username: string; password: string; serverId: number };
-
-/** What POST /api/accounts did. */
-export interface Synced {
-  added: number;
-  updated: number;
-  unchanged: number;
-  /** Accounts after the first with the same username on the same server in the JSON: left out, as Nhập does. */
-  repeated: number;
-}
 
 /** When each top-level field of an account was last changed, as the app saw it: {"field": epoch ms}. */
 export type Changed = Record<string, number>;
@@ -43,7 +32,7 @@ export interface Merged {
   added: number;
   updated: number;
   unchanged: number;
-  /** Of the updated and unchanged: accounts with a field the server keeps as it is, as another key or a token changed
+  /** Of the updated and unchanged: accounts with a field the server keeps as it is, as another send of the key changed
    * it later. */
   kept: number;
   repeated: number;

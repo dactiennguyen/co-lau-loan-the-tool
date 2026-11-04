@@ -15,8 +15,6 @@ export type AppEnv = {
     form: FormData;
     /** The admin of the session, on admin pages after the login. */
     me: Admin;
-    /** The name of the API token of the request (/api/accounts). */
-    source: string;
   };
 };
 

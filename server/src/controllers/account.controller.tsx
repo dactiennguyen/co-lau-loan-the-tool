@@ -1,35 +1,12 @@
-// The accounts: GET and POST /api/accounts for the app, and the Nick page with Tải JSON and Xoá.
-import { MAX_ACCOUNTS_BODY } from '../config/constants.ts';
-import { HTTP } from '../config/messages.ts';
+// The accounts: the Nick page with Tải JSON and Xoá.
 import * as accounts from '../services/account.service.ts';
 import * as licenses from '../services/license.service.ts';
 import type { Ctx } from '../types/app.ts';
-import { bodyText, flash } from '../utils/http.ts';
+import { flash } from '../utils/http.ts';
 import { render } from '../utils/render.ts';
-import { parse } from '../validators/account.validator.ts';
 import { AccountsView } from '../views/accounts.view.tsx';
 
 const JSON_TYPE = { 'Content-Type': 'application/json; charset=utf-8' };
-
-/** GET /api/accounts: Xuất JSON of every account, passwords included. */
-export async function exportJson(c: Ctx) {
-  return c.body(await accounts.exported(c.var.db), 200, JSON_TYPE);
-}
-
-/** POST /api/accounts: add or replace the accounts of the JSON, as Nhập JSON of the app does. */
-export async function sync(c: Ctx) {
-  const text = await bodyText(c, MAX_ACCOUNTS_BODY);
-  if (text === null) return c.json({ error: HTTP.accountsTooLarge }, 413);
-  const sent = parse(text);
-  if (!Array.isArray(sent)) return c.json(sent, 400);
-  try {
-    const done = await accounts.sync(c.var.db, sent, c.var.source);
-    return c.json({ ...done, total: await accounts.count(c.var.db) });
-  } catch (e) {
-    if (e instanceof accounts.Busy) return c.json({ error: e.message }, 503);
-    throw e;
-  }
-}
 
 /** The Nick page; ?key=<id> shows the accounts that key sent last only. */
 export async function page(c: Ctx) {
@@ -37,10 +14,10 @@ export async function page(c: Ctx) {
   const keys = await licenses.names(c.var.db);
   const shown = keys.find((k) => k.id === id) ?? null;
   const rows = await accounts.list(c.var.db, shown?.id);
-  return render(c, (n) => <AccountsView nonce={n} rows={rows} flash={flash(c)} keys={keys} shown={shown} />);
+  return render(c, (n) => <AccountsView nonce={n} rows={rows} now={Date.now()} flash={flash(c)} keys={keys} shown={shown} />);
 }
 
-/** Tải JSON: the same JSON as GET /api/accounts, as a file of the day. */
+/** Tải JSON: Xuất JSON of every account, passwords included, as a file of the day: Nhập JSON of the app reads it. */
 export async function download(c: Ctx) {
   const day = new Date().toISOString().slice(0, 10);
   return c.body(await accounts.exported(c.var.db), 200, {

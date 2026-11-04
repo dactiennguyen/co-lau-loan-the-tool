@@ -17,13 +17,10 @@ App desktop gọi `POST /api/license/verify` (kiểm tra key) và `POST /api/lic
 | Trang quản trị | `/admin` | Đăng nhập. Lần đầu là `admin` / `admin` |
 | Danh sách nick (xem, hiện mật khẩu, xoá, Tải JSON, lọc theo key) | `/admin` | Đăng nhập |
 | Key (tạo, khoá, mở khoá, gỡ thiết bị, sửa, xoá) | `/admin/licenses` | Đăng nhập |
-| Tạo và thu hồi API token | `/admin/tokens` | Đăng nhập |
 | Đổi mật khẩu quản trị | `/admin/password` | Đăng nhập |
 | App kiểm tra key | `POST /api/license/verify` | Key |
 | App gửi nick lên | `POST /api/license/sync` | Key đã kích hoạt trên máy đó |
 | Kiểm tra server sống | `GET /api/health` | Không cần gì |
-| Tải mọi nick về | `GET /api/accounts` | API token |
-| Gửi nick lên | `POST /api/accounts` | API token |
 
 ## Cài lên Cloudflare
 
@@ -48,9 +45,7 @@ Cần Node.js ≥22.6 (có corepack, nên có Yarn 4 mà `package.json` ghim) v�
    Lệnh deploy in ra địa chỉ: tên miền trong `routes` của `wrangler.toml` (`colau.olachat.net`; Cloudflare tự tạo bản ghi DNS và chứng chỉ, vì zone `olachat.net` nằm cùng tài khoản). Địa chỉ `workers.dev` đã tắt (`workers_dev = false`); muốn bật lại thì đặt `true`.
 4. Mở `<địa chỉ>/admin` và đăng nhập `admin` / `admin`.
    - Trang buộc **đổi mật khẩu** trước (ít nhất 8 ký tự, khác `admin`). Đổi xong mới mở được các trang khác, vì trang Nick hiện mật khẩu game.
-5. Vào **API token**, đặt tên (ví dụ "Máy nhà") rồi **Tạo token**.
-   - Chép token ngay: server chỉ giữ dấu băm của token, nên không hiện lại được.
-   - Mỗi máy nên có một token riêng, để thu hồi riêng.
+5. Vào **Key**, bấm **Tạo key** cho mỗi người dùng rồi gửi key cho họ ([Key](#key)).
 
 Sửa code xong thì chỉ cần `yarn deploy` lại. Thêm file mới trong `migrations/` thì chạy `yarn db:migrate` trước.
 
@@ -92,38 +87,18 @@ yarn dev            # http://localhost:8787/admin
 
 ## API
 
-Mọi lệnh `/api/accounts` cần header `Authorization: Bearer <token>`; thiếu hay sai token thì trả 401. JSON dùng đúng dạng **Xuất JSON** của app ([Nhập / Xuất JSON](../docs/integration/rust/features.md#nhập-xuất-json)):
+Chỉ app gọi API, bằng key của nó ([Key](#key), [Đồng bộ nick](#đồng-bộ-nick)); không có token. Nick xem và tải về trên trang **Nick**: nút **Tải JSON** (`/admin/accounts.json`, cần đăng nhập) cho file đúng dạng **Xuất JSON** của app, có mật khẩu, Nhập JSON vào app được ngay ([Nhập / Xuất JSON](../docs/integration/rust/features.md#nhập-xuất-json)):
 
 ```json
 {"app": "CLLT Tool", "format": 1, "exportedAt": "…",
  "accounts": [{"label": "Nick chính", "username": "manina", "password": "…", "serverId": 24, "fight": {…}, "proxy": {…}}]}
 ```
 
-**Gửi nick lên**: `POST /api/accounts`, thân là JSON tối đa 1 MB.
-- Nhận cùng các dạng như Nhập JSON của app: file Xuất JSON, một `accounts.json`, một danh sách nick, hay một nick lẻ có `username`. `"settings"` của app (nếu có) được bỏ qua.
-- Mỗi nick xác định bằng server game (`serverId`, thiếu thì là 24) và tài khoản, không phân biệt hoa thường. Nick chưa có thì thêm; đã có thì thay bằng bản gửi lên.
-- Giống Ghi đè của app: tên hiển thị, mật khẩu, hay mật khẩu proxy (cùng tên đăng nhập proxy) **để trống thì giữ cái cũ**.
-- Nick lặp lại trong cùng một JSON chỉ tính lần đầu.
-- Mọi khoá khác của nick (`fight`, `stats`, `skill`, `fightTargets`, `proxy`) được giữ nguyên văn.
+**Kiểm tra server**: `GET /api/health` trả `{"ok": true, "app": "cllt-server"}`.
 
-```sh
-curl -X POST https://cllt-server.<tên-bạn>.workers.dev/api/accounts \
-  -H "Authorization: Bearer $CLLT_TOKEN" -H "Content-Type: application/json" \
-  --data-binary @cllt-accounts-20261102-101500.json
-# {"added":2,"updated":1,"unchanged":3,"repeated":0,"total":6}
-```
+API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie.
 
-JSON sai thì trả 400 kèm lý do, cùng lời như app: `{"error": "Nick thứ 2: thiếu tài khoản (username)"}`.
-
-**Tải nick về**: `GET /api/accounts` trả mọi nick, có mật khẩu, theo thứ tự thêm vào. File này Nhập JSON vào app được ngay.
-
-```sh
-curl -H "Authorization: Bearer $CLLT_TOKEN" https://cllt-server.<tên-bạn>.workers.dev/api/accounts > nick.json
-```
-
-**Kiểm tra server**: `GET /api/health` trả `{"ok": true, "app": "cllt-server"}`, không cần token.
-
-API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie mà chỉ dùng token.
+**Bỏ API token:** trang API token, `GET` và `POST /api/accounts` đã bỏ; [0007_drop_tokens.sql](migrations/0007_drop_tokens.sql) xoá bảng `tokens`. Nick token đã gửi vẫn giữ, không key nào giữ (cột Key là "—"); app của một key gửi nick đó thì key đó nhận nó.
 
 ## Key
 
@@ -152,7 +127,7 @@ Tạo xong, trang quay về danh sách và hiện key mới để chép (tải l
 
 Hết hạn, bị khoá hay bị xoá thì app khoá ở lần kiểm tra tới, tức tối đa 1 giờ nếu app đang mở.
 
-**Kiểm tra key**: `POST /api/license/verify`, không cần token:
+**Kiểm tra key**: `POST /api/license/verify`, không cần đăng nhập:
 
 ```json
 {"key": "cllt 26wm py7q trp8 k2ne", "id": "<64 ký tự hex>", "hostname": "MAY-NHA", "os": "windows x86_64", "version": "1.1.8", "accounts": 12}
@@ -197,17 +172,16 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
 **Nick của ai thì key đó giữ.** Server xét từng nick:
 - Nick key đó đã gửi thì luôn được cập nhật.
 - Nick **key khác đang giữ** thì không ghi gì và không chiếm được. Mật khẩu hay proxy của nick đó giữ nguyên. Nick này đếm trong `taken` và `refused`.
-- Nick chưa key nào giữ (mới, hay do token gửi, hay key cũ đã bị xoá) chỉ được nhận khi key còn dưới **số nick tối đa**. Phần còn lại không ghi, đếm trong `refused`.
+- Nick chưa key nào giữ (mới, hay key cũ đã bị xoá, hay do API token gửi trước khi bỏ token) chỉ được nhận khi key còn dưới **số nick tối đa**. Phần còn lại không ghi, đếm trong `refused`.
 - Mỗi nick nhận được ghi lại key đã gửi nó (cột `license_id`). Trang Nick có cột **Key** và ô lọc theo key; trang Key hiện số nick đã đồng bộ (bấm để xem) và lần đồng bộ cuối. Rê chuột lên đó để xem Cài đặt của app.
 
-**Gộp từng mục:** mỗi nick (cùng server game, tài khoản không phân biệt hoa thường) là **một dòng**. Lần gửi của key đang giữ nick, hay của token, gộp vào đó **từng mục**:
+**Gộp từng mục:** mỗi nick (cùng server game, tài khoản không phân biệt hoa thường) là **một dòng**. Lần gửi của key đang giữ nick gộp vào đó **từng mục**:
 - `changed` ghi lúc app thấy từng mục đổi. Server giữ cho mỗi mục giá trị của lần sửa **sau cùng** (cột `changed` của bảng `accounts`).
 - Gửi lại y như cũ: không đổi gì. Lần này sửa mật khẩu, lần sau bật Tự sửa đồ: giữ cả hai. Cùng sửa một mục: lần sửa sau thắng.
 - App còn bản cũ gửi lại thì không đè lần sửa mới hơn (trả về `kept`). Lần đồng bộ đầu tính mọi mục là "từ trước" (thời điểm 0), nên app vào sau không đè dữ liệu đã có.
 - Tên hiển thị hay mật khẩu để trống không xoá cái đã có. Thời điểm vượt giờ server tính bằng giờ server.
 - **Nhập JSON** trên app thì các nick vừa nhập tính là "từ trước" (thời điểm 0). Sửa tay sau đó mới tính là sửa lúc đó.
 - Hai lần gửi cùng lúc cho cùng một nick: server chỉ ghi khi dòng còn y như lúc đọc (cả key đang giữ nó). Dòng đã bị lần gửi kia đổi thì đọc lại và gộp lại, thử tối đa 3 lần. Quá nữa thì trả 503 để app gửi lại sau.
-- Gửi bằng API token (`POST /api/accounts`) thì mọi mục tính là sửa lúc gửi, và nick giữ key cũ của nó.
 - Xoá nick trên app không xoá trên server; xoá ở trang Nick.
 
 **Kết quả:** server trả `{"added", "updated", "unchanged", "kept", "repeated", "refused", "taken"}`. JSON sai thì 400, quá 1 MB thì 413.
@@ -218,10 +192,7 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
 
 ## Bảo mật
 
-- **Mật khẩu game và mật khẩu proxy lưu nguyên văn** trong D1, không mã hoá. Đây là lựa chọn của người dùng, để trang quản trị xem được. Ai có token hay đăng nhập được trang quản trị là đọc được mọi mật khẩu. Vì vậy:
-  - giữ token như mật khẩu;
-  - thu hồi ngay token của máy bị mất;
-  - đặt mật khẩu quản trị mạnh.
+- **Mật khẩu game và mật khẩu proxy lưu nguyên văn** trong D1, không mã hoá. Đây là lựa chọn của người dùng, để trang quản trị xem được. Ai đăng nhập được trang quản trị là đọc được mọi mật khẩu, nên hãy đặt mật khẩu quản trị mạnh.
 - **Mật khẩu quản trị**:
   - băm bằng PBKDF2-SHA256, 100.000 vòng (mức cao nhất Workers cho phép), muối ngẫu nhiên;
   - đổi mật khẩu thì mọi phiên đăng nhập khác bị đăng xuất;
@@ -230,7 +201,6 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
   - cookie `cllt_admin` (HttpOnly, SameSite=Strict, Secure trên HTTPS), sống 7 ngày;
   - database chỉ giữ SHA-256 của cookie;
   - form gửi từ trang khác (Origin khác) bị từ chối.
-- **API token**: dạng `cllt_` + 43 ký tự ngẫu nhiên; database chỉ giữ SHA-256 và 10 ký tự đầu để nhận ra.
 - **Trang quản trị**:
   - chặn script lạ bằng Content-Security-Policy có nonce;
   - mọi chữ lấy từ database (tên nick, tài khoản) đều được escape trước khi hiện;
@@ -249,21 +219,21 @@ Chia lớp như một backend thường gặp: request đi `routes/` → `middle
 | `src/db/schema.ts` | Model: 6 bảng cho [Drizzle ORM](https://orm.drizzle.team). `migrations/*.sql` vẫn là thứ tạo bảng (`yarn db:migrate`); mỗi bảng ở đây khớp từng cột với `CREATE TABLE` bên đó, nên sửa bảng thì sửa cả hai |
 | `src/db/client.ts` | Kết nối Drizzle với D1 |
 | `src/models/` | Kiểu dữ liệu: dòng của từng bảng (suy ra từ schema), nick theo JSON của app, kiểm tra key và đồng bộ của app |
-| `src/types/app.ts` | Kiểu của app Hono: binding `DB`, biến của request (`db`, `form`, `me`, `source`) |
+| `src/types/app.ts` | Kiểu của app Hono: binding `DB`, biến của request (`db`, `form`, `me`) |
 | `src/routes/` | `api.routes.ts` (`/api`, CORS) và `admin.routes.ts` (`/admin`): đường dẫn nào, qua middleware nào, tới controller nào |
-| `src/middlewares/` | `context` (Drizzle, header bảo mật), `admin` (form cùng nguồn, bắt đăng nhập, bắt đổi mật khẩu mặc định), `api` (API token) |
-| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang (`<AccountsView … />`): `auth`, `account`, `license`, `token` (`.tsx`) |
-| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `token`, `account` (thêm/thay như Nhập JSON, gộp từng mục khi đồng bộ), `license` (key: tạo, kiểm tra, kích hoạt) |
-| `src/validators/` | Kiểm dữ liệu bằng [Zod](https://zod.dev): nick (giống `backup::parse` của app), kiểm tra key và đồng bộ của app, các form admin (đăng nhập, đổi mật khẩu, tạo token, tạo và sửa key, khoá key). `form.ts`: `check` trả dữ liệu hoặc lỗi theo từng ô, để trang hiện lỗi ngay dưới ô đó |
-| `src/views/` | Trang quản trị bằng JSX của Hono (`hono/jsx`, viết như component React, render ra HTML ở server): mọi giá trị chèn vào đều được escape. `layout.tsx` (khung trang và các component dùng chung `Icon`, `Field`, `Message`, `Chip`, `Table`), `styles.ts` (token màu Material 3, sáng và tối), `icons.ts` (sinh tự động), và một file `*.view.tsx` mỗi trang |
-| `client/admin.ts` | Script chạy trên trình duyệt: nạp các component [Material Web](https://github.com/material-components/material-web) (`md-filled-button`, `md-outlined-text-field`, `md-icon-button`, `md-dialog`, `md-radio`, `md-outlined-select`…), Hiện/Ẩn và Chép mật khẩu, hộp xác nhận, ô tìm, hai cách tính hạn của Tạo key, ô lọc theo key. `scripts/build-client.mjs` gói bằng esbuild vào `public/assets/admin.js` (khoảng 145 KB, nén gzip còn 32 KB); Wrangler tự chạy trước `dev` và `deploy` (`[build]`), Cloudflare phục vụ file đó trực tiếp (`[assets]`) |
-| `scripts/icons.mjs` | Sinh `src/views/icons.ts` từ [Material Symbols](https://fonts.google.com/icons) (`@material-symbols/svg-400`, kiểu outlined): icon vẽ thẳng bằng SVG, không tải font, không gọi Google. Thêm icon: thêm tên vào `NAMES` rồi `yarn icons` |
+| `src/middlewares/` | `context` (Drizzle, header bảo mật), `admin` (form cùng nguồn, bắt đăng nhập, bắt đổi mật khẩu mặc định) |
+| `src/controllers/` | Nhận request, gọi service, trả JSON hay trang (`<AccountsView … />`): `auth`, `account`, `license` (`.tsx`) |
+| `src/services/` | Nghiệp vụ và truy vấn: `auth` (admin, phiên, đăng nhập sai), `account` (gộp từng mục khi đồng bộ, danh sách, Tải JSON), `license` (key: tạo, kiểm tra, kích hoạt) |
+| `src/validators/` | Kiểm dữ liệu bằng [Zod](https://zod.dev): nick (giống `backup::parse` của app), kiểm tra key và đồng bộ của app, các form admin (đăng nhập, đổi mật khẩu, tạo và sửa key, khoá key). `form.ts`: `check` trả dữ liệu hoặc lỗi theo từng ô, để trang hiện lỗi ngay dưới ô đó |
+| `src/views/` | Trang quản trị bằng JSX của Hono (`hono/jsx`, viết như component React, render ra HTML ở server): mọi giá trị chèn vào đều được escape. `layout.tsx` (khung trang, thanh trên, toast, và các phần dùng chung `Icon`, `Field`, `Select`, `Dialog`, `Pill`, `Stat`, `Table`, `Empty`, `Alert`, hộp xác nhận chung `actOf`), `styles.ts` (giao diện tối: màu, bo góc, font, từng phần), `icons.ts` (sinh tự động), và một file `*.view.tsx` mỗi trang |
+| `client/admin.ts` | Script chạy trên trình duyệt, HTML thường, không thư viện: toast (tự ẩn), Hiện/Ẩn và Chép (nút thành "Đã chép ✓"), các hộp thoại `<dialog>` (`data-open`, tự mở với `data-autoopen`, bấm ra ngoài là đóng), menu ⋮ của key (popover, đặt dưới nút, phím mũi tên, Escape, bấm ra ngoài là đóng), lọc theo trạng thái và ô tìm, hai cách tính hạn của Tạo key với Số ngày và Ngày hết hạn liên kết hai chiều, ô lọc theo key. `scripts/build-client.mjs` gói bằng esbuild vào `public/assets/admin.js` (khoảng 6 KB) và chép font vào `public/assets/fonts/`; Wrangler tự chạy trước `dev` và `deploy` (`[build]`), Cloudflare phục vụ các file đó trực tiếp (`[assets]`) |
+| `scripts/icons.mjs` | Sinh `src/views/icons.ts` từ [Lucide](https://lucide.dev) (`lucide-static`): icon vẽ thẳng bằng SVG (nét 1.75), không tải gì từ nơi khác. Thêm icon: thêm tên vào `NAMES` rồi `yarn icons` |
 | `src/utils/` | `crypto` (PBKDF2, SHA-256), `http` (IP, cookie, body có giới hạn), `render` (trang kèm nonce của CSP), `format` (giờ Việt Nam) |
 | `scripts/d1-id.mjs` | Tìm hay tạo D1 `cllt` trên Cloudflare, ghi id vào `wrangler.toml` (`yarn d1:id`; workflow deploy dùng) |
-| `migrations/0001_init.sql` … `0006_licenses_sync.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens`, `accounts` (0001); `devices` (0002–0004, bỏ ở 0006); cột `changed` của `accounts` (0003); `licenses` (0005); cột `license_id` của `accounts` (0006) |
+| `migrations/0001_init.sql` … `0007_drop_tokens.sql` | Các bảng: `admins`, `sessions`, `login_failures`, `tokens` (bỏ ở 0007), `accounts` (0001); `devices` (0002–0004, bỏ ở 0006); cột `changed` của `accounts` (0003); `licenses` (0005); cột `license_id` của `accounts` (0006) |
 | `test/server.test.ts` | Test cả Worker trên D1 giả (`test/d1.ts`, chạy bằng `node:sqlite`, có đủ các hàm của D1 mà Drizzle dùng) |
 | `test/d1-id.test.ts` | Test `scripts/d1-id.mjs`: đọc `wrangler d1 list --json`, ghi `database_id` |
 
-**Giao diện:** Material Design 3 bằng Material Web, bộ component chính chủ của Google: server render thẻ `md-*` bằng JSX của Hono, script `/assets/admin.js` định nghĩa chúng trên trình duyệt. Các ô `md-outlined-text-field` vẫn là ô của form, nên form gửi như HTML thường. Màu theo cài đặt sáng hay tối của máy. Thẻ script và style mang nonce của CSP, nên CSP vẫn giữ `default-src 'none'`. JSX của Hono có cú pháp như React (component, props, `{list.map(…)}`), nhưng chỉ render ra HTML ở server: không tải React về trình duyệt. Không dùng EJS vì EJS biên dịch template bằng `new Function`, mà Cloudflare Workers cấm. Wrangler tự dịch JSX khi deploy (`jsx`, `jsxImportSource` trong `tsconfig.json`); test chạy trên Node qua `tsx` (`node --import tsx --test`).
+**Giao diện:** bảng điều khiển tối, HTML và CSS viết tay (`styles.ts`), không dùng bộ component nào: nền #0A0A0B, thẻ #141416, viền #26262B, màu nhấn tím #8B5CF6; xanh, cam, đỏ cho trạng thái. Font Inter (Latin và tiếng Việt) và JetBrains Mono cho key, tự phục vụ từ `/assets/fonts` (gói `@fontsource-variable`), vì CSP chỉ nhận font của chính trang (`font-src 'self'`). Hộp thoại là `<dialog>` của trình duyệt, menu là popover; chuyển động 120–160 ms, tắt khi máy bật giảm chuyển động. Dưới 1100 px, cột Thiết bị gộp vào dưới key. Thẻ script và style mang nonce của CSP, nên CSP vẫn giữ `default-src 'none'`. JSX của Hono có cú pháp như React (component, props, `{list.map(…)}`), nhưng chỉ render ra HTML ở server: không tải React về trình duyệt. Không dùng EJS vì EJS biên dịch template bằng `new Function`, mà Cloudflare Workers cấm. Wrangler tự dịch JSX khi deploy (`jsx`, `jsxImportSource` trong `tsconfig.json`); test chạy trên Node qua `tsx` (`node --import tsx --test`).
 
-Kiểm tra: `yarn test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd): đăng nhập `admin`/`admin`, bị chuyển sang đổi mật khẩu, tạo token, gửi một nick lên, tải về có mật khẩu, trang Nick hiện nick đó, header CSP có nonce.
+Kiểm tra: `yarn test` (chạy `tsc` rồi test). Bản đã chạy thật trong `wrangler dev` (workerd) với Chrome: đăng nhập `admin`/`admin`, đổi mật khẩu, tạo key cả hai kiểu qua hộp thoại, hộp thoại key vừa tạo và nút Chép, menu của key (phím mũi tên, Escape) và các hộp thoại của nó, toast, kiểm tra key và đồng bộ nick qua API, trang Nick lọc theo key; không tràn ngang ở 1050, 1366, 1440 và 1920 px.

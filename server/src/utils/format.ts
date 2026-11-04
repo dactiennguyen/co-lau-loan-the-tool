@@ -30,6 +30,12 @@ export const lastDayInput = (expiresAt: number) => vnDate(expiresAt - 1);
 /** Today in Vietnam, "yyyy-mm-dd". */
 export const today = (now: number) => vnDate(now);
 
+/** The day `n` days after "yyyy-mm-dd". */
+export const addDays = (date: string, n: number) => new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** "yyyy-mm-dd" as "dd/mm/yyyy". */
+export const dayText = (date: string) => date.split('-').reverse().join('/');
+
 /** The units of a key's duration, as the Key page names them, in order. */
 export const DURATION_UNITS: Record<DurationUnit, string> = { day: 'ngày', month: 'tháng', year: 'năm' };
 

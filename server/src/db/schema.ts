@@ -24,16 +24,6 @@ export const loginFailures = sqliteTable('login_failures', {
   firstAt: integer('first_at').notNull(),
 });
 
-/** API tokens: the SHA-256 of the token, and its first characters to tell them apart. */
-export const tokens = sqliteTable('tokens', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  hash: text('hash').notNull().unique(),
-  prefix: text('prefix').notNull(),
-  createdAt: integer('created_at').notNull(),
-  lastUsedAt: integer('last_used_at'),
-});
-
 /** The accounts of the desktop app, one per game server and username in lower case (services/account.service.ts). */
 export const accounts = sqliteTable(
   'accounts',
@@ -50,8 +40,8 @@ export const accounts = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
     /** JSON {"field": epoch ms}: when each field of `data` was last changed (migrations/0003_sync.sql). */
     changed: text('changed').notNull().default('{}'),
-    /** The key whose app sent it last (POST /api/license/sync, migrations/0006_licenses_sync.sql); null when a token
-     * sent it, or that key was deleted. */
+    /** The key whose app sent it last (POST /api/license/sync, migrations/0006_licenses_sync.sql); null when an API
+     * token sent it before 0007, or that key was deleted. */
     licenseId: integer('license_id'),
   },
   (t) => [unique().on(t.serverId, t.usernameKey), index('accounts_license').on(t.licenseId)],
@@ -88,4 +78,4 @@ export const licenses = sqliteTable('licenses', {
   createdAt: integer('created_at').notNull(),
 });
 
-export const schema = { admins, sessions, loginFailures, tokens, accounts, licenses };
+export const schema = { admins, sessions, loginFailures, accounts, licenses };
