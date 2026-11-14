@@ -124,6 +124,13 @@ impl Bot {
             .any(|w| matches!(w, Wait::Shop | Wait::Item | Wait::Repair | Wait::Pickup))
     }
 
+    /// notice_awaited() but the pickup's: what Tự gộp đá khi túi đầy does not set off with (a pickup's answer is waited
+    /// for at M1 instead, merge_step).
+    pub(super) fn notice_awaited_but_pickup(&self, now: Instant) -> bool {
+        self.waits(Some(now))
+            .any(|w| matches!(w, Wait::Shop | Wait::Item | Wait::Repair))
+    }
+
     /// Whether a s2c/1256 that does not speak of a pickup is another task's answer rather than the pickup's: something
     /// other than the pickup waits for a notice.
     pub(super) fn owns_next_notice(&self, now: Instant) -> bool {

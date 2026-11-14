@@ -1,7 +1,7 @@
 // Keys: POST /api/license/verify and /api/license/sync for the app, and the Key page with Tạo key and the actions of a
 // key, each one a line of the Log page.
-import { MAX_ACCOUNTS_BODY, MAX_VERIFY_BODY } from '../config/constants.ts';
-import { HTTP, LOG } from '../config/messages.ts';
+import { MAX_ACCOUNTS_BODY, MAX_VERIFY_BODY, SYNC_GAP_S } from '../config/constants.ts';
+import { HTTP, LICENSE, LOG } from '../config/messages.ts';
 import * as accounts from '../services/account.service.ts';
 import * as licenses from '../services/license.service.ts';
 import * as logs from '../services/log.service.ts';
@@ -28,6 +28,12 @@ export async function verify(c: Ctx) {
  * which is neither revoked nor ended), merged into the accounts kept (services/account.service.ts#syncLicense), new
  * ones up to the key's max_accounts; and what the app did to its accounts ("events"), each a line of the Log page.
  * The answer says what was merged, and how many events were logged ("logged"). Else 403 with why ("code"). */
+/** The least seconds between two syncs of a key: SYNC_GAP_SECONDS when it is a number of 0 or more, else SYNC_GAP_S. */
+export function syncGap(text: string | undefined): number {
+  const n = Number(text);
+  return text !== undefined && text.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : SYNC_GAP_S;
+}
+
 export async function sync(c: Ctx) {
   const text = await bodyText(c, MAX_ACCOUNTS_BODY);
   if (text === null) return c.json({ error: HTTP.accountsTooLarge }, 413);
@@ -36,6 +42,12 @@ export async function sync(c: Ctx) {
   const held = await licenses.holder(c.var.db, s.key, s.id);
   if (!('license' in held)) return c.json(held, 403);
   const l = held.license;
+  // A key that syncs again within the gap is refused before anything is read or written; the app sends it all again
+  // at its next sync, as for any answer but 200.
+  const gap = syncGap(c.env.SYNC_GAP_SECONDS);
+  if (l.syncedAt !== null && Date.now() - l.syncedAt < gap * 1000) {
+    return c.json({ code: 'tooSoon', error: LICENSE.tooSoon(gap) }, 429, { 'Retry-After': String(gap) });
+  }
   try {
     const done = await accounts.syncLicense(c.var.db, s.accounts, l, licenses.sourceOf(l));
     const logged = await licenses.synced(c.var.db, l, s.settings, s.events, done, clientIp(c));

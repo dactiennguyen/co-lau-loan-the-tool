@@ -8,6 +8,10 @@ export interface Env {
   /** The first password of the admin (`wrangler secret put ADMIN_PASSWORD`; .dev.vars for `yarn dev`), read only while
    * the database has no admin yet. */
   ADMIN_PASSWORD?: string;
+  /** How many requests of /api/license/* an IP may make (middlewares/api.middleware.ts); none in the tests. */
+  API_LIMIT?: RateLimit;
+  /** The least seconds between two syncs of a key (SYNC_GAP_S when unset; the tests set 0). */
+  SYNC_GAP_SECONDS?: string;
 }
 
 export type AppEnv = {

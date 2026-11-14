@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTP } from '../config/messages.ts';
 import * as license from '../controllers/license.controller.tsx';
+import { apiLimit } from '../middlewares/api.middleware.ts';
 import type { AppEnv } from '../types/app.ts';
 
 export const api = new Hono<AppEnv>({ strict: false });
@@ -10,6 +11,7 @@ export const api = new Hono<AppEnv>({ strict: false });
 api.use(cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'], allowHeaders: ['Content-Type'] }));
 
 api.get('/health', (c) => c.json({ ok: true, app: 'cllt-server' }));
+api.use('/license/*', apiLimit);
 
 // The app, by its key (README.md#key): no login, the key itself. Verify as it opens and every hour; sync the accounts
 // that changed while the key works on the device.

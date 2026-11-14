@@ -103,6 +103,8 @@ Chỉ app gọi API, bằng key của nó ([Key](#key), [Đồng bộ nick](#đ�
 
 **Kiểm tra server**: `GET /api/health` trả `{"ok": true, "app": "cllt-server"}`.
 
+**Giới hạn gửi:** mỗi IP gửi tối đa 60 lần một phút tới `/api/license/*` (binding `API_LIMIT` trong `wrangler.toml`, tính theo từng điểm của Cloudflare nên không tuyệt đối chính xác). Quá thì trả 429 `{"error": "Gửi quá nhiều, thử lại sau một phút"}` với `Retry-After: 60`, không đọc hay ghi D1. App kiểm tra key mỗi giờ và đồng bộ mỗi 15 phút nên không bao giờ chạm tới; giới hạn này để một người gửi liên tục, mỗi lần một dòng Log từ chối, không làm đầy D1.
+
 API cho mọi nguồn gọi (CORS `*`), vì nó không dùng cookie.
 
 **Bỏ API token:** trang API token, `GET` và `POST /api/accounts` đã bỏ; [0007_drop_tokens.sql](migrations/0007_drop_tokens.sql) xoá bảng `tokens`. Nick token đã gửi vẫn giữ, không key nào giữ (cột Key là "—"); app của một key gửi nick đó thì key đó nhận nó.
@@ -175,6 +177,8 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
 ```
 
 **Server chỉ nhận khi** key có thật, không bị khoá, chưa hết hạn, và đang được đúng máy `id` đó giữ. Không thì trả 403 `{"error": "…", "code": "…"}`, với `code` là `unknown`, `revoked`, `taken`, `expired`, hay `inactive` (key chưa kích hoạt trên máy nào). Biết key mà không ở đúng máy thì không ghi được nick nào.
+
+**Mỗi key cách lần gửi trước ít nhất 10 giây** (biến `SYNC_GAP_SECONDS` của Worker đổi được). Gửi sớm hơn thì trả 429 `{"code": "tooSoon", "error": "…"}` với `Retry-After`, không ghi gì. App đồng bộ mỗi 15 phút, hay ở lượt kế (15 giây) sau khi đổi nick, nên không bị từ chối; nếu có, nó gửi lại tất cả ở lần sau như mọi câu trả lời khác 200. Nhờ vậy một key không thể gửi liên tục để làm phình bảng Log (mỗi lần tối đa 200 việc).
 
 **Nick của ai thì key đó giữ.** Server xét từng nick:
 - Nick key đó đã gửi thì luôn được cập nhật.

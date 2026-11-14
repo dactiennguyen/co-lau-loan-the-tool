@@ -323,10 +323,10 @@ impl BattleRunner {
             battle_uuid: Some(&self.uuid),
             ..ctx
         };
-        out.push(Act::Send(
-            opcode,
-            build(opcode, &ctx).expect("battle request"),
-        ));
+        out.push(match build(opcode, &ctx) {
+            Ok(payload) => Act::Send(opcode, payload),
+            Err(e) => Act::Log(crate::requests::unbuilt(opcode, &e)),
+        });
     }
 
     pub fn start(&self, out: &mut Vec<Act>) {

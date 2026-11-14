@@ -2,8 +2,9 @@ name: Build Matrix
 
 # Tests, then the desktop app (app/desktop) built for macOS Apple Silicon, macOS Intel, Windows x64 and Ubuntu x64 (on a
 # release or a run started by hand; a push or pull request only tests).
-# The bundles stay as artifacts of the run for a day; release.yml calls this workflow on a v* tag, publishes them, then
-# deletes them. With the
+# For a release (release.yml on a v* tag, with release_tag) each build uploads its bundles straight into the draft
+# release that release.yml made, with RELEASE_TOKEN: no artifact, as the artifacts' storage quota stopped 1.1.9 and
+# 1.1.10 on 04/11/2026. A run started by hand keeps them as artifacts of the run for a day. With the
 # updater key in the secrets, each bundle also gets its updater file and .sig (docs/integration/rust/release.md#tự-cập-nhật);
 # there is no Apple or Windows code signing (docs/integration/rust/release.md#cicd-và-phát-hành).
 
@@ -14,6 +15,15 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      release_tag:
+        description: The tag of the draft release the bundles go to (release.yml); empty for artifacts.
+        type: string
+        default: ""
+      release_repo:
+        description: owner/name of the repository of that release.
+        type: string
+        default: ""
 
 concurrency:
   group: build-matrix-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -85,6 +95,8 @@ jobs:
         with:
           workspaces: app -> target
           key: preflight
+          # Saved from main only: a cache saved on a tag serves no later run, and would push out main's.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -158,6 +170,10 @@ jobs:
         with:
           workspaces: app -> target
           key: ${{ matrix.target }}
+          # Builds run on tags and by hand. A tag restores what main saved but its own save would serve no later tag,
+          # and four of them fill the 10 GB of caches: only a run started by hand on main saves (and warms the next
+          # release).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -192,15 +208,25 @@ jobs:
           npx tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} "${updater[@]}"
 
       - name: Stage bundles
-        run: node .github/scripts/stage-bundles.mjs ${{ matrix.target }} staged
+        run: node .github/scripts/stage-bundles.mjs ${{ matrix.target }} staged SHA256SUMS-${{ matrix.target }}.txt
 
+      # A release: into its draft, with the SHA-256 of this build for the SHA256SUMS.txt of the publish job. --clobber, so
+      # a build run again replaces what it uploaded before.
+      - name: Upload to the draft release
+        if: ${{ inputs.release_tag != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ inputs.release_repo }}
+          TAG: ${{ inputs.release_tag }}
+        run: gh release upload "$TAG" staged/* "SHA256SUMS-${{ matrix.target }}.txt" --clobber
+
+      # A run started by hand: artifacts of the run, for a day.
       - name: Upload bundles
+        if: ${{ inputs.release_tag == '' }}
         uses: actions/upload-artifact@v4
         with:
           name: bundles-${{ matrix.target }}
           path: staged/*
           if-no-files-found: error
-          # Only to hand them to the publish job of release.yml, which deletes them once published. Kept 14 days, the
-          # ~210 MB of each build filled the storage of artifacts (12 GB) and the upload of 1.1.9 failed on 04/11/2026.
-          # A day is enough to re-run a failed publish, or to download a build started by hand.
           retention-days: 1

@@ -38,6 +38,7 @@ export const HTTP = {
   onlyPost: 'Chỉ có POST',
   accountsTooLarge: 'JSON quá lớn (tối đa 1 MB)',
   tooLarge: 'JSON quá lớn',
+  tooManyRequests: 'Gửi quá nhiều, thử lại sau một phút',
 };
 
 /** What is wrong with the accounts of a JSON (validators/account.validator.ts), in the words of Nhập JSON of the app. */
@@ -67,6 +68,7 @@ export const LICENSE = {
   tooMany: (n: number) => `Tối đa ${n} nick một lần`,
   notEvents: '"events" phải là một danh sách',
   tooManyEvents: `Tối đa ${MAX_SYNC_EVENTS} việc (events) một lần`,
+  tooSoon: (s: number) => `Đồng bộ quá dày: cách lần trước ít nhất ${s} giây`,
   maxAccounts: `Số nick tối đa là số nguyên từ 1 tới ${MAX_LICENSE_ACCOUNTS.toLocaleString('vi-VN')}`,
   count: `Số lượng là số nguyên từ 1 tới ${MAX_LICENSE_BATCH}`,
   duration: 'Thời hạn là số nguyên từ 1, tối đa 100 năm',

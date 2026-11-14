@@ -53,6 +53,11 @@ export const MAX_SYNC_ACCOUNTS = 500;
 /** The most "events" (what the app did to its accounts) one POST /api/license/sync takes; the longest username and
  * label of one that is kept; the app's id of one: 1 to 40 of these characters. */
 export const MAX_SYNC_EVENTS = 200;
+/** The period of the API_LIMIT binding of wrangler.toml (its simple.period), for the Retry-After of a refusal. */
+export const API_LIMIT_PERIOD_S = 60;
+/** The least time between two syncs of one key, unless SYNC_GAP_SECONDS says otherwise: the app syncs every 15 minutes,
+ * or at the next turn (15 s) of its key thread after an account changed, so this never refuses it. */
+export const SYNC_GAP_S = 10;
 export const MAX_EVENT_TEXT = 100;
 export const EVENT_ID = /^[A-Za-z0-9_-]{1,40}$/;
 export const MAX_SETTINGS = 4 * 1024;

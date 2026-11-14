@@ -57,6 +57,13 @@ fn required<T>(v: Option<T>, name: &str) -> Result<T> {
     }
 }
 
+/// The log line of a request that could not be built (a field missing: a bug of the bot, not of the server). The bot
+/// skips that request and goes on rather than lose the session; the line is a fault (net/trace.rs is_fault), so Log lỗi
+/// keeps the packets around it.
+pub fn unbuilt(opcode: i32, why: &impl std::fmt::Display) -> String {
+    format!("Lỗi của bot: không dựng được gói c2s/{opcode} ({why}), bỏ qua gói này")
+}
+
 pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
     let w = Writer::new();
     Ok(match opcode {
@@ -199,4 +206,18 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             )
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_request_missing_a_field_is_a_fault_line_not_a_panic() {
+        let e = build(57, &Ctx::default()).unwrap_err();
+        let line = unbuilt(57, &e);
+        assert!(line.starts_with("Lỗi của bot: không dựng được gói c2s/57 ("), "{line}");
+        assert!(line.ends_with("), bỏ qua gói này"), "{line}");
+        assert!(crate::net::is_fault(&line));
+    }
 }

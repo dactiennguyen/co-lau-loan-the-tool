@@ -58,8 +58,12 @@ test('latest.json: a release built without the signing key fails, naming what ha
 
 test('latest.json: the release workflow writes it before the release, and the app reads it from the latest release', () => {
   const workflow = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /latest-json\.mjs assets "\$VERSION" "\$GH_REPO" "\$TAG" commit-body\.txt > assets\/latest\.json/);
+  assert.match(workflow, /latest-json\.mjs assets "\$VERSION" "\$GH_REPO" "\$TAG" commit-body\.txt > latest\.json/);
   assert.match(workflow, /secrets: inherit/);
+  // The draft gets latest.json before it is published, so the updater never sees a release without it.
+  const upload = workflow.indexOf('gh release upload "$TAG" SHA256SUMS.txt latest.json');
+  assert.ok(upload > 0 && upload < workflow.indexOf('gh release edit "$TAG" --draft=false --latest'));
+  assert.match(workflow, /gh release create "\$TAG" --draft/);
   const config = JSON.parse(readFileSync(new URL('../app/desktop/src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
   assert.deepEqual(config.plugins.updater.endpoints, ['https://github.com/dactiennguyen/colautool-releases/releases/latest/download/latest.json']);
   // Local builds stay unsigned; CI turns the updater files on when it has the key.
@@ -77,4 +81,16 @@ test('release-retry.yml runs a Release run again only when GitHub cancelled a jo
   const failed = retry.indexOf("grep -q '^failure'");
   assert.ok(failed > 0 && failed < retry.indexOf("grep -q '^cancelled'") && failed < retry.indexOf('gh run rerun'));
   assert.match(retry, /gh run rerun "\$RUN" --failed/);
+});
+
+test('a release goes through no artifact: each build uploads into the draft, a run started by hand keeps artifacts', () => {
+  const read = (f: string) => readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), 'utf8');
+  const release = read('release.yml');
+  const matrix = read('build-matrix.yml');
+  assert.doesNotMatch(release, /download-artifact|actions: write/);
+  assert.match(release, /release_tag: \$\{\{ github\.ref_name \}\}/);
+  assert.match(matrix, /if: \$\{\{ inputs\.release_tag != '' \}\}[\s\S]*?gh release upload "\$TAG" staged\/\* "SHA256SUMS-\$\{\{ matrix\.target \}\}\.txt" --clobber/);
+  assert.match(matrix, /if: \$\{\{ inputs\.release_tag == '' \}\}\n\s+uses: actions\/upload-artifact@v4/);
+  // The tag is checked against every place of the version, lock files too.
+  assert.match(release, /node \.github\/scripts\/bump-version\.mjs --check "\$tag"/);
 });

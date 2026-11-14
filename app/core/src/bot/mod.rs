@@ -792,8 +792,13 @@ impl Bot {
         }
     }
 
+    /// A request out, or the fault line of one that could not be built (requests::unbuilt): its answer never comes, and
+    /// the timeouts of what waited for it take over.
     fn send(out: &mut Vec<Out>, opcode: i32, ctx: Ctx) {
-        out.push(Out::Send(opcode, build(opcode, &ctx).expect("request")));
+        out.push(match build(opcode, &ctx) {
+            Ok(payload) => Out::Send(opcode, payload),
+            Err(e) => Out::Log(LogKind::Connection, crate::requests::unbuilt(opcode, &e)),
+        });
     }
 
     fn apply(&mut self, acts: Vec<Act>, now: Instant, out: &mut Vec<Out>) {

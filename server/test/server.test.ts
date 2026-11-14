@@ -6,12 +6,15 @@ import { count, merge, syncLicense } from '../src/services/account.service.ts';
 import { addDuration, create as createLicense, verify as verifyLicense } from '../src/services/license.service.ts';
 import { database } from '../src/db/client.ts';
 import worker from '../src/index.ts';
+import { syncGap } from '../src/controllers/license.controller.tsx';
 import { d1 } from './d1.ts';
 
 const ORIGIN = 'https://cllt.example';
 
 /** A browser of the admin page: it keeps the session cookie the Worker sets. */
-function client(env: { DB: D1Database; ADMIN_PASSWORD?: string } = { DB: d1(), ADMIN_PASSWORD: 'admin' }) {
+type TestEnv = { DB: D1Database; ADMIN_PASSWORD?: string; API_LIMIT?: RateLimit; SYNC_GAP_SECONDS?: string };
+
+function client(env: TestEnv = { DB: d1(), ADMIN_PASSWORD: 'admin', SYNC_GAP_SECONDS: '0' }) {
   let cookie = '';
   const call = async (
     path: string,
@@ -1182,4 +1185,65 @@ test('log: the Log page shows the last to happen first, a counted row by its las
   assert.equal(new Set(seen).size, 130);
   // Within a time, the later row first.
   assert.deepEqual(seen.slice(0, 3), ['m129', 'm126', 'm123']);
+});
+
+// ---- Limits of /api/license/* -----------------------------------------------------------------------------------
+
+test('API_LIMIT: past what it allows an IP, /api/license/* answers 429 with Retry-After, counted by IP; /api/health is not counted', async () => {
+  const asked: string[] = [];
+  const limiter: RateLimit = {
+    limit: async ({ key }) => {
+      asked.push(key);
+      return { success: asked.filter((k) => k === key).length <= 2 };
+    },
+  };
+  const c = client({ DB: d1(), API_LIMIT: limiter, SYNC_GAP_SECONDS: '0' });
+  const body = (key: string) => JSON.stringify({ key, id: DEVICE, hostname: 'MAY', os: 'windows', version: '1.1.11', accounts: 0 });
+  assert.equal((await c.call('/api/health')).status, 200);
+  const lines = () => c.env.DB.prepare('SELECT COUNT(*) AS n FROM logs').first('n');
+  let before: unknown;
+  for (const want of [200, 200, 429]) {
+    if (want === 429) before = await lines();
+    const r = await c.call('/api/license/verify', { body: body('CLLT-0000-0000-0000-0000'), ip: '1.2.3.4' });
+    assert.equal(r.status, want, r.text);
+    if (want === 429) {
+      assert.equal(r.res.headers.get('Retry-After'), '60');
+      assert.match(JSON.parse(r.text).error, /Gửi quá nhiều/);
+    }
+  }
+  assert.equal((await c.call('/api/license/sync', { body: '{}', ip: '1.2.3.4' })).status, 429);
+  // A refusal writes nothing: the 429s are not lines of the Log page.
+  assert.equal(await lines(), before);
+  // Another IP has its own count.
+  assert.equal((await c.call('/api/license/verify', { body: body('CLLT-0000-0000-0000-0000'), ip: '5.6.7.8' })).status, 200);
+  assert.deepEqual(asked, ['1.2.3.4', '1.2.3.4', '1.2.3.4', '1.2.3.4', '5.6.7.8']);
+});
+
+test('SYNC_GAP_SECONDS: a key that syncs again within the gap gets 429 "tooSoon" and nothing is written; after it, the sync goes', async () => {
+  const c = await ready();
+  const key = await newKey(c);
+  assert.equal((await verify(c.call, key)).json.ok, true);
+  const gapped = client({ DB: c.env.DB, ADMIN_PASSWORD: 'admin', SYNC_GAP_SECONDS: '10' });
+  const nick = (label: string) => ({ label, username: 'tiheo1', password: 'p1', serverId: 24 });
+  const first = await syncOf(gapped.call, key, DEVICE, [[nick('Một'), 1000]]);
+  assert.equal(first.status, 200, first.text);
+  const again = await syncOf(gapped.call, key, DEVICE, [[nick('Hai'), 2000]]);
+  assert.equal(again.status, 429);
+  assert.equal(again.json.code, 'tooSoon');
+  assert.match(again.json.error, /ít nhất 10 giây/);
+  assert.equal(again.res.headers.get('Retry-After'), '10');
+  assert.equal(await c.env.DB.prepare('SELECT label FROM accounts').first('label'), 'Một');
+  // As if the last sync were 11 s ago.
+  await c.env.DB.prepare('UPDATE licenses SET synced_at = synced_at - 11000').run();
+  assert.equal((await syncOf(gapped.call, key, DEVICE, [[nick('Hai'), 2000]])).status, 200);
+  assert.equal(await c.env.DB.prepare('SELECT label FROM accounts').first('label'), 'Hai');
+});
+
+test('syncGap: SYNC_GAP_SECONDS when it is a number of 0 or more, else 10 s', () => {
+  assert.equal(syncGap(undefined), 10);
+  assert.equal(syncGap(''), 10);
+  assert.equal(syncGap('abc'), 10);
+  assert.equal(syncGap('-1'), 10);
+  assert.equal(syncGap('0'), 0);
+  assert.equal(syncGap('30'), 30);
 });

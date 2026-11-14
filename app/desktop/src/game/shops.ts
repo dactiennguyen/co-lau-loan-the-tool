@@ -1,6 +1,10 @@
 // The NPC services of Làng Thanh Khê as the Tiện ích modal offers them (npc.rs, docs/app/events/15-shops.md, 16-upgrade.md).
 import { itemIcon } from "./itemIcons";
+import { isGear, stoneLevel } from "./upgrade";
 import type { Character, Item, Recipe } from "@/api/types";
+
+// The rules of Nâng cấp live in upgrade.ts (the root tests import them); exported here too, as the views take them.
+export { CHARMS, SAFE_LEVEL, TRANSMUTE_ITEMS, charmUseful, failLevel, isGear, itemCap, stoneLevel, upgradeCap } from "./upgrade";
 
 /** Lái Buôn, Bà Tư Hạnh, Hương Lão and Pháp sư stand in Làng Thanh Khê; the server serves them only on that map (B1). */
 export const NPC_MAP = "M1";
@@ -39,8 +43,6 @@ export function shopKind(category: Category, money: Money, gender: Gender): numb
 
 export const MONEY = ["Xu", "Xu khóa", "Lượng"] as const;
 
-/** Đá cấp 1–12 are items 411–422; 0 for any other item. */
-export const stoneLevel = (id: number) => (id > 410 && id <= 422 ? id - 410 : 0);
 /** The picture of Đá cấp `level`, also for a stone the bag does not hold yet: data/items.json gives items 411–422 the
  * icons 167–178 (data/icons/i167.webp…). */
 export const stoneIcon = (level: number) => itemIcon(166 + level);
@@ -53,23 +55,6 @@ export function stoneCounts(items: Item[]): [number, number][] {
   }
   return counts;
 }
-/** Trần cường hoá of the Cẩm nang by the level to wear: tier 1 to +4, 21 to +8, 51 to +12, 101 and up to +16. */
-export const upgradeCap = (level: number) => (level >= 101 ? 16 : level >= 51 ? 12 : level >= 21 ? 8 : 4);
-/** Trần cường hoá of an item: wings (kind 4) go to +16 whatever their level (npc::item_cap). */
-export const itemCap = (i: Item) => (i.kind === 4 ? 16 : upgradeCap(i.level ?? 1));
-/** Below +4 a failed Nâng cấp keeps the level. */
-export const SAFE_LEVEL = 4;
-/** Bùa bảo vệ sơ, trung, cao, siêu cấp and the highest level of the upgrade each protects (npc::CHARMS). */
-export const CHARMS = [
-  { id: 35, upTo: 8, name: "sơ cấp" },
-  { id: 36, upTo: 12, name: "trung cấp" },
-  { id: 37, upTo: 14, name: "cao cấp" },
-  { id: 38, upTo: 16, name: "siêu cấp" },
-];
-/** The level of an item +`level` after a failed Nâng cấp without a charm: +4, +8, +12, +14 (npc::fail_level). */
-export const failLevel = (level: number) => [4, 8, 12, 14].filter((m) => m <= level).pop() ?? level;
-/** A failed Nâng cấp from +`level` loses levels (+5 to +7, +9 to +11, +13, +15): a charm is worth it. */
-export const charmUseful = (level: number) => failLevel(level) < level;
 /** Đổi Băng Tâm lấy bình rỗng: 8 Băng Tâm (21) for a Bình Huyết Linh (Rỗng) (16); lines 0 one, 1 five, 2 all. */
 export const ICE = { iceId: 21, bottleId: 16, perBottle: 8 };
 /** The item kinds of Chế tạo trang bị, by their line in its menu (npc::CRAFT_LABELS); also the item kind (0 hat, 1
@@ -118,14 +103,6 @@ export function materialHeld(items: Item[], name: string, count: number) {
 }
 /** "I", "II", … for the tiers of Chế tạo trang bị. */
 export const roman = (tier: number) => ["?", "I", "II", "III", "IV", "V", "VI"][tier] ?? String(tier);
-/** Chuyển hoá trang bị sơ, trung, cao cấp: the level each moves up to. */
-export const TRANSMUTE_ITEMS = [
-  { id: 616, upTo: 10 },
-  { id: 617, upTo: 13 },
-  { id: 618, upTo: 16 },
-];
-/** The gear Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh. */
-export const isGear = (i: Item) => i.kind != null && i.kind <= 4;
 /** Cường hoá of a piece of gear, as the bag and the item detail draw it: 0 for +0 and for any other item, whose field0
  * is not a level. */
 export const plusOf = (i: Item) => (isGear(i) ? Math.max(0, i.plus) : 0);

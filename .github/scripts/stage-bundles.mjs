@@ -2,16 +2,18 @@
 // <productName>_<version>_<os>_<arch><ext> for every platform (Tauri's own names mix x64, amd64, x86_64 and
 // en-US). Used by .github/workflows/build-matrix.yml; fails when a bundle is missing. A build with the signing key also
 // left the updater files: each bundle's .sig, and on macOS the .app.tar.gz with its .sig; they go along under the same
-// names (latest-json.mjs reads them).
-//   node .github/scripts/stage-bundles.mjs <target triple> <out dir>
+// names (latest-json.mjs reads them). With a third argument, the SHA-256 of each staged file also goes into that file, in
+// the layout of sha256sum (release.yml joins those of the four builds into SHA256SUMS.txt without downloading them).
+//   node .github/scripts/stage-bundles.mjs <target triple> <out dir> [<sums file>]
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const [target, out] = process.argv.slice(2);
+const [target, out, sums] = process.argv.slice(2);
 if (!target || !out) {
-  console.error('usage: node .github/scripts/stage-bundles.mjs <target triple> <out dir>');
+  console.error('usage: node .github/scripts/stage-bundles.mjs <target triple> <out dir> [<sums file>]');
   process.exit(2);
 }
 
@@ -68,3 +70,7 @@ if (os === 'windows') {
 }
 
 for (const file of staged) console.log(`${(statSync(file).size / 1048576).toFixed(1).padStart(7)} MB  ${file}`);
+if (sums) {
+  const lines = staged.map(file => `${createHash('sha256').update(readFileSync(file)).digest('hex')}  ${basename(file)}\n`);
+  writeFileSync(sums, lines.join(''));
+}

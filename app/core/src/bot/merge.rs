@@ -144,7 +144,7 @@ impl Bot {
         if plan.merges > 0 {
             // smith_begin would refuse Gộp đá at Pháp sư for these, after the whole way there and back; a pickup's
             // answer is waited for at M1 instead (merge_step).
-            if self.shopping.is_some() || self.item_pending(now) || self.repairing.is_some() {
+            if self.notice_awaited_but_pickup(now) {
                 return Err((
                     "answer",
                     "đang đợi server trả lời việc khác (mua, dùng hay sửa đồ)".into(),
