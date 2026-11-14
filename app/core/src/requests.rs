@@ -216,7 +216,10 @@ mod tests {
     fn a_request_missing_a_field_is_a_fault_line_not_a_panic() {
         let e = build(57, &Ctx::default()).unwrap_err();
         let line = unbuilt(57, &e);
-        assert!(line.starts_with("Lỗi của bot: không dựng được gói c2s/57 ("), "{line}");
+        assert!(
+            line.starts_with("Lỗi của bot: không dựng được gói c2s/57 ("),
+            "{line}"
+        );
         assert!(line.ends_with("), bỏ qua gói này"), "{line}");
         assert!(crate::net::is_fault(&line));
     }
