@@ -55,6 +55,7 @@ mod smith;
 mod stats;
 mod travel;
 mod types;
+mod waits;
 pub use fight::{HP_POTION_SHARE, MP_POTION_SHARE};
 pub use types::*;
 

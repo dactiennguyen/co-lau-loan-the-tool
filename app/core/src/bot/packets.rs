@@ -618,15 +618,7 @@ impl Bot {
                 // zone), only a line about the pickup is taken for its answer.
                 let picking = self.picked_at.is_some_and(|t| now < t + PICK_ANSWER);
                 let about = text.contains("nhặt") || text.contains("nhận được");
-                let waiting = self.travelling.is_some()
-                    || self.shopping.is_some()
-                    || self.smith.is_some()
-                    || self.gift.is_some()
-                    || self.mail.is_some()
-                    || self.market.is_some()
-                    || self.item_wait.is_some()
-                    || self.zoning.is_some();
-                if picking && (about || !waiting) {
+                if picking && (about || !self.owns_next_notice(now)) {
                     self.pick_answer(text, now, out);
                     return Ok(());
                 }

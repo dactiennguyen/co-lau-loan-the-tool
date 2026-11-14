@@ -64,7 +64,7 @@ app/
     tests/battle_v3.rs      thuật toán v2 và v3 so với phần battleV3 của vectors.json
     tests/vectors.json      sinh từ TS
   desktop/                project Tauri 2 (cấu trúc của create-tauri-app, template react-ts)
-    package.json            dev, build (tsc && vite build), tauri, app, sample
+    package.json            dev, build (tsc && vite build), tauri, app, sample, check:sample (sample.json đúng kiểu)
     index.html, vite.config.ts, tsconfig.json
     app-icon.png            nguồn icon mẫu số 4 (xanh rêu, bông lau giấy màu kem), dùng chung cho logo giao diện;
                             `npm run tauri icon app-icon.png` sinh bộ icon nền tảng trong src-tauri/icons

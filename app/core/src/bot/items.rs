@@ -9,13 +9,9 @@ impl Bot {
     /// while the last action waits for its answer (5 s), or when the item cannot take it: a potion outside a battle, a
     /// repair without a hammer, an item taken off into a full bag.
     pub fn item(&mut self, act: ItemAct, now: Instant, out: &mut Vec<Out>) {
-        let pending = self
-            .item_wait
-            .as_ref()
-            .is_some_and(|w| now < w.at + Duration::from_secs(5));
         let busy = if self.battle.is_some() {
             Some("đang đánh, đợi hết trận")
-        } else if pending {
+        } else if self.item_pending(now) {
             Some("đang đợi server trả lời lần trước")
         } else if self.smith.is_some() {
             Some("đang làm việc ở Pháp sư hay Hương Lão")
@@ -136,7 +132,7 @@ impl Bot {
     }
 
     /// Cài đặt đánh, from the UI (accounts.json keeps it). It counts from the next battle of a run.
-    pub fn set_fight(&mut self, settings: FightSettings, out: &mut Vec<Out>) {
+    pub fn set_fight(&mut self, settings: FightSettings, now: Instant, out: &mut Vec<Out>) {
         if settings == self.fight {
             return;
         }
@@ -228,7 +224,7 @@ impl Bot {
             self.potions_kept[id as usize] = false;
             // Off from now on, also in the battle under way; a new max or keep counts from the next battle.
             if rule.is_none() {
-                if let Some(crate::runner_v3::Runner::V3(r)) = self.battle.as_mut() {
+                if let Some(r) = self.battle.as_mut() {
                     r.drop_potions(id);
                 }
             }
@@ -249,7 +245,7 @@ impl Bot {
             ));
             self.merge_said = None;
         }
-        self.pace_changed(&settings, out);
+        self.pace_changed(&settings, now, out);
         if settings.auto_skills != self.fight.auto_skills {
             out.push(Out::Log(
                 LogKind::Character,
@@ -475,13 +471,6 @@ impl Bot {
             }
             item.durability = d;
         }
-    }
-
-    /// An item action (a button of the Túi đồ tab, a repair of Tự sửa đồ) waits for its answer: for 5 s at most, as Bot::item
-    /// and notice_awaited count it, so one never answered (a Sắp xếp answered late, a repair given up) does not hold the
-    /// next task for good.
-    pub(super) fn item_pending(&self, now: Instant) -> bool {
-        (self.item_wait.as_ref()).is_some_and(|w| now < w.at + Duration::from_secs(5))
     }
 
     /// Tự sửa đồ (FightSettings::repair), from next() between the battles of a fight job or quest run: the first worn

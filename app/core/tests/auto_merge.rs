@@ -10,22 +10,9 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn v() -> Value {
-    serde_json::from_str(include_str!("vectors.json")).unwrap()
-}
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-fn logged(out: &[Out], text: &str) -> bool {
-    out.iter()
-        .any(|o| matches!(o, Out::Log(_, t) if t.starts_with(text)))
-}
+mod common;
+use common::{hex, logged, tohex, v};
+
 fn notice(text: &str) -> Vec<u8> {
     Writer::new().u8(0).string(text).build()
 }
@@ -325,7 +312,7 @@ fn dung_at_phap_su_lets_the_trip_go_so_a_job_started_at_once_fights_where_it_is(
     assert_eq!(sent(&out, 13).last().map(String::as_str), Some(PHAP_SU));
     // Dừng while Pháp sư is talked to, then a new job (Tự gộp đá off) before any packet comes.
     bot.stop(false, now, &mut out);
-    bot.set_fight(FightSettings::default(), &mut out);
+    bot.set_fight(FightSettings::default(), now, &mut out);
     out.clear();
     bot.fight("Cóc Xanh", 5, 1, now, &mut out);
     assert_eq!(sent(&out, 15), [CHALLENGE], "{out:?}");
@@ -340,7 +327,7 @@ fn turned_off_on_the_way_it_comes_back_without_merging() {
     let stones = [(10, 411, 0), (11, 411, 0), (12, 411, 0), (13, 411, 0)];
     let (mut bot, mut out, now) = manina(&full(&stones), 7_370);
     bot.fight("Cóc Xanh", 5, 1, now, &mut out);
-    bot.set_fight(FightSettings::default(), &mut out);
+    bot.set_fight(FightSettings::default(), now, &mut out);
     assert!(logged(&out, "Tắt tự gộp đá khi túi đầy"), "{out:?}");
     out.clear();
     arrive(&mut bot, &mut out, now, "M1", "Làng Thanh Khê", 0);
@@ -625,7 +612,7 @@ fn an_item_action_or_a_repair_never_answered_does_not_keep_phap_su_refusing_gop_
         repair: true,
         ..FightSettings::default()
     };
-    bot.set_fight(fight, &mut out);
+    bot.set_fight(fight, now, &mut out);
     bot.on_packet(37, &decoded("gearUpdate"), now, &mut out)
         .unwrap();
     out.clear();

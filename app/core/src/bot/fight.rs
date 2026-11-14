@@ -493,10 +493,7 @@ impl Bot {
     /// The potions the v3 battle under way may still drink (Dùng bình máu, Dùng bình mana), counted down as they go;
     /// none outside a battle.
     pub fn potions_left(&self) -> &[crate::battle_actions::Potion] {
-        match &self.battle {
-            Some(crate::runner_v3::Runner::V3(r)) => r.potions(),
-            _ => &[],
-        }
+        self.battle.as_ref().map_or(&[], |r| r.potions())
     }
 
     /// The potions the battle about to start may use (battle_potions of Dùng bình máu and Dùng bình mana). A kind turned

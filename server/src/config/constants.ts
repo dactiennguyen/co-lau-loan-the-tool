@@ -2,9 +2,9 @@
 
 // ---- Admin and sessions -----------------------------------------------------------------------------------------
 
-/** The one admin, made on the first request with DEFAULT_PASSWORD, which the page then asks to change first. */
+/** The one admin, made at the first login with the ADMIN_PASSWORD secret, which the page then asks to change first.
+ * Without that secret no admin is made: a fresh deploy is never open to whoever logs in first. */
 export const ADMIN = 'admin';
-export const DEFAULT_PASSWORD = 'admin';
 /** The shortest new password Đổi mật khẩu takes. */
 export const MIN_PASSWORD = 8;
 /** The most PBKDF2 iterations Cloudflare Workers allow. */

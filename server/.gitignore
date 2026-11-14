@@ -4,3 +4,5 @@
 .yarn/
 # Built by scripts/build-client.mjs (wrangler dev, wrangler deploy, yarn build:client).
 public/
+# wrangler dev reads the secrets of the local Worker here (ADMIN_PASSWORD).
+.dev.vars

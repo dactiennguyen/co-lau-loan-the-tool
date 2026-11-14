@@ -398,10 +398,9 @@ impl Bot {
             // for an exchange, "Vật phẩm không thể sử dụng!" for a refusal of Pháp sư). An item action 5 s old is not
             // waited for any more (item_pending), as for the next button of the Túi đồ tab.
             .or_else(|| {
-                (self.item_pending(now)
-                    || self.repairing.is_some()
-                    || self.picked_at.is_some_and(|t| now < t + PICK_ANSWER))
-                .then(|| "đang đợi server trả lời việc khác (dùng, sửa hay nhặt đồ), thử lại sau vài giây".into())
+                self.notice_awaited(now).then(|| {
+                    "đang đợi server trả lời việc khác (dùng, sửa hay nhặt đồ), thử lại sau vài giây".into()
+                })
             })
             .or_else(|| {
                 (self.snap.map_id != npc::NPC_MAP).then(|| {

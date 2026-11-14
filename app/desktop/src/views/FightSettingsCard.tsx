@@ -11,6 +11,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { useStore } from "@/store";
+import { useRememberedToggle } from "@/hooks/useRememberedToggle";
 import { GENDER_ICON, GENDER_WORD, misfit } from "@/game/gender";
 import { ELEMENTS } from "@/game/potentials";
 import { stoneCounts } from "@/game/shops";
@@ -177,33 +178,11 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const [saving, setSaving] = useState<FightSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The settings of Tự nhặt đồ fold under it, closed until opened once.
-  const [pickupOpen, setPickupOpen] = useState(() => localStorage.getItem(PICKUP_OPEN) === "1");
-  const togglePickup = () =>
-    setPickupOpen((was) => {
-      localStorage.setItem(PICKUP_OPEN, was ? "0" : "1");
-      return !was;
-    });
-  // Likewise the numbers of Tự gộp đá khi túi đầy.
-  const [mergeOpen, setMergeOpen] = useState(() => localStorage.getItem(MERGE_OPEN) === "1");
-  const toggleMerge = () =>
-    setMergeOpen((was) => {
-      localStorage.setItem(MERGE_OPEN, was ? "0" : "1");
-      return !was;
-    });
-  // Likewise the two potions under Dùng bình trong trận.
-  const [potionsOpen, setPotionsOpen] = useState(() => localStorage.getItem(POTIONS_OPEN) === "1");
-  const togglePotions = () =>
-    setPotionsOpen((was) => {
-      localStorage.setItem(POTIONS_OPEN, was ? "0" : "1");
-      return !was;
-    });
-  // Likewise the waits of Thời gian chờ.
-  const [paceOpen, setPaceOpen] = useState(() => localStorage.getItem(PACE_OPEN) === "1");
-  const togglePace = () =>
-    setPaceOpen((was) => {
-      localStorage.setItem(PACE_OPEN, was ? "0" : "1");
-      return !was;
-    });
+  const [pickupOpen, togglePickup] = useRememberedToggle(PICKUP_OPEN);
+  // Likewise the numbers of Tự gộp đá khi túi đầy, the two potions under Dùng bình trong trận, the waits of Thời gian chờ.
+  const [mergeOpen, toggleMerge] = useRememberedToggle(MERGE_OPEN);
+  const [potionsOpen, togglePotions] = useRememberedToggle(POTIONS_OPEN);
+  const [paceOpen, togglePace] = useRememberedToggle(PACE_OPEN);
   // Kept until the account comes back with it, so the box does not flick back between the answer and the update. The
   // other boxes stay usable meanwhile: a save sends only what changed (with the numbers still waiting), src-tauri lays it
   // over the settings as they are then, one save after another, so none is lost, and nothing on the card dims at each

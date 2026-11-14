@@ -4,19 +4,6 @@ use cllt_core::npc::{self, BagItem, MergeOptions};
 use cllt_core::world;
 use serde_json::Value;
 
-fn v() -> Value {
-    serde_json::from_str(include_str!("vectors.json")).unwrap()
-}
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-
 #[test]
 fn the_packets_of_the_windows_and_shops_read_as_the_ts_decoders_read_them() {
     let all = v();
@@ -279,10 +266,9 @@ use cllt_core::protocol::Writer;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn logged(out: &[Out], text: &str) -> bool {
-    out.iter()
-        .any(|o| matches!(o, Out::Log(_, t) if t.starts_with(text)))
-}
+mod common;
+use common::{hex, logged, tohex, v};
+
 fn sent(out: &[Out], op: i32) -> Vec<String> {
     out.iter()
         .filter_map(|o| match o {

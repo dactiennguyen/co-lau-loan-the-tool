@@ -2,7 +2,7 @@
 // cookie is kept as its SHA-256, and an IP that fails too often waits. Logins, failed ones (counted by IP), Đăng xuất and
 // Đổi mật khẩu are lines of the Log page, written in the batch of what they change.
 import { and, eq, exists, gt, lt, ne, sql } from 'drizzle-orm';
-import { ADMIN, DEFAULT_PASSWORD, FAIL_LIMIT, FAIL_WINDOW_MS, LOG_WINDOW_MS, MAX_EVENT_TEXT, SESSION_COOKIE, SESSION_MS } from '../config/constants.ts';
+import { ADMIN, FAIL_LIMIT, FAIL_WINDOW_MS, LOG_WINDOW_MS, MAX_EVENT_TEXT, SESSION_COOKIE, SESSION_MS } from '../config/constants.ts';
 import { AUTH, LOG } from '../config/messages.ts';
 import type { Db } from '../db/client.ts';
 import { admins, loginFailures, sessions } from '../db/schema.ts';
@@ -11,21 +11,32 @@ import { b64url, checkPassword, hashPassword, random, sha256 } from '../utils/cr
 import { cookieOf } from '../utils/http.ts';
 import * as logs from './log.service.ts';
 
-/** The admin, made with DEFAULT_PASSWORD (to change first) when the database has none yet. */
-export async function admin(db: Db): Promise<Admin> {
-  const read = () => db.select().from(admins).where(eq(admins.username, ADMIN)).get();
-  const found = await read();
-  if (found) return found;
+/** The admin; undefined while the database has none yet. */
+function admin(db: Db): Promise<Admin | undefined> {
+  return db.select().from(admins).where(eq(admins.username, ADMIN)).get();
+}
+
+/** The admin, made with `first` (the ADMIN_PASSWORD secret, to change first) when the database has none yet; undefined
+ * when it has none and no such secret is set. */
+async function adminOrFirst(db: Db, first: string | undefined): Promise<Admin | undefined> {
+  const found = await admin(db);
+  if (found || !first) return found;
   await db
     .insert(admins)
-    .values({ username: ADMIN, passwordHash: await hashPassword(DEFAULT_PASSWORD), mustChange: 1, updatedAt: Date.now() })
+    .values({ username: ADMIN, passwordHash: await hashPassword(first), mustChange: 1, updatedAt: Date.now() })
     .onConflictDoNothing();
-  return (await read())!;
+  return admin(db);
 }
 
 /** Đăng nhập: a new session cookie, or why not. An IP that failed FAIL_LIMIT times in 15 minutes waits for the rest of
  * them, right password or not. */
-export async function login(db: Db, ip: string, username: string, password: string): Promise<{ cookie: string } | { error: string }> {
+export async function login(
+  db: Db,
+  ip: string,
+  username: string,
+  password: string,
+  first: string | undefined,
+): Promise<{ cookie: string } | { error: string }> {
   const now = Date.now();
   // A failure, waiting or not, is a line counted with those of the IP within LOG_WINDOW_MS.
   const typed = username.trim().slice(0, MAX_EVENT_TEXT);
@@ -42,7 +53,8 @@ export async function login(db: Db, ip: string, username: string, password: stri
     await logs.run(db, fail, now);
     return { error: AUTH.lockedOut(minutes) };
   }
-  const a = await admin(db);
+  const a = await adminOrFirst(db, first);
+  if (!a) return { error: AUTH.noAdmin };
   if (username.trim() !== a.username || !(await checkPassword(password, a.passwordHash))) {
     // Within the window one more failure, else a new window from now.
     const inWindow = sql`${now} - ${loginFailures.firstAt} < ${FAIL_WINDOW_MS}`;
@@ -88,7 +100,7 @@ export async function session(db: Db, req: Request): Promise<Admin | null> {
     .from(sessions)
     .where(and(eq(sessions.id, await sha256(cookie)), gt(sessions.expiresAt, Date.now())))
     .get();
-  return row ? admin(db) : null;
+  return (row && (await admin(db))) || null;
 }
 
 /** Đăng xuất: the session ends; a line of the Log page when there was one. */
@@ -107,7 +119,7 @@ export async function logout(db: Db, req: Request, ip: string): Promise<void> {
  * Every other login of the admin ends. */
 export async function changePassword(db: Db, req: Request, current: string, next: string, ip: string): Promise<string | null> {
   const a = await admin(db);
-  if (!(await checkPassword(current, a.passwordHash))) return AUTH.wrongCurrent;
+  if (!a || !(await checkPassword(current, a.passwordHash))) return AUTH.wrongCurrent;
   const keep = await sha256(cookieOf(req, SESSION_COOKIE) ?? '');
   await logs.run(db, [
     db.update(admins).set({ passwordHash: await hashPassword(next), mustChange: 0, updatedAt: Date.now() }).where(eq(admins.username, a.username)),

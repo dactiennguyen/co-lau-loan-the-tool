@@ -11,18 +11,9 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn v() -> Value {
-    serde_json::from_str(include_str!("vectors.json")).unwrap()
-}
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
+mod common;
+use common::{hex, tohex, v};
+
 /// A captured packet of the daily vectors, under its key of test/fixtures-g1.ts or fixtures-np1.ts.
 fn packet(key: &str) -> Vec<u8> {
     let all = v();

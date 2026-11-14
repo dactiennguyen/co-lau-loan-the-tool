@@ -2,7 +2,7 @@
 // what the TS decoders, request builders, battle replay and bestMove compute (src/cli/export-rust.ts).
 use cllt_core::atlas::{find_upwards, Atlas, MapRecord};
 use cllt_core::battle::{
-    self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy, N,
+    self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy,
 };
 use cllt_core::bot::{
     duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, FightSettings,
@@ -19,25 +19,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn v() -> Value {
-    serde_json::from_str(include_str!("vectors.json")).unwrap()
-}
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-fn board(v: &Value) -> Board {
-    let mut b = [0i16; N * N];
-    for (i, x) in v.as_array().unwrap().iter().enumerate() {
-        b[i] = x.as_i64().unwrap() as i16;
-    }
-    b
-}
+mod common;
+use common::{board, hex, logged, tohex, v};
 
 #[test]
 fn handshake_matches_capture() {
@@ -2455,10 +2438,6 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
     assert!(bot.snapshot().battle.is_none());
 }
 
-fn logged(out: &[Out], text: &str) -> bool {
-    out.iter()
-        .any(|o| matches!(o, Out::Log(_, t) if t.starts_with(text)))
-}
 fn sent(out: &[Out], op: i32) -> Option<String> {
     out.iter().find_map(|o| match o {
         Out::Send(o, p) if *o == op => Some(tohex(p)),
@@ -3015,7 +2994,7 @@ fn broken_gear_bot(fight: FightSettings) -> (Bot, Vec<Out>, Instant, Vec<u8>) {
             .unwrap())
     };
     let (mut bot, mut out, now, setup) = coc_xanh_bot();
-    bot.set_fight(fight, &mut out);
+    bot.set_fight(fight, now, &mut out);
     bot.on_packet(9, &hex_of("characterGear"), now, &mut out)
         .unwrap();
     bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
@@ -3159,7 +3138,7 @@ fn tu_sua_do_repairs_broken_gear_with_the_hammers_of_the_bag_before_the_next_bat
 
     // Turned off from the UI.
     out.clear();
-    bot.set_fight(FightSettings::default(), &mut out);
+    bot.set_fight(FightSettings::default(), now, &mut out);
     assert!(logged(&out, "Tắt tự sửa đồ"));
 }
 
@@ -3393,6 +3372,7 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
             pickup: false,
             ..FightSettings::default()
         },
+        now,
         &mut out,
     );
     assert!(logged(&out, "Tắt tự nhặt đồ"));
@@ -3404,6 +3384,44 @@ fn tu_nhat_do_picks_up_the_own_drops_of_a_won_battle_one_every_200_ms() {
     out.clear();
     bot.on_packet(19, &won_battle(), t, &mut out).unwrap();
     assert_eq!(sends(&out, 1188), 0, "{out:?}");
+}
+
+/// A button of the Túi đồ tab waits ITEM_WAIT (5 s) for its answer. One older than that, never answered, no longer takes
+/// a notice from a pickup: "Hành trang đã đầy" after a c2s/1188 is the pickup's (bot/waits.rs, owns_next_notice).
+#[test]
+fn an_item_action_left_unanswered_for_5_s_does_not_take_the_answer_of_a_pickup() {
+    let all = v();
+    let cases = all["decoders"].as_array().unwrap();
+    let hex_of = |f: &str, n: usize| {
+        hex(cases.iter().filter(|c| c["fn"] == f).nth(n).unwrap()["hex"]
+            .as_str()
+            .unwrap())
+    };
+    let notice = |text: &str| Writer::new().u8(0).string(text).build();
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra", 0), now, &mut out)
+        .unwrap();
+    // Sử dụng on the hammer of bag slot 6; the server never answers it.
+    bot.item(ItemAct::Use(6), now, &mut out);
+    assert_eq!(sends(&out, 84), 1, "{out:?}");
+    let start = now + Duration::from_secs(1);
+    bot.fight("Cóc Xanh", 3, 3, start, &mut out);
+    bot.on_packet(22, &setup, start, &mut out).unwrap();
+    let end = now + Duration::from_secs(6);
+    bot.on_packet(1182, &hex_of("groundItemAdd", 0), end, &mut out)
+        .unwrap();
+    out.clear();
+    bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+    assert_eq!(sends(&out, 1188), 1, "{out:?}");
+    out.clear();
+    let at = end + Duration::from_millis(100);
+    bot.on_packet(1256, &notice("Hành trang đã đầy"), at, &mut out)
+        .unwrap();
+    assert!(
+        logged(&out, "Không nhặt được"),
+        "the notice is the pickup's: {out:?}"
+    );
+    assert!(!out.contains(&Out::Log(LogKind::Server, "Hành trang đã đầy".into())));
 }
 
 /// Lưu dữ liệu trận (battle_record.rs, 07-auto-battle.md#ghi-trận): a battle goes out as one Out::BattleData at its
@@ -4103,6 +4121,7 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
             pickup_others: false,
             ..FightSettings::default()
         },
+        now,
         &mut out,
     );
     assert!(
@@ -4135,6 +4154,7 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
             pickup_own_element: true,
             ..FightSettings::default()
         },
+        now,
         &mut out,
     );
     assert!(logged(
@@ -4166,6 +4186,7 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
             pickup_rare: false,
             ..FightSettings::default()
         },
+        now,
         &mut out,
     );
     assert!(
@@ -4195,7 +4216,7 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
         "{out:?}"
     );
     let mut out = vec![];
-    bot.set_fight(FightSettings::default(), &mut out);
+    bot.set_fight(FightSettings::default(), now, &mut out);
     assert!(
         logged(&out, "Phẩm chất trang bị nhặt: nhặt trang bị mọi phẩm chất"),
         "{out:?}"
@@ -4237,6 +4258,7 @@ fn tu_nhat_do_leaves_gear_of_the_other_gender_when_told() {
                 pickup_other_gender: other,
                 ..FightSettings::default()
             },
+            now,
             &mut out,
         );
         bot.fight("Cóc Xanh", 3, 3, now, &mut out);

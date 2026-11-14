@@ -112,18 +112,6 @@ impl Bot {
         })
     }
 
-    /// Something else waits for its own s2c/1256: a purchase, an item action (5 s at most, as Bot::item), Tự sửa đồ, the
-    /// 2 s after a pickup.
-    pub(super) fn notice_awaited(&self, now: Instant) -> bool {
-        self.shopping.is_some()
-            || self
-                .item_wait
-                .as_ref()
-                .is_some_and(|w| now < w.at + Duration::from_secs(5))
-            || self.repairing.is_some()
-            || self.picked_at.is_some_and(|t| now < t + PICK_ANSWER)
-    }
-
     fn mail_header(&self, id: i64) -> Result<&MailHeader, String> {
         let Some(mails) = &self.snap.mailbox.mails else {
             return Err("chưa xem hòm thư".into());

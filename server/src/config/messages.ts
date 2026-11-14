@@ -20,11 +20,12 @@ export const FLASH_ERROR: Record<string, string> = {
 
 export const AUTH = {
   wrongLogin: 'Sai tên đăng nhập hoặc mật khẩu',
+  noAdmin: 'Server chưa có mật khẩu quản trị: đặt secret ADMIN_PASSWORD (npx wrangler secret put ADMIN_PASSWORD) rồi đăng nhập lại',
   lockedOut: (minutes: number) => `Đăng nhập sai ${FAIL_LIMIT} lần liền: thử lại sau ${minutes} phút`,
   wrongCurrent: 'Mật khẩu hiện tại không đúng',
   noCurrent: 'Nhập mật khẩu hiện tại',
   tooShort: `Mật khẩu mới cần ít nhất ${MIN_PASSWORD} ký tự`,
-  sameAsOld: 'Mật khẩu mới phải khác mật khẩu cũ và khác "admin"',
+  sameAsOld: 'Mật khẩu mới phải khác mật khẩu cũ',
   mismatch: 'Nhập lại mật khẩu mới không khớp',
 };
 

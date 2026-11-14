@@ -7,23 +7,12 @@ use cllt_core::bot::{Bot, BotOptions, FightSettings, LogKind, Out};
 use cllt_core::protocol::Writer;
 use cllt_core::runner::Act;
 use cllt_core::runner_v3::{BattleRunner, RunnerOptions};
-use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn v() -> Value {
-    serde_json::from_str(include_str!("vectors.json")).unwrap()
-}
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn logged(out: &[Out], text: &str) -> bool {
-    out.iter()
-        .any(|o| matches!(o, Out::Log(_, t) if t.starts_with(text)))
-}
+mod common;
+use common::{hex, logged, v};
+
 fn challenges(out: &[Out]) -> usize {
     out.iter().filter(|o| matches!(o, Out::Send(15, _))).count()
 }
@@ -313,6 +302,7 @@ fn nghi_giai_lao_turned_off_during_a_break_goes_on_at_once() {
             rest_break: false,
             ..fight
         },
+        now,
         &mut out,
     );
     assert!(
@@ -395,7 +385,7 @@ fn cho_giua_cac_buoc_nhiem_vu_waits_before_a_talk_but_not_before_a_battle() {
 
 #[test]
 fn turned_on_or_off_each_wait_says_so_once_in_the_log() {
-    let (mut bot, mut out, _, _) = coc_xanh_bot(FightSettings::default());
+    let (mut bot, mut out, now, _) = coc_xanh_bot(FightSettings::default());
     let on = FightSettings {
         mob_delay: true,
         turn_delay: true,
@@ -405,7 +395,7 @@ fn turned_on_or_off_each_wait_says_so_once_in_the_log() {
         delay_random: true,
         ..FightSettings::default()
     };
-    bot.set_fight(on, &mut out);
+    bot.set_fight(on, now, &mut out);
     for line in [
         "Chờ giữa các trận: nghỉ 1 s sau mỗi trận thay cho 3 s",
         "Chờ trước mỗi lượt đi: 2 s trước mỗi nước đi",
@@ -416,9 +406,9 @@ fn turned_on_or_off_each_wait_says_so_once_in_the_log() {
         assert!(logged(&out, line), "{line}: {out:?}");
     }
     out.clear();
-    bot.set_fight(on, &mut out);
+    bot.set_fight(on, now, &mut out);
     assert!(out.is_empty(), "nothing changed: {out:?}");
-    bot.set_fight(FightSettings::default(), &mut out);
+    bot.set_fight(FightSettings::default(), now, &mut out);
     for line in [
         "Tắt chờ giữa các trận: nghỉ 3 s sau mỗi trận như trước",
         "Tắt chờ trước mỗi lượt đi",

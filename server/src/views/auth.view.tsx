@@ -29,7 +29,7 @@ type PasswordProps = { nonce: string; mustChange: boolean; errors?: Record<strin
 
 export function PasswordView({ nonce, mustChange, errors = {}, ok }: PasswordProps) {
   const warn = mustChange
-    ? 'Đang dùng mật khẩu mặc định "admin". Đổi mật khẩu trước, sau đó mới dùng được các trang khác: trang Nick hiện mật khẩu game của mọi nick.'
+    ? 'Đang dùng mật khẩu đầu tiên (secret ADMIN_PASSWORD). Đổi mật khẩu trước, sau đó mới dùng được các trang khác: trang Nick hiện mật khẩu game của mọi nick.'
     : null;
   return (
     <Layout title="Đổi mật khẩu" nonce={nonce} nav="password" toasts={[ok ? { kind: 'ok', text: ok } : null]}>

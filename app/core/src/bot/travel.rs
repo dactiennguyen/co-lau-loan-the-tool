@@ -9,33 +9,6 @@ impl Bot {
         self.zoning.is_some() || self.trip.is_some()
     }
 
-    /// Why the character cannot move now: a battle, a job, a quest run, or a move under way.
-    pub(super) fn busy(&self) -> Option<&'static str> {
-        self.busy_but(false)
-    }
-    /// busy(), a fight job left aside with `job`: the trip of Tự gộp đá khi túi đầy is the job's own (bot/merge.rs).
-    pub(super) fn busy_but(&self, job: bool) -> Option<&'static str> {
-        if self.battle.is_some() {
-            Some("đang đánh, đợi hết trận")
-        } else if self.job_running() && !job {
-            Some("đang tự đánh quái, bấm Dừng trước")
-        } else if self.quest_running() {
-            Some("đang tự làm nhiệm vụ, bấm Dừng trước")
-        } else if self.moving() || self.travelling.is_some() {
-            Some("đang đổi chỗ")
-        } else if self.smith.is_some() {
-            Some("đang làm việc với Pháp sư hay Hương Lão, bấm Dừng trước")
-        } else if self.gift.is_some() {
-            Some("đang nhập mã quà tặng, bấm Dừng trước")
-        } else if self.mail_changing() {
-            Some("đang nhận hay xoá thư, đợi server trả lời")
-        } else if self.market_changing() {
-            Some("đang mua bán ở Chợ trời, đợi server trả lời")
-        } else {
-            None
-        }
-    }
-
     /// The maps of the atlas, nearest first, then those no known way leads to.
     pub(super) fn maps(&self) -> Vec<MapChoice> {
         let hops = self

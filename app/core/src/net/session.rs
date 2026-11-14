@@ -297,7 +297,7 @@ pub(super) async fn session(
                     Some(Command::Stop { surrender }) => bot.stop(surrender, now, out),
                     Some(Command::Stats(plan)) => bot.set_stats(plan, now, out),
                     Some(Command::FightSettings(settings)) => {
-                        bot.set_fight(settings, out);
+                        bot.set_fight(settings, now, out);
                         bot.spend_points(now, out);
                     }
                     Some(Command::LossesLeft(left)) => bot.set_losses_left(left, out),

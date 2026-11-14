@@ -10,7 +10,8 @@
     "tauri": "node scripts/tauri.mjs",
     "icon:dev": "node scripts/dev-icon.mjs",
     "app": "tauri build",
-    "sample": "cargo run --manifest-path src-tauri/Cargo.toml -- --dump-sample=public/sample.json"
+    "sample": "cargo run --manifest-path src-tauri/Cargo.toml -- --dump-sample=public/sample.json",
+    "check:sample": "npm run sample && node scripts/check-sample.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

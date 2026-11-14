@@ -26,6 +26,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+mod common;
+use common::{board, hex, tohex};
+
 fn all() -> Value {
     serde_json::from_str(include_str!("vectors.json")).unwrap()
 }
@@ -36,28 +39,12 @@ fn trees() -> Value {
     serde_json::from_str::<Value>(include_str!("../../../data/skills.json")).unwrap()["trees"]
         .take()
 }
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
 /// `got` is the number the TS side wrote rounded to `grid`.
 fn near(got: f64, want: &Value, grid: f64) -> bool {
     (got - want.as_f64().unwrap()).abs() <= grid
 }
 const HP: f64 = 1e-6;
 const ODDS: f64 = 1e-9;
-fn board(v: &Value) -> Board {
-    let mut b = [0i16; N * N];
-    for (i, x) in v.as_array().unwrap().iter().enumerate() {
-        b[i] = x.as_i64().unwrap() as i16;
-    }
-    b
-}
 fn side(v: &Value) -> Fighter {
     let f = |k: &str| v[k].as_f64().unwrap_or(f64::INFINITY); // null: HP not known yet (Infinity on the TS side)
     Fighter {
@@ -1091,6 +1078,7 @@ fn the_bot_plays_v3_with_the_skill_table_and_the_bag_and_v2_without_the_table() 
             mp_potion: false,
             ..potions.fight
         },
+        Instant::now(),
         &mut out,
     );
     assert!(

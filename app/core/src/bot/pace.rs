@@ -107,7 +107,7 @@ impl Bot {
 
     /// Cài đặt đánh saved (set_fight, before `self.fight` takes `new`): a line for each wait turned on or off or given
     /// another time. Chờ trước mỗi lượt đi reaches the battle under way; Nghỉ giải lao turned off ends a break at once.
-    pub(super) fn pace_changed(&mut self, new: &FightSettings, out: &mut Vec<Out>) {
+    pub(super) fn pace_changed(&mut self, new: &FightSettings, now: Instant, out: &mut Vec<Out>) {
         let old = self.fight;
         let rest = self.options.rest.as_secs();
         let mob = |f: &FightSettings| (f.mob_delay, f.mob_delay_seconds());
@@ -167,7 +167,7 @@ impl Bot {
             ));
             if !new.rest_break && self.break_until.is_some() {
                 self.end_break();
-                self.timer = Some((Instant::now(), Wake::Next));
+                self.timer = Some((now, Wake::Next));
             }
         }
         if new.delay_random != old.delay_random {
@@ -181,7 +181,7 @@ impl Bot {
             ));
         }
         if (new.turn_pause(), new.delay_random) != (old.turn_pause(), old.delay_random) {
-            if let Some(Runner::V3(r)) = self.battle.as_mut() {
+            if let Some(r) = self.battle.as_mut() {
                 r.set_turn_delay(new.turn_pause(), new.delay_random);
             }
         }

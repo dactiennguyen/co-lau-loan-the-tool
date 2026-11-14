@@ -39,6 +39,7 @@ npm run tauri dev -- -- --login-all          # mở và đăng nhập mọi nick
 npm run tauri dev -- -- --sample             # dữ liệu mẫu, không kết nối; lưu vào thư mục tạm, không đụng accounts.json thật
 npm run sample && npm run dev                # xem giao diện trong trình duyệt (http://localhost:1420) với dữ liệu mẫu
 npm run build                                # tsc && vite build: kiểm kiểu TypeScript
+npm run check:sample                         # kiểm dữ liệu mẫu src-tauri gửi có khớp kiểu src/api/types.ts (chạy khi đổi kiểu bên Rust)
 npm run icon:dev                             # làm lại icon DEV từ app-icon.png (cần ImageMagick), sau khi đổi icon
 ```
 

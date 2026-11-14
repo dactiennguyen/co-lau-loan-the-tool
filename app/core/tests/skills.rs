@@ -6,15 +6,9 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
+mod common;
+use common::{hex, tohex};
+
 /// The captured packet of decoder `f` in vectors.json.
 fn captured(f: &str) -> Vec<u8> {
     let all: Value = serde_json::from_str(include_str!("vectors.json")).unwrap();
@@ -100,6 +94,7 @@ fn tu_cong_ky_nang_tat_mac_dinh_va_bat_thi_cong_ngay() {
             auto_skills: true,
             ..FightSettings::default()
         },
+        now,
         &mut out,
     );
     bot.spend_points(now, &mut out);

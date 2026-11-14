@@ -11,8 +11,7 @@ import { d1 } from './d1.ts';
 const ORIGIN = 'https://cllt.example';
 
 /** A browser of the admin page: it keeps the session cookie the Worker sets. */
-function client() {
-  const env = { DB: d1() };
+function client(env: { DB: D1Database; ADMIN_PASSWORD?: string } = { DB: d1(), ADMIN_PASSWORD: 'admin' }) {
   let cookie = '';
   const call = async (
     path: string,
@@ -45,7 +44,7 @@ async function ready(password = 'mat-khau-moi') {
   return c;
 }
 
-test('admin / admin logs in, and nothing but Đổi mật khẩu opens until it is changed', async () => {
+test('admin with the ADMIN_PASSWORD secret logs in, and nothing but Đổi mật khẩu opens until it is changed', async () => {
   const { env, call } = client();
   assert.equal((await call('/')).location, '/admin');
   assert.equal((await call('/admin')).location, '/admin/login');
@@ -59,7 +58,7 @@ test('admin / admin logs in, and nothing but Đổi mật khẩu opens until it 
     assert.equal((await call(path)).location, '/admin/password', path);
   }
   const page = await call('/admin/password');
-  assert.match(page.text, /mật khẩu mặc định &quot;admin&quot;/);
+  assert.match(page.text, /mật khẩu đầu tiên \(secret ADMIN_PASSWORD\)/);
   assert.match(page.res.headers.get('Content-Security-Policy')!, /script-src 'nonce-/);
   // The script of the page loads with the nonce of the page's policy.
   const nonce = /script-src 'nonce-([^']+)'/.exec(page.res.headers.get('Content-Security-Policy')!)![1];
@@ -93,6 +92,24 @@ test('admin / admin logs in, and nothing but Đổi mật khẩu opens until it 
   const again = await call('/admin/password', { form: { current: 'mat-khau-moi', next: 'mat-khau-ba', confirm: 'mat-khau-ba' } });
   assert.equal(again.status, 200);
   assert.match(again.text, /Đã đổi mật khẩu/);
+});
+
+test('without the ADMIN_PASSWORD secret no admin is made, so a fresh deploy is not open to whoever logs in first', async () => {
+  const db = d1();
+  const bare = client({ DB: db });
+  for (const password of ['admin', '']) {
+    const r = await bare.call('/admin/login', { form: { username: 'admin', password } });
+    assert.equal(r.status, 401);
+    assert.match(r.text, /Server chưa có mật khẩu quản trị: đặt secret ADMIN_PASSWORD/);
+  }
+  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM admins').first('n'), 0);
+  assert.equal((await bare.call('/admin')).location, '/admin/login');
+  // Once the admin is made, the secret is not read again: changing it does not reset the password.
+  const first = client({ DB: db, ADMIN_PASSWORD: 'bi-mat-dau' });
+  assert.equal((await first.call('/admin/login', { form: { username: 'admin', password: 'bi-mat-dau' } })).location, '/admin');
+  const later = client({ DB: db, ADMIN_PASSWORD: 'bi-mat-khac' });
+  assert.equal((await later.call('/admin/login', { form: { username: 'admin', password: 'bi-mat-khac' } })).status, 401);
+  assert.equal((await client({ DB: db }).call('/admin/login', { form: { username: 'admin', password: 'bi-mat-dau' } })).location, '/admin');
 });
 
 test('ten wrong passwords from one IP lock the login for 15 minutes, the right one too', async () => {

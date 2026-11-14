@@ -5,22 +5,12 @@ use cllt_core::bot::{Bot, BotOptions, GiftMemory, ItemAct, Out};
 use cllt_core::mail;
 use cllt_core::protocol::Writer;
 use cllt_core::requests::{build, Ctx};
-use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-fn v() -> Value {
-    serde_json::from_str(include_str!("vectors.json")).unwrap()
-}
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn tohex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
+mod common;
+use common::{hex, logged, tohex, v};
+
 /// The captured packet of G1 under that key of test/fixtures-g1.ts ("s2c/1223 thành công").
 fn g1(key: &str) -> Vec<u8> {
     let all = v();
@@ -38,10 +28,6 @@ fn answer(ok: bool, text: &str) -> Vec<u8> {
 }
 fn notice(text: &str) -> Vec<u8> {
     Writer::new().u8(1).string(text).build()
-}
-fn logged(out: &[Out], text: &str) -> bool {
-    out.iter()
-        .any(|o| matches!(o, Out::Log(_, t) if t.starts_with(text)))
 }
 fn lines(out: &[Out]) -> Vec<&str> {
     out.iter()

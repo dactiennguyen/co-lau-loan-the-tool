@@ -35,7 +35,7 @@ const TIMEOUT: Duration = Duration::from_secs(15);
     rename_all_fields = "camelCase"
 )]
 pub enum LicenseState {
-    /// No check: --sample, or CLLT_SERVER=off.
+    /// No check: --sample, or CLLT_SERVER=off in a debug build.
     Off,
     /// No key typed yet.
     Missing,

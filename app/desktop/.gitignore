@@ -25,3 +25,5 @@ dist-ssr
 
 # Written by `npm run sample` for the browser preview.
 public/sample.json
+# Written and removed by scripts/check-sample.mjs (npm run check:sample).
+src/api/sample-check.ts

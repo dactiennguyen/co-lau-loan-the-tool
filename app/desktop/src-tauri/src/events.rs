@@ -4,7 +4,7 @@
 //
 // The events wait in license-events.json beside accounts.json until the server took them, so a send without network
 // or an app closed before it loses none. A new event makes the sync go at the next turn of the key thread (license.rs)
-// instead of within 15 minutes. Without a key check (--sample, CLLT_SERVER=off) nothing is noted.
+// instead of within 15 minutes. Without a key check (--sample, CLLT_SERVER=off in a debug build) nothing is noted.
 use cllt_core::accounts::Account;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};

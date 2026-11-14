@@ -9,23 +9,12 @@ use cllt_core::battle_view::{replay as replay_battle, BattleEvent, EndKind, Reco
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+mod common;
+use common::{board, hex};
+
 fn all() -> Value {
     serde_json::from_str(include_str!("vectors.json")).unwrap()
 }
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-fn board(v: &Value) -> Board {
-    let mut b = [0i16; N * N];
-    for (i, x) in v.as_array().unwrap().iter().enumerate() {
-        b[i] = x.as_i64().unwrap() as i16;
-    }
-    b
-}
-
 /// The waves played as BattleWindow.tsx plays them: the swap, Kiếm lửa, then for each wave its cleared cells, its falls
 /// in order (none lands on a piece) and its new pieces (each fills a hole); no hole is left after a wave.
 fn replay(

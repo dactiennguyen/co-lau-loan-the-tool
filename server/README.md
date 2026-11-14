@@ -14,7 +14,7 @@ App desktop gọi `POST /api/license/verify` (kiểm tra key) và `POST /api/lic
 
 | Phần | Đường dẫn | Cần gì |
 |---|---|---|
-| Trang quản trị | `/admin` | Đăng nhập. Lần đầu là `admin` / `admin` |
+| Trang quản trị | `/admin` | Đăng nhập. Lần đầu là `admin` với mật khẩu của secret `ADMIN_PASSWORD` |
 | Danh sách nick (xem, hiện mật khẩu, xoá, Tải JSON, lọc theo key) | `/admin` | Đăng nhập |
 | Key (tạo, khoá, mở khoá, gỡ thiết bị, sửa, xoá) | `/admin/licenses` | Đăng nhập |
 | Log (key kích hoạt và bị từ chối, việc của app, việc của admin) | `/admin/logs` | Đăng nhập |
@@ -38,15 +38,20 @@ Cần Node.js ≥22.6 (có corepack, nên có Yarn 4 mà `package.json` ghim) v�
    yarn d1:id
    ```
    Đừng commit id này: repo giữ chuỗi `00000000-…`, CI tự điền khi deploy.
-3. Tạo các bảng, rồi đưa Worker lên:
+3. Đặt mật khẩu quản trị đầu tiên (lệnh hỏi mật khẩu, không ghi vào file nào):
+   ```sh
+   yarn wrangler secret put ADMIN_PASSWORD
+   ```
+   Chưa có secret này thì server không tạo tài khoản quản trị và trang đăng nhập báo thiếu. Vì vậy server mới deploy không bị người lạ chiếm quyền trước bạn. Secret chỉ được đọc khi database chưa có admin; đổi secret về sau không đổi mật khẩu.
+4. Tạo các bảng, rồi đưa Worker lên:
    ```sh
    yarn db:migrate
    yarn deploy
    ```
    Lệnh deploy in ra địa chỉ: tên miền trong `routes` của `wrangler.toml` (`colau.olachat.net`; Cloudflare tự tạo bản ghi DNS và chứng chỉ, vì zone `olachat.net` nằm cùng tài khoản). Địa chỉ `workers.dev` đã tắt (`workers_dev = false`); muốn bật lại thì đặt `true`.
-4. Mở `<địa chỉ>/admin` và đăng nhập `admin` / `admin`.
-   - Trang buộc **đổi mật khẩu** trước (ít nhất 8 ký tự, khác `admin`). Đổi xong mới mở được các trang khác, vì trang Nick hiện mật khẩu game.
-5. Vào **Key**, bấm **Tạo key** cho mỗi người dùng rồi gửi key cho họ ([Key](#key)).
+5. Mở `<địa chỉ>/admin` và đăng nhập `admin` với mật khẩu vừa đặt.
+   - Trang buộc **đổi mật khẩu** trước (ít nhất 8 ký tự, khác mật khẩu đầu). Đổi xong mới mở được các trang khác, vì trang Nick hiện mật khẩu game.
+6. Vào **Key**, bấm **Tạo key** cho mỗi người dùng rồi gửi key cho họ ([Key](#key)).
 
 Sửa code xong thì chỉ cần `yarn deploy` lại. Thêm file mới trong `migrations/` thì chạy `yarn db:migrate` trước.
 
@@ -73,7 +78,7 @@ Cần làm một lần trước:
 
    Chưa có hai secret này thì workflow vẫn chạy test, rồi ghi cảnh báo và không deploy.
 
-**Ngay sau lần deploy đầu, đăng nhập `admin` / `admin` và đổi mật khẩu.** Cho tới lúc đó, ai mở `/admin` trước cũng đăng nhập được và đổi mất mật khẩu.
+**Trước lần deploy đầu, đặt secret `ADMIN_PASSWORD`** (`yarn wrangler secret put ADMIN_PASSWORD`, bước 3 ở trên). Không có nó thì không ai đăng nhập được, kể cả bạn. Đăng nhập xong thì đổi mật khẩu.
 
 ## Chạy thử trên máy
 
@@ -83,6 +88,7 @@ Chạy trên máy dùng database riêng trên máy, không đụng tới bản t
 corepack enable
 yarn install
 yarn db:migrate:local
+echo 'ADMIN_PASSWORD=admin' > .dev.vars   # mật khẩu đầu của admin trên máy; .dev.vars không vào git
 yarn dev            # http://localhost:8787/admin
 ```
 

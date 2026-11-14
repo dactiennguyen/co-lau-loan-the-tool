@@ -16,7 +16,7 @@ export async function loginPage(c: Ctx) {
 
 export async function login(c: Ctx) {
   const { username, password } = loginForm.parse(formObject(c.var.form));
-  const r = await auth.login(c.var.db, clientIp(c), username, password);
+  const r = await auth.login(c.var.db, clientIp(c), username, password, c.env.ADMIN_PASSWORD);
   if ('error' in r) return render(c, (n) => <LoginView nonce={n} error={r.error} />, 401);
   c.header('Set-Cookie', sessionCookie(c, r.cookie, SESSION_MS / 1000));
   return c.redirect('/admin', 303);

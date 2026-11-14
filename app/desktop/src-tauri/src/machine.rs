@@ -7,7 +7,8 @@ use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
 use std::time::Duration;
 
-/// CLLT Server; CLLT_SERVER changes it, and `off` there turns the key and the sync off (development).
+/// CLLT Server; in a debug build CLLT_SERVER changes it, and `off` there turns the key and the sync off (development).
+/// A release build always uses it: a variable anyone can set must not turn the key off.
 pub const SERVER: &str = "https://colau.olachat.net";
 
 /// This machine's id: SHA-256 (hex) of the system's machine id with the app's name, read once a run (on macOS it
@@ -47,12 +48,22 @@ pub fn client(timeout: Duration) -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder().timeout(timeout).build()
 }
 
-/// The server of CLLT_SERVER (`var`) when it is "off", https, or http on this machine; else CLLT Server, as the key and
-/// the passwords of the sync go there. The host is read as a URL, so "http://localhost:80@x.example" is x.example.
+/// The server of CLLT_SERVER (`var`): in a debug build, when it is "off", https, or http on this machine; else (and
+/// always in a release build) CLLT Server, as the key and the passwords of the sync go there.
 pub fn server_of(var: Option<String>) -> String {
+    server_from(var, cfg!(debug_assertions))
+}
+
+/// server_of, with `custom` whether CLLT_SERVER is taken at all. The host is read as a URL, so
+/// "http://localhost:80@x.example" is x.example.
+fn server_from(var: Option<String>, custom: bool) -> String {
     let Some(s) = var else {
         return SERVER.into();
     };
+    if !custom {
+        eprintln!("Key: bỏ qua CLLT_SERVER {s}: bản phát hành luôn dùng CLLT Server");
+        return SERVER.into();
+    }
     let ok = s == "off"
         || reqwest::Url::parse(&s).is_ok_and(|u| match u.scheme() {
             "https" => u.host_str().is_some(),
@@ -80,10 +91,10 @@ mod tests {
             "http://127.0.0.1",
             "http://127.0.0.1/a",
         ] {
-            assert_eq!(server_of(Some(kept.into())), kept);
+            assert_eq!(server_from(Some(kept.into()), true), kept);
         }
         assert_eq!(
-            server_of(Some("https://x.example/".into())),
+            server_from(Some("https://x.example/".into()), true),
             "https://x.example"
         );
         for refused in [
@@ -93,9 +104,17 @@ mod tests {
             "ftp://x",
             "nonsense",
         ] {
-            assert_eq!(server_of(Some(refused.into())), SERVER, "{refused}");
+            assert_eq!(server_from(Some(refused.into()), true), SERVER, "{refused}");
         }
-        assert_eq!(server_of(None), SERVER);
+        assert_eq!(server_from(None, true), SERVER);
+    }
+
+    #[test]
+    fn a_release_build_always_uses_cllt_server() {
+        for var in ["off", "https://x.example", "http://localhost:8787"] {
+            assert_eq!(server_from(Some(var.into()), false), SERVER, "{var}");
+        }
+        assert_eq!(server_from(None, false), SERVER);
     }
 
     #[test]

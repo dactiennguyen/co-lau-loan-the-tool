@@ -331,7 +331,8 @@ const tauri: Api = {
   onLicense: (handler) => listen<LicenseView>("license", (e) => handler(e.payload)),
 };
 
-interface Sample extends AppState {
+/** public/sample.json; scripts/check-sample.mjs checks it against this type. */
+export interface Sample extends AppState {
   logs: Record<string, LogLine[]>;
   /** What battle_stats and battle_history answer for the first account, with no filter. */
   battleStats?: BattleStats;

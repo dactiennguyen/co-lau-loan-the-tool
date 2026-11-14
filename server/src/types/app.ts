@@ -5,6 +5,9 @@ import type { Admin } from '../models/index.ts';
 
 export interface Env {
   DB: D1Database;
+  /** The first password of the admin (`wrangler secret put ADMIN_PASSWORD`; .dev.vars for `yarn dev`), read only while
+   * the database has no admin yet. */
+  ADMIN_PASSWORD?: string;
 }
 
 export type AppEnv = {

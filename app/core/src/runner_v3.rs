@@ -1012,4 +1012,23 @@ impl Runner {
     pub fn board(&self) -> &crate::battle::Board {
         both!(self, r => &r.board)
     }
+    /// The potions the battle may still drink; v1 drinks none.
+    pub fn potions(&self) -> &[Potion] {
+        match self {
+            Runner::V1(_) => &[],
+            Runner::V3(r) => r.potions(),
+        }
+    }
+    /// A kind of potion turned off mid-battle (v3 only).
+    pub fn drop_potions(&mut self, id: i32) {
+        if let Runner::V3(r) = self {
+            r.drop_potions(id);
+        }
+    }
+    /// Chờ trước mỗi lượt đi changed mid-battle (v3 only).
+    pub fn set_turn_delay(&mut self, delay: Duration, random: bool) {
+        if let Runner::V3(r) = self {
+            r.set_turn_delay(delay, random);
+        }
+    }
 }

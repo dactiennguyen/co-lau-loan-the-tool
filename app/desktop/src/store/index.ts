@@ -8,6 +8,7 @@ import { addToasts, errorToasts, questToasts, updateToast, type ToastInput, type
 import type { Account, AccountsUpdate, AppState, LicenseView, LogLine, UpdateView } from "@/api/types";
 import type { ShopSub } from "@/views/shop/ShopModal";
 import { accountsOf, append, merge, type Accounts } from "./sync";
+import { recalled, remember } from "@/utils/remember";
 
 export type Dialog =
   | { kind: "add" }
@@ -92,7 +93,7 @@ export const useStore = create<Store>()((set) => ({
   log: { id: null, lines: [] },
   logCleared: {},
   toasts: [],
-  battleDetails: localStorage.getItem(DETAILS) === "1",
+  battleDetails: recalled(DETAILS) === "1",
   update: null,
   license: null,
 
@@ -117,7 +118,7 @@ export const useStore = create<Store>()((set) => ({
   toast: (toast) => set((s) => ({ toasts: addToasts(s.toasts, [toast]) })),
   toggleBattleDetails: () =>
     set((s) => {
-      localStorage.setItem(DETAILS, s.battleDetails ? "0" : "1");
+      remember(DETAILS, s.battleDetails ? "0" : "1");
       return { battleDetails: !s.battleDetails };
     }),
   updateChanged: (update) =>

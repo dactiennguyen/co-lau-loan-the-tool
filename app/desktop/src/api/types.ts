@@ -414,6 +414,9 @@ export interface MarketTabs {
   fee: number;
   hours: number;
   maxPrice: number;
+  /** Two numbers of s2c/1191 not known yet (1000 each, core/src/market.rs); not shown. */
+  a: number;
+  b: number;
 }
 /** A page of s2c/1192; tab -1 is Đang bán. */
 export interface MarketPage {
@@ -738,6 +741,8 @@ export interface BagContents {
 }
 
 export interface Currencies {
+  /** The words of s2c/46 before the numbers ("update Xu"); not shown. */
+  label: string;
   xu: number;
   xuKhoa: number;
   luong: number;
