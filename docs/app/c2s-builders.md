@@ -148,7 +148,7 @@ Script tái tạo bảng không lưu trong repo. Cách làm: đọc bảng symbo
 | 1246 | d164 | (long) | i64 |  |
 | 1247 | q165 | (int) | i32 |  |
 | 1248 | e166 | (long) | i64 |  |
-| 1252 | Y173 | () | rỗng |  |
+| 1252 | Y173 | () | rỗng | chưa; hỏi bảng Bạch Hổ ([17-bach-ho](events/17-bach-ho.md)) |
 | 1254 | a59 | (byte) | u8; u8 | có |
 | 1254 | p58 | () | u8 | có |
 | 1255 | g62 | (int) | i32 |  |

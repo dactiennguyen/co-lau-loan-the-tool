@@ -755,7 +755,7 @@ P4 bấm Sử dụng ở Hoàn Linh Dược: app gửi `c2s/84 (i32 ô túi)`, s
 | Nhiệm vụ hằng ngày | Nhận ở Hương Lão Trần Bá, tối đa 3 một ngày, làm từng cái một, trả cũng ở đó, huỷ được. Thưởng EXP, Xu khoá hoặc vật phẩm | Tab "Phụ" hiện "Chưa có nhiệm vụ" |
 | Quà cấp | Đạt cấp 20, 40, 60… tới 200 thì nhận quà qua Hòm thư | manina cấp 21 |
 | Bản đồ thế giới | Chạm một thành rồi "Vào thành" để đi nhanh. Ổ khoá nghĩa là phải làm tiếp nhiệm vụ chính | Cổng Hồng Giang ([10-quests](10-quests.md#cổng)) |
-| Bạch Hổ | Boss thế giới ở Hang Bạch Hổ (Luyện Ngục), 9:00–9:59 mỗi ngày. Không có EXP, thua không bị trừ. Top 5 sát thương nhận quà qua thư | |
+| Bạch Hổ | Boss thế giới ở Hang Bạch Hổ (Luyện Ngục), 9:00–9:59 mỗi ngày. Không có EXP, thua không bị trừ. Top 5 sát thương nhận quà qua thư | [17-bach-ho](17-bach-ho.md) |
 | Lôi đài | Đấu tự do với người chơi. Sát thương chỉ còn 60%, bỏ lỡ 3 lượt là thua, tối đa 8 phút hoặc 40 hành động mỗi bên | |
 | Tiền | Xu (Chợ trời, góp quân lương), Xu khoá (cửa hàng NPC, cường hoá), Lượng (tiền nạp) | Bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng = `s2c/46` |
 

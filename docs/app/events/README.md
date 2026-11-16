@@ -35,6 +35,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | NPC: hộp thoại của 20 NPC (`13`, `57`), Hương Lão, Chợ trời (`1192`), `s2c/0` là thông báo chung | [14-npc](14-npc.md) |
 | Cửa hàng NPC: 14 cửa hàng, 193 dòng hàng với giá, bản ghi 33 và 49 byte (`1190`), mua bằng Xu, Xu khóa, Lượng, Đổi lượng, đồ khoá giao dịch | [15-shops](15-shops.md) |
 | Pháp sư: nâng cấp thường và cẩn thận (`96`, `97`, `90`, `1258`, `91`), tỉ lệ và phí, thất bại, bùa, luyện đá (`99`, `92`, `93`), tách đá, chuyển hoá (`1260`), chế tạo, túi đầy, kết quả bấm thật | [16-upgrade](16-upgrade.md) |
+| Bạch Hổ Thống Lĩnh (boss thế giới): luật trong Cẩm nang, bảng công trạng `c2s/1252` (rỗng) và `s2c/1252` đọc từ code native | [17-bach-ho](17-bach-ho.md) |
 | Mọi gói client gửi được: hàm dựng, opcode, kiểu từng trường | [c2s-builders](../c2s-builders.md) |
 
 ## Danh sách gói

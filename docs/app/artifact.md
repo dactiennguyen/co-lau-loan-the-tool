@@ -76,8 +76,16 @@ Tên lớp ngắn và thân hàm native cho thấy code bị làm khó đọc. D
      - `packs`: gói `base-<rev>` loại `full` và `icons-<rev>` loại `delta`, mỗi gói có `url`, `size`, `crc32`, `count`.
      - `files`: mỗi file có tên `n`, size `s`, CRC32 `c` và gói `p`.
    - Tải theo `offline/<nền tảng>-<mức>/revisions/<rev>/packs/<id>.pak`, hoặc từng file ở `…/revisions/<rev>/files/<tên>` khi gói hỏng ("se tai file le"). File tạm `.tmp` hoặc `.new` được kiểm size và CRC rồi mới đổi tên.
+   - Gói `.pak` **không nén**, chỉ là nhiều file ghép lại: `"CLOP"`, u8 phiên bản (1), u32 số file, rồi mỗi file `{u16 độ dài tên, tên, u32 size, byte của file}`, số nguyên big-endian. Byte của mỗi file giữ nguyên như file `.dat` trên máy, nghĩa là vẫn đang mã hoá (AES-128 sau khi đảo 63 byte đầu); game chỉ giải mã lúc nạp hình ([giải mã asset](events/13-drops-items.md#giải-mã-asset)). Đo trên `icons-64.pak` của android-a2 (4.375.119 byte): đọc hết 246 file tới byte cuối, size và CRC32 từng file khớp manifest.
    - Kết quả nằm ở `files/dyncache/offline-<mức>/`, cùng `_state.json` (`revision` và CRC từng file). Mức chất lượng là `a2` trên máy đo (file `asset_tier`), hoặc `a1`. Gói có thể đòi `minClientVersion`.
-3. **Bảng dữ liệu** `it0`, `it1`, `itv` (vật phẩm, mẫu chỉ số, phiên bản bảng): ghi vào `files/dyncache/` ([bảng 29](events/13-drops-items.md#bảng-29)). Đường tải chưa đo; file chạy có `UpdateTables`, còn gói bắt được trước đây không chứa bảng.
+3. **Bảng dữ liệu** `it0`, `it1`, `itv` (vật phẩm, mẫu chỉ số, phiên bản bảng): ghi vào `files/dyncache/` ([bảng 29](events/13-drops-items.md#bảng-29)). **Đường tải chưa đo.** Đã kiểm:
+   - Bảng không có trong APK, cũng không có trong manifest nội dung trên CDN. [Đo]
+   - 13 lần vào game trong 161 file bắt gói (bảng 18, khi máy đã có bảng đúng phiên bản) không có gói nào trên 20 KB, ngoài `s2c/30` (bảng kỹ năng, khoảng 23 KB). Vậy server không gửi bảng ở mỗi lần vào game. [Đo]
+   - Client không gửi phiên bản bảng trong `c2s/9` (luôn `u8 2; i32 -1`), cũng không trong `c2s/4` (`i32` cuối là mã băm tên tài khoản). [Đo]
+   - Chữ `it0`, `it1` nằm trong bảng chuỗi cạnh lớp `com.mh.sqfg` (biến toàn cục của game, có `a(byte[])` và `b(byte[])`), `itv` ở chỗ khác. Thân hàm là native, chưa đọc. [Đo]
+   - Điện thoại ghi bảng 29 lúc 05:30 ngày 14/11, sau khi server Alpha Test đóng (03/11) rồi mở lại. Phỏng đoán: lúc vào game server báo phiên bản bảng, client thấy cũ thì xin bảng mới bằng một gói chưa bắt được. Cách kiểm: so các gói vào game của bot bây giờ (bảng 29) với gói cũ (bảng 18). [Suy luận]
+
+   Chữ `UpdateTables` trong `classes.dex` là hàm của bộ nén LZMA trong libGDX, không liên quan tới bảng.
 
 Revision trên CDN ngày 16/11:
 
