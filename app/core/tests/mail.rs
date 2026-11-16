@@ -211,9 +211,10 @@ fn the_list_then_a_mail_opened_which_the_server_marks_read() {
     b.on_packet(1216, &body, now, &mut out).unwrap();
     assert_eq!(b.snap.mailbox.unread, Some(false));
     assert!(b.snap.mailbox.opened[0].items.is_empty());
-    // 6273 fits: Búa, Hoàn Linh and Kim Đan join their stacks, Tăng Kinh Nghiệm and 3 Đá cấp 5 take 4 of the 24 free.
+    // 6273 fits: Búa, Hoàn Linh and Kim Đan join their stacks, Tăng Kinh Nghiệm and 3 Đá cấp 5 take 2 of the 24 free
+    // (Đá cấp stacks to 999 since table 29, 14/11; one slot each under table 18).
     let bag = b.snap.bag.as_ref().unwrap();
-    assert_eq!(mail::slots_for(&m.opened[0].items, &bag.items), 4);
+    assert_eq!(mail::slots_for(&m.opened[0].items, &bag.items), 2);
 
     out.clear();
     b.mail(MailTask::Open(1), now, &mut out);

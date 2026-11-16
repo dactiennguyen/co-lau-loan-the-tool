@@ -16,8 +16,9 @@ export interface ItemBook { source: string; version: number; types: Record<strin
 
 /** Item types named from the items of each type (13-drops-items.md). */
 export const ITEM_TYPES: Record<number, string> = {
-  0: 'Nón', 1: 'Áo', 2: 'Vũ khí', 3: 'Nhẫn', 4: 'Cánh', 5: 'Huyết Châu, thú cưng', 7: 'Danh hiệu', 10: 'Đá nâng cấp',
-  20: 'Bình', 21: 'Búa', 22: 'Nguyên liệu, vật phẩm khác', 23: 'Tăng Kinh Nghiệm', 24: 'Tẩy điểm', 29: 'Trứng',
+  0: 'Nón', 1: 'Áo', 2: 'Vũ khí', 3: 'Nhẫn', 4: 'Cánh', 5: 'Huyết Châu, thú cưng', 7: 'Danh hiệu', 8: 'Giày',
+  9: 'Dây chuyền', 10: 'Đá nâng cấp', 20: 'Bình', 21: 'Búa', 22: 'Nguyên liệu, vật phẩm khác', 23: 'Tăng Kinh Nghiệm',
+  24: 'Tẩy điểm', 29: 'Trứng, bảo rương',
 };
 /** Element byte of an item record (world.ts itemRecord): 1 Hỏa and 2 Lôi as the item popup draws them (31/10); 4 Thủy
  * follows the character element of s2c/9 (1 Hỏa, 4 Thủy). */

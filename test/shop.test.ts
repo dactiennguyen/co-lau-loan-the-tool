@@ -6,7 +6,6 @@ import { EXCHANGE, SHOPS, pointsText } from '../src/protocol/shops.ts';
 import { ShopBot, type ShopTask } from '../src/bot/shop.ts';
 import { ElderBot, type ElderTask } from '../src/bot/elder.ts';
 import { Stop } from '../src/bot/steps.ts';
-import { shopList } from '../src/protocol/world.ts';
 import { npcPackets as N } from './fixtures-npc.ts';
 import { g1Packets as G } from './fixtures-g1.ts';
 import { bag42, menuPacket, money46, noticePacket, scripted, type BagEntry, type Expect } from './support/packets.ts';
@@ -20,7 +19,6 @@ const baTuRoot = menuPacket(BA_TU, 'Nếu con cần mua trang phục hãy tới 
 const ringsMenu = menuPacket(BA_TU, 'Nếu con cần mua trang phục hãy tới tìm ta.', [[0, 'Nhẫn\n[Xu]'], [1, 'Nhẫn\n[Xu khóa]']]);
 const laiRoot = menuPacket(LAI, 'Ở chỗ ta có rất nhiều món đồ tốt.', [[0, 'Vũ khí'], [1, 'Dược phẩm'], [2, 'Cửa hàng [Lượng]']]);
 const openRings = (): Expect[] => [talk(103, baTuRoot), pick(103, 2, [[57, ringsMenu]]), pick(103, 0, [[1190, hex(N['s2c/1190 Nhẫn [Xu]'])]])];
-const SHOP_STONE6 = shopList(hex(N['s2c/1190 Cửa hàng [Lượng]'])).items.find(i => i.itemId === 416)!.shopId;
 const openLuong = (): Expect[] => [talk(106, laiRoot), pick(106, 2, [[1190, hex(N['s2c/1190 Cửa hàng [Lượng]'])]])];
 
 async function shopBot(task: ShopTask, script: Expect[], { bag = [] as BagEntry[], capacity = 42, money = money46(13_755_900, 5_000_000, 16_638), confirm = false, mapId = 'M1' } = {}) {
@@ -66,14 +64,16 @@ test('Mua: dry run stops before c2s/1190; --confirm sends (0, shopId, quantity) 
 
 test('items that do not stack go one c2s/1190 each; stackable ones need no slot when the stack in the bag has room', async () => {
   const plan = (x: { logs: Record<string, any>[] }) => (({ perBuy, slots }) => ({ perBuy, slots }))(x.logs.find(e => e.event === 'plan')!);
-  // Bùa bảo vệ trung cấp stacks to 999: one request, one slot. Đá cấp 6 does not stack: one request and one slot each.
+  // Bùa bảo vệ trung cấp stacks to 999: one request, one slot; so does Đá cấp 6 since table 29 (14/11; one slot each
+  // under table 18). Nhẫn Trơn does not stack: one request and one slot each.
   assert.deepEqual(plan(await shopBot({ kind: 'buy', shop: 'luong', itemId: 36, quantity: 2 }, openLuong())), { perBuy: 2, slots: 1 });
-  assert.deepEqual(plan(await shopBot({ kind: 'buy', shop: 'luong', itemId: 416, quantity: 2 }, openLuong())), { perBuy: 1, slots: 2 });
+  assert.deepEqual(plan(await shopBot({ kind: 'buy', shop: 'luong', itemId: 416, quantity: 2 }, openLuong())), { perBuy: 2, slots: 1 });
+  assert.deepEqual(plan(await shopBot({ kind: 'buy', shop: 'nhan-xu', itemId: 306, quantity: 2 }, openRings())), { perBuy: 1, slots: 2 });
   assert.deepEqual(plan(await shopBot({ kind: 'buy', shop: 'luong', itemId: 35, quantity: 5 }, openLuong(), { bag: [{ slot: 4, itemId: 35, quantity: 3, field1: 1 }] })), { perBuy: 5, slots: 0 });
-  const stones = await shopBot({ kind: 'buy', shop: 'luong', itemId: 416, quantity: 2 }, [...openLuong(), ...[1, 2].map((): Expect => ({
-    op: 1190, hex: buildRequest(1190, { shopId: SHOP_STONE6, quantity: 1 }).toString('hex'),
-    reply: [[46, money46(0, 0, 16_000)], [1256, noticePacket('Bạn vừa mua thành công! 1 Đá cấp 6')], [46, money46(0, 0, 16_000)]] }))], { confirm: true });
-  assert.deepEqual([stones.errors, stones.left.length, stones.outcome, stones.logs.filter(e => e.event === 'bought').length], [[], 0, 'done', 2]);
+  const rings = await shopBot({ kind: 'buy', shop: 'nhan-xu', itemId: 306, quantity: 2 }, [...openRings(), ...[1, 2].map((): Expect => ({
+    op: 1190, hex: buildRequest(1190, { shopId: 391, quantity: 1 }).toString('hex'),
+    reply: [[46, money46(13_755_600, 0, 0)], [1256, noticePacket('Bạn vừa mua thành công! 1 Nhẫn Trơn')], [46, money46(13_755_600, 0, 0)]] }))], { confirm: true });
+  assert.deepEqual([rings.errors, rings.left.length, rings.outcome, rings.logs.filter(e => e.event === 'bought').length], [[], 0, 'done', 2]);
 });
 
 test('Mua refuses before sending: short of money, no room, an item the shop does not sell; a refusal of the server ends it', async () => {

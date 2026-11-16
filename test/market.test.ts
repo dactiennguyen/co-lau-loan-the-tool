@@ -114,7 +114,8 @@ test('MarketBot opens the window with c2s/116, then reads a page; --scan sorts e
   const scan = await marketBot({ kind: 'scan', tab: 6, name: 'slime', top: 2 }, [window(), ...pages]);
   assert.deepEqual([scan.errors, scan.left.length, scan.outcome], [[], 0, 'done']);
   const cheap = scan.logs.filter(e => e.event === 'cheap');
-  assert.deepEqual(cheap.map(e => [e.item, e.price, e.uuid]), [['Thú cưng Slime (+16 thể lực)', 1000, SLIME], ['Thú cưng Slime (+12 nội lực)', 5000, '4683a2f4-0e36-463c-8541-962c08c76f4b']]);
+  // The Slime of item 426 (+12 nội lực, 5000) is "Ngừng dùng" since table 29 (14/11), so the name no longer finds it.
+  assert.deepEqual(cheap.map(e => [e.item, e.price, e.uuid]), [['Thú cưng Slime (+16 thể lực)', 1000, SLIME], ['Thú cưng Slime (+16 thể lực)', 20000, '65578465-2b25-49e0-908f-6b12f5b3f4a7']]);
   // The same page seven times: each listing counts once.
   assert.equal(scan.logs.find(e => e.event === 'scanned')!.listings, 20);
 });

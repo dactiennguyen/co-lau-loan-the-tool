@@ -1,7 +1,7 @@
 # Đồ rơi, nhặt đồ và bảng vật phẩm
 
 Mốc: APK 1.0.3, ngày 31/10/2026. Nguồn ([các phiên](../investigation.md#nguồn-dữ-liệu)):
-- **D1**: dữ liệu game tải về trên điện thoại, thư mục `files/dyncache` của app: `it1` (bảng vật phẩm), `it0` (bảng mã chỉ số), `itv` (phiên bản bảng, `0x12`), `offline-a2/cam-nang.json` (Cẩm nang).
+- **D1**: dữ liệu game tải về trên điện thoại, thư mục `files/dyncache` của app: `it1` (bảng vật phẩm), `it0` (bảng mã chỉ số), `itv` (phiên bản bảng, `0x12` = 18 ngày 31/10, `0x1d` = 29 từ 14/11), `offline-a2/cam-nang.json` (Cẩm nang). Bảng 29 xem [Bảng 29](#bảng-29).
 - **S2**: `npm run scan` có `CLLT_TRACE`, đi M2, M1, M25 bằng cổng (không đi bộ, không đánh).
 - **K2**: bot TS đánh một trận Cóc Xanh với manina ở M2.
 - **P2**: Frida trên điện thoại (ghi mọi gói, hook 114 hàm dựng), thử bắt gói nhặt đồ. Chưa bắt được, xem [Nhặt đồ](#nhặt-đồ).
@@ -29,7 +29,7 @@ Nhãn **[Đo]**, **[Suy luận]**, **[Chưa rõ]** như các file khác.
 | Đồ gì rơi? | 106 món đã thấy, gần hết ở M2: Xu khóa (mã 41) 54 đống, mỗi đống 124–250; Đá cấp 1–3 (411–413) 28 viên; Trứng Gà (3) 7 quả; 12 món trang bị cấp 1 (nón, áo, nhẫn, vũ khí), mỗi món 2 chỉ số. M1: 4 đống Xu khóa, 1 Đá cấp 2. M25 không có quái. Xem [Đồ đã thấy](#đồ-đã-thấy). [Đo] |
 | Đồ rơi có phẩm chất không? | **Có.** Trang bị có một trong bốn phẩm chất Thường, Hiếm, Quý, Sử Thi. Bản ghi đồ trên đất (`s2c/1182`, `s2c/1184`) mang phẩm chất ở `field4`: 1 Hiếm, 2 Quý, 3 Sử Thi; đồ không phải trang bị là 0. Mọi trang bị rơi đã thấy là Hiếm. App lọc được theo phẩm chất (Phẩm chất trang bị nhặt). Xem [Phẩm chất](#phẩm-chất). [Đo 1, 2, 3; Thường là 0 theo Suy luận] |
 | Mã 41 là gì? | **Xu khóa**. Trước đây đoán là tiền ([09](09-players-chat.md#ground-items)). Cẩm nang: "Kiếm Xu khóa: nhặt Xu khóa quái rơi". [Đo] |
-| Tên vật phẩm lấy ở đâu? | Không có trong APK, cũng không có gói nào khi mở popup vật phẩm. Game tải bảng `it1` về máy: 646 món (407 món "Ngừng dùng"), mỗi món có tên, mô tả, loại, cấp mặc, hệ, độ bền, số xếp chồng. Repo có bản sao ở `data/items.json`. Xem [Bảng vật phẩm](#bảng-vật-phẩm). [Đo] |
+| Tên vật phẩm lấy ở đâu? | Không có trong APK, cũng không có gói nào khi mở popup vật phẩm. Game tải bảng `it1` về máy: 646 món (407 món "Ngừng dùng") ở bảng 18, 727 món (404 "Ngừng dùng") ở [bảng 29](#bảng-29), mỗi món có tên, mô tả, loại, cấp mặc, hệ, độ bền, số xếp chồng. Repo có bản sao ở `data/items.json`. Xem [Bảng vật phẩm](#bảng-vật-phẩm). [Đo] |
 | Icon vật phẩm ở đâu? | `files/dyncache/offline-a2/i<icon>.dat` trên máy, mã hoá AES-128 sau khi đảo 63 byte đầu. Đã giải mã cả 246 icon (PNG 96 × 96) và đổi sang WebP ở `data/icons/`. Xem [Giải mã asset](#giải-mã-asset). [Đo] |
 | Mã chỉ số của trang bị? | Bảng `it0`: 1 cường lực, 2 nội lực, 3 thân pháp, 4 thể lực, 5 sức tấn công, 6 phòng thủ, 7 né tránh, 8 % chí mạng, 9 sinh lực… Xem [Mã chỉ số](#mã-chỉ-số). [Đo] |
 
@@ -292,19 +292,36 @@ i32 n; n × {
 | 4 | Cánh | 6 | 393 Cánh Tiên, 396 Cánh Quỷ |
 | 5 | Huyết Châu, thú cưng | 11 | 399 Huyết Châu, 423 Thú cưng Slime |
 | 7 | Danh hiệu | 16 | 427 Danh hiệu 'Tân binh Cờ Lau' |
-| 10 | Đá nâng cấp | 12 | 411–415 Đá cấp 1–5 ("Nguyên liệu nâng cấp vật phẩm") |
+| 8 | Giày | 30 (bảng 29) | 670 Giày Hào Kiệt, 682 Giày Long Quân, 692 Tiên Hài |
+| 9 | Dây chuyền | 16 (bảng 29) | 700 Dây Chuyền Trơn, 712 Tiên Liên |
+| 10 | Đá nâng cấp | 12 | 411–415 Đá cấp 1–5 ("Nguyên liệu nâng cấp vật phẩm"); bảng 29: xếp chồng 999 |
 | 20 | Bình | 2 | 0 Hoàn Linh Dược ("Bơm 30% sinh lực"), 1 Kim Đan Dược ("Bơm 25% công lực") |
 | 21 | Búa | 1 | 2 Búa Sửa Chữa |
 | 22 | Nguyên liệu, vật phẩm khác | 74 (3) | 8 Bùa May Mắn, 9 Kim Thạch, 41 Xu khóa |
 | 23 | Tăng Kinh Nghiệm | 1 | 7 Tăng Kinh Nghiệm |
 | 24 | Tẩy điểm | 2 | 47 Tẩy Tủy Đan, 645 Tẩy Kinh Đan |
-| 29 | Trứng | 7 | 3 Trứng Gà ("Đập ra vật phẩm ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống."), 4 Trứng Linh Điểu, 5 Trứng Thần Ưng |
+| 29 | Trứng, bảo rương | 7 (10 ở bảng 29) | 720–722 Lam Thiết, Tử Kim, Xích Long Bảo Rương (bảng 29), 3 Trứng Gà ("Đập ra vật phẩm ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống."), 4 Trứng Linh Điểu, 5 Trứng Thần Ưng |
 
-- Tổng 646 món, 407 món tên "Ngừng dùng". [Đo]
+- Bảng 18: tổng 646 món, 407 món tên "Ngừng dùng". Bảng 29: 727 món, còn dùng 323 ([Bảng 29](#bảng-29)). [Đo]
 - Mô tả của trang bị để trống: chỉ số nằm ở từng món (bản ghi vật phẩm), không ở bảng. [Đo]
 - Id liền nhau từ 0 tới 645, không trùng. Còn dùng 239 món. [Đo]
 - Asset nằm trên máy, trong `files/dyncache/offline-a2/` (1305 file, 148 MB): 985 `.dat`, 189 `.fx`, 126 `.meta`, 3 `.pet`. APK không có icon vật phẩm. File `.dat` đã mã hoá, xem [Giải mã asset](#giải-mã-asset). [Đo]
-- Bảng có trong repo: [data/items.json](../../../data/items.json), cùng 17 mẫu chỉ số và byte phiên bản `itv`. Icon WebP nằm ở [data/icons/](../../../data/icons/). Cả hai dựng lại bằng `npm run items` ([Cách lấy lại dữ liệu](#cách-lấy-lại-dữ-liệu)). Các tên khớp popup trên máy (Nón Âu Lạc, Hoàn Linh Dược, Búa Sửa Chữa) và phần thưởng nhiệm vụ trong `s2c/35` ("1 Áo Hào Kiệt", "1 Nón Lá"). [Đo]
+- Bảng có trong repo: [data/items.json](../../../data/items.json), cùng các mẫu chỉ số (17 ở bảng 18, 31 ở bảng 29) và byte phiên bản `itv`. Icon WebP nằm ở [data/icons/](../../../data/icons/). Cả hai dựng lại bằng `npm run items` ([Cách lấy lại dữ liệu](#cách-lấy-lại-dữ-liệu)). Các tên khớp popup trên máy (Nón Âu Lạc, Hoàn Linh Dược, Búa Sửa Chữa) và phần thưởng nhiệm vụ trong `s2c/35` ("1 Áo Hào Kiệt", "1 Nón Lá"). [Đo]
+
+<a id="bảng-29"></a>
+
+### Bảng 29 (14/11)
+
+Ngày 14/11 lúc 05:30 game trên điện thoại ghi lại `it0`, `it1`, `itv`: bảng 18 thành **29**, 646 thành **727 món**, 17 thành **31 mã chỉ số**. Server Alpha Test đóng từ 03/11 ("Chính thức đóng thử nghiệm Alpha Test"), tới 12/11 thì không kết nối được. APK vẫn là bản 29/10. So với bảng 18 [Đo, so `data/items.json` trước và sau `npm run items` ngày 16/11]:
+
+- **Đá cấp 1–12 (411–422) xếp chồng tới 999**, trước đây mỗi viên một ô. Túi vải cấp 1–5 cũng xếp chồng 999. Gộp đá, Nâng cấp và Tự gộp đá của app đang đếm một viên mỗi ô (`npc::merge_plan`, `upgrade_stones`), nên cần đo lại với server mới.
+- 81 món mới (646–726):
+  - 24 danh hiệu Bá Chủ và Hào Kiệt của 12 map, 4 danh hiệu Đấu trường và Lôi Đài (loại 7).
+  - 30 đôi giày (loại 8) và 16 dây chuyền (loại 9), cấp mặc 1, 21, 51, 101.
+  - Lệnh bài Lôi Đài, Khai Linh Đan, Tẩy Linh Phù, Định Linh Phù (loại 22).
+  - Lam Thiết, Tử Kim, Xích Long Bảo Rương (loại 29).
+- 4 món Luyện Ngục Tầng 1–4 (375, 402, 405, 408) dùng lại, đeo để đánh quái ở Luyện Ngục. Món 426 (một loại Thú cưng Slime) thành "Ngừng dùng". Danh hiệu 427–430 bỏ chữ "Danh hiệu".
+- Icon mới 246–335 không có trên điện thoại Android, cũng không có trong nội dung Android của CDN (revision 64). Bản PC và iOS có, nên đã tải từ CDN bản PC ([cơ chế cập nhật](../artifact.md#cơ-chế-cập-nhật)): 90 file đúng size và CRC32 của manifest, giải mã như icon cũ. Icon 0–245 của PC trùng CRC với Android.
 
 <a id="giải-mã-asset"></a>
 
@@ -347,6 +364,8 @@ File `files/dyncache/it0` (387 byte): `i32 n; n × {i32 mã; string mẫu}`, v�
 | 8 | #% chí mạng | 16 | # chính xác |
 
 Mã 0 có mẫu rỗng. Mã 6 và 9 khớp popup Nón Âu Lạc ("+4 phòng thủ, +58 sinh lực", E1). [Đo]
+
+Bảng 29 (14/11, 854 byte) giữ nguyên mã 1–16 và thêm 14 mã: 17 % kinh nghiệm, 18 % phòng thủ, 19 % né tránh, 20 % chính xác, 21 % sát thương đánh thường lên quái, 22 % sát thương kỹ năng lên quái, 23 % phản sát thương, 24 % sinh lực từ tim, 25 % sát thương đánh thường lên người, 26 % sát thương kỹ năng lên người, 27 % nội lực từ âm dương, 28 % nộ từ đào, 29 % sức tấn công, 30 % sinh lực. [Đo]
 
 ## Cách lấy lại dữ liệu
 

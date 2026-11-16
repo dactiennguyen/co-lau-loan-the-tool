@@ -41,10 +41,11 @@ test('the mailbox, a mail and its gift; the bag slots a gift needs', () => {
   assert.deepEqual(money.items.map(i => [i.itemId, i.quantity]), [[40, 5_000_000], [42, 10_000], [41, 5_000_000]]);
   const stack = (id: number) => items.get(id)?.stack ?? 1;
   assert.equal(slotsNeeded(money.items, [], stack), 0);
-  // 6273 in G1: the bag had Búa, Hoàn Linh and Kim Đan locked; it went 18 → 22 items: Tăng Kinh Nghiệm and 3 Đá cấp 5.
+  // 6273 in G1: the bag had Búa, Hoàn Linh and Kim Đan locked; it went 18 → 22 items: Tăng Kinh Nghiệm and 3 Đá cấp 5,
+  // one slot each under table 18. Table 29 (14/11) stacks Đá cấp to 999, so the 3 stones need one slot.
   const day1 = mailBody(hex('s2c/1216 6273 Ngày 1')).items, locked = [2, 0, 1].map(itemId => ({ itemId, field1: 0 }));
-  assert.equal(slotsNeeded(day1, locked, stack), 4);
-  assert.equal(slotsNeeded(day1, locked.map(i => ({ ...i, field1: 1 })), stack), 7); // another lock: not known to stack
+  assert.equal(slotsNeeded(day1, locked, stack), 2);
+  assert.equal(slotsNeeded(day1, locked.map(i => ({ ...i, field1: 1 })), stack), 5); // another lock: not known to stack
   assert.equal(slotsNeeded(mailBody(hex('s2c/1216 6278 Alpha Test')).items, [], stack), 8);
   assert.deepEqual(['Đã nhận quà của 2 thư', 'Đã nhận quà của 1 thư, rương đã đầy', 'Không có quà nào để nhận'].map(claimedCount), [2, 1, 0]);
 });
