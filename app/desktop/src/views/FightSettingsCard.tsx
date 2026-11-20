@@ -264,13 +264,15 @@ export function FightSettingsCard({ account }: { account: Account }) {
     ...(paceOn && settings.delayRandom ? [{ key: "random", icon: "refresh" as const, text: "Ngẫu nhiên" }] : []),
   ];
   return (
-    // The body scrolls: with every fold open the settings are taller than the room the tab leaves above the log.
+    // At most as tall as its five rows folded (less in a short window), as the Đánh quái card: an open fold scrolls inside
+    // the card instead of pushing the log down to its least height.
     <Card
       title="Cài đặt đánh"
       icon="settings"
       tone="var(--primary)"
       subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ"
-      bodyClassName="scroll pr-1"
+      className="max-h-[min(340px,42vh)]"
+      bodyClassName="scroll pr-1 gap-1.5"
     >
       <SettingRow
         id={`${id}repair`}
