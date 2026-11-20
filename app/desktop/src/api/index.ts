@@ -192,7 +192,8 @@ export interface Api {
   reorderAccounts(ids: number[]): Promise<void>;
   /** Reaches the game server through the proxy (on or off) and resolves to the time it took in ms; rejects with why
    * not. With `id`, an empty password is the one saved for that account. */
-  testProxy(proxy: ProxyForm, id?: number): Promise<number>;
+  /** Kiểm tra: ms to the game server's seed through the proxy, and the IP it goes out with (null if not found). */
+  testProxy(proxy: ProxyForm, id?: number): Promise<{ ms: number; ip: string | null }>;
   /** The saved passwords of the account, which Sửa nick fills in; nothing else sends them. */
   accountSecrets(id: number): Promise<Secrets>;
   /** Cài đặt of the app, their defaults, and what Lưu dữ liệu trận has kept. */

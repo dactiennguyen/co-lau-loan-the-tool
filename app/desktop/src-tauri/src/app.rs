@@ -48,6 +48,8 @@ pub struct Entry {
     loot_line: Option<(u64, u64)>,
     /// What its battle window shows (battle_window.rs).
     pub battle: BattleState,
+    /// The IP its proxy went out with in this session (Event::ProxyIp); None when offline or not asked yet.
+    pub proxy_ip: Option<String>,
 }
 impl Entry {
     pub fn new(id: u64, account: Account) -> Self {
@@ -63,6 +65,7 @@ impl Entry {
             loot_next: None,
             loot_line: None,
             battle: BattleState::default(),
+            proxy_ip: None,
         }
     }
     /// Numbers the line, so the UI can tell the lines it has from new ones, and keeps it.
@@ -301,10 +304,12 @@ impl Shared {
             for (key, value) in patch {
                 fight[key] = value;
             }
-            let fight = bound(
+            let mut fight = bound(
                 serde_json::from_value(fight)
                     .map_err(|e| format!("Cài đặt đánh không hợp lệ: {e}"))?,
             );
+            // Phúc lợi is taken on its own for every account of the app (with_waits).
+            fight.auto_welfare = true;
             a.fight = fight;
             Ok(Some(Command::FightSettings(fight)))
         })
@@ -1029,6 +1034,13 @@ impl App {
                     if state == ConnState::Online {
                         e.since = now("%H:%M");
                     }
+                    // A new connection asks the proxy's IP again; out of the game there is none to show.
+                    if matches!(
+                        state,
+                        ConnState::Connecting | ConnState::Offline | ConnState::Error(_)
+                    ) {
+                        e.proxy_ip = None;
+                    }
                     e.state = state;
                     self.touch(id, false);
                 }
@@ -1053,6 +1065,23 @@ impl App {
             }
             Event::Log(kind, text) => self.log(id, kind, &text),
             Event::Fault(f) => self.add_fault(Some(id), *f, None),
+            Event::ProxyIp(ip) => {
+                // Asked on the side: an answer after the session ended (an error, a logout) is not shown.
+                let live = self
+                    .entry_mut(id)
+                    .is_some_and(|e| matches!(e.state, ConnState::Connecting | ConnState::Online));
+                if live {
+                    self.log(
+                        id,
+                        LogKind::Connection,
+                        &format!("Proxy ra ngoài bằng IP {ip}"),
+                    );
+                    if let Some(e) = self.entry_mut(id) {
+                        e.proxy_ip = Some(ip);
+                    }
+                    self.touch(id, false);
+                }
+            }
             Event::BattleEvent(event) => {
                 if let Some(e) = self.entry_mut(id) {
                     e.battle.apply(&event);
@@ -1561,7 +1590,16 @@ mod tests {
         let fight = |app: &App, i: usize| app.entries[i].account.fight;
         assert_eq!(fight(&app, 0), FightSettings::default().with_waits());
         assert!(fight(&app, 0).mob_delay && fight(&app, 0).delay_random);
-        assert_eq!(fight(&app, 1), kept, "set off since: stays off");
+        // The waits set off since stay off; Phúc lợi is on for every account of the app.
+        assert_eq!(
+            fight(&app, 1),
+            FightSettings {
+                auto_welfare: true,
+                ..kept
+            },
+            "set off since: stays off"
+        );
+        assert!(fight(&app, 0).auto_welfare);
         // Thêm nick and Nhập JSON write it with them.
         let shared = Shared::new(app);
         block_on(shared.add(account("c"), None)).unwrap();
@@ -1576,7 +1614,11 @@ mod tests {
             saved[3].fight.waits_set && saved[3].fight.step_delay,
             "Nhập JSON"
         );
-        assert_eq!(saved[1].fight, kept);
+        assert_eq!(saved[1].fight.mob_delay, kept.mob_delay);
+        assert!(
+            saved.iter().all(|a| a.fight.auto_welfare),
+            "Phúc lợi on for all"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

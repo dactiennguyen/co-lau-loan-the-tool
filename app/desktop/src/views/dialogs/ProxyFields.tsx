@@ -17,11 +17,12 @@ interface Props {
   accountId?: number;
 }
 
-type Check = { state: "idle" } | { state: "testing" } | { state: "ok"; ms: number } | { state: "fail"; text: string };
+type Check = { state: "idle" } | { state: "testing" } | { state: "ok"; ms: number; ip: string | null } | { state: "fail"; text: string };
 
+/** HTTP first: the kind of a new proxy (the proxies sold as host:port:user:pass are mostly HTTP). */
 const KINDS: { kind: ProxyKind; name: string; port: number }[] = [
-  { kind: "socks5", name: "SOCKS5", port: 1080 },
   { kind: "http", name: "HTTP", port: 8080 },
+  { kind: "socks5", name: "SOCKS5", port: 1080 },
 ];
 /** The usual port of a kind, for a new proxy. */
 export const defaultPort = (kind: ProxyKind) => KINDS.find((k) => k.kind === kind)!.port;
@@ -71,7 +72,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
   const test = () => {
     setCheck({ state: "testing" });
     api.testProxy(p, accountId).then(
-      (ms) => setCheck({ state: "ok", ms }),
+      ({ ms, ip }) => setCheck({ state: "ok", ms, ip }),
       (err) => setCheck({ state: "fail", text: String(err instanceof Error ? err.message : err) }),
     );
   };
@@ -207,6 +208,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
               {check.state === "ok" && (
                 <>
                   <Icon name="check" size={12} /> Tới được server game qua proxy, {num(check.ms)} ms
+                  {check.ip ? ` · IP ${check.ip}` : " · chưa hỏi được IP"}
                 </>
               )}
               {check.state === "fail" && check.text}

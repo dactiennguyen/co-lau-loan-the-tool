@@ -1,24 +1,71 @@
-//! Đập hết of the Túi đồ tab: every Trứng Gà of one bag slot broken one after the other. Each is a Dùng (c2s/84, as
-//! the button), answered by s2c/46 (the fee off Xu khóa), s2c/1256 "Bạn vừa nhận được 1 Kim Đan Dược", s2c/51 (the item
-//! into a free slot), s2c/1187 kind 2 (the eggs left) and s2c/1256 "Đập Trứng Gà thành công, trừ 500 Xu khóa"
-//! (16-upgrade.md, measured 02/11 and 20/11). The next egg goes EGG_GAP after that last notice.
+//! Đập hết of the Túi đồ tab: every egg of one bag slot (Trứng Gà, Linh Điểu, Thần Ưng, Phượng Hoàng, Thần Long) broken
+//! one after the other. Each is a Dùng (c2s/84, as the button), answered by s2c/46 (the fee), s2c/1256 "Bạn vừa nhận
+//! được 1 Kim Đan Dược", s2c/51 (the item into a free slot), s2c/1187 kind 2 (the eggs left) and s2c/1256 "Đập Trứng Gà
+//! thành công, trừ 500 Xu khóa" (16-upgrade.md, measured 02/11 and 20/11; Trứng Linh Điểu the same with "trừ 2.000 Xu
+//! khóa", the app's log of 21/11). The next egg goes EGG_GAP after that last notice.
 use super::smith::grouped;
 use super::*;
 
-/// Trứng Gà of the item table ("Đập ra vật phẩm ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống.").
-pub(super) const EGG: i32 = 3;
-/// Its fee in Xu khóa and the free bag slots it needs, as its description says.
-const EGG_FEE: i64 = 500;
+/// The eggs of the item table (type 29), their fee and what it is paid in, as their descriptions say ("Đập ra vật phẩm
+/// ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống."; Thần Ưng and above take Xu, not Xu khóa). Each needs EGG_ROOM free
+/// slots.
+pub(super) const EGGS: [Egg; 5] = [
+    Egg {
+        id: 3,
+        fee: 500,
+        xu: false,
+    },
+    Egg {
+        id: 4,
+        fee: 2_000,
+        xu: false,
+    },
+    Egg {
+        id: 5,
+        fee: 5_000,
+        xu: true,
+    },
+    Egg {
+        id: 6,
+        fee: 15_000,
+        xu: true,
+    },
+    Egg {
+        id: 12,
+        fee: 35_000,
+        xu: true,
+    },
+];
 const EGG_ROOM: i32 = 3;
+
+/// An egg: its item id, its fee, and whether the fee is Xu (else Xu khóa).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Egg {
+    pub id: i32,
+    pub fee: i64,
+    pub xu: bool,
+}
+impl Egg {
+    pub(super) fn of(item_id: i32) -> Option<Egg> {
+        EGGS.into_iter().find(|e| e.id == item_id)
+    }
+    fn money(self) -> &'static str {
+        match self.xu {
+            true => "Xu",
+            false => "Xu khóa",
+        }
+    }
+}
 /// Between the answer of one egg and the next c2s/84; the user clicked 2–7 s apart (tiheo1, 20/11).
 const EGG_GAP: Duration = Duration::from_secs(1);
 /// The notice of success must come within this after c2s/84.
 const EGG_WAIT: Duration = Duration::from_secs(5);
 
-/// The egg under way: the uuid of the stack when Đập hết was pressed, and when the next step is due (the next c2s/84,
-/// or the end of the wait for the answer of the last one).
+/// The egg under way: the uuid of the stack when Đập hết was pressed, which egg it is, and when the next step is due (the
+/// next c2s/84, or the end of the wait for the answer of the last one).
 pub(super) struct EggStep {
     uuid: String,
+    egg: Egg,
     until: Instant,
     waiting: bool,
 }
@@ -26,7 +73,7 @@ pub(super) struct EggStep {
 impl Bot {
     /// Đập hết on the stack of bag slot `slot` (uuid `uuid`, as the window showed it). Refused, with the reason in the
     /// log, when anything else keeps the character busy (a battle, a fight job or a quest run, a task at an NPC) or when
-    /// the slot holds no Trứng Gà by now.
+    /// the slot holds no egg by now.
     pub fn break_all(&mut self, slot: u8, uuid: &str, now: Instant, out: &mut Vec<Out>) {
         let refuse = |out: &mut Vec<Out>, why: &str| {
             out.push(Out::Log(LogKind::Item, format!("Chưa đập trứng: {why}")))
@@ -45,7 +92,7 @@ impl Bot {
             .bag
             .as_ref()
             .and_then(|b| b.items.iter().find(|i| i.slot == slot));
-        let item = match item {
+        let (item, egg) = match item {
             None => return refuse(out, &format!("ô túi {} trống", slot as u32 + 1)),
             Some(i) if i.uuid != uuid => {
                 return refuse(
@@ -56,24 +103,22 @@ impl Bot {
                     ),
                 )
             }
-            Some(i) if i.item_id != EGG => {
-                return refuse(
-                    out,
-                    &format!("ô túi {} không phải Trứng Gà", slot as u32 + 1),
-                )
-            }
-            Some(i) => i,
+            Some(i) => match Egg::of(i.item_id) {
+                Some(egg) => (i, egg),
+                None => return refuse(out, &format!("ô túi {} không phải trứng", slot as u32 + 1)),
+            },
         };
         let name = book()
-            .get(EGG)
-            .map_or("Trứng Gà".into(), |d| d.name.clone());
+            .get(egg.id)
+            .map_or_else(|| format!("Trứng #{}", egg.id), |d| d.name.clone());
         let total = item.quantity.max(1) as usize;
         out.push(Out::Log(
             LogKind::Item,
             format!(
-                "Đập hết {total} {name} (ô túi {}): mỗi quả {} Xu khóa, cần {EGG_ROOM} ô trống",
+                "Đập hết {total} {name} (ô túi {}): mỗi quả {} {}, cần {EGG_ROOM} ô trống",
                 slot as u32 + 1,
-                grouped(EGG_FEE)
+                grouped(egg.fee),
+                egg.money()
             ),
         ));
         self.snap.eggs = Some(EggRun {
@@ -82,17 +127,19 @@ impl Bot {
             total,
             done: 0,
             spent: 0,
+            currency: egg.money().into(),
             got: vec![],
         });
         self.eggs = Some(EggStep {
             uuid: uuid.to_string(),
+            egg,
             until: now,
             waiting: false,
         });
         self.egg_next(now, out);
     }
 
-    /// The next egg: its c2s/84, or the end line when none is left or one cannot be broken (Xu khóa, free slots).
+    /// The next egg: its c2s/84, or the end line when none is left or one cannot be broken (its fee, free slots).
     fn egg_next(&mut self, now: Instant, out: &mut Vec<Out>) {
         let (Some(run), Some(step)) = (self.snap.eggs.as_ref(), self.eggs.as_ref()) else {
             return;
@@ -108,12 +155,18 @@ impl Bot {
         if run.done >= run.total || left <= 0 {
             return self.egg_end(None, out);
         }
-        if let Some(xu) = self.snap.currencies.as_ref().map(|c| c.xu_khoa) {
-            if xu < EGG_FEE {
+        let egg = step.egg;
+        let held = self.snap.currencies.as_ref().map(|c| match egg.xu {
+            true => c.xu,
+            false => c.xu_khoa,
+        });
+        if let Some(xu) = held {
+            if xu < egg.fee {
                 let why = format!(
-                    "thiếu Xu khóa (còn {}, mỗi quả {})",
+                    "thiếu {} (còn {}, mỗi quả {})",
+                    egg.money(),
                     grouped(xu),
-                    grouped(EGG_FEE)
+                    grouped(egg.fee)
                 );
                 return self.egg_end(Some(&why), out);
             }
@@ -178,7 +231,8 @@ impl Bot {
         self.item_wait = None;
         if text.contains("thành công") {
             run.done += 1;
-            run.spent += fee_of(text).unwrap_or(EGG_FEE);
+            let fee = self.eggs.as_ref().map_or(0, |s| s.egg.fee);
+            run.spent += fee_of(text).unwrap_or(fee);
             if let Some(step) = self.eggs.as_mut() {
                 (step.until, step.waiting) = (now + EGG_GAP, false);
             }
@@ -212,7 +266,7 @@ impl Bot {
         }
     }
 
-    /// The end line: eggs broken, Xu khóa spent and what came out; `why` when it stopped before the last egg.
+    /// The end line: eggs broken, the fee spent and what came out; `why` when it stopped before the last egg.
     fn egg_end(&mut self, why: Option<&str>, out: &mut Vec<Out>) {
         self.eggs = None;
         let Some(run) = self.snap.eggs.take() else {
@@ -230,11 +284,12 @@ impl Bot {
             }
         };
         let tally = format!(
-            "đã đập {}/{} {}, tốn {} Xu khóa{got}",
+            "đã đập {}/{} {}, tốn {} {}{got}",
             run.done,
             run.total,
             run.name,
-            grouped(run.spent)
+            grouped(run.spent),
+            run.currency
         );
         let line = match why {
             None => format!("Xong đập trứng: {tally}"),

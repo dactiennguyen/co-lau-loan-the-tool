@@ -58,14 +58,20 @@ const USABLE = new Set([POTION, 23, 24, 29]);
 /** Búa Sửa Chữa: each repair takes one. */
 const HAMMER = 2;
 const NO_HAMMER = "cần 1 Búa sửa chữa trong túi";
-/** Trứng Gà, and its fee in Xu khóa ("Đập ra vật phẩm ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống."). */
-const EGG = 3;
-const EGG_FEE = 500;
+/** The eggs and their fee, as their descriptions say ("Đập ra vật phẩm ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống.");
+ * Thần Ưng and above take Xu, not Xu khóa. The same table as EGGS of bot/eggs.rs. */
+const EGGS: Record<number, { fee: number; xu: boolean }> = {
+  3: { fee: 500, xu: false },
+  4: { fee: 2_000, xu: false },
+  5: { fee: 5_000, xu: true },
+  6: { fee: 15_000, xu: true },
+  12: { fee: 35_000, xu: true },
+};
 /** An action the server has not answered in this long is let go, and the buttons come back. */
 const ANSWER_MS = 5000;
 
 /** A button of the item popup; Dùng, Sửa and Vứt bỏ ask once more, as they use up the item or a hammer. */
-/** An item button: the bot's item actions, and Đập hết of a stack of Trứng Gà (Bot::break_all). */
+/** An item button: the bot's item actions, and Đập hết of a stack of eggs (Bot::break_all). */
 type CardAction = ItemAction | "breakAll";
 interface Act {
   action: CardAction;
@@ -224,13 +230,15 @@ export function InventoryCard({
     if (item.kind != null && USABLE.has(item.kind)) {
       const why = item.kind === POTION ? "bình chỉ dùng được trong trận" : null;
       const use: Act = { action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` };
-      // Đập hết a stack of Trứng Gà: as the bot checks before each egg (its fee, 3 free slots).
-      if (item.id === EGG && item.quantity > 1) {
-        const xuKhoa = c.currencies?.xuKhoa;
+      // Đập hết a stack of eggs: as the bot checks before each egg (its fee in Xu khóa or Xu, 3 free slots).
+      const egg = EGGS[item.id];
+      if (egg && item.quantity > 1) {
+        const money = egg.xu ? "Xu" : "Xu khóa";
+        const held = egg.xu ? c.currencies?.xu : c.currencies?.xuKhoa;
         const free = bag ? bag.capacity - bag.items.length : null;
         const lack =
-          xuKhoa != null && xuKhoa < EGG_FEE
-            ? `thiếu Xu khóa (còn ${num(xuKhoa)}, mỗi quả ${num(EGG_FEE)})`
+          held != null && held < egg.fee
+            ? `thiếu ${money} (còn ${num(held)}, mỗi quả ${num(egg.fee)})`
             : free != null && free < 3
               ? `cần 3 ô trống, túi còn ${free}`
               : null;
@@ -239,7 +247,7 @@ export function InventoryCard({
           label: `Đập hết (${item.quantity})`,
           icon: "hammer",
           why: lack,
-          confirm: `Đập hết ${item.quantity} ${item.name}? Tốn tới ${num(item.quantity * EGG_FEE)} Xu khóa; bot đập từng quả, dừng khi hết Xu khóa hay túi còn dưới 3 ô trống.`,
+          confirm: `Đập hết ${item.quantity} ${item.name}? Mỗi quả ${num(egg.fee)} ${money}, tốn tới ${num(item.quantity * egg.fee)} ${money}; bot đập từng quả, dừng khi hết ${money} hay túi còn dưới 3 ô trống.`,
         };
         return [use, all, discard];
       }
@@ -429,7 +437,7 @@ export function InventoryCard({
         <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-primary bg-bg-2" role="status" aria-label="Đập hết">
           <span className="grid gap-0.5 text-12 text-fg">
             <span>
-              Đang đập {c.eggs.name}: {c.eggs.done}/{c.eggs.total} quả · tốn {num(c.eggs.spent)} Xu khóa
+              Đang đập {c.eggs.name}: {c.eggs.done}/{c.eggs.total} quả · tốn {num(c.eggs.spent)} {c.eggs.currency}
             </span>
             {c.eggs.got.length > 0 && (
               <span className="text-11 text-fg-2">Được {c.eggs.got.map((g) => `${g.name} ×${num(g.count)}`).join(", ")}</span>

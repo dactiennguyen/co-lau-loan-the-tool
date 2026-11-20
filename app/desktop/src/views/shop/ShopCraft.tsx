@@ -5,7 +5,7 @@ import { Button } from "@/components/Button";
 import { Hint } from "@/components/Hint";
 import { Stepper } from "@/components/Stepper";
 import { num, timeOfDay } from "@/utils/format";
-import { CRAFT_KINDS, ICE, knownRecipes, materialHeld, materialIcon, roman } from "@/game/shops";
+import { CRAFT_KINDS, CRAFT_TIERS, ICE, knownRecipes, materialHeld, materialIcon, roman } from "@/game/shops";
 import type { Character, Item, Recipe } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 
@@ -75,7 +75,9 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
       .filter((r) => r.why.length === 0)
       .map((r) => `${row.name} Bậc ${roman(r.tier)}${r.most > 1 ? ` (tối đa ${r.most} món)` : ""}`),
   );
-  const tiers = rows[0].recipes;
+  // The columns are the tiers, always the three: Pháp sư's menu may list fewer for a kind (Nón read at level 67 had only
+  // Bậc II and III), and a row missing one must not shift the cells after it into the wrong column.
+  const tiers = CRAFT_TIERS;
   const ice = items.filter((i) => i.id === ICE.iceId).reduce((n, i) => n + i.quantity, 0);
   const bottles = items.filter((i) => i.id === ICE.bottleId).reduce((n, i) => n + i.quantity, 0);
   const all = Math.floor(ice / ICE.perBottle);
@@ -139,14 +141,25 @@ export function ShopCraft({ account, why, ask, track }: ShopContext) {
                   Xem ở Pháp sư
                 </Button>
               </div>
-              {row.recipes.map((r) => {
+              {tiers.map((t) => {
+                const r = row.recipes.find((x) => x.tier === t.tier);
+                if (!r) {
+                  return (
+                    <div key={t.tier} role="cell" className={cn(CELL, "border-dashed text-fg-3")}>
+                      <b className="text-12 text-fg-2 @min-[860px]:hidden">
+                        {row.name} Bậc {roman(t.tier)}
+                      </b>
+                      <span className="leading-[1.4]">Pháp sư không liệt kê Bậc {roman(t.tier)} cho {row.name} lần đọc này.</span>
+                    </div>
+                  );
+                }
                 const ok = r.why.length === 0;
                 const low = c.level < r.level;
                 const key = `${row.kind}-${r.tier}`;
                 const n = Math.min(counts[key] ?? 1, Math.max(1, r.most));
                 const label = `${row.name} Bậc ${roman(r.tier)}`;
                 return (
-                  <div key={r.tier} role="cell" className={cn(CELL, ok && "border-good", low && "opacity-60")}>
+                  <div key={t.tier} role="cell" className={cn(CELL, ok && "border-good", low && "opacity-60")}>
                     <b className="text-12 text-fg @min-[860px]:hidden">
                       {row.name} Bậc {roman(r.tier)} · cấp {r.level}
                     </b>

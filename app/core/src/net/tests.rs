@@ -596,3 +596,18 @@ async fn logout_ends_a_session_stuck_in_the_login() {
     assert_eq!(states(&events), [ConnState::Connecting, ConnState::Offline]);
     assert!(logs(&events).contains(&NOT_READY.to_string()));
 }
+
+#[test]
+fn the_exit_ip_of_a_proxy_is_the_body_of_the_echo_when_it_is_an_address() {
+    use super::connect::exit_ip_of;
+    let ok = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n203.0.113.7";
+    assert_eq!(exit_ip_of(ok).as_deref(), Some("203.0.113.7"));
+    let v6 = b"HTTP/1.1 200 OK\r\n\r\n2001:db8::1\n";
+    assert_eq!(exit_ip_of(v6).as_deref(), Some("2001:db8::1"));
+    assert_eq!(
+        exit_ip_of(b"HTTP/1.1 407 Proxy Authentication Required\r\n\r\nno"),
+        None
+    );
+    assert_eq!(exit_ip_of(b"HTTP/1.1 200 OK\r\n\r\n<html>"), None);
+    assert_eq!(exit_ip_of(b"garbage"), None);
+}

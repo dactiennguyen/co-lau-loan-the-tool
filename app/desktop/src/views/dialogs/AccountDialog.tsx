@@ -18,7 +18,7 @@ interface Props {
 const proxyForm = (p: ProxyInfo | null | undefined): ProxyForm =>
   p
     ? { enabled: p.enabled, kind: p.kind, host: p.host, port: p.port, username: p.username, password: "" }
-    : { enabled: false, kind: "socks5", host: "", port: defaultPort("socks5"), username: "", password: "" };
+    : { enabled: false, kind: "http", host: "", port: defaultPort("http"), username: "", password: "" };
 
 /** Lưu tests the proxy first when it is on and new, was off, or changed (needs_check of app.rs); `savedPassword` is
  * the proxy password the form was filled with. */

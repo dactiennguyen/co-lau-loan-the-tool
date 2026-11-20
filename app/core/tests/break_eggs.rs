@@ -1,4 +1,4 @@
-//! Đập hết of the Túi đồ tab (Bot::break_all): every Trứng Gà of one bag slot broken one Dùng (c2s/84) after the
+//! Đập hết of the Túi đồ tab (Bot::break_all): every egg of one bag slot broken one Dùng (c2s/84) after the
 //! success notice of the one before, with EGG_GAP between; the end line adds up the Xu khóa spent and what came out.
 //! The answer of one egg as tiheo1 had it on 20/11: s2c/46, "Bạn vừa nhận được 1 Kim Đan Dược", s2c/51, s2c/1187 kind 2,
 //! "Đập Trứng Gà thành công, trừ 500 Xu khóa".
@@ -163,7 +163,7 @@ fn dap_het_dung_khi_thieu_xu_khoa_thieu_o_trong_hay_server_tu_choi() {
 }
 
 #[test]
-fn dap_het_dung_khi_bam_dung_hay_server_im_lang_va_chi_nhan_trung_ga() {
+fn dap_het_dung_khi_bam_dung_hay_server_im_lang_va_chi_nhan_trung() {
     let (mut bot, mut out, now) = egg_bot(42, 10_000);
     // Not an egg, or another item by now.
     bot.break_all(1, "u1", now, &mut out);
@@ -171,7 +171,7 @@ fn dap_het_dung_khi_bam_dung_hay_server_im_lang_va_chi_nhan_trung_ga() {
     assert_eq!(
         items(&out),
         [
-            "Chưa đập trứng: ô túi 2 không phải Trứng Gà",
+            "Chưa đập trứng: ô túi 2 không phải trứng",
             "Chưa đập trứng: ô túi 1 giờ là món khác, không phải món đã chọn"
         ]
     );
@@ -194,4 +194,80 @@ fn dap_het_dung_khi_bam_dung_hay_server_im_lang_va_chi_nhan_trung_ga() {
         items(&out),
         ["Dừng đập trứng: server không trả lời sau 5 s; đã đập 0/2 Trứng Gà, tốn 0 Xu khóa"]
     );
+}
+
+/// `n` eggs of item `item_id` in slot 0 of a bag of 42; `xu` Xu and `xu_khoa` Xu khóa.
+fn eggs_of(item_id: i32, n: i32, xu: i64, xu_khoa: i64) -> (Bot, Vec<Out>, Instant) {
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let (now, mut out) = (Instant::now(), vec![]);
+    let w = record(Writer::new().u8(1).i32(42).i32(1), 0, item_id, n);
+    bot.on_packet(1187, &w.build(), now, &mut out).unwrap();
+    let m = Writer::new()
+        .string("update Xu")
+        .i64(xu)
+        .i64(xu_khoa)
+        .i64(0)
+        .build();
+    bot.on_packet(46, &m, now, &mut out).unwrap();
+    (bot, vec![], now)
+}
+
+#[test]
+fn dap_het_trung_linh_dieu_tru_2000_xu_khoa_va_trung_than_ung_tru_xu() {
+    // Trứng Linh Điểu (4): 2.000 Xu khóa each; the answer as in the app's log of 21/11.
+    let (mut bot, mut out, now) = eggs_of(4, 2, 0, 5_000);
+    bot.break_all(0, "u0", now, &mut out);
+    assert_eq!(
+        items(&out),
+        ["Đập hết 2 Trứng Linh Điểu (ô túi 1): mỗi quả 2.000 Xu khóa, cần 3 ô trống"]
+    );
+    assert_eq!(uses(&out), 1);
+    for (text, xu_khoa) in [
+        ("Bạn vừa nhận được 1.708 Xu khóa", 3_000),
+        ("Đập Trứng Linh Điểu thành công, trừ 2.000 Xu khóa", 3_000),
+    ] {
+        bot.on_packet(46, &money(xu_khoa), now, &mut out).unwrap();
+        bot.on_packet(1256, &notice(text), now, &mut out).unwrap();
+    }
+    bot.on_packet(1187, &left(0, 1), now, &mut out).unwrap();
+    out.clear();
+    // 3.000 Xu khóa left (with the 1.708 got, as s2c/46 says): enough for the second.
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!(uses(&out), 1);
+    bot.on_packet(
+        1256,
+        &notice("Bạn vừa nhận được 3 Búa Sửa Chữa"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        1256,
+        &notice("Đập Trứng Linh Điểu thành công, trừ 2.000 Xu khóa"),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(1187, &left(0, 0), now, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(bot.deadline().unwrap(), &mut out);
+    assert_eq!(
+        items(&out),
+        ["Xong đập trứng: đã đập 2/2 Trứng Linh Điểu, tốn 4.000 Xu khóa; được Xu khóa ×1.708, Búa Sửa Chữa ×3"]
+    );
+
+    // Trứng Thần Ưng (5) is paid in Xu: plenty of Xu khóa does not do.
+    let (mut bot, mut out, now) = eggs_of(5, 3, 4_000, 1_000_000);
+    bot.break_all(0, "u0", now, &mut out);
+    assert_eq!(uses(&out), 0);
+    assert_eq!(
+        items(&out),
+        [
+            "Đập hết 3 Trứng Thần Ưng (ô túi 1): mỗi quả 5.000 Xu, cần 3 ô trống",
+            "Dừng đập trứng: thiếu Xu (còn 4.000, mỗi quả 5.000); đã đập 0/3 Trứng Thần Ưng, tốn 0 Xu"
+        ]
+    );
+    let (mut bot, mut out, now) = eggs_of(5, 3, 20_000, 0);
+    bot.break_all(0, "u0", now, &mut out);
+    assert_eq!(uses(&out), 1);
 }

@@ -125,6 +125,8 @@ pub enum Event {
     /// A fault of the session or a Báo lỗi, with what went in and out before it (trace.rs), for Log lỗi. Comes after
     /// the log line or the state it is about.
     Fault(Box<Fault>),
+    /// The IP a proxy goes out with (connect::proxy_exit_ip), soon after the session connected through it.
+    ProxyIp(String),
 }
 
 /// The game server the sessions connect to: plays1.colauloanthe.vn:1688, as the game's config says, unless the app's Cài
@@ -169,7 +171,7 @@ mod session;
 mod tests;
 mod trace;
 
-pub use connect::check_proxy;
+pub use connect::{check_proxy, proxy_exit_ip};
 pub use manager::Manager;
 pub use session::run;
 pub use trace::{is_fault, Fault, Traced};

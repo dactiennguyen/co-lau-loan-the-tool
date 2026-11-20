@@ -6,9 +6,11 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// HTTP by default: a proxy without its kind (accounts.json from elsewhere, Nhập JSON) is taken as HTTP, the kind of
+/// the proxies sold as host:port:user:pass. Saved accounts always write their kind.
 pub enum ProxyKind {
-    #[default]
     Socks5,
+    #[default]
     Http,
 }
 
@@ -433,7 +435,7 @@ mod tests {
         let bare: Proxy = serde_json::from_str(r#"{"host":"::1","port":1080}"#).unwrap();
         assert_eq!(
             (bare.enabled, bare.kind, bare.label()),
-            (true, ProxyKind::Socks5, "socks5 [::1]:1080".into())
+            (true, ProxyKind::Http, "http [::1]:1080".into())
         );
         assert_eq!(
             format!("{p:?}"),

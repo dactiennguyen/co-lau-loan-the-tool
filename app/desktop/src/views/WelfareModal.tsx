@@ -1,13 +1,12 @@
-import { useEffect, useId, useState } from "react";
+import { useId } from "react";
 import { api } from "@/api";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
-import { CheckRow } from "@/components/CheckRow";
 import { DIALOG, Dialog } from "@/components/Dialog";
 import { Hint } from "@/components/Hint";
 import { Icon } from "@/components/Icon";
 import { num, timeOfDay } from "@/utils/format";
-import type { Account, FightSettings, WelfareEvent, WelfareMilestone } from "@/api/types";
+import type { Account, WelfareEvent, WelfareMilestone } from "@/api/types";
 
 /** A milestone's state in words and colour: not reached, to take, taken. */
 const STATE = [
@@ -22,9 +21,8 @@ const TITLE = "text-[12.5px] font-bold text-fg";
 const NOTE = "text-12 text-fg-2 leading-[1.5]";
 
 /**
- * Phúc lợi, a modal opened from the Tiền tile (18-players-checkin.md#điểm-danh, #quà-online): Tự điểm danh và nhận quà
- * (FightSettings.autoWelfare, off unless turned on; the bot runs on its own, bot/welfare.rs), Nhận ngay (one run now,
- * the switch on or not), and what the server said last of the three events: Điểm danh (today, the days of the month, the
+ * Phúc lợi, a modal opened from the Tiền tile (18-players-checkin.md#điểm-danh, #quà-online): taken on its own for
+ * every account of the app (FightSettings.autoWelfare, always on; bot/welfare.rs), Nhận ngay (one run now), and what the server said last of the three events: Điểm danh (today, the days of the month, the
  * milestones of 7/14/21/28 days), Quà online (minutes today, 30/60/120/180) and Quà thăng cấp (the next level), with the
  * words of the last run. The state comes with the first run of the session: Nhận ngay reads it even when nothing is due.
  */
@@ -32,22 +30,6 @@ export function WelfareModal({ account, onClose }: { account: Account; onClose: 
   const c = account.character;
   const w = c?.welfare;
   const hint = useId();
-  // The switch: shown at once, saved to accounts.json; kept until the account comes back with it (as Tự cộng).
-  const saved = account.fightSettings;
-  const [saving, setSaving] = useState<FightSettings | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (saving && saving.autoWelfare === saved.autoWelfare) setSaving(null);
-  }, [saving, saved]);
-  const settings = saving ?? saved;
-  const setAuto = (autoWelfare: boolean) => {
-    setSaving({ ...settings, autoWelfare });
-    setError(null);
-    api.setFight(account.id, { autoWelfare }).catch((err) => {
-      setSaving(null);
-      setError(String(err?.message ?? err));
-    });
-  };
   const why = !c ? "Nick chưa vào game." : c.battle ? "Đang đánh, đợi hết trận." : w?.doing ? w.doing : null;
 
   return (
@@ -60,21 +42,20 @@ export function WelfareModal({ account, onClose }: { account: Account; onClose: 
       onSubmit={(e) => e.preventDefault()}
     >
       <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5">
-        <CheckRow checked={settings.autoWelfare} disabled={!!saving} onChange={setAuto} className="font-semibold">
-          Tự điểm danh và nhận quà
-        </CheckRow>
+        <span className="inline-flex items-center gap-1.5 text-12 font-semibold text-good">
+          <Icon name="check" size={12} /> Tự điểm danh và nhận quà
+        </span>
         <Hint label="Tự điểm danh và nhận quà là gì?" id={`${hint}-auto`}>
-          Bật thì bot tự làm thay nút Phúc lợi của game: mỗi ngày tự điểm danh (sau 00:00), nhận quà online khi đủ 30, 60, 120,
-          180 phút trong ngày, và nhận quà thăng cấp khi lên tới cấp có quà. Quà vào thẳng túi, không qua hòm thư. Bot chạy cả
-          khi nick đứng yên hay đang tự đánh (giữa hai trận), không chạy giữa trận hay lúc đang đổi map. Túi không đủ chỗ thì
-          bỏ qua lần đó và thử lại sau 10 phút. Mặc định tắt; lưu theo nick.
+          Bot tự làm thay nút Phúc lợi của game cho mọi nick đang trong game: mỗi ngày tự điểm danh (sau 00:00), nhận quà
+          online khi đủ 30, 60, 120, 180 phút trong ngày, và nhận quà thăng cấp khi lên tới cấp có quà. Quà vào thẳng túi,
+          không qua hòm thư. Bot chạy cả khi nick đứng yên hay đang tự đánh (giữa hai trận), không chạy giữa trận hay lúc đang
+          đổi map. Túi không đủ chỗ thì bỏ qua lần đó và thử lại sau 10 phút. Nhận ngay để nhận liền, không đợi.
         </Hint>
         <Button kind="primary" small icon="gift" className="ml-auto" disabled={!!why} title={why ?? undefined} onClick={() => api.welfare(account.id)}>
           Nhận ngay
         </Button>
       </div>
       <div className="grid gap-1">
-        {error && <p className={DIALOG.error}>{error}</p>}
         {why && <p className="text-12 text-fg-3">{why}</p>}
         {w?.last && (
           <p className={NOTE} role="status">
@@ -87,7 +68,7 @@ export function WelfareModal({ account, onClose }: { account: Account; onClose: 
         {!w?.known ? (
           <p className={NOTE}>
             {c
-              ? `Chưa xem Phúc lợi trong lần đăng nhập này${w?.due ? " (game báo còn quà chưa nhận)" : ""}: bấm Nhận ngay, hay bật tự điểm danh và nhận quà.`
+              ? `Chưa xem Phúc lợi trong lần đăng nhập này${w?.due ? " (game báo còn quà chưa nhận)" : ""}: bot tự xem vài giây sau khi vào game, hay bấm Nhận ngay.`
               : "Đăng nhập để xem Phúc lợi."}
           </p>
         ) : (

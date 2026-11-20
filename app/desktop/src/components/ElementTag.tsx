@@ -15,13 +15,19 @@ const ELEMENT_TONE: Record<number, { text: string; el: string }> = {
 export const elementText = (element: number | null | undefined) => (element != null ? (ELEMENT_TONE[element]?.text ?? "") : "");
 export const elementVar = (element: number | null | undefined) => (element != null ? (ELEMENT_TONE[element]?.el ?? "") : "");
 
-/** "Hệ Hỏa" in the element's colour, with its icon; nothing for an element without a name. */
-export function ElementTag({ element, className }: { element: number | null | undefined; className?: string }) {
+/** "Hệ Hỏa" in the element's colour, with its icon; with `iconOnly` the icon alone, its words as the tooltip and for
+ * screen readers. Nothing for an element without a name. */
+export function ElementTag({ element, className, iconOnly }: { element: number | null | undefined; className?: string; iconOnly?: boolean }) {
   const name = element != null ? ELEMENT_NAME[element] : undefined;
   if (!name) return null;
   return (
-    <span className={cn("inline-flex items-center gap-[3px] text-11 font-bold whitespace-nowrap", elementText(element), className)}>
-      <Icon name={ELEMENT_ICON[element!]} size={11} /> Hệ {name}
+    <span
+      className={cn("inline-flex items-center gap-[3px] text-11 font-bold whitespace-nowrap", elementText(element), className)}
+      title={iconOnly ? `Hệ ${name}` : undefined}
+      aria-label={iconOnly ? `Hệ ${name}` : undefined}
+    >
+      <Icon name={ELEMENT_ICON[element!]} size={iconOnly ? 12 : 11} />
+      {!iconOnly && ` Hệ ${name}`}
     </span>
   );
 }

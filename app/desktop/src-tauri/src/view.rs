@@ -148,10 +148,13 @@ pub struct ProxyView<'a> {
     pub has_password: bool,
     /// "socks5 1.2.3.4:1080", for the card and the sidebar.
     pub label: String,
+    /// The IP it went out with in this session (Event::ProxyIp), for the badge of the character card.
+    pub ip: Option<&'a str>,
 }
 impl<'a> ProxyView<'a> {
-    fn of(p: &'a Proxy) -> Self {
+    fn of(p: &'a Proxy, ip: Option<&'a str>) -> Self {
         Self {
+            ip,
             enabled: p.enabled,
             kind: p.kind,
             host: &p.host,
@@ -675,7 +678,11 @@ pub fn account(e: &Entry) -> AccountView<'_> {
         stat_plan: e.account.stats,
         fight_settings: e.account.fight,
         fight_targets: &e.account.fight_targets,
-        proxy: e.account.proxy.as_ref().map(ProxyView::of),
+        proxy: e
+            .account
+            .proxy
+            .as_ref()
+            .map(|p| ProxyView::of(p, e.proxy_ip.as_deref())),
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,
             level: s.level,

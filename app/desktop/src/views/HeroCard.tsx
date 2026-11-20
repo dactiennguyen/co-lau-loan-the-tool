@@ -40,15 +40,16 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="font-display font-extrabold text-20 leading-[1.1] text-fg truncate">{c?.name ?? a.label}</h1>
             {c && <Badge className="h-5 text-12 px-1.5">LV {c.level}</Badge>}
-            {c && <ElementTag element={c.element} className="h-5 px-1.5 border border-current" />}
-            {c && <GenderTag gender={c.gender} className="h-5 px-1.5 border border-current" />}
+            {c && <ElementTag element={c.element} iconOnly className="h-5 px-1 border border-current" />}
+            {c && <GenderTag gender={c.gender} iconOnly className="h-5 px-1 border border-current" />}
             {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}
             {a.proxy?.enabled && (
               <span
                 className="inline-flex items-center gap-[3px] h-5 px-1.5 py-0 border border-good-shade text-10 font-bold tracking-[0.04em] uppercase text-good whitespace-nowrap"
-                title={`Kết nối qua proxy ${a.proxy.label}`}
+                title={`Kết nối qua proxy ${a.proxy.label}${a.proxy.ip ? `, ra ngoài bằng IP ${a.proxy.ip}` : ""}`}
               >
-                <Icon name="shield" size={11} /> Proxy
+                {/* The IP the game sees, once asked through the proxy (soon after login); "Proxy" until then. */}
+                <Icon name="shield" size={11} /> {a.proxy.ip ?? "Proxy"}
               </span>
             )}
           </div>

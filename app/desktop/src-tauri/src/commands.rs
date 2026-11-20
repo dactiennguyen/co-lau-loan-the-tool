@@ -18,7 +18,7 @@ use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
 use cllt_core::potentials::StatPlan;
 use cllt_core::proxy::{Proxy, ProxyKind};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager as _, State};
 
@@ -709,19 +709,31 @@ pub fn account_secrets(shared: State<Shared>, id: u64) -> Result<crate::app::Sec
         .ok_or_else(|| "Nick này không còn trong danh sách".into())
 }
 
-/// "Kiểm tra" next to the proxy of the form: reaches the game server through it, on or off, and returns the time it
-/// took in ms. With `id`, an empty password is the one saved for that account.
+/// What Kiểm tra found: the time to the game server's seed through the proxy, and the IP the proxy goes out with (None
+/// when that could not be asked).
+#[derive(Debug, Serialize)]
+pub struct ProxyCheck {
+    pub ms: u64,
+    pub ip: Option<String>,
+}
+
+/// "Kiểm tra" next to the proxy of the form: reaches the game server through it, on or off, then asks the IP it goes
+/// out with (cllt_core::net::proxy_exit_ip). With `id`, an empty password is the one saved for that account.
 #[tauri::command]
 pub async fn test_proxy(
     shared: State<'_, Shared>,
     id: Option<u64>,
     proxy: ProxyForm,
-) -> Result<u64, String> {
+) -> Result<ProxyCheck, String> {
     let edit = proxy.proxy()?.ok_or("Nhập địa chỉ proxy trước")?;
     let saved = id.and_then(|id| shared.with(|app| app.proxy_of(id)));
     let proxy = crate::app::keep_password(saved.as_ref(), Some(edit)).unwrap();
     let took = cllt_core::net::check_proxy(&shared.server(), &proxy).await?;
-    Ok(took.as_millis() as u64)
+    let ip = cllt_core::net::proxy_exit_ip(&proxy).await.ok();
+    Ok(ProxyCheck {
+        ms: took.as_millis() as u64,
+        ip,
+    })
 }
 
 /// Cài đặt: the settings, their defaults, and what Lưu dữ liệu trận has kept, counted off the main thread.

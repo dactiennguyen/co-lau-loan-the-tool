@@ -69,7 +69,7 @@ const CRAFT_MATERIALS = [
 ];
 /** The tiers of Chế tạo trang bị: its line in the menu of a kind, the character level and the Xu it takes; each takes
  * 24 of both materials of that tier ("Quặng Bậc 2"), and makes gear of level 21, 51 or 101. */
-const CRAFT_TIERS = [
+export const CRAFT_TIERS = [
   { tier: 1, level: 21, xu: 2_400 },
   { tier: 2, level: 51, xu: 26_500 },
   { tier: 3, level: 101, xu: 90_000 },

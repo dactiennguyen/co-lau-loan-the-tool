@@ -25,6 +25,13 @@ pub(super) async fn connect(
         LogKind::Connection,
         format!("Proxy {} đã mở đường tới server game", p.label()),
     ));
+    // The IP the game sees, for the account's badge: asked on the side, the login does not wait for it.
+    let (proxy, emit) = (p.clone(), emit.clone());
+    tokio::spawn(async move {
+        if let Ok(ip) = proxy_exit_ip(&proxy).await {
+            emit(Event::ProxyIp(ip));
+        }
+    });
     Ok(through)
 }
 
@@ -54,4 +61,45 @@ pub async fn check_proxy(server: &Server, proxy: &Proxy) -> Result<Duration, Err
             .map_err(|e| format!("Proxy đã mở đường nhưng server game không trả lời: {e}"))?;
     }
     Ok(start.elapsed())
+}
+
+/// Where the IP the game sees is asked: a plain-HTTP echo of the caller's address, through the proxy's tunnel.
+const IP_ECHO: (&str, u16) = ("api.ipify.org", 80);
+
+/// The IP the proxy goes out with, as the game server sees it (a rotating proxy's differs from its host's): GET / of
+/// IP_ECHO through `proxy`, each step within STEP. For Kiểm tra and the badge of the account; nothing else is sent.
+pub async fn proxy_exit_ip(proxy: &Proxy) -> Result<String, Error> {
+    let (mut stream, early) = tunnel(proxy, IP_ECHO).await?;
+    let ask = format!(
+        "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: cllt\r\nConnection: close\r\n\r\n",
+        IP_ECHO.0
+    );
+    stream
+        .write_all(ask.as_bytes())
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut reply = early;
+    let mut buf = [0u8; 1024];
+    loop {
+        let n = timeout(STEP, stream.read(&mut buf))
+            .await
+            .map_err(|_| "Không hỏi được IP qua proxy (hết giờ)".to_string())?
+            .map_err(|e| e.to_string())?;
+        if n == 0 || reply.len() > 8192 {
+            break;
+        }
+        reply.extend_from_slice(&buf[..n]);
+    }
+    exit_ip_of(&reply).ok_or_else(|| "Không đọc được IP qua proxy".into())
+}
+
+/// The address in the body of IP_ECHO's answer ("HTTP/1.1 200 OK … \r\n\r\n203.0.113.7"), when it is one.
+pub(super) fn exit_ip_of(reply: &[u8]) -> Option<String> {
+    let text = std::str::from_utf8(reply).ok()?;
+    let (head, body) = text.split_once("\r\n\r\n")?;
+    if !head.starts_with("HTTP/1.") || head.split(' ').nth(1).is_none_or(|c| c != "200") {
+        return None;
+    }
+    let ip = body.trim();
+    ip.parse::<std::net::IpAddr>().ok().map(|_| ip.to_string())
 }

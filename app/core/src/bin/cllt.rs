@@ -637,6 +637,7 @@ fn main() {
             Event::Battle(_) | Event::BattleEvent(_) => {}
             // Log lỗi is the app's: its line was printed as it came.
             Event::Fault(_) => {}
+            Event::ProxyIp(ip) => println!("{}: proxy ra IP {ip}", chosen[i].1.username),
             Event::Pickup(p) => println!("{}: nhặt {}", chosen[i].1.username, p.item.label()),
             Event::BattleData(d) => match save_battle(&d) {
                 Ok(file) => println!("{}: lưu trận vào {}", chosen[i].1.username, file.display()),

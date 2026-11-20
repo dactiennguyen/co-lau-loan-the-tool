@@ -710,6 +710,7 @@ pub fn entries() -> Vec<Entry> {
     let mut second = Entry::new(1, account("Nick phụ", "kiemkhach"));
     second.account.stats = Some(StatPlan::Auto);
     second.account.proxy = proxy(true, ProxyKind::Socks5, "203.0.113.7", 1080, "bot2");
+    second.proxy_ip = Some("203.0.113.88".into());
     second.state = ConnState::Online;
     second.since = "17:42".into();
     // The Thủy tree: Băng Tiễn Thuật 3, Hàn Lưu Thánh Thủy 1.
@@ -784,6 +785,7 @@ pub fn entries() -> Vec<Entry> {
             total: 20,
             done: 7,
             spent: 3_500,
+            currency: "Xu khóa".into(),
             got: vec![
                 EggGain {
                     name: "Kim Đan Dược".into(),

@@ -368,9 +368,9 @@ pub struct FightSettings {
     /// (Bot::auto_skill).
     #[serde(default)]
     pub auto_skills: bool,
-    /// Tự điểm danh và nhận quà, off unless turned on (the Phúc lợi window of the Tiền tile): Điểm danh once a day, Quà
-    /// online when its minutes are there and Quà thăng cấp on a level that reaches one, with or without a job running
-    /// (bot/welfare.rs). Gifts go straight into the bag.
+    /// Tự điểm danh và nhận quà: Điểm danh once a day, Quà online when its minutes are there and Quà thăng cấp on a level
+    /// that reaches one, with or without a job running (bot/welfare.rs). Gifts go straight into the bag. Always on in the
+    /// desktop app (with_waits, App::set_fight; no box to tick), off in Default: the tests and cllt send no Phúc lợi.
     #[serde(default)]
     pub auto_welfare: bool,
 }
@@ -447,9 +447,11 @@ impl Default for FightSettings {
     }
 }
 impl FightSettings {
-    /// These settings with Thời gian chờ at its defaults (every wait on, at the times already set) unless they had them
-    /// before (waits_set): the once of an account saved before 1.1.14, or a new one.
+    /// These settings as the desktop app runs them: Thời gian chờ at its defaults (every wait on, at the times already
+    /// set) unless they had them before (waits_set: the once of an account saved before 1.1.14, or a new one), and Tự
+    /// điểm danh và nhận quà always on (the user's choice of 21/11: no box to tick).
     pub fn with_waits(mut self) -> Self {
+        self.auto_welfare = true;
         if !self.waits_set {
             self.mob_delay = true;
             self.turn_delay = true;
@@ -790,7 +792,7 @@ pub struct WelfareMilestone {
     pub gifts: String,
 }
 
-/// Đập hết under way (Bot::break_all), for the Túi đồ tab: the stack, the eggs broken of how many, the Xu khóa spent and
+/// Đập hết under way (Bot::break_all), for the Túi đồ tab: the stack, the eggs broken of how many, the fee spent and
 /// what came out, in the order first seen.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -800,6 +802,8 @@ pub struct EggRun {
     pub total: usize,
     pub done: usize,
     pub spent: i64,
+    /// What the fee is paid in: "Xu khóa" (Trứng Gà, Linh Điểu) or "Xu" (Thần Ưng and above).
+    pub currency: String,
     pub got: Vec<EggGain>,
 }
 

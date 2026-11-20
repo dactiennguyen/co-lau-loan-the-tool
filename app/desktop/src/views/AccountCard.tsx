@@ -18,7 +18,7 @@ interface Props {
 }
 
 /**
- * One account in the sidebar: name, level, where it is (or the error), status, HP and players around, login/logout.
+ * One account in the sidebar: name, level, where it is (or the error), status, HP, its proxy when on, login/logout.
  * Two controls side by side, none inside another: the name is the button that selects (it carries the place and status
  * as its description), and login/logout. A click anywhere else on the card selects too, for the mouse. Login selects the
  * account as well, so its page shows while it logs in; logout leaves the selection as it is.
@@ -91,11 +91,18 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
               <div className="flex-1 min-w-6" title={`HP ${c.hp}/${c.maxHp}`}>
                 <Bar value={c.hp / Math.max(1, c.maxHp)} fill="var(--hp)" thin />
               </div>
-              <span className="inline-flex items-center gap-[3px] text-11 text-fg-3 px" title={c.playersKnown ? `${c.players.length} người khác trong khu` : "Chưa đọc được danh sách người trong khu"}>
-                <Icon name="users" size={12} />
-                {c.playersKnown ? c.players.length : "?"}
-              </span>
             </>
+          )}
+          {/* The proxy the account connects through, only while it is on (no proxy, or one turned off: nothing); the
+              players around are on the Người chơi card of its page. */}
+          {a.proxy?.enabled && (
+            <span
+              className={cn("inline-flex items-center gap-[3px] text-10 font-bold uppercase tracking-[0.04em] text-good whitespace-nowrap", !c && "ml-auto")}
+              title={`Kết nối qua proxy ${a.proxy.label}${a.proxy.ip ? `, ra ngoài bằng IP ${a.proxy.ip}` : ""}`}
+            >
+              <Icon name="shield" size={12} />
+              {a.proxy.kind === "http" ? "HTTP" : "SOCKS5"}
+            </span>
           )}
         </div>
       </div>

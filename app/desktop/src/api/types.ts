@@ -490,13 +490,15 @@ export interface MailBody {
   slots: number;
 }
 
-/** Đập hết (Bot::break_all): the stack's bag slot, the eggs broken of how many, the Xu khóa spent and what came out. */
+/** Đập hết (Bot::break_all): the stack's bag slot, the eggs broken of how many, the fee spent and what came out. */
 export interface EggRun {
   slot: number;
   name: string;
   total: number;
   done: number;
   spent: number;
+  /** What the fee is paid in: "Xu khóa" (Trứng Gà, Linh Điểu) or "Xu" (Thần Ưng and above). */
+  currency: string;
   got: { name: string; count: number }[];
 }
 
@@ -841,6 +843,8 @@ export interface ProxyInfo {
   hasPassword: boolean;
   /** "socks5 1.2.3.4:1080" */
   label: string;
+  /** The IP it went out with in this session (asked through it after login); null until known or when offline. */
+  ip: string | null;
 }
 
 /** StatPlan of cllt-core's potentials.rs: the main stat of the element, or weights by c2s/10 index (Cường lực, Nội lực,
