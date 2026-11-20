@@ -7,7 +7,7 @@ export const BASELINE = {
   "manifestVersionCode": 2,
   "uiVersion": "1.0.1",
   "platform": "android",
-  "protocolVersion": "0.0.2",
+  "protocolVersion": "0.0.7",
   // APK 1.1.0 (20/11) moved the game to plays1; play.colauloanthe.vn now resolves to 127.0.0.1.
   "host": "plays1.colauloanthe.vn",
   "port": 1688,
@@ -215,11 +215,19 @@ export const OPCODE_ENTRIES: [number, number][] = [
   [1270, 33511111],
   [1271, 23511111],
   [1272, 13511111],
-  // APK 1.1.0 (20/11): not in the native table of 1.0.3. The rule of 1241–1272 gives these; 1279 and 1282 came from the
-  // server so on 20/11 (apk-1.1.0.md#gói-mới-và-gói-bị-bỏ), the others are untested.
+  // APK 1.1.0 (20/11): read from the running game, com.tlgdx.twelvelord.sqaa.a/b (the old sqq) over -1..2048, 201 pairs
+  // (captures/vg1-2026-11-20/opmap.json, VG1); the rule of 1241–1272 holds up to 1279 only.
+  [1273, 33501111],
+  [1274, 23501111],
   [1275, 13501111],
+  [1276, 33491111],
   [1277, 23491111],
+  [1278, 13491111],
   [1279, 33481111],
-  [1281, 13481111],
-  [1282, 33471111],
+  [1280, 13481111],
+  [1281, 23481111],
+  [1282, 13471111],
+  [1283, 23471111],
+  [1284, 33471111],
+  [1285, 13461111],
 ];

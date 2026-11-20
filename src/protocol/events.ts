@@ -1,7 +1,7 @@
 import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof,
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundItem, groundItems,
+import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundDrop, groundItems,
   zoneList, worldMap, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
   playerSay, worldChat } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
@@ -74,7 +74,7 @@ event('c2s', 1186, 'equip_item', 'world', 'Trang bị (món trong túi) hoặc C
 event('c2s', 84, 'use_item', 'world', 'Sử dụng ở chi tiết vật phẩm trong túi (sqe.a2 → sqlq.i79)', 's2c/1256 "Vật phẩm không thể sử dụng!" với Hoàn Linh Dược ngoài trận. Trứng Gà: s2c/46 (phí), s2c/1187 loại 2 (u8 ô; i32 số còn lại), s2c/1256 "Bạn vừa nhận được 1 …", s2c/51 (món vào ô trống), s2c/1256 "Đập Trứng Gà thành công, trừ 500 Xu khóa"', 'i32 slot (ô túi)', 'Đo P4 1 lần: 00000003 (Hoàn Linh Dược), server từ chối. Log lỗi 02/11 (manina3): 00000020, Trứng Gà ô 32 từ 3 còn 2 quả');
 event('s2c', 57, 'npc_menu', 'world', 'Sau c2s/13 với NPC không có lời nhiệm vụ (J1: cả 20 NPC), và sau c2s/57 mở một menu con', 'Người chơi chọn một dòng: c2s/57', 'i32 n; string npcName; string text; n * {u8 option; string label}', 'Đọc hết 129 byte (P5): Lái Buôn "Ở chỗ ta có rất nhiều món đồ tốt.", 3 dòng 0 Vũ khí, 1 Dược phẩm, 2 Cửa hàng [Lượng]');
 event('c2s', 57, 'npc_menu_choice', 'world', 'Chọn một dòng trong hộp thoại NPC (sqlq.a103(option, mapId, npcId)), ở mọi tầng menu', 's2c/57 (menu con), s2c/1190 (cửa hàng), s2c/96 hay s2c/99 (cửa sổ của Pháp sư), s2c/1192 (Chợ trời), s2c/1224 (mã quà tặng), s2c/0 (thông báo)', 'u8 option; string mapId; i32 npcId', 'Đo P5 1 lần: 01 "M1" 106 (Dược phẩm của Lái Buôn)');
-event('s2c', 1190, 'shop_list', 'world', 'Sau c2s/57 chọn một cửa hàng', 'Mua: c2s/1190', 'u8 kind; string title; i32 n; n * {i32 shopId; i32 itemId; u8 currency (0 Xu, 1 Xu khóa, 2 Lượng); i32 price; i32 durability (-1); i32 quantity; u8 lock (1 chưa khoá, 0 khoá); u8 element; i32 0; u8 0; u8 field4 (1 trang bị); i32 k; k * {i32 stat; i32 min; i32 max; u8[4]}}: 33 byte với vật phẩm, 49 byte với trang bị', 'Đọc hết byte cả 14 cửa hàng (P5, J1, J2): kind 6 "Vật Phẩm" 8 món; kind 8 [Lượng] 19 món; 12 cửa hàng trang bị, mỗi món một dòng chỉ số, ví dụ Nhẫn Trơn sức tấn công 5–9');
+event('s2c', 1190, 'shop_list', 'world', 'Sau c2s/57 chọn một cửa hàng', 'Mua: c2s/1190', 'u8 kind; string title; i32 n; n * {i32 shopId; i32 itemId; u8 currency (0 Xu, 1 Xu khóa, 2 Lượng); i32 price; i32 durability (-1); i32 quantity; u8 lock (1 chưa khoá, 0 khoá); u8 element; i32 0; u8 0; u8 field4 (1 trang bị); [0.0.7: i16 field5]; i32 k; k * {i32 stat; i32 min; i32 max; u8[4]}}: 33 byte với vật phẩm, 49 byte với trang bị (0.0.7: thêm 2)', 'Đọc hết byte cả 14 cửa hàng (P5, J1, J2): kind 6 "Vật Phẩm" 8 món; kind 8 [Lượng] 19 món; 12 cửa hàng trang bị, mỗi món một dòng chỉ số, ví dụ Nhẫn Trơn sức tấn công 5–9. 0.0.7 (20/11): Vũ khí [Xu] 26 dòng, field5 = 1 ở mọi dòng');
 event('s2c', 1111, 'empty_ack', 'world', 'Sau c2s/1257 (Sắp xếp) và sau Từ chối trong hộp thoại NPC (c2s/57 dòng 1)', 'Không có', 'Rỗng', 'Đo I1, N1: 0 byte, 31–45 ms sau gói của người chơi; có lẽ báo đã xử lý xong để client đóng cửa sổ (Suy luận)');
 event('s2c', 1180, 'duel_invite', 'world', 'Sau c2s/57 Đồng ý trong hộp thoại tỷ thí (Võ Quan Đinh Mộc, nhiệm vụ 12)', 'Client thách đấu quái đó ngay: c2s/1181', 'string mapId; i32 npcId; string mobId; string mobName; i32 level; u8; i32; i32; u8; u8 a; i32 b', 'Đọc hết 63 byte (N2 ba lần, N3): M2, 141, mob880 "Võ Quan Đinh Mộc" cấp 20, a = 2, b = 1, 1, 0 ở N2 và 0 ở N3')
 event('c2s', 1181, 'duel_challenge', 'world', 'Client tự gửi khi nhận s2c/1180 (sqlq.a122(mobId, npcId, false), gọi từ hàm chạm sqhz.a17)', 's2c/22 mở trận sau 2,1 s (N3)', 'string mobId; i32 0; i32 npcId', 'Đo N3 1 lần: "mob880" 0 141');
@@ -89,7 +89,7 @@ event('s2c', 1260, 'transmute_target', 'world', 'Trả c2s/97 trong cửa sổ C
 event('s2c', 1258, 'service_preview', 'world', 'Sau c2s/97 đặt trang bị, và sau s2c/91', 'Không có', 'u8 0; string uuid; i32 cấpHiệnTại; bản ghi vật phẩm của món sau một lần nâng nữa', 'Đọc hết 127 byte (J1, J2): giáp +0 cho bản ghi +1 (phòng thủ 19, cường lực 11); lên +1 rồi thì bản ghi +2 (23, 14); ba nhẫn +0 (J2)');
 event('c2s', 91, 'service_start', 'world', 'Bấm Bắt đầu trong mọi cửa sổ của Pháp sư: Nâng cấp, Cẩn thận, Luyện đá, Tách đá, Chuyển hoá (sqlq.m109)', 'Nâng cấp: s2c/91, s2c/1258, s2c/46 (Cẩn thận thêm s2c/46 Lượng ở đầu). Luyện đá: s2c/93, s2c/46. Tách đá, Chuyển hoá: s2c/91. Không đủ điều kiện: s2c/1256. Không có túi mới', 'string "" (rỗng)', 'Đo J1 1 lần trên máy; J3 bot TS 14 lần: 3 Nâng cấp (1 thất bại), 7 Luyện đá (6 thành công, 1 bị từ chối dưới 40%), 1 gửi key "abcd1002" sau khi đã luyện xong, 2 Tách đá (lần đầu bị từ chối vì túi đầy), 1 Chuyển hoá');
 event('s2c', 91, 'service_result', 'world', 'Trả c2s/91 ở Nâng cấp, Tách đá, Chuyển hoá', 'Không có; túi không được gửi lại (xin bằng c2s/42)', 'string tên; u8 kếtQuả (1 thành công, 0 thất bại); bản ghi món sau đó; i32 n; n * bản ghi món nhận được (đá của Tách đá); Chuyển hoá thêm bản ghi món đích', 'Đọc hết byte (J1, J3): Nâng cấp 96 byte n 0, kếtQuả 0 khi thất bại ở 16%; Tách đá 228 byte n 2 (Đá cấp 1); Chuyển hoá 178 byte n 0 rồi Anh Hùng Nhẫn +1');
-event('s2c', 1192, 'market', 'world', 'Sau c2s/57 chọn Chợ trời, Bán vật phẩm hay Đang bán ở Ngọc Nga', 'Đọc danh sách món đang bán, luật bán, món của mình đang bán; chưa đo mua, đăng bán', 'u8 loại; loại 1 (Chợ trời): u8 sốMục; u8 mục; string tênMục; i32 sốTrang; i32 trang; i32 n; n × món {i32 mãVậtPhẩm; i32 mãVậtPhẩm; string uuid; string ngườiBán; i32 độBền; i32 field0; i32 hệ; i64 hếtHạn; u8 loạiTiền; i32 giá; i32 field2; i32 sốLượng; u8 field1; i32 m; m × {i32 chỉSố; i32 giáTrị; i32 giáTrị2}}; loại 0 (Bán vật phẩm): string luật; loại 2 (Đang bán): i32 sốTrang; i32 trang; i32 n; n × món', 'J1, CT1: loại 1 "Vũ Khí" 20 món đọc hết 2638/2638 byte; loại 0 "Phí đăng bán 1.000 Xu…"; loại 2 khi không bán gì: (1, 1, 0)');
+event('s2c', 1192, 'market', 'world', 'Sau c2s/57 chọn Chợ trời, Bán vật phẩm hay Đang bán ở Ngọc Nga', 'Đọc danh sách món đang bán, luật bán, món của mình đang bán; chưa đo mua, đăng bán', 'u8 loại; loại 1 (Chợ trời): u8 sốMục; u8 mục; string tênMục; i32 sốTrang; i32 trang; i32 n; n × món {i32 mãVậtPhẩm; i32 mãVậtPhẩm; string uuid; string ngườiBán; i32 độBền; i32 field0; i32 phẩmChất; [0.0.7: u8 hệ]; i64 hếtHạn; u8 loạiTiền; i32 giá; i32 field2; i32 sốLượng; u8 field1; i32 m; m × {i32 chỉSố; i32 giáTrị; i32 giáTrị2}}; loại 0 (Bán vật phẩm): string luật; loại 2 (Đang bán): i32 sốTrang; i32 trang; i32 n; n × món', 'J1, CT1: loại 1 "Vũ Khí" 20 món đọc hết 2638/2638 byte; loại 0 "Phí đăng bán 1.000 Xu…"; loại 2 khi không bán gì: (1, 1, 0). 0.0.7 (20/11): Vũ Khí 1 món (Lam Dù hệ 2), Đá Quý 3 món (hệ 0xff)');
 event('c2s', 116, 'market_tabs_request', 'world', 'Cửa sổ Chợ trời mở ra (sau s2c/1192 của Ngọc Nga, hay nút Chợ trời của thanh công cụ)', 's2c/116', 'Rỗng', 'CT1 (01/11) trên máy có Frida');
 event('s2c', 116, 'market_tabs', 'world', 'Trả c2s/116', 'Cửa sổ vẽ các mục; c2s/1192 cho từng trang', 'i32 n; n × {i32 mục; string tên; i32 sốMón}; string luật; i32 phí (1000); i32 a (1000); i32 sốGiờ (24); i32 b (1000); i32 giáCaoNhất (100.000.000)', 'CT1: 9 mục, 594 món, đọc hết 378/378 byte; a, b chưa rõ (một trong hai có lẽ là giá thấp nhất)');
 event('c2s', 1192, 'market_page', 'world', 'Bấm một mục, mũi tên trang, Làm mới hay tab Đang bán trong cửa sổ Chợ trời; nút Chợ trời của thanh công cụ gửi thẳng gói này, không qua Ngọc Nga', 's2c/1192 loại 1 (một mục), loại 2 (mục -1: Đang bán)', 'u8 0; i32 mục (0–8 của s2c/116, -1 là Đang bán); i32 trang (từ 1)', 'CT1: 9 mục, đủ mọi trang trên máy và bằng bot TS; chỉ đọc');
@@ -118,7 +118,7 @@ event('s2c', 1223, 'gift_code_result', 'world', 'Trả gift_code', 'Không', 'u8
 event('c2s', 1196, 'friends_request', 'world', 'Mở Bạn bè', 's2c/1196', 'Rỗng');
 event('s2c', 1196, 'friend_list', 'world', 'Trả friends_request', 'Không', 'i32 n; bản ghi bạn chưa thấy (n = 0)', 'Đo 1 lần, chưa có bạn');
 event('c2s', 1254, 'ranking_request', 'world', 'Mở BXH hoặc đổi tab', 's2c/1254 kiểu 0 (tab) rồi kiểu 1 (danh sách)', 'u8 tab; mở lần đầu chỉ có u8 0, đổi tab gửi u8 tab; u8 1');
-event('s2c', 1254, 'ranking', 'world', 'Trả ranking_request', 'Không', 'u8 kind; 0: u8 n; n * {u8 tab; string title; string column}; u8. 1: u8 tab; i32 n; n * {i32 rank; i32 id; string name; i32; i32 level}; i32 ownRank; i32; i32 ownLevel', 'Đọc hết byte; manina hạng 1094 khớp màn hình');
+event('s2c', 1254, 'ranking', 'world', 'Trả ranking_request', 'Không', 'u8 kind; 0: u8 n; n * {u8 tab; string title; string column}; u8. 1: u8 tab; i32 n; n * {i32 rank; i32 id; string name; i32; i32 level}; i32 ownRank; i32; i32 ownLevel; [0.0.7: n × i64 reachedAt; i64 ownReachedAt]', 'Đọc hết byte; manina hạng 1094 khớp màn hình. 0.0.7 (20/11): 7 tab, Cao thủ 100 dòng 3562 byte');
 event('c2s', 1240, 'season_request', 'world', 'Mở Bảo Điển', 's2c/1240', 'Rỗng');
 event('s2c', 1240, 'season_info', 'world', 'Trả season_request', 'Không', 'u8 (0 = chưa có mùa)', 'Đo 1 lần');
 event('c2s', 1241, 'season_quests_request', 'world', 'Mở Bảo Điển', 's2c/1241', 'Rỗng');
@@ -139,7 +139,11 @@ event('s2c', 21, 'timed_attack', 'battle', 'Trận tính giờ: quái đánh the
 event('c2s', 1178, 'challenge_boss', 'battle', 'Nhân vật va vào boss của s2c/1177 (sqhz.a18 → sqlq.b121(mobId, false))', 's2c/22 sau ~2,8 s, rồi trận như c2s/15', 'string mobId; i32 flag=0', 'Đo B4 1 lần (Thủ Lĩnh Sơn Tặc mob86100201); boss bỏ qua c2s/15');
 event('c2s', 40, 'battle_leave', 'battle', 'Đầu hàng (nút Đầu hàng → OK), cùng lúc với c2s/11', 's2c/11, s2c/10, s2c/1214 rồi c2s/43', 'string battleUuid', 'Đo B2 4 lần; kết thúc bình thường không có gói này');
 event('s2c', 36, 'durability', 'battle', 'Cùng lúc kết quả cuối trận, và sau đầu hàng', 'Không', 'i32 n (8 ô trang bị); n * {u8 0xff: ô trống | u8 ô; i32 độBền}', 'Đọc hết byte: B1 16 byte (nón 49), G2 24 byte (ô 0, 1, 2: 55, 60, 0); về 0 thì món hỏng (HP tối đa và sát thương tụt)');
-event('c2s', 1282, 'device_signals', 'world', 'Game 1.1.0: sqnf.p() đọc DeviceSignals rồi gửi, nhiều khả năng khi nhận s2c/1282', 'Chưa thấy trả lời', 'u8 adb (bit 1 gỡ lỗi USB, bit 2 adb Wi-Fi); u8 chế độ nhà phát triển (0/1); u8 số dịch vụ trợ năng (0–127)', 'Đọc từ code 1.1.0 (sqnf.a57, AndroidLauncher.readDeviceSignals); bot không gửi');
+event('c2s', 1282, 'device_signals', 'world', 'Game 1.1.0: ngay sau s2c/4, trước c2s/1284 và c2s/9 (sqnf.p() đọc DeviceSignals)', 'Không có', 'u8 adb (bit 1 gỡ lỗi USB, bit 2 adb Wi-Fi); u8 chế độ nhà phát triển (0/1); u8 số dịch vụ trợ năng (0–127)', 'Đo VG1 20/11: game gửi 01 00 00 (máy đang bật gỡ lỗi USB); bot không gửi');
+event('c2s', 1284, 'chat_block', 'world', 'Lệnh 0: ngay sau c2s/1282, trước c2s/9 (lấy danh sách chặn chat). Lệnh có id: Chặn chat, Bỏ chặn ở popup người chơi (com.mh.d.sqc)', 's2c/1284', 'u8 lệnh (0 lấy danh sách; 1, 2 chặn hay bỏ chặn); lệnh 1, 2: i32 id người chơi', 'Đo VG1: game gửi 00 khi vào game; lệnh 1, 2 đọc từ code (sqc.a(int), sqc.b(int)), chưa đo, chưa rõ số nào là chặn');
+event('c2s', 1285, 'report_player', 'world', 'Báo cáo người chơi: chọn lý do Xúc phạm, Spam, Lừa đảo, Khác (com.mh.d.sqc.a(int, int))', 's2c/1285', 'i32 id người chơi; u8 lý do', 'Đọc từ code 1.1.0; chưa đo, thứ tự lý do suy theo thứ tự trên hộp thoại');
+event('s2c', 1284, 'chat_block_list', 'world', 'Trả c2s/1284; server cũng tự gửi một lần sau c2s/30 (cả cho bot không gửi c2s/1284)', 'Không', 'u8; u8; string thông báo; i16 n; n * {i32 id người chơi; string tên}', 'Đo VG1: 8 byte 0 (danh sách trống). Kiểu đọc từ code (sqc.a(sqi) → sqd(int, int, String, int[], String[])); nghĩa hai u8 chưa rõ');
+event('s2c', 1285, 'report_result', 'world', 'Trả c2s/1285', 'Không', 'u8 kết quả; string thông báo', 'Đọc từ code (sqc.b(sqi) → sqe(int, String)); chưa đo. Game hiện "Đã gửi báo cáo, chúng tôi sẽ xem xét trong 24 giờ." hoặc "Không gửi được báo cáo. Vui lòng thử lại!"');
 event('c2s', 1275, 'request_1275', 'world', 'sqnf.Z() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 event('c2s', 1277, 'request_1277', 'world', 'sqnf.Q() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 event('c2s', 1281, 'request_1281', 'world', 'sqnf.N(), do com.mh.sqip.h14 gọi (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
@@ -151,8 +155,8 @@ const pushes: [number, string, string, string, string?][] = [
   [1269, 'config_1269', 'Sau c2s/4', '30 byte cấu hình, opaque'],
   [1271, 'social_links', 'Sau c2s/4', '140 byte; có URL Facebook, chưa giải cấu trúc danh sách'],
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
-  [1279, 'signal_1279', 'Vào thế giới: sau s2c/1220, ngay trước s2c/1282 (APK 1.1.0)', 'i32 (mẫu 8)', 'Đo 2 lần 20/11 (tiheo2); vai trò chưa rõ'],
-  [1282, 'device_check', 'Vào thế giới: sau s2c/1279, trước s2c/30 (APK 1.1.0)', '8 byte (mẫu toàn 0), chưa rõ kiểu', 'Đo 2 lần 20/11 (tiheo2). Game 1.1.0 trả bằng c2s/1282 (trạng thái máy); bot không trả, server không hỏi lại và không ngắt trong 140 s'],
+  [1279, 'signal_1279', 'Vào thế giới: sau s2c/1220, ngay trước s2c/1284 (APK 1.1.0)', 'i32 (mẫu 8)', 'Đo 2 lần 20/11 (tiheo2); vai trò chưa rõ'],
+  [1274, 'config_1274', 'Sau c2s/4, trước s2c/1265 (APK 1.1.0)', '884 byte, opaque', 'Đo VG1 20/11; chưa giải'],
   [46, 'currency_notice', 'Sau s2c/9; khi tiền đổi (trả nhiệm vụ)', 'string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong', 'Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng'],
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau); sau c2s/1191 (kiểu 32)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]. Kind 32: i32 n; n * {i32 skillId; i32 level}', 'Đọc hết byte 4 kiểu (L1, Q2, E1, P1); EXP và tiền khớp phần thưởng trận; stats[0] tăng 1 mỗi điểm Cường Lực, stats[1] mỗi điểm Thân Pháp, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, chính xác, né tránh, chí mạng: khớp bảng ở P1), fields[0] là điểm kỹ năng (16 ở P1, khớp bảng), extra[0], labels chưa rõ; kiểu 32 tăng cấp Hỏa Cầu Thuật 1 → 4'],
   [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ; loại 4 sau Chế tạo trang bị', 'u8 kind; kind 4: một item record (món vừa thêm, O1). Kind 1: i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 element; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
@@ -194,6 +198,13 @@ export const EVENTS = specs;
 export const eventKey = (direction: Direction, opcode: number) => `${direction}/${opcode}`;
 /** s2c/1209: the flag, then (APK 1.1.0) the values of four static readers, each read only while bytes are left, as the
  * game does (sqpq.aq → com.mh.d.sqj, com.mh.a.sqh, com.mh.t.sqa, com.mh.z.sqa .a(sqi)). Meanings unknown (apk-1.1.0.md). */
+/** s2c/1284 (sqc.a(sqi) of APK 1.1.0): the chat block list. */
+function chatBlockList(r: Reader) {
+  const a = r.u8(), b = r.u8(), message = r.string(), n = r.take(2).readInt16BE();
+  const players = Array.from({ length: n }, () => ({ id: r.i32(), name: r.string() }));
+  return { a, b, message, players };
+}
+
 function serverFlag(r: Reader) {
   const left = () => r.data.length - r.offset;
   const fields: Record<string, unknown> = { flag: r.u8() };
@@ -248,6 +259,7 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 1216: case 1217: case 1219: return mailIdRequest(required(ctx.mailId, 'mailId'));
     case 1223: return giftCodeRequest(required(ctx.code, 'code'));
     case 1206: return w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build();
+    case 1284: return w.u8(0).build();
     case 5: return w.i32(ctx.serverId ?? BASELINE.observedServerId).i32(-1).u8(1).build();
     case 4: return loginPayload(required(ctx.username, 'username'), passwordProof(required(ctx.challenge, 'challenge'), required(ctx.password, 'password')), ctx.serverId ?? BASELINE.observedServerId);
     case 9: return w.string(required(ctx.username, 'username').toLowerCase()).u8(2).i32(-1).build();
@@ -300,6 +312,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
     switch (opcode) {
       case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1218: case 1221: case 1275: case 1277: case 1281: break;
       case 1282: fields = { adb: r.u8(), devOptions: r.u8() === 1, accessibility: r.u8() }; break;
+      case 1284: { const command = r.u8(); fields = r.data.length - r.offset >= 4 ? { command, playerId: r.i32() } : { command }; break; }
+      case 1285: fields = { playerId: r.i32(), reason: r.u8() }; break;
       case 1216: case 1217: case 1219: fields = { mailId: Number(r.take(8).readBigInt64BE()) }; break;
       case 1223: fields = { code: r.string() }; break;
       case 1192: fields = { mode: r.u8(), tab: r.i32(), page: r.i32() }; break;
@@ -349,6 +363,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1207: fields = { serverList: r.string() }; break;
       case 1209: fields = serverFlag(r); break;
       case 1279: fields = { value: r.i32() }; break;
+      case 1284: fields = chatBlockList(r); break;
+      case 1285: fields = { result: r.u8(), message: r.string() }; break;
       case 1220: fields = { unread: r.u8() === 1 }; break;
       case 1195: fields = dailyQuest(payload); r.take(payload.length); break;
       case 1192: fields = market(payload); r.take(payload.length); break;
@@ -418,11 +434,12 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1265: fields = { command: r.u8() }; break;
       case 46: fields = currencies(payload); r.take(payload.length); break;
       case 1177: fields = mapBoss(payload); r.take(payload.length); break;
-      case 1182: fields = { mapId: r.string(), ...groundItem(r) }; break;
+      case 1182: fields = groundDrop(payload); r.take(payload.length); break;
       case 1184: fields = groundItems(payload); r.take(payload.length); break;
       case 1183: fields = { mapId: r.string(), uuid: r.string() }; break;
       case 1170: fields = { id: r.i32() }; break;
-      case 1166: fields = { id: r.i32(), gear: Array.from({ length: 6 }, () => r.i32()) }; break;
+      // Protocol 0.0.7 adds two bytes, as in the player record: u8 (0) and the weapon's element (20/11).
+      case 1166: { const id = r.i32(), gear = Array.from({ length: 6 }, () => r.i32()); fields = r.data.length - r.offset === 2 ? { id, gear, plus: r.u8(), weaponElement: r.u8() } : { id, gear }; break; }
       case 1253: fields = { id: r.i32(), level: r.i32(), hp: r.i32(), maxHp: r.i32(), field: r.u8() }; break;
       case 1167: fields = playerRecord(r); break;
       case 1212: fields = playerStatus(r); break;

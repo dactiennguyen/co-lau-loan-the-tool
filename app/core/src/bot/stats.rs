@@ -274,6 +274,18 @@ impl Bot {
             None => nodes.iter().find(|n| n.blockers.is_empty()),
         };
         let Some(node) = node else {
+            // A skill learnt before the step (Nâng cấp by hand, Tự cộng kỹ năng) already counts: the server moves past
+            // the step at once and sends the next step's NPC line (20/11, tiheo1 and manina3 at level 3 with Hỏa Cầu
+            // Thuật / Xích Lôi Công 1). The run goes on with the next step instead of stopping.
+            let learnt = nodes.iter().find(|n| n.level > 0);
+            if let (true, Some(n)) = (step, learnt) {
+                let reason = format!(
+                    "Đã học {} cấp {} từ trước, server tự qua bước này",
+                    n.skill.name, n.level
+                );
+                self.advance(&reason, out);
+                return self.quest_next(now, out);
+            }
             let reason = match skills.is_empty() {
                 true => "Chưa nhận cây kỹ năng (s2c/30)".to_string(),
                 false => format!(

@@ -118,7 +118,7 @@ Với key dài 16 đã quan sát, mask lần lượt là `key[1]..key[15], key[0
 | 1207 | 653671111 | `26f63ac7` |
 | 1209 | 453671111 | `1b0a78c7` |
 
-[Bảng opcode](opcode-map.md) ghi 188 cặp đã xác minh bằng roundtrip native b(a(op))==op trong miền -1..2048. Đây là miền đã truy vấn, không chứng minh không có opcode ngoài miền.
+[Bảng opcode](opcode-map.md) ghi 201 cặp đã xác minh bằng roundtrip native b(a(op))==op trong miền -1..2048. Đây là miền đã truy vấn, không chứng minh không có opcode ngoài miền.
 
 ## Luật vận hành
 

@@ -104,22 +104,24 @@ pub struct MailBody {
     pub items: Vec<ItemRecord>,
 }
 pub fn mail_body(p: &[u8]) -> Result<MailBody> {
-    let mut r = Reader::new(p);
-    let (id, title, body, sender) = (r.i64()?, r.string()?, r.string()?, r.string()?);
-    let taken = r.u8()? == 1;
-    let n = r.i32()?.max(0);
-    let items = (0..n)
-        .map(|_| item_record(&mut r))
-        .collect::<Result<Vec<_>>>()?;
-    let m = MailBody {
-        id,
-        title,
-        body,
-        sender,
-        taken,
-        items,
-    };
-    r.finish(m, "s2c/1216")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let (id, title, body, sender) = (r.i64()?, r.string()?, r.string()?, r.string()?);
+        let taken = r.u8()? == 1;
+        let n = r.i32()?.max(0);
+        let items = (0..n)
+            .map(|_| item_record(&mut r))
+            .collect::<Result<Vec<_>>>()?;
+        let m = MailBody {
+            id,
+            title,
+            body,
+            sender,
+            taken,
+            items,
+        };
+        r.finish(m, "s2c/1216")
+    })
 }
 
 /// s2c/1217 (Nhận) and s2c/1219 (Xóa): the mail and whether it was done ← mailAck.

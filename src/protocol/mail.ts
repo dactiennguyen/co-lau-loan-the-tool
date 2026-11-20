@@ -2,7 +2,7 @@
 // #hòm-thư, #nhiệm-vụ-hàng-ngày). All of them work from anywhere once in the world, except the daily quest menu, which
 // is Hương Lão's (M1).
 import { Reader, Writer } from './protocol.ts';
-import { finish, itemRecord } from './world.ts';
+import { finish, itemRecord, itemLayouts } from './world.ts';
 
 const i64 = (r: Reader) => Number(r.take(8).readBigInt64BE());
 const writeI64 = (w: Writer, n: number) => w.i32(Math.floor(n / 2 ** 32)).i32(n % 2 ** 32);
@@ -56,9 +56,11 @@ export function mailList(payload: Uint8Array) {
 export function newMail(payload: Uint8Array) { const r = new Reader(payload); return finish(r, mailHeader(r), 's2c/1222'); }
 /** s2c/1216: a mail opened. Items as in the bag, slot 0xff; money is items too (MONEY_ITEMS), the sum in `quantity`. */
 export function mailBody(payload: Uint8Array) {
-  const r = new Reader(payload), id = i64(r), title = r.string(), body = r.string(), sender = r.string(), taken = r.u8() === 1, items = [];
-  for (let n = r.i32(); n > 0; n--) items.push(itemRecord(r));
-  return finish(r, { id, title, body, sender, taken, items }, 's2c/1216');
+  return itemLayouts(() => {
+    const r = new Reader(payload), id = i64(r), title = r.string(), body = r.string(), sender = r.string(), taken = r.u8() === 1, items = [];
+    for (let n = r.i32(); n > 0; n--) items.push(itemRecord(r));
+    return finish(r, { id, title, body, sender, taken, items }, 's2c/1216');
+  });
 }
 /** s2c/1217 (Nhận) and s2c/1219 (Xóa): the mail and whether it was done. */
 export function mailAck(payload: Uint8Array, opcode: 1217 | 1219) {

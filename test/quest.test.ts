@@ -405,16 +405,28 @@ test('quest bot: "Sử dụng điểm kỹ năng" sends c2s/1191 for the first s
   assert.deepEqual([events.at(-1)?.event, events.at(-1)?.reason, events.at(-1)?.step], ['stop', 'step done', 'Sử dụng điểm kỹ năng']);
 });
 
-test('quest bot: no skill that can take a level stops without sending; a point used without a quest reply stops too', (t) => {
+test('quest bot: a skill learnt before the step moves past it without sending; a point used without a quest reply stops', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
-  // A2: level 3 with Hỏa Cầu Thuật 1 and 1 point; its level 2 needs level 7, the other roots level 10.
+  // A2: level 3 with Hỏa Cầu Thuật 1 and 1 point; its level 2 needs level 7, the other roots level 10. The server counts
+  // the skill learnt before and is already at the next step (20/11), so the bot goes on with "Tiêu diệt Gà Điên".
+  const learnt = new QuestBot({ maxFights: 5, log: e => events.push(e) });
+  learnt.onPacket(9, hex(a2Response(9)));
+  learnt.onPacket(30, hex(a2Response(30)));
+  learnt.quest = quest3AtSkill();
+  learnt.onReady(recorder(sent));
+  const skip = events.find(e => e.event === 'skill_step_learnt_before');
+  assert.deepEqual([sent.filter(s => s.opcode === 1191).length, skip?.skillId, skip?.level, learnt.quest!.current], [0, 1000, 1, 4]);
+  // Nothing learnt and nothing that can take a level: the run stops.
   const stuck = new QuestBot({ maxFights: 5, log: e => events.push(e) });
   stuck.onPacket(9, hex(a2Response(9)));
   stuck.onPacket(30, hex(a2Response(30)));
+  stuck.skillLevels = new Map([...stuck.skillLevels].map(([id]) => [id, 0]));
+  stuck.skillPoints = 0;
   stuck.quest = quest3AtSkill();
+  const before = sent.length;
   stuck.onReady(recorder(sent));
-  assert.deepEqual([sent.length, events.at(-1)?.event, events.at(-1)?.reason], [0, 'stop', 'no skill can take a level now']);
+  assert.deepEqual([sent.length - before, events.at(-1)?.event, events.at(-1)?.reason], [0, 'stop', 'no skill can take a level now']);
   const bot = new QuestBot({ maxFights: 5, log: e => events.push(e) });
   bot.onPacket(9, hex(fixtures.profile['s2c/9 level 21']));
   bot.onPacket(30, hex(a2Response(30)));

@@ -315,6 +315,7 @@ impl<'a> ListingView<'a> {
             field2: l.field2,
             field3: 0,
             field4: 0,
+            field5: None,
             stats: l
                 .stats
                 .iter()
@@ -766,6 +767,7 @@ mod tests {
             field2: 0,
             field3: 0,
             field4: 1,
+            field5: None,
             stats: stats
                 .iter()
                 .map(|&(stat, value)| ItemStat { stat, value })

@@ -6,7 +6,7 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { BASELINE, OPCODE_ENTRIES } from '../protocol/config.ts';
-import { Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from '../protocol/protocol.ts';
+import { PROTOCOL_VERSION, Reader, Writer, characterPrefix, characterProfile, characterLocation, characterSkills, mapPrefix } from '../protocol/protocol.ts';
 import { buildRequest, decodeEvent } from '../protocol/events.ts';
 import { mapData, mapGrid, mapChange, mapEntities, mapBoss, notice, characterStats, playersSnapshot, playerRecord, ZonePlayers, questData, questProgress, questComplete, duelInvite, skillTable,
   characterExtra, characterGear, characterTail, inventory, currencies, gearUpdate, zoneList } from '../protocol/world.ts';
@@ -37,6 +37,7 @@ import { market, marketBuyRequest, marketDone, marketExtendRequest, marketListed
 import { ct1Packets } from '../../test/fixtures-ct1.ts';
 import { np1Packets } from '../../test/fixtures-np1.ts';
 import { fireCasts } from '../../test/fixtures-fire.ts';
+import { v007Packets } from '../../test/fixtures-v007.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -112,6 +113,20 @@ function decoders() {
   // Every item on the ground of M1 on entering it (s2c/1184), for Nhặt cả đồ người khác.
   add('groundItems', w['s2c/1184'].hex, (decodeEvent('s2c', 1184, bytes(w['s2c/1184'].hex)).fields as any).items.map((i: any) =>
     pick(i, ['itemId', 'uuid', 'quantity', 'element', 'x', 'y', 'expiresAt'])));
+  // Protocol 0.0.7 (the layouts of the game 1.1.0, 20/11): mobs with their tile, the boss's u8 and i32 after its tile, the
+  // bytes after each quest step, and the two bytes before the stat count of every item (02-login.md#vg1).
+  const v = (k: string) => bytes(v007Packets[k]);
+  add('mapEntities', v007Packets['s2c/43 M1'], mapEntities(v('s2c/43 M1')));
+  add('mapBoss', v007Packets['s2c/1177 boss'], mapBoss(v('s2c/1177 boss')));
+  add('questData', v007Packets['s2c/39 quest3'], questData(v('s2c/39 quest3')));
+  add('characterExtra', v007Packets['s2c/42 bag'], characterExtra(v('s2c/42 bag')));
+  add('inventory', v007Packets['s2c/1187 bag'], inventory(v('s2c/1187 bag')));
+  add('characterGear', v007Packets['s2c/9'], characterGear(v('s2c/9')));
+  add('characterTail', v007Packets['s2c/9'], characterTail(v('s2c/9')));
+  add('groundItemAdd', v007Packets['s2c/1182 drop'], pick(decodeEvent('s2c', 1182, v('s2c/1182 drop')).fields as any, ['mapId', 'itemId', 'uuid', 'quantity', 'x', 'y', 'expiresAt']));
+  add('groundItems', v007Packets['s2c/1184 ground'], (decodeEvent('s2c', 1184, v('s2c/1184 ground')).fields as any).items.map((i: any) =>
+    pick(i, ['itemId', 'uuid', 'quantity', 'element', 'x', 'y', 'expiresAt'])));
+  for (const k of ['s2c/37 mặc Nón Lá', 's2c/37 cởi Nón Lá']) add('gearUpdate', v007Packets[k], gearUpdate(v(k)));
   const slot51 = 'ffffffff0000000001060000019c0000002434336363626635352d356439372d346434312d393838342d32656263663039396366356300000000ffffffff0000000100ff00000000000000';
   add('bagSlot', slot51, (decodeEvent('s2c', 51, bytes(slot51)).fields as any).item);
   // The skill step (docs/app/events/12-skills-items.md): the tree of s2c/30, the skill list of the s2c/9 tail, s2c/10 kind 32.
@@ -132,7 +147,9 @@ function npcCases() {
     93: ['stoneResult', stoneResult], 1190: ['shopList', shopList],
   };
   const decoders: { fn: string; hex: string; expected: unknown }[] = [], texts = new Set<string>();
-  for (const [key, h] of Object.entries(npcPackets)) {
+  // With them the shop of protocol 0.0.7 (test/fixtures-v007.ts): two more bytes in each line.
+  const v007Shop = Object.fromEntries(Object.entries(v007Packets).filter(([k]) => k.startsWith('s2c/1190')));
+  for (const [key, h] of Object.entries({ ...npcPackets, ...v007Shop })) {
     const f = fns[Number(key.split(' ')[0].split('/')[1])];
     if (!f) continue;
     const expected = f[1](bytes(h));
@@ -263,7 +280,9 @@ function marketCases() {
     's2c/113': ['marketDone', p => marketDone(p, 113)], 's2c/115': ['marketDone', p => marketDone(p, 115)],
   };
   const extend = ['s2c/1192 Đang bán trước Gia hạn', 'c2s/112 Gia hạn', 's2c/46 sau Gia hạn', 's2c/1192 Đang bán sau Gia hạn', 's2c/1256 gia hạn'];
-  const packets = { ...ct1Packets, ...Object.fromEntries(extend.map(k => [k, np1Packets[k]])) };
+  // And two pages of protocol 0.0.7 (test/fixtures-v007.ts, 20/11): one more byte in each listing.
+  const v007Pages = Object.fromEntries(Object.entries(v007Packets).filter(([k]) => k.startsWith('s2c/1192')));
+  const packets = { ...ct1Packets, ...Object.fromEntries(extend.map(k => [k, np1Packets[k]])), ...v007Pages };
   const decoders = Object.entries(packets).flatMap(([key, h]) => {
     const f = fns[key.split(' ')[0]];
     return f ? [{ fn: f[0], key, hex: h, expected: f[1](bytes(h)) }] : [];
@@ -437,7 +456,8 @@ function questReplays() {
       p(34, new Writer().i32(0).string('subtask 1').i32(3).string('').build()), { next: true }]],
     ['stats by weight: the stat furthest behind its weight, the lower index on a tie', [pointsLeft(3), at('M1'), quest3(5), { start: true, stats: [1, 0, 1, 0] },
       pointsLeft(2), { next: true }, pointsLeft(1), { next: true }, pointsLeft(0), { next: true }]],
-    ['skill step: no skill that can take a level stops it without sending', [p(9, bytes(response(6, 9))), skills, at('M1'), quest3(3), { start: true }]],
+    // A2: Hỏa Cầu Thuật 1 learnt before the step and nothing that can take a level: the server counts it (20/11).
+    ['skill step: a skill learnt before moves past it without sending c2s/1191', [p(9, bytes(response(6, 9))), skills, at('M1'), quest3(3), { start: true }]],
     ['a new quest after the report goes on with its first step', [at('M1'), p(11, mapPacket('M1', 'Làng Thanh Khê', WORLD[0][2])), p(43, mobsPacket('M1', [['mob2806', 'Heo Mọi', 7]])),
       quest(3, 'Những Việc Đầu Tiên', 0, 0, [['Báo cáo với Thành Chủ Nguyễn Khang', 129, 1, 129]]), { start: true }, p(35, bytes(q['s2c/35'])),
       p(34, new Writer().i32(0).string('subtask 1').i32(4).string('').build()), p(39, bytes(q['s2c/39 quest4'])), { next: true }]],
@@ -655,7 +675,8 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
   const vectors = {
     note: 'Generated by npm run export:rust from test/fixtures.ts and the TS decoders. Do not edit.',
     prelogin: pick(fixtures.prelogin, ['seed', 'handshake', 'key', 'received_chunks', 'sent_frames', 'decoded_receive', 'decoded_send']),
-    password: fixtures['password-vectors'].vectors, login: fixtures['login-vectors'].vectors,
+    password: fixtures['password-vectors'].vectors, // Cut with protocol 0.0.2 (APK 1.0.3); written with the version the bot declares, as test/protocol.test.ts checks them.
+    login: fixtures['login-vectors'].vectors.map((v: { data: string }) => ({ ...v, data: v.data.replace('00000005302e302e32', hex(new Writer().string(PROTOCOL_VERSION).build())) })),
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
     battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), daily: dailyCases(), market: marketCases(),

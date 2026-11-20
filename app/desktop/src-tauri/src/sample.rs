@@ -75,6 +75,7 @@ fn quest(
                 param,
                 required,
                 npc_id,
+                extra: None,
             })
             .collect(),
     }
@@ -173,6 +174,7 @@ fn ct1_market() -> MarketState {
             durability: if quality > 0 { 60 } else { -1 },
             field0: 0,
             quality,
+            element: None,
             expires_at: now + hours * 3_600_000 + 17 * 60_000,
             currency: 0,
             price,
@@ -269,6 +271,7 @@ fn item(
         field2: 0,
         field3: 0,
         field4: u8::from(durability >= 0),
+        field5: None,
         stats: stats
             .iter()
             .map(|&(stat, value)| ItemStat { stat, value })

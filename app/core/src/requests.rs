@@ -1,7 +1,7 @@
 //! Port of buildRequest() of src/protocol/events.ts: the payload of every request the app sends.
 use crate::battle::Move;
-use crate::opcodes::{PLATFORM, PROTOCOL_VERSION, SERVER_ID};
-use crate::protocol::{err, login_payload, password_proof, Result, Writer};
+use crate::opcodes::{PLATFORM, SERVER_ID};
+use crate::protocol::{err, login_payload, password_proof, protocol_version, Result, Writer};
 
 /// Fields a request may need, as RequestContext of src/protocol/events.ts.
 #[derive(Default, Clone)]
@@ -70,7 +70,9 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         // c2s/1215 asks for the mailbox, c2s/1218 is Nhận hết. c2s/1221 (Xóa hết) has no arm: it deletes the gifts not
         // taken too (mail::DELETE_ALL).
         -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 | 116 => w.build(),
-        1206 => w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build(),
+        1206 => w.string(PLATFORM).string(protocol_version()).i32(0).build(),
+        // Command 0 of c2s/1284: the chat block list, asked for right before c2s/9 as the game does (VG1).
+        1284 => w.u8(0).build(),
         5 => w
             .i32(c.server_id.unwrap_or(SERVER_ID))
             .i32(-1)

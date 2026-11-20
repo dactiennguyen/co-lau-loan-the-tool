@@ -200,7 +200,11 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
             case 4:
               if (state !== 'authenticating') break;
               if (packet.payload.length) throw new ProtocolError('UNSUPPORTED_BRANCH', 'Nonempty authentication ACK');
-              emit('authentication_acknowledged'); step('character'); break;
+              emit('authentication_acknowledged');
+              // The game asks for its chat block list (c2s/1284 command 0) right before c2s/9 (VG1, 20/11). Its c2s/1282
+              // (adb, developer options, accessibility of the phone) is not sent: that would forge an anti-bot signal.
+              write(1284, buildRequest(1284, {}));
+              step('character'); break;
             // A login without a character gets the options of the character screen instead of s2c/9 (20/11, after the
             // Open Beta wiped the Alpha characters): nothing to play until one is made in the game.
             case 8:

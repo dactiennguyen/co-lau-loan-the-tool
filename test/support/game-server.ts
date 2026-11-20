@@ -52,6 +52,11 @@ export async function startSimulator(options: SimOptions = {}) {
           const opcode = [...encodedOpcodes].find(([, value]) => value === body.readInt32BE())?.[0];
           if (opcode === undefined) throw new Error('Unknown client opcode');
           if (opcode === 1) { reply(1, Buffer.alloc(0), 'synthetic heartbeat'); continue; }
+          // c2s/1284 command 0 (chat block list) before c2s/9: the empty list as the server sent it to the game (VG1, 20/11).
+          if (opcode === 1284) {
+            if (!body.subarray(4).equals(buildRequest(1284, {}))) throw new Error('Wrong request body for 1284');
+            reply(1284, Buffer.alloc(8), 'chat block list (VG1)'); continue;
+          }
           const stage = scenario.stages[nextStage];
           if (stage?.requestOpcode !== opcode) throw new Error(`Wrong request order: expected ${stage?.requestOpcode}, got ${opcode}`);
           const expected = buildRequest(opcode, { username: 'probe_user', password: 'abc', challenge: Buffer.from('100c0001', 'hex'), serverId: 24, characterName: 'manina', mapId: 'M1' });

@@ -3,7 +3,9 @@ import { BASELINE, OPCODE_ENTRIES } from './config.ts';
 export const encodedOpcodes: Map<number, number> = new Map(OPCODE_ENTRIES);
 const decodedOpcodes = new Map<number, number>(OPCODE_ENTRIES.map(([op, encoded]) => [encoded, op]));
 export const PLATFORM = BASELINE.platform;
-export const PROTOCOL_VERSION = BASELINE.protocolVersion;
+/** CLLT_PROTOCOL_VERSION (research only, e.g. 0.0.7 as the game 1.1.0 says) overrides the version the bot declares; the
+ * server then sends the layouts of that version (docs/app/events/02-login.md#vg1). */
+export const PROTOCOL_VERSION: string = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.CLLT_PROTOCOL_VERSION ?? BASELINE.protocolVersion;
 export const MAX_FRAME = 16 * 1024 * 1024;
 
 export class ProtocolError extends Error {

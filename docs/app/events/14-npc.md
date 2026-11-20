@@ -330,9 +330,11 @@ CT1 (01/11), điện thoại có Frida với manina2, chỉ xem: [Đo CT1]
 ```text
 s2c/1192 loại 1: u8 1; u8 sốMục (9); u8 mục; string tênMục ("Vũ Khí"); i32 sốTrang; i32 trang; i32 n; n × món
 món: i32 mãVậtPhẩm; i32 mãVậtPhẩm (lặp lại); string uuid; string ngườiBán;
-     i32 độBền; i32 field0; i32 phẩmChất; i64 hếtHạn (ms); u8 loạiTiền; i32 giá;
+     i32 độBền; i32 field0; i32 phẩmChất; [0.0.7: u8 hệ]; i64 hếtHạn (ms); u8 loạiTiền; i32 giá;
      i32 field2; i32 sốLượng; u8 field1; i32 m; m × {i32 chỉSố; i32 giáTrị; i32 giáTrị2}
 ```
+
+**Khi khai `0.0.7`** (bot TS, 20/11): mỗi món thêm **1 byte hệ** ngay trước `hếtHạn`, như byte hệ của bản ghi vật phẩm trong túi: Lam Dù ở mục Vũ Khí có 2 (Lôi), ba món đá ở mục Đá Quý có 0xff. Các trường khác không đổi. Bot TS và app Rust đọc được cả hai bố cục (`market`, thử `0.0.7` trước). [Đo 4 món]
 
 CT1 đọc hết 20 món, đúng 2638/2638 byte, rồi cả 33 trang của 9 mục (592 món); J1 (bản ghi chỉ giữ 2048 byte đầu) cũng khớp ở 15 món đầu. Các trường giống bản ghi vật phẩm của túi ([12-skills-items](12-skills-items.md#túi-đồ)) nhưng khác thứ tự, và vài trường u8 thành i32. [Đo CT1]
 

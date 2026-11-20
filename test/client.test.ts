@@ -16,7 +16,7 @@ async function run(fault: SimFault = 'none') {
 test('same app state machine completes real TCP replay of full captured responses', async () => {
   const { result, events, serverEvents } = await run();
   assert.equal(result.ok, true, JSON.stringify(events));
-  assert.deepEqual(events.filter(e => e.kind === 'send' && e.opcode !== 1).map(e => e.opcode), [-1, 1206, 5, 2, 3, 4, 9, 30, 42, 29, 11, 43]);
+  assert.deepEqual(events.filter(e => e.kind === 'send' && e.opcode !== 1).map(e => e.opcode), [-1, 1206, 5, 2, 3, 4, 1284, 9, 30, 42, 29, 11, 43]);
   assert.ok(events.some(e => e.event === 's2c/1'));
   const character = events.find(e => e.event === 's2c/9')!;
   assert.equal(character.fields.hp, 120); assert.equal(character.fields.maxHp, 130);

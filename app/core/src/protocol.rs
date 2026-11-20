@@ -1,6 +1,24 @@
 //! Port of src/protocol/protocol.ts (docs/app/protocol.md): frames, XOR stream, handshake, session key, password proof, login
 //! payload, and the prefixes of s2c/9, s2c/29, s2c/11 that the login flow reads.
 use crate::opcodes::{OPCODES, PLATFORM, PROTOCOL_VERSION};
+
+/// The protocol version the bot declares in c2s/1206 and c2s/4. In a debug build (tauri dev, cargo test) the environment
+/// variable CLLT_PROTOCOL_VERSION overrides it, for research only (e.g. 0.0.7 as the game 1.1.0 says): the server then
+/// sends the layouts of that version (docs/app/events/02-login.md#vg1). A release build always declares PROTOCOL_VERSION.
+pub fn protocol_version() -> &'static str {
+    #[cfg(debug_assertions)]
+    {
+        static OVERRIDE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+        if let Some(v) = OVERRIDE.get_or_init(|| {
+            std::env::var("CLLT_PROTOCOL_VERSION")
+                .ok()
+                .filter(|v| !v.is_empty())
+        }) {
+            return v;
+        }
+    }
+    PROTOCOL_VERSION
+}
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -200,7 +218,7 @@ pub fn login_payload(username: &str, proof: &[u8], server_id: i32) -> Vec<u8> {
         .string(&name)
         .bytes(proof)
         .string(PLATFORM)
-        .string(PROTOCOL_VERSION)
+        .string(protocol_version())
         .i32(server_id)
         .i32(username_hash(&name))
         .build()

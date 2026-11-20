@@ -232,6 +232,10 @@ pub(super) async fn session(
                             if !p.payload.is_empty() {
                                 return Err("Xác thực trả về nhánh chưa điều tra".into());
                             }
+                            // The game asks for its chat block list (c2s/1284 command 0) right before c2s/9 (VG1,
+                            // 20/11). Its c2s/1282 (adb, developer options of the phone) is not sent: that would forge
+                            // an anti-bot signal.
+                            send!(1284, Ctx::default());
                             send!(9, Ctx { username: Some(&account.username), ..Ctx::default() });
                             step = Step::Character;
                         }

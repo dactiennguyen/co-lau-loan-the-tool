@@ -36,6 +36,14 @@ kiểu 1: 01 00 00000064 {00000001 00000014 "thuytoc" 00000000 00000076} … ×1
 
 `u8 kiểu; kiểu 0: u8 n; n × {u8 tab; string tên; string cột}; u8. Kiểu 1: u8 tab; i32 n; n × {i32 hạng; i32 id; string tên; i32 0; i32 cấp}; i32 hạngCủaMình; i32 0; i32 cấpCủaMình`. Đọc hết byte cả 3 mẫu. Hạng 1094 nghĩa là server có ít nhất 1094 nhân vật. [Đo]
 
+**Khi khai `0.0.7`** (bot TS, tiheo2, 20/11):
+
+- Kiểu 0 có **7 tab**: 0 Cao thủ (Cấp độ), 1 Sứ quân (Cấp), 2 12 châu (Cấp), 3 Cường hoá (Tổng cấp), 4 Hỏa, 5 Lôi, 6 Thủy (Cấp độ). Bố cục không đổi.
+- Kiểu 1 thêm, sau ba số của mình, **`n × i64`** (mỗi dòng một mốc thời gian, ms tính từ 1970) rồi **`i64`** của mình (0 khi chưa xếp hạng). Có lẽ là lúc đạt cấp, dùng để xếp những người cùng cấp [Suy luận]. Cao thủ: 100 dòng, 3562 byte, akaito hạng 800 cấp 5. Sứ quân khi chưa vào sứ quân: `01 01 00000000 ffffffff 00000000 00000000` + 8 byte 0.
+- `c2s/1254 (tab, 1)` mở được tab 1. Tab 2–6 gửi cách 1,5 s đều bị trả `s2c/1256` "Không thể thực hiện" [Chưa rõ: sai cách gửi hay tab chưa mở].
+
+`ranking` của bot TS đọc được cả hai bố cục. App Rust không dùng bảng xếp hạng.
+
 ## Game tắt giữa U1
 
 Lượt bắt U1 hết hạn 20 phút và script Frida tự gỡ ra lúc 06:48:08. Khoảng 5 s sau, cửa sổ game đóng và tiến trình biến mất. Logcat không có crash hay tombstone, nên nguyên nhân [Chưa rõ]. Hai lần gỡ script trước đó game vẫn chạy bình thường.

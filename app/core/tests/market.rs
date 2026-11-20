@@ -170,7 +170,7 @@ fn ts_page(m: &Market) -> Value {
 fn the_packets_read_as_the_ts_side_reads_them_and_the_requests_are_as_on_the_wire() {
     let all = v();
     let cases = all["market"]["decoders"].as_array().unwrap();
-    assert_eq!(cases.len(), 11);
+    assert_eq!(cases.len(), 13); // with the two pages of protocol 0.0.7
     for case in cases {
         let p = hex(case["hex"].as_str().unwrap());
         let key = case["key"].as_str().unwrap();

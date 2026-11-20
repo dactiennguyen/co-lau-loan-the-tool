@@ -78,6 +78,7 @@ impl Bot {
         self.snap.quest_run = Some(self.new_run(max_losses, index, None));
         self.run_started = now;
         (self.waits, self.hops, self.travelling, self.awaiting_reply) = (0, 0, None, false);
+        (self.zone_tries, self.zone_list_asked) = (vec![], false);
         self.duels = 0;
         self.refused.clear();
         self.job_seq += 1;
@@ -154,6 +155,9 @@ impl Bot {
     }
 }
 
+/// How many zones a quest step tries for its mob or boss before it gives up (quest_zone).
+const QUEST_ZONE_TRIES: usize = 5;
+
 /// The quest run: next(), elsewhere(), travel(), fight() and onBattleEnd() of QuestBot in src/bot/quest.ts.
 impl Bot {
     pub(super) fn doing(&mut self, text: String) {
@@ -168,6 +172,7 @@ impl Bot {
         };
         (q.current, q.progress) = (q.current.saturating_add(1), 0);
         (self.hops, self.duels) = (0, 0);
+        (self.zone_tries, self.zone_list_asked) = (vec![], false);
         let next = q.steps.get(q.current as usize).map(|s| s.text.as_str());
         out.push(Out::Log(
             LogKind::Quest,
@@ -428,7 +433,7 @@ impl Bot {
                     return self.travel(q, reason, &has, now, out);
                 }
                 if self.waits >= 6 {
-                    return false;
+                    return self.quest_zone(mob, now, out);
                 }
                 self.waits += 1;
                 self.doing(format!("Đợi {mob} ({}/6)", self.waits));
@@ -453,6 +458,51 @@ impl Bot {
             }
         }
         false
+    }
+
+    /// The mob or boss of the step is in this map by the atlas, but not in this zone after 6 × 5 s: another zone of the
+    /// map, as the Khu vực panel would (c2s/1173). Every zone has its own boss (mob86100001 in zone 0, mob86100801 in zone
+    /// 8 for Thủ Lĩnh Sơn Tặc of M1), and in a busy zone it may have just been beaten by others (20/11, four accounts
+    /// waited for it in vain). The zone with the fewest players of the list (s2c/1172, asked in each zone), not full and
+    /// not left yet for this step; at most QUEST_ZONE_TRIES zones. True while a zone change or the list is awaited.
+    fn quest_zone(&mut self, mob: &str, now: Instant, out: &mut Vec<Out>) -> bool {
+        if !self.quest_running() || self.zone_tries.len() >= QUEST_ZONE_TRIES {
+            return false;
+        }
+        let Some(zones) = self.snap.zones.clone() else {
+            if self.zone_list_asked {
+                return false;
+            }
+            self.zone_list_asked = true;
+            self.list_zones(out);
+            self.timer = Some((now + Duration::from_secs(2), Wake::Next));
+            return true;
+        };
+        let here = self.snap.zone;
+        let next = zones
+            .iter()
+            .filter(|z| z.zone != here && !self.zone_tries.contains(&z.zone))
+            .filter(|z| z.players < z.capacity)
+            .min_by_key(|z| (z.players, z.zone))
+            .map(|z| z.zone);
+        let Some(zone) = next else {
+            return false;
+        };
+        self.zone_tries.push(here);
+        out.push(Out::Log(
+            LogKind::Quest,
+            format!(
+                "Không thấy {mob} ở khu {here} sau 30 s, sang khu {zone} tìm ({}/{QUEST_ZONE_TRIES})",
+                self.zone_tries.len()
+            ),
+        ));
+        self.doing(format!("Sang khu {zone} tìm {mob}"));
+        if !self.zone_to(zone, true, now, out) {
+            return false;
+        }
+        // s2c/11 of the new zone clears the list: it is asked again there, with fresh player counts.
+        (self.waits, self.zone_list_asked) = (0, false);
+        true
     }
 
     /// Walks through a portal of s2c/11 (c2s/13 with its id, B5): the first of the shortest known way to a map where
@@ -610,7 +660,11 @@ impl Bot {
     ) {
         self.waits = 0;
         if targets.is_empty() {
-            return self.finish_quest("Không thấy quái của bước này ở khu này", out);
+            let reason = match self.zone_tries.len() {
+                0 => "Không thấy quái của bước này ở khu này".to_string(),
+                n => format!("Không thấy quái của bước này ở {} khu đã tìm", n + 1),
+            };
+            return self.finish_quest(&reason, out);
         }
         let Some(r) = &mut self.snap.quest_run else {
             return;

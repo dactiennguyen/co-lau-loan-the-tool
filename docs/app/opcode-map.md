@@ -1,6 +1,6 @@
 # Bảng đổi opcode của app
 
-Nguồn: gọi com.tlgdx.twelvelord.sqq.a(int) rồi b(int) trong native; giữ cặp có b(a(op))==op khi truy vấn miền -1..2048. Thu được 188 cặp; không chứng minh miền ngoài không có opcode. Giá trị int32 được ghi big-endian rồi mới qua XOR theo phiên.
+Nguồn: APK 1.1.0 đang chạy trên máy (VG1, 20/11): gọi com.tlgdx.twelvelord.sqaa.a(int) rồi b(int) trong native (agent `captures/vg1-2026-11-20/opmap.js`, gọi trong lúc game đọc một gói); giữ cặp có b(a(op))==op khi truy vấn miền -1..2048. Thu được 201 cặp; không chứng minh miền ngoài không có opcode. Giá trị int32 được ghi big-endian rồi mới qua XOR theo phiên.
 
 | Opcode nghiệp vụ | Encoded int32 | Hex BE trước XOR |
 |---:|---:|---|
@@ -192,18 +192,32 @@ Nguồn: gọi com.tlgdx.twelvelord.sqq.a(int) rồi b(int) trong native; giữ 
 | 1270 | 33511111 | 01ff56c7 |
 | 1271 | 23511111 | 0166c047 |
 | 1272 | 13511111 | 00ce29c7 |
+| 1273 | 33501111 | 01ff2fb7 |
+| 1274 | 23501111 | 01669937 |
+| 1275 | 13501111 | 00ce02b7 |
+| 1276 | 33491111 | 01ff08a7 |
+| 1277 | 23491111 | 01667227 |
+| 1278 | 13491111 | 00cddba7 |
+| 1279 | 33481111 | 01fee197 |
+| 1280 | 13481111 | 00cdb497 |
+| 1281 | 23481111 | 01664b17 |
+| 1282 | 13471111 | 00cd8d87 |
+| 1283 | 23471111 | 01662407 |
+| 1284 | 33471111 | 01feba87 |
+| 1285 | 13461111 | 00cd6677 |
 
 <a id="unseen"></a>
 
 ## Opcode chưa thấy trên dây
 
-Bảng trên có 188 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (L1, W1, U1, A1, B2, run1–4, Q1–Q12, E1, E2, P3, P4, K3, P5, I1, N1–N4, J1–J3, G1, CT1, CH1), 82 opcode chưa từng xuất hiện ở cả hai chiều:
+Bảng trên có 201 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (VG1, L1, W1, U1, A1, B2, run1–4, Q1–Q12, E1, E2, P3, P4, K3, P5, I1, N1–N4, J1–J3, G1, CT1, CH1), 86 opcode chưa từng xuất hiện ở cả hai chiều:
 
 ```text
-6 7 8 16 23 25 27 31 32 33 41 47 49 52 55 56 58 59 86 95 98 100 101 125 126 128 129 130 131
+6 7 16 23 25 27 31 32 33 41 47 49 52 55 56 58 59 86 95 98 100 101 125 126 128 129 130 131
 132 133 1112 1168 1171 1175 1176 1179 1185 1189 1193 1194 1197 1198 1199 1202 1203 1204 1208 1210 1211 1213
 1225 1226 1227 1228 1229 1230 1231 1232 1233 1234 1235 1236 1237 1238 1239 1242 1243
 1244 1245 1246 1247 1248 1249 1250 1251 1252 1255 1266 1267 1268 1270
+1273 1276 1278 1280 1283
 ```
 
 - `s2c/0` cũng không có trong capture Frida. Nó chỉ thấy khi client Node đăng nhập trong lúc tài khoản đang online, xem [02-login](events/02-login.md#s2c-0).

@@ -4,13 +4,17 @@ import { fixtures } from './fixtures.ts';
 import { EVENTS, buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { scenario } from './support/game-server.ts';
 import { checkCapture, normalizeCapture } from '../src/cli/check-capture.ts';
+import { PROTOCOL_VERSION, Writer } from '../src/protocol/protocol.ts';
+
+/** A request recorded with protocol 0.0.2 (before 20/11/2026), with the version the bot declares now. */
+const declared = (hex: string) => hex.replace('00000005302e302e32', new Writer().string(PROTOCOL_VERSION).build().toString('hex'));
 
 const scenarioText = JSON.stringify(fixtures.scenario);
 
 test('every recorded outgoing request has a concrete builder matching app bytes', () => {
   for (const stage of scenario.stages) {
     if (stage.requestOpcode === 4) continue;
-    assert.equal(buildRequest(stage.requestOpcode, { username: 'Manina2', password: 'abc', serverId: 24, characterName: 'manina', mapId: 'M1' }).toString('hex'), stage.observedRequestHex);
+    assert.equal(buildRequest(stage.requestOpcode, { username: 'Manina2', password: 'abc', serverId: 24, characterName: 'manina', mapId: 'M1' }).toString('hex'), declared(stage.observedRequestHex));
   }
 });
 

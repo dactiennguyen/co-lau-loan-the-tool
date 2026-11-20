@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
-import { mapGrid, mapData, gearDurability, ZonePlayers } from '../src/protocol/world.ts';
+import { mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate } from '../src/protocol/world.ts';
+import { market } from '../src/protocol/market.ts';
+import { v007Packets } from './fixtures-v007.ts';
 import { mapPrefix, Writer } from '../src/protocol/protocol.ts';
 
 const w: Record<string, { opcode: number; at: number; hex: string }> = fixtures.world;
@@ -169,4 +171,66 @@ test('s2c/1263 of APK 1.1.0: the two bytes before the appearance are read, recor
   const { players } = decodeEvent('s2c', 1263, both).fields as any;
   assert.deepEqual(players.map((p: any) => [p.name, p.level, p.x, p.weapon]), [['Moi', 5, 1407, { plus: 0, element: 4 }], ['Cu', 5, 1407, undefined]]);
   assert.equal(decodeEvent('s2c', 1263, both).opaqueBytes, 0);
+});
+
+/** A mob of s2c/43 as the server sends it to a client of protocol 0.0.2, or of 0.0.7 with its 9 more bytes (VG1, 20/11). */
+const mob = (w: Writer, id: string, extended: boolean) => {
+  w.string(id).string('Heo Mọi').i32(7).u8(2).i32(3).i32(1).u8(0);
+  return extended ? w.u8(1).i32(1).u8(0).u8(42).u8(0).u8(20) : w;
+};
+
+test('s2c/43, s2c/1177 and s2c/39 read the layout of protocol 0.0.7 (VG1) and of 0.0.2', () => {
+  for (const extended of [false, true]) {
+    const w = new Writer().string('M1').u8(3); mob(w, 'mob2814', extended); mob(w, 'mob2914', extended);
+    const e = mapEntities(w.build());
+    assert.deepEqual(e.mobs.map(m => [m.id, m.level, m.tile]), [['mob2814', 7, extended ? [42, 20] : undefined], ['mob2914', 7, extended ? [42, 20] : undefined]]);
+    const b = new Writer().string('M1').u8(0); mob(b, 'mob1', false); b.u8(1).i32(38).i32(6); if (extended) b.u8(7).i32(85);
+    const boss = mapBoss(b.build()) as { mob?: { id: string }; tile?: [number, number] };
+    assert.deepEqual([boss.mob?.id, boss.tile], ['mob1', [38, 6]]);
+    const q = new Writer().i32(2).string('Trở Về Thanh Khê').string('').string('main').i32(0).i32(0).i32(2);
+    // A kind 0 step (7 bytes) and a talk (11 bytes), as quest 3 of the bot's 0.0.7 login (20/11).
+    const extras = ['00ffffffff0000', '0100000066000100000000'];
+    for (const [i, npc] of [[0, -1], [1, 102]]) { q.i32(i).string('Bước').i32(npc).i32(1).i32(npc); if (extended) q.chunks.push(Buffer.from(extras[i], 'hex')); }
+    const quest = questData(q.build());
+    assert.deepEqual(quest.steps.map(s => [s.npcId, s.extra]), [[-1, extended ? extras[0] : undefined], [102, extended ? extras[1] : undefined]]);
+  }
+});
+
+test('c2s/1284 and s2c/1284: the chat block list asked for before c2s/9 (VG1)', () => {
+  assert.equal(buildRequest(1284, {}).toString('hex'), '00');
+  assert.deepEqual(decodeEvent('s2c', 1284, Buffer.alloc(8)).fields, { a: 0, b: 0, message: '', players: [] });
+  const list = new Writer().u8(0).u8(0).string('').u8(0).u8(1).i32(77).string('akaito').build();
+  assert.deepEqual(decodeEvent('s2c', 1284, list).fields, { a: 0, b: 0, message: '', players: [{ id: 77, name: 'akaito' }] });
+});
+
+test('the bot declaring protocol 0.0.7 (20/11): every item has two more bytes before its stat count, mobs their tile', () => {
+  const v = (k: string) => Buffer.from(v007Packets[k], 'hex');
+  const sword = characterExtra(v('s2c/42 bag')).items[0];
+  assert.deepEqual([sword.itemId, sword.field5, sword.stats], [246, 0, [{ stat: 5, value: 8 }, { stat: 8, value: 2 }]]);
+  assert.ok(inventory(v('s2c/1187 bag')).items.every(i => i.field5 === 0));
+  assert.equal(groundItems(v('s2c/1184 ground')).items.length, 5);
+  assert.equal(groundDrop(v('s2c/1182 drop')).itemId, 41);
+  assert.equal(characterTail(v('s2c/9')).faction, '');
+  assert.deepEqual(mapEntities(v('s2c/43 M1')).mobs[0].tile, [5, 10]);
+  assert.deepEqual(questData(v('s2c/39 quest3')).steps.map(s => s.extra!.slice(0, 2)), ['00', '01', '00', '00', '02', '01']);
+  const boss = mapBoss(v('s2c/1177 boss')) as { mob: { name: string; e?: number; f?: number }; tile: [number, number] };
+  assert.deepEqual([boss.mob.name, boss.mob.e, boss.mob.f, boss.tile], ['Thủ Lĩnh Sơn Tặc', 7, 85, [89, 13]]);
+});
+
+test('protocol 0.0.7: Chợ trời has the element in each listing, the shop 2 more bytes a line, BXH a time per row', () => {
+  const v = (k: string) => Buffer.from(v007Packets[k], 'hex');
+  const weapons = market(v('s2c/1192 Vũ Khí'));
+  assert.ok(weapons.kind === 1);
+  const [lamDu] = weapons.listings;
+  assert.deepEqual([lamDu.itemId, lamDu.element, lamDu.durability, lamDu.quality, lamDu.price, lamDu.stats.length], [270, 2, 60, 1, 1000, 2]);
+  const stones = market(v('s2c/1192 Đá Quý'));
+  assert.ok(stones.kind === 1);
+  assert.deepEqual(stones.listings.map(l => [l.itemId, l.element, l.quantity]), [[415, 255, 4], [416, 255, 1], [413, 255, 1]]);
+  const shop = shopList(v('s2c/1190 Vũ khí Xu'));
+  assert.equal(shop.items.length, 26);
+  assert.deepEqual(shop.items[0], { shopId: 263, itemId: 246, currency: 0, price: 310, durability: -1, quantity: 1, flag: 1, element: 1, ranges: [{ stat: 5, min: 7, max: 11 }] });
+  assert.deepEqual(ranking(v('s2c/1254 Sứ quân trống')), { kind: 1, tab: 1, rows: [], own: { rank: -1, field: 0, level: 0, reachedAt: 0 } });
+  const worn = gearUpdate(v('s2c/37 mặc Nón Lá')).gear;
+  assert.deepEqual([worn.length, worn[0]?.itemId, worn[0]?.field5], [10, 48, 0]);
+  assert.ok(gearUpdate(v('s2c/37 cởi Nón Lá')).gear.every(g => g === null));
 });

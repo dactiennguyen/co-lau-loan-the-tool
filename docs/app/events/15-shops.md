@@ -236,7 +236,9 @@ Giá theo bậc (Xu / Xu khóa) [Đo]:
 
 Món mua về: Nhẫn Trơn của J1 có sức tấn công 5 (trong khoảng 5–9) và thêm **chí mạng 1%**. Chỉ số phụ đó không có trong bản ghi cửa hàng, nên có lẽ server rút ngẫu nhiên lúc bán. [Đo 1 món; Suy luận]
 
-Hàm `shopList` của bot TS (`src/protocol/world.ts`) chỉ đọc bản ghi 33 byte, nên với cửa hàng trang bị nó báo "unread bytes". Phải sửa theo bảng trên trước khi app mua trang bị. [Đo]
+Hàm `shopList` của bot TS (`src/protocol/world.ts`) và `shop_list` của app Rust đọc đủ cả bản ghi 33 và 49 byte. [Đo]
+
+**Khi khai `0.0.7`** (bot TS, 20/11, Vũ khí [Xu], 26 dòng): mỗi dòng thêm **2 byte** (`i16`) ngay sau `field4`, trước số dòng chỉ số, đúng chỗ bản ghi vật phẩm của túi thêm `field5`. Mọi dòng của cửa hàng này có giá trị **1** (trong túi là 0) [Chưa rõ nghĩa]. Các trường khác không đổi, ví dụ dòng đầu: ô 263, Đao Đại Hiệp (246), 310 Xu, sức tấn công 7–11. Bot và app đọc được cả hai bố cục. [Đo]
 
 <a id="mua"></a>
 

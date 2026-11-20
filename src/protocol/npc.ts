@@ -2,7 +2,7 @@
 // windows of Pháp sư (Nâng cấp [Thường] and [Cẩn thận], Chuyển hoá, Tách đá, Luyện đá). docs/app/events/15-shops.md,
 // 16-upgrade.md. Each window answers every item put in (c2s/97) with the price and the odds; c2s/91 is Bắt đầu in all.
 import { Reader, Writer } from './protocol.ts';
-import { finish, itemRecord } from './world.ts';
+import { finish, itemRecord, itemLayouts } from './world.ts';
 
 export type ItemRecord = ReturnType<typeof itemRecord>;
 /** The fields of a bag item the plans below read. */
@@ -91,9 +91,11 @@ export function stoneSlot(payload: Uint8Array) {
 
 /** s2c/1258 after the gear of Nâng cấp is put, and after Bắt đầu: the item one level up, for the result slot. */
 export function servicePreview(payload: Uint8Array) {
-  const r = new Reader(payload);
-  r.u8();
-  return finish(r, { uuid: r.string(), level: r.i32(), item: itemRecord(r) }, 's2c/1258');
+  return itemLayouts(() => {
+    const r = new Reader(payload);
+    r.u8();
+    return finish(r, { uuid: r.string(), level: r.i32(), item: itemRecord(r) }, 's2c/1258');
+  });
 }
 
 /** s2c/1260, the answer to c2s/97 in Chuyển hoá when the item put is a +0 one: it is the target. */
@@ -106,17 +108,21 @@ export function transmuteTarget(payload: Uint8Array) {
 /** s2c/91 after Bắt đầu in an s2c/96 window: success or not, the item after it (Nâng cấp; the +0 item of Tách đá; the +0
  * source of Chuyển hoá), the items received (the stones of Tách đá), and for Chuyển hoá the target at its new level. */
 export function serviceResult(payload: Uint8Array) {
-  const r = new Reader(payload), name = r.string(), ok = r.u8() === 1, item = itemRecord(r), received = [];
-  for (let n = r.i32(); n > 0; n--) received.push(itemRecord(r));
-  const target = r.offset < r.data.length ? itemRecord(r) : null;
-  return finish(r, { name, ok, item, received, target }, 's2c/91');
+  return itemLayouts(() => {
+    const r = new Reader(payload), name = r.string(), ok = r.u8() === 1, item = itemRecord(r), received = [];
+    for (let n = r.i32(); n > 0; n--) received.push(itemRecord(r));
+    const target = r.offset < r.data.length ? itemRecord(r) : null;
+    return finish(r, { name, ok, item, received, target }, 's2c/91');
+  });
 }
 
 /** s2c/93 after Bắt đầu in Luyện đá: success or not, and the stone made. */
 export function stoneResult(payload: Uint8Array) {
-  const r = new Reader(payload), name = r.string(), ok = r.u8() === 1, items = [];
-  for (let n = r.i32(); n > 0; n--) items.push(itemRecord(r));
-  return finish(r, { name, ok, items }, 's2c/93');
+  return itemLayouts(() => {
+    const r = new Reader(payload), name = r.string(), ok = r.u8() === 1, items = [];
+    for (let n = r.i32(); n > 0; n--) items.push(itemRecord(r));
+    return finish(r, { name, ok, items }, 's2c/93');
+  });
 }
 
 /** s2c/92 in Chế tạo trang bị: as stoneSlot, with the fee in Xu once both materials are in (O1: 2.400 for Bậc I, 26.500

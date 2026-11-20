@@ -5,7 +5,7 @@
 // (uuid of the listing). J1 and CT1 (01/11/2026): one purchase refused for a full bag, then one bought, listed and
 // taken back (a 1.000 Xu Slime).
 import { Reader, Writer } from './protocol.ts';
-import { finish } from './world.ts';
+import { eitherLayout, finish } from './world.ts';
 
 export const MARKET = {
   mapId: 'M1', npcId: 104,
@@ -27,32 +27,41 @@ const writeI64 = (w: Writer, n: number) => w.i32(Math.floor(n / 2 ** 32)).i32(n 
 /** One item on sale. The item fields are those of the bag's item record (world.ts itemRecord) in another order, and each
  * stat with a second value (equal to the first in every listing seen). Durability -1 for items without one; quality 1–3
  * for gear (MARKET_QUALITY), 0 for the rest. */
-export function marketListing(r: Reader) {
+export function marketListing(r: Reader, extended = false) {
   const itemId = r.i32(), itemId2 = r.i32(), uuid = r.string(), seller = r.string();
-  const durability = r.i32(), field0 = r.i32(), quality = r.i32(), expiresAt = i64(r);
+  // Protocol 0.0.7: one more byte before expiresAt, the element of the item as in the item record (2 on a Lam Dù, 0xff
+  // on stones; 20/11).
+  const durability = r.i32(), field0 = r.i32(), quality = r.i32(), element = extended ? r.u8() : undefined, expiresAt = i64(r);
   const currency = r.u8(), price = r.i32(), field2 = r.i32(), quantity = r.i32(), field1 = r.u8(), stats = [];
   for (let n = r.i32(); n > 0; n--) stats.push({ stat: r.i32(), value: r.i32(), value2: r.i32() });
-  return { itemId, itemId2, uuid, seller, durability, field0, quality, expiresAt, currency, price, field2, quantity, field1, stats };
+  return {
+    itemId, itemId2, uuid, seller, durability, field0, quality,
+    ...(element !== undefined && { element }), expiresAt, currency, price, field2, quantity, field1, stats,
+  };
 }
 export type MarketListing = ReturnType<typeof marketListing>;
 
-const page = (r: Reader) => {
+const page = (r: Reader, extended: boolean) => {
   const pages = r.i32(), page = r.i32(), listings: MarketListing[] = [];
-  for (let n = r.i32(); n > 0; n--) listings.push(marketListing(r));
+  for (let n = r.i32(); n > 0; n--) listings.push(marketListing(r, extended));
   return { pages, page, listings };
 };
 
 /** s2c/1192. Kind 1: u8 tabs; u8 tab; string tab name; i32 pages; i32 page; i32 n; n listings. Kind 0: string rules.
  * Kind 2 (Đang bán): i32 pages; i32 page; i32 n, n listings like kind 1 (only n = 0 seen). */
 export function market(payload: Uint8Array) {
-  const r = new Reader(payload), kind = r.u8();
-  if (kind === MARKET_HELP) return finish(r, { kind: MARKET_HELP as typeof MARKET_HELP, text: r.string() }, 's2c/1192');
-  if (kind === MARKET_LIST) {
-    const tabs = r.u8(), tab = r.u8(), tabName = r.string();
-    return finish(r, { kind: MARKET_LIST as typeof MARKET_LIST, tabs, tab, tabName, ...page(r) }, 's2c/1192');
-  }
-  if (kind === MARKET_MINE) return finish(r, { kind: MARKET_MINE as typeof MARKET_MINE, ...page(r) }, 's2c/1192');
-  throw new Error(`s2c/1192: kind ${kind} not seen yet`);
+  const kind = payload[0];
+  if (kind === MARKET_HELP) { const r = new Reader(payload); r.u8(); return finish(r, { kind: MARKET_HELP as typeof MARKET_HELP, text: r.string() }, 's2c/1192'); }
+  if (kind !== MARKET_LIST && kind !== MARKET_MINE) throw new Error(`s2c/1192: kind ${kind} not seen yet`);
+  return eitherLayout(extended => {
+    const r = new Reader(payload);
+    r.u8();
+    if (kind === MARKET_LIST) {
+      const tabs = r.u8(), tab = r.u8(), tabName = r.string();
+      return finish(r, { kind: MARKET_LIST as typeof MARKET_LIST, tabs, tab, tabName, ...page(r, extended) }, 's2c/1192');
+    }
+    return finish(r, { kind: MARKET_MINE as typeof MARKET_MINE, ...page(r, extended) }, 's2c/1192');
+  });
 }
 
 /** c2s/1192: one page of a tab (0–8 of s2c/116, MARKET_MINE_TAB for Đang bán), pages from 1. Read only; Làm mới sends it

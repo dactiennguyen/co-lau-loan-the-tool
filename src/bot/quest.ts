@@ -10,7 +10,7 @@ import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
 import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundItem, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, slotLeft, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { mapData, mapChange, mapEntities, mapBoss, notice, groundDrop, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, slotLeft, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
 import { DAILY_DONE, DAILY_PROGRESS, dailyQuest, dailyText } from '../protocol/mail.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, recordSprite, destination, portalsOf, route } from './atlas.ts';
@@ -257,8 +257,7 @@ export class QuestBot implements WorldSession {
       }
       // An item fell in the map. Own drops come in the same ms as the end of a won battle (13-drops-items.md#tỉ-lệ-rơi).
       case 1182: {
-        const r = new Reader(payload); r.string();
-        const g = groundItem(r), now = Date.now(), drop = { uuid: g.uuid, name: this.options.items?.describe(g) ?? `#${g.itemId} ×${g.quantity}`, at: now };
+        const g = groundDrop(payload), now = Date.now(), drop = { uuid: g.uuid, name: this.options.items?.describe(g) ?? `#${g.itemId} ×${g.quantity}`, at: now };
         this.drops = [...this.drops.filter(d => now - d.at < 2000), drop];
         if (now < this.lootUntil) this.pick(drop);
         break;
@@ -549,6 +548,14 @@ export class QuestBot implements WorldSession {
    * new character that is the root skill: Hỏa Cầu Thuật 1000, or 4000 for the element of the second account. */
   private upgradeSkill(text: string) {
     const skill = this.upgradable()[0];
+    // A skill learnt before the step (Nâng cấp by hand, Tự cộng kỹ năng) already counts: the server moves past the step at
+    // once and sends the next step's NPC line (20/11, tiheo1 and manina3 at level 3 with Hỏa Cầu Thuật / Xích Lôi Công 1).
+    const learnt = this.skills.find(k => (this.skillLevels.get(k.id) ?? 0) > 0);
+    if (!skill && learnt) {
+      this.log('skill_step_learnt_before', { step: text, skillId: learnt.id, name: learnt.name, level: this.skillLevels.get(learnt.id) });
+      this.advance('skill learnt before the step');
+      return this.next();
+    }
     if (!skill) return this.stop('no skill can take a level now', { step: text, level: this.level, skillPoints: this.skillPoints, skills: this.skills.length });
     const level = this.skillLevels.get(skill.id) ?? 0;
     this.upgrading = { id: skill.id, name: skill.name };

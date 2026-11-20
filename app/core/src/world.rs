@@ -13,6 +13,14 @@ pub struct Mob {
     pub b: i32,
     pub c: i32,
     pub d: u8,
+    /// The 9 bytes a client that says protocol 0.0.7 gets after `d` (VG1, 20/11): a u8 and an i32 that go up with the
+    /// kind of mob, then the tile column and row the mob stands on. None for 0.0.2.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub e: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub f: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<[i16; 2]>,
 }
 impl Mob {
     /// The element of the mob from `a`, numbered as the character's (s2c/9) and the items': 0 is Hỏa (1), 2 Lôi, 4 Thủy.
@@ -27,8 +35,8 @@ impl Mob {
     }
 }
 
-fn mob_record(r: &mut Reader) -> Result<Mob> {
-    Ok(Mob {
+fn mob_record(r: &mut Reader, extended: bool) -> Result<Mob> {
+    let mut mob = Mob {
         id: r.string()?,
         name: r.string()?,
         level: r.i32()?,
@@ -36,7 +44,24 @@ fn mob_record(r: &mut Reader) -> Result<Mob> {
         b: r.i32()?,
         c: r.i32()?,
         d: r.u8()?,
-    })
+        e: None,
+        f: None,
+        tile: None,
+    };
+    if extended {
+        mob.e = Some(r.u8()?);
+        mob.f = Some(r.i32()?);
+        mob.tile = Some([i16_be(r)?, i16_be(r)?]);
+    }
+    Ok(mob)
+}
+fn i16_be(r: &mut Reader) -> Result<i16> {
+    let b = r.take(2)?;
+    Ok(i16::from_be_bytes([b[0], b[1]]))
+}
+/// Reads with the layout of protocol 0.0.7 first, then of 0.0.2: the one that reads the payload to its last byte.
+pub(crate) fn either_layout<T>(read: impl Fn(bool) -> Result<T>) -> Result<T> {
+    read(true).or_else(|_| read(false))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -48,16 +73,18 @@ pub struct MapEntities {
 }
 /// s2c/43: the mobs of the current map and zone.
 pub fn map_entities(p: &[u8]) -> Result<MapEntities> {
-    let mut r = Reader::new(p);
-    let (map_id, field) = (r.string()?, r.u8()?);
-    let mut mobs = vec![];
-    while r.remaining() > 0 {
-        mobs.push(mob_record(&mut r)?);
-    }
-    Ok(MapEntities {
-        map_id,
-        field,
-        mobs,
+    either_layout(|extended| {
+        let mut r = Reader::new(p);
+        let (map_id, field) = (r.string()?, r.u8()?);
+        let mut mobs = vec![];
+        while r.remaining() > 0 {
+            mobs.push(mob_record(&mut r, extended)?);
+        }
+        Ok(MapEntities {
+            map_id,
+            field,
+            mobs,
+        })
     })
 }
 
@@ -273,35 +300,41 @@ pub struct BossPush {
 }
 /// s2c/1177
 pub fn map_boss(p: &[u8]) -> Result<BossPush> {
-    let mut r = Reader::new(p);
-    let (map_id, field) = (r.string()?, r.u8()?);
-    if field == 1 {
-        let gone = r.string()?;
-        return r.finish(
+    either_layout(|extended| {
+        let mut r = Reader::new(p);
+        let (map_id, field) = (r.string()?, r.u8()?);
+        if field == 1 {
+            let gone = r.string()?;
+            return r.finish(
+                BossPush {
+                    map_id,
+                    field,
+                    gone: Some(gone),
+                    mob: None,
+                    state: None,
+                    tile: None,
+                },
+                "s2c/1177",
+            );
+        }
+        // 0.0.7 (the bot, 20/11): the u8 and i32 of the mob come after the tile here, with no tile of their own.
+        let mut mob = mob_record(&mut r, false)?;
+        let (state, tile) = (r.u8()?, [r.i32()?, r.i32()?]);
+        if extended {
+            (mob.e, mob.f) = (Some(r.u8()?), Some(r.i32()?));
+        }
+        r.finish(
             BossPush {
                 map_id,
                 field,
-                gone: Some(gone),
-                mob: None,
-                state: None,
-                tile: None,
+                gone: None,
+                mob: Some(mob),
+                state: Some(state),
+                tile: Some(tile),
             },
             "s2c/1177",
-        );
-    }
-    let mob = mob_record(&mut r)?;
-    let (state, tile) = (r.u8()?, [r.i32()?, r.i32()?]);
-    r.finish(
-        BossPush {
-            map_id,
-            field,
-            gone: None,
-            mob: Some(mob),
-            state: Some(state),
-            tile: Some(tile),
-        },
-        "s2c/1177",
-    )
+        )
+    })
 }
 
 /// A step of s2c/39. `param` is the level for "Đạt cấp độ", the NPC for talk steps, the mob kind for kill steps.
@@ -313,6 +346,10 @@ pub struct QuestStep {
     pub param: i32,
     pub required: i32,
     pub npc_id: i32,
+    /// The bytes a client that says protocol 0.0.7 gets after every step (VG1, 20/11), in hex: `u8 kind; i32 target;
+    /// i16 n; n × i32` (kind 0 none, 1 talk to the NPC `target`, 2 kill).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra: Option<String>,
 }
 /// s2c/39: the current main quest, the only one the server sends (docs/app/events/10-quests.md#s2c-39).
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -330,6 +367,23 @@ pub struct Quest {
     pub steps: Vec<QuestStep>,
 }
 pub fn quest_data(p: &[u8]) -> Result<Quest> {
+    either_layout(|extended| quest_layout(p, extended))
+}
+/// The bytes of protocol 0.0.7 after a step of s2c/39, as hex: `u8 kind; i32 target; i16 n; n × i32` (questData of
+/// src/protocol/world.ts).
+fn step_extra(r: &mut Reader) -> Result<String> {
+    let start = r.offset;
+    r.u8()?;
+    r.i32()?;
+    for _ in 0..i16_be(r)?.max(0) {
+        r.i32()?;
+    }
+    Ok(r.data[start..r.offset]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect())
+}
+fn quest_layout(p: &[u8], extended: bool) -> Result<Quest> {
     let mut r = Reader::new(p);
     let (id, title, description, kind) = (r.i32()?, r.string()?, r.string()?, r.string()?);
     let (current, progress, n) = (r.i32()?, r.i32()?, r.i32()?);
@@ -341,9 +395,13 @@ pub fn quest_data(p: &[u8]) -> Result<Quest> {
             param: r.i32()?,
             required: r.i32()?,
             npc_id: r.i32()?,
+            extra: match extended {
+                true => Some(step_extra(&mut r)?),
+                false => None,
+            },
         });
     }
-    Ok(Quest {
+    let quest = Quest {
         id,
         title,
         description,
@@ -351,7 +409,11 @@ pub fn quest_data(p: &[u8]) -> Result<Quest> {
         current,
         progress,
         steps,
-    })
+    };
+    match extended {
+        true => r.finish(quest, "s2c/39"),
+        false => Ok(quest),
+    }
 }
 /// s2c/34: NPC dialogue or progress of a quest; also sent, with no text, when a new quest is taken.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -421,20 +483,22 @@ pub struct DuelInvite {
     pub b: i32,
 }
 pub fn duel_invite(p: &[u8]) -> Result<DuelInvite> {
-    let mut r = Reader::new(p);
-    let (map_id, npc_id) = (r.string()?, r.i32()?);
-    let mob = mob_record(&mut r)?;
-    let (a, b) = (r.u8()?, r.i32()?);
-    r.finish(
-        DuelInvite {
-            map_id,
-            npc_id,
-            mob,
-            a,
-            b,
-        },
-        "s2c/1180",
-    )
+    either_layout(|extended| {
+        let mut r = Reader::new(p);
+        let (map_id, npc_id) = (r.string()?, r.i32()?);
+        let mob = mob_record(&mut r, extended)?;
+        let (a, b) = (r.u8()?, r.i32()?);
+        r.finish(
+            DuelInvite {
+                map_id,
+                npc_id,
+                mob,
+                a,
+                b,
+            },
+            "s2c/1180",
+        )
+    })
 }
 pub fn npc_menu(p: &[u8]) -> Result<NpcMenu> {
     let mut r = Reader::new(p);
@@ -480,6 +544,11 @@ pub struct ShopList {
     pub items: Vec<ShopItem>,
 }
 pub fn shop_list(p: &[u8]) -> Result<ShopList> {
+    either_layout(|extended| shop_lines(p, extended))
+}
+/// One layout of s2c/1190: with protocol 0.0.7 each line has 2 more bytes after field4 (an i16, 1 in every line of Vũ
+/// khí [Xu] on 20/11), as the item record has `field5` there.
+fn shop_lines(p: &[u8], extended: bool) -> Result<ShopList> {
     let mut r = Reader::new(p);
     let (kind, title) = (r.u8()?, r.string()?);
     let mut items = vec![];
@@ -494,8 +563,8 @@ pub fn shop_list(p: &[u8]) -> Result<ShopList> {
             flag: r.u8()?,
             element: r.u8()?,
             ranges: {
-                // field2, field3, field4 (1 on gear) of the item record, then the stat ranges.
-                r.take(6)?;
+                // field2, field3, field4 (1 on gear) of the item record (and field5 on 0.0.7), then the stat ranges.
+                r.take(if extended { 8 } else { 6 })?;
                 let mut ranges = vec![];
                 for _ in 0..r.i32()?.max(0) {
                     ranges.push(StatRange {
@@ -755,7 +824,7 @@ impl ZonePlayers {
 
 #[cfg(test)]
 mod tests {
-    use super::{players_snapshot, Nearby, ZonePlayers};
+    use super::{map_boss, map_entities, players_snapshot, quest_data, Nearby, ZonePlayers};
     use crate::protocol::Writer;
 
     /// A player record as test/world.test.ts record110: APK 1.1.0 puts two bytes (0, weapon element) before the appearance.
@@ -832,5 +901,93 @@ mod tests {
         }
         let ids: Vec<i32> = zone.list().iter().map(|n| n.id).collect();
         assert_eq!(ids, [5, 4, 3, 2, 1]);
+    }
+
+    /// A mob of s2c/43 for a client of protocol 0.0.2, or of 0.0.7 with its 9 more bytes (VG1, 20/11).
+    fn mob(w: Writer, id: &str, extended: bool) -> Writer {
+        let w = w
+            .string(id)
+            .string("Heo Mọi")
+            .i32(7)
+            .u8(2)
+            .i32(3)
+            .i32(1)
+            .u8(0);
+        match extended {
+            true => w.u8(1).i32(1).u8(0).u8(42).u8(0).u8(20),
+            false => w,
+        }
+    }
+
+    #[test]
+    fn s2c_43_1177_and_39_read_the_layouts_of_protocol_0_0_7_and_0_0_2() {
+        for extended in [false, true] {
+            let w = mob(
+                mob(Writer::new().string("M1").u8(3), "mob2814", extended),
+                "mob2914",
+                extended,
+            );
+            let e = map_entities(&w.build()).unwrap();
+            let tile = extended.then_some([42, 20]);
+            assert_eq!(
+                e.mobs
+                    .iter()
+                    .map(|m| (m.id.as_str(), m.tile))
+                    .collect::<Vec<_>>(),
+                [("mob2814", tile), ("mob2914", tile)]
+            );
+            let b = mob(Writer::new().string("M1").u8(0), "mob1", false)
+                .u8(1)
+                .i32(38)
+                .i32(6);
+            let b = match extended {
+                true => b.u8(7).i32(85),
+                false => b,
+            }
+            .build();
+            let boss = map_boss(&b).unwrap();
+            assert_eq!(
+                (boss.mob.unwrap().id, boss.tile),
+                ("mob1".to_string(), Some([38, 6]))
+            );
+            let mut q = Writer::new()
+                .i32(2)
+                .string("Trở Về Thanh Khê")
+                .string("")
+                .string("main")
+                .i32(0)
+                .i32(0)
+                .i32(2);
+            // A kind 0 step (7 bytes) and a talk (11 bytes), as quest 3 of the bot's 0.0.7 login (20/11).
+            let extras: [&[u8]; 2] = [
+                &[0, 0xff, 0xff, 0xff, 0xff, 0, 0],
+                &[1, 0, 0, 0, 0x66, 0, 1, 0, 0, 0, 0],
+            ];
+            for (i, npc) in [(0, -1), (1, 102)] {
+                q = q.i32(i).string("Bước").i32(npc).i32(1).i32(npc);
+                if extended {
+                    for &b in extras[i as usize] {
+                        q = q.u8(b);
+                    }
+                }
+            }
+            let quest = quest_data(&q.build()).unwrap();
+            let hex = |i: usize| {
+                extended.then(|| {
+                    extras[i]
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<String>()
+                })
+            };
+            assert_eq!(
+                quest
+                    .steps
+                    .iter()
+                    .map(|s| (s.npc_id, s.extra.clone()))
+                    .collect::<Vec<_>>(),
+                [(-1, hex(0)), (102, hex(1))]
+            );
+        }
     }
 }

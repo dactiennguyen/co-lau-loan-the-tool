@@ -3,6 +3,10 @@ import { pathToFileURL } from 'node:url';
 import { decodeEvent, findEvent } from '../protocol/events.ts';
 import { EXPECTED, FLOW } from '../net/client.ts';
 import { PLATFORM, PROTOCOL_VERSION } from '../protocol/protocol.ts';
+
+/** The versions of a capture that are not a new client: 0.0.2 (the game 1.0.3, every capture before 20/11/2026) and the
+ * one the bot declares (0.0.7, the game 1.1.0; docs/app/events/02-login.md#v007). */
+const KNOWN_VERSIONS = new Set(['0.0.2', PROTOCOL_VERSION]);
 import { BASELINE } from '../protocol/config.ts';
 
 const baseline = BASELINE;
@@ -73,7 +77,7 @@ export function checkCapture(input: string, mode: 'bootstrap' | 'login' | 'world
     catch (error) { add(findEvent(direction, opcode)?.phase === 'push' ? 'warning' : 'error', 'SCHEMA_CHANGED', (error as Error).message, { ...details, details: (error as any).details }); continue; }
     const strict = direction === 'c2s' || [-1, 0, 1, 2, 3, 4, 5, 29, 1207, 1209].includes(opcode);
     if (strict && decoded.known && decoded.opaqueBytes) add('error', 'UNEXPECTED_TAIL', 'Known complete schema left unread bytes', { ...details, details: { opaqueBytes: decoded.opaqueBytes } });
-    if (direction === 'c2s' && opcode === 1206 && (decoded.fields.platform !== PLATFORM || decoded.fields.protocolVersion !== PROTOCOL_VERSION)) add('error', 'CLIENT_INFO_CHANGED', 'Client platform/protocol version changed', { ...details, details: decoded.fields });
+    if (direction === 'c2s' && opcode === 1206 && (decoded.fields.platform !== PLATFORM || !KNOWN_VERSIONS.has(String(decoded.fields.protocolVersion)))) add('error', 'CLIENT_INFO_CHANGED', 'Client platform/protocol version changed', { ...details, details: decoded.fields });
     if (direction !== 's2c') continue;
     if (opcode === 0) add('error', 'SERVER_MESSAGE', String(decoded.fields.text), { ...details, details: decoded.fields });
     if (opcode === 2 && decoded.fields.gate !== '') add('error', 'UNSUPPORTED_BRANCH', 'Nonempty login gate; inspect official UI branch', details);

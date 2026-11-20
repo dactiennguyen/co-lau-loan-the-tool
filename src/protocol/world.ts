@@ -9,19 +9,34 @@ export const finish = <T>(r: Reader, value: T, what: string): T => {
   return value;
 };
 
-const mobRecord = (r: Reader) => ({ id: r.string(), name: r.string(), level: r.i32(), a: r.u8(), b: r.i32(), c: r.i32(), d: r.u8() });
+/** A mob of s2c/43 and s2c/1177. A client that says protocol 0.0.7 (the game 1.1.0) gets 9 more bytes per mob (VG1,
+ * 20/11): a u8 and an i32 that go up with the kind of mob (Gà Điên 0, 0 … Chỉ Huy Sơn Tặc 7, 86), then the tile column
+ * and row the mob stands on. A client that says 0.0.2 gets the record without them. */
+const mobRecord = (r: Reader, extended = false) => {
+  const mob = { id: r.string(), name: r.string(), level: r.i32(), a: r.u8(), b: r.i32(), c: r.i32(), d: r.u8() };
+  if (!extended) return mob;
+  return { ...mob, e: r.u8(), f: r.i32(), tile: [r.take(2).readInt16BE(), r.take(2).readInt16BE()] as [number, number] };
+};
+type MobRecord = ReturnType<typeof mobRecord> & { e?: number; f?: number; tile?: [number, number] };
+
+/** Reads with the layout of 0.0.7 first, then of 0.0.2: the one that reads the payload to its last byte. */
+export function eitherLayout<T>(read: (extended: boolean) => T): T {
+  try { return read(true); } catch { return read(false); }
+}
 
 /** The element of a mob from `a` of s2c/43 and s2c/1177, numbered as the character's (s2c/9) and the items' (1 Hỏa, 2 Lôi,
  * 4 Thủy): 0 is Hỏa. It matched the element of the mob block of s2c/22 for 25 kinds in about 1.800 battles
  * (06-map-mobs.md#hệ-của-quái); undefined for another value. Mob::element of app/core/src/world.rs is the same. */
 export const mobElement = (a: number): number | undefined => ({ 0: 1, 2: 2, 4: 4 } as Record<number, number>)[a];
-export type Mob = ReturnType<typeof mobRecord>;
+export type Mob = MobRecord;
 
 /** s2c/43: the mobs of the current map and zone. No coordinates: the client places and moves mobs itself. */
 export function mapEntities(payload: Uint8Array) {
-  const r = new Reader(payload), mapId = r.string(), field = r.u8(), mobs = [];
-  while (r.offset < r.data.length) mobs.push(mobRecord(r));
-  return { mapId, field, mobs };
+  return eitherLayout(extended => {
+    const r = new Reader(payload), mapId = r.string(), field = r.u8(), mobs: Mob[] = [];
+    while (r.offset < r.data.length) mobs.push(mobRecord(r, extended));
+    return finish(r, { mapId, field, mobs }, 's2c/43');
+  });
 }
 
 /** s2c/11 flag 1, after the prefix of mapPrefix (protocol.ts): two more grids of the same size (decoration, collision), three
@@ -59,10 +74,14 @@ export function mapChange(payload: Uint8Array) {
  * tile column and row it stands on (M1 is 156 × 23 tiles of 32). field 1: only the mob id, the boss left its tile;
  * ~13 s later a field 0 brings the new tile (Q16: Hào Trưởng phía Bắc (38, 6) → (59, 7)). */
 export function mapBoss(payload: Uint8Array) {
-  const r = new Reader(payload), mapId = r.string(), field = r.u8();
-  if (field === 1) return finish(r, { mapId, field, gone: r.string() }, 's2c/1177');
-  const mob = mobRecord(r);
-  return finish(r, { mapId, field, mob, state: r.u8(), tile: [r.i32(), r.i32()] as [number, number] }, 's2c/1177');
+  return eitherLayout(extended => {
+    const r = new Reader(payload), mapId = r.string(), field = r.u8();
+    if (field === 1) return finish(r, { mapId, field, gone: r.string() }, 's2c/1177');
+    // 0.0.7 (the bot, 20/11): the u8 and i32 of the mob come after the tile here, with no tile of their own.
+    const mob: Mob = mobRecord(r), state = r.u8(), tile = [r.i32(), r.i32()] as [number, number];
+    if (extended) Object.assign(mob, { e: r.u8(), f: r.i32() });
+    return finish(r, { mapId, field, mob, state, tile }, 's2c/1177');
+  });
 }
 
 /** s2c/1256: a notice line. After a lost battle "Thua trận, mất 16 kinh nghiệm" (Q6); after c2s/13 through a portal the
@@ -146,21 +165,30 @@ function appearance(r: Reader) {
  * double EXP, from the item Tăng Kinh Nghiệm (7), rate in 1/100000; remainingMs counts down even offline
  * (12-skills-items.md#x2-exp). */
 export function characterTail(payload: Uint8Array) {
-  const r = new Reader(payload);
-  r.take(characterProfile(payload).profileBytes);
-  for (let n = r.i32(); n > 0; n--) r.take(13);
-  for (let n = r.i32(); n > 0; n--) r.data[r.offset] === 0xff ? r.u8() : itemRecord(r);
-  const field = r.i32(), appearanceBytes = appearance(r), effects = [];
-  for (let n = r.i32(); n > 0; n--) effects.push({ key: r.string(), rate: r.i32(), field: r.i32(), remainingMs: r.i32() });
-  const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()];
-  return finish(r, { field, appearanceBytes, effects, factionField, faction, factionFlags }, 's2c/9');
+  const { gear: _gear, ...tail } = characterRest(payload);
+  return tail;
+}
+/** Everything after the skill list of s2c/9, read to its last byte with the item layout that fits (itemLayouts). */
+function characterRest(payload: Uint8Array) {
+  return itemLayouts(() => {
+    const r = new Reader(payload);
+    r.take(characterProfile(payload).profileBytes);
+    for (let n = r.i32(); n > 0; n--) r.take(13); // skills: i32 id; i32 level; i32 mana; u8 flag
+    const gear = Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
+    const field = r.i32(), appearanceBytes = appearance(r), effects = [];
+    for (let n = r.i32(); n > 0; n--) effects.push({ key: r.string(), rate: r.i32(), field: r.i32(), remainingMs: r.i32() });
+    const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()];
+    return finish(r, { gear, field, appearanceBytes, effects, factionField, faction, factionFlags }, 's2c/9');
+  });
 }
 
 /** s2c/37 after c2s/1186 (equip or unequip): the 8 gear slots again, as at the end of s2c/9. */
 export function gearUpdate(payload: Uint8Array) {
-  const r = new Reader(payload), field = r.i32(), flag = r.u8(), name = r.string();
-  const gear = Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
-  return finish(r, { field, flag, name, gear }, 's2c/37');
+  return itemLayouts(() => {
+    const r = new Reader(payload), field = r.i32(), flag = r.u8(), name = r.string();
+    const gear = Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
+    return finish(r, { field, flag, name, gear }, 's2c/37');
+  });
 }
 
 /** s2c/36 at the end of every battle, and after Đầu hàng: the durability of the 8 gear slots, in the order of s2c/9 and
@@ -175,8 +203,10 @@ export function gearDurability(payload: Uint8Array) {
 /** s2c/51 after a pickup that goes to the bag (c2s/1188): the bag slot that now holds the item. The client does not get
  * s2c/1187 then (K3, 13-drops-items.md#k3). */
 export function bagSlot(payload: Uint8Array) {
-  const r = new Reader(payload), a = r.i32(), b = r.i32(), flag = r.u8(), item = itemRecord(r);
-  return finish(r, { a, b, flag, item }, 's2c/51');
+  return itemLayouts(() => {
+    const r = new Reader(payload), a = r.i32(), b = r.i32(), flag = r.u8(), item = itemRecord(r);
+    return finish(r, { a, b, flag, item }, 's2c/51');
+  });
 }
 
 /** s2c/57 after c2s/13 to an NPC with a menu (Lái Buôn, P5): its name, its line, and the choices; c2s/57 picks one. */
@@ -190,8 +220,10 @@ export function npcMenu(payload: Uint8Array) {
  * mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record as in s2c/43), then `u8 a; i32 b` (2 and
  * 1, 1, 0 in N2; 2 and 0 in N3). The game challenges that mob at once with c2s/1181 (N3). */
 export function duelInvite(payload: Uint8Array) {
-  const r = new Reader(payload), mapId = r.string(), npcId = r.i32(), mob = mobRecord(r);
-  return finish(r, { mapId, npcId, mob, a: r.u8(), b: r.i32() }, 's2c/1180');
+  return eitherLayout(extended => {
+    const r = new Reader(payload), mapId = r.string(), npcId = r.i32(), mob: Mob = mobRecord(r, extended);
+    return finish(r, { mapId, npcId, mob, a: r.u8(), b: r.i32() }, 's2c/1180');
+  });
 }
 
 /** s2c/1190 after c2s/57 opens one of the 14 shops (`kind`, docs/app/events/15-shops.md). shopId is what c2s/1190 buys,
@@ -199,10 +231,16 @@ export function duelInvite(payload: Uint8Array) {
  * the trade lock of the item bought (1 tradeable, 0 locked: the Xu khóa lines). A record is 33 bytes; gear has 16 more
  * per stat range: the main stat it rolls between `min` and `max` (J1: Nhẫn Trơn sức tấn công 5–9). */
 export function shopList(payload: Uint8Array) {
+  return eitherLayout(extended => shopLines(payload, extended));
+}
+/** One layout of s2c/1190: with protocol 0.0.7 each line has 2 more bytes after field4 (an i16, 1 in every line of
+ * Vũ khí [Xu] on 20/11), as the item record has `field5` there. */
+function shopLines(payload: Uint8Array, extended: boolean) {
   const r = new Reader(payload), kind = r.u8(), title = r.string(), items = [];
   for (let n = r.i32(); n > 0; n--) {
     const shopId = r.i32(), itemId = r.i32(), currency = r.u8(), price = r.i32(), durability = r.i32(), quantity = r.i32(), flag = r.u8(), element = r.u8();
     r.i32(); r.u8(); r.u8(); // field2, field3, field4 (the quality of gear) of the item record
+    if (extended) r.take(2); // field5 of 0.0.7
     const ranges = [];
     for (let k = r.i32(); k > 0; k--) {
       ranges.push({ stat: r.i32(), min: r.i32(), max: r.i32() });
@@ -289,9 +327,26 @@ export class ZonePlayers {
  * 13-drops-items.md#phẩm-chất), stats as (code, value) with the templates of it0 (12-skills-items.md#túi-đồ). */
 export function itemRecord(r: Reader) {
   const slot = r.u8(), itemId = r.i32(), uuid = r.string(), field0 = r.i32(), durability = r.i32(), quantity = r.i32();
-  const field1 = r.u8(), element = r.u8(), field2 = r.i32(), field3 = r.u8(), field4 = r.u8(), stats = [];
+  const field1 = r.u8(), element = r.u8(), field2 = r.i32(), field3 = r.u8(), field4 = r.u8();
+  const field5 = itemField5 ? r.take(2).readInt16BE() : undefined, stats = [];
   for (let n = r.u8(); n > 0; n--) stats.push({ stat: r.i32(), value: r.i32() });
-  return { slot, itemId, uuid, field0, durability, quantity, field1, element, field2, field3, field4, stats };
+  return { slot, itemId, uuid, field0, durability, quantity, field1, element, field2, field3, field4, ...(field5 !== undefined && { field5 }), stats };
+}
+
+/** A client that says protocol 0.0.7 gets two more bytes in every item record, right before the stat count (`field5`,
+ * an i16, 0 in the samples of 20/11). itemLayouts reads a packet with it first, then without: the one that reads to the end. */
+let itemField5 = false;
+export function itemLayouts<T>(read: () => T): T {
+  const before = itemField5;
+  try { itemField5 = true; return read(); } catch { itemField5 = false; return read(); } finally { itemField5 = before; }
+}
+
+/** s2c/1182: one item that fell in the map (an own drop at the end of a won battle, 13-drops-items.md). */
+export function groundDrop(payload: Uint8Array) {
+  return itemLayouts(() => {
+    const r = new Reader(payload), mapId = r.string();
+    return finish(r, { mapId, ...groundItem(r) }, 's2c/1182');
+  });
 }
 
 /** Item record of s2c/1182 and s2c/1184: 88 bytes for plain items, 104 for gear with two stats. */
@@ -304,17 +359,16 @@ export function groundItem(r: Reader) {
 /** The 8 gear slots after the skill list of s2c/9: u8 0xff for an empty slot, else an item record whose slot byte is
  * the slot index. Seen: 0 the hat, 2 the weapon; slot = item type of it1 is a guess (12-skills-items.md#ô-trang-bị). */
 export function characterGear(payload: Uint8Array) {
-  const r = new Reader(payload);
-  r.take(characterProfile(payload).profileBytes);
-  for (let n = r.i32(); n > 0; n--) r.take(13); // skills: i32 id; i32 level; i32 mana; u8 flag
-  return Array.from({ length: Math.max(0, r.i32()) }, () => r.data[r.offset] === 0xff ? (r.u8(), null) : itemRecord(r));
+  return characterRest(payload).gear;
 }
 
 /** s2c/1184 right after s2c/43 on entering a map or zone: every item lying on the ground there. */
 export function groundItems(payload: Uint8Array) {
-  const r = new Reader(payload), mapId = r.string(), items = [];
-  for (let n = r.i32(); n > 0; n--) items.push(groundItem(r));
-  return finish(r, { mapId, items }, 's2c/1184');
+  return itemLayouts(() => {
+    const r = new Reader(payload), mapId = r.string(), items = [];
+    for (let n = r.i32(); n > 0; n--) items.push(groundItem(r));
+    return finish(r, { mapId, items }, 's2c/1184');
+  });
 }
 
 /** The whole bag: s2c/1187 when it changes, and the tail of s2c/42 at login. kind is 1 in s2c/1187, 2 in s2c/42. */
@@ -351,7 +405,7 @@ export function inventory(payload: Uint8Array): ReturnType<typeof bag> & { left?
     const kind = r.u8(), left = { slot: r.u8(), quantity: r.i32() };
     return finish(r, { kind, capacity: -1, items: [], left }, 's2c/1187');
   }
-  return finish(r, bag(r), 's2c/1187');
+  return itemLayouts(() => { const r = new Reader(payload); return finish(r, bag(r), 's2c/1187'); });
 }
 
 /** s2c/46 after s2c/9 and whenever money changes (quest rewards): the three currencies of the Bản thân panel, as i64.
@@ -364,8 +418,10 @@ export function currencies(payload: Uint8Array) {
 
 /** s2c/42 answering c2s/42 at login: a label ("test dong 1"), two unknown ints (42, 3), then the bag. */
 export function characterExtra(payload: Uint8Array) {
-  const r = new Reader(payload), label = r.string(), fields = [r.i32(), r.i32()];
-  return finish(r, { label, fields, ...bag(r) }, 's2c/42');
+  return itemLayouts(() => {
+    const r = new Reader(payload), label = r.string(), fields = [r.i32(), r.i32()];
+    return finish(r, { label, fields, ...bag(r) }, 's2c/42');
+  });
 }
 
 /** s2c/30 answering c2s/30 at login: the skill tree of the character's element. Every level gives the skill points it
@@ -403,15 +459,30 @@ export function worldMap(payload: Uint8Array) {
   return finish(r, { flag, mapId, maps }, 's2c/11 M99');
 }
 
-export interface QuestStep { index: number; text: string; param: number; required: number; npcId: number }
+export interface QuestStep { index: number; text: string; param: number; required: number; npcId: number; extra?: string }
 export interface Quest { id: number; title: string; description: string; type: string; current: number; progress: number; steps: QuestStep[] }
 
-/** s2c/39: the current quest. `param` is the level for "Đạt cấp độ", the NPC for talk steps, the mob kind for kill steps. */
+/** s2c/39: the current quest. `param` is the level for "Đạt cấp độ", the NPC for talk steps, the mob kind for kill steps.
+ * A client that says protocol 0.0.7 gets more bytes after every step (VG1 and the bot, 20/11), kept as hex in `extra`:
+ * `u8 kind; i32 target; i16 n; n × i32`. Kind 0 (Đạt cấp độ, Nâng điểm tiềm năng, Sử dụng điểm kỹ năng) has target −1
+ * and n 0; kind 1 (talk) the NPC and n 1 (value 0); kind 2 (Tiêu diệt) target −1 and n 1 (value 0). 0.0.2 gets the steps
+ * without them. */
 export function questData(payload: Uint8Array): Quest {
-  const r = new Reader(payload);
-  const id = r.i32(), title = r.string(), description = r.string(), type = r.string(), current = r.i32(), progress = r.i32(), steps = [];
-  for (let n = r.i32(); n > 0; n--) steps.push({ index: r.i32(), text: r.string(), param: r.i32(), required: r.i32(), npcId: r.i32() });
-  return { id, title, description, type, current, progress, steps };
+  return eitherLayout(extended => {
+    const r = new Reader(payload);
+    const id = r.i32(), title = r.string(), description = r.string(), type = r.string(), current = r.i32(), progress = r.i32(), steps: QuestStep[] = [];
+    for (let n = r.i32(); n > 0; n--) {
+      const step: QuestStep = { index: r.i32(), text: r.string(), param: r.i32(), required: r.i32(), npcId: r.i32() };
+      if (extended) {
+        const start = r.offset; r.u8(); r.i32();
+        for (let k = r.take(2).readInt16BE(); k > 0; k--) r.i32();
+        step.extra = r.data.subarray(start, r.offset).toString('hex');
+      }
+      steps.push(step);
+    }
+    const quest = { id, title, description, type, current, progress, steps };
+    return extended ? finish(r, quest, 's2c/39') : quest;
+  });
 }
 /** s2c/34: progress or NPC dialogue of a quest. */
 export function questProgress(payload: Uint8Array) {
@@ -434,7 +505,18 @@ export function ranking(payload: Uint8Array) {
     r.u8();
     return finish(r, { kind, tabs }, 's2c/1254');
   }
-  const tab = r.u8(), rows = [];
-  for (let n = r.i32(); n > 0; n--) rows.push({ rank: r.i32(), id: r.i32(), name: r.string(), field: r.i32(), level: r.i32() });
-  return finish(r, { kind, tab, rows, own: { rank: r.i32(), field: r.i32(), level: r.i32() } }, 's2c/1254');
+  return eitherLayout(extended => {
+    const r = new Reader(payload);
+    r.u8();
+    const tab = r.u8(), rows = [];
+    for (let n = r.i32(); n > 0; n--) rows.push({ rank: r.i32(), id: r.i32(), name: r.string(), field: r.i32(), level: r.i32() });
+    const own: { rank: number; field: number; level: number; reachedAt?: number } = { rank: r.i32(), field: r.i32(), level: r.i32() };
+    // Protocol 0.0.7: an i64 (ms since 1970) per row after the own rank, then one for the own row (0 when unranked).
+    if (extended) {
+      for (const row of rows as { reachedAt?: number }[]) row.reachedAt = i64(r);
+      own.reachedAt = i64(r);
+    }
+    return finish(r, { kind, tab, rows, own }, 's2c/1254');
+  });
 }
+const i64 = (r: Reader) => Number(r.take(8).readBigInt64BE());

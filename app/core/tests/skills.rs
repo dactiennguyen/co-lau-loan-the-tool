@@ -122,3 +122,53 @@ fn tu_cong_ky_nang_thoi_khi_server_khong_tru_diem() {
         .any(|o| matches!(o, Out::Log(LogKind::Character, t)
         if t == "Server không nâng kỹ năng (vẫn còn 19 điểm); thôi tự cộng tới lần bật sau")));
 }
+
+/// "Sử dụng điểm kỹ năng" when a skill was learnt before the step and none can take a level now: the server counts the
+/// learnt skill and is already past the step (20/11: tiheo1, manina3 at level 3 with a skill at level 1 and 1 point), so
+/// the run goes on with the next step instead of stopping with "Không kỹ năng nào lên cấp được".
+#[test]
+fn buoc_su_dung_diem_ky_nang_qua_luon_khi_da_hoc_ky_nang_tu_truoc() {
+    let (mut bot, mut out, now) = manina(false);
+    // s2c/1191: no skill point left, so Hỏa Cầu Thuật 1 cannot take level 2.
+    bot.on_packet(1191, &hex("0000004400000000"), now, &mut out)
+        .unwrap();
+    let mut w = cllt_core::protocol::Writer::new()
+        .i32(3)
+        .string("Những Việc Đầu Tiên")
+        .string("")
+        .string("main")
+        .i32(0)
+        .i32(0)
+        .i32(2);
+    for (i, (text, npc)) in [
+        ("Sử dụng điểm kỹ năng", -1),
+        ("Nói chuyện với Hương Lão Trần Bá", 102),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        w = w.i32(i as i32).string(text).i32(npc).i32(1).i32(npc);
+    }
+    bot.on_packet(39, &w.build(), now, &mut out).unwrap();
+    out.clear();
+    bot.quest(1, None, now, &mut out);
+    assert!(sent_1191(&out).is_empty(), "{out:?}");
+    let logs: Vec<&str> = out
+        .iter()
+        .filter_map(|o| match o {
+            Out::Log(LogKind::Quest, t) => Some(t.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        logs.iter().any(|t| t
+            == &"Đã học Hỏa Cầu Thuật cấp 1 từ trước, server tự qua bước này; bước tiếp: Nói chuyện với Hương Lão Trần Bá"),
+        "{logs:?}"
+    );
+    assert!(
+        !logs.iter().any(|t| t.contains("Không kỹ năng nào")),
+        "{logs:?}"
+    );
+    // The talk of the next step goes out at once.
+    assert!(out.iter().any(|o| matches!(o, Out::Send(13, _))), "{out:?}");
+}

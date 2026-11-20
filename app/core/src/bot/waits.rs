@@ -109,11 +109,12 @@ impl Bot {
         self.busy_but(false)
     }
 
-    /// busy(), a fight job left aside with `job`: the trip of Tự gộp đá khi túi đầy is the job's own (bot/merge.rs).
-    /// None of what busy() says depends on the clock.
+    /// busy(), a fight job or a quest run left aside with `job`: the trip of Tự gộp đá khi túi đầy is the job's own
+    /// (bot/merge.rs), the zone change of a quest step the run's own (quest_zone). None of what busy() says depends on
+    /// the clock.
     pub(super) fn busy_but(&self, job: bool) -> Option<&'static str> {
         self.waits(None)
-            .filter(|&w| !(job && w == Wait::Job))
+            .filter(|&w| !(job && matches!(w, Wait::Job | Wait::Quest)))
             .find_map(Wait::busy)
     }
 

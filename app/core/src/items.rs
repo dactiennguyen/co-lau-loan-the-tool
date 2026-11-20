@@ -31,12 +31,41 @@ pub struct ItemRecord {
     pub field2: i32,
     pub field3: u8,
     pub field4: u8,
+    /// The two bytes a client that says protocol 0.0.7 gets right before the stat count (an i16, 0 in the samples of
+    /// 20/11); None for 0.0.2.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field5: Option<i16>,
     pub stats: Vec<ItemStat>,
+}
+thread_local! {
+    static FIELD5: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+/// Reads a packet that holds item records with the layout of protocol 0.0.7 first (two more bytes per item), then of
+/// 0.0.2: the one that reads the packet to its last byte (itemLayouts of src/protocol/world.ts).
+pub fn item_layouts<T>(read: impl Fn() -> Result<T>) -> Result<T> {
+    let before = FIELD5.with(|f| f.replace(true));
+    let first = read();
+    let out = match first {
+        Ok(v) => Ok(v),
+        Err(_) => {
+            FIELD5.with(|f| f.set(false));
+            read()
+        }
+    };
+    FIELD5.with(|f| f.set(before));
+    out
 }
 pub fn item_record(r: &mut Reader) -> Result<ItemRecord> {
     let (slot, item_id, uuid) = (r.u8()?, r.i32()?, r.string()?);
     let (field0, durability, quantity) = (r.i32()?, r.i32()?, r.i32()?);
     let (field1, element, field2, field3, field4) = (r.u8()?, r.u8()?, r.i32()?, r.u8()?, r.u8()?);
+    let field5 = match FIELD5.with(|f| f.get()) {
+        true => {
+            let b = r.take(2)?;
+            Some(i16::from_be_bytes([b[0], b[1]]))
+        }
+        false => None,
+    };
     let stats = (0..r.u8()?)
         .map(|_| {
             Ok(ItemStat {
@@ -57,6 +86,7 @@ pub fn item_record(r: &mut Reader) -> Result<ItemRecord> {
         field2,
         field3,
         field4,
+        field5,
         stats,
     })
 }
@@ -143,20 +173,22 @@ pub fn bag_after(bag: Option<Bag>, update: Bag) -> Option<Bag> {
 /// s2c/1187, whenever the bag changes (rewards, repair): the whole bag again; kind 4, the one item added; kind 2, what is
 /// left in one slot.
 pub fn inventory(p: &[u8]) -> Result<Bag> {
-    let mut r = Reader::new(p);
-    let b = match p.first() {
-        Some(&BAG_LEFT) => Bag {
-            kind: r.u8()?,
-            capacity: -1,
-            items: vec![],
-            left: Some(SlotLeft {
-                slot: r.u8()?,
-                quantity: r.i32()?,
-            }),
-        },
-        _ => bag(&mut r)?,
-    };
-    r.finish(b, "s2c/1187")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let b = match p.first() {
+            Some(&BAG_LEFT) => Bag {
+                kind: r.u8()?,
+                capacity: -1,
+                items: vec![],
+                left: Some(SlotLeft {
+                    slot: r.u8()?,
+                    quantity: r.i32()?,
+                }),
+            },
+            _ => bag(&mut r)?,
+        };
+        r.finish(b, "s2c/1187")
+    })
 }
 
 /// s2c/42 answering c2s/42 at login: a label ("test dong 1"), two unknown ints (42, 3), then the bag.
@@ -168,19 +200,18 @@ pub struct CharacterExtra {
     pub bag: Bag,
 }
 pub fn character_extra(p: &[u8]) -> Result<CharacterExtra> {
-    let mut r = Reader::new(p);
-    let (label, fields) = (r.string()?, [r.i32()?, r.i32()?]);
-    let bag = bag(&mut r)?;
-    r.finish(CharacterExtra { label, fields, bag }, "s2c/42")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let (label, fields) = (r.string()?, [r.i32()?, r.i32()?]);
+        let bag = bag(&mut r)?;
+        r.finish(CharacterExtra { label, fields, bag }, "s2c/42")
+    })
 }
 
 /// The 8 gear slots after the skill list of s2c/9: None for an empty slot (0xff), else the item, whose `slot` is the
 /// slot index (0 hat and 2 weapon measured; the others follow the item type, 12-skills-items.md#ô-trang-bị).
 pub fn character_gear(p: &[u8]) -> Result<Vec<Option<ItemRecord>>> {
-    let mut r = Reader::new(p);
-    r.take(character_profile_end(p)?)?;
-    skill_list(&mut r)?;
-    gear_slots(&mut r)
+    item_layouts(|| character_rest(p)).map(|(gear, _)| gear)
 }
 /// A timed effect of the s2c/9 tail. "ef7" at rate 200000 is the x2 EXP star of the item Tăng Kinh Nghiệm (7), the rate
 /// in 1/100000; `remaining_ms` runs down offline too (12-skills-items.md#x2-exp).
@@ -206,10 +237,14 @@ pub struct CharacterTail {
     pub faction_flags: [u8; 2],
 }
 pub fn character_tail(p: &[u8]) -> Result<CharacterTail> {
+    item_layouts(|| character_rest(p)).map(|(_, tail)| tail)
+}
+/// Everything after the skill list of s2c/9, read to its last byte.
+fn character_rest(p: &[u8]) -> Result<(Vec<Option<ItemRecord>>, CharacterTail)> {
     let mut r = Reader::new(p);
     r.take(character_profile_end(p)?)?;
     skill_list(&mut r)?;
-    gear_slots(&mut r)?;
+    let gear = gear_slots(&mut r)?;
     let field = r.i32()?;
     let appearance_bytes = appearance(&mut r)?;
     let effects = (0..r.i32()?.max(0))
@@ -232,7 +267,7 @@ pub fn character_tail(p: &[u8]) -> Result<CharacterTail> {
         faction,
         faction_flags,
     };
-    r.finish(tail, "s2c/9")
+    r.finish((gear, tail), "s2c/9")
 }
 
 /// `i32 n; n × (u8 0xff for an empty slot | item record)`, at the end of s2c/9 and in s2c/37.
@@ -258,18 +293,20 @@ pub struct GearUpdate {
     pub gear: Vec<Option<ItemRecord>>,
 }
 pub fn gear_update(p: &[u8]) -> Result<GearUpdate> {
-    let mut r = Reader::new(p);
-    let (field, flag, name) = (r.i32()?, r.u8()?, r.string()?);
-    let gear = gear_slots(&mut r)?;
-    r.finish(
-        GearUpdate {
-            field,
-            flag,
-            name,
-            gear,
-        },
-        "s2c/37",
-    )
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let (field, flag, name) = (r.i32()?, r.u8()?, r.string()?);
+        let gear = gear_slots(&mut r)?;
+        r.finish(
+            GearUpdate {
+                field,
+                flag,
+                name,
+                gear,
+            },
+            "s2c/37",
+        )
+    })
 }
 
 /// s2c/36 at the end of every battle, and after Đầu hàng: the durability of the 8 gear slots in the order of s2c/9, None
@@ -297,10 +334,12 @@ pub struct GroundItem {
     pub expires_at: i64,
 }
 pub fn ground_item_add(p: &[u8]) -> Result<GroundItem> {
-    let mut r = Reader::new(p);
-    let map_id = r.string()?;
-    let g = ground_item(&mut r, map_id)?;
-    r.finish(g, "s2c/1182")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let map_id = r.string()?;
+        let g = ground_item(&mut r, map_id)?;
+        r.finish(g, "s2c/1182")
+    })
 }
 /// One item on the ground after its map id: the item record, x, y, and when it expires (s2c/1182, s2c/1184).
 fn ground_item(r: &mut Reader, map_id: String) -> Result<GroundItem> {
@@ -318,13 +357,15 @@ fn ground_item(r: &mut Reader, map_id: String) -> Result<GroundItem> {
 /// s2c/1184 right after s2c/43 on entering a map or zone: every item lying on its ground, anyone's (`string mapId; i32 n;
 /// n ×` as in s2c/1182; 09-players-chat.md#ground-items).
 pub fn ground_items(p: &[u8]) -> Result<Vec<GroundItem>> {
-    let mut r = Reader::new(p);
-    let map_id = r.string()?;
-    let n = r.i32()?;
-    let items = (0..n.max(0))
-        .map(|_| ground_item(&mut r, map_id.clone()))
-        .collect::<Result<Vec<_>>>()?;
-    r.finish(items, "s2c/1184")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let map_id = r.string()?;
+        let n = r.i32()?;
+        let items = (0..n.max(0))
+            .map(|_| ground_item(&mut r, map_id.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        r.finish(items, "s2c/1184")
+    })
 }
 /// s2c/1183: an item left the ground of a map, picked up or expired: (map id, uuid).
 pub fn ground_item_remove(p: &[u8]) -> Result<(String, String)> {
@@ -335,10 +376,12 @@ pub fn ground_item_remove(p: &[u8]) -> Result<(String, String)> {
 /// s2c/51 after an item picked up went to the bag (K3): i32 -1; i32 0; u8 1; the item record of the bag slot that holds it.
 /// No s2c/1187 comes then.
 pub fn bag_slot(p: &[u8]) -> Result<ItemRecord> {
-    let mut r = Reader::new(p);
-    r.take(9)?;
-    let item = item_record(&mut r)?;
-    r.finish(item, "s2c/51")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        r.take(9)?;
+        let item = item_record(&mut r)?;
+        r.finish(item, "s2c/51")
+    })
 }
 
 /// s2c/46 after s2c/9 and whenever money changes: Xu, Xu khoá and Lượng as on the Bản thân panel. Vàng is `coin` of

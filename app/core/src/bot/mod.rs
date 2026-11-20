@@ -247,6 +247,10 @@ pub struct Bot {
     travelling: Option<(i32, String)>,
     hops: u32,
     refused: HashSet<i32>,
+    /// The zones the quest run left for the current step because its mob or boss was not there (quest_zone), and
+    /// whether the zone list was asked in this zone.
+    zone_tries: Vec<i32>,
+    zone_list_asked: bool,
     /// A talk or stat-point step is answered by s2c/34 alone.
     awaiting_reply: bool,
     /// Duels taken for the current talk step (Đồng ý in its s2c/57, npc_dialog); a fourth ends the run.
@@ -375,6 +379,8 @@ impl Bot {
             battle_seq: 0,
             travelling: None,
             hops: 0,
+            zone_tries: vec![],
+            zone_list_asked: false,
             refused: HashSet::new(),
             awaiting_reply: false,
             duels: 0,
@@ -710,6 +716,9 @@ impl Bot {
                     LogKind::Travel,
                     format!("Server không trả lời khi sang khu {z} sau 8 s"),
                 ));
+                if self.quest_running() {
+                    self.timer = Some((now + Duration::from_secs(1), Wake::Next));
+                }
             }
             if let Some((_, name)) = self.trip.take() {
                 (self.travelling, self.zone_after) = (None, None);

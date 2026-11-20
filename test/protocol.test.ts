@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { decodeEvent } from '../src/protocol/events.ts';
-import { Protocol, Reader, Writer, handshake, sessionKey, passwordProof, loginPayload,
+import { PROTOCOL_VERSION, Protocol, Reader, Writer, handshake, sessionKey, passwordProof, loginPayload,
   characterPrefix, characterProfile, mapPrefix, usernameHash } from '../src/protocol/protocol.ts';
 
 const fixture = (name: string) => fixtures[name];
@@ -48,7 +48,9 @@ test('password transform matches all native vectors, including offset, padding a
 
 test('login serialization matches the isolated native builder, without sending credentials', () => {
   for (const v of fixture('login-vectors').vectors) {
-    assert.equal(loginPayload(v.input.username, Buffer.from(v.input.proof), v.input.serverId).toString('hex'), v.data);
+    // The vectors were cut with protocol 0.0.2; the bot declares PROTOCOL_VERSION.
+    const data = v.data.replace('00000005302e302e32', new Writer().string(PROTOCOL_VERSION).build().toString('hex'));
+    assert.equal(loginPayload(v.input.username, Buffer.from(v.input.proof), v.input.serverId).toString('hex'), data);
   }
   assert.equal(usernameHash('probe_user'), -967112245);
   const unicode = new Writer().string('Việt😀').build();

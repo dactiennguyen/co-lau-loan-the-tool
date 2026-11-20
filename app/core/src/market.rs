@@ -45,6 +45,9 @@ pub struct MarketListing {
     pub durability: i32,
     pub field0: i32,
     pub quality: i32,
+    /// Protocol 0.0.7 only: the element of the item before `expires_at` (2 on a Lam Dù, 0xff on stones; 20/11).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub element: Option<u8>,
     pub expires_at: i64,
     pub currency: u8,
     pub price: i32,
@@ -53,9 +56,11 @@ pub struct MarketListing {
     pub field1: u8,
     pub stats: Vec<MarketStat>,
 }
-fn listing(r: &mut Reader) -> Result<MarketListing> {
+fn listing(r: &mut Reader, extended: bool) -> Result<MarketListing> {
     let (item_id, item_id2, uuid, seller) = (r.i32()?, r.i32()?, r.string()?, r.string()?);
-    let (durability, field0, quality, expires_at) = (r.i32()?, r.i32()?, r.i32()?, r.i64()?);
+    let (durability, field0, quality) = (r.i32()?, r.i32()?, r.i32()?);
+    let element = if extended { Some(r.u8()?) } else { None };
+    let expires_at = r.i64()?;
     let (currency, price, field2, quantity, field1) =
         (r.u8()?, r.i32()?, r.i32()?, r.i32()?, r.u8()?);
     let n = r.i32()?.max(0);
@@ -76,6 +81,7 @@ fn listing(r: &mut Reader) -> Result<MarketListing> {
         durability,
         field0,
         quality,
+        element,
         expires_at,
         currency,
         price,
@@ -111,6 +117,9 @@ pub enum Market {
     Page(MarketPage),
 }
 pub fn market(p: &[u8]) -> Result<Market> {
+    crate::world::either_layout(|extended| market_layout(p, extended))
+}
+fn market_layout(p: &[u8], extended: bool) -> Result<Market> {
     let mut r = Reader::new(p);
     let kind = r.u8()?;
     let m = match kind {
@@ -123,7 +132,7 @@ pub fn market(p: &[u8]) -> Result<Market> {
             let (pages, page) = (r.i32()?, r.i32()?);
             let n = r.i32()?.max(0);
             let listings = (0..n)
-                .map(|_| listing(&mut r))
+                .map(|_| listing(&mut r, extended))
                 .collect::<Result<Vec<_>>>()?;
             Market::Page(MarketPage {
                 tabs,

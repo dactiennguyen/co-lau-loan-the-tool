@@ -270,6 +270,21 @@ s2c/1174  0000009b 0000000e "chao mo****uoi"          id 155 = manina
 
 Bot TS nói và nghe bằng `npm run chat` ([Nói trong khu](../../integration/nodejs/chat.md)): gửi `c2s/1174`, chờ `s2c/1174` mang id của mình, in chữ server trả lại. App Rust chưa có.
 
+<a id="chặn-chat-và-báo-cáo"></a>
+
+### Chặn chat và báo cáo: 1284, 1285
+
+Hai tính năng ở popup người chơi của bản 1.1.0: **Chặn** chat ("Chặn chat của X? Bạn sẽ không thấy tin nhắn của người này nữa.", "Đã bỏ chặn X") và **Báo cáo** ("Báo cáo X. Chọn lý do:" Xúc phạm, Spam, Lừa đảo, Khác). Gói được dựng và đọc trong `com.mh.d.sqc`; hộp thoại là `com.g.d.sqh`. Chuỗi đọc từ `libgdx-flashds.so`, kiểu trường đọc từ lời gọi JNI của các hàm native. [Đo tĩnh]
+
+<a id="c2s-1284"></a>
+
+| Gói | Thân gói | Nguồn |
+|---|---|---|
+| `c2s/1284` | `u8 lệnh`; lệnh khác 0 thêm `i32 id người chơi`. Lệnh 0 (`sqc.a()`): lấy danh sách chặn. `sqc.a(int)` và `sqc.b(int)` dựng hai lệnh còn lại, chặn và bỏ chặn | Game gửi `00` một lần khi vào game, ngay sau `c2s/1282` ([VG1](02-login.md#vg1)). Hai lệnh có id chưa đo, chưa biết số nào là chặn [Đo lệnh 0] |
+| `s2c/1284` | `u8; u8; string thông báo; i16 n; n × {i32 id; string tên}`, đọc thành `sqd(int, int, String, int[], String[])` | VG1: `0000000000000000` (danh sách trống), hai lần: trả `c2s/1284` và sau `c2s/30`. Bot không gửi `c2s/1284` vẫn nhận lần sau `c2s/30`. Nghĩa hai u8 chưa rõ [Đo 8 byte; kiểu từ code] |
+| `c2s/1285` | `i32 id người chơi; u8 lý do` (`sqc.a(int, int)`) | Chưa đo. Lý do 0–3 có lẽ theo thứ tự trên hộp thoại [Suy luận] |
+| `s2c/1285` | `u8 kết quả; string thông báo`, đọc thành `sqe(int, String)` | Chưa đo. Game hiện "Đã gửi báo cáo, chúng tôi sẽ xem xét trong 24 giờ." hay "Không gửi được báo cáo. Vui lòng thử lại!" [Đo tĩnh] |
+
 <a id="ground-items"></a>
 
 ## Vật phẩm rơi trên đất

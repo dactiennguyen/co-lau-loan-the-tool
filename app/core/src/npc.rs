@@ -256,11 +256,13 @@ pub struct ServicePreview {
     pub item: ItemRecord,
 }
 pub fn service_preview(p: &[u8]) -> Result<ServicePreview> {
-    let mut r = Reader::new(p);
-    r.u8()?;
-    let (uuid, level) = (r.string()?, r.i32()?);
-    let item = item_record(&mut r)?;
-    r.finish(ServicePreview { uuid, level, item }, "s2c/1258")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        r.u8()?;
+        let (uuid, level) = (r.string()?, r.i32()?);
+        let item = item_record(&mut r)?;
+        r.finish(ServicePreview { uuid, level, item }, "s2c/1258")
+    })
 }
 
 /// s2c/1260, the answer to c2s/97 in Chuyển hoá when the item put is a +0 one: it is the target.
@@ -288,26 +290,28 @@ pub struct ServiceResult {
     pub target: Option<ItemRecord>,
 }
 pub fn service_result(p: &[u8]) -> Result<ServiceResult> {
-    let mut r = Reader::new(p);
-    let (name, ok) = (r.string()?, r.u8()? == 1);
-    let item = item_record(&mut r)?;
-    let received = (0..r.i32()?.max(0))
-        .map(|_| item_record(&mut r))
-        .collect::<Result<Vec<_>>>()?;
-    let target = match r.remaining() {
-        0 => None,
-        _ => Some(item_record(&mut r)?),
-    };
-    r.finish(
-        ServiceResult {
-            name,
-            ok,
-            item,
-            received,
-            target,
-        },
-        "s2c/91",
-    )
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let (name, ok) = (r.string()?, r.u8()? == 1);
+        let item = item_record(&mut r)?;
+        let received = (0..r.i32()?.max(0))
+            .map(|_| item_record(&mut r))
+            .collect::<Result<Vec<_>>>()?;
+        let target = match r.remaining() {
+            0 => None,
+            _ => Some(item_record(&mut r)?),
+        };
+        r.finish(
+            ServiceResult {
+                name,
+                ok,
+                item,
+                received,
+                target,
+            },
+            "s2c/91",
+        )
+    })
 }
 
 /// s2c/93 after Bắt đầu in Luyện đá: success or not, and the stone made.
@@ -318,12 +322,14 @@ pub struct StoneResult {
     pub items: Vec<ItemRecord>,
 }
 pub fn stone_result(p: &[u8]) -> Result<StoneResult> {
-    let mut r = Reader::new(p);
-    let (name, ok) = (r.string()?, r.u8()? == 1);
-    let items = (0..r.i32()?.max(0))
-        .map(|_| item_record(&mut r))
-        .collect::<Result<Vec<_>>>()?;
-    r.finish(StoneResult { name, ok, items }, "s2c/93")
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let (name, ok) = (r.string()?, r.u8()? == 1);
+        let items = (0..r.i32()?.max(0))
+            .map(|_| item_record(&mut r))
+            .collect::<Result<Vec<_>>>()?;
+        r.finish(StoneResult { name, ok, items }, "s2c/93")
+    })
 }
 
 /// The third field of c2s/97 (16-upgrade.md#gói): 0 for gear, stones and Chuyển hoá items; 1 for Bùa bảo vệ and the
