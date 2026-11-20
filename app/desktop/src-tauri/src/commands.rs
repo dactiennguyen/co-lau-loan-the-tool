@@ -171,6 +171,13 @@ pub fn discard_many(shared: State<Shared>, id: u64, items: Vec<(u8, String)>) {
     shared.with(|app| app.send(id, Command::DiscardMany(items)));
 }
 
+/// Đập hết of the Túi đồ tab: every Trứng Gà of this bag slot, the uuid the window showed, one after the other; Dừng
+/// ends it (Bot::break_all).
+#[tauri::command]
+pub fn break_all(shared: State<Shared>, id: u64, slot: u8, uuid: String) {
+    shared.with(|app| app.send(id, Command::BreakAll(slot, uuid)));
+}
+
 /// Nâng cấp on one skill of the Kỹ năng tab: one level, c2s/1191 (id, 1).
 #[tauri::command]
 pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {
@@ -1008,6 +1015,13 @@ pub async fn import_accounts(
         done.settings = true;
     }
     Ok(done)
+}
+
+/// The sidebar after a drag: every account id in the new order (Shared::reorder). The error comes back to the sidebar,
+/// which puts the cards back.
+#[tauri::command]
+pub async fn reorder_accounts(shared: State<'_, Shared>, ids: Vec<u64>) -> Result<(), String> {
+    shared.reorder(ids).await
 }
 
 /// The error is shown in the dialog that asked; the account then stays.

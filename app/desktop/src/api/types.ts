@@ -383,6 +383,8 @@ export interface Character {
   daily: DailyState;
   /** Mã quà tặng under way or last done (Tiện ích). */
   gift: GiftRun | null;
+  /** Đập hết under way (Túi đồ); null once it ends, its end line in the log. */
+  eggs: EggRun | null;
   /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
   giftLimits: GiftLimits;
   /** Hòm thư (Tiện ích): the list, the mails opened, the task under way. */
@@ -484,6 +486,16 @@ export interface MailBody {
   luong: number;
   items: Item[];
   slots: number;
+}
+
+/** Đập hết (Bot::break_all): the stack's bag slot, the eggs broken of how many, the Xu khóa spent and what came out. */
+export interface EggRun {
+  slot: number;
+  name: string;
+  total: number;
+  done: number;
+  spent: number;
+  got: { name: string; count: number }[];
 }
 
 /** The server's lock on gift codes as the app knows it (GiftMemory of the Rust core). */

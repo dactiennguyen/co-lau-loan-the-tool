@@ -40,6 +40,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod daily;
+mod eggs;
 mod fight;
 mod gift;
 mod items;
@@ -301,6 +302,8 @@ pub struct Bot {
     /// when none runs).
     discards: VecDeque<(u8, String)>,
     discard_count: (usize, usize),
+    /// Đập hết (bot/eggs.rs): the egg under way; its count and gains are snap.eggs.
+    eggs: Option<eggs::EggStep>,
     /// The zone of c2s/1173 until s2c/43 of it (change_zone).
     zoning: Option<i32>,
     /// "Đổi map": the map (id, name) the bot walks to through portals (go_to), until it is there.
@@ -416,6 +419,7 @@ impl Bot {
             item_wait: None,
             discards: VecDeque::new(),
             discard_count: (0, 0),
+            eggs: None,
             zoning: None,
             trip: None,
             zone_after: None,
@@ -639,6 +643,7 @@ impl Bot {
             self.mail.as_ref().map(|m| m.until),
             self.market.as_ref().map(|m| m.until),
             self.pick_at,
+            self.egg_deadline(),
         ]
         .into_iter()
         .flatten()
@@ -716,6 +721,7 @@ impl Bot {
             ));
         }
         self.smith_timer(now, out);
+        self.egg_timer(now, out);
         self.gift_timer(now, out);
         self.mail_timer(now, out);
         self.market_timer(now, out);
@@ -789,6 +795,7 @@ impl Bot {
             ));
         }
         self.smith_stop(now, out);
+        self.egg_stop(out);
         self.gift_stop(out);
         self.mail_stop();
         if surrender {

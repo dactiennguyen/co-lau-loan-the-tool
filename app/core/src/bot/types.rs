@@ -734,6 +734,26 @@ pub struct SmithRun {
     pub ended_at: Option<u64>,
 }
 
+/// Đập hết under way (Bot::break_all), for the Túi đồ tab: the stack, the eggs broken of how many, the Xu khóa spent and
+/// what came out, in the order first seen.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EggRun {
+    pub slot: u8,
+    pub name: String,
+    pub total: usize,
+    pub done: usize,
+    pub spent: i64,
+    pub got: Vec<EggGain>,
+}
+
+/// "Bạn vừa nhận được 252 Xu khóa": name and count, added up over the eggs.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct EggGain {
+    pub name: String,
+    pub count: i64,
+}
+
 /// Mã quà tặng under way or last done (Bot::redeem), for Tiện ích.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1016,6 +1036,8 @@ pub struct Snapshot {
     pub daily: DailyState,
     /// Mã quà tặng under way or last done (Bot::redeem).
     pub gift: Option<GiftRun>,
+    /// Đập hết under way (Bot::break_all); None once it ends, its end line in the log.
+    pub eggs: Option<EggRun>,
     /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().
     pub gift_limits: GiftLimits,
     /// Hòm thư (Bot::mail).

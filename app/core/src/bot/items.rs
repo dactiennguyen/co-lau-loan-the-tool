@@ -27,6 +27,8 @@ impl Bot {
             Some("đang nhận hay xoá thư")
         } else if self.market_changing() {
             Some("đang mua bán ở Chợ trời")
+        } else if self.eggs.is_some() {
+            Some("đang đập trứng, bấm Dừng trước")
         } else {
             None
         };

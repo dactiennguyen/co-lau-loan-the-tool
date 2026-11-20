@@ -138,6 +138,8 @@ export function AccountPage({ account }: { account: Account }) {
                 account={account}
                 onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)}
                 onDiscardMany={(items) => api.discardMany(id, items)}
+                onBreakAll={(slot, uuid) => api.breakAll(id, slot, uuid)}
+                onStop={onStop}
               />
             ) : task === "settings" ? (
               <FightSettingsCard account={account} />

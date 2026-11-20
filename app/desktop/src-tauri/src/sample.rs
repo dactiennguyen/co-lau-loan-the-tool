@@ -6,8 +6,8 @@ use crate::view::{self, LogLine};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, CraftRecipes,
-    DailyState, GiftCode, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MapMob,
-    MarketState, Picked, PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
+    DailyState, EggGain, EggRun, GiftCode, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice,
+    MapMob, MarketState, Picked, PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{DailyQuest, MailBody, MailHeader};
@@ -313,6 +313,8 @@ fn manina_bag() -> Vec<ItemRecord> {
         item(13, 200, 60, 1, 4, &[(6, 9), (9, 70)]),
         // Kiếm Đại Tướng (cấp 51) for a character of level 21: its level in red, Mặc greyed with the levels it lacks.
         item(14, 278, 60, 1, 2, &[(5, 20)]),
+        // A stack of Trứng Gà: Dùng, Đập hết (12) and Vứt bỏ.
+        item(15, 3, -1, 12, 0xff, &[]),
     ]
 }
 
@@ -765,8 +767,34 @@ pub fn entries() -> Vec<Entry> {
         bag: Some(Bag {
             kind: 1,
             capacity: 42,
-            items: kiemkhach_bag(),
+            items: {
+                let mut bag = kiemkhach_bag();
+                bag.push(item(20, 3, -1, 13, 0xff, &[]));
+                bag
+            },
             left: None,
+        }),
+        // Đập hết under way: 7 of 20 Trứng Gà broken, the progress strip of Túi đồ with Dừng.
+        eggs: Some(EggRun {
+            slot: 20,
+            name: "Trứng Gà".into(),
+            total: 20,
+            done: 7,
+            spent: 3_500,
+            got: vec![
+                EggGain {
+                    name: "Kim Đan Dược".into(),
+                    count: 3,
+                },
+                EggGain {
+                    name: "Xu khóa".into(),
+                    count: 756,
+                },
+                EggGain {
+                    name: "Búa Sửa Chữa".into(),
+                    count: 1,
+                },
+            ],
         }),
         currencies: Some(Currencies {
             label: "update Xu".into(),

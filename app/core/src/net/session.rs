@@ -315,6 +315,7 @@ pub(super) async fn session(
                     Some(Command::Item(act)) => bot.item(act, now, out),
                     Some(Command::ItemOf(act, uuid)) => bot.item_of(act, &uuid, now, out),
                     Some(Command::DiscardMany(items)) => bot.discard_many(items, now, out),
+                    Some(Command::BreakAll(slot, uuid)) => bot.break_all(slot, &uuid, now, out),
                     Some(Command::ListZones) => bot.list_zones(out),
                     Some(Command::ChangeZone(zone)) => bot.change_zone(zone, now, out),
                     Some(Command::GoTo(map_id)) => bot.go_to(&map_id, now, out),

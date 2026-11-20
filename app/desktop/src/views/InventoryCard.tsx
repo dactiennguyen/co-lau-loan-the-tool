@@ -58,12 +58,17 @@ const USABLE = new Set([POTION, 23, 24, 29]);
 /** Búa Sửa Chữa: each repair takes one. */
 const HAMMER = 2;
 const NO_HAMMER = "cần 1 Búa sửa chữa trong túi";
+/** Trứng Gà, and its fee in Xu khóa ("Đập ra vật phẩm ngẫu nhiên. Phí đập 500 Xu khóa, cần 3 ô trống."). */
+const EGG = 3;
+const EGG_FEE = 500;
 /** An action the server has not answered in this long is let go, and the buttons come back. */
 const ANSWER_MS = 5000;
 
 /** A button of the item popup; Dùng, Sửa and Vứt bỏ ask once more, as they use up the item or a hammer. */
+/** An item button: the bot's item actions, and Đập hết of a stack of Trứng Gà (Bot::break_all). */
+type CardAction = ItemAction | "breakAll";
 interface Act {
-  action: ItemAction;
+  action: CardAction;
   label: string;
   icon: IconName;
   why: string | null;
@@ -84,17 +89,22 @@ export function InventoryCard({
   account,
   onAction,
   onDiscardMany,
+  onBreakAll,
+  onStop,
 }: {
   account: Account;
   onAction: (action: ItemAction, slot: number, uuid?: string) => void;
   /** Xóa nhiều: the bag items picked (gear only), thrown away one after the other by the bot (Bot::discard_many). */
   onDiscardMany: (items: { slot: number; uuid: string }[]) => void;
+  /** Đập hết: every Trứng Gà of this bag slot, one after the other (Bot::break_all); onStop (Dừng) ends it. */
+  onBreakAll: (slot: number, uuid: string) => void;
+  onStop: () => void;
 }) {
   const c = account.character;
   const [pinned, setPinned] = useState<Key | null>(null);
   const [hover, setHover] = useState<Key | null>(null);
   // The question is about the item it showed (uuid), not its slot: the bag changes under it (Tự gộp đá, Tự nhặt đồ).
-  const [ask, setAsk] = useState<{ key: Key; action: ItemAction; uuid: string } | null>(null);
+  const [ask, setAsk] = useState<{ key: Key; action: CardAction; uuid: string } | null>(null);
   const [menu, setMenu] = useState<{ key: Key; x: number; y: number } | null>(null);
   // Xóa nhiều: on, the bag items picked (slot → the uuid when picked), and whether the last question is up.
   const [picking, setPicking] = useState(false);
@@ -177,7 +187,13 @@ export function InventoryCard({
   const worn = c.gear.filter(Boolean).length;
 
   // The same checks as Bot::item, so a button the bot would refuse is greyed with the reason.
-  const busy = c.battle ? "đang đánh, đợi hết trận" : sent !== null && sent === sig ? "đang đợi server trả lời" : null;
+  const busy = c.battle
+    ? "đang đánh, đợi hết trận"
+    : c.eggs
+      ? "đang đập trứng, bấm Dừng trước"
+      : sent !== null && sent === sig
+        ? "đang đợi server trả lời"
+        : null;
   const full = !!bag && bag.items.length >= bag.capacity;
   const hammer = !!bag?.items.some((i) => i.id === HAMMER);
   const acts = (item: Item, isWorn: boolean): Act[] => {
@@ -207,14 +223,35 @@ export function InventoryCard({
     }
     if (item.kind != null && USABLE.has(item.kind)) {
       const why = item.kind === POTION ? "bình chỉ dùng được trong trận" : null;
-      return [{ action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` }, discard];
+      const use: Act = { action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` };
+      // Đập hết a stack of Trứng Gà: as the bot checks before each egg (its fee, 3 free slots).
+      if (item.id === EGG && item.quantity > 1) {
+        const xuKhoa = c.currencies?.xuKhoa;
+        const free = bag ? bag.capacity - bag.items.length : null;
+        const lack =
+          xuKhoa != null && xuKhoa < EGG_FEE
+            ? `thiếu Xu khóa (còn ${num(xuKhoa)}, mỗi quả ${num(EGG_FEE)})`
+            : free != null && free < 3
+              ? `cần 3 ô trống, túi còn ${free}`
+              : null;
+        const all: Act = {
+          action: "breakAll",
+          label: `Đập hết (${item.quantity})`,
+          icon: "hammer",
+          why: lack,
+          confirm: `Đập hết ${item.quantity} ${item.name}? Tốn tới ${num(item.quantity * EGG_FEE)} Xu khóa; bot đập từng quả, dừng khi hết Xu khóa hay túi còn dưới 3 ô trống.`,
+        };
+        return [use, all, discard];
+      }
+      return [use, discard];
     }
     return [discard];
   };
   /** Cửa hàng of Lái Buôn, with `item` picked first. */
   const shopFor = (item?: number) => useStore.getState().open({ kind: "shop", id: account.id, item });
-  const run = (action: ItemAction, item: Item) => {
+  const run = (action: CardAction, item: Item) => {
     setAsk(null);
+    if (action === "breakAll") return onBreakAll(item.slot, item.uuid);
     setSent(sig);
     onAction(action, item.slot, item.uuid);
     // Worn, the item sits in the gear slot of its type; taken off, in a bag slot the server picks.
@@ -306,7 +343,8 @@ export function InventoryCard({
     const why = busy ?? list.find((a) => a.why)?.why;
     return (
       <div className={ACT}>
-        <div className={BUTTONS}>
+        {/* Three buttons (Dùng, Đập hết, Vứt bỏ) do not fit the 230 px on one line: they wrap. */}
+        <div className={cn(BUTTONS, "flex-wrap justify-end")}>
           {list.map((a) => (
             <Button
               key={a.action}
@@ -386,6 +424,22 @@ export function InventoryCard({
           )}
         </section>
       </div>
+
+      {c.eggs && (
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-primary bg-bg-2" role="status" aria-label="Đập hết">
+          <span className="grid gap-0.5 text-12 text-fg">
+            <span>
+              Đang đập {c.eggs.name}: {c.eggs.done}/{c.eggs.total} quả · tốn {num(c.eggs.spent)} Xu khóa
+            </span>
+            {c.eggs.got.length > 0 && (
+              <span className="text-11 text-fg-2">Được {c.eggs.got.map((g) => `${g.name} ×${num(g.count)}`).join(", ")}</span>
+            )}
+          </span>
+          <Button kind="ghost" small icon="stop" onClick={onStop}>
+            Dừng
+          </Button>
+        </div>
+      )}
 
       {picking && (
         <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-danger bg-bg-2" role="region" aria-label="Xóa nhiều">

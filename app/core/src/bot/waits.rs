@@ -33,6 +33,8 @@ pub(super) enum Wait {
     Repair,
     /// The PICK_ANSWER after a c2s/1188.
     Pickup,
+    /// Đập hết (bot/eggs.rs).
+    Eggs,
 }
 
 /// How long a button of the Túi đồ tab waits for its answer (Bot::item, item_pending).
@@ -50,6 +52,7 @@ impl Wait {
             Wait::Gift => "đang nhập mã quà tặng, bấm Dừng trước",
             Wait::Mail { changing: true } => "đang nhận hay xoá thư, đợi server trả lời",
             Wait::Market { changing: true } => "đang mua bán ở Chợ trời, đợi server trả lời",
+            Wait::Eggs => "đang đập trứng, bấm Dừng trước",
             _ => return None,
         })
     }
@@ -68,6 +71,7 @@ impl Wait {
                 | Wait::Item
                 | Wait::Repair
                 | Wait::Pickup
+                | Wait::Eggs
         )
     }
 }
@@ -98,6 +102,7 @@ impl Bot {
             self.repairing.is_some().then_some(Wait::Repair),
             now.filter(|&now| self.picked_at.is_some_and(|t| now < t + PICK_ANSWER))
                 .map(|_| Wait::Pickup),
+            self.eggs.is_some().then_some(Wait::Eggs),
         ]
         .into_iter()
         .flatten()

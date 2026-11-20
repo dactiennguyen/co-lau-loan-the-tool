@@ -671,6 +671,10 @@ impl Bot {
                     return Ok(());
                 }
                 out.push(Out::Log(LogKind::Server, text.clone()));
+                // What an egg of Đập hết gave, its success or its refusal (egg_notice).
+                if self.egg_notice(&text, now, out) {
+                    return Ok(());
+                }
                 // The notice of Nhận ("Rương đã đầy…") or Nhận hết ("Đã nhận quà của 2 thư"), for its result line.
                 self.mail_notice(&text);
                 // A refusal of Mua, Đăng bán, Thu hồi or Gia hạn: their answers come before any notice.

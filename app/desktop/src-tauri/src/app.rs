@@ -396,6 +396,24 @@ impl Shared {
         Ok(())
     }
 
+    /// The sidebar after a drag: the list in the order `ids` gives, written to accounts.json first (Xuất JSON and Đăng
+    /// nhập tất cả follow it). Sessions go on as they are. Nothing changes when the file cannot be written.
+    pub async fn reorder(&self, ids: Vec<u64>) -> Result<(), String> {
+        let _turn = self.saving.lock().await;
+        let (path, list, order) = self.with(|app| {
+            let order = app.ordered(&ids);
+            let (path, _) = app.saved(None, None)?;
+            let list = order
+                .iter()
+                .filter_map(|id| app.entry(*id).map(|e| e.account.clone()))
+                .collect();
+            Ok::<_, String>((path, list, order))
+        })?;
+        write(path, list).await?;
+        self.with(|app| app.set_order(&order));
+        Ok(())
+    }
+
     /// Nhập JSON (backup.rs): adds the accounts of the JSON the list has not got and, with `replace`, replaces those it
     /// has, in one write of accounts.json; an account the JSON repeats counts once. Proxies are not tested: they were
     /// when added on the machine that exported them, and Kiểm tra of Sửa nick tests one. A session already running goes
@@ -833,6 +851,32 @@ impl App {
     }
 
     /// Takes the account out once accounts.json no longer has it; a session started while the file was written logs out.
+    /// The ids of the list in the order `ids` gives; ids not in the list are left out, accounts `ids` misses (one added
+    /// meanwhile) follow in the order they had.
+    fn ordered(&self, ids: &[u64]) -> Vec<u64> {
+        let mut order: Vec<u64> = vec![];
+        for &id in ids {
+            if self.entry(id).is_some() && !order.contains(&id) {
+                order.push(id);
+            }
+        }
+        for e in &self.entries {
+            if !order.contains(&e.id) {
+                order.push(e.id);
+            }
+        }
+        order
+    }
+
+    /// The entries in the order of `order` (from ordered()), and the UI told of the new order.
+    fn set_order(&mut self, order: &[u64]) {
+        let at = |id: u64| order.iter().position(|&o| o == id).unwrap_or(usize::MAX);
+        self.entries.sort_by_key(|e| at(e.id));
+        self.rev += 1;
+        self.list_changed = true;
+        let _ = self.wake.send(());
+    }
+
     fn drop_entry(&mut self, id: u64) {
         if let Some(m) = &self.manager {
             m.send(id, Command::Logout);
@@ -1314,6 +1358,34 @@ mod tests {
         let update = app.take_update().0.unwrap();
         assert!(update.accounts.is_empty());
         assert_eq!(update.ids, Some(vec![b]));
+    }
+
+    #[test]
+    fn a_new_order_of_the_list_comes_as_ids_and_keeps_accounts_it_misses_at_the_end() {
+        let (wake, _woken) = channel();
+        let mut app = App::new(None, PathBuf::from("accounts.json"), wake);
+        let (a, b, c) = (
+            app.add(account("a")),
+            app.add(account("b")),
+            app.add(account("c")),
+        );
+        let _ = app.take_update();
+        // An unknown id and a repeated one are left out; c, which the drag did not know, stays after them.
+        let order = app.ordered(&[b, 99, a, b]);
+        assert_eq!(order, [b, a, c]);
+        app.set_order(&order);
+        let update = app.take_update().0.unwrap();
+        assert!(update.accounts.is_empty());
+        assert_eq!(update.ids, Some(vec![b, a, c]));
+        assert_eq!(
+            app.saved(None, None)
+                .unwrap()
+                .1
+                .iter()
+                .map(|x| x.username.as_str())
+                .collect::<Vec<_>>(),
+            ["b", "a", "c"]
+        );
     }
 
     #[test]

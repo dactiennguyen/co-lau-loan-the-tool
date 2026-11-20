@@ -3,8 +3,9 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BattleView, Boost, BossTile, CraftRecipes, DailyState, FightSettings, GiftLimits, GiftRun, Job,
-    LogKind, Mailbox, MapChoice, MarketState, Picked, PointsRead, QuestRun, SmithRun, Target,
+    BattleView, Boost, BossTile, CraftRecipes, DailyState, EggRun, FightSettings, GiftLimits,
+    GiftRun, Job, LogKind, Mailbox, MapChoice, MarketState, Picked, PointsRead, QuestRun, SmithRun,
+    Target,
 };
 use cllt_core::items::{book, Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{self, MailBody, MailHeader, Money};
@@ -231,6 +232,8 @@ pub struct CharacterView<'a> {
     pub daily: &'a DailyState,
     /// Mã quà tặng under way or last done (Tiện ích).
     pub gift: Option<&'a GiftRun>,
+    /// Đập hết under way (Túi đồ).
+    pub eggs: Option<&'a EggRun>,
     /// Codes refused in a row, how many the bot allows, and the server's lock on codes.
     pub gift_limits: &'a GiftLimits,
     /// Hòm thư (Tiện ích): the list, the mails opened, the task under way.
@@ -734,6 +737,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             points: s.points.as_ref(),
             daily: &s.daily,
             gift: s.gift.as_ref(),
+            eggs: s.eggs.as_ref(),
             gift_limits: &s.gift_limits,
             mailbox: MailboxView::of(&s.mailbox, s.bag.as_ref()),
             market: MarketView::of(&s.market),

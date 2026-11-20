@@ -78,6 +78,8 @@ export interface Api {
   itemAction(id: number, action: ItemAction, slot: number, uuid?: string): Promise<void>;
   /** Xóa nhiều: throws away these bag items (slot and uuid as shown), gear only, one after the other; the log says each. */
   discardMany(id: number, items: { slot: number; uuid: string }[]): Promise<void>;
+  /** Đập hết: every Trứng Gà of this bag slot, one after the other (Bot::break_all); Dừng (stop) ends it. */
+  breakAll(id: number, slot: number, uuid: string): Promise<void>;
   /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
   listZones(id: number): Promise<void>;
   /** Another zone of the map (c2s/1173); the log tells how it went. */
@@ -184,6 +186,8 @@ export interface Api {
   updateAccount(id: number, account: AccountForm): Promise<void>;
   /** Rejects with a message to show (a session, or accounts.json that cannot be written); the account then stays. */
   removeAccount(id: number): Promise<void>;
+  /** The sidebar after a drag: every account id in the new order, written to accounts.json (Shared::reorder). */
+  reorderAccounts(ids: number[]): Promise<void>;
   /** Reaches the game server through the proxy (on or off) and resolves to the time it took in ms; rejects with why
    * not. With `id`, an empty password is the one saved for that account. */
   testProxy(proxy: ProxyForm, id?: number): Promise<number>;
@@ -259,6 +263,7 @@ const tauri: Api = {
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
   itemAction: (id, action, slot, uuid) => invoke("item_action", { id, action, slot, uuid: uuid ?? null }),
   discardMany: (id, items) => invoke("discard_many", { id, items: items.map((i) => [i.slot, i.uuid]) }),
+  breakAll: (id, slot, uuid) => invoke("break_all", { id, slot, uuid }),
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
@@ -298,6 +303,7 @@ const tauri: Api = {
   addAccount: (a) => invoke("add_account", { ...a }),
   updateAccount: (id, a) => invoke("update_account", { id, ...a }),
   removeAccount: (id) => invoke("remove_account", { id }),
+  reorderAccounts: (ids) => invoke("reorder_accounts", { ids }),
   testProxy: (proxy, id) => invoke("test_proxy", { proxy, id: id ?? null }),
   accountSecrets: (id) => invoke("account_secrets", { id }),
   settings: () => invoke("settings"),
@@ -394,6 +400,7 @@ const preview: Api = {
   upgradeSkill: nothing,
   itemAction: nothing,
   discardMany: nothing,
+  breakAll: nothing,
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,
@@ -432,6 +439,8 @@ const preview: Api = {
   addAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   updateAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu nick")),
   removeAccount: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không xoá nick")),
+  // The order stays in the page until it reloads.
+  reorderAccounts: nothing,
   testProxy: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không kiểm tra được proxy")),
   accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
   settings: async () => {

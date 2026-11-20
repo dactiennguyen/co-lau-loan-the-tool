@@ -4,6 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Bar } from "@/components/Bar";
 import { Button } from "@/components/Button";
+import { ELEMENT_ICON, ELEMENT_NAME, elementText } from "@/components/ElementTag";
 import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
 import { cn } from "@/utils/cn";
@@ -53,7 +54,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
       <Avatar name={a.username} status={a.status} />
       <div className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)] gap-1">
         {/* Login/logout sits in the corner beside the name, so the place and the status row below get the whole width. */}
-        <div className="flex items-center gap-1.5 min-w-0 pr-[26px]">
+        <div className="flex items-center gap-1 min-w-0 pr-[26px]">
           <button
             type="button"
             className={
@@ -72,7 +73,13 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
           >
             {c?.name ?? a.label}
           </button>
-          {c && <Badge>LV {c.level}</Badge>}
+          {/* The character's element between the name and its level; the name is cut first. */}
+          {c?.element != null && ELEMENT_ICON[c.element] && (
+            <span className={cn("shrink-0 inline-flex", elementText(c.element))} title={`Hệ ${ELEMENT_NAME[c.element]}`} aria-label={`Hệ ${ELEMENT_NAME[c.element]}`} role="img">
+              <Icon name={ELEMENT_ICON[c.element]} size={12} />
+            </span>
+          )}
+          {c && <Badge className="shrink-0">LV {c.level}</Badge>}
         </div>
         <div id={`${id}line`} className={cn("text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>
           {line}
