@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
-import { mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed } from '../src/protocol/world.ts';
+import { mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed, bachHoBoard } from '../src/protocol/world.ts';
 import { market } from '../src/protocol/market.ts';
 import { v007Packets } from './fixtures-v007.ts';
 import { mapPrefix, Writer } from '../src/protocol/protocol.ts';
@@ -233,6 +233,14 @@ test('protocol 0.0.7: Chợ trời has the element in each listing, the shop 2 m
   const worn = gearUpdate(v('s2c/37 mặc Nón Lá')).gear;
   assert.deepEqual([worn.length, worn[0]?.itemId, worn[0]?.field5], [10, 48, 0]);
   assert.ok(gearUpdate(v('s2c/37 cởi Nón Lá')).gear.every(g => g === null));
+});
+
+test('s2c/1252: the board of Bạch Hổ outside its hour (BH1)', () => {
+  const p = Buffer.from('02000003e8000003e800000000000000000000000000000000', 'hex');
+  assert.deepEqual(bachHoBoard(p), { state: 2, hp: 1000, maxHp: 1000, players: 0, rows: [], ownRank: 0, own: 0 });
+  const row = new Writer().u8(1).i32(400).i32(1000).i32(3).i32(1).i32(1).i32(77).string('akaito').i32(600).i32(1).i32(600).build();
+  assert.deepEqual(bachHoBoard(row).rows, [{ a: 1, b: 77, name: 'akaito', d: 600 }]);
+  assert.equal(buildRequest(1252).length, 0);
 });
 
 test('s2c/84: Tăng Kinh Nghiệm used, the slot left empty and x2 EXP for 24 hours (U2)', () => {

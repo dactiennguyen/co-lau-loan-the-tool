@@ -210,13 +210,13 @@ Nguồn: APK 1.1.0 đang chạy trên máy (VG1, 20/11): gọi com.tlgdx.twelvel
 
 ## Opcode chưa thấy trên dây
 
-Bảng trên có 201 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (VG1, L1, W1, U1, A1, B2, run1–4, Q1–Q12, E1, E2, P3, P4, K3, P5, I1, N1–N4, J1–J3, G1, CT1, CH1), 86 opcode chưa từng xuất hiện ở cả hai chiều:
+Bảng trên có 201 opcode. Gộp mọi capture ([các phiên](investigation.md#nguồn-dữ-liệu)) (BH1, VG1, L1, W1, U1, A1, B2, run1–4, Q1–Q12, E1, E2, P3, P4, K3, P5, I1, N1–N4, J1–J3, G1, CT1, CH1), 85 opcode chưa từng xuất hiện ở cả hai chiều:
 
 ```text
 6 7 16 23 25 27 31 32 33 41 47 49 52 55 56 58 59 86 95 98 100 101 125 126 128 129 130 131
 132 133 1112 1168 1171 1175 1176 1179 1185 1189 1193 1194 1197 1198 1199 1202 1203 1204 1208 1210 1211 1213
 1225 1226 1227 1228 1229 1230 1231 1232 1233 1234 1235 1236 1237 1238 1239 1242 1243
-1244 1245 1246 1247 1248 1249 1250 1251 1252 1255 1266 1267 1268 1270
+1244 1245 1246 1247 1248 1249 1250 1251 1255 1266 1267 1268 1270
 1273 1276 1278 1280 1283
 ```
 

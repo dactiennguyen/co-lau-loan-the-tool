@@ -506,6 +506,16 @@ export function questComplete(payload: Uint8Array) {
   return { questId, title, rewards, text: r.string() };
 }
 
+/** s2c/1252: Bảng công trạng of Bạch Hổ Thống Lĩnh (17-bach-ho.md), the answer to c2s/1252 (empty), anywhere. Read as
+ * sqrj.a of the game reads it: state (0, 1, 2; 2 outside 9:00–9:59 on 20/11, the HP full), the boss HP and its most,
+ * the players, at most 64 rows (two ints, the name, an int: rank, id, damage are guesses), then the own rank (0: no
+ * damage yet) and an int (the own damage, a guess). BH1 (tiheo2, 20/11 15:08): `02 000003e8 000003e8` and zeros. */
+export function bachHoBoard(payload: Uint8Array) {
+  const r = new Reader(payload), state = r.u8(), hp = r.i32(), maxHp = r.i32(), players = r.i32(), rows = [];
+  for (let n = r.i32(); n > 0; n--) rows.push({ a: r.i32(), b: r.i32(), name: r.string(), d: r.i32() });
+  return finish(r, { state, hp, maxHp, players, rows, ownRank: r.i32(), own: r.i32() }, 's2c/1252');
+}
+
 /** s2c/1254: ranking. Kind 0 lists the tabs; kind 1 is one tab: top entries, then the own rank (-1 when unranked). */
 export function ranking(payload: Uint8Array) {
   const r = new Reader(payload), kind = r.u8();

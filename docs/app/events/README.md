@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 158 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 86 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 160 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 85 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -130,6 +130,8 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1223 | gift_code_result | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
 | c2s/1196 | friends_request | world | [Các bảng chức năng](11-panels.md) |
 | s2c/1196 | friend_list | world | [Các bảng chức năng](11-panels.md) |
+| c2s/1252 | bach_ho_board_request | world | [Bạch Hổ](17-bach-ho.md#gói) |
+| s2c/1252 | bach_ho_board | world | [Bạch Hổ](17-bach-ho.md#gói) |
 | c2s/1254 | ranking_request | world | [Bảng xếp hạng](11-panels.md#s2c-1254) |
 | s2c/1254 | ranking | world | [Bảng xếp hạng](11-panels.md#s2c-1254) |
 | c2s/1240 | season_request | world | [Các bảng chức năng](11-panels.md) |

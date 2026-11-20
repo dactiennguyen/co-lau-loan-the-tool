@@ -1,6 +1,7 @@
-//! A quest step whose boss the atlas puts in this map but this zone does not show: after 6 × 5 s the run asks the zone
-//! list (c2s/1172) and moves to the zone with the fewest players that is not full (c2s/1173), at most 5 zones
-//! (Bot::quest_zone; 20/11, Thủ Lĩnh Sơn Tặc of M1 waited for in vain by four accounts).
+//! A quest step whose boss the atlas puts in this map but this zone does not show: the run asks the zone list (c2s/1172)
+//! at once and moves to the zone with the fewest players that is not full (c2s/1173), at most 30 zones (Bot::quest_zone;
+//! 20/11, Thủ Lĩnh Sơn Tặc of M1 waited for in vain by four accounts). A boss of this zone that only left its tile
+//! (s2c/1177 field 1) is waited for instead.
 use cllt_core::atlas::{find_upwards, Atlas};
 use cllt_core::bot::{Bot, BotOptions, LogKind, Out};
 use cllt_core::protocol::Writer;
@@ -58,19 +59,8 @@ fn buoc_danh_boss_doi_khu_khi_khu_nay_khong_co_boss() {
     bot.on_packet(39, &quest, now, &mut out).unwrap();
     out.clear();
     bot.quest(1, None, now, &mut out);
-    assert_eq!(
-        quest_logs(&out),
-        [
-            "Bắt đầu: tự làm nhiệm vụ",
-            "Chưa thấy Thủ Lĩnh Sơn Tặc, đợi 5 s (1/6)"
-        ]
-    );
-    for _ in 0..6 {
-        now = bot.deadline().unwrap();
-        out.clear();
-        bot.on_timer(now, &mut out);
-    }
-    // The sixth wait is over: the zone list is asked.
+    // No wait: the zone list is asked at once.
+    assert_eq!(quest_logs(&out), ["Bắt đầu: tự làm nhiệm vụ"]);
     assert!(
         out.iter().any(|o| matches!(o, Out::Send(1172, _))),
         "{out:?}"
@@ -90,7 +80,7 @@ fn buoc_danh_boss_doi_khu_khi_khu_nay_khong_co_boss() {
     );
     assert_eq!(
         quest_logs(&out),
-        ["Không thấy Thủ Lĩnh Sơn Tặc ở khu 0 sau 30 s, sang khu 2 tìm (1/5)"]
+        ["Khu 0 không có Thủ Lĩnh Sơn Tặc, sang khu 2 tìm (1/30)"]
     );
     assert!(out
         .iter()
@@ -126,4 +116,67 @@ fn buoc_danh_boss_doi_khu_khi_khu_nay_khong_co_boss() {
         out.iter().any(|o| matches!(o, Out::Send(1178, _))),
         "{out:?}"
     );
+}
+
+#[test]
+fn boss_cua_khu_vua_roi_o_dung_thi_doi_tai_cho() {
+    let atlas = Atlas::load(&find_upwards("data/maps.json").expect("data/maps.json"));
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(atlas));
+    let (now, mut out) = (Instant::now(), vec![]);
+    bot.on_packet(
+        29,
+        &Writer::new().string("akaito").string("M1").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    let mobs = Writer::new().string("M1").u8(0).build();
+    bot.on_packet(43, &mobs, now, &mut out).unwrap();
+    // The boss of zone 0 is pushed, then leaves its tile (s2c/1177 field 1): back after ~13 s.
+    let boss = Writer::new()
+        .string("M1")
+        .u8(0)
+        .string("mob86100001")
+        .string("Thủ Lĩnh Sơn Tặc")
+        .i32(11)
+        .u8(0)
+        .i32(9)
+        .i32(1)
+        .u8(1)
+        .u8(1)
+        .i32(89)
+        .i32(13)
+        .build();
+    bot.on_packet(1177, &boss, now, &mut out).unwrap();
+    let gone = Writer::new()
+        .string("M1")
+        .u8(1)
+        .string("mob86100001")
+        .build();
+    bot.on_packet(1177, &gone, now, &mut out).unwrap();
+    let quest = Writer::new()
+        .i32(11)
+        .string("Diệt Sơn Tặc")
+        .string("")
+        .string("main")
+        .i32(0)
+        .i32(0)
+        .i32(1)
+        .i32(0)
+        .string("Gây 500 sát thương lên Thủ Lĩnh Sơn Tặc")
+        .i32(0)
+        .i32(500)
+        .i32(-1)
+        .build();
+    bot.on_packet(39, &quest, now, &mut out).unwrap();
+    out.clear();
+    bot.quest(1, None, now, &mut out);
+    assert_eq!(
+        quest_logs(&out),
+        [
+            "Bắt đầu: tự làm nhiệm vụ",
+            "Chưa thấy Thủ Lĩnh Sơn Tặc, đợi 5 s (1/6)"
+        ]
+    );
+    assert!(!out.iter().any(|o| matches!(o, Out::Send(1172, _))));
 }

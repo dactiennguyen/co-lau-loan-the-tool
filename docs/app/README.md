@@ -18,7 +18,7 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Kỹ năng và tab Kỹ năng, điểm tiềm năng, túi đồ, mặc, cởi, sửa, dùng đồ, mua ở Lái Buôn, dùng bình trong trận, ngôi sao x2 EXP, luật trong Cẩm nang | [Kỹ năng và vật phẩm](events/12-skills-items.md) |
 | Đồ rơi, nhặt đồ, tên của 727 vật phẩm và 31 mã chỉ số (bảng 29), giải mã icon (dữ liệu game trên máy) | [Đồ rơi và vật phẩm](events/13-drops-items.md) |
 | Bạch Hổ Thống Lĩnh: boss thế giới 9:00–9:59, thưởng, bảng công trạng (`c2s/1252`, `s2c/1252`) | [Bạch Hổ](events/17-bach-ho.md) |
-| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 86 opcode chưa thấy | [Opcode map](opcode-map.md) |
+| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 85 opcode chưa thấy | [Opcode map](opcode-map.md) |
 | Mọi gói client gửi được: hàm dựng native, opcode, kiểu từng trường | [Hàm dựng gói](c2s-builders.md) |
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |

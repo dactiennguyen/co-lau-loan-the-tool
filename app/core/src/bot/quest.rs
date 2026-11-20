@@ -155,8 +155,10 @@ impl Bot {
     }
 }
 
-/// How many zones a quest step tries for its mob or boss before it gives up (quest_zone).
+/// How many zones a quest step tries for its mob before it gives up (quest_zone), and for its boss: a zone without the
+/// boss is left at once, so more of them are tried.
 const QUEST_ZONE_TRIES: usize = 5;
+const QUEST_BOSS_ZONE_TRIES: usize = 30;
 
 /// The quest run: next(), elsewhere(), travel(), fight() and onBattleEnd() of QuestBot in src/bot/quest.ts.
 impl Bot {
@@ -427,13 +429,17 @@ impl Bot {
                 let has = |m: &MapRecord| {
                     m.mobs.iter().any(|k| k.name == mob) || m.bosses.iter().any(|b| b.name == mob)
                 };
-                // A mob the atlas puts in this map, like a boss between its s2c/1177 field 1 and field 0 (~13 s), is
-                // waited for here (6 × 5 s), never searched elsewhere.
-                if !self.atlas.maps.get(&self.snap.map_id).is_some_and(has) {
+                // A mob the atlas puts in this map is waited for here (6 × 5 s), then looked for in other zones. A boss
+                // is looked for in another zone at once, unless this zone's boss only left its tile (s2c/1177 field 1,
+                // back after ~13 s): each zone has its own, and one beaten by others is not back for long.
+                let map = self.atlas.maps.get(&self.snap.map_id);
+                if !map.is_some_and(has) {
                     return self.travel(q, reason, &has, now, out);
                 }
-                if self.waits >= 6 {
-                    return self.quest_zone(mob, now, out);
+                let boss = map.is_some_and(|m| m.bosses.iter().any(|b| b.name == mob));
+                let moving = self.snap.bosses.iter().any(|b| b.name == mob && b.moving);
+                if self.waits >= 6 || (boss && !moving) {
+                    return self.quest_zone(mob, boss, now, out);
                 }
                 self.waits += 1;
                 self.doing(format!("Đợi {mob} ({}/6)", self.waits));
@@ -460,13 +466,18 @@ impl Bot {
         false
     }
 
-    /// The mob or boss of the step is in this map by the atlas, but not in this zone after 6 × 5 s: another zone of the
-    /// map, as the Khu vực panel would (c2s/1173). Every zone has its own boss (mob86100001 in zone 0, mob86100801 in zone
-    /// 8 for Thủ Lĩnh Sơn Tặc of M1), and in a busy zone it may have just been beaten by others (20/11, four accounts
-    /// waited for it in vain). The zone with the fewest players of the list (s2c/1172, asked in each zone), not full and
-    /// not left yet for this step; at most QUEST_ZONE_TRIES zones. True while a zone change or the list is awaited.
-    fn quest_zone(&mut self, mob: &str, now: Instant, out: &mut Vec<Out>) -> bool {
-        if !self.quest_running() || self.zone_tries.len() >= QUEST_ZONE_TRIES {
+    /// The mob of the step is in this map by the atlas but not in this zone after 6 × 5 s, or its boss is not in this
+    /// zone (at once, `boss`): another zone of the map, as the Khu vực panel would (c2s/1173). Every zone has its own boss
+    /// (mob86100001 in zone 0, mob86100801 in zone 8 for Thủ Lĩnh Sơn Tặc of M1), and in a busy zone it may have just been
+    /// beaten by others (20/11, four accounts waited for it in vain). The zone with the fewest players of the list
+    /// (s2c/1172, asked in each zone), not full and not left yet for this step; at most QUEST_ZONE_TRIES zones
+    /// (QUEST_BOSS_ZONE_TRIES for a boss). True while a zone change or the list is awaited.
+    fn quest_zone(&mut self, mob: &str, boss: bool, now: Instant, out: &mut Vec<Out>) -> bool {
+        let tries = match boss {
+            true => QUEST_BOSS_ZONE_TRIES,
+            false => QUEST_ZONE_TRIES,
+        };
+        if !self.quest_running() || self.zone_tries.len() >= tries {
             return false;
         }
         let Some(zones) = self.snap.zones.clone() else {
@@ -489,13 +500,14 @@ impl Bot {
             return false;
         };
         self.zone_tries.push(here);
-        out.push(Out::Log(
-            LogKind::Quest,
-            format!(
-                "Không thấy {mob} ở khu {here} sau 30 s, sang khu {zone} tìm ({}/{QUEST_ZONE_TRIES})",
-                self.zone_tries.len()
-            ),
-        ));
+        let n = self.zone_tries.len();
+        let text = match self.waits {
+            0 => format!("Khu {here} không có {mob}, sang khu {zone} tìm ({n}/{tries})"),
+            _ => {
+                format!("Không thấy {mob} ở khu {here} sau 30 s, sang khu {zone} tìm ({n}/{tries})")
+            }
+        };
+        out.push(Out::Log(LogKind::Quest, text));
         self.doing(format!("Sang khu {zone} tìm {mob}"));
         if !self.zone_to(zone, true, now, out) {
             return false;

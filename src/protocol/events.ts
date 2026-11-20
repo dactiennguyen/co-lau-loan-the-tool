@@ -2,7 +2,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundDrop, groundItems,
-  zoneList, worldMap, itemUsed, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
+  zoneList, worldMap, itemUsed, bachHoBoard, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
   playerSay, worldChat } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
 import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
@@ -119,6 +119,8 @@ event('c2s', 1196, 'friends_request', 'world', 'Mở Bạn bè', 's2c/1196', 'R�
 event('s2c', 1196, 'friend_list', 'world', 'Trả friends_request', 'Không', 'i32 n; bản ghi bạn chưa thấy (n = 0)', 'Đo 1 lần, chưa có bạn');
 event('c2s', 1254, 'ranking_request', 'world', 'Mở BXH hoặc đổi tab', 's2c/1254 kiểu 0 (tab) rồi kiểu 1 (danh sách)', 'u8 tab; mở lần đầu chỉ có u8 0, đổi tab gửi u8 tab; u8 1');
 event('s2c', 1254, 'ranking', 'world', 'Trả ranking_request', 'Không', 'u8 kind; 0: u8 n; n * {u8 tab; string title; string column}; u8. 1: u8 tab; i32 n; n * {i32 rank; i32 id; string name; i32; i32 level}; i32 ownRank; i32; i32 ownLevel; [0.0.7: n × i64 reachedAt; i64 ownReachedAt]', 'Đọc hết byte; manina hạng 1094 khớp màn hình. 0.0.7 (20/11): 7 tab, Cao thủ 100 dòng 3562 byte');
+event('c2s', 1252, 'bach_ho_board_request', 'world', 'Bảng công trạng Bạch Hổ: mở hay Làm mới (sqid.c → sqlq.Y, đọc tĩnh)', 's2c/1252', 'Rỗng', 'BH1 (tiheo2, 20/11 15:08, ngoài giờ): server trả s2c/1252 ngay, không cần ở trong hang');
+event('s2c', 1252, 'bach_ho_board', 'world', 'Trả bach_ho_board_request', 'Không', 'u8 trạng thái; i32 máu; i32 máu tối đa; i32 số người; i32 n (≤ 64); n × {i32; i32; string tên; i32}; i32 hạng của mình; i32', 'BH1: 25 byte `02 000003e8 000003e8 0 0 0 0` (trạng thái 2, máu 1000/1000, chưa ai đánh); bố cục khớp hàm đọc sqrj.a');
 event('c2s', 1240, 'season_request', 'world', 'Mở Bảo Điển', 's2c/1240', 'Rỗng');
 event('s2c', 1240, 'season_info', 'world', 'Trả season_request', 'Không', 'u8 (0 = chưa có mùa)', 'Đo 1 lần');
 event('c2s', 1241, 'season_quests_request', 'world', 'Mở Bảo Điển', 's2c/1241', 'Rỗng');
@@ -251,7 +253,7 @@ function required<T>(value: T | undefined, name: string): T {
 export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
   const w = new Writer();
   switch (opcode) {
-    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: case 116: return w.build();
+    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: case 116: case 1252: return w.build();
     case 1192: return marketPageRequest(required(ctx.tab, 'tab'), ctx.page ?? 1);
     case 115: return marketBuyRequest(required(ctx.uuid, 'uuid'));
     case 113: return marketWithdrawRequest(required(ctx.uuid, 'uuid'));
@@ -311,7 +313,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
   let fields: Record<string, unknown> = {};
   if (direction === 'c2s') {
     switch (opcode) {
-      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1218: case 1221: case 1275: case 1277: case 1281: break;
+      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1252: case 1218: case 1221: case 1275: case 1277: case 1281: break;
       case 1282: fields = { adb: r.u8(), devOptions: r.u8() === 1, accessibility: r.u8() }; break;
       case 1284: { const command = r.u8(); fields = r.data.length - r.offset >= 4 ? { command, playerId: r.i32() } : { command }; break; }
       case 1285: fields = { playerId: r.i32(), reason: r.u8() }; break;
@@ -430,6 +432,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 34: fields = questProgress(payload); r.take(payload.length); break;
       case 35: fields = questComplete(payload); r.take(payload.length); break;
       case 1254: fields = ranking(payload); r.take(payload.length); break;
+      case 1252: fields = bachHoBoard(payload); r.take(payload.length); break;
       case 1215: fields = mailList(payload); r.take(payload.length); break;
       case 1196: fields = { count: r.i32() }; break;
       case 1240: case 1241: fields = { flag: r.u8() }; break;
