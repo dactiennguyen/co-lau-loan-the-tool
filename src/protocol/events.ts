@@ -6,6 +6,7 @@ import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveR
   playerSay, worldChat } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
 import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
+import { checkinRequest, checkinResult, claimRequest, eventDefinition, eventKeyRequest, eventProgress } from './welfare.ts';
 import { market, marketBuyRequest, marketDone, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from './market.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from '../battle/battle.ts';
 
@@ -149,6 +150,14 @@ event('s2c', 1285, 'report_result', 'world', 'Trả c2s/1285', 'Không', 'u8 k�
 event('c2s', 1275, 'request_1275', 'world', 'sqnf.Z() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 event('c2s', 1277, 'request_1277', 'world', 'sqnf.Q() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 event('c2s', 1281, 'request_1281', 'world', 'sqnf.N(), do com.mh.sqip.h14 gọi (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
+// Phúc lợi (PL1, 20/11, docs/app/events/18-players-checkin.md): Điểm danh tháng, Quà thăng cấp, Quà online.
+event('c2s', 1236, 'welfare_definition_request', 'world', 'Mở Phúc lợi hay một tab của nó (một lần mỗi khoá mỗi lượt đăng nhập)', 's2c/1236', 'string khoá (CHECKIN_MONTHLY, ONLINE_DAILY, LEVEL_UP, RECHARGE_TOTAL, SPEND_TOTAL, FIRST_CHARGE)', 'Đo PL1 (20/11)');
+event('s2c', 1236, 'welfare_definition', 'world', 'Trả c2s/1236', 'Không', 'u8 ok; i64 ?; i64 mãSựKiện; string khoá; string tên; i32 n; n × {i64 mãMốc; i32 điềuKiện; i32 k; k × item record}; CHECKIN_MONTHLY thêm i32 n; n × {item record; i16 ?}', 'Đo PL1: đọc hết byte cho 3 khoá bot dùng; khoá khác còn đuôi chưa giải');
+event('c2s', 1239, 'welfare_progress_request', 'world', 'Mở Phúc lợi hay một tab của nó', 's2c/1239', 'string khoá', 'Đo PL1 (20/11)');
+event('s2c', 1239, 'welfare_progress', 'world', 'Trả c2s/1239; sau Điểm danh và sau nhận quà', 'Không', 'u8 ok; i64 ?; i64 mãSựKiện; string khoá; string kỳ; i32 tiếnĐộ; i64 0; i32 n; n × {i64 mãMốc; u8 trạngThái 0/1/2}; CHECKIN_MONTHLY thêm u8 hômNayĐã; u8 ngày; u8 sốNgàyThángNày; i32 mặtNạNgày; i64 giờReset', 'Đo PL1');
+event('c2s', 1232, 'checkin', 'world', 'Bấm Điểm danh (mốc 0) hay nhận quà mốc tháng', 's2c/1187, s2c/1232, s2c/1239, s2c/1279', 'i64 mãSựKiện (64); i64 mãMốc (0 = quà ngày)', 'Đo PL1 (akaito): mốc 0; mốc tháng chưa đo');
+event('s2c', 1232, 'checkin_result', 'world', 'Trả c2s/1232', 'Không', 'i64 mãSựKiện; i64 mãMốc; u8 ok; string lời; u8 ?; u8 chỉSốQuàNgày; i32 ?', 'Đo PL1: "Điểm danh ngày 20: nhận 1 Đá cấp 6", chỉ số 6');
+event('c2s', 1233, 'welfare_claim', 'world', 'Bấm Nhận quà ở tab Online (Quà thăng cấp, Quà online)', 's2c/46, s2c/1187, s2c/1256 "Đã nhận N phần thưởng", s2c/1239 (và s2c/1279)', 'i64 mãSựKiện (65 thăng cấp, 21 online): mọi mốc đủ điều kiện một lần', 'Đo PL1 (akaito): 5 mốc thăng cấp, 4 mốc online');
 event('s2c', 1214, 'battle_end_1214', 'battle', 'Cuối trận, sau đầu hàng hoặc huỷ trận', 'Không', 'Rỗng', 'Đo; vai trò chưa rõ');
 
 const pushes: [number, string, string, string, string?][] = [
@@ -157,7 +166,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1269, 'config_1269', 'Sau c2s/4', '30 byte cấu hình, opaque'],
   [1271, 'social_links', 'Sau c2s/4', '140 byte; có URL Facebook, chưa giải cấu trúc danh sách'],
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
-  [1279, 'signal_1279', 'Vào thế giới: sau s2c/1220, ngay trước s2c/1284 (APK 1.1.0)', 'i32 (mẫu 8)', 'Đo 2 lần 20/11 (tiheo2); vai trò chưa rõ'],
+  [1279, 'welfare_dots', 'Vào thế giới: sau s2c/1220, ngay trước s2c/1284 (APK 1.1.0); sau Điểm danh và sau nhận quà Phúc lợi', 'i32 mặt nạ: một bit mỗi tab Phúc lợi còn quà (chấm đỏ), Online 0, Tri ân 1, Mua chung 2, Điểm danh 3, Giftcode 4, Nạp đầu 5', 'Đo PL1 20/11 (akaito): 9 lúc vào game, 1 sau Điểm danh, 0 sau quà Online'],
   [1274, 'config_1274', 'Sau c2s/4, trước s2c/1265 (APK 1.1.0)', '884 byte, opaque', 'Đo VG1 20/11; chưa giải'],
   [46, 'currency_notice', 'Sau s2c/9; khi tiền đổi (trả nhiệm vụ)', 'string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong', 'Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng'],
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau); sau c2s/1191 (kiểu 32)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]. Kind 32: i32 n; n * {i32 skillId; i32 level}', 'Đọc hết byte 4 kiểu (L1, Q2, E1, P1); EXP và tiền khớp phần thưởng trận; stats[0] tăng 1 mỗi điểm Cường Lực, stats[1] mỗi điểm Thân Pháp, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, chính xác, né tránh, chí mạng: khớp bảng ở P1), fields[0] là điểm kỹ năng (16 ở P1, khớp bảng), extra[0], labels chưa rõ; kiểu 32 tăng cấp Hỏa Cầu Thuật 1 → 4'],
@@ -238,6 +247,8 @@ export interface RequestContext {
   kind?: number;
   /** c2s/1216, c2s/1217, c2s/1219: the mail; c2s/1223: the gift code. */
   mailId?: number; code?: string;
+  /** c2s/1236, c2s/1239: the key of a Phúc lợi event; c2s/1232, c2s/1233: its number and milestone. */
+  key?: string; event?: number; milestone?: number;
   /** c2s/1192: the Chợ trời tab (-1 Đang bán) and page. c2s/115 takes the listing's uuid. */
   tab?: number; page?: number;
   /** c2s/112: the price in Xu (slot and quantity as above). */
@@ -260,6 +271,10 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 112: return marketSellRequest(required(ctx.slot, 'slot'), ctx.quantity ?? 1, required(ctx.price, 'price'));
     // Hòm thư and Mã quà tặng (G1). No c2s/1221 (Xóa hết): it deletes gifts not taken too.
     case 1216: case 1217: case 1219: return mailIdRequest(required(ctx.mailId, 'mailId'));
+    // Phúc lợi (PL1).
+    case 1236: case 1239: return eventKeyRequest(required(ctx.key, 'key'));
+    case 1232: return checkinRequest(required(ctx.event, 'event'), ctx.milestone ?? 0);
+    case 1233: return claimRequest(required(ctx.event, 'event'));
     case 1223: return giftCodeRequest(required(ctx.code, 'code'));
     case 1206: return w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build();
     case 1284: return w.u8(0).build();
@@ -319,6 +334,9 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1285: fields = { playerId: r.i32(), reason: r.u8() }; break;
       case 1216: case 1217: case 1219: fields = { mailId: Number(r.take(8).readBigInt64BE()) }; break;
       case 1223: fields = { code: r.string() }; break;
+      case 1236: case 1239: fields = { key: r.string() }; break;
+      case 1232: fields = { event: Number(r.take(8).readBigInt64BE()), milestone: Number(r.take(8).readBigInt64BE()) }; break;
+      case 1233: fields = { event: Number(r.take(8).readBigInt64BE()) }; break;
       case 1192: fields = { mode: r.u8(), tab: r.i32(), page: r.i32() }; break;
       case 115: case 113: fields = { uuid: r.string() }; break;
       case 116: fields = {}; break;
@@ -365,7 +383,10 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1: case 4: break;
       case 1207: fields = { serverList: r.string() }; break;
       case 1209: fields = serverFlag(r); break;
-      case 1279: fields = { value: r.i32() }; break;
+      case 1279: fields = { mask: r.i32() }; break;
+      case 1236: { const d = eventDefinition(payload); fields = d; r.take(payload.length - (d.rest?.length ?? 0)); break; }
+      case 1239: { const p = eventProgress(payload); fields = p; r.take(payload.length - (p.rest?.length ?? 0)); break; }
+      case 1232: fields = checkinResult(payload); r.take(payload.length); break;
       case 1284: fields = chatBlockList(r); break;
       case 1285: fields = { result: r.u8(), message: r.string() }; break;
       case 1220: fields = { unread: r.u8() === 1 }; break;

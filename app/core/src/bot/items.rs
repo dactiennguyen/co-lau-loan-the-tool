@@ -267,7 +267,12 @@ impl Bot {
             ));
             self.skills_failed = false;
         }
+        let welfare =
+            (settings.auto_welfare != self.fight.auto_welfare).then_some(settings.auto_welfare);
         self.fight = settings;
+        if let Some(on) = welfare {
+            self.welfare_switched(on, now, out);
+        }
     }
 
     /// Tự nhặt đồ, at the end of the won battle `won` (13-drops-items.md#g2): its own drops came just before the end, in

@@ -12,6 +12,7 @@ import { AccountsJsonDialog } from "@/views/dialogs/AccountsJsonDialog";
 import { SkillsModal } from "@/views/SkillsModal";
 import { StatsModal } from "@/views/StatsModal";
 import { ShopModal } from "@/views/shop/ShopModal";
+import { WelfareModal } from "@/views/WelfareModal";
 import { EmptyState } from "@/views/EmptyState";
 import { Sidebar } from "@/views/Sidebar";
 import { StatPlanDialog } from "@/views/dialogs/StatPlanDialog";
@@ -94,6 +95,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "skills" && account) {
     return <SkillsModal account={account} onClose={close} />;
+  }
+  if (dialog?.kind === "welfare" && account) {
+    return <WelfareModal account={account} onClose={close} />;
   }
   if (dialog?.kind === "battles" && account) {
     return <StatsModal account={account} onClose={close} />;

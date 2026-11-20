@@ -328,6 +328,7 @@ pub(super) async fn session(
                     Some(Command::GiftReset) => bot.gift_reset(out),
                     Some(Command::Mail(task)) => bot.mail(task, now, out),
                     Some(Command::Market(task)) => bot.market(task, now, out),
+                    Some(Command::Welfare) => bot.welfare(now, out),
                 }
             }
             _ = sleep_until(wake.unwrap_or_else(Instant::now)), if wake.is_some() => bot.on_timer(std::time::Instant::now(), out),

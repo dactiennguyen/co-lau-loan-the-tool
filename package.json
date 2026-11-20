@@ -24,6 +24,7 @@
     "gift": "node --experimental-strip-types src/cli/gift-run.ts",
     "mail": "node --experimental-strip-types src/cli/mail-run.ts",
     "daily": "node --experimental-strip-types src/cli/daily-run.ts",
+    "welfare": "node --experimental-strip-types src/cli/welfare-run.ts",
     "market": "node --experimental-strip-types src/cli/market-run.ts",
     "elder": "node --experimental-strip-types src/cli/elder-run.ts",
     "chat": "node --experimental-strip-types src/cli/chat-run.ts",

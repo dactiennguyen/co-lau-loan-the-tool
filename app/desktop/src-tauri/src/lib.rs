@@ -138,6 +138,7 @@ pub fn run() {
             commands::item_action,
             commands::discard_many,
             commands::break_all,
+            commands::welfare,
             commands::reorder_accounts,
             commands::list_zones,
             commands::change_zone,

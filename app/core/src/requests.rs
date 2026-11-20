@@ -48,6 +48,11 @@ pub struct Ctx<'a> {
     pub price: Option<i64>,
     /// The third field of c2s/97: npc::PUT_ITEM (gear, stones) or npc::PUT_STACK (Bùa bảo vệ, materials of Chế tạo).
     pub put_kind: Option<i32>,
+    /// Phúc lợi (welfare.rs): the key of c2s/1236 and c2s/1239; the event of c2s/1232 and c2s/1233, and the milestone of
+    /// c2s/1232 (0 for Điểm danh).
+    pub key: Option<&'a str>,
+    pub event: Option<i64>,
+    pub milestone: Option<i64>,
 }
 
 fn required<T>(v: Option<T>, name: &str) -> Result<T> {
@@ -152,6 +157,14 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         1223 => w.string(required(c.code, "code")?).build(),
         // Hòm thư (G1): open, Nhận and Xóa of one mail.
         1216 | 1217 | 1219 => w.i64(required(c.mail_id, "mailId")?).build(),
+        // Phúc lợi (PL1): an event's definition and progress by its key, Điểm danh (or a milestone of the month), and
+        // every milestone reached of Quà online or Quà thăng cấp.
+        1236 | 1239 => w.string(required(c.key, "key")?).build(),
+        1232 => w
+            .i64(required(c.event, "event")?)
+            .i64(c.milestone.unwrap_or(0))
+            .build(),
+        1233 => w.i64(required(c.event, "event")?).build(),
         // Chợ trời (CT1, NP1): a page, Mua and Thu hồi by the listing's uuid; c2s/112 is Gia hạn (kind 2) with a uuid,
         // else Đăng bán (kind 1) of a bag slot.
         1192 => w

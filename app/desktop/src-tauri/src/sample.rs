@@ -8,6 +8,7 @@ use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, CraftRecipes,
     DailyState, EggGain, EggRun, GiftCode, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice,
     MapMob, MarketState, Picked, PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
+    WelfareEvent, WelfareMilestone, WelfareState,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{DailyQuest, MailBody, MailHeader};
@@ -607,6 +608,8 @@ fn main_character() -> Snapshot {
             read_at: Some(ago(900)),
             done: None,
         },
+        // Phúc lợi: today not checked yet, 125 minutes online (60 taken, 120 to take), level 34 (40 ahead).
+        welfare: welfare_sample(),
         ..Snapshot::default()
     }
 }
@@ -1023,4 +1026,78 @@ fn battle_replay() -> Result<serde_json::Value, String> {
     let picked = [Picked::of(41, 236), Picked::of(413, 1)];
     events.push(json!({ "ms": end + 1500, "event": { "kind": "picked", "picked": picked } }));
     Ok(json!(events))
+}
+
+/// Phúc lợi of the main character (the Phúc lợi window of the Tiền tile): 19 days checked this month but not today,
+/// Quà online with 120 minutes to take, Quà thăng cấp at level 34.
+fn welfare_sample() -> WelfareState {
+    let m = |id: i64, need: i32, state: u8, gifts: &str| WelfareMilestone {
+        id,
+        need,
+        state,
+        gifts: gifts.into(),
+    };
+    WelfareState {
+        known: true,
+        dots: Some(9),
+        due: true,
+        checked_today: Some(false),
+        day: Some(20),
+        days_in_month: Some(30),
+        days: Some((1..=19).collect()),
+        today_gift: None,
+        daily: [
+            "1.500 Xu khóa",
+            "3.000 Xu khóa",
+            "Hoàn Linh Dược ×5",
+            "Kim Đan Dược ×5",
+            "Búa Sửa Chữa ×5",
+            "Đá cấp 5 ×2",
+            "Đá cấp 6",
+            "Đá cấp 7",
+            "Vé may mắn",
+            "Tăng Kinh Nghiệm",
+        ]
+        .map(String::from)
+        .to_vec(),
+        checkin: Some(WelfareEvent {
+            title: "Điểm danh tháng".into(),
+            period: "2026-11".into(),
+            progress: 19,
+            milestones: vec![
+                m(299, 7, 2, "Vé may mắn"),
+                m(300, 14, 2, "Đá cấp 7"),
+                m(301, 21, 0, "Bùa bảo vệ sơ cấp"),
+                m(302, 28, 0, "Tăng Kinh Nghiệm, Vé may mắn"),
+            ],
+        }),
+        online: Some(WelfareEvent {
+            title: "Online mỗi ngày".into(),
+            period: "2026-11-20".into(),
+            progress: 125,
+            milestones: vec![
+                m(47, 30, 2, "5.000 Xu khóa"),
+                m(48, 60, 2, "Đá cấp 5"),
+                m(49, 120, 1, "10.000 Xu khóa"),
+                m(50, 180, 0, "Đá cấp 6"),
+            ],
+        }),
+        level: Some(WelfareEvent {
+            title: "Quà thăng cấp".into(),
+            period: "-".into(),
+            progress: 34,
+            milestones: vec![
+                m(303, 10, 2, "25.000 Xu khóa"),
+                m(304, 21, 2, "Tăng Kinh Nghiệm"),
+                m(305, 30, 2, "Hoàn Linh Dược ×10, Kim Đan Dược ×10"),
+                m(306, 40, 0, "Tăng Kinh Nghiệm"),
+                m(307, 51, 0, "Chuyển hoá trang bị trung cấp"),
+                m(308, 75, 0, "Đá cấp 9 ×3"),
+                m(309, 101, 0, "Bùa bảo vệ trung cấp"),
+            ],
+        }),
+        doing: None,
+        last: Some("Quà online: Đã nhận 2 phần thưởng (5.000 Xu khóa, Đá cấp 5)".into()),
+        last_at: Some(ago(1800)),
+    }
 }

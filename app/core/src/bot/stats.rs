@@ -3,9 +3,11 @@ use super::*;
 
 /// Potential points: the stat plan (--stats of QuestBot) and "Cộng +1" on one stat.
 impl Bot {
-    /// The game has let the character in (net/session.rs): the stat plan spends what points there are.
+    /// The game has let the character in (net/session.rs): the stat plan spends what points there are, and Tự điểm danh
+    /// và nhận quà runs soon after.
     pub fn on_ready(&mut self, now: Instant, out: &mut Vec<Out>) {
         self.spend_points(now, out);
+        self.welfare_login(now);
     }
 
     /// With nothing running, the stat plan and Tự cộng kỹ năng spend what points there are now: at login, and once Cài

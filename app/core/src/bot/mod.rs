@@ -57,6 +57,7 @@ mod stats;
 mod travel;
 mod types;
 mod waits;
+mod welfare;
 pub use fight::{HP_POTION_SHARE, MP_POTION_SHARE};
 pub use types::*;
 
@@ -330,6 +331,14 @@ pub struct Bot {
     /// Chợ trời (bot/market.rs): the task under way, waiting for the server. What the market showed is in
     /// Snapshot.market.
     market: Option<market::MarketWait>,
+    /// Phúc lợi (bot/welfare.rs): the run under way; the definitions (once a session) and progress the server sent, by
+    /// key; when the next automatic run goes (Tự điểm danh và nhận quà); a refused Điểm danh's words, whose notice
+    /// follows.
+    welfare: Option<welfare::WelfareRun>,
+    welfare_definitions: BTreeMap<String, crate::welfare::EventDefinition>,
+    welfare_progress: BTreeMap<String, crate::welfare::EventProgress>,
+    welfare_at: Option<Instant>,
+    welfare_echo: Option<(String, Instant)>,
     fight: FightSettings,
     /// The gear slot and item name of the repair auto_repair sent, until s2c/48 or a notice answers it. `repair_failed`
     /// holds the slots the server did not repair in this run, `repair_warned` whether the run said it has no hammer.
@@ -433,6 +442,11 @@ impl Bot {
             gift_echo: None,
             mail: None,
             market: None,
+            welfare: None,
+            welfare_definitions: BTreeMap::new(),
+            welfare_progress: BTreeMap::new(),
+            welfare_at: None,
+            welfare_echo: None,
             fight,
             repairing: None,
             repair_failed: HashSet::new(),
@@ -644,6 +658,7 @@ impl Bot {
             self.market.as_ref().map(|m| m.until),
             self.pick_at,
             self.egg_deadline(),
+            self.welfare_deadline(),
         ]
         .into_iter()
         .flatten()
@@ -725,6 +740,7 @@ impl Bot {
         self.gift_timer(now, out);
         self.mail_timer(now, out);
         self.market_timer(now, out);
+        self.welfare_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
             if let Some(z) = self.zoning.take() {

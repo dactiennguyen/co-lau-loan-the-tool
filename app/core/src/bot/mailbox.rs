@@ -39,25 +39,9 @@ pub(super) struct MailWait {
 
 /// "5.000.000 Xu, 10.000 Lượng, Đá cấp 5 ×3": the money of a mail, then its items, the records of one item together.
 fn contents(body: &MailBody) -> String {
-    let mut money: Vec<String> = vec![];
-    let mut items: Vec<Picked> = vec![];
-    for i in &body.items {
-        match mail::money_item(i.item_id) {
-            Some(m) => money.push(format!(
-                "{} {}",
-                smith::grouped(i.quantity as i64),
-                m.name()
-            )),
-            None => add_picked(&mut items, &Picked::of(i.item_id, i.quantity as i64)),
-        }
-    }
-    let all: Vec<String> = money
-        .into_iter()
-        .chain(items.iter().map(Picked::label))
-        .collect();
-    match all.is_empty() {
+    match body.items.is_empty() {
         true => "thư không có vật phẩm".into(),
-        false => all.join(", "),
+        false => welfare::gift_list(&body.items),
     }
 }
 

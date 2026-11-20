@@ -82,7 +82,7 @@ export function AccountPage({ account }: { account: Account }) {
         onPlace={() => open({ kind: "place", id })}
         onStats={() => open({ kind: "battles", id })}
       />
-      <MetricRow character={c} />
+      <MetricRow character={c} onWelfare={() => open({ kind: "welfare", id })} />
       <div className="grid grid-cols-[minmax(240px,300px)_minmax(0,1fr)] gap-3 min-h-0 narrow:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
         {/* The top card keeps its full height; the bottom one takes what is left, and the page scrolls when that is too
             little. */}

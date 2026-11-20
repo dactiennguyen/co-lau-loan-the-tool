@@ -177,6 +177,7 @@ mod tests {
                 fight_losses: 4,
                 quest_losses: 2,
                 auto_skills: true,
+                auto_welfare: true,
             },
             fight_targets: BTreeMap::from([("M2".into(), "Kẻ Quấy Phá".into())]),
             proxy: Some(crate::proxy::Proxy {

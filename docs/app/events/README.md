@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 160 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 85 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 167 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 78 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -36,6 +36,8 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | Cửa hàng NPC: 14 cửa hàng, 193 dòng hàng với giá, bản ghi 33 và 49 byte (`1190`), mua bằng Xu, Xu khóa, Lượng, Đổi lượng, đồ khoá giao dịch | [15-shops](15-shops.md) |
 | Pháp sư: nâng cấp thường và cẩn thận (`96`, `97`, `90`, `1258`, `91`), tỉ lệ và phí, thất bại, bùa, luyện đá (`99`, `92`, `93`), tách đá, chuyển hoá (`1260`), chế tạo, túi đầy, kết quả bấm thật | [16-upgrade](16-upgrade.md) |
 | Bạch Hổ Thống Lĩnh (boss thế giới): luật trong Cẩm nang, bảng công trạng `c2s/1252` (rỗng) và `s2c/1252` đọc từ code native | [17-bach-ho](17-bach-ho.md) |
+| Người chơi với nhau (menu chạm vào người chơi, Xem thông tin, Kết bạn, Bạn bè, chat riêng, Gửi thư kèm đồ) và Điểm danh tháng (`c2s/1232`, quà ngày ngẫu nhiên vào thẳng túi), Quà thăng cấp và Quà online (`c2s/1233`) | [18-players-checkin](18-players-checkin.md) |
+| Luyện Ngục: Cổng Luyện Ngục (M15), Luyện Ngục 1–4 (M18–M21, cần Nhẫn Luyện Ngục, quái cấp 30–150), Hang Bạch Hổ (M24) | [19-luyen-nguc](19-luyen-nguc.md) |
 | Mọi gói client gửi được: hàm dựng, opcode, kiểu từng trường | [c2s-builders](../c2s-builders.md) |
 
 ## Danh sách gói
@@ -128,6 +130,13 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1222 | mail_new | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
 | c2s/1223 | gift_code | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
 | s2c/1223 | gift_code_result | world | [Mã quà tặng](14-npc.md#mã-quà-tặng) |
+| c2s/1236 | welfare_definition_request | world | [Điểm danh](18-players-checkin.md#điểm-danh) |
+| s2c/1236 | welfare_definition | world | [Điểm danh](18-players-checkin.md#điểm-danh) |
+| c2s/1239 | welfare_progress_request | world | [Điểm danh](18-players-checkin.md#điểm-danh) |
+| s2c/1239 | welfare_progress | world | [Điểm danh](18-players-checkin.md#điểm-danh) |
+| c2s/1232 | checkin | world | [Điểm danh](18-players-checkin.md#điểm-danh) |
+| s2c/1232 | checkin_result | world | [Điểm danh](18-players-checkin.md#điểm-danh) |
+| c2s/1233 | welfare_claim | world | [Quà Online](18-players-checkin.md#quà-online) |
 | c2s/1196 | friends_request | world | [Các bảng chức năng](11-panels.md) |
 | s2c/1196 | friend_list | world | [Các bảng chức năng](11-panels.md) |
 | c2s/1252 | bach_ho_board_request | world | [Bạch Hổ](17-bach-ho.md#gói) |
@@ -159,7 +168,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1269 | config_1269 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1269) |
 | s2c/1271 | social_links | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1271) |
 | s2c/1272 | config_1272 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1272) |
-| s2c/1279 | signal_1279 | push | [APK 1.1.0](../apk-1.1.0.md#s2c1279-và-s2c1284-lúc-vào-thế-giới) |
+| s2c/1279 | welfare_dots | push | [Điểm danh](18-players-checkin.md#điểm-danh), [APK 1.1.0](../apk-1.1.0.md#s2c1279-và-s2c1284-lúc-vào-thế-giới) |
 | s2c/1274 | config_1274 | push | [Vào game VG1](02-login.md#vg1) |
 | c2s/1282 | device_signals | world | [APK 1.1.0](../apk-1.1.0.md#c2s1282-trạng-thái-máy-chống-bot), [VG1](02-login.md#vg1) |
 | c2s/1284 | chat_block | world | [Chặn chat](09-players-chat.md#chặn-chat-và-báo-cáo) |

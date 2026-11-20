@@ -178,6 +178,13 @@ pub fn break_all(shared: State<Shared>, id: u64, slot: u8, uuid: String) {
     shared.with(|app| app.send(id, Command::BreakAll(slot, uuid)));
 }
 
+/// Nhận ngay of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now, Tự điểm danh và nhận quà on or not
+/// (Bot::welfare).
+#[tauri::command]
+pub fn welfare(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::Welfare));
+}
+
 /// Nâng cấp on one skill of the Kỹ năng tab: one level, c2s/1191 (id, 1).
 #[tauri::command]
 pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {

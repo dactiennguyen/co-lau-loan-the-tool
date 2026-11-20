@@ -381,6 +381,8 @@ export interface Character {
   points: PointsRead | null;
   /** Nhiệm vụ hàng ngày: the quest held and how many were taken today. */
   daily: DailyState;
+  /** Phúc lợi: Điểm danh, Quà online, Quà thăng cấp (the Phúc lợi window of the Tiền tile). */
+  welfare: WelfareState;
   /** Mã quà tặng under way or last done (Tiện ích). */
   gift: GiftRun | null;
   /** Đập hết under way (Túi đồ); null once it ends, its end line in the log. */
@@ -606,6 +608,48 @@ export interface DailyQuest {
   progress: number;
   target: number;
 }
+/** Phúc lợi as the server said it last (WelfareState of bot/types.rs): Điểm danh, Quà online, Quà thăng cấp with their
+ * milestones, whether something is due, the run under way and what the last one did. */
+export interface WelfareState {
+  /** The progress of an event came: false until the first run of the session. */
+  known: boolean;
+  /** s2c/1279: a bit per tab of Phúc lợi with a gift to take (bit 0 Online, 3 Điểm danh). */
+  dots: number | null;
+  /** Something to take: today not checked or a milestone reached; before any run, the red dots. */
+  due: boolean;
+  checkedToday: boolean | null;
+  day: number | null;
+  daysInMonth: number | null;
+  /** The days of the month checked. */
+  days: number[] | null;
+  /** The gift today when the bot checked in this session ("1 Đá cấp 6"). */
+  todayGift: string | null;
+  /** The ten gifts of the day, one drawn at random. */
+  daily: string[];
+  checkin: WelfareEvent | null;
+  online: WelfareEvent | null;
+  level: WelfareEvent | null;
+  /** "Đang nhận Quà online…" while a run goes. */
+  doing: string | null;
+  /** What the last run did, or why Nhận ngay did not go, and when (ms since 1970). */
+  last: string | null;
+  lastAt: number | null;
+}
+/** An event of Phúc lợi: progress is days checked, minutes online today, or the level. */
+export interface WelfareEvent {
+  title: string;
+  period: string;
+  progress: number;
+  milestones: WelfareMilestone[];
+}
+/** A milestone: what it needs (days, minutes, level), its state (0 not reached, 1 to take, 2 taken), its gifts. */
+export interface WelfareMilestone {
+  id: number;
+  need: number;
+  state: number;
+  gifts: string;
+}
+
 /** Nhiệm vụ hàng ngày (DailyState of bot/types.rs): the quest held as s2c/1195 says it (`known` once the server said, at
  * login), how many were taken today as Hương Lão's menu said last, and the last one done. */
 export interface DailyState {
@@ -863,6 +907,9 @@ export interface FightSettings {
   /** Tự cộng kỹ năng, off unless turned on (the Kỹ năng modal): points go to the skill of the lowest level that can take
    * one, unlearnt ones first, between battles and with nothing running. */
   autoSkills: boolean;
+  /** Tự điểm danh và nhận quà, off unless turned on (the Phúc lợi window of the Tiền tile): Điểm danh once a day, Quà
+   * online when its minutes are there, Quà thăng cấp on a level that reaches one, with or without a job running. */
+  autoWelfare: boolean;
 }
 
 /** Settings of settings.rs: the Cài đặt of the app, the same for every account. */

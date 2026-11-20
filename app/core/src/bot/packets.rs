@@ -565,9 +565,11 @@ impl Bot {
             }
             10 => {
                 let st = character_stats(payload)?;
+                let mut leveled = false;
                 if let Some(l) = st.level {
                     if l != s.level && s.level != 0 {
                         out.push(Out::Log(LogKind::Character, format!("Lên cấp {l}")));
+                        leveled = l > s.level;
                     }
                     s.level = l;
                 }
@@ -591,6 +593,10 @@ impl Bot {
                     s.stat_points = st.stat_points;
                     s.skill_points = st.fields.as_ref().and_then(|f| f.first().copied());
                     self.points_changed(now, out);
+                }
+                // Quà thăng cấp: a level that reaches a milestone (welfare_level).
+                if leveled {
+                    self.welfare_level(now);
                 }
             }
             1172 => self.snap.zones = Some(zone_list(payload)?.zones),
@@ -658,6 +664,11 @@ impl Bot {
                 let text = notice(payload)?;
                 // A refused gift code comes twice: s2c/1223, then this with the same words (gift_answer logged it).
                 if self.gift_echo(&text, now) {
+                    return Ok(());
+                }
+                // Phúc lợi's notices ("Đã nhận 4 phần thưởng", "Không có phần thưởng nào để nhận", the echo of a refused
+                // Điểm danh), before a pickup or a portal could take them for theirs (bot/welfare.rs).
+                if self.welfare_notice(&text, now, out) {
                     return Ok(());
                 }
                 // The answer to c2s/1188 ("Bạn vừa nhận được 137 Xu khóa", "Không thể nhặt vật phẩm của người khác"),
@@ -886,6 +897,20 @@ impl Bot {
                 self.mail_deleted(a, now, out);
             }
             1220 => self.snap.mailbox.unread = payload.first().map(|&b| b == 1),
+            // Phúc lợi (bot/welfare.rs): an event's definition and progress, the answer to Điểm danh, the red dots.
+            1236 => {
+                let d = crate::welfare::event_definition(payload)?;
+                self.welfare_definition(d, now, out);
+            }
+            1239 => {
+                let p = crate::welfare::event_progress(payload)?;
+                self.welfare_progress(p, now, out);
+            }
+            1232 => {
+                let r = crate::welfare::checkin_result(payload)?;
+                self.welfare_checkin(r, now, out);
+            }
+            1279 => self.welfare_dots(crate::welfare::welfare_dots(payload)?),
             // Nhiệm vụ hàng ngày (daily.rs): the quest held, done, or its progress; the answer to Nhận, Hủy, Hoàn thành.
             1195 => {
                 let d = crate::mail::daily_quest(payload)?;

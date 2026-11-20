@@ -368,6 +368,11 @@ pub struct FightSettings {
     /// (Bot::auto_skill).
     #[serde(default)]
     pub auto_skills: bool,
+    /// Tự điểm danh và nhận quà, off unless turned on (the Phúc lợi window of the Tiền tile): Điểm danh once a day, Quà
+    /// online when its minutes are there and Quà thăng cấp on a level that reaches one, with or without a job running
+    /// (bot/welfare.rs). Gifts go straight into the bag.
+    #[serde(default)]
+    pub auto_welfare: bool,
 }
 fn on() -> bool {
     true
@@ -437,6 +442,7 @@ impl Default for FightSettings {
             fight_losses: one(),
             quest_losses: one(),
             auto_skills: false,
+            auto_welfare: false,
         }
     }
 }
@@ -732,6 +738,56 @@ pub struct SmithRun {
     pub done: Option<String>,
     pub started_at: u64,
     pub ended_at: Option<u64>,
+}
+
+/// Phúc lợi as the server said it last (bot/welfare.rs), for the Phúc lợi window: Điểm danh, Quà online and Quà thăng
+/// cấp with their milestones, whether something is due, the run under way and what the last one did.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WelfareState {
+    /// The progress of an event came (c2s/1239): false until the first run of the session.
+    pub known: bool,
+    /// s2c/1279 at login and after a claim: a bit per tab of Phúc lợi with a gift to take (bit 0 Online, 3 Điểm danh).
+    pub dots: Option<i32>,
+    /// Something to take: today not checked or a milestone reached; before any run, the red dots of s2c/1279.
+    pub due: bool,
+    /// Điểm danh: today checked, today's day and the days of the month, the days checked; the gift today when the bot
+    /// checked in this session ("1 Đá cấp 6"), and the ten gifts of the day it is drawn from.
+    pub checked_today: Option<bool>,
+    pub day: Option<u8>,
+    pub days_in_month: Option<u8>,
+    pub days: Option<Vec<u32>>,
+    pub today_gift: Option<String>,
+    pub daily: Vec<String>,
+    /// The three events: Điểm danh tháng (progress: days checked; milestones 7/14/21/28 days), Online mỗi ngày (minutes
+    /// online today; 30/60/120/180), Quà thăng cấp (the level; 10/21/30/40/51/75/101).
+    pub checkin: Option<WelfareEvent>,
+    pub online: Option<WelfareEvent>,
+    pub level: Option<WelfareEvent>,
+    /// "Đang nhận Quà online…" while a run goes; None otherwise.
+    pub doing: Option<String>,
+    /// What the last run did ("Điểm danh ngày 20: nhận 1 Đá cấp 6; Quà online: Đã nhận 4 phần thưởng (…)"), or why Nhận
+    /// ngay did not go, and when (ms since 1970).
+    pub last: Option<String>,
+    pub last_at: Option<u64>,
+}
+/// An event of Phúc lợi: its title, period ("2026-11", "2026-11-20", "-"), progress, milestones.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WelfareEvent {
+    pub title: String,
+    pub period: String,
+    pub progress: i32,
+    pub milestones: Vec<WelfareMilestone>,
+}
+/// A milestone: what it needs (days, minutes, level), its state (0 not reached, 1 to take, 2 taken), its gifts in words.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WelfareMilestone {
+    pub id: i64,
+    pub need: i32,
+    pub state: u8,
+    pub gifts: String,
 }
 
 /// Đập hết under way (Bot::break_all), for the Túi đồ tab: the stack, the eggs broken of how many, the Xu khóa spent and
@@ -1034,6 +1090,8 @@ pub struct Snapshot {
     pub points: Option<PointsRead>,
     /// Nhiệm vụ hàng ngày: the quest held and how many were taken today.
     pub daily: DailyState,
+    /// Phúc lợi (bot/welfare.rs): Điểm danh, Quà online, Quà thăng cấp.
+    pub welfare: WelfareState,
     /// Mã quà tặng under way or last done (Bot::redeem).
     pub gift: Option<GiftRun>,
     /// Đập hết under way (Bot::break_all); None once it ends, its end line in the log.

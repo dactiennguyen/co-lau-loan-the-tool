@@ -29,6 +29,8 @@ import { npcMenu } from '../protocol/world.ts';
 import { pointsText } from '../protocol/shops.ts';
 import { mapPacket, mobsPacket, noticePacket } from '../../test/support/packets.ts';
 import { g1Packets } from '../../test/fixtures-g1.ts';
+import { pl1Packets } from '../../test/fixtures-pl1.ts';
+import { checkinRequest, checkinResult, claimRequest, claimedGifts, eventDefinition, eventKeyRequest, eventProgress, welfareDots } from '../protocol/welfare.ts';
 import { q17Packets } from '../../test/fixtures-q17.ts';
 import { b8Packets } from '../../test/fixtures-b8.ts';
 import { claimedCount, dailyQuest, dailyTaken, dailyText, giftCodeRequest, giftCodeResult, mailAck, mailBody, mailIdRequest, mailList, newMail, slotsNeeded } from '../protocol/mail.ts';
@@ -269,6 +271,32 @@ function mailCases() {
   const claimed = ['Đã nhận quà của 2 thư', 'Đã nhận quà của 1 thư, rương đã đầy', 'Không có quà nào để nhận',
     'Rương đã đầy. Vui lòng bỏ bớt đồ ra hoặc mua thêm ngăn chứa'].map(text => ({ text, count: claimedCount(text) }));
   return { decoders, requests, slots, claimed };
+}
+
+/** Phúc lợi (test/fixtures-pl1.ts, PL1): what eventDefinition, eventProgress, checkinResult and welfareDots read in every
+ * captured packet (without `stamp`, an i64 that a JS number rounds), the bytes of c2s/1236, c2s/1239, c2s/1232 and
+ * c2s/1233, and the notices as claimedGifts reads them (app/core/tests/welfare.rs). */
+function welfareCases() {
+  const fns: Record<string, [string, (p: Uint8Array) => unknown]> = {
+    's2c/1236': ['eventDefinition', eventDefinition], 's2c/1239': ['eventProgress', eventProgress],
+    's2c/1232': ['checkinResult', checkinResult], 's2c/1279': ['welfareDots', welfareDots],
+  };
+  const decoders = Object.entries(pl1Packets).flatMap(([key, h]) => {
+    const f = fns[key.split(' ')[0]];
+    if (!f) return [];
+    const value = f[1](bytes(h));
+    const expected = value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([k]) => k !== 'stamp' && k !== 'rest')) : value;
+    return [{ fn: f[0], key, hex: h, expected }];
+  });
+  const packets = Object.entries(pl1Packets).map(([key, h]) => ({ key, hex: h }));
+  const requests = {
+    keys: ['CHECKIN_MONTHLY', 'ONLINE_DAILY', 'LEVEL_UP'].map(key => ({ key, hex: hex(eventKeyRequest(key)) })),
+    checkin: [[64, 0], [64, 299]].map(([event, milestone]) => ({ event, milestone, hex: hex(checkinRequest(event, milestone)) })),
+    claim: [21, 65].map(event => ({ event, hex: hex(claimRequest(event)) })),
+  };
+  const claimed = ['Đã nhận 5 phần thưởng', 'Đã nhận 4 phần thưởng', 'Không có phần thưởng nào để nhận', 'Hôm nay bạn đã điểm danh']
+    .map(text => ({ text, count: claimedGifts(text) ?? null }));
+  return { decoders, packets, requests, claimed };
 }
 
 /** Chợ trời: what market, marketTabs, marketListed and marketDone read in the packets of CT1 (test/fixtures-ct1.ts) and in
@@ -680,7 +708,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     login: fixtures['login-vectors'].vectors.map((v: { data: string }) => ({ ...v, data: v.data.replace('00000005302e302e32', hex(new Writer().string(PROTOCOL_VERSION).build())) })),
     decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
-    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), daily: dailyCases(), market: marketCases(),
+    battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), daily: dailyCases(), market: marketCases(), welfare: welfareCases(),
   };
   return { 'app/core/src/opcodes.rs': opcodes, 'app/core/tests/vectors.json': oneLineInner(vectors) };
 }

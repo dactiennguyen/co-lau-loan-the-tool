@@ -20,6 +20,9 @@ export type Dialog =
   | { kind: "stats"; id: number }
   /** Kỹ năng (SkillsModal): the skill tree, Nâng cấp and Tự cộng. */
   | { kind: "skills"; id: number }
+  /** Phúc lợi (WelfareModal) of the Tiền tile: Tự điểm danh và nhận quà, Nhận ngay, Điểm danh, Quà online, Quà thăng
+   * cấp. */
+  | { kind: "welfare"; id: number }
   /** Thống kê (StatsModal): the battle history of the account, opened from its header. */
   | { kind: "battles"; id: number }
   /** Đổi khu / map of the Vị trí card. */

@@ -80,6 +80,8 @@ export interface Api {
   discardMany(id: number, items: { slot: number; uuid: string }[]): Promise<void>;
   /** Đập hết: every Trứng Gà of this bag slot, one after the other (Bot::break_all); Dừng (stop) ends it. */
   breakAll(id: number, slot: number, uuid: string): Promise<void>;
+  /** Nhận ngay of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now, the switch on or not. */
+  welfare(id: number): Promise<void>;
   /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
   listZones(id: number): Promise<void>;
   /** Another zone of the map (c2s/1173); the log tells how it went. */
@@ -264,6 +266,7 @@ const tauri: Api = {
   itemAction: (id, action, slot, uuid) => invoke("item_action", { id, action, slot, uuid: uuid ?? null }),
   discardMany: (id, items) => invoke("discard_many", { id, items: items.map((i) => [i.slot, i.uuid]) }),
   breakAll: (id, slot, uuid) => invoke("break_all", { id, slot, uuid }),
+  welfare: (id) => invoke("welfare", { id }),
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
@@ -401,6 +404,7 @@ const preview: Api = {
   itemAction: nothing,
   discardMany: nothing,
   breakAll: nothing,
+  welfare: nothing,
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,
