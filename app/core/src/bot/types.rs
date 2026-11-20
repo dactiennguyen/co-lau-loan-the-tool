@@ -1022,6 +1022,6 @@ pub struct Snapshot {
     pub mailbox: Mailbox,
     /// Chợ trời (Bot::market).
     pub market: MarketState,
-    /// Timed effects at login (the s2c/9 tail), such as x2 EXP; no packet is known yet to update them in the session.
+    /// Timed effects at login (the s2c/9 tail), such as x2 EXP, and those an item just used brings (s2c/84).
     pub boosts: Vec<Boost>,
 }

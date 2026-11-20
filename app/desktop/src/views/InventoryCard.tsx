@@ -34,12 +34,17 @@ const GEAR: Record<number, { label: string; icon: IconName }> = {
   5: { label: "Thú cưng", icon: "heart" },
   6: { label: "Ô 6", icon: "user" },
   7: { label: "Danh hiệu", icon: "star" },
+  // The game 1.1.0 (20/11) sends 10 slots: Giày and Dây chuyền are slots 8 and 9, as their item types.
+  8: { label: "Giày", icon: "boot" },
+  9: { label: "Dây chuyền", icon: "necklace" },
 };
-const LEFT = [0, 1, 6, 7];
-const RIGHT = [2, 3, 4, 5];
+const LEFT = [0, 1, 8, 6, 7];
+const RIGHT = [2, 3, 9, 4, 5];
+/** Item types worn in a gear slot: 0–7, and Giày (8), Dây chuyền (9) since the game 1.1.0. */
+const isGear = (kind: number) => kind <= 9;
 type Key = `gear-${number}` | `bag-${number}`;
 /** Item types of data/items.json a bag item is used by (Sử dụng): Bình 20, which the server refuses outside a battle
- * (P4), Tăng Kinh Nghiệm 23, Tẩy điểm 24, Trứng 29. Gear is 0–7. */
+ * (P4), Tăng Kinh Nghiệm 23, Tẩy điểm 24, Trứng 29. Gear is 0–9 (isGear). */
 const POTION = 20;
 const USABLE = new Set([POTION, 23, 24, 29]);
 /** Búa Sửa Chữa: each repair takes one. */
@@ -149,7 +154,7 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       confirm: `Vứt bỏ ${item.name}${qty}? Món mất hẳn, không lấy lại được.`,
     };
     // Gear of the other gender: Bot::item refuses it with the same words (the server would say "Trang bị không phù hợp").
-    if (item.kind != null && item.kind <= 7) return [{ action: "equip", label: "Mặc", icon: "login", why: misfit(item, c.gender) }, discard];
+    if (item.kind != null && isGear(item.kind)) return [{ action: "equip", label: "Mặc", icon: "login", why: misfit(item, c.gender) }, discard];
     if (item.kind != null && USABLE.has(item.kind)) {
       const why = item.kind === POTION ? "bình chỉ dùng được trong trận" : null;
       return [{ action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` }, discard];

@@ -280,11 +280,12 @@ fn item(
 }
 
 /// manina's gear after the repair of E2 (12-skills-items.md#đồ-của-manina-e1-e2-popup-ngày-3110): the hat at 55/60, the
-/// axe still broken.
+/// axe still broken; the 10 slots of the game 1.1.0, with Giày Hào Kiệt in slot 8.
 fn manina_gear() -> Vec<Option<ItemRecord>> {
-    let mut gear = vec![None; 8];
+    let mut gear = vec![None; 10];
     gear[0] = Some(item(0, 54, 55, 1, 2, &[(6, 4), (9, 58)]));
     gear[2] = Some(item(2, 261, 0, 1, 1, &[(5, 8), (2, 10)]));
+    gear[8] = Some(item(8, 670, 60, 1, 1, &[(6, 3)]));
     gear
 }
 

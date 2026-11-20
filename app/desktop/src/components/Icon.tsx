@@ -57,6 +57,13 @@ const paths = {
     </>
   ),
   gem: <path d="M6 3h12l3.5 6L12 21 2.5 9zM2.5 9h19M9 3l3 6 3-6M12 9v12" />,
+  boot: <path d="M7 3h6v9l6 3a2 2 0 0 1 1 1.7V20H4V3zM4 16h16" />,
+  necklace: (
+    <>
+      <path d="M5 3c0 5 3 9 7 9s7-4 7-9" />
+      <path d="M12 12v2M12 14l-2.5 3.5L12 21l2.5-3.5z" />
+    </>
+  ),
   shield: <path d="M12 3 20 6v6c0 4.6-3.4 8.1-8 9-4.6-.9-8-4.4-8-9V6z" />,
   key: (
     <>

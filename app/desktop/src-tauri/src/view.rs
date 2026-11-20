@@ -202,7 +202,8 @@ pub struct CharacterView<'a> {
     pub battle: Option<&'a BattleView>,
     /// Timed effects at login, such as x2 EXP, each with its end.
     pub boosts: &'a [Boost],
-    /// The 8 gear slots (s2c/9 at login), None where empty; empty until then.
+    /// The gear slots (s2c/9 at login: 8, or 10 with Giày and Dây chuyền since the game 1.1.0), None where empty; empty
+    /// until then.
     pub gear: Vec<Option<ItemView>>,
     /// The bag (s2c/42, s2c/1187); None until it came.
     pub bag: Option<BagView>,

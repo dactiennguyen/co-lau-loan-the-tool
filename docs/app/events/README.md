@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 157 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 86 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 158 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 86 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -175,6 +175,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/37 | gear_update | push | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | s2c/1186 | equip_result | push | [Mặc và cởi đồ](12-skills-items.md#c2s-1186) |
 | s2c/51 | bag_slot_add | push | [Nhặt vào túi (K3)](13-drops-items.md#k3) |
+| s2c/84 | item_used | push | [Dùng Tăng Kinh Nghiệm](12-skills-items.md#dùng-tăng-kinh-nghiệm-u2) |
 | s2c/83 | bag_slot_count | push | [Vứt bỏ](12-skills-items.md#vứt-bỏ), [dùng trong trận](12-skills-items.md#c2s-44) |
 | s2c/1256 | notice_1256 | push | [Thua trận mất EXP](10-quests.md#kết-quả-q3-q4), [cổng chưa mở](06-map-mobs.md#atlas), [nhặt đồ](13-drops-items.md#p3), [nhặt không được](13-drops-items.md#k3) |
 | s2c/1201 | step_progress | push | [Lên cấp trong bot](10-quests.md#kết-quả-q3-q4) |

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
-import { mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate } from '../src/protocol/world.ts';
+import { mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed } from '../src/protocol/world.ts';
 import { market } from '../src/protocol/market.ts';
 import { v007Packets } from './fixtures-v007.ts';
 import { mapPrefix, Writer } from '../src/protocol/protocol.ts';
@@ -233,4 +233,10 @@ test('protocol 0.0.7: Chợ trời has the element in each listing, the shop 2 m
   const worn = gearUpdate(v('s2c/37 mặc Nón Lá')).gear;
   assert.deepEqual([worn.length, worn[0]?.itemId, worn[0]?.field5], [10, 48, 0]);
   assert.ok(gearUpdate(v('s2c/37 cởi Nón Lá')).gear.every(g => g === null));
+});
+
+test('s2c/84: Tăng Kinh Nghiệm used, the slot left empty and x2 EXP for 24 hours (U2)', () => {
+  const p = Buffer.from(v007Packets['s2c/84 dùng Tăng Kinh Nghiệm'], 'hex');
+  assert.deepEqual(itemUsed(p), { slot: 16, left: 0, field: 256, name: 'akaito', effects: [{ key: 'ef7', rate: 200000, field: 0, remainingMs: 86_400_000 }] });
+  assert.equal(decodeEvent('s2c', 84, p).opaqueBytes, 0);
 });

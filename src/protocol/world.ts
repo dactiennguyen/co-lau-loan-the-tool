@@ -182,6 +182,16 @@ function characterRest(payload: Uint8Array) {
   });
 }
 
+/** s2c/84 after c2s/84 (Sử dụng) of an item with a timed effect: the bag slot, what is left in it, an i32 (256), the
+ * character, and its timed effects as in the s2c/9 tail. U2 (tiheo2, 20/11): Tăng Kinh Nghiệm in slot 16 →
+ * `00000010 00000000 00000100 "akaito" 1 × {"ef7" 200000 0 86400000}`, x2 EXP for 24 hours. The only answer: no s2c/1187,
+ * s2c/83 or notice. */
+export function itemUsed(payload: Uint8Array) {
+  const r = new Reader(payload), slot = r.i32(), left = r.i32(), field = r.i32(), name = r.string(), effects = [];
+  for (let n = r.i32(); n > 0; n--) effects.push({ key: r.string(), rate: r.i32(), field: r.i32(), remainingMs: r.i32() });
+  return finish(r, { slot, left, field, name, effects }, 's2c/84');
+}
+
 /** s2c/37 after c2s/1186 (equip or unequip): the 8 gear slots again, as at the end of s2c/9. */
 export function gearUpdate(payload: Uint8Array) {
   return itemLayouts(() => {

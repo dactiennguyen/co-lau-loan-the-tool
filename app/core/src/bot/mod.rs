@@ -11,7 +11,7 @@ use crate::battle_view::{self, BattleEvent, EndKind, Gauge};
 use crate::items::{
     bag_after, bag_slot, book, character_extra, character_gear, character_tail, currencies,
     gear_durability, gear_update, ground_item_add, ground_item_remove, ground_items, inventory,
-    Bag, Currencies, ItemRecord, SlotLeft,
+    item_used, Bag, Currencies, ItemRecord, SlotLeft,
 };
 use crate::mail::{MailBody, MailHeader};
 use crate::market::{MarketPage, MarketTabs};

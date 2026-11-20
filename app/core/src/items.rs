@@ -224,6 +224,47 @@ pub struct Effect {
     pub remaining_ms: i32,
 }
 
+/// `i32 n; n × {string key; i32 rate; i32 field; i32 remaining_ms}`, as in the s2c/9 tail and s2c/84.
+fn effects(r: &mut Reader) -> Result<Vec<Effect>> {
+    (0..r.i32()?.max(0))
+        .map(|_| {
+            Ok(Effect {
+                key: r.string()?,
+                rate: r.i32()?,
+                field: r.i32()?,
+                remaining_ms: r.i32()?,
+            })
+        })
+        .collect()
+}
+
+/// s2c/84 ← itemUsed: the answer to c2s/84 (Sử dụng) of an item with a timed effect, and the only one (U2, tiheo2,
+/// 20/11: Tăng Kinh Nghiệm in bag slot 16, none left, "ef7" 200000 for 86.400.000 ms). `field` was 256.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemUsed {
+    pub slot: i32,
+    pub left: i32,
+    pub field: i32,
+    pub name: String,
+    pub effects: Vec<Effect>,
+}
+pub fn item_used(p: &[u8]) -> Result<ItemUsed> {
+    let mut r = Reader::new(p);
+    let (slot, left, field, name) = (r.i32()?, r.i32()?, r.i32()?, r.string()?);
+    let effects = effects(&mut r)?;
+    r.finish(
+        ItemUsed {
+            slot,
+            left,
+            field,
+            name,
+            effects,
+        },
+        "s2c/84",
+    )
+}
+
 /// What follows the 8 gear slots of s2c/9 (characterTail of src/protocol/world.ts): an int (1 for symap, 0 for manina),
 /// the appearance block, the timed effects, then the faction ("sứ quân") as in a player record.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -247,16 +288,7 @@ fn character_rest(p: &[u8]) -> Result<(Vec<Option<ItemRecord>>, CharacterTail)> 
     let gear = gear_slots(&mut r)?;
     let field = r.i32()?;
     let appearance_bytes = appearance(&mut r)?;
-    let effects = (0..r.i32()?.max(0))
-        .map(|_| {
-            Ok(Effect {
-                key: r.string()?,
-                rate: r.i32()?,
-                field: r.i32()?,
-                remaining_ms: r.i32()?,
-            })
-        })
-        .collect::<Result<_>>()?;
+    let effects = effects(&mut r)?;
     let (faction_field, faction) = (r.i32()?, r.string()?);
     let faction_flags = [r.u8()?, r.u8()?];
     let tail = CharacterTail {

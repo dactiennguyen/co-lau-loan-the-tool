@@ -275,6 +275,44 @@ impl Bot {
                     );
                 }
             },
+            // Sử dụng went through for an item with a timed effect (Tăng Kinh Nghiệm, U2): what is left in its slot and
+            // the effects the character has now. Nothing else comes, so this ends the wait of the button.
+            84 => {
+                let u = item_used(payload)?;
+                if let (Some(b), Ok(at)) = (s.bag.as_mut(), u8::try_from(u.slot)) {
+                    b.set_left(SlotLeft {
+                        slot: at,
+                        quantity: u.left,
+                    });
+                }
+                let at = epoch_ms();
+                for e in u.effects.iter().filter(|e| e.remaining_ms > 0) {
+                    let boost = Boost {
+                        key: e.key.clone(),
+                        rate: e.rate,
+                        until: at + e.remaining_ms as u64,
+                    };
+                    s.boosts.retain(|b| b.key != boost.key);
+                    s.boosts.push(boost);
+                }
+                let boosts: Vec<String> = s
+                    .boosts
+                    .iter()
+                    .map(|b| {
+                        let left = duration_text(Duration::from_millis(b.until.saturating_sub(at)));
+                        format!("{} còn {left}", b.label())
+                    })
+                    .collect();
+                let used = self
+                    .item_wait
+                    .take_if(|w| matches!(w.act, ItemAct::Use(at) if at as i32 == u.slot));
+                let name = used.map_or_else(|| format!("món ở ô túi {}", u.slot + 1), |w| w.name);
+                let text = match boosts.is_empty() {
+                    true => format!("Đã dùng {name}"),
+                    false => format!("Đã dùng {name}: {}", boosts.join(", ")),
+                };
+                out.push(Out::Log(LogKind::Item, text));
+            }
             // What is left in a bag slot (K3, P5): after Vứt bỏ (c2s/1186 action 2) and after a potion used in a battle
             // (c2s/44). 0 empties the slot.
             83 => {

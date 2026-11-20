@@ -721,7 +721,20 @@ i32; string tên sứ quân; u8; u8
 - Tỉ lệ tính theo 1/100000: 200000 là ×2. Quái trong `s2c/22` cũng có một số 100000 ở chỗ tương ứng. [Suy luận]
 - Hiệu ứng đến từ vật phẩm **Tăng Kinh Nghiệm (mã 7)**. Mô tả trong bảng vật phẩm: "Tăng x2 kinh nghiệm trong 24 giờ kể từ lúc dùng, tính cả khi không đăng nhập. Dùng thêm khi còn hiệu lực thì cộng dồn thời gian." Khoá `ef7` có lẽ là "hiệu ứng của món 7". [Suy luận mạnh]
 - Vậy không phải mặc định cho mọi nick: chỉ nick đã dùng món này mới có, và giờ vẫn trôi khi thoát game. [Đo 3 nick; giờ trôi theo mô tả]
-- App desktop đọc đuôi này bằng `items::character_tail` (port của `characterTail`) và hiện huy hiệu "x2 EXP" có giờ còn lại ở thẻ nhân vật ([x2 EXP](../../integration/rust/features.md#x2-exp)). Chưa biết gói báo hiệu ứng khi dùng Tăng Kinh Nghiệm giữa phiên. [Chưa rõ]
+- App desktop đọc đuôi này bằng `items::character_tail` (port của `characterTail`) và hiện huy hiệu "x2 EXP" có giờ còn lại ở thẻ nhân vật ([x2 EXP](../../integration/rust/features.md#x2-exp)). Dùng Tăng Kinh Nghiệm giữa phiên: xem dưới.
+
+### Dùng Tăng Kinh Nghiệm (U2)
+
+Bot TS, nick tiheo2 (akaito cấp 13), 20/11, sau khi nhận món từ thư "Giftcode chào mừng Open Beta". `c2s/84 00000010` (ô 16). Server chỉ trả **một gói `s2c/84`** (45 byte), không có `s2c/1187`, `s2c/83` hay thông báo nào:
+
+```text
+00000010 00000000 00000100 00000006 "akaito" 00000001 {00000003 "ef7" 00030d40 00000000 05265c00}
+i32 ô 16; i32 số còn lại 0; i32 256 [Chưa rõ]; string tên nhân vật; i32 n; n × {string mã; i32 tỉ lệ; i32; i32 msCòn}
+```
+
+Hiệu ứng `"ef7"` tỉ lệ 200000 còn 86.400.000 ms, đúng 24 giờ. Bố cục hiệu ứng giống đuôi `s2c/9`. Bấm Sử dụng lần nữa ở ô đã hết thì server trả `s2c/1256` "Vật phẩm không đủ số lượng" (wangpt, app 1.1.13). Chưa đo dùng khi đang có x2 EXP (cộng dồn hay làm lại 24 giờ). [Đo]
+
+`itemUsed` của bot TS và `items::item_used` của app đọc gói này. App bỏ món khỏi túi, cập nhật huy hiệu x2 EXP và ghi "Đã dùng Tăng Kinh Nghiệm: x2 EXP còn 24 giờ 00 phút". Trước đó app không đọc `s2c/84` nên tưởng như bị treo.
 - Bảng VIP (`com.g.m.sqfo`) có quyền lợi `EXP_BONUS_PERCENT` ("EXP + x%") và `GOLD_BONUS_PERCENT` ("Vàng + x%"). Đó là cộng EXP theo cấp VIP, khác ngôi sao này. [Đo tĩnh]
 
 <a id="cường-hoá"></a>

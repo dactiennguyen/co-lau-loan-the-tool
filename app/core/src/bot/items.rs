@@ -1,6 +1,12 @@
 //! Túi đồ: the item buttons, Tự sửa đồ, Tự nhặt đồ and the wear of the gear.
 use super::*;
 
+/// Item types worn in a gear slot: 0–7, and Giày (8), Dây chuyền (9) since the game 1.1.0 (20/11: s2c/9 and s2c/37 carry
+/// 10 gear slots, the slot is the type).
+fn is_gear(kind: u8) -> bool {
+    kind <= 9
+}
+
 /// Item actions of the Túi đồ tab (12-skills-items.md#c2s-1186): c2s/1186 to wear, take off or throw away, c2s/84 to
 /// use, c2s/48 to repair, c2s/1257 to sort the bag. The server answers with s2c/37 and s2c/42 (gear and bag), s2c/1186,
 /// s2c/48, s2c/83 (what is left in a bag slot), s2c/1187 (the bag sorted), or a notice.
@@ -56,10 +62,12 @@ impl Bot {
             _ => None,
         };
         let refused = busy.map(str::to_string).or(wrong).or_else(|| match act {
-            ItemAct::Equip(_) if kind.is_some_and(|k| k > 7) => Some("không phải trang bị".into()),
+            ItemAct::Equip(_) if kind.is_some_and(|k| !is_gear(k)) => {
+                Some("không phải trang bị".into())
+            }
             ItemAct::Unequip(_) if full => Some("túi đồ đã đầy".into()),
             ItemAct::Use(_) if kind == Some(POTION) => Some("bình chỉ dùng được trong trận".into()),
-            ItemAct::Use(_) if kind.is_some_and(|k| k <= 7) => Some("là trang bị, hãy mặc".into()),
+            ItemAct::Use(_) if kind.is_some_and(is_gear) => Some("là trang bị, hãy mặc".into()),
             ItemAct::Repair(_) if item.durability < 0 => Some("món này không có độ bền".into()),
             ItemAct::Repair(_) if item.durability >= most => Some("độ bền còn đầy".into()),
             ItemAct::Repair(_) if !hammer => Some("cần 1 Búa sửa chữa trong túi".into()),
