@@ -5,10 +5,11 @@ import { Card } from "@/components/Card";
 import { ElementTag } from "@/components/ElementTag";
 import type { IconName } from "@/components/Icon";
 import { GenderTag } from "@/components/GenderTag";
-import { levelsShort, misfit } from "@/game/gender";
-import { ItemSlot } from "@/components/ItemSlot";
+import { levelsShort, misfit, offElement } from "@/game/gender";
+import { FLAG_GLOW, ItemSlot, type SlotFlag } from "@/components/ItemSlot";
 import { Menu, type MenuItem } from "@/components/Menu";
 import { num } from "@/utils/format";
+import { cn } from "@/utils/cn";
 import type { Account, Item, ItemAction } from "@/api/types";
 import { ItemDetail } from "./ItemDetail";
 import { useStore } from "@/store";
@@ -22,6 +23,13 @@ const COL = "grid gap-[5px] [align-content:start]";
 /** The buttons of the item clicked, at the right end of the detail strip; the reason a button is greyed under them. */
 const ACT = "grid justify-items-end gap-1 max-w-[230px]";
 const BUTTONS = "flex gap-1.5";
+/** Xóa nhiều: the two lit kinds of gear, in the legend and the quick picks. */
+const FLAGS: { flag: SlotFlag; label: string; pick: string }[] = [
+  { flag: "gender", label: "Khác giới tính", pick: "đồ khác giới" },
+  { flag: "element", label: "Khác hệ", pick: "đồ khác hệ" },
+];
+/** A square of the legend, as a lit bag square. */
+const SWATCH = "inline-block size-[11px] border-2";
 
 /** The 8 gear slots around the character, as the Bản thân panel lays them out: 0, 1, 2, 3 and 5 are measured (manina,
  * symap), 4 and 7 follow the item types (12-skills-items.md#ô-trang-bị). */
@@ -121,6 +129,9 @@ export function InventoryCard({
   // Xóa nhiều picks gear of the bag only; another item, or a worn one, cannot be picked.
   const pickable = (k: Key, item: Item | null) => picking && !!item && k.startsWith("bag-");
   const lockedWhy = (item: Item) => (item.kind != null && isGear(item.kind) ? null : "không phải trang bị, không xóa");
+  // Xóa nhiều lights up the gear worth throwing away: of the other gender first (it cannot be worn), else of another element.
+  const flagOf = (item: Item): SlotFlag | null =>
+    lockedWhy(item) ? null : misfit(item, c.gender) ? "gender" : offElement(item, c.element) ? "element" : null;
   const toggle = (item: Item) =>
     setChosen((m) => {
       const next = new Map(m);
@@ -141,6 +152,7 @@ export function InventoryCard({
       active={shownKey === k}
       selected={pickable(k, item) && !!item && chosen.get(item.slot) === item.uuid}
       locked={pickable(k, item) && item ? lockedWhy(item) : null}
+      flag={pickable(k, item) && item ? flagOf(item) : null}
       onShow={(on) => setHover((h) => (on ? k : h === k ? null : h))}
       onPick={() => {
         if (pickable(k, item) && item) {
@@ -215,6 +227,18 @@ export function InventoryCard({
     return item && item.uuid === uuid && !lockedWhy(item) ? [item] : [];
   });
   const gearInBag = (bag?.items ?? []).filter((i) => !lockedWhy(i));
+  const flagged = (f: SlotFlag) => gearInBag.filter((i) => flagOf(i) === f);
+  /** Chọn đồ khác giới / khác hệ: those added to the picks, or taken out when all of them are picked already. */
+  const pickFlagged = (items: Item[]) =>
+    setChosen((m) => {
+      const next = new Map(m);
+      const all = items.every((i) => next.get(i.slot) === i.uuid);
+      for (const i of items) {
+        if (all) next.delete(i.slot);
+        else next.set(i.slot, i.uuid);
+      }
+      return next;
+    });
   const stopPicking = () => {
     setPicking(false);
     setChosen(new Map());
@@ -381,10 +405,33 @@ export function InventoryCard({
             </>
           ) : (
             <>
-              <span className="text-12 text-fg-2">
-                Bấm vào trang bị trong túi để chọn ({picked.length}/{gearInBag.length} đã chọn). Vật phẩm, đá, bình không chọn được.
-              </span>
-              <div className={BUTTONS}>
+              <div className="grid gap-1">
+                <span className="text-12 text-fg-2">
+                  Bấm vào trang bị trong túi để chọn ({picked.length}/{gearInBag.length} đã chọn). Vật phẩm, đá, bình không chọn được.
+                </span>
+                <span className="flex flex-wrap gap-x-3 gap-y-1 text-11 text-fg-2">
+                  {FLAGS.map(({ flag, label }) => (
+                    <span key={flag} className="inline-flex items-center gap-1">
+                      <i className={cn(SWATCH, FLAG_GLOW[flag], "border-(--glow) shadow-[0_0_6px_1px_var(--glow)]")} />
+                      {label} ({flagged(flag).length})
+                    </span>
+                  ))}
+                  <span className="inline-flex items-center gap-1">
+                    <i className={cn(SWATCH, "border-danger bg-danger/25")} />
+                    Đã chọn ({picked.length})
+                  </span>
+                </span>
+              </div>
+              <div className={cn(BUTTONS, "flex-wrap")}>
+                {FLAGS.map(({ flag, pick }) => {
+                  const items = flagged(flag);
+                  const all = items.length > 0 && items.every((i) => chosen.get(i.slot) === i.uuid);
+                  return (
+                    <Button key={flag} kind="ghost" small disabled={!items.length} onClick={() => pickFlagged(items)}>
+                      {all ? "Bỏ chọn" : "Chọn"} {pick} ({items.length})
+                    </Button>
+                  );
+                })}
                 <Button
                   kind="ghost"
                   small

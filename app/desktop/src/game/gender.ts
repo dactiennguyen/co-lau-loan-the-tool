@@ -3,6 +3,7 @@
 // first with the words of misfit.
 import type { IconName } from "@/components/Icon";
 import type { Item } from "@/api/types";
+import { ELEMENT_NAME } from "@/components/ElementTag";
 
 export const GENDER_WORD: Record<number, string> = { 0: "nam", 1: "nữ" };
 export const GENDER_ICON: Record<number, IconName> = { 0: "male", 1: "female" };
@@ -21,4 +22,10 @@ export function misfit(item: Pick<Item, "gender">, gender: number | null | undef
 export function levelsShort(item: Pick<Item, "level">, level: number | null | undefined): number {
   if (item.level == null || level == null || level <= 0) return 0;
   return Math.max(0, item.level - level);
+}
+
+/** Gear of an element (1 Hỏa, 2 Lôi, 4 Thủy) that is not the character's: it can be worn, without the +5% of đúng hệ
+ * (as items::off_element). False for an item without an element, or while the character's is not known. */
+export function offElement(item: Pick<Item, "element">, element: number | null | undefined): boolean {
+  return item.element != null && element != null && item.element in ELEMENT_NAME && element in ELEMENT_NAME && item.element !== element;
 }
