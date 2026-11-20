@@ -5,7 +5,7 @@ import { Card } from "@/components/Card";
 import { ElementTag } from "@/components/ElementTag";
 import type { IconName } from "@/components/Icon";
 import { GenderTag } from "@/components/GenderTag";
-import { misfit } from "@/game/gender";
+import { levelsShort, misfit } from "@/game/gender";
 import { ItemSlot } from "@/components/ItemSlot";
 import { Menu, type MenuItem } from "@/components/Menu";
 import { num } from "@/utils/format";
@@ -136,6 +136,7 @@ export function InventoryCard({
       placeholder={placeholder}
       wear={wear}
       misfit={item && !wear ? misfit(item, c.gender) : null}
+      charLevel={wear ? null : c.level}
       className={k.startsWith("gear-") ? "[--size:46px]" : undefined}
       active={shownKey === k}
       selected={pickable(k, item) && !!item && chosen.get(item.slot) === item.uuid}
@@ -186,7 +187,12 @@ export function InventoryCard({
       confirm: `Vứt bỏ ${item.name}${qty}? Món mất hẳn, không lấy lại được.`,
     };
     // Gear of the other gender: Bot::item refuses it with the same words (the server would say "Trang bị không phù hợp").
-    if (item.kind != null && isGear(item.kind)) return [{ action: "equip", label: "Mặc", icon: "login", why: misfit(item, c.gender) }, discard];
+    // Gear above the character's level: the button says how many levels it lacks.
+    if (item.kind != null && isGear(item.kind)) {
+      const short = levelsShort(item, c.level);
+      const why = misfit(item, c.gender) ?? (short ? `cần cấp ${item.level}, thiếu ${short} cấp` : null);
+      return [{ action: "equip", label: "Mặc", icon: "login", why }, discard];
+    }
     if (item.kind != null && USABLE.has(item.kind)) {
       const why = item.kind === POTION ? "bình chỉ dùng được trong trận" : null;
       return [{ action: "use", label: "Dùng", icon: "play", why, confirm: `Dùng 1 ${item.name}? Không lấy lại được.` }, discard];
@@ -396,7 +402,7 @@ export function InventoryCard({
         </div>
       )}
 
-      <ItemDetail item={shown} where={where} element={c.element} gender={c.gender} actions={actions} />
+      <ItemDetail item={shown} where={where} element={c.element} gender={c.gender} level={c.level} actions={actions} />
       {menu && menuItem && (
         <Menu x={menu.x} y={menu.y} label={`Món ${menuItem.name}`} items={menuItems(menu.key, menuItem)} onClose={() => setMenu(null)} />
       )}

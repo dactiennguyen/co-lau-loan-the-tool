@@ -311,6 +311,8 @@ fn manina_bag() -> Vec<ItemRecord> {
         },
         // Giáp Tiên Phong nữ (200) picked up by manina, who is nam: Mặc is greyed with the reason.
         item(13, 200, 60, 1, 4, &[(6, 9), (9, 70)]),
+        // Kiếm Đại Tướng (cấp 51) for a character of level 21: its level in red, Mặc greyed with the levels it lacks.
+        item(14, 278, 60, 1, 2, &[(5, 20)]),
     ]
 }
 

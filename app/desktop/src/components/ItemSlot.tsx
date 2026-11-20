@@ -2,7 +2,7 @@ import { itemIcon } from "@/game/itemIcons";
 import { plusOf } from "@/game/shops";
 import type { Item } from "@/api/types";
 import { cn } from "@/utils/cn";
-import { GENDER_ICON, GENDER_TEXT, GENDER_WORD } from "@/game/gender";
+import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, levelsShort } from "@/game/gender";
 import { ELEMENT_ICON, elementText } from "./ElementTag";
 import { Icon, type IconName } from "./Icon";
 
@@ -17,6 +17,8 @@ interface Props {
   wear?: boolean;
   /** Why the character cannot wear it (game/gender.ts misfit): the item dimmed, its gender sign red. */
   misfit?: string | null;
+  /** Level of the character: gear above it has its level in red and is dimmed, as a misfit. */
+  charLevel?: number | null;
   /** Xóa nhiều: picked for it (a check mark top left), or `locked` with the reason it cannot be picked (dimmed). */
   selected?: boolean;
   locked?: string | null;
@@ -32,7 +34,8 @@ interface Props {
 const SLOT =
   "relative grid place-items-center w-(--size) h-(--size) p-0 border-2 border-line bg-ink text-fg-3 cursor-pointer [--size:44px] " +
   "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1";
-/** Quantity bottom right, cường hoá top right in gold (gear has no quantity and its wear bar runs along the bottom). */
+/** Quantity bottom right, cường hoá top right in gold, and the level of gear above 1 bottom right (gear has no quantity;
+ * its level sits above its wear bar, without "LV" from 100 up so that it leaves the gender sign alone). */
 const CORNER = "absolute right-px px-0.5 bg-[rgb(15_17_21/0.75)] text-10 font-normal leading-[1.3]";
 
 /**
@@ -40,7 +43,7 @@ const CORNER = "absolute right-px px-0.5 bg-[rgb(15_17_21/0.75)] text-10 font-no
  * up) and đồ nam / nữ in the corners; a red tint when it is worn out, dimmed with a red sign when the character cannot
  * wear it. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens its menu.
  */
-export function ItemSlot({ item, label, placeholder, active, wear, misfit, selected, locked, onShow, onPick, onMenu, className }: Props) {
+export function ItemSlot({ item, label, placeholder, active, wear, misfit, charLevel, selected, locked, onShow, onPick, onMenu, className }: Props) {
   if (!item) {
     return (
       <span className={cn(SLOT, "cursor-default opacity-60", className)} title={`${label}: trống`}>
@@ -53,6 +56,7 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, selec
   const qty = item.stacks ? ` ×${item.quantity}` : "";
   const picked = selected ? ", đã chọn để xóa" : locked ? `, ${locked}` : "";
   const plus = plusOf(item);
+  const short = levelsShort(item, charLevel);
   return (
     <button
       type="button"
@@ -66,7 +70,9 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, selec
         broken && "border-accent-deep after:content-[''] after:absolute after:inset-0 after:bg-[rgb(205_122_114/0.22)] after:pointer-events-none",
         className,
       )}
-      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${broken ? ", hỏng" : ""}${
+      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${item.level != null ? `, cấp ${item.level}` : ""}${
+        short ? `, thiếu ${short} cấp` : ""
+      }${broken ? ", hỏng" : ""}${
         item.gender != null ? `, đồ ${GENDER_WORD[item.gender]}${misfit ? ", không mặc được" : ""}` : ""
       }${picked}`}
       aria-pressed={selected ?? active}
@@ -95,7 +101,7 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, selec
           draggable={false}
           className={cn(
             "w-[calc(var(--size)-8px)] h-[calc(var(--size)-8px)] [image-rendering:auto] pointer-events-none",
-            (broken || misfit) && "[filter:grayscale(0.6)_brightness(0.7)]",
+            (broken || misfit || short > 0) && "[filter:grayscale(0.6)_brightness(0.7)]",
           )}
         />
       ) : (
@@ -107,6 +113,12 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, selec
         </span>
       )}
       {item.stacks && <b className={cn("px", CORNER, "bottom-0 text-fg")}>{item.quantity}</b>}
+      {item.level != null && item.level > 1 && !item.stacks && (
+        <b className={cn("px", CORNER, wear && item.durability ? "bottom-[6px]" : "bottom-0", short ? "text-danger" : "text-fg")} aria-hidden="true">
+          {item.level < 100 && <span className="text-[7px]">LV</span>}
+          {item.level}
+        </b>
+      )}
       {plus > 0 && (
         <b className={cn("px", CORNER, "top-0 text-primary")} aria-hidden="true">
           +{plus}

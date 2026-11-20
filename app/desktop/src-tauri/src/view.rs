@@ -512,7 +512,7 @@ impl<'a> ShopView<'a> {
                         currency: l.currency,
                         price: l.price,
                         kind: def.map(|d| d.kind),
-                        level: def.filter(|d| d.kind <= 4).map(|d| d.level),
+                        level: def.filter(|d| d.kind <= 9).map(|d| d.level),
                         ranges: l
                             .ranges
                             .iter()
@@ -610,7 +610,7 @@ impl ItemView {
                     def.map_or(0, |d| d.durability).max(i.durability),
                 ]
             }),
-            level: def.filter(|d| d.kind <= 4).map(|d| d.level),
+            level: def.filter(|d| d.kind <= 9).map(|d| d.level),
             gender: def
                 .map(|d| d.gender)
                 .filter(|&g| g != cllt_core::items::GENDER_BOTH),

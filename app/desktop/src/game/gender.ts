@@ -15,3 +15,10 @@ export function misfit(item: Pick<Item, "gender">, gender: number | null | undef
   if (item.gender == null || gender == null || !(gender in GENDER_WORD) || item.gender === gender) return null;
   return `đồ ${GENDER_WORD[item.gender]}, nhân vật là ${GENDER_WORD[gender]}`;
 }
+
+/** How many levels the character lacks to wear `item` (its `level` of the item table, gear only); 0 when it has enough
+ * or while either level is not known. */
+export function levelsShort(item: Pick<Item, "level">, level: number | null | undefined): number {
+  if (item.level == null || level == null || level <= 0) return 0;
+  return Math.max(0, item.level - level);
+}

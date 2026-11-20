@@ -4,7 +4,7 @@ import { ELEMENT_ICON, elementText } from "@/components/ElementTag";
 import { num } from "@/utils/format";
 import { itemIcon } from "@/game/itemIcons";
 import { plusOf } from "@/game/shops";
-import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, misfit } from "@/game/gender";
+import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, levelsShort, misfit } from "@/game/gender";
 import type { ReactNode } from "react";
 import type { Item } from "@/api/types";
 
@@ -22,22 +22,24 @@ interface Props {
   element: number | null;
   /** Gender of the character (flag2 of s2c/9): gear of the other one cannot be worn. */
   gender: number | null;
+  /** Level of the character: the level to wear gear is green when it has it, red with what it lacks when not. */
+  level: number | null;
   /** The buttons for the item (Mặc, Cởi ra, Dùng, Sửa), at the right end. */
   actions?: ReactNode;
 }
 
 /** The item shown under the bag, as its popup in the game: icon, name with its cường hoá ("Nhẫn Trơn +1"), element, type,
  * level, durability, stats, and the popup's buttons. */
-export function ItemDetail({ item, where, element, gender, actions }: Props) {
+export function ItemDetail({ item, where, element, gender, level, actions }: Props) {
   if (!item) {
     return <div className={cn(STRIP, "flex text-11 text-fg-3")}>Rê chuột hay bấm vào một món để xem chi tiết.</div>;
   }
   const url = itemIcon(item.icon);
   const broken = item.durability != null && item.durability[0] <= 0;
   const plus = plusOf(item);
+  const short = levelsShort(item, level);
   const facts = [
     item.kindName,
-    item.level != null && `cấp ${item.level}`,
     item.stacks && `số lượng ${num(item.quantity)}`,
     where,
   ].filter(Boolean);
@@ -67,6 +69,17 @@ export function ItemDetail({ item, where, element, gender, actions }: Props) {
           )}
           {misfit(item, gender) && (
             <span className="py-0 px-[5px] border border-danger text-10 font-bold text-danger">khác giới tính: không mặc được</span>
+          )}
+          {item.level != null && (
+            <span
+              className={cn(
+                "py-0 px-[5px] border text-10 font-bold",
+                short ? "border-danger text-danger" : level ? "border-good-shade text-good" : "border-line text-fg-2",
+              )}
+            >
+              Cần cấp {item.level}
+              {short > 0 && ` · thiếu ${short} cấp`}
+            </span>
           )}
           <span className="text-11 text-fg-3">{facts.join(" · ")}</span>
         </div>
