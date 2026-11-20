@@ -264,7 +264,14 @@ export function FightSettingsCard({ account }: { account: Account }) {
     ...(paceOn && settings.delayRandom ? [{ key: "random", icon: "refresh" as const, text: "Ngẫu nhiên" }] : []),
   ];
   return (
-    <Card title="Cài đặt đánh" icon="settings" tone="var(--primary)" subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ">
+    // The body scrolls: with every fold open the settings are taller than the room the tab leaves above the log.
+    <Card
+      title="Cài đặt đánh"
+      icon="settings"
+      tone="var(--primary)"
+      subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ"
+      bodyClassName="scroll pr-1"
+    >
       <SettingRow
         id={`${id}repair`}
         on={settings.repair}
@@ -509,7 +516,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
         on={paceOn}
         icon="clock"
         title="Thời gian chờ"
-        hint="Chỉnh nhịp của bot, cho giống người chơi hay chậm lại để xem Cửa sổ trận. Chờ giữa các trận: số giây từ lúc trận kết thúc tới lúc thách đấu con tiếp, thay cho 3 giây bot vẫn nghỉ (tắt thì vẫn 3 giây); còn đồ người khác đang nhặt dở thì nhặt xong mới đánh, không quá 3 giây. Chờ trước mỗi lượt đi: tới lượt thì đợi rồi mới đổi viên, dùng kỹ năng hay uống bình; mỗi lượt có 30 giây nên tối đa 10 giây; trận tính giờ thì quái vẫn đánh theo giờ trong lúc chờ. Chờ giữa các bước nhiệm vụ: khi tự làm nhiệm vụ, đợi trước mỗi việc không phải trận (qua cổng, nói chuyện với NPC, cộng điểm). Nghỉ giải lao: đánh đủ số trận thì nghỉ số phút đã chọn rồi chạy tiếp; bấm Bắt đầu lại thì đếm lại từ đầu. Thời gian ngẫu nhiên: mỗi lần chờ đang bật kéo dài ngẫu nhiên từ số đã đặt tới gấp đôi. Đổi khi đang chạy thì có hiệu lực ngay. Mặc định tắt hết; bấm ▾ để chọn."
+        hint="Chỉnh nhịp của bot, cho giống người chơi hay chậm lại để xem Cửa sổ trận. Chờ giữa các trận: số giây từ lúc trận kết thúc tới lúc thách đấu con tiếp, thay cho 3 giây bot vẫn nghỉ (tắt thì vẫn 3 giây); còn đồ người khác đang nhặt dở thì nhặt xong mới đánh, không quá 3 giây. Chờ trước mỗi lượt đi: tới lượt thì đợi rồi mới đổi viên, dùng kỹ năng hay uống bình; mỗi lượt có 30 giây nên tối đa 10 giây; trận tính giờ thì quái vẫn đánh theo giờ trong lúc chờ. Chờ giữa các bước nhiệm vụ: khi tự làm nhiệm vụ, đợi trước mỗi việc không phải trận (qua cổng, nói chuyện với NPC, cộng điểm). Nghỉ giải lao: đánh đủ số trận thì nghỉ số phút đã chọn rồi chạy tiếp; bấm Bắt đầu lại thì đếm lại từ đầu. Thời gian ngẫu nhiên: mỗi lần chờ đang bật kéo dài ngẫu nhiên từ số đã đặt tới gấp đôi. Đổi khi đang chạy thì có hiệu lực ngay. Mặc định bật hết (nick có từ trước bản 1.1.14 cũng được bật một lần); bỏ tích mục nào không cần, bấm ▾ để chỉnh số."
         expand={{ open: paceOpen, onToggle: togglePace, controls: `${id}pace-options` }}
       >
         {!paceOpen && paceFacts.length === 0 && (

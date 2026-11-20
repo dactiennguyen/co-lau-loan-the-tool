@@ -197,7 +197,9 @@ impl Shared {
 
     /// Adds the account once accounts.json holds it; nothing is added when the file cannot be written, nor when its
     /// proxy is on and does not reach the game server.
-    pub async fn add(&self, account: Account, max: Option<usize>) -> Result<u64, String> {
+    pub async fn add(&self, mut account: Account, max: Option<usize>) -> Result<u64, String> {
+        // Saved with the defaults of Thời gian chờ it gets anyway (App::add).
+        account.fight = account.fight.with_waits();
         let _turn = self.saving.lock().await;
         self.with(|app| app.unique(&account, None))?;
         if let Some(why) = crate::license::over_limit(max, self.with(|app| app.entries.len()), 1) {
@@ -401,10 +403,14 @@ impl Shared {
     /// written.
     pub async fn import(
         &self,
-        accounts: Vec<Account>,
+        mut accounts: Vec<Account>,
         replace: bool,
         max: Option<usize>,
     ) -> Result<Imported, String> {
+        // A JSON of before 1.1.14 gets the defaults of Thời gian chờ, as accounts.json does (App::add).
+        for a in &mut accounts {
+            a.fight = a.fight.with_waits();
+        }
         let _turn = self.saving.lock().await;
         let (path, list, steps) = self.with(|app| {
             let steps = backup::plan(&accounts, replace, |a| app.find(a));
@@ -759,8 +765,10 @@ impl App {
         (Some(update), lines)
     }
 
-    /// Adds an account without telling the UI: at start, before it asks for the `state`.
-    pub fn add(&mut self, account: Account) -> u64 {
+    /// Adds an account without telling the UI: at start, before it asks for the `state`. An account that never had the
+    /// defaults of Thời gian chờ gets them now (FightSettings::with_waits); accounts.json takes them at its next write.
+    pub fn add(&mut self, mut account: Account) -> u64 {
+        account.fight = account.fight.with_waits();
         let id = self.next_id;
         self.next_id += 1;
         self.entries.push(Entry::new(id, account));
@@ -1464,6 +1472,43 @@ mod tests {
     }
 
     #[test]
+    fn every_wait_of_thoi_gian_cho_is_on_for_an_account_taken_in_once_then_as_set() {
+        let dir = std::env::temp_dir().join(format!("cllt-desktop-waits-{}", std::process::id()));
+        let path = dir.join("accounts.json");
+        let _ = std::fs::create_dir_all(&dir);
+        // accounts.json of before 1.1.14 (no waitsSet), and one where the waits were set off since.
+        let kept = FightSettings {
+            waits_set: true,
+            ..FightSettings::default()
+        };
+        let mut set = account("b");
+        set.fight = kept;
+        accounts::save(&path, &[account("a"), set]).unwrap();
+        let mut app = App::new(None, path.clone(), channel().0);
+        app.load();
+        let fight = |app: &App, i: usize| app.entries[i].account.fight;
+        assert_eq!(fight(&app, 0), FightSettings::default().with_waits());
+        assert!(fight(&app, 0).mob_delay && fight(&app, 0).delay_random);
+        assert_eq!(fight(&app, 1), kept, "set off since: stays off");
+        // Thêm nick and Nhập JSON write it with them.
+        let shared = Shared::new(app);
+        block_on(shared.add(account("c"), None)).unwrap();
+        block_on(shared.import(vec![account("d")], false, None)).unwrap();
+        let saved = accounts::load(&path).unwrap();
+        assert_eq!(saved.len(), 4);
+        assert!(
+            saved[2].fight.waits_set && saved[2].fight.turn_delay,
+            "Thêm nick"
+        );
+        assert!(
+            saved[3].fight.waits_set && saved[3].fight.step_delay,
+            "Nhập JSON"
+        );
+        assert_eq!(saved[1].fight, kept);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn accounts_json_is_written_before_an_account_is_added_or_removed() {
         let dir = std::env::temp_dir().join(format!("cllt-desktop-{}", std::process::id()));
         let path = dir.join("accounts.json");
@@ -1485,7 +1530,7 @@ mod tests {
         let repair = FightSettings {
             repair: true,
             fight_count: 7,
-            ..FightSettings::default()
+            ..FightSettings::default().with_waits()
         };
         assert_eq!(accounts::load(&path).unwrap()[0].fight, repair);
         // A value of the wrong kind changes nothing.

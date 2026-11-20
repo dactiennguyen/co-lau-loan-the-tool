@@ -172,6 +172,7 @@ mod tests {
                 break_every: 40,
                 break_minutes: 3,
                 delay_random: true,
+                waits_set: true,
                 fight_count: 30,
                 fight_losses: 4,
                 quest_losses: 2,

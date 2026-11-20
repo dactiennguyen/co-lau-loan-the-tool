@@ -842,6 +842,8 @@ export interface FightSettings {
   breakEvery: number;
   breakMinutes: number;
   delayRandom: boolean;
+  /** Thời gian chờ got its defaults (every wait on, from 1.1.14): src-tauri gives them once to an account without it. */
+  waitsSet: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */
   fightCount: number;
   fightLosses: number;

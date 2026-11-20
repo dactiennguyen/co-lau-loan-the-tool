@@ -496,3 +496,48 @@ fn a_short_cho_giua_cac_tran_lets_the_items_of_others_be_picked_up_first_within_
         "{at:?}"
     );
 }
+
+#[test]
+fn with_waits_turns_every_wait_on_once_and_then_keeps_what_is_set() {
+    // An account saved before 1.1.14: no waitsSet, every wait off.
+    let old: FightSettings = serde_json::from_str(r#"{"repair":true,"mobDelaySecs":4}"#).unwrap();
+    assert!(!old.waits_set && !old.mob_delay && !old.delay_random);
+    let on = old.with_waits();
+    assert!(
+        on.mob_delay
+            && on.turn_delay
+            && on.step_delay
+            && on.rest_break
+            && on.delay_random
+            && on.waits_set
+    );
+    // The times set stay, and nothing else changes.
+    assert_eq!(
+        (
+            on.mob_delay_secs,
+            on.turn_delay_secs,
+            on.break_every,
+            on.break_minutes
+        ),
+        (4, 1, 30, 2)
+    );
+    assert!(on.repair);
+    // Turned off after: kept off, also through accounts.json.
+    let off = FightSettings {
+        turn_delay: false,
+        rest_break: false,
+        ..on
+    };
+    let back: FightSettings = serde_json::from_str(&serde_json::to_string(&off).unwrap()).unwrap();
+    assert_eq!(back.with_waits(), off);
+    // Default (the tests, cllt) keeps the old pace.
+    let d = FightSettings::default();
+    assert!(
+        !d.waits_set
+            && !d.mob_delay
+            && !d.turn_delay
+            && !d.step_delay
+            && !d.rest_break
+            && !d.delay_random
+    );
+}

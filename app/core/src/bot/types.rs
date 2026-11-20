@@ -318,8 +318,8 @@ pub struct FightSettings {
     pub merge_up_to: u32,
     #[serde(default = "five")]
     pub merge_every: u32,
-    /// Thời gian chờ, every one off unless turned on (Bot::rest_after_battle, Bot::take_break, Bot::step_hold,
-    /// RunnerOptions::turn_delay of runner_v3.rs). Chờ giữa các trận: mob_delay_secs (1–MOB_DELAY_MAX) from the end of
+    /// Thời gian chờ (Bot::rest_after_battle, Bot::take_break, Bot::step_hold, RunnerOptions::turn_delay of
+    /// runner_v3.rs): every one on in the app from 1.1.14 (with_waits), off in Default. Chờ giữa các trận: mob_delay_secs (1–MOB_DELAY_MAX) from the end of
     /// a battle of a fight job or quest run to the next challenge, instead of BotOptions::rest (3 s).
     #[serde(default)]
     pub mob_delay: bool,
@@ -348,6 +348,12 @@ pub struct FightSettings {
     /// Thời gian ngẫu nhiên: each of the four waits above that is on lasts from its time to twice it (delay::Jitter).
     #[serde(default)]
     pub delay_random: bool,
+    /// Whether Thời gian chờ got its defaults: every wait on, from 1.1.14 (the user's choice of 20/11/2026). An account
+    /// without it (saved before 1.1.14, or made in code) gets them once when the desktop app takes it in (with_waits,
+    /// App::add), then keeps whatever is set. Default leaves every wait off and this false: the tests and cllt play
+    /// at the old pace.
+    #[serde(default)]
+    pub waits_set: bool,
     /// Số trận and Thua tối đa of the Đánh quái tab. The job gets its own numbers with Command::Fight; these only fill the
     /// tab again.
     #[serde(default = "five")]
@@ -426,6 +432,7 @@ impl Default for FightSettings {
             break_every: thirty(),
             break_minutes: two(),
             delay_random: false,
+            waits_set: false,
             fight_count: five(),
             fight_losses: one(),
             quest_losses: one(),
@@ -434,6 +441,19 @@ impl Default for FightSettings {
     }
 }
 impl FightSettings {
+    /// These settings with Thời gian chờ at its defaults (every wait on, at the times already set) unless they had them
+    /// before (waits_set): the once of an account saved before 1.1.14, or a new one.
+    pub fn with_waits(mut self) -> Self {
+        if !self.waits_set {
+            self.mob_delay = true;
+            self.turn_delay = true;
+            self.step_delay = true;
+            self.rest_break = true;
+            self.delay_random = true;
+            self.waits_set = true;
+        }
+        self
+    }
     pub fn is_default(&self) -> bool {
         *self == Self::default()
     }
