@@ -22,6 +22,8 @@ enum Fault {
     Alone,
     /// In the game, answers nothing, not even the heartbeat: a connection gone without a close.
     Mute,
+    /// An account without a character: s2c/8 (the options of the character screen) instead of s2c/9 (20/11).
+    NoCharacter,
 }
 
 /// Made-up answers to each login request, enough for the parsers of FLOW.
@@ -54,6 +56,7 @@ fn answers(op: i32, fault: Fault) -> Vec<(i32, Vec<u8>)> {
         2 => vec![(2, w().string("").build())],
         3 => vec![(3, w().bytes(&[0x10, 0x0c, 0, 1]).build())],
         4 => vec![(4, vec![])],
+        9 if fault == Fault::NoCharacter => vec![(8, w().i32(18).i32(0).build())],
         9 => {
             let c = w()
                 .u8(1)
@@ -376,6 +379,17 @@ async fn a_map_or_mobs_that_do_not_read_stop_the_login() {
             "{states:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn an_account_without_a_character_stops_the_login_and_says_so() {
+    let (events, _tx, task) = login(Fault::NoCharacter).await;
+    ends(task).await;
+    let states = states(&events);
+    assert!(
+        matches!(states.last(), Some(ConnState::Error(m)) if m.contains("chưa có nhân vật")),
+        "{states:?}"
+    );
 }
 
 /// The Event::Fault the session sent, in order.

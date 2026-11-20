@@ -32,7 +32,7 @@ event('c2s', -1, 'key_request', 'boot', 'Sau handshake seed 21 byte', 's2c/-1', 
 event('s2c', -1, 'key_exchange', 'boot', 'Server trả key_request', 'Khôi phục key; reset RX/TX; c2s/1206', 'u8 length=16; maskedKey[16]');
 event('c2s', 1206, 'client_info', 'boot', 'Đã bật XOR', 's2c/1207 và s2c/1209', 'string platform; string protocolVersion; i32 field0');
 event('s2c', 1207, 'server_list', 'boot', 'Sau client_info', 'Đợi thêm 1209 rồi c2s/5', 'string serverList');
-event('s2c', 1209, 'server_flag', 'boot', 'Sau client_info', 'Đợi thêm 1207 rồi c2s/5', 'u8 flag (mẫu 18; ý nghĩa chưa rõ)');
+event('s2c', 1209, 'server_flag', 'boot', 'Sau client_info', 'Đợi thêm 1207 rồi c2s/5', 'u8 flag; từ APK 1.1.0 thêm, mỗi phần chỉ khi còn byte: i32 sqj (com.mh.d.sqj); u8 sqh (com.mh.a.sqh); i32 tA, i16 tB, u8 tC (com.mh.t.sqa); u8 z (com.mh.z.sqa)', 'Đo: 1.0.3 một byte (18); 1.1.0 (20/11) 14 byte 20 00000005 01 000003e8 0014 01 00. Bố cục đọc từ sqpq.aq (native): byte đầu vào static field, 13 byte sau do bốn hàm static a(sqi) đọc; ý nghĩa chưa rõ');
 event('c2s', 5, 'notice_request', 'boot', 'Đã nhận danh sách server và flag', 's2c/5', 'i32 serverId; i32 field=-1; u8 flag=1');
 event('s2c', 5, 'notification', 'boot', 'Thông báo boot, hoặc thông báo trong giai đoạn khác', 'Boot: chờ bấm login; nhánh khác: dừng và đọc thông báo', 'u8 kind; i32 field0..3; string text');
 event('c2s', 1, 'heartbeat_request', 'boot', 'Timer khoảng 2 giây tại login', 's2c/1', 'Rỗng');
@@ -45,6 +45,7 @@ event('s2c', 3, 'password_challenge', 'login', 'Trả challenge_request', 'Tạo
 event('c2s', 4, 'credentials', 'login', 'Đã có password_challenge', 'Push cấu hình và s2c/4', 'string usernameLower; bytes proof; string platform; string version; i32 serverId; i32 usernameHash');
 event('s2c', 4, 'authentication_ack', 'login', 'Server chấp nhận credential trong phiên đã đo', 'Body rỗng: c2s/9; khác: nhánh chưa quan sát', 'Rỗng trong nhánh thành công đã đo');
 event('c2s', 9, 'character_request', 'world', 'Đã nhận authentication_ack rỗng', 's2c/9', 'string accountLower; u8 flag=2; i32 field=-1');
+event('s2c', 8, 'character_create_options', 'login', 'Trả c2s/9 khi nick chưa có nhân vật (Open Beta 20/11 xoá nhân vật Alpha)', 'Game hiện màn tạo nhân vật; bot dừng với NO_CHARACTER', 'Chưa giải; 4.008 byte, có tên lựa chọn ngoại hình ("Khôi Ngô", "Ngố") và bảng màu ARGB', 'Đo 1 lần (tiheo2, 20/11 12:02)');
 event('s2c', 9, 'character_data', 'world', 'Trả character_request', 'c2s/30', 'u8 status; u8 field01; string name; i32 numericId; string displayName; u8 flag1,flag2; i32 level,hp,maxHp; i32 s1,s1Max; i32 stats[10]; i32 combat[5]; i32 exp,coin,field; i32 statPoints,skillPoints; i32 levelExp[2]; string labels[2]; u8[6]; i32 x,y; i32 n; n × kỹ năng {i32 mã; i32 cấp; i32; u8}; i32 8; 8 × (0xff | vật phẩm); i32; khối ngoại hình; i32 n; n × hiệu ứng {string khoá; i32 tỉLệ; i32; i32 msCònLại}; i32; string sứ quân; u8; u8', 'Prefix: getter native, level/HP khớp UI; field01 không phải số nhân vật: bằng flag1 ở cả ba mẫu (1, 1, 4), là hệ nhân vật (1 Hỏa, 4 Thủy; K1). Đuôi: ba mẫu (A2 cấp 3, 30/10 cấp 21, nick thứ hai 31/10 cấp 2) cùng bố cục; hai mẫu đầu khớp s2c/10 và x/y của s2c/11; statPoints khớp bảng Chỉ số (68 ở E2), skillPoints = cấp − 1 − số điểm đã dùng ở cả ba mẫu; đuôi sau x/y đọc hết byte ở symap (P4: hiệu ứng x2 EXP "ef7", sứ quân "Thiên Tôn") và manina');
 event('c2s', 30, 'skills_request', 'world', 'Đã lấy nhân vật', 's2c/30', 'u8 element (field01 của s2c/9: 1 Hỏa, 4 Thủy)', 'Đo: app gửi 1 cho manina (Hỏa); K1: gửi 4 cho nick thứ hai (field01 4) thì nhận cây Thủy 4000–4008, gửi 1 thì nhận cây Hỏa');
 event('s2c', 30, 'skills_data', 'world', 'Trả skills_request; có push khác xen giữa', 'c2s/42', 'i32 n; n * {i32 skillId; string name; i32 prerequisiteId (-1 = không); i32 maxLevel; maxLevel * {i32 level; string description; i32 skillPointCost; i32 requiredLevel; i32 manaCost}}', 'Đọc hết 23442 byte mẫu A2: 9 kỹ năng hệ Hỏa (1000–1008); điều kiện từng cấp khớp chi tiết kỹ năng trên máy (E1); K1: cây Thủy 4000–4008 cùng bố cục');
@@ -138,6 +139,10 @@ event('s2c', 21, 'timed_attack', 'battle', 'Trận tính giờ: quái đánh the
 event('c2s', 1178, 'challenge_boss', 'battle', 'Nhân vật va vào boss của s2c/1177 (sqhz.a18 → sqlq.b121(mobId, false))', 's2c/22 sau ~2,8 s, rồi trận như c2s/15', 'string mobId; i32 flag=0', 'Đo B4 1 lần (Thủ Lĩnh Sơn Tặc mob86100201); boss bỏ qua c2s/15');
 event('c2s', 40, 'battle_leave', 'battle', 'Đầu hàng (nút Đầu hàng → OK), cùng lúc với c2s/11', 's2c/11, s2c/10, s2c/1214 rồi c2s/43', 'string battleUuid', 'Đo B2 4 lần; kết thúc bình thường không có gói này');
 event('s2c', 36, 'durability', 'battle', 'Cùng lúc kết quả cuối trận, và sau đầu hàng', 'Không', 'i32 n (8 ô trang bị); n * {u8 0xff: ô trống | u8 ô; i32 độBền}', 'Đọc hết byte: B1 16 byte (nón 49), G2 24 byte (ô 0, 1, 2: 55, 60, 0); về 0 thì món hỏng (HP tối đa và sát thương tụt)');
+event('c2s', 1282, 'device_signals', 'world', 'Game 1.1.0: sqnf.p() đọc DeviceSignals rồi gửi, nhiều khả năng khi nhận s2c/1282', 'Chưa thấy trả lời', 'u8 adb (bit 1 gỡ lỗi USB, bit 2 adb Wi-Fi); u8 chế độ nhà phát triển (0/1); u8 số dịch vụ trợ năng (0–127)', 'Đọc từ code 1.1.0 (sqnf.a57, AndroidLauncher.readDeviceSignals); bot không gửi');
+event('c2s', 1275, 'request_1275', 'world', 'sqnf.Z() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
+event('c2s', 1277, 'request_1277', 'world', 'sqnf.Q() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
+event('c2s', 1281, 'request_1281', 'world', 'sqnf.N(), do com.mh.sqip.h14 gọi (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 event('s2c', 1214, 'battle_end_1214', 'battle', 'Cuối trận, sau đầu hàng hoặc huỷ trận', 'Không', 'Rỗng', 'Đo; vai trò chưa rõ');
 
 const pushes: [number, string, string, string, string?][] = [
@@ -146,6 +151,8 @@ const pushes: [number, string, string, string, string?][] = [
   [1269, 'config_1269', 'Sau c2s/4', '30 byte cấu hình, opaque'],
   [1271, 'social_links', 'Sau c2s/4', '140 byte; có URL Facebook, chưa giải cấu trúc danh sách'],
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
+  [1279, 'signal_1279', 'Vào thế giới: sau s2c/1220, ngay trước s2c/1282 (APK 1.1.0)', 'i32 (mẫu 8)', 'Đo 2 lần 20/11 (tiheo2); vai trò chưa rõ'],
+  [1282, 'device_check', 'Vào thế giới: sau s2c/1279, trước s2c/30 (APK 1.1.0)', '8 byte (mẫu toàn 0), chưa rõ kiểu', 'Đo 2 lần 20/11 (tiheo2). Game 1.1.0 trả bằng c2s/1282 (trạng thái máy); bot không trả, server không hỏi lại và không ngắt trong 140 s'],
   [46, 'currency_notice', 'Sau s2c/9; khi tiền đổi (trả nhiệm vụ)', 'string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong', 'Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng'],
   [10, 'character_stats', 'Sau trận (kiểu 4); khi lên cấp và mỗi điểm tiềm năng (kiểu 2, 4, 8 liền nhau); sau c2s/1191 (kiểu 32)', 'i32 kind; string name; kind 2: i32 level; i32 stats[10]. Kind 4: i32 hp, maxHp, exp; i32 levelExp[2]; i32 coin; i32 extra[6]. Kind 8: i32 statPoints; i32 fields[3]; string labels[2]. Kind 32: i32 n; n * {i32 skillId; i32 level}', 'Đọc hết byte 4 kiểu (L1, Q2, E1, P1); EXP và tiền khớp phần thưởng trận; stats[0] tăng 1 mỗi điểm Cường Lực, stats[1] mỗi điểm Thân Pháp, statPoints giảm 10 → 0; extra[1..5] là combat của s2c/9 (tấn công, phòng thủ, chính xác, né tránh, chí mạng: khớp bảng ở P1), fields[0] là điểm kỹ năng (16 ở P1, khớp bảng), extra[0], labels chưa rõ; kiểu 32 tăng cấp Hỏa Cầu Thuật 1 → 4'],
   [1187, 'inventory', 'Túi đồ đổi: trả nhiệm vụ, sửa đồ; loại 4 sau Chế tạo trang bị', 'u8 kind; kind 4: một item record (món vừa thêm, O1). Kind 1: i32 capacity; i32 n; n * item record: u8 slot; i32 itemId; string uuid; i32; i32 durability (-1 = không có); i32 quantity; u8; u8 element; i32; u8; u8; u8 k; k * {i32 stat; i32 value}', 'Đọc hết 519 byte (E2): 7 món khớp túi trên máy; cùng bản ghi với s2c/1182 trừ x, y, hạn'],
@@ -185,6 +192,18 @@ for (const [op, name, trigger, schema, confidence] of pushes) {
 }
 export const EVENTS = specs;
 export const eventKey = (direction: Direction, opcode: number) => `${direction}/${opcode}`;
+/** s2c/1209: the flag, then (APK 1.1.0) the values of four static readers, each read only while bytes are left, as the
+ * game does (sqpq.aq → com.mh.d.sqj, com.mh.a.sqh, com.mh.t.sqa, com.mh.z.sqa .a(sqi)). Meanings unknown (apk-1.1.0.md). */
+function serverFlag(r: Reader) {
+  const left = () => r.data.length - r.offset;
+  const fields: Record<string, unknown> = { flag: r.u8() };
+  if (left() >= 4) fields.sqj = r.i32();
+  if (left() >= 1) fields.sqh = r.u8();
+  if (left() >= 6) { fields.tA = r.i32(); fields.tB = r.take(2).readInt16BE(); if (left() >= 1) fields.tC = r.u8() === 1; }
+  if (left() >= 1) fields.z = r.u8() === 1;
+  return fields;
+}
+
 export function findEvent(direction: Direction, opcode: number | undefined) {
   return specs.find(s => s.direction === direction && s.opcode === opcode);
 }
@@ -279,7 +298,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
   let fields: Record<string, unknown> = {};
   if (direction === 'c2s') {
     switch (opcode) {
-      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1218: case 1221: break;
+      case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1196: case 1240: case 1241: case 1218: case 1221: case 1275: case 1277: case 1281: break;
+      case 1282: fields = { adb: r.u8(), devOptions: r.u8() === 1, accessibility: r.u8() }; break;
       case 1216: case 1217: case 1219: fields = { mailId: Number(r.take(8).readBigInt64BE()) }; break;
       case 1223: fields = { code: r.string() }; break;
       case 1192: fields = { mode: r.u8(), tab: r.i32(), page: r.i32() }; break;
@@ -327,7 +347,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case -1: fields = { keyBytes: sessionKey(payload).length }; r.take(payload.length); break;
       case 1: case 4: break;
       case 1207: fields = { serverList: r.string() }; break;
-      case 1209: fields = { flag: r.u8() }; break;
+      case 1209: fields = serverFlag(r); break;
+      case 1279: fields = { value: r.i32() }; break;
       case 1220: fields = { unread: r.u8() === 1 }; break;
       case 1195: fields = dailyQuest(payload); r.take(payload.length); break;
       case 1192: fields = market(payload); r.take(payload.length); break;

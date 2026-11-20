@@ -290,3 +290,17 @@ test('s2c/20 of a skill that destroys nothing (Hàn Lưu Thánh Thủy 4001, A1)
   const f = heal.fields as any;
   assert.deepEqual([f.skill, f.cells, f.refill, f.units.map((u: any) => [u.name, u.hp, u.s1]), f.actor, f.end, heal.opaqueBytes], [4001, [], [], [['Ttuananh', 34, 0]], 'Ttuananh', false, 0]);
 });
+
+test('s2c/22 is read from its battle uuid: the tail of 1.0.3 and the up to two bytes more of APK 1.1.0', () => {
+  const uuid = '3bc23858-8b3a-43e2-a1d2-80b46a5ee74c', board = Array.from({ length: N * N }, (_, i) => i % 6);
+  const setup = (extra: number[]) => {
+    const w = new Writer().u8(0).u8(0).string('akaito').string('akaito').u8(0).u8(0).u8(1).i32(3).i32(0).u8(0).i32(72).i32(72);
+    w.bytes(Buffer.alloc(40, 7)); // the unit blocks between head and tail, of any length
+    w.string(uuid).i32(0); board.forEach(c => w.u8(c));
+    return Buffer.concat([w.u8(30).u8(0).build(), Buffer.from(extra)]);
+  };
+  for (const extra of [[], [1], [1, 0]]) {
+    const s = decodeEvent('s2c', 22, setup(extra)).fields as any;
+    assert.deepEqual([s.me, s.level, s.hp, s.uuid, s.turnSeconds, s.board.length, s.board[7]], ['akaito', 3, 72, uuid, 30, 64, 1], `${extra.length} extra`);
+  }
+});

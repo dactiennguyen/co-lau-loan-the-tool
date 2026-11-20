@@ -166,9 +166,9 @@ Nguồn: A2: packet đọc từ native reader, record 14.
 | Nhãn phân tích | server_flag |
 | Xuất hiện khi | Sau client_info |
 | Sau đó | Đợi thêm 1207 rồi c2s/5 |
-| Bố cục payload | u8 flag (mẫu 18; ý nghĩa chưa rõ) |
-| Độ chắc chắn | Đã đo kiểu/byte; tên field chưa rõ được giữ trung tính |
-| Độ dài payload mẫu | 1 byte |
+| Bố cục payload | u8 flag; từ APK 1.1.0 thêm, mỗi phần chỉ khi còn byte: i32 sqj (com.mh.d.sqj); u8 sqh (com.mh.a.sqh); i32 tA, i16 tB, u8 tC (com.mh.t.sqa); u8 z (com.mh.z.sqa) |
+| Độ chắc chắn | Đo: 1.0.3 một byte (18); 1.1.0 (20/11) 14 byte 20 00000005 01 000003e8 0014 01 00. Bố cục đọc từ sqpq.aq (native): byte đầu vào static field, 13 byte sau do bốn hàm static a(sqi) đọc; ý nghĩa chưa rõ |
+| Độ dài payload mẫu | 1 byte (1.0.3); 14 byte (1.1.0) |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -191,6 +191,17 @@ Nguồn: A2: packet đọc từ native reader, record 19.
   "bytesUnknown": 0
 }
 ```
+
+**APK 1.1.0 (đo 20/11, nick tiheo2):** 14 byte `20 00000005 01 000003e8 0014 01 00`. Hàm xử lý `sqpq.aq(sqi)` đọc byte đầu (32) vào một static field, rồi chuyển gói cho bốn hàm static `a(sqi)`. Mỗi hàm chỉ đọc khi gói còn byte, nên gói 1 byte của bản cũ vẫn đọc được:
+
+| Lớp | Đọc | Mẫu |
+|---|---|---|
+| `com.mh.d.sqj` | i32 (qua `Math.max`) | 5 |
+| `com.mh.a.sqh` | u8 | 1 |
+| `com.mh.t.sqa` | i32, i16, rồi u8 nếu còn (bool) | 1000, 20, 1 |
+| `com.mh.z.sqa` | u8 (bool) | 0 |
+
+Ý nghĩa từng giá trị chưa rõ: các lớp này không dùng chữ nào để đoán. Bot TS đọc đủ 14 byte (`events.ts` `serverFlag`). App Rust chỉ cần biết đã nhận gói. [Đo]
 
 **Nếu bản app mới khác:** tìm lại writer/reader/handler native, đối chiếu kiểu getter, cursor và byte gốc; phân biệt thay đổi nội dung động với đổi cấu trúc. Xem [điều tra lại](../reinvestigation.md).
 

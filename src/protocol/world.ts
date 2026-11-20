@@ -118,9 +118,14 @@ export function playerRecord(r: Reader) {
   const flag1 = r.u8(), flag2 = r.u8(), level = r.i32(), hp = r.i32(), maxHp = r.i32(), s1 = r.i32(), s1Max = r.i32();
   const field = u16(r), x = r.i32(), y = r.i32();
   const gear = Array.from({ length: 6 }, () => r.i32());
-  const appearanceBytes = appearance(r);
+  // APK 1.1.0 (20/11) puts two bytes between the gear and the appearance block: 0 for everyone seen, then the element of
+  // the weapon (gear[2]), 255 without one; the 0 is likely its "+" (apk-1.1.0.md). Records of 1.0.3 have neither.
+  const at = r.offset;
+  let weapon: { plus: number; element: number } | undefined, appearanceBytes: number;
+  try { weapon = { plus: r.u8(), element: r.u8() }; appearanceBytes = appearance(r); }
+  catch { r.offset = at; weapon = undefined; appearanceBytes = appearance(r); }
   const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()]; // faction ("sứ quân") name, empty when none
-  return { kind, name, id, displayName, flag1, flag2, level, hp, maxHp, s1, s1Max, field, x, y, gear, appearanceBytes, factionField, faction, factionFlags };
+  return { kind, name, id, displayName, flag1, flag2, level, hp, maxHp, s1, s1Max, field, x, y, gear, weapon, appearanceBytes, factionField, faction, factionFlags };
 }
 
 /** The appearance block of a player record and of the s2c/9 tail, read but left unnamed; returns its length. */

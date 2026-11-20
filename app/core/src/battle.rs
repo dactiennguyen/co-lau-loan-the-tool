@@ -919,6 +919,28 @@ pub struct Setup {
     pub board: Vec<i16>,
     pub turn_seconds: u8,
 }
+/// Where the tail of s2c/22 starts: the battle uuid (i32 36 + 36 characters), an int, the board, the turn seconds. In 1.0.3
+/// one byte followed them; APK 1.1.0 (20/11) adds up to two more, so the tail is found by its uuid, the last one with
+/// room for the board after it (src/battle/battle.ts setupTail).
+fn setup_tail(p: &[u8], head: usize) -> Result<usize> {
+    let is_uuid = |s: &[u8]| {
+        s.len() == 36
+            && s.iter().enumerate().all(|(i, &c)| match i {
+                8 | 13 | 18 | 23 => c == b'-',
+                _ => c.is_ascii_digit() || (b'a'..=b'f').contains(&c),
+            })
+    };
+    let last = p.len().checked_sub(4 + 36 + 4 + N * N + 1);
+    if let Some(last) = last {
+        for at in (head..=last).rev() {
+            if p[at..at + 4] == [0, 0, 0, 36] && is_uuid(&p[at + 4..at + 40]) {
+                return Ok(at);
+            }
+        }
+    }
+    crate::protocol::err("PAYLOAD_SCHEMA", "No battle uuid in the tail of s2c/22")
+}
+
 /// s2c/22: the head of the player block and the tail (uuid, board, turn seconds).
 pub fn battle_setup(p: &[u8]) -> Result<Setup> {
     let mut r = Reader::new(p);
@@ -931,11 +953,7 @@ pub fn battle_setup(p: &[u8]) -> Result<Setup> {
     r.i32()?;
     r.u8()?;
     let (hp, max_hp) = (r.i32()?, r.i32()?);
-    let tail = 4 + 36 + 4 + N * N + 2;
-    if p.len() < r.offset + tail {
-        return crate::protocol::err("PAYLOAD_SCHEMA", "s2c/22 shorter than its tail");
-    }
-    let mut t = Reader::new(&p[p.len() - tail..]);
+    let mut t = Reader::new(&p[setup_tail(p, r.offset)?..]);
     let uuid = t.string()?;
     t.i32()?;
     let board = t.take(N * N)?.iter().map(|&v| v as i16).collect();
@@ -1200,8 +1218,49 @@ fn result_tail(r: &mut Reader) -> Result<Tail> {
 
 #[cfg(test)]
 mod tests {
-    use super::{battle_result, js_exp, swap, Board, Move};
+    use super::{battle_result, battle_setup, js_exp, swap, Board, Move, N};
     use crate::protocol::Writer;
+
+    #[test]
+    fn s2c_22_reads_from_its_uuid_with_or_without_the_bytes_of_apk_1_1_0() {
+        let uuid = "3bc23858-8b3a-43e2-a1d2-80b46a5ee74c";
+        for extra in [&[][..], &[1], &[1, 0]] {
+            let mut w = Writer::new()
+                .u8(0)
+                .u8(0)
+                .string("akaito")
+                .string("akaito")
+                .u8(0)
+                .u8(0)
+                .u8(1);
+            w = w
+                .i32(3)
+                .i32(0)
+                .u8(0)
+                .i32(72)
+                .i32(72)
+                .bytes(&[7; 40])
+                .string(uuid)
+                .i32(0);
+            for i in 0..N * N {
+                w = w.u8((i % 6) as u8);
+            }
+            let mut p = w.u8(30).u8(0).build();
+            p.extend_from_slice(extra);
+            let s = battle_setup(&p).unwrap();
+            assert_eq!(
+                (
+                    s.me.as_str(),
+                    s.level,
+                    s.hp,
+                    s.uuid.as_str(),
+                    s.turn_seconds,
+                    s.board[7]
+                ),
+                ("akaito", 3, 72, uuid, 30, 1)
+            );
+        }
+    }
 
     /// s2c/19 up to its refill: seq, two ints, the move as wire rows and columns (counted from 2), an int, no refill.
     fn move_packet(from: (i32, i32), to: (i32, i32)) -> Vec<u8> {

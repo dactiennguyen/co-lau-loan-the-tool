@@ -618,7 +618,13 @@ pub fn player_record(r: &mut Reader) -> Result<Player> {
     r.u16()?;
     let (x, y) = (r.i32()?, r.i32()?);
     r.take(24)?; // gear[6]
-    appearance(r)?;
+                 // APK 1.1.0 (20/11) puts two bytes before the appearance block (0, then the element of the weapon or 255); records of
+                 // 1.0.3 have none, so the old layout is read when the new one does not (src/protocol/world.ts playerRecord).
+    let at = r.offset;
+    if r.take(2).and_then(|_| appearance(r)).is_err() {
+        r.offset = at;
+        appearance(r)?;
+    }
     r.i32()?;
     r.string()?; // faction ("sứ quân")
     r.take(2)?;
@@ -749,7 +755,67 @@ impl ZonePlayers {
 
 #[cfg(test)]
 mod tests {
-    use super::{Nearby, ZonePlayers};
+    use super::{players_snapshot, Nearby, ZonePlayers};
+    use crate::protocol::Writer;
+
+    /// A player record as test/world.test.ts record110: APK 1.1.0 puts two bytes (0, weapon element) before the appearance.
+    fn record(name: &str, weapon_bytes: bool) -> Vec<u8> {
+        let mut w = Writer::new()
+            .u8(4)
+            .string(name)
+            .i32(22)
+            .string(name)
+            .u8(4)
+            .u8(0);
+        for v in [5, 207, 214, 2, 100] {
+            w = w.i32(v);
+        }
+        w = w.u8(0).u8(0).i32(1407).i32(640);
+        for v in [90200, 70100, 82500, 0, 0, 0] {
+            w = w.i32(v);
+        }
+        if weapon_bytes {
+            w = w.u8(0).u8(4);
+        }
+        w = w
+            .i32(3)
+            .i32(50400)
+            .i32(0)
+            .u8(8)
+            .bytes(&[0; 36])
+            .i32(0)
+            .bytes(&[])
+            .i32(0)
+            .u8(0);
+        for _ in 0..10 {
+            w = w.i32(0);
+        }
+        w.i32(99000)
+            .u8(0)
+            .i32(0)
+            .string("")
+            .u8(0)
+            .u8(0)
+            .i32(22)
+            .u8(1)
+            .u8(0)
+            .i32(0)
+            .u8(0)
+            .build()
+    }
+
+    #[test]
+    fn players_of_apk_1_1_0_and_of_1_0_3_both_read() {
+        let mut p = vec![0, 2];
+        p.extend(record("Moi", true));
+        p.extend(record("Cu", false));
+        let names: Vec<_> = players_snapshot(&p)
+            .unwrap()
+            .into_iter()
+            .map(|p| (p.name, p.x))
+            .collect();
+        assert_eq!(names, [("Moi".to_string(), 1407), ("Cu".to_string(), 1407)]);
+    }
 
     #[test]
     fn zone_list_orders_names_by_code_point_like_the_ts_list() {

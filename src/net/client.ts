@@ -16,6 +16,8 @@ export const FLOW: { state: string; request: number; expect: number[] }[] = [
 export const EXPECTED: Record<string, number[]> = { proxy: [], seed: [], ...Object.fromEntries(FLOW.map(s => [s.state, s.expect])) };
 /** The s2c/0 of a session taken over by a login elsewhere (02-login.md#s2c-0): ends the session, in the world too. */
 export const LOGGED_IN_ELSEWHERE = /đăng nhập ở (một )?nơi khác/i;
+/** The s2c/8 of a login whose account has no character yet (02-login.md#s2c-8). */
+export const NO_CHARACTER = 'Nick chưa có nhân vật: vào game tạo nhân vật trước';
 export interface ClientOptions {
   host?: string; port?: number; serverId?: number; username?: string; password?: string;
   mode?: 'bootstrap' | 'login' | 'world'; responseTimeoutMs?: number; overallTimeoutMs?: number;
@@ -199,6 +201,11 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
               if (state !== 'authenticating') break;
               if (packet.payload.length) throw new ProtocolError('UNSUPPORTED_BRANCH', 'Nonempty authentication ACK');
               emit('authentication_acknowledged'); step('character'); break;
+            // A login without a character gets the options of the character screen instead of s2c/9 (20/11, after the
+            // Open Beta wiped the Alpha characters): nothing to play until one is made in the game.
+            case 8:
+              if (state !== 'character') break;
+              throw new ProtocolError('NO_CHARACTER', NO_CHARACTER, { sourceEvent: 's2c/8', payloadBytes: packet.payload.length });
             case 9: {
               if (state !== 'character') break;
               const profile = characterPrefix(packet.payload); user.character = profile; characterName = profile.name;

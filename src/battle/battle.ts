@@ -4,7 +4,7 @@
 // same piece crossing (the in-game guide "Cẩm nang"; never seen in the captured battles).
 // Codes 10..69 are special pieces of type code%10 ("Kiếm lửa") that also clear their 3×3 neighbourhood.
 // The packet readers at the end follow docs/app/events/05-battle.md; cells go on the wire as row+2, col+2.
-import { Reader } from '../protocol/protocol.ts';
+import { ProtocolError, Reader } from '../protocol/protocol.ts';
 
 export const N = 8, EMPTY = -1, UNKNOWN = -2;
 // Effects measured in Q5/Q6 (docs/app/events/07-auto-battle.md): sword deals damage; heart heals; yin-yang fills stat1
@@ -261,10 +261,21 @@ export function mobBlock(payload: Uint8Array, mobId: string) {
 export function battleSetup(payload: Uint8Array) {
   const r = new Reader(payload); r.u8(); r.u8();
   const me = r.string(); r.string(); r.u8(); r.u8(); r.u8(); const level = r.i32(); r.i32(); r.u8();
-  const hp = r.i32(), maxHp = r.i32(), head = r.offset, tail = 4 + 36 + 4 + N * N + 2;
-  const t = new Reader(Buffer.from(payload).subarray(payload.length - tail));
+  const hp = r.i32(), maxHp = r.i32(), head = r.offset, start = setupTail(Buffer.from(payload), head);
+  const t = new Reader(Buffer.from(payload).subarray(start));
   const uuid = t.string(); t.i32();
-  return { me, level, hp, maxHp, uuid, board: [...t.take(N * N)], turnSeconds: t.u8(), knownBytes: head + tail };
+  return { me, level, hp, maxHp, uuid, board: [...t.take(N * N)], turnSeconds: t.u8(), knownBytes: head + payload.length - start };
+}
+
+/** Where the tail of s2c/22 starts: the battle uuid (i32 36 + 36 characters), an int, the board, the turn seconds. In 1.0.3
+ * one byte followed them; APK 1.1.0 (20/11) adds up to two more, each read only while bytes are left (sqpq.k), so the
+ * tail is found by its uuid, the last one with room for the board after it. */
+function setupTail(p: Buffer, head: number) {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  for (let at = p.length - (4 + 36 + 4 + N * N + 1); at >= head; at--) {
+    if (p.readInt32BE(at) === 36 && UUID.test(p.subarray(at + 4, at + 40).toString('latin1'))) return at;
+  }
+  throw new ProtocolError('PAYLOAD_SCHEMA', 'No battle uuid in the tail of s2c/22', { payloadBytes: p.length });
 }
 
 /** s2c/18 answering c2s/18. timed 0: turn-based, c2s/14 seq 0 asks for the mob's first move. timed 1 (Sơn Tặc, Q6–Q9):

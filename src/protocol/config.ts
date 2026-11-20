@@ -215,4 +215,11 @@ export const OPCODE_ENTRIES: [number, number][] = [
   [1270, 33511111],
   [1271, 23511111],
   [1272, 13511111],
+  // APK 1.1.0 (20/11): not in the native table of 1.0.3. The rule of 1241–1272 gives these; 1279 and 1282 came from the
+  // server so on 20/11 (apk-1.1.0.md#gói-mới-và-gói-bị-bỏ), the others are untested.
+  [1275, 13501111],
+  [1277, 23491111],
+  [1279, 33481111],
+  [1281, 13481111],
+  [1282, 33471111],
 ];

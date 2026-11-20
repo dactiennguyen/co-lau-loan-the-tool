@@ -23,7 +23,12 @@ Agent hook đọc packet ở native writer/reader như các file trước. `c2s/
 ### Danh sách máy chủ
 
 - Trong `libgdx-flashds.so` có sẵn chuỗi `Thanh Khê:play.colauloanthe.vn:1688:0` và host `play.colauloanthe.vn`. Đây là danh sách mặc định khi app chưa có gì. [Đo chuỗi]
-- **APK 1.1.0 (Google Play, cài 20/11) đổi server:** chuỗi mặc định thành `Thanh Khê:plays1.colauloanthe.vn:1688:0`, không còn host `play.colauloanthe.vn`. Ngày 20/11, `play.colauloanthe.vn` trỏ về `127.0.0.1` (cổng 1688 đóng), còn `plays1.colauloanthe.vn` trỏ về `14.225.213.40`, cùng IP cũ, cổng 1688 mở. Bot TS và app đã đổi mặc định sang `plays1`. Chưa đăng nhập thử qua host mới. Bản 1.1.0 còn gửi phiên bản giao thức `0.0.7` (bot vẫn gửi `0.0.2`), chưa biết server có từ chối bản cũ không. [Đo chuỗi, DNS, cổng]
+- **APK 1.1.0 (Google Play, cài 20/11) đổi server:** chuỗi mặc định thành `Thanh Khê:plays1.colauloanthe.vn:1688:0`, không còn host `play.colauloanthe.vn`. Ngày 20/11, `play.colauloanthe.vn` trỏ về `127.0.0.1` (cổng 1688 đóng), còn `plays1.colauloanthe.vn` trỏ về `14.225.213.40`, cùng IP cũ, cổng 1688 mở. Bot TS và app đã đổi mặc định sang `plays1`. Bản 1.1.0 còn gửi phiên bản giao thức `0.0.7`. [Đo chuỗi, DNS, cổng]
+- Bot TS thử lúc 11:08 ngày 20/11, vẫn gửi `0.0.2`:
+  - Bắt tay, `c2s/1206`, `s2c/1207`, `s2c/1209` và `c2s/5` vẫn chạy như cũ, mã gói không đổi. `s2c/1207` là `Thanh Khê:plays1.colauloanthe.vn:1688:1`.
+  - `s2c/5` báo "Chính thức Open Beta vào 12h ngày 20/11".
+  - Đăng nhập `tiheo2` tới `c2s/4` thì server trả `s2c/0` "Máy chủ đang bảo trì! Vui lòng thử lại sau." Vì vậy chưa biết server có nhận phiên bản `0.0.2` không. [Đo]
+- Thử lại lúc 12:02, sau khi Open Beta mở: server nhận đăng nhập với phiên bản `0.0.2` và trả `s2c/4`. Nhân vật Alpha đã bị xoá, nên server gửi `s2c/8` (dữ liệu tạo nhân vật) thay cho `s2c/9`. Chi tiết ở [APK 1.1.0](../apk-1.1.0.md#đo-thật-sau-open-beta-1202-ngày-2011). [Đo]
 - Sau `c2s/1206`, server gửi `s2c/1207` gồm một `string` theo dạng `tên:host:cổng:cờ`, lần đo là `Thanh Khê:play.colauloanthe.vn:1688:1`. Cờ là `0` trong bản mặc định và `1` trong bản server gửi, ý nghĩa [Chưa rõ]. Chưa thấy chuỗi có nhiều máy chủ nên chưa biết ký tự phân cách giữa các máy chủ. [Đo]
 - `.so` còn có khoá lưu `colau.servers`, các câu "Chọn máy chủ", "khong luu duoc lua chon server" và "server yeu cau chuyen IP". Có lẽ app lưu danh sách lại, cho chọn khi có nhiều máy chủ, và có cơ chế server bảo client đổi IP. Không thấy file nào trong `/data/data/com.lotasoft.colauloanthe` chứa `colau.servers` ở dạng chữ, nên có thể nó nằm trong cache mã hoá `files/dyncache/`. [Suy luận]
 - `c2s/5` và `c2s/4` đều gửi `serverId = 24` (`0x18`). Không thấy số 24 trong `1207` hay `1209`, nên nguồn gốc của nó [Chưa rõ].

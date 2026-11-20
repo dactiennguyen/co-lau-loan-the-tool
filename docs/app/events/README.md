@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 146 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 82 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 153 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 188 opcode, trong đó 82 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -59,6 +59,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/4 | credentials | login | [Byte, bố cục, nguồn quan sát](02-login.md#c2s-4) |
 | s2c/4 | authentication_ack | login | [Byte, bố cục, nguồn quan sát](02-login.md#s2c-4) |
 | c2s/9 | character_request | world | [Byte, bố cục, nguồn quan sát](03-world.md#c2s-9) |
+| s2c/8 | character_create_options | login | [Nick chưa có nhân vật](02-login.md#s2c-8) |
 | s2c/9 | character_data | world | [Byte, bố cục, nguồn quan sát](03-world.md#s2c-9) |
 | c2s/30 | skills_request | world | [Byte, bố cục, nguồn quan sát](03-world.md#c2s-30) |
 | s2c/30 | skills_data | world | [Byte, bố cục, nguồn quan sát](03-world.md#s2c-30) |
@@ -156,6 +157,12 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1269 | config_1269 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1269) |
 | s2c/1271 | social_links | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1271) |
 | s2c/1272 | config_1272 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1272) |
+| s2c/1279 | signal_1279 | push | [APK 1.1.0](../apk-1.1.0.md#s2c1282-và-s2c1279-server-hỏi-trạng-thái-máy) |
+| s2c/1282 | device_check | push | [APK 1.1.0](../apk-1.1.0.md#s2c1282-và-s2c1279-server-hỏi-trạng-thái-máy) |
+| c2s/1282 | device_signals | world | [APK 1.1.0](../apk-1.1.0.md#c2s1282-trạng-thái-máy-chống-bot) |
+| c2s/1275 | request_1275 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
+| c2s/1277 | request_1277 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
+| c2s/1281 | request_1281 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
 | s2c/46 | currency_notice | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-46) |
 | s2c/10 | character_stats | push | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
 | s2c/1187 | inventory | push | [Túi đồ và bản ghi vật phẩm](12-skills-items.md#túi-đồ) |

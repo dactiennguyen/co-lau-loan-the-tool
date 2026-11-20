@@ -235,6 +235,11 @@ pub(super) async fn session(
                             send!(9, Ctx { username: Some(&account.username), ..Ctx::default() });
                             step = Step::Character;
                         }
+                        // No character on the account: the server sends the options of the character screen instead
+                        // of s2c/9 (20/11, after the Open Beta wiped the Alpha characters; src/net/client.ts NO_CHARACTER).
+                        (Step::Character, 8) => {
+                            return Err("Nick chưa có nhân vật: vào game tạo nhân vật trước".into());
+                        }
                         (Step::Character, 9) => {
                             let c = character_prefix(&p.payload).map_err(|e| unread(op, e))?;
                             name = c.name;

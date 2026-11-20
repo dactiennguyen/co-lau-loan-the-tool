@@ -22,6 +22,7 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Mọi gói client gửi được: hàm dựng native, opcode, kiểu từng trường | [Hàm dựng gói](c2s-builders.md) |
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |
+| APK 1.1.0 (20/11): server `plays1`, giao thức `0.0.7`, gói mới 1275/1277/1281/1282 (trạng thái máy), PairIP | [APK 1.1.0](apk-1.1.0.md) |
 
 Mỗi lần điều tra Android, kết quả được ghi vào thư mục này trước. Sau đó phần mô phỏng TypeScript ([Tích hợp Node.js](../integration/nodejs/README.md)) mới dùng tới, rồi mới đến app Rust ([App Rust](../integration/rust/README.md)).
 

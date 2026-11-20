@@ -269,3 +269,25 @@ Nguồn: A2: packet đọc từ native reader, record 94.
 ```
 
 **Nếu bản app mới khác:** tìm lại writer/reader/handler native, đối chiếu kiểu getter, cursor và byte gốc; phân biệt thay đổi nội dung động với đổi cấu trúc. Xem [điều tra lại](../reinvestigation.md).
+
+<a id="s2c-8"></a>
+
+## s2c/8
+
+| Thuộc tính | Điều tra được |
+|---|---|
+| Hướng | Server → Client |
+| Nhãn phân tích | character_create_options |
+| Xuất hiện khi | Trả c2s/9 khi nick chưa có nhân vật (Open Beta 20/11 xoá nhân vật Alpha) |
+| Sau đó | Game hiện màn tạo nhân vật; bot dừng với NO_CHARACTER |
+| Bố cục payload | Chưa giải; 4.008 byte, có tên lựa chọn ngoại hình ("Khôi Ngô", "Ngố") và bảng màu ARGB |
+| Độ chắc chắn | Đo 1 lần (tiheo2, 20/11 12:02) |
+| Độ dài payload mẫu | 4.008 byte |
+
+**128 byte đầu sau giải XOR** (đầy đủ chưa lưu):
+
+```text
+00000012000000c3b4000000054e67e1bb91000000006400000024ff525252ffbfbfbfffffffffffa8a8a8ffbdc3ffff3a3b59ff262640ff56566cff77778d00000004c490656e0000000f0000006400
+```
+
+Ở chỗ của `s2c/9`, server gửi gói này khi tài khoản chưa có nhân vật. Game thật lúc đó mở màn tạo nhân vật (Khuôn Mặt, Kiểu Tóc, Màu Tóc, Màu Da, ô "Nhập tên nhân vật"). Bot TS dừng với mã `NO_CHARACTER` ("Nick chưa có nhân vật: vào game tạo nhân vật trước"), app Rust báo cùng câu đó. Gói tạo nhân vật mà client gửi đi thì chưa bắt được. Xem [APK 1.1.0](../apk-1.1.0.md#đo-thật-sau-open-beta-1202-ngày-2011). [Đo]

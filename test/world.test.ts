@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { mapGrid, mapData, gearDurability, ZonePlayers } from '../src/protocol/world.ts';
-import { mapPrefix } from '../src/protocol/protocol.ts';
+import { mapPrefix, Writer } from '../src/protocol/protocol.ts';
 
 const w: Record<string, { opcode: number; at: number; hex: string }> = fixtures.world;
 const decode = (key: string) => {
@@ -149,4 +149,24 @@ test('s2c/36 is the durability of the 8 gear slots: ff for an empty slot, else t
   const d = decodeEvent('s2c', 36, Buffer.from('0000000800000000' + '31ffffffffffffff', 'hex'));
   assert.equal(d.opaqueBytes, 0);
   assert.throws(() => read('00000008 00000000 31 ffffffffff'), /length/);
+});
+
+/** A player record in the layout of APK 1.1.0 (20/11): two bytes (0, weapon element) between the gear and the appearance. */
+function record110(name: string, element: number, withWeaponBytes = true) {
+  const w = new Writer().u8(element).string(name).i32(22).string(name).u8(element).u8(0);
+  [5, 207, 214, 2, 100].forEach(v => w.i32(v));
+  w.u8(0).u8(0).i32(1407).i32(640);
+  [90200, 70100, 82500, 0, 0, 0].forEach(v => w.i32(v));
+  if (withWeaponBytes) w.u8(0).u8(element);
+  w.i32(3).i32(50400).i32(0).u8(8).bytes(Buffer.alloc(36)).i32(0).bytes(Buffer.alloc(0)).i32(0).u8(0);
+  for (let i = 0; i < 10; i++) w.i32(0);
+  w.i32(99000).u8(0).i32(0).string('').u8(0).u8(0);
+  return w.i32(22).u8(1).u8(0).i32(0).u8(0).build(); // + the s2c/1212 status
+}
+
+test('s2c/1263 of APK 1.1.0: the two bytes before the appearance are read, records of 1.0.3 still read', () => {
+  const both = Buffer.concat([Buffer.from([0, 2]), record110('Moi', 4), record110('Cu', 1, false)]);
+  const { players } = decodeEvent('s2c', 1263, both).fields as any;
+  assert.deepEqual(players.map((p: any) => [p.name, p.level, p.x, p.weapon]), [['Moi', 5, 1407, { plus: 0, element: 4 }], ['Cu', 5, 1407, undefined]]);
+  assert.equal(decodeEvent('s2c', 1263, both).opaqueBytes, 0);
 });
