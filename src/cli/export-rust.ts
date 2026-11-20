@@ -118,6 +118,7 @@ function decoders() {
   const v = (k: string) => bytes(v007Packets[k]);
   add('mapEntities', v007Packets['s2c/43 M1'], mapEntities(v('s2c/43 M1')));
   add('mapBoss', v007Packets['s2c/1177 boss'], mapBoss(v('s2c/1177 boss')));
+  add('duelInvite', v007Packets['s2c/1180 Võ Quan'], duelInvite(v('s2c/1180 Võ Quan')));
   add('questData', v007Packets['s2c/39 quest3'], questData(v('s2c/39 quest3')));
   add('characterExtra', v007Packets['s2c/42 bag'], characterExtra(v('s2c/42 bag')));
   add('inventory', v007Packets['s2c/1187 bag'], inventory(v('s2c/1187 bag')));

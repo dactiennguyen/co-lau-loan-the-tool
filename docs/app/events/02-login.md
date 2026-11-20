@@ -347,6 +347,7 @@ Bot khai `0.0.2` vì vậy nhận đúng bố cục cũ mà bộ đọc vẫn đ
 | `s2c/1192` Chợ trời | mỗi món thêm `u8 hệ` trước giờ hết hạn ([14-npc](14-npc.md#bố-cục-chợ-trời)) |
 | `s2c/1190` cửa hàng NPC | mỗi dòng thêm `i16` sau `field4`, giá trị 1 ở Vũ khí [Xu] ([15-shops](15-shops.md#bản-ghi)) |
 | `s2c/1254` bảng xếp hạng | 7 tab; danh sách thêm `n × i64` và `i64` của mình sau hạng của mình ([11-panels](11-panels.md#s2c-1254)) |
+| `s2c/1180` tỷ thí | thêm `u8` ở cuối (105); bản ghi quái vẫn như `0.0.2` ([10-quests](10-quests.md#s2c-1180)) |
 
 Không khác (ngoài bản ghi vật phẩm): `s2c/9` (trừ trang bị), `s2c/30`, `s2c/11`, `s2c/1263`, `s2c/37` mặc/cởi đồ (10 ô), `s2c/116` mục Chợ trời, `s2c/1215` hòm thư trống, `s2c/1258` báo giá Pháp sư, hộp thoại Hương Lão (Điểm năng động, nhiệm vụ ngày), các gói trận `s2c/22` (khối quái đọc được: Gà Điên hệ 4 cấp 1, Heo Mọi hệ 2 cấp 7), `s2c/19`, `s2c/20`, `s2c/24`, `s2c/34`, `s2c/35`, `s2c/1191`, `s2c/10`. Gói `s2c/19` cuối trận dài khoảng 2.130 byte vì có bảng EXP từng cấp sau phần thưởng; bảng này có từ trước, không phải của `0.0.7`. [Đo]
 
@@ -354,4 +355,4 @@ Không khác (ngoài bản ghi vật phẩm): `s2c/9` (trừ trang bị), `s2c/3
 
 Chạy thật với mặc định mới (tiheo2, 20/11): bot TS làm nhiệm vụ 4, thắng 4/4 trận, 1.022 gói, đọc hết byte. App Rust (`cllt quest`, 8 phút) thắng 17/17 trận, xong nhiệm vụ 4 và 5, sang nhiệm vụ 6, lên cấp 11, nhặt đồ, tự cộng điểm, không có lỗi đọc gói. [Đo]
 
-**Chưa đo ở `0.0.7`:** Bạch Hổ, tỷ thí (`s2c/1180` chứa bản ghi quái, đọc theo bố cục của `s2c/43`), thư có vật phẩm (`s2c/1216`; hòm thư đang trống), mua/đăng bán/thu hồi ở Chợ trời (`s2c/112`, `113`, `115`: không có bản ghi vật phẩm), kết quả Pháp sư (`s2c/91`, `93`: tốn tiền), dùng bình trong trận, tab 2–6 của bảng xếp hạng. Nghĩa của `e`, `f`, `field5` và các số mới của `s2c/39` cũng chưa rõ. [Chưa rõ]
+**Chưa đo ở `0.0.7`:** Bạch Hổ, thư có vật phẩm (`s2c/1216`; hòm thư đang trống), mua/đăng bán/thu hồi ở Chợ trời (`s2c/112`, `113`, `115`: không có bản ghi vật phẩm), kết quả Pháp sư (`s2c/91`, `93`: tốn tiền), dùng bình trong trận, tab 2–6 của bảng xếp hạng. Nghĩa của `e`, `f`, `field5` và các số mới của `s2c/39` cũng chưa rõ. [Chưa rõ]

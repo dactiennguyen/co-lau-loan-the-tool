@@ -471,8 +471,9 @@ pub struct NpcMenu {
     pub options: Vec<(u8, String)>,
 }
 /// s2c/1180 after Đồng ý (c2s/57) in a duel's dialog (N2, N3: "Tỷ thí với Võ Quan Đinh Mộc"): the NPC's map and id, the
-/// mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record as in s2c/43), then `u8 a; i32 b`. The
-/// game challenges that mob at once with c2s/1181 (N3). ← duelInvite of src/protocol/world.ts.
+/// mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record of protocol 0.0.2 under both protocols),
+/// then `u8 a; i32 b`. Protocol 0.0.7 adds `u8 c` at the end (105 in all five of 20/11, D7). The game challenges that mob
+/// at once with c2s/1181 (N3). ← duelInvite of src/protocol/world.ts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DuelInvite {
@@ -481,24 +482,31 @@ pub struct DuelInvite {
     pub mob: Mob,
     pub a: u8,
     pub b: i32,
+    /// Protocol 0.0.7 only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c: Option<u8>,
 }
 pub fn duel_invite(p: &[u8]) -> Result<DuelInvite> {
-    either_layout(|extended| {
-        let mut r = Reader::new(p);
-        let (map_id, npc_id) = (r.string()?, r.i32()?);
-        let mob = mob_record(&mut r, extended)?;
-        let (a, b) = (r.u8()?, r.i32()?);
-        r.finish(
-            DuelInvite {
-                map_id,
-                npc_id,
-                mob,
-                a,
-                b,
-            },
-            "s2c/1180",
-        )
-    })
+    let mut r = Reader::new(p);
+    let (map_id, npc_id) = (r.string()?, r.i32()?);
+    let mob = mob_record(&mut r, false)?;
+    let (a, b) = (r.u8()?, r.i32()?);
+    let c = if r.remaining() == 1 {
+        Some(r.u8()?)
+    } else {
+        None
+    };
+    r.finish(
+        DuelInvite {
+            map_id,
+            npc_id,
+            mob,
+            a,
+            b,
+            c,
+        },
+        "s2c/1180",
+    )
 }
 pub fn npc_menu(p: &[u8]) -> Result<NpcMenu> {
     let mut r = Reader::new(p);

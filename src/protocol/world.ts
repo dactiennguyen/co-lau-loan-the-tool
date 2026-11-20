@@ -227,13 +227,13 @@ export function npcMenu(payload: Uint8Array) {
 }
 
 /** s2c/1180 after Đồng ý (c2s/57) in a duel's dialog (N2, N3: "Tỷ thí với Võ Quan Đinh Mộc"): the NPC's map and id, the
- * mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record as in s2c/43), then `u8 a; i32 b` (2 and
- * 1, 1, 0 in N2; 2 and 0 in N3). The game challenges that mob at once with c2s/1181 (N3). */
+ * mob the duel is fought against (mob880 "Võ Quan Đinh Mộc" cấp 20, a mob record of protocol 0.0.2 under both protocols),
+ * then `u8 a; i32 b` (2 and 1, 1, 0 in N2; 2 and 0 in N3). Protocol 0.0.7 adds `u8 c` at the end (105 in all five of
+ * 20/11, D7). The game challenges that mob at once with c2s/1181 (N3). */
 export function duelInvite(payload: Uint8Array) {
-  return eitherLayout(extended => {
-    const r = new Reader(payload), mapId = r.string(), npcId = r.i32(), mob: Mob = mobRecord(r, extended);
-    return finish(r, { mapId, npcId, mob, a: r.u8(), b: r.i32() }, 's2c/1180');
-  });
+  const r = new Reader(payload), mapId = r.string(), npcId = r.i32(), mob: Mob = mobRecord(r, false), a = r.u8(), b = r.i32();
+  const c = r.data.length - r.offset === 1 ? r.u8() : undefined;
+  return finish(r, { mapId, npcId, mob, a, b, ...(c === undefined ? {} : { c }) }, 's2c/1180');
 }
 
 /** s2c/1190 after c2s/57 opens one of the 14 shops (`kind`, docs/app/events/15-shops.md). shopId is what c2s/1190 buys,

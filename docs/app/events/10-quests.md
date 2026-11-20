@@ -138,6 +138,8 @@ Bước 3 của nhiệm vụ 12 "Kiếm Thử Anh Hùng" là "Tỷ thí với V�
 02 00000001                                u8 2; i32 1 (N2 lần 1 và 2), 0 (N2 lần 3, N3)
 ```
 
+**Ở protocol `0.0.7`** (D7, 20/11, 5 gói từ Log lỗi của app với 4 nick): `s2c/1180` dài 64 byte, vẫn y như trên nhưng có thêm **`u8 c` = `69` (105)** ở cuối. Bản ghi quái ở đây vẫn theo bố cục `0.0.2`, không thêm 9 byte như `s2c/43` của `0.0.7`. Trước khi sửa, app báo "Không đọc được s2c/1180: … 1 unread bytes", rồi dừng với "Server không gửi trận tỷ thí sau Đồng ý". Chưa rõ nghĩa của `c`. [Đo D7]
+
 **Trận (N4).** Bot TS tự đánh, wangpt cấp 25 vào trận với 110/184 HP. Bot thắng sau 13 lượt của mình trong 31 s, gây 624 sát thương, dùng 2 lần kỹ năng, còn 68 HP; được +168 EXP, +18 xu. Cùng một mili giây lúc trận kết thúc, server gửi `s2c/1200` (rỗng), `s2c/34` (nhiệm vụ 12, "Khá lắm!\nRất ít người mới có thể ép ta tới mức này."), `s2c/10` (EXP 24 234 → 24 402), `s2c/36` (độ bền) và `s2c/1214`. Không có `s2c/1201` hay `s2c/39`. `s2c/34` đưa nhiệm vụ sang bước "Báo cáo với Trại Chủ Phạm Hùng", như ở bước nói chuyện. [Đo N4]
 
 Trên điện thoại (N3) không ai đánh: quái đi 10 nước trong 5 phút mà HP vẫn 147/184. Tắt game giữa trận (`am force-stop`) thì ở lần đăng nhập sau EXP vẫn là 24 234, tức không mất EXP, còn HP là 110/184. [Đo N3, N4]

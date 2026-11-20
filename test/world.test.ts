@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
-import { mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed, bachHoBoard } from '../src/protocol/world.ts';
+import { duelInvite, mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed, bachHoBoard } from '../src/protocol/world.ts';
 import { market } from '../src/protocol/market.ts';
 import { v007Packets } from './fixtures-v007.ts';
 import { mapPrefix, Writer } from '../src/protocol/protocol.ts';
@@ -247,4 +247,9 @@ test('s2c/84: Tăng Kinh Nghiệm used, the slot left empty and x2 EXP for 24 ho
   const p = Buffer.from(v007Packets['s2c/84 dùng Tăng Kinh Nghiệm'], 'hex');
   assert.deepEqual(itemUsed(p), { slot: 16, left: 0, field: 256, name: 'akaito', effects: [{ key: 'ef7', rate: 200000, field: 0, remainingMs: 86_400_000 }] });
   assert.equal(decodeEvent('s2c', 84, p).opaqueBytes, 0);
+});
+
+test('s2c/1180 of protocol 0.0.7: the duel of 0.0.2 with one more u8 at the end (D7, 20/11)', () => {
+  const d = duelInvite(Buffer.from(v007Packets['s2c/1180 Võ Quan'], 'hex'));
+  assert.deepEqual(d, { mapId: 'M2', npcId: 141, mob: { id: 'mob880', name: 'Võ Quan Đinh Mộc', level: 20, a: 0, b: 6, c: 1, d: 0 }, a: 2, b: 1, c: 105 });
 });
