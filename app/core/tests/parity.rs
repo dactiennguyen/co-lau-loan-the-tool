@@ -4302,3 +4302,70 @@ fn tu_nhat_do_leaves_gear_of_the_other_gender_when_told() {
     );
     assert_eq!(picked(&off), [request("nam")], "{off:?}");
 }
+
+/// "Ngươi cần gì ở châu này?" with Thông tin châu and Nói chuyện, the menu Tướng phe Thiết Hổ (NPC 145) answered the c2s/13
+/// of step 2 of quest 22 with on 20/11 (manina2, manina3, tiheo2), here for the duel NPC of quest 12.
+fn chau_menu() -> Vec<u8> {
+    Writer::new()
+        .i32(2)
+        .string("Võ Quan Đinh Mộc")
+        .string("Ngươi cần gì ở châu này?")
+        .u8(0)
+        .string("Thông tin châu")
+        .u8(1)
+        .string("Nói chuyện")
+        .build()
+}
+
+#[test]
+fn a_menu_with_noi_chuyen_and_no_dong_y_gets_noi_chuyen_once_then_the_duel_s_dong_y() {
+    let (mut bot, mut out, now, _) = duel_bot();
+    bot.quest(1, None, now, &mut out);
+    bot.on_packet(57, &chau_menu(), now, &mut out).unwrap();
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            57,
+            Writer::new().u8(1).string("M2").i32(141).build()
+        ))
+    );
+    assert!(out.iter().any(|o| matches!(o, Out::Log(LogKind::Quest, t)
+        if t == "Võ Quan Đinh Mộc: Ngươi cần gì ở châu này? → Nói chuyện")));
+    // Nói chuyện opens the step's dialog: Đồng ý as before.
+    bot.on_packet(57, &hex(DUEL_DIALOG), now, &mut out).unwrap();
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            57,
+            Writer::new().u8(0).string("M2").i32(141).build()
+        ))
+    );
+    assert_eq!(bot.snap.quest_run.clone().unwrap().done, None);
+}
+
+#[test]
+fn the_same_menu_after_noi_chuyen_or_no_answer_to_it_ends_the_run() {
+    let (mut bot, mut out, now, _) = duel_bot();
+    bot.quest(1, None, now, &mut out);
+    bot.on_packet(57, &chau_menu(), now, &mut out).unwrap();
+    bot.on_packet(57, &chau_menu(), now, &mut out).unwrap();
+    assert_eq!(
+        bot.snap.quest_run.clone().unwrap().done.as_deref(),
+        Some("Võ Quan Đinh Mộc hỏi \"Ngươi cần gì ở châu này?\" (Thông tin châu, Nói chuyện): bot chưa biết chọn dòng nào")
+    );
+    // A new run talks again (c2s/13), so Nói chuyện may be taken again; no answer within 8 s ends the run.
+    bot.quest(1, None, now, &mut out);
+    bot.on_packet(57, &chau_menu(), now, &mut out).unwrap();
+    assert_eq!(
+        out.last(),
+        Some(&Out::Send(
+            57,
+            Writer::new().u8(1).string("M2").i32(141).build()
+        ))
+    );
+    bot.on_timer(bot.deadline().expect("talk timer"), &mut out);
+    assert_eq!(
+        bot.snap.quest_run.clone().unwrap().done.as_deref(),
+        Some("NPC không trả lời sau Nói chuyện")
+    );
+}

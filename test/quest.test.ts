@@ -628,6 +628,26 @@ test('quest bot: a dialog without Đồng ý stops without answering; so does a 
   assert.deepEqual([again.events.at(-1)?.event, again.events.at(-1)?.reason], ['stop', '3 duels and the step did not move']);
 });
 
+test('quest bot: a menu with Nói chuyện and no Đồng ý (Tướng phe Thiết Hổ, 20/11) gets Nói chuyện once, then its Đồng ý; a second such menu stops', () => {
+  const { bot, sent, events } = duelBot();
+  bot.onReady(recorder(sent));
+  const chau = new Writer().i32(2).string('Võ Quan Đinh Mộc').string('Ngươi cần gì ở châu này?').u8(0).string('Thông tin châu').u8(1).string('Nói chuyện').build();
+  bot.onPacket(57, chau);
+  assert.deepEqual(sent.at(-1), { opcode: 57, hex: buildRequest(57, { option: 1, mapId: 'M2', npcId: 141 }).toString('hex') });
+  // Nói chuyện opens the step's dialog: Đồng ý as before.
+  bot.onPacket(57, Buffer.from(q['s2c/57 duel'], 'hex'));
+  assert.deepEqual(sent.at(-1), { opcode: 57, hex: buildRequest(57, { option: 0, mapId: 'M2', npcId: 141 }).toString('hex') });
+  (bot as any).stop('test done');
+  // The same menu again after Nói chuyện: the bot does not loop.
+  const again = duelBot();
+  again.bot.onReady(recorder(again.sent));
+  again.bot.onPacket(57, chau);
+  again.bot.onPacket(57, chau);
+  assert.deepEqual(again.sent.map(s => s.opcode), [13, 57]);
+  assert.deepEqual([again.events.at(-1)?.event, again.events.at(-1)?.reason], ['stop', 'npc asked something the bot cannot answer']);
+  assert.ok(events.some(e => e.event === 'npc_talk'));
+});
+
 /** Quest 17 at "Đánh bại Tiên phong Hồng Giang" (90, 1, NPC 143), as wangpt was in M4 at Q17: Huyết Lang about, no mob of
  * that name. */
 const q17 = (key: string) => Buffer.from(q17Packets[key], 'hex');

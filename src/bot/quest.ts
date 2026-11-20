@@ -128,6 +128,9 @@ export class QuestBot implements WorldSession {
   awaitingReply = false;
   /** Duels taken for the current talk step (Đồng ý in its s2c/57); a step still there after 3 stops the bot. */
   duels = 0;
+  /** Nói chuyện chosen in the dialog of this c2s/13 (a menu before the step's own, 20/11); a second menu without Đồng ý
+   * after it stops the bot. */
+  talked = false;
   /** The skill tree of s2c/30, the level of each skill (s2c/9 tail, then s2c/10 kind 32) and the skill points left (s2c/9,
    * then s2c/1191). upgrading is the skill of the c2s/1191 waiting for its answer. */
   skills: Skill[] = []; skillLevels = new Map<number, number>(); skillPoints?: number; upgrading?: { id: number; name: string };
@@ -394,12 +397,24 @@ export class QuestBot implements WorldSession {
   }
   /** s2c/57 to a talk step's c2s/13: the NPC asks instead of answering with s2c/34. "Tỷ thí với Võ Quan Đinh Mộc" asks
    * "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý and 1 Từ chối (N1); Đồng ý (c2s/57) is answered by s2c/1180, the mob of
-   * the duel (invite). A dialog without Đồng ý stops the bot. */
+   * the duel (invite). A menu with Nói chuyện and no Đồng ý gets Nói chuyện once; any other dialog without Đồng ý stops the
+   * bot. */
   private dialog(payload: Buffer) {
     const menu = npcMenu(payload), q = this.quest, step = q?.steps[q.current];
     this.log('npc_menu', { npc: menu.npc, text: menu.text, options: menu.options.map(o => `${o.option} ${o.label}`) });
     if (!this.awaitingReply || !step || step.npcId < 0) return;
     const yes = menu.options.find(o => o.label === 'Đồng ý');
+    // "Ngươi cần gì ở châu này?" of Tướng phe Thiết Hổ (NPC 145, step 2 of quest 22; manina2, manina3, tiheo2 on 20/11):
+    // Thông tin châu, Nói chuyện. Nói chuyện is taken once per c2s/13, as the way to the step's own dialog.
+    const talk = menu.options.find(o => o.label === 'Nói chuyện');
+    if (!yes && talk && !this.talked) {
+      clearTimeout(this.wait);
+      this.talked = true;
+      this.log('npc_talk', { npc: menu.npc, npcId: step.npcId, option: talk.option });
+      this.send(57, buildRequest(57, { option: talk.option, mapId: this.mapId, npcId: step.npcId }));
+      this.wait = setTimeout(() => this.stop('npc did not answer after Nói chuyện', { npc: menu.npc }), 8000);
+      return;
+    }
     if (!yes) return this.stop('npc asked something the bot cannot answer', { npc: menu.npc, text: menu.text });
     if (this.duels >= 3) return this.stop('3 duels and the step did not move', { npc: menu.npc, step: step.text });
     // As fight() does before a challenge.
@@ -507,6 +522,7 @@ export class QuestBot implements WorldSession {
       case 'visit': return this.visit(action, step.text);
       case 'talk':
         this.log('talk', { step: step.text, mapId: this.mapId, npcId: action.npcId });
+        this.talked = false;
         return this.ask(13, buildRequest(13, { mapId: this.mapId, npcId: action.npcId }), 'npc did not answer', { npcId: action.npcId });
       default: return this.stop('step needs an action this bot does not know', rawStep(step));
     }

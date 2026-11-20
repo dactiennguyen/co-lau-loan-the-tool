@@ -255,6 +255,9 @@ pub struct Bot {
     awaiting_reply: bool,
     /// Duels taken for the current talk step (Đồng ý in its s2c/57, npc_dialog); a fourth ends the run.
     duels: u32,
+    /// Nói chuyện chosen in the dialog of this c2s/13 (a menu before the step's own, npc_dialog); a second menu without
+    /// Đồng ý after it ends the run.
+    talked: bool,
     /// The step of a run that plays one: quest id, step index, its text (`playing` of QuestBot with `once`).
     playing: Option<(i32, i32, String)>,
     /// Quest runs started in this session (QuestRun::id).
@@ -388,6 +391,7 @@ impl Bot {
             refused: HashSet::new(),
             awaiting_reply: false,
             duels: 0,
+            talked: false,
             playing: None,
             runs: 0,
             reload_map: false,

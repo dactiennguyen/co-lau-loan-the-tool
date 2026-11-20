@@ -170,7 +170,7 @@ Ngày 01/11, app Rust của wangpt dừng ở bước 3 của nhiệm vụ 17 v�
 
 **Bot xếp loại bước theo `s2c/39` trước, chữ sau** (`stepAction` trong [src/bot/quest.ts](../../../src/bot/quest.ts), `step_action` trong `app/core/src/quest.rs`):
 
-1. `npcId` ≥ 0: bước NPC, dù chữ là "Nói chuyện", "Báo cáo", "Gặp", "Tỷ thí" hay "Đánh bại". Bot gửi `c2s/13` rồi làm theo gói server trả: `s2c/34` là xong; `s2c/57` có "Đồng ý" thì chọn dòng đó, rồi `s2c/1180` là trận đấu ([Bước Tỷ thí](#tỷ-thí)). Hộp thoại không có "Đồng ý" thì bot dừng, không chọn gì.
+1. `npcId` ≥ 0: bước NPC, dù chữ là "Nói chuyện", "Báo cáo", "Gặp", "Tỷ thí" hay "Đánh bại". Bot gửi `c2s/13` rồi làm theo gói server trả: `s2c/34` là xong; `s2c/57` có "Đồng ý" thì chọn dòng đó, rồi `s2c/1180` là trận đấu ([Bước Tỷ thí](#tỷ-thí)). Menu có "Nói chuyện" mà không có "Đồng ý" thì bot chọn "Nói chuyện" một lần cho mỗi lần `c2s/13`, như lối vào hộp thoại của bước: Tướng phe Thiết Hổ (NPC 145, bước 2 "Đánh bại Tướng phe Thiết Hổ" của nhiệm vụ 22) trả `c2s/13` bằng "Ngươi cần gì ở châu này?" với hai dòng Thông tin châu, Nói chuyện (manina2, manina3, tiheo2, 20/11; bản 2.0.1 dừng ở đây). Server trả gì sau Nói chuyện thì **chưa đo** [Suy luận: hộp thoại tỷ thí có Đồng ý]. Hộp thoại khác không có "Đồng ý", hay lại menu ấy sau Nói chuyện, thì bot dừng, không chọn gì.
 2. `npcId` = -1: đọc chữ:
    - "Tiêu diệt/Đánh bại X" là quái tên X. Nếu X là boss của map thì vẫn thách đấu bằng `c2s/1178` ([B8](#đánh-bại-boss)).
    - "Gây N sát thương lên X" là boss.

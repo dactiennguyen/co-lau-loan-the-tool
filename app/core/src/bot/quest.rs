@@ -3,6 +3,9 @@ use super::*;
 
 /// The line of a duel's dialog that takes it (N1: 0 "Đồng ý", 1 "Từ chối").
 const DUEL_YES: &str = "Đồng ý";
+/// The line of a menu that comes before the step's own dialog ("Ngươi cần gì ở châu này?" of Tướng phe Thiết Hổ: Thông tin
+/// châu, Nói chuyện; 20/11).
+const TALK: &str = "Nói chuyện";
 
 impl Bot {
     /// Starts "Tự làm nhiệm vụ" on the current quest, replacing a quest run; refused while a fight job runs. With
@@ -311,6 +314,7 @@ impl Bot {
                     LogKind::Quest,
                     format!("{} (NPC {npc_id})", step.text),
                 ));
+                self.talked = false;
                 let ctx = Ctx {
                     map_id: Some(&map_id),
                     npc_id: Some(npc_id),
@@ -349,7 +353,9 @@ impl Bot {
     /// s2c/57 to a talk step's c2s/13: the NPC asks instead of answering with s2c/34. "Tỷ thí với Võ Quan Đinh Mộc" asks
     /// "Cậu đã sẵn sàng chiến đấu chưa." with 0 Đồng ý and 1 Từ chối (N1); Đồng ý (c2s/57) is answered by s2c/1180, the mob
     /// of the duel (duel). A dialog without Đồng ý ends the run, and so does a fourth duel for the same step, or no s2c/1180
-    /// within 8 s. ← dialog() of quest.ts.
+    /// within 8 s. A menu with Nói chuyện and no Đồng ý ("Ngươi cần gì ở châu này?" of Tướng phe Thiết Hổ, NPC 145, step 2
+    /// of quest 22: Thông tin châu, Nói chuyện; manina2, manina3, tiheo2 on 20/11) gets Nói chuyện once per c2s/13, as the
+    /// way to the step's own dialog. ← dialog() of quest.ts.
     pub(super) fn npc_dialog(&mut self, menu: NpcMenu, now: Instant, out: &mut Vec<Out>) {
         let step = self
             .snap
@@ -359,7 +365,29 @@ impl Bot {
         let Some(step) = step.filter(|s| s.npc_id >= 0) else {
             return;
         };
-        let Some(&(option, _)) = menu.options.iter().find(|o| o.1 == DUEL_YES) else {
+        let yes = menu.options.iter().find(|o| o.1 == DUEL_YES);
+        let talk = menu.options.iter().find(|o| o.1 == TALK);
+        if let (None, Some(&(option, _)), false) = (yes, talk, self.talked) {
+            self.talked = true;
+            out.push(Out::Log(
+                LogKind::Quest,
+                format!("{}: {} → {TALK}", menu.npc, menu.text),
+            ));
+            let map_id = self.snap.map_id.clone();
+            let ctx = Ctx {
+                option: Some(option as i32),
+                map_id: Some(&map_id),
+                npc_id: Some(step.npc_id),
+                ..Ctx::default()
+            };
+            Self::send(out, 57, ctx);
+            self.timer = Some((
+                now + Duration::from_secs(8),
+                Wake::Silence("NPC không trả lời sau Nói chuyện"),
+            ));
+            return;
+        }
+        let Some(&(option, _)) = yes else {
             let options: Vec<&str> = menu.options.iter().map(|o| o.1.as_str()).collect();
             let reason = format!(
                 "{} hỏi \"{}\" ({}): bot chưa biết chọn dòng nào",

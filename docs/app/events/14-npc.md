@@ -76,7 +76,7 @@ Lời và các dòng của từng NPC khi symap (không làm nhiệm vụ của 
 | M25 | 162 Tướng Quân Lê Viễn | "Xin chào" | 0 OK |
 | M4 | 143 Tiên phong Hồng Giang, 131 Lính Hồng Giang, 121 Tướng Xích Vũ, 144 Phó Tướng Hồng Giang | "Xin chào" | 0 OK |
 | M5 | 146 Tướng quân Lạc Cốc, 133 Lính Lạc Cốc | "Xin chào" | 0 OK |
-| M10 | 145 Tướng phe Thiết Hổ, 132 Lính Cửu Phong | "Xin chào" | 0 OK |
+| M10 | 145 Tướng phe Thiết Hổ, 132 Lính Cửu Phong | "Xin chào" | 0 OK. Với nhân vật ở bước 2 nhiệm vụ 22, Tướng phe Thiết Hổ hỏi "Ngươi cần gì ở châu này?": Thông tin châu, Nói chuyện [Đo từ nhật ký app, 20/11; mã dòng chưa ghi] |
 
 NPC của nhiệm vụ (Võ Quan, Tướng Quân Lê Viễn…) chỉ có lời riêng khi bước nhiệm vụ cần họ ([Bước Tỷ thí](10-quests.md#tỷ-thí)). [Đo]
 
