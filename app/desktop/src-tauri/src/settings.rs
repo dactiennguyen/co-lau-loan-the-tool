@@ -72,8 +72,12 @@ pub fn path(accounts: &Path) -> PathBuf {
     accounts.with_file_name("settings.json")
 }
 
+/// The game server before APK 1.1.0 (20/11), which now resolves to 127.0.0.1. Saving Cài đặt wrote the default into
+/// settings.json, so a file naming it reads as today's default host, its port kept.
+const OLD_HOST: &str = "play.colauloanthe.vn";
+
 /// settings.json; the defaults when there is none, or when it does not read, and the default server when the one it
-/// names cannot be dialled (said on stderr; the next save replaces it). A key left out is its default.
+/// names cannot be dialled (said on stderr; the next save replaces it) or is OLD_HOST. A key left out is its default.
 pub fn load(path: &Path) -> Settings {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
@@ -87,13 +91,17 @@ pub fn load(path: &Path) -> Settings {
         eprintln!("{}: {e}", path.display());
         Settings::default()
     });
-    settings.clone().checked().unwrap_or_else(|e| {
+    let mut loaded = settings.clone().checked().unwrap_or_else(|e| {
         eprintln!("{}: {e}", path.display());
         Settings {
             server: Server::default(),
             ..settings
         }
-    })
+    });
+    if loaded.server.host.eq_ignore_ascii_case(OLD_HOST) {
+        loaded.server.host = Server::default().host;
+    }
+    loaded
 }
 
 /// `load` at the start of the app. Before settings.json, Lưu dữ liệu trận was a setting of each account ("record" of
@@ -302,12 +310,29 @@ mod tests {
         );
         std::fs::write(
             &file,
-            r#"{"server": {"host": "play.colauloanthe.vn:1688", "port": 1688}, "record": false}"#,
+            r#"{"server": {"host": "plays1.colauloanthe.vn:1688", "port": 1688}, "record": false}"#,
         )
         .unwrap();
         assert_eq!(
             load(&file),
             Settings {
+                record: false,
+                ..Settings::default()
+            }
+        );
+        // The server before APK 1.1.0 is today's default, the port kept.
+        std::fs::write(
+            &file,
+            r#"{"server": {"host": "Play.colauloanthe.vn", "port": 1700}, "record": false}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            load(&file),
+            Settings {
+                server: Server {
+                    host: "plays1.colauloanthe.vn".into(),
+                    port: 1700,
+                },
                 record: false,
                 ..Settings::default()
             }
@@ -361,17 +386,17 @@ mod tests {
         };
         let host = |s: Settings| s.checked().unwrap().server.host;
         assert_eq!(
-            host(with(" play.colauloanthe.vn ", 1688)),
-            "play.colauloanthe.vn"
+            host(with(" plays1.colauloanthe.vn ", 1688)),
+            "plays1.colauloanthe.vn"
         );
         assert_eq!(host(with("[2001:db8::5]", 1688)), "2001:db8::5");
         assert_eq!(host(with("2001:db8::5", 1688)), "2001:db8::5");
         for bad in [
             with("  ", 1688),
-            with("http://play.colauloanthe.vn", 1688),
-            with("play.colauloanthe.vn:1688", 1688),
+            with("http://plays1.colauloanthe.vn", 1688),
+            with("plays1.colauloanthe.vn:1688", 1688),
             with("play colau", 1688),
-            with("play.colauloanthe.vn", 0),
+            with("plays1.colauloanthe.vn", 0),
         ] {
             assert!(bad.clone().checked().is_err(), "{bad:?}");
         }

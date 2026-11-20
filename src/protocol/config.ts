@@ -8,7 +8,8 @@ export const BASELINE = {
   "uiVersion": "1.0.1",
   "platform": "android",
   "protocolVersion": "0.0.2",
-  "host": "play.colauloanthe.vn",
+  // APK 1.1.0 (20/11) moved the game to plays1; play.colauloanthe.vn now resolves to 127.0.0.1.
+  "host": "plays1.colauloanthe.vn",
   "port": 1688,
   "observedServerId": 24,
   "members": {

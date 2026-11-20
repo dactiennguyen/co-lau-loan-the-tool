@@ -853,7 +853,7 @@ export interface FightSettings {
 
 /** Settings of settings.rs: the Cài đặt of the app, the same for every account. */
 export interface Settings {
-  /** Where the sessions connect from their next login; play.colauloanthe.vn:1688 by default. */
+  /** Where the sessions connect from their next login; plays1.colauloanthe.vn:1688 by default. */
   server: { host: string; port: number };
   /** Lưu dữ liệu trận: every battle of every account into battle_data of cllt.db. */
   record: boolean;

@@ -346,14 +346,14 @@ mod tests {
     #[test]
     fn socks5_offers_username_and_password_only_with_them_and_keeps_the_bytes_after_its_reply() {
         let p = proxy(ProxyKind::Socks5, "ab", "cd");
-        let mut t = Tunnel::new(&p, "play.colauloanthe.vn", 1688);
+        let mut t = Tunnel::new(&p, "plays1.colauloanthe.vn", 1688);
         assert_eq!(t.start(), [5, 2, 0, 2]);
         assert_eq!(
             t.receive(&[5, 2]).unwrap().0,
             [1, 2, b'a', b'b', 2, b'c', b'd']
         );
-        let mut connect = vec![5, 1, 0, 3, 20];
-        connect.extend_from_slice(b"play.colauloanthe.vn");
+        let mut connect = vec![5, 1, 0, 3, 22];
+        connect.extend_from_slice(b"plays1.colauloanthe.vn");
         connect.extend_from_slice(&[0x06, 0x98]);
         assert_eq!(t.receive(&[1, 0]).unwrap().0, connect);
         // The reply one byte at a time, its last byte in the same chunk as the start of the seed.
@@ -375,10 +375,10 @@ mod tests {
     #[test]
     fn http_connect_sends_basic_auth_and_keeps_the_bytes_after_the_headers() {
         let p = proxy(ProxyKind::Http, "u", "p");
-        let mut t = Tunnel::new(&p, "play.colauloanthe.vn", 1688);
+        let mut t = Tunnel::new(&p, "plays1.colauloanthe.vn", 1688);
         assert_eq!(
             String::from_utf8(t.start()).unwrap(),
-            "CONNECT play.colauloanthe.vn:1688 HTTP/1.1\r\nHost: play.colauloanthe.vn:1688\r\nProxy-Authorization: Basic dTpw\r\n\r\n"
+            "CONNECT plays1.colauloanthe.vn:1688 HTTP/1.1\r\nHost: plays1.colauloanthe.vn:1688\r\nProxy-Authorization: Basic dTpw\r\n\r\n"
         );
         assert!(t.receive(b"HTTP/1.1 200 OK\r\n").unwrap().1.is_empty());
         assert_eq!(t.receive(b"Via: x\r\n\r\n\x01\x02").unwrap().1, [1, 2]);

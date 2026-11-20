@@ -120,7 +120,7 @@ pub enum Event {
     Fault(Box<Fault>),
 }
 
-/// The game server the sessions connect to: play.colauloanthe.vn:1688, as the game's config says, unless the app's Cài
+/// The game server the sessions connect to: plays1.colauloanthe.vn:1688, as the game's config says, unless the app's Cài
 /// đặt names another (Manager::set_server).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]

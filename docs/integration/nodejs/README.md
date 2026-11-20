@@ -1,6 +1,6 @@
 # Node.js kết nối trực tiếp và lấy user
 
-Đường chạy: `src/cli/connect.ts` → `runClient()` → `net.createConnection()` → `play.colauloanthe.vn:1688`. Code chạy bằng Node.js ≥22.6, không có dependency npm ngoài. Lệnh trong tài liệu chạy từ thư mục gốc dự án.
+Đường chạy: `src/cli/connect.ts` → `runClient()` → `net.createConnection()` → `plays1.colauloanthe.vn:1688`. Code chạy bằng Node.js ≥22.6, không có dependency npm ngoài. Lệnh trong tài liệu chạy từ thư mục gốc dự án.
 
 | Cần tra | Tài liệu |
 |---|---|
@@ -23,7 +23,7 @@ cp .env.example .env
 npm start
 ```
 
-CLI tự đọc `.env`; giá trị đã có trong môi trường shell được ưu tiên. Mặc định host `play.colauloanthe.vn`, port `1688`, serverId `24` (lấy từ phiên app đã đo). Có credential thì lệnh mặc định chạy đến world; chưa có thì chỉ bootstrap.
+CLI tự đọc `.env`; giá trị đã có trong môi trường shell được ưu tiên. Mặc định host `plays1.colauloanthe.vn` (từ APK 1.1.0; `play.colauloanthe.vn` cũ giờ trỏ về `127.0.0.1`), port `1688`, serverId `24` (lấy từ phiên app đã đo). Có credential thì lệnh mặc định chạy đến world; chưa có thì chỉ bootstrap.
 
 ```bash
 npm run login
@@ -57,7 +57,7 @@ CLLT_PROXY=http://user:pass@1.2.3.4:8080      # proxy HTTP có CONNECT
 import { runClient } from './src/net/client.ts';
 
 const result = await runClient({
-  host: 'play.colauloanthe.vn',
+  host: 'plays1.colauloanthe.vn',
   port: 1688,
   serverId: 24,
   username: process.env.CLLT_USERNAME,

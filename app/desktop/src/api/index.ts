@@ -432,7 +432,7 @@ const preview: Api = {
   accountSecrets: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không có mật khẩu")),
   settings: async () => {
     const defaults: Settings = {
-      server: { host: "play.colauloanthe.vn", port: 1688 },
+      server: { host: "plays1.colauloanthe.vn", port: 1688 },
       record: true,
       onClose: "ask",
       notifyDone: true,

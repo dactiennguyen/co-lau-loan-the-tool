@@ -327,13 +327,13 @@ Hộp **Cài đặt** mở từ nút bánh răng bên phải chữ CLLT TOOL ở
 
 | Mục | Làm gì |
 |---|---|
-| Server game | **Địa chỉ** và **Cổng** mà nick kết nối tới. Mặc định là `play.colauloanthe.vn:1688`, đúng `HOST`, `PORT` lấy từ config của game (`net::Server::default`). Địa chỉ chỉ là tên miền hay IP (IPv6 có hay không có ngoặc vuông đều được), không có `http://`, dấu cách hay cổng; cổng là số nguyên từ 1 đến 65535. Nick đang trong game giữ kết nối cũ, địa chỉ mới dùng từ lần đăng nhập sau (`Manager::set_server`); hộp ghi rõ khi có nick đang chơi. Kiểm tra proxy và bước kiểm tra trước khi lưu nick cũng đi tới địa chỉ này |
+| Server game | **Địa chỉ** và **Cổng** mà nick kết nối tới. Mặc định là `plays1.colauloanthe.vn:1688`, đúng `HOST`, `PORT` lấy từ config của game 1.1.0 (`net::Server::default`). `settings.json` còn ghi server cũ `play.colauloanthe.vn` (bị Lưu từ hồi nó là mặc định; từ APK 1.1.0 tên này trỏ về `127.0.0.1`) thì app đọc thành server mặc định mới, giữ cổng (`settings::OLD_HOST`). Địa chỉ chỉ là tên miền hay IP (IPv6 có hay không có ngoặc vuông đều được), không có `http://`, dấu cách hay cổng; cổng là số nguyên từ 1 đến 65535. Nick đang trong game giữ kết nối cũ, địa chỉ mới dùng từ lần đăng nhập sau (`Manager::set_server`); hộp ghi rõ khi có nick đang chơi. Kiểm tra proxy và bước kiểm tra trước khi lưu nick cũng đi tới địa chỉ này |
 | Dùng mặc định | Đưa địa chỉ và cổng về mặc định của game. Chỉ hiện khi đang khác mặc định |
 | Lưu dữ liệu trận | Mặc định bật. Bật thì mỗi trận của mọi nick vào bảng `battle_data` của `cllt.db` (xem [Nhật ký và thống kê](#nhật-ký-và-thống-kê)). Bấm Lưu là có hiệu lực ngay cho mọi nick đang chơi, từ trận sau: `Manager::set_record` gửi `Command::Record` tới từng session, bot ghi "Bật/Tắt lưu dữ liệu trận" vào nhật ký (`Bot::set_record`). Trận đang ghi dở vẫn được giữ. Bên cạnh ô là số trận đã lưu và dung lượng ("Đã lưu 1.284 trận · 5,4 MB") |
 | Khi bấm nút đóng cửa sổ | Tab Cửa sổ: **Hỏi mỗi lần** (mặc định), **Thu nhỏ vào khay** hay **Thoát ứng dụng** (`onClose` là `"ask"`, `"tray"`, `"quit"`). Ô Ghi nhớ của hộp Đóng cửa sổ ghi vào đây, nên đổi lại ở đây; xem [Thu nhỏ vào khay](#thu-nhỏ-vào-khay) |
 | Xuất dữ liệu trận | Làm ngay, không cần bấm Lưu. App chép cả bảng `battle_data` sang một file SQLite mới trong thư mục Downloads, tên `cllt-battles-<ngày>-<giờ>.db` (trùng tên thì thêm `-2`), chỉ có bảng đó, đúng cột như `cllt.db` (`Store::export_battle_data`). Xong thì hộp ghi số trận, dung lượng, tên file, và có nút **Mở thư mục** để mở Finder hay Explorer chọn sẵn file. Chưa có trận nào thì nút mờ. Bản chép đọc bằng kết nối riêng tới `cllt.db` nên các nick đang chơi không phải chờ, dù bảng lớn. Bảng trong file có đúng các cột hiện tại của `battle_data` (tên, kiểu, khoá chính, NOT NULL, lấy từ `PRAGMA table_info`), nên sau này thêm cột thì xuất vẫn chạy. Xuất lỗi giữa chừng thì file dở bị xoá. Đọc file bằng `npm run battles -- --db=<file>` (phải có `--`, không thì npm nuốt mất `--db`); file không có mật khẩu, chat hay người chơi khác |
 
-`settings.json` có dạng `{"server": {"host": "play.colauloanthe.vn", "port": 1688}, "record": true, "onClose": "ask"}`. Thiếu khoá nào thì khoá đó lấy mặc định, kể cả `port` hay `host` trong `server`. File không đọc được thì app dùng mặc định; `onClose` khác ba giá trị trên cũng làm file không đọc được. Nếu file ghi một địa chỉ không gọi được (sửa tay, có cổng trong địa chỉ, cổng 0) thì chỉ phần server về mặc định, các khoá khác giữ nguyên. Cả hai trường hợp đều báo lỗi ra stderr, và lần Lưu sau ghi đè file. Trước bản này, Lưu dữ liệu trận là ô riêng của từng nick (`"record"` trong `"fight"` của `accounts.json`). Lần đầu mở bản này (chưa có `settings.json`), nếu có nick nào đã tắt thì app tắt Lưu dữ liệu trận cho mọi nick và ghi ngay `settings.json`, để nó vẫn tắt sau khi app xoá khoá cũ khỏi `accounts.json` ở lần ghi sau (`settings::first_load`). Bật hay tắt trong lúc một nick đang kết nối hay đăng nhập dở cũng được giữ lại cho nick đó.
+`settings.json` có dạng `{"server": {"host": "plays1.colauloanthe.vn", "port": 1688}, "record": true, "onClose": "ask"}`. Thiếu khoá nào thì khoá đó lấy mặc định, kể cả `port` hay `host` trong `server`. File không đọc được thì app dùng mặc định; `onClose` khác ba giá trị trên cũng làm file không đọc được. Nếu file ghi một địa chỉ không gọi được (sửa tay, có cổng trong địa chỉ, cổng 0) thì chỉ phần server về mặc định, các khoá khác giữ nguyên. Cả hai trường hợp đều báo lỗi ra stderr, và lần Lưu sau ghi đè file. Trước bản này, Lưu dữ liệu trận là ô riêng của từng nick (`"record"` trong `"fight"` của `accounts.json`). Lần đầu mở bản này (chưa có `settings.json`), nếu có nick nào đã tắt thì app tắt Lưu dữ liệu trận cho mọi nick và ghi ngay `settings.json`, để nó vẫn tắt sau khi app xoá khoá cũ khỏi `accounts.json` ở lần ghi sau (`settings::first_load`). Bật hay tắt trong lúc một nick đang kết nối hay đăng nhập dở cũng được giữ lại cho nick đó.
 
 ## Log lỗi
 
@@ -392,7 +392,7 @@ Dạng JSON: mỗi nick có đúng các khoá của `accounts.json`, `settings` 
 ```json
 {"app": "Co Lau Tool", "format": 1, "exportedAt": "2026-11-01T22:00:00+07:00",
  "accounts": [{"label": "…", "username": "…", "password": "…", "serverId": 24, "stats": "auto", "fight": {…}, "proxy": {…}}],
- "settings": {"server": {"host": "play.colauloanthe.vn", "port": 1688}, "record": true, "onClose": "ask"}}
+ "settings": {"server": {"host": "plays1.colauloanthe.vn", "port": 1688}, "record": true, "onClose": "ask"}}
 ```
 
 **Nhập**
@@ -452,7 +452,7 @@ Thông báo của hệ điều hành (plugin `tauri-plugin-notification`), bật
 
 ## Proxy
 
-Mỗi nick có thể đi qua một proxy riêng, SOCKS5 hoặc HTTP (CONNECT), có hoặc không có tài khoản. `core/src/proxy.rs` làm giống `src/net/proxy.ts` ([proxy của bot TS](../nodejs/README.md#proxy)): nối tới proxy, mở đường tới `play.colauloanthe.vn:1688`, rồi giao thức game chạy bên trong như khi không có proxy. Proxy trả lời dính liền với vài byte đầu của seed thì các byte đó vẫn được dùng.
+Mỗi nick có thể đi qua một proxy riêng, SOCKS5 hoặc HTTP (CONNECT), có hoặc không có tài khoản. `core/src/proxy.rs` làm giống `src/net/proxy.ts` ([proxy của bot TS](../nodejs/README.md#proxy)): nối tới proxy, mở đường tới `plays1.colauloanthe.vn:1688`, rồi giao thức game chạy bên trong như khi không có proxy. Proxy trả lời dính liền với vài byte đầu của seed thì các byte đó vẫn được dùng.
 
 | Lúc | App làm gì |
 |---|---|

@@ -48,7 +48,7 @@ const EXPORT_TEXT = "flex-[1_1_220px] m-0 text-[11.5px] text-fg-2 wrap-anywhere"
 
 /**
  * Cài đặt of the app, behind the button beside the name Co Lau Tool, in five tabs. Server game: the address the next logins
- * connect to; Mặc định puts back play.colauloanthe.vn:1688. Dữ liệu trận: Lưu
+ * connect to; Mặc định puts back plays1.colauloanthe.vn:1688. Dữ liệu trận: Lưu
  * dữ liệu trận for every account, Xuất dữ liệu trận, which at once writes every saved battle to one file in
  * Downloads, and Xoá dữ liệu trận, which asks once more (as Xoá log lỗi does), then deletes them all at once. Thông báo: a notification
  * when a job or quest run ends by itself, and when it ends for losses (notify.rs), with Gửi thử. Log lỗi (FaultsPage): the faults kept, read when the dialog opens, and Xuất and Xoá log lỗi, at once too.

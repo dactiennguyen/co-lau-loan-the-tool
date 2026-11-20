@@ -95,10 +95,10 @@ test('parseProxy reads socks5 / http URLs, default ports and encoded credentials
 });
 
 test('the SOCKS5 tunnel offers username/password only with credentials, and keeps the bytes after its reply', () => {
-  const t = new ProxyTunnel(parseProxy('socks5://ab:cd@p:1'), 'play.colauloanthe.vn', 1688);
+  const t = new ProxyTunnel(parseProxy('socks5://ab:cd@p:1'), 'plays1.colauloanthe.vn', 1688);
   assert.deepEqual([...t.start()], [5, 2, 0, 2]);
   assert.deepEqual([...t.receive(Buffer.from([5, 2])).send!], [1, 2, 0x61, 0x62, 2, 0x63, 0x64]);
-  const name = [...Buffer.from('play.colauloanthe.vn')];
+  const name = [...Buffer.from('plays1.colauloanthe.vn')];
   assert.deepEqual([...t.receive(Buffer.from([1, 0])).send!], [5, 1, 0, 3, name.length, ...name, 0x06, 0x98]);
   // The reply one byte at a time, its last byte in the same chunk as the start of the seed.
   for (const b of [5, 0, 0, 1, 10, 0, 0, 1, 0x04]) assert.equal(t.receive(Buffer.from([b])).rest.length, 0);
@@ -124,8 +124,8 @@ test('proxy refusals throw PROXY_AUTH, PROXY_REFUSED or PROXY_PROTOCOL', () => {
   assert.deepEqual(http('http://p:1', 'HTTP/1.1 407 Proxy Authentication Required\r\n\r\n'), ['PROXY_AUTH', 'The proxy needs a username and password']);
   assert.deepEqual(http('http://p:1', 'HTTP/1.0 403 Forbidden\r\n\r\n'), ['PROXY_REFUSED', 'HTTP proxy: 403 Forbidden']);
   assert.deepEqual(http('http://p:1', '\x05\x00\r\n\r\n'), ['PROXY_PROTOCOL', 'Not an HTTP proxy answer']);
-  const t = new ProxyTunnel(parseProxy('http://u:p@p:1'), 'play.colauloanthe.vn', 1688);
-  assert.equal(t.start().toString(), 'CONNECT play.colauloanthe.vn:1688 HTTP/1.1\r\nHost: play.colauloanthe.vn:1688\r\nProxy-Authorization: Basic dTpw\r\n\r\n');
+  const t = new ProxyTunnel(parseProxy('http://u:p@p:1'), 'plays1.colauloanthe.vn', 1688);
+  assert.equal(t.start().toString(), 'CONNECT plays1.colauloanthe.vn:1688 HTTP/1.1\r\nHost: plays1.colauloanthe.vn:1688\r\nProxy-Authorization: Basic dTpw\r\n\r\n');
   assert.deepEqual([...t.receive(Buffer.from('HTTP/1.1 200 OK\r\n\r\n\x01\x02')).rest], [1, 2]);
 });
 
