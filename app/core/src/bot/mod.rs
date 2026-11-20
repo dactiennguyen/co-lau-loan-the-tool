@@ -294,6 +294,10 @@ pub struct Bot {
     skills_failed: bool,
     upgrading: Option<Upgrade>,
     item_wait: Option<ItemWait>,
+    /// Xóa nhiều: the gear of the bag still to throw away (slot, uuid), and how many were asked and thrown so far (0, 0
+    /// when none runs).
+    discards: VecDeque<(u8, String)>,
+    discard_count: (usize, usize),
     /// The zone of c2s/1173 until s2c/43 of it (change_zone).
     zoning: Option<i32>,
     /// "Đổi map": the map (id, name) the bot walks to through portals (go_to), until it is there.
@@ -406,6 +410,8 @@ impl Bot {
             plan_warned: false,
             upgrading: None,
             item_wait: None,
+            discards: VecDeque::new(),
+            discard_count: (0, 0),
             zoning: None,
             trip: None,
             zone_after: None,

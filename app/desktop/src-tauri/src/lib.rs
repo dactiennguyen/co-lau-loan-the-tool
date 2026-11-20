@@ -136,6 +136,7 @@ pub fn run() {
             commands::add_stat,
             commands::upgrade_skill,
             commands::item_action,
+            commands::discard_many,
             commands::list_zones,
             commands::change_zone,
             commands::go_to_map,

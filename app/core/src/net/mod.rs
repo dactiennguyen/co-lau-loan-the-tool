@@ -57,6 +57,9 @@ pub enum Command {
     /// Command::Item for the one item the window showed, by its uuid: refused when its slot holds another item by now
     /// (Bot::item_of).
     ItemOf(ItemAct, String),
+    /// Xóa nhiều of the Túi đồ tab: throw away these bag items (slot, uuid), gear only, one after the other
+    /// (Bot::discard_many).
+    DiscardMany(Vec<(u8, String)>),
     /// The zones of the map and their players (Bot::list_zones).
     ListZones,
     /// Another zone of the map (Bot::change_zone).

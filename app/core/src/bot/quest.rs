@@ -265,6 +265,18 @@ impl Bot {
                     Wake::Silence("Đã đủ cấp nhưng server chưa sang bước sau"),
                 ));
             }
+            // No point left (spent before the quest asked for one, e.g. by Tự cộng điểm before this quest came): the server
+            // ignores c2s/10 and the run stopped on its silence ("Server không trả lời khi cộng điểm tiềm năng", 20/11).
+            // Battles bring a level, and the level the points.
+            StepAction::Stat if self.snap.stat_points == Some(0) => {
+                let targets = self.grind_targets();
+                let doing = format!(
+                    "Hết điểm tiềm năng cho bước \"{}\": cày tới khi lên cấp ({})",
+                    step.text,
+                    targets.first().map_or("?", |m| &m.name)
+                );
+                self.quest_fight(targets, doing, 15, now, out)
+            }
             // By the stat plan when there is one, else into Cường lực.
             StepAction::Stat => {
                 let stat = match self.plan_weights() {

@@ -588,4 +588,100 @@ impl Bot {
         }
         self.item(act, now, out)
     }
+
+    /// Xóa nhiều (the Túi đồ tab): throws away the bag items `items` (slot and uuid, as the window showed them), gear only
+    /// (types 0–9: weapons, clothes, rings, wings, pets, titles, shoes, necklaces), one Vứt bỏ (c2s/1186 action 2) after
+    /// the s2c/83 of the one before. An item that is not gear, or whose slot holds another item by now, is left alone and
+    /// said in the log; a refusal of the server (s2c/1256) stops the rest.
+    pub fn discard_many(&mut self, items: Vec<(u8, String)>, now: Instant, out: &mut Vec<Out>) {
+        let bag = self.snap.bag.as_ref();
+        let mut keep = VecDeque::new();
+        for (slot, uuid) in items {
+            let item = bag.and_then(|b| b.items.iter().find(|i| i.slot == slot));
+            let why = match item {
+                None => Some("ô trống".to_string()),
+                Some(i) if i.uuid != uuid => Some("giờ là món khác, không phải món đã chọn".into()),
+                Some(i) => match book().get(i.item_id) {
+                    Some(d) if is_gear(d.kind) => None,
+                    Some(d) => Some(format!("{} không phải trang bị", d.name)),
+                    None => Some(format!("không biết món #{}", i.item_id)),
+                },
+            };
+            match why {
+                Some(why) => out.push(Out::Log(
+                    LogKind::Item,
+                    format!("Bỏ qua ô túi {}: {why}", slot as u32 + 1),
+                )),
+                None if !keep.iter().any(|(s, _)| *s == slot) => keep.push_back((slot, uuid)),
+                None => {}
+            }
+        }
+        if keep.is_empty() {
+            return out.push(Out::Log(
+                LogKind::Item,
+                "Xóa nhiều: không có trang bị nào để vứt".into(),
+            ));
+        }
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Xóa nhiều: vứt bỏ {} trang bị", keep.len()),
+        ));
+        self.discard_count = (keep.len(), 0);
+        self.discards = keep;
+        self.discard_next(now, out);
+    }
+
+    /// The next item of Xóa nhiều, after the s2c/83 of the one before; the end line once none is left.
+    pub(super) fn discard_next(&mut self, now: Instant, out: &mut Vec<Out>) {
+        while let Some((slot, uuid)) = self.discards.pop_front() {
+            let same = self
+                .snap
+                .bag
+                .as_ref()
+                .is_some_and(|b| b.items.iter().any(|i| i.slot == slot && i.uuid == uuid));
+            if !same {
+                out.push(Out::Log(
+                    LogKind::Item,
+                    format!(
+                        "Bỏ qua ô túi {}: giờ là món khác, không phải món đã chọn",
+                        slot as u32 + 1
+                    ),
+                ));
+                continue;
+            }
+            self.item(ItemAct::Discard(slot), now, out);
+            if self
+                .item_wait
+                .as_ref()
+                .is_some_and(|w| w.act == ItemAct::Discard(slot))
+            {
+                return;
+            }
+            // Refused before anything was sent (a battle, Pháp sư, the last action not answered): the reason is in the
+            // log, the rest is left.
+            return self.discard_stop("chưa vứt được món tiếp theo", out);
+        }
+        let (asked, thrown) = self.discard_count;
+        if asked > 0 {
+            out.push(Out::Log(
+                LogKind::Item,
+                format!("Xong xóa nhiều: đã vứt {thrown}/{asked} trang bị"),
+            ));
+            self.discard_count = (0, 0);
+        }
+    }
+
+    /// Ends Xóa nhiều before its last item.
+    pub(super) fn discard_stop(&mut self, why: &str, out: &mut Vec<Out>) {
+        let (asked, thrown) = self.discard_count;
+        if asked == 0 {
+            return;
+        }
+        self.discards.clear();
+        self.discard_count = (0, 0);
+        out.push(Out::Log(
+            LogKind::Item,
+            format!("Dừng xóa nhiều: {why}; đã vứt {thrown}/{asked} trang bị"),
+        ));
+    }
 }

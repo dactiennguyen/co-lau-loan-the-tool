@@ -495,6 +495,21 @@ test('quest bot: --stats=auto raises the main stat of the element and keeps a po
   t.mock.timers.tick(10000);
 });
 
+test('quest bot: "Nâng điểm tiềm năng" with no point left fights for a level instead of a c2s/10 the server ignores', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sent: { opcode: number; hex: string }[] = [], events: Record<string, unknown>[] = [];
+  const bot = new QuestBot({ maxFights: 5, log: e => events.push(e) });
+  bot.onPacket(9, hex(fixtures.profile['s2c/9 field01 4']));
+  bot.onPacket(29, new Writer().string('nickthu2').string('M1').i32(0).build());
+  bot.onPacket(43, new Writer().string('M1').u8(0).string('mob10').string('Gà Điên').i32(1).u8(4).i32(1).i32(1).u8(0).build());
+  const quest = questData(hex(q['s2c/39 quest3']));
+  bot.quest = { ...quest, current: quest.steps.findIndex(s => s.text.startsWith('Nâng điểm tiềm năng')) };
+  bot.statPoints = 0;
+  bot.onReady(recorder(sent));
+  assert.deepEqual([statSends(sent), sent.map(p => p.opcode)], [[], [15]]);
+  t.mock.timers.tick(10000);
+});
+
 test('quest bot logs Xu, Xu khóa and Lượng of s2c/46 (P3, after a pickup)', () => {
   const events: Record<string, any>[] = [];
   new QuestBot({ maxFights: 1, log: e => events.push(e) }).onPacket(46, Buffer.from('0000000975706461746520587500000000004ab2a80000000000539fdc0000000000002185', 'hex'));

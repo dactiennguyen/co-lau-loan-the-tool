@@ -134,7 +134,11 @@ export function AccountPage({ account }: { account: Account }) {
             {task === "quest" ? (
               <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
             ) : task === "bag" ? (
-              <InventoryCard account={account} onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)} />
+              <InventoryCard
+                account={account}
+                onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)}
+                onDiscardMany={(items) => api.discardMany(id, items)}
+              />
             ) : task === "settings" ? (
               <FightSettingsCard account={account} />
             ) : (

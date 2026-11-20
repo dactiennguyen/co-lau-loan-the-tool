@@ -164,6 +164,13 @@ pub fn add_stat(shared: State<Shared>, id: u64, stat: usize) {
     shared.with(|app| app.send(id, Command::AddStat(stat)));
 }
 
+/// Xóa nhiều of the Túi đồ tab: throw away these bag items, each a bag slot and the uuid the window showed. The bot keeps
+/// only gear and items still in their slot, and throws them one after the other (Bot::discard_many).
+#[tauri::command]
+pub fn discard_many(shared: State<Shared>, id: u64, items: Vec<(u8, String)>) {
+    shared.with(|app| app.send(id, Command::DiscardMany(items)));
+}
+
 /// Nâng cấp on one skill of the Kỹ năng tab: one level, c2s/1191 (id, 1).
 #[tauri::command]
 pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {

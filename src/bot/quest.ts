@@ -495,6 +495,9 @@ export class QuestBot implements WorldSession {
         this.wait = setTimeout(() => this.stop('level reached but the server did not advance the step', { level: this.level }), 8000);
         return;
       case 'stat': {
+        // No point left (spent before the quest asked for one): the server ignores c2s/10 and the run would stop on its
+        // silence. Battles bring a level, and the level the points.
+        if (this.statPoints === 0) return this.fight(this.grindTargets(), `${step.text} (hết điểm tiềm năng, cày tới khi lên cấp)`);
         const weights = this.statWeights(), stat = weights ? this.nextStat(weights) : 0;
         if (weights) this.allotted[stat]++;
         this.log('stat_point', { step: step.text, stat: POTENTIALS[stat].name, statPoints: this.statPoints });

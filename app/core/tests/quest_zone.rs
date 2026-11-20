@@ -180,3 +180,61 @@ fn boss_cua_khu_vua_roi_o_dung_thi_doi_tai_cho() {
     );
     assert!(!out.iter().any(|o| matches!(o, Out::Send(1172, _))));
 }
+
+/// "Nâng điểm tiềm năng" with no point left (20/11: "Server không trả lời khi cộng điểm tiềm năng" 9 s after the start):
+/// battles for a level instead of a c2s/10 the server ignores.
+#[test]
+fn buoc_nang_diem_tiem_nang_het_diem_thi_danh_quai_len_cap() {
+    let atlas = Atlas::load(&find_upwards("data/maps.json").expect("data/maps.json"));
+    let mut bot = Bot::new(BotOptions::default(), Arc::new(atlas));
+    let (now, mut out) = (Instant::now(), vec![]);
+    bot.on_packet(
+        29,
+        &Writer::new().string("akaito").string("M1").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    let mobs = Writer::new()
+        .string("M1")
+        .u8(0)
+        .string("mob10")
+        .string("Gà Điên")
+        .i32(1)
+        .u8(4)
+        .i32(1)
+        .i32(1)
+        .u8(0)
+        .build();
+    bot.on_packet(43, &mobs, now, &mut out).unwrap();
+    // Level 3 (s2c/10 kind 2), no stat point and no skill point left (s2c/1191).
+    let mut level = Writer::new().i32(2).string("akaito").i32(3);
+    for _ in 0..10 {
+        level = level.i32(0);
+    }
+    bot.on_packet(10, &level.build(), now, &mut out).unwrap();
+    bot.on_packet(1191, &Writer::new().i32(0).i32(0).build(), now, &mut out)
+        .unwrap();
+    let quest = Writer::new()
+        .i32(3)
+        .string("Những Việc Đầu Tiên")
+        .string("")
+        .string("main")
+        .i32(0)
+        .i32(0)
+        .i32(1)
+        .i32(0)
+        .string("Nâng điểm tiềm năng")
+        .i32(0)
+        .i32(1)
+        .i32(-1)
+        .build();
+    bot.on_packet(39, &quest, now, &mut out).unwrap();
+    out.clear();
+    bot.quest(1, None, now, &mut out);
+    assert!(
+        !out.iter().any(|o| matches!(o, Out::Send(10, _))),
+        "{out:?}"
+    );
+    assert!(out.iter().any(|o| matches!(o, Out::Send(15, _))), "{out:?}");
+}

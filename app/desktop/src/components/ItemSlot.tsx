@@ -17,6 +17,9 @@ interface Props {
   wear?: boolean;
   /** Why the character cannot wear it (game/gender.ts misfit): the item dimmed, its gender sign red. */
   misfit?: string | null;
+  /** Xóa nhiều: picked for it (a check mark top left), or `locked` with the reason it cannot be picked (dimmed). */
+  selected?: boolean;
+  locked?: string | null;
   onShow: (shown: boolean) => void;
   onPick: () => void;
   /** Chuột phải, or the Menu key and Shift+F10: the item's menu, opened at that point of the window. */
@@ -37,7 +40,7 @@ const CORNER = "absolute right-px px-0.5 bg-[rgb(15_17_21/0.75)] text-10 font-no
  * up) and đồ nam / nữ in the corners; a red tint when it is worn out, dimmed with a red sign when the character cannot
  * wear it. Hover or focus shows it in the detail strip; a click keeps it there; a right click opens its menu.
  */
-export function ItemSlot({ item, label, placeholder, active, wear, misfit, onShow, onPick, onMenu, className }: Props) {
+export function ItemSlot({ item, label, placeholder, active, wear, misfit, selected, locked, onShow, onPick, onMenu, className }: Props) {
   if (!item) {
     return (
       <span className={cn(SLOT, "cursor-default opacity-60", className)} title={`${label}: trống`}>
@@ -48,6 +51,7 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, onSho
   const url = itemIcon(item.icon);
   const broken = item.durability != null && item.durability[0] <= 0;
   const qty = item.stacks ? ` ×${item.quantity}` : "";
+  const picked = selected ? ", đã chọn để xóa" : locked ? `, ${locked}` : "";
   const plus = plusOf(item);
   return (
     <button
@@ -56,14 +60,17 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, onSho
         SLOT,
         "hover:border-line-strong hover:bg-bg-2",
         active && "border-primary shadow-[0_0_0_1px_var(--primary)]",
+        selected && "border-danger shadow-[0_0_0_1px_var(--danger)]",
+        locked && "opacity-40 cursor-not-allowed",
         // Worn out: a red frame and tint, the icon dimmed.
         broken && "border-accent-deep after:content-[''] after:absolute after:inset-0 after:bg-[rgb(205_122_114/0.22)] after:pointer-events-none",
         className,
       )}
       aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${broken ? ", hỏng" : ""}${
         item.gender != null ? `, đồ ${GENDER_WORD[item.gender]}${misfit ? ", không mặc được" : ""}` : ""
-      }`}
-      aria-pressed={active}
+      }${picked}`}
+      aria-pressed={selected ?? active}
+      title={locked ?? undefined}
       onMouseEnter={() => onShow(true)}
       onMouseLeave={() => onShow(false)}
       onFocus={() => onShow(true)}
@@ -93,6 +100,11 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, onSho
         />
       ) : (
         <span className="px text-9 text-fg-3">#{item.id}</span>
+      )}
+      {selected && (
+        <span className="absolute top-px right-px grid place-items-center size-[14px] bg-danger text-ink" aria-hidden="true">
+          <Icon name="check" size={10} />
+        </span>
       )}
       {item.stacks && <b className={cn("px", CORNER, "bottom-0 text-fg")}>{item.quantity}</b>}
       {plus > 0 && (

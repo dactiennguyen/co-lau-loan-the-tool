@@ -334,6 +334,11 @@ impl Bot {
                         _ => format!("Đã vứt {}, ô còn {left}", w.name),
                     };
                     out.push(Out::Log(LogKind::Item, text));
+                    // Xóa nhiều: the next item, now that this one is answered.
+                    if self.discard_count.0 > 0 {
+                        self.discard_count.1 += 1;
+                        self.discard_next(now, out);
+                    }
                 }
             }
             // The gear after Trang bị or Cởi ra; s2c/42 brings the bag, s2c/1186 the action.
@@ -696,8 +701,15 @@ impl Bot {
                     }
                     None => {}
                 }
-                // The answer to Sử dụng ("Vật phẩm không thể sử dụng!") or a refusal of another item action.
-                self.item_wait = None;
+                // The answer to Sử dụng ("Vật phẩm không thể sử dụng!") or a refusal of another item action; it ends
+                // Xóa nhiều too.
+                if self
+                    .item_wait
+                    .take()
+                    .is_some_and(|w| matches!(w.act, ItemAct::Discard(_)))
+                {
+                    self.discard_stop(&format!("server từ chối ({text})"), out);
+                }
                 if let Some((slot, name)) = self.repairing.take() {
                     self.repair_failed.insert(slot);
                     out.push(Out::Log(

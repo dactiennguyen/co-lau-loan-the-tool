@@ -76,6 +76,8 @@ export interface Api {
    * a gear slot; "sort" is Sắp xếp of the bag, `slot` unused. */
   /** `uuid`: the item shown, so the bot does nothing when the slot holds another item by now. */
   itemAction(id: number, action: ItemAction, slot: number, uuid?: string): Promise<void>;
+  /** Xóa nhiều: throws away these bag items (slot and uuid as shown), gear only, one after the other; the log says each. */
+  discardMany(id: number, items: { slot: number; uuid: string }[]): Promise<void>;
   /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
   listZones(id: number): Promise<void>;
   /** Another zone of the map (c2s/1173); the log tells how it went. */
@@ -256,6 +258,7 @@ const tauri: Api = {
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
   itemAction: (id, action, slot, uuid) => invoke("item_action", { id, action, slot, uuid: uuid ?? null }),
+  discardMany: (id, items) => invoke("discard_many", { id, items: items.map((i) => [i.slot, i.uuid]) }),
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
@@ -390,6 +393,7 @@ const preview: Api = {
   addStat: nothing,
   upgradeSkill: nothing,
   itemAction: nothing,
+  discardMany: nothing,
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,

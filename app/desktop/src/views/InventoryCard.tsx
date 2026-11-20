@@ -72,13 +72,26 @@ interface Act {
  * the same buttons, greyed with the same reasons; Dùng, Sửa and Vứt bỏ from it ask once more in the strip, as the buttons
  * do.
  */
-export function InventoryCard({ account, onAction }: { account: Account; onAction: (action: ItemAction, slot: number, uuid?: string) => void }) {
+export function InventoryCard({
+  account,
+  onAction,
+  onDiscardMany,
+}: {
+  account: Account;
+  onAction: (action: ItemAction, slot: number, uuid?: string) => void;
+  /** Xóa nhiều: the bag items picked (gear only), thrown away one after the other by the bot (Bot::discard_many). */
+  onDiscardMany: (items: { slot: number; uuid: string }[]) => void;
+}) {
   const c = account.character;
   const [pinned, setPinned] = useState<Key | null>(null);
   const [hover, setHover] = useState<Key | null>(null);
   // The question is about the item it showed (uuid), not its slot: the bag changes under it (Tự gộp đá, Tự nhặt đồ).
   const [ask, setAsk] = useState<{ key: Key; action: ItemAction; uuid: string } | null>(null);
   const [menu, setMenu] = useState<{ key: Key; x: number; y: number } | null>(null);
+  // Xóa nhiều: on, the bag items picked (slot → the uuid when picked), and whether the last question is up.
+  const [picking, setPicking] = useState(false);
+  const [chosen, setChosen] = useState<Map<number, string>>(new Map());
+  const [askMany, setAskMany] = useState(false);
   // The gear and bag when the last action went out: the buttons wait until they change, or ANSWER_MS.
   const sig = c ? JSON.stringify([c.gear.map((g) => g && [g.id, g.durability?.[0]]), c.bag?.items.map((i) => [i.slot, i.id, i.quantity])]) : "";
   const [sent, setSent] = useState<string | null>(null);
@@ -105,6 +118,16 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
   const shownKey = hover && find(hover) ? hover : pinned && find(pinned) ? pinned : null;
   const shown = find(shownKey);
   const where = shownKey?.startsWith("gear") ? `đang mặc, ô ${GEAR[shown?.slot ?? 0]?.label ?? shown?.slot}` : `túi đồ, ô ${(shown?.slot ?? 0) + 1}`;
+  // Xóa nhiều picks gear of the bag only; another item, or a worn one, cannot be picked.
+  const pickable = (k: Key, item: Item | null) => picking && !!item && k.startsWith("bag-");
+  const lockedWhy = (item: Item) => (item.kind != null && isGear(item.kind) ? null : "không phải trang bị, không xóa");
+  const toggle = (item: Item) =>
+    setChosen((m) => {
+      const next = new Map(m);
+      if (next.get(item.slot) === item.uuid) next.delete(item.slot);
+      else next.set(item.slot, item.uuid);
+      return next;
+    });
   const slot = (k: Key, item: Item | null, label: string, placeholder?: IconName, wear?: boolean) => (
     <ItemSlot
       key={k}
@@ -115,8 +138,17 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       misfit={item && !wear ? misfit(item, c.gender) : null}
       className={k.startsWith("gear-") ? "[--size:46px]" : undefined}
       active={shownKey === k}
+      selected={pickable(k, item) && !!item && chosen.get(item.slot) === item.uuid}
+      locked={pickable(k, item) && item ? lockedWhy(item) : null}
       onShow={(on) => setHover((h) => (on ? k : h === k ? null : h))}
-      onPick={() => setPinned((p) => (p === k ? null : k))}
+      onPick={() => {
+        if (pickable(k, item) && item) {
+          setAskMany(false);
+          if (!lockedWhy(item)) toggle(item);
+          return;
+        }
+        setPinned((p) => (p === k ? null : k));
+      }}
       onMenu={
         item
           ? (x, y) => {
@@ -170,6 +202,23 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
     // Worn, the item sits in the gear slot of its type; taken off, in a bag slot the server picks.
     if (action === "equip" && item.kind != null) setPinned(`gear-${item.kind}`);
     if (action === "unequip" || action === "discard") setPinned(null);
+  };
+  // The items still picked: in their slot with the uuid they had when picked (the bag changes under the window).
+  const picked = [...chosen].flatMap(([slot, uuid]) => {
+    const item = bySlot.get(slot);
+    return item && item.uuid === uuid && !lockedWhy(item) ? [item] : [];
+  });
+  const gearInBag = (bag?.items ?? []).filter((i) => !lockedWhy(i));
+  const stopPicking = () => {
+    setPicking(false);
+    setChosen(new Map());
+    setAskMany(false);
+  };
+  const discardMany = () => {
+    setSent(sig);
+    setPinned(null);
+    onDiscardMany(picked.map((i) => ({ slot: i.slot, uuid: i.uuid })));
+    stopPicking();
   };
   // Sắp xếp numbers the bag slots anew, so no item stays picked.
   const sort = () => {
@@ -258,16 +307,28 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
       bodyClassName={BODY}
       subtitle={bag ? `${num(bag.items.length)}/${num(bag.capacity)} ô · ${worn} món đang mặc` : "Chưa nhận túi đồ"}
       aside={
-        <Button
-          kind="tonal"
-          small
-          icon="list"
-          disabled={!bag || !!busy}
-          title={busy ?? "Dồn các món lên lấp ô trống, như nút Sắp xếp của game"}
-          onClick={sort}
-        >
-          Sắp xếp
-        </Button>
+        <div className={BUTTONS}>
+          <Button
+            kind={picking ? "primary" : "ghost"}
+            small
+            icon="trash"
+            disabled={!bag}
+            title={picking ? "Thôi chọn" : "Chọn nhiều trang bị trong túi rồi vứt bỏ một lượt; vật phẩm khác không chọn được"}
+            onClick={() => (picking ? stopPicking() : (setPicking(true), setMenu(null), setAsk(null)))}
+          >
+            {picking ? "Xong" : "Xóa nhiều"}
+          </Button>
+          <Button
+            kind="tonal"
+            small
+            icon="list"
+            disabled={!bag || !!busy || picking}
+            title={picking ? "Đang chọn để xóa nhiều" : busy ?? "Dồn các món lên lấp ô trống, như nút Sắp xếp của game"}
+            onClick={sort}
+          >
+            Sắp xếp
+          </Button>
+        </div>
       }
     >
       {/* The gear (two columns of slots around the character) beside the bag grid, then the shown item. Narrow cards put the
@@ -295,6 +356,45 @@ export function InventoryCard({ account, onAction }: { account: Account; onActio
           )}
         </section>
       </div>
+
+      {picking && (
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-danger bg-bg-2" role="region" aria-label="Xóa nhiều">
+          {askMany ? (
+            <>
+              <span className="text-12 text-fg">
+                Vứt bỏ {picked.length} trang bị: {picked.map((i) => i.name).join(", ")}? Mất hẳn, không lấy lại được.
+              </span>
+              <div className={BUTTONS}>
+                <Button kind="danger" small icon="trash" disabled={!!busy || !picked.length} title={busy ?? undefined} onClick={discardMany}>
+                  Vứt {picked.length} món
+                </Button>
+                <Button kind="ghost" small onClick={() => setAskMany(false)}>
+                  Huỷ
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-12 text-fg-2">
+                Bấm vào trang bị trong túi để chọn ({picked.length}/{gearInBag.length} đã chọn). Vật phẩm, đá, bình không chọn được.
+              </span>
+              <div className={BUTTONS}>
+                <Button
+                  kind="ghost"
+                  small
+                  disabled={!gearInBag.length}
+                  onClick={() => setChosen(picked.length === gearInBag.length ? new Map() : new Map(gearInBag.map((i) => [i.slot, i.uuid])))}
+                >
+                  {picked.length === gearInBag.length && gearInBag.length > 0 ? "Bỏ chọn hết" : "Chọn hết trang bị"}
+                </Button>
+                <Button kind="danger" small icon="trash" disabled={!picked.length || !!busy} title={busy ?? undefined} onClick={() => setAskMany(true)}>
+                  Xóa {picked.length} món…
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <ItemDetail item={shown} where={where} element={c.element} gender={c.gender} actions={actions} />
       {menu && menuItem && (
