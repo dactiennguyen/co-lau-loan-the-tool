@@ -239,7 +239,14 @@ impl Atlas {
             m.places
                 .iter()
                 .filter(|p| {
-                    p.kind == 0
+                    // A gate (type 1: the floors of Luyện Ngục, Hang Bạch Hổ and its way out) only once its map is
+                    // measured: the floors want a ring, and lead nowhere the atlas knows.
+                    (p.kind == 0
+                        || (p.kind == 1
+                            && self
+                                .portals
+                                .get(&p.id.to_string())
+                                .is_some_and(|r| r.map_id.is_some())))
                         && p.name != "Bản đồ"
                         && self
                             .portals

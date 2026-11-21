@@ -1,7 +1,15 @@
 //! Bạch Hổ (17-bach-ho.md) for the Bạch Hổ window of the app: from the time the user chose until the end time, the
 //! character goes to Hang Bạch Hổ and keeps trying to get into a battle with the boss; once in, it fights, then tries
-//! again. Not measured live yet: the challenge is taken to be that of the other bosses (c2s/1178 with the mob id of
-//! s2c/43 or s2c/1177, fight.rs), and the boss the one whose name has "Bạch Hổ", else the first boss or mob of the cave.
+//! again, as the game does (BH2, 21/11, measured with the game on the phone):
+//! - At 21:00 the boss comes in s2c/43 of the cave (mob800 "Bạch Hổ Thống Lĩnh", level 155), with the s2c/45 "… đã phá
+//!   vỡ Phong Ấn …"; no s2c/1177.
+//! - A battle is a plain c2s/15 with its mob id and flag 1, then the board of any mob (s2c/22, c2s/18). A lost battle
+//!   heals to full, takes no fee and ~1 durability of each worn item; the next challenge may go at once.
+//! - Its kill is the s2c/45 "Bạch Hổ Thống Lĩnh vừa bị tiêu diệt bởi @…"; the battle on ends, and the cave's s2c/43 is
+//!   empty from then on. The reward is a mail (Quà tham gia Bạch Hổ), left in the mailbox.
+//!
+//! Between battles a broken worn item is repaired with a Búa Sửa Chữa of the bag (auto_repair), whatever Tự sửa đồ
+//! says: a run of battles one after the other wears the gear down.
 //!
 //! The way there needs no atlas: Bản đồ thế giới (c2s/11 "M99", s2c/11 of flag 0) then c2s/13 ("M99", 14) lands on
 //! Cổng Luyện Ngục (M15), whose portal 1006 leads to Hang Bạch Hổ (M24) (19-luyen-nguc.md; LN1). The same jump through
@@ -19,8 +27,21 @@ const AFTER_BATTLE: Duration = Duration::from_millis(1500);
 /// The longest the run sleeps before the start time: it wakes now and then to say how long is left.
 const WAIT_STEP: Duration = Duration::from_secs(30);
 
-/// The run under way (its figures are snap.bach_ho).
-pub(super) struct State;
+/// The run under way (its figures are snap.bach_ho): whether the boss was seen in the cave in this run, so a cave with
+/// no mob afterwards means it is gone.
+pub(super) struct State {
+    seen: bool,
+}
+
+/// The flag of c2s/15 the game sends for Bạch Hổ (BH2).
+const CHALLENGE_FLAG: u8 = 1;
+
+/// The cave's boss among the mobs of s2c/43: the one whose name has "Bạch Hổ", else the first (the cave has no other).
+fn cave_boss(mobs: &[Mob]) -> Option<&Mob> {
+    mobs.iter()
+        .find(|m| m.name.contains("Bạch Hổ"))
+        .or_else(|| mobs.first())
+}
 
 /// A jump through Bản đồ thế giới under way: the line of the map, its name, how far it got.
 pub(super) struct Warp {
@@ -56,7 +77,8 @@ fn clock(ms: u64) -> String {
     format!("{:02}:{:02}", m / 60, m % 60)
 }
 
-/// s2c/1275 ← sqtm.a of game 1.1.0 (17-bach-ho.md#đọc-tĩnh-110): u8 state; i64 run; i32 HP, most HP; i32 killer id;
+/// s2c/1275 ← sqtm.a of game 1.1.0 (17-bach-ho.md#đọc-tĩnh-110), all 551 bytes of BH2's read so: u8 state; i64 start of
+/// the run (ms since 1970); i32 HP, most HP (per mille: 0 and 1000 at the kill); i32 killer id;
 /// string killer; u8 its tier; i32 its damage; u8 n tiers × {u8 tier; i16 levels from, to; i32 threshold; i32
 /// players; u8 m rows × {u8 rank; i32 id; string name; i16 level; i32 damage}}; u8 own tier; i32 rank; i32 damage; u8
 /// threshold reached.
@@ -177,7 +199,9 @@ impl Bot {
                 zone: self.snap.zone,
             });
         }
-        self.bach_ho = Some(State);
+        self.bach_ho = Some(State { seen: false });
+        // Tự sửa đồ of this run starts afresh, as that of a fight job.
+        (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
         self.snap.bach_ho = Some(BachHoRun {
             from_ms,
             until_ms,
@@ -319,6 +343,10 @@ impl Bot {
             self.timer = Some((now + left.min(WAIT_STEP), Wake::Next));
             return;
         }
+        // A broken worn item first: the repair wakes the run again once answered.
+        if self.auto_repair(now, out) {
+            return;
+        }
         match self.snap.map_id.as_str() {
             CAVE => self.bach_ho_try(now, out),
             GATE => {
@@ -347,15 +375,10 @@ impl Bot {
         }
     }
 
-    /// In the cave: the boss challenged as the other bosses are (c2s/1178), or another try in RETRY.
+    /// In the cave: the boss challenged as the game does (c2s/15, flag 1), or another try in RETRY. Before 21:00 the
+    /// cave has no mob.
     fn bach_ho_try(&mut self, now: Instant, out: &mut Vec<Out>) {
-        let boss = self
-            .mobs
-            .iter()
-            .find(|m| m.name.contains("Bạch Hổ"))
-            .or_else(|| self.mobs.iter().find(|m| self.bosses.contains(&m.id)))
-            .or_else(|| self.mobs.first())
-            .cloned();
+        let boss = cave_boss(&self.mobs).cloned();
         let Some(r) = self.snap.bach_ho.as_mut() else {
             return;
         };
@@ -387,11 +410,9 @@ impl Bot {
             self.timer = Some((now + RETRY, Wake::Next));
             return;
         };
-        let opcode = if self.bosses.contains(&mob.id) {
-            1178
-        } else {
-            15
-        };
+        if let Some(st) = self.bach_ho.as_mut() {
+            st.seen = true;
+        }
         self.bach_ho_doing(format!("Thách đấu {} (lần {tries})", mob.name));
         out.push(Out::Log(
             LogKind::Battle,
@@ -402,13 +423,75 @@ impl Bot {
         ));
         Self::send(
             out,
-            opcode,
+            15,
             Ctx {
                 mob_id: Some(&mob.id),
+                challenge_flag: Some(CHALLENGE_FLAG),
                 ..Ctx::default()
             },
         );
         self.challenged(mob, now);
+    }
+
+    /// s2c/43 of the cave while the run goes on: the boss there for the first time is said, and a run waiting for its
+    /// next try tries at once; a cave with no mob after the boss was seen means it is gone (killed or away), which ends
+    /// the run, the s2c/45 of its kill having not come.
+    pub(super) fn bach_ho_mobs(&mut self, map_id: &str, now: Instant, out: &mut Vec<Out>) {
+        let Some(st) = self.bach_ho.as_mut().filter(|_| map_id == CAVE) else {
+            return;
+        };
+        match cave_boss(&self.mobs) {
+            Some(b) => {
+                if !st.seen {
+                    st.seen = true;
+                    out.push(Out::Log(
+                        LogKind::Battle,
+                        format!("Bạch Hổ: {} cấp {} đã vào hang", b.name, b.level),
+                    ));
+                }
+                self.bach_ho_wake(now);
+            }
+            None if st.seen && self.battle.is_none() => {
+                self.bach_ho_end("Boss không còn trong hang", true, out);
+            }
+            None => {}
+        }
+    }
+
+    /// A run waiting for its next try (its timer, not a challenge, a battle, a repair's answer or a move) tries now.
+    fn bach_ho_wake(&mut self, now: Instant) {
+        let waiting = matches!(self.timer, Some((_, Wake::Next)))
+            && self.battle.is_none()
+            && self.repairing.is_none()
+            && self.warp.is_none()
+            && self.travelling.is_none()
+            && self.snap.map_id == CAVE
+            && self
+                .snap
+                .bach_ho
+                .as_ref()
+                .is_some_and(|r| epoch_ms() >= r.from_ms);
+        if waiting {
+            self.timer = Some((now, Wake::Next));
+        }
+    }
+
+    /// s2c/45, the line the server sends every player, on Bạch Hổ while the run goes on (BH2): "Bạch Hổ Thống Lĩnh đã
+    /// phá vỡ Phong Ấn, đang ẩn náu tại Hang Bạch Hổ …" at its start, "Bạch Hổ Thống Lĩnh vừa bị tiêu diệt bởi @…,
+    /// công lớn thuộc về @… (51-100) …" at its kill, which ends the run (a battle on is ended by the server). Its line
+    /// when it gets away is not measured: taken to say "tẩu thoát".
+    pub(super) fn bach_ho_notice(&mut self, text: &str, now: Instant, out: &mut Vec<Out>) {
+        if self.bach_ho.is_none() || !text.contains("Bạch Hổ") {
+            return;
+        }
+        out.push(Out::Log(LogKind::Battle, format!("Thông báo: {text}")));
+        if text.contains("bị tiêu diệt") {
+            self.bach_ho_end("Boss đã bị tiêu diệt", true, out);
+        } else if text.contains("tẩu thoát") {
+            self.bach_ho_end("Boss đã tẩu thoát", true, out);
+        } else if text.contains("Phong Ấn") {
+            self.bach_ho_wake(now);
+        }
     }
 
     /// A battle of the run is over: its figures, Kết quả Bạch Hổ asked (where it stands, and whether the boss is still
@@ -480,8 +563,9 @@ impl Bot {
         self.warp_to(&back.map_id, &back.map_name, Some(back.zone), now, out);
     }
 
-    /// Jumps to `map_id` through Bản đồ thế giới; then to zone `zone_after` if given. Returns whether it set off.
-    fn warp_to(
+    /// Jumps to `map_id` through Bản đồ thế giới; then to zone `zone_after` if given. Returns whether it set off. Also the
+    /// way out of a map no known portal way leaves (travel.rs world_way).
+    pub(super) fn warp_to(
         &mut self,
         map_id: &str,
         name: &str,
@@ -586,8 +670,12 @@ impl Bot {
                     w.to
                 ),
             ));
-            if self.bach_ho.is_some() {
+            // Bạch Hổ and a quest run try again; a trip of Đổi map ends.
+            if self.bach_ho.is_some() || self.quest_running() {
                 self.timer = Some((now + RETRY, Wake::Next));
+            }
+            if self.trip.take().is_some() {
+                self.snap.moving = None;
             }
         }
     }

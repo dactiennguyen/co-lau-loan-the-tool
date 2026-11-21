@@ -786,8 +786,11 @@ export interface MapChoice {
   name: string;
   /** The level the world map asks for; null when the world list lacks the map. */
   level: number | null;
-  /** Portals on the shortest known way: 0 for the map the character is on, null when no known way leads there. */
+  /** Portals on the shortest known way: 0 for the map the character is on, null when no known way leads there. With
+   * `warp`, the jump through Bản đồ thế giới counts as one. */
   hops: number | null;
+  /** No known portal way from here (Hang Bạch Hổ): the way starts with a jump through Bản đồ thế giới. */
+  warp: boolean;
   /** The level the character lacks to enter it; no way leads there then. */
   need: number | null;
   /** The kinds of mobs and the bosses the atlas saw there; empty for a map with none (M25 Rìa Hồng Giang). */

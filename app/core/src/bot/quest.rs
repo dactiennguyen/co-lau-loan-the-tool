@@ -558,8 +558,9 @@ impl Bot {
     }
 
     /// Walks through a portal of s2c/11 (c2s/13 with its id, B5): the first of the shortest known way to a map where
-    /// `wanted` holds, else one the quest names ("Tìm Đến Vân Sơn") towards a map not seen yet, else any towards a map not
-    /// seen yet. Portals refused in this run are left out; at most 6 for a step.
+    /// `wanted` holds; with none, a jump through Bản đồ thế giới to a map with such a way (world_way: out of Hang Bạch
+    /// Hổ, whose portals the atlas lacks); else one the quest names ("Tìm Đến Vân Sơn") towards a map not seen yet, else
+    /// any towards a map not seen yet. Portals refused in this run are left out; at most 6 for a step, the jump one.
     pub(super) fn travel(
         &mut self,
         q: &Quest,
@@ -568,6 +569,10 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) -> bool {
+        // A jump through Bản đồ thế giới under way: the step goes on once it is there (warp_arrived).
+        if self.warp.is_some() {
+            return true;
+        }
         let (map_id, level) = (self.snap.map_id.clone(), self.snap.level);
         let step = q
             .steps
@@ -580,9 +585,24 @@ impl Bot {
             .into_iter()
             .filter(|p| self.atlas.destination(p.id, &p.name, &map_id).is_none())
             .collect();
-        let portal = self
-            .atlas
-            .route(&map_id, wanted, level, &self.refused)
+        let routed = self.atlas.route(&map_id, wanted, level, &self.refused);
+        if routed.is_none() && self.hops < 6 {
+            if let Some((via, _)) = self.world_way(wanted) {
+                let name = self
+                    .atlas
+                    .maps
+                    .get(&via)
+                    .map_or(via.clone(), |m| m.name.clone());
+                out.push(Out::Log(
+                    LogKind::Travel,
+                    format!("{reason}: không có đường qua cổng từ {map_id}, qua Bản đồ thế giới tới {name}"),
+                ));
+                self.hops += 1;
+                self.doing(format!("Qua Bản đồ thế giới tới {name}"));
+                return self.warp_to(&via, &name, None, now, out);
+            }
+        }
+        let portal = routed
             .or_else(|| {
                 fresh
                     .iter()

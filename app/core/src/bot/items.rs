@@ -488,7 +488,8 @@ impl Bot {
         }
     }
 
-    /// Tự sửa đồ (FightSettings::repair), from next() between the battles of a fight job or quest run: the first worn
+    /// Tự sửa đồ (FightSettings::repair), from next() between the battles of a fight job or quest run, and of Bạch Hổ
+    /// with or without it (bach_ho_step): the first worn
     /// item at durability 0 is repaired with a Búa Sửa Chữa of the bag (c2s/48), and the run goes on once s2c/48 answers,
     /// or REPAIR_WAIT later. An item the server did not repair is left for the rest of the run; without a hammer the run
     /// goes on with the item broken, said once per run. Nothing goes out while a button of the Túi đồ tab waits for its
@@ -521,7 +522,9 @@ impl Bot {
                 && !self.repair_failed.contains(&(slot as u8)))
             .then(|| (slot as u8, def.name.clone(), def.durability))
         });
-        let Some((slot, name, most)) = broken.filter(|_| self.fight.repair) else {
+        // Bạch Hổ repairs whatever Tự sửa đồ says: its battles one after the other wear the gear down (BH2).
+        let Some((slot, name, most)) = broken.filter(|_| self.fight.repair || self.bach_ho_on())
+        else {
             return false;
         };
         let hammers: i32 = self.snap.bag.as_ref().map_or(0, |b| {

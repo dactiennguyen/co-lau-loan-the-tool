@@ -1,5 +1,6 @@
 //! Di chuyển: Khu vực and Đổi map of the Vị trí card.
 use super::*;
+use std::collections::HashMap;
 
 /// Khu vực and Đổi map of the Vị trí card: c2s/1172 and c2s/1173 for the zones of the map
 /// (06-map-mobs.md#đổi-khu-vực-trong-cùng-map), c2s/13 through the portals of the atlas for another map (10-quests.md#cổng).
@@ -9,16 +10,71 @@ impl Bot {
         self.zoning.is_some() || self.trip.is_some()
     }
 
-    /// The maps of the atlas, nearest first, then those no known way leads to.
+    /// Bản đồ thế giới (bachho.rs warp_to) when no known portal way leads from here to a map where `wanted` holds, as
+    /// from Hang Bạch Hổ, whose portals the atlas lacks: the map of its list (open, and not above the character's level)
+    /// with the shortest known way to such a map, the wanted map itself first; with the portals from there.
+    pub(super) fn world_way(&self, wanted: &dyn Fn(&MapRecord) -> bool) -> Option<(String, u32)> {
+        Self::nearest_by_world(&self.world_hops(), |id| {
+            self.atlas.maps.get(id).is_some_and(wanted)
+        })
+    }
+
+    /// The maps Bản đồ thế giới may jump to from here (open, not above the character's level, not this one), each with
+    /// the portals from it to every map the atlas knows a way to.
+    fn world_hops(&self) -> Vec<(String, HashMap<String, u32>)> {
+        let level = self.snap.level;
+        self.atlas
+            .world
+            .iter()
+            .filter(|w| !w.locked && w.level <= level && w.map_id != self.snap.map_id)
+            .map(|w| {
+                let hops = self.atlas.hops(&w.map_id, level, &self.refused);
+                (w.map_id.clone(), hops)
+            })
+            .collect()
+    }
+
+    /// Of `world` (world_hops), the jump with the fewest portals after it to a map where `wanted` holds.
+    fn nearest_by_world(
+        world: &[(String, HashMap<String, u32>)],
+        wanted: impl Fn(&str) -> bool,
+    ) -> Option<(String, u32)> {
+        world
+            .iter()
+            .filter_map(|(via, hops)| {
+                let best = hops
+                    .iter()
+                    .filter(|(id, _)| wanted(id))
+                    .map(|(_, &h)| h)
+                    .min()?;
+                Some((via.clone(), best))
+            })
+            .min_by_key(|(_, h)| *h)
+    }
+
+    /// The maps of the atlas, nearest first, then those no known way leads to. One no portal way leads to but Bản đồ
+    /// thế giới does counts the jump as one portal.
     pub(super) fn maps(&self) -> Vec<MapChoice> {
         let hops = self
             .atlas
             .hops(&self.snap.map_id, self.snap.level, &self.refused);
+        // Read once for every map, and only when some map has no portal way from here.
+        let world = match self.atlas.maps.keys().all(|id| hops.contains_key(id)) {
+            true => vec![],
+            false => self.world_hops(),
+        };
         let mut out: Vec<MapChoice> = self
             .atlas
             .maps
             .iter()
-            .map(|(id, m)| MapChoice {
+            .map(|(id, m)| {
+                let need = self.atlas.needs_level(id, self.snap.level);
+                let warped = (!hops.contains_key(id) && need.is_none())
+                    .then(|| Self::nearest_by_world(&world, |w| w == id))
+                    .flatten();
+                (id, m, need, warped)
+            })
+            .map(|(id, m, need, warped)| MapChoice {
                 map_id: id.clone(),
                 name: m.name.clone(),
                 level: self
@@ -27,8 +83,12 @@ impl Bot {
                     .iter()
                     .find(|w| &w.map_id == id)
                     .map(|w| w.level),
-                hops: hops.get(id).copied(),
-                need: self.atlas.needs_level(id, self.snap.level),
+                hops: hops
+                    .get(id)
+                    .copied()
+                    .or(warped.as_ref().map(|(_, h)| h + 1)),
+                warp: warped.is_some(),
+                need,
                 mobs: (m.mobs.iter().map(|k| (&k.name, k.level, false)))
                     .chain(m.bosses.iter().map(|b| (&b.name, b.level, true)))
                     .map(|(name, level, boss)| MapMob {
@@ -99,8 +159,9 @@ impl Bot {
     }
 
     /// "Đổi map": walks through portals (c2s/13 with the portal id, B5) to the map by the shortest way the atlas knows,
-    /// at most 6 portals, a portal the server refuses left out. Refused while busy, for the map the character is on, for
-    /// one above the character's level (Atlas::needs_level), and for one no known way leads to.
+    /// at most 6 portals, a portal the server refuses left out; with no known portal way from here (Hang Bạch Hổ), a
+    /// jump through Bản đồ thế giới first (world_way). Refused while busy, for the map the character is on, for one above
+    /// the character's level (Atlas::needs_level), and for one no known way leads to.
     pub fn go_to(&mut self, map_id: &str, now: Instant, out: &mut Vec<Out>) {
         self.travel_to(map_id, false, now, out);
     }
@@ -117,15 +178,18 @@ impl Bot {
             .maps
             .get(map_id)
             .map_or_else(|| map_id.to_string(), |m| m.name.clone());
+        let ways = self
+            .atlas
+            .hops(&self.snap.map_id, self.snap.level, &HashSet::new());
+        let warp = (!ways.contains_key(map_id))
+            .then(|| self.world_way(&|m: &MapRecord| m.map_id == map_id))
+            .flatten();
         let why = self.busy_but(job).map(String::from).or_else(|| {
-            let ways = self
-                .atlas
-                .hops(&self.snap.map_id, self.snap.level, &HashSet::new());
             if map_id == self.snap.map_id {
                 Some("đang ở map này".into())
             } else if let Some(level) = self.atlas.needs_level(map_id, self.snap.level) {
                 Some(format!("cần cấp {level}"))
-            } else if !ways.contains_key(map_id) {
+            } else if !ways.contains_key(map_id) && warp.is_none() {
                 Some("chưa biết đường qua cổng tới đó".into())
             } else {
                 None
@@ -144,6 +208,23 @@ impl Bot {
         ));
         (self.trip, self.hops, self.zone_after) = (Some((map_id.to_string(), name)), 0, None);
         self.refused.clear();
+        if let Some((via, _)) = warp {
+            // No portal way from here: Bản đồ thế giới to `via`, then the portals (trip_next once it is there).
+            let via_name = self
+                .atlas
+                .maps
+                .get(&via)
+                .map_or(via.clone(), |m| m.name.clone());
+            out.push(Out::Log(
+                LogKind::Travel,
+                format!("Không có đường qua cổng từ đây: qua Bản đồ thế giới tới {via_name}"),
+            ));
+            if self.warp_to(&via, &via_name, None, now, out) {
+                return true;
+            }
+            self.trip = None;
+            return false;
+        }
         self.trip_next(now, out);
         true
     }
@@ -153,6 +234,10 @@ impl Bot {
         let Some((to, name)) = self.trip.clone() else {
             return;
         };
+        // A jump through Bản đồ thế giới under way: the portals once it is there.
+        if self.warp.is_some() {
+            return;
+        }
         let here = self.snap.map_id.clone();
         let portal = self.atlas.route(
             &here,

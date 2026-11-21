@@ -592,9 +592,38 @@
     }
    ],
    "seen": "2026-11-02"
+  },
+  "M15": {
+   "mapId": "M15",
+   "name": "Cổng Luyện Ngục",
+   "places": [
+    { "id": 14, "name": "Trở Về", "type": 0, "x": 33, "y": 176, "w": 32, "h": 32 },
+    { "id": 1000, "name": "Luyện Ngục 1", "type": 1, "x": 225, "y": 169, "w": 32, "h": 32 },
+    { "id": 1001, "name": "Luyện Ngục 2", "type": 1, "x": 417, "y": 169, "w": 32, "h": 32 },
+    { "id": 1002, "name": "Luyện Ngục 3", "type": 1, "x": 609, "y": 169, "w": 32, "h": 32 },
+    { "id": 1003, "name": "Luyện Ngục 4", "type": 1, "x": 865, "y": 296, "w": 32, "h": 32 },
+    { "id": 1006, "name": "Hang Bạch Hổ", "type": 1, "x": 129, "y": 425, "w": 32, "h": 32 },
+    { "id": 1008, "name": "Sơn Vi", "type": 0, "x": 1022, "y": 432, "w": 32, "h": 32 }
+   ],
+   "mobs": [],
+   "bosses": [],
+   "seen": "2026-11-21"
+  },
+  "M24": {
+   "mapId": "M24",
+   "name": "Hang Bạch Hổ",
+   "places": [
+    { "id": 23, "name": "Cổng Luyện Ngục", "type": 1, "x": 97, "y": 328, "w": 32, "h": 32 }
+   ],
+   "mobs": [],
+   "bosses": [],
+   "seen": "2026-11-21"
   }
  },
  "portals": {
+  "23": { "name": "Cổng Luyện Ngục", "mapId": "M15" },
+  "1006": { "name": "Hang Bạch Hổ", "mapId": "M24" },
+  "1008": { "name": "Sơn Vi", "mapId": "M99" },
   "1010": { "name": "Cổ Phong", "level": 130 },
   "1011": { "name": "Bạch Nham", "mapId": "M8" },
   "1012": { "name": "Phong Nguyên", "mapId": "M13" },

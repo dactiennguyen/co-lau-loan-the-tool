@@ -1100,8 +1100,11 @@ pub struct MapChoice {
     pub name: String,
     /// c2s/11 "M99"; None for a map the world list does not have.
     pub level: Option<i32>,
-    /// Portals on the shortest known way: 0 for the map the character is on, None when no known way leads there.
+    /// Portals on the shortest known way: 0 for the map the character is on, None when no known way leads there. With
+    /// `warp`, the jump through Bản đồ thế giới counts as one.
     pub hops: Option<u32>,
+    /// No known portal way from here: the way starts with a jump through Bản đồ thế giới (Bot::world_way).
+    pub warp: bool,
     /// The level the character lacks to enter it (Atlas::needs_level); no way leads there then.
     pub need: Option<i32>,
     /// The kinds of mobs and the bosses the atlas saw there; empty for a map with none, such as M25 Rìa Hồng Giang. The

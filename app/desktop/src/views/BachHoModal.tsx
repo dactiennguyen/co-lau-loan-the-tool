@@ -171,10 +171,11 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
         </span>
         <Hint label="Bạch Hổ chạy thế nào?" id={`${hint}-how`}>
           Bấm Bắt đầu thì mỗi nick đã chọn dừng việc đang làm, nhớ chỗ đang đứng, rồi đợi tới giờ bắt đầu. Tới giờ, nick tự đi
-          tới Hang Bạch Hổ qua Bản đồ thế giới (Cổng Luyện Ngục, cổng 1006) và cứ 5 giây thử vào trận với boss; vào được thì
-          đánh, hết trận lại thử, tới giờ kết thúc thì thôi. Xong thì bấm Quay về để về đúng map và khu cũ. Mọi người cùng đánh
-          một thanh máu, không có kinh nghiệm hay đồ rơi, thua không bị trừ kinh nghiệm; boss chết thì top 5 sát thương và
-          người kết liễu nhận quà qua Hòm thư. Cách vào trận chưa đo thật: bot thách đấu boss như các boss khác.
+          tới Hang Bạch Hổ qua Bản đồ thế giới (Cổng Luyện Ngục, cổng 1006) và đợi boss (21:00); boss vào hang là thách đấu
+          ngay, như game. Mỗi trận là một mình nick đấu boss; thua thì hồi đầy máu, không mất phí, không có kinh nghiệm hay đồ
+          rơi, rồi vào lại ngay. Mỗi trận trừ khoảng 1 độ bền mỗi món: món nào hỏng thì nick tự sửa bằng Búa Sửa Chữa trong túi
+          trước trận sau, kể cả khi Tự sửa đồ tắt. Boss bị tiêu diệt thì phiên tự dừng; nick đủ ngưỡng sát thương của bậc mình
+          nhận "Quà tham gia Bạch Hổ" trong Hòm thư (bot không tự nhận). Xong thì bấm Quay về để về đúng map và khu cũ.
         </Hint>
         <button
           type="button"

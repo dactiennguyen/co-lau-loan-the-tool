@@ -14,6 +14,9 @@ pub struct Ctx<'a> {
     pub map_id: Option<&'a str>,
     pub npc_id: Option<i32>,
     pub mob_id: Option<&'a str>,
+    /// The u8 after the mob of c2s/15: 0 as the game sends it for a mob touched on the map (B1), 1 as it sends it for
+    /// Bạch Hổ Thống Lĩnh (BH2, 17-bach-ho.md). None is 0.
+    pub challenge_flag: Option<u8>,
     pub battle_uuid: Option<&'a str>,
     pub seq: Option<i32>,
     pub skill: Option<i32>,
@@ -154,7 +157,10 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .u8(c.place.unwrap_or(0) as u8)
             .i32(required(c.slot, "slot")?)
             .build(),
-        15 => w.string(required(c.mob_id, "mobId")?).u8(0).build(),
+        15 => w
+            .string(required(c.mob_id, "mobId")?)
+            .u8(c.challenge_flag.unwrap_or(0))
+            .build(),
         1188 => w.string(required(c.uuid, "uuid")?).build(),
         // Mã quà tặng (G1): the code alone, from anywhere in the world.
         1223 => w.string(required(c.code, "code")?).build(),

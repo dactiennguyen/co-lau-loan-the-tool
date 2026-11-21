@@ -439,6 +439,11 @@ impl Bot {
             // Bản đồ thế giới (flag 0, "M99"): the jump of Bạch Hổ or Quay về chỗ cũ (bachho.rs).
             11 if payload.first() == Some(&0) => self.warp_opened(now, out),
             1275 => self.bach_ho_result_read(payload, out),
+            // The line the server sends every player (bosses, Bạch Hổ): read for Bạch Hổ only.
+            45 => {
+                let text = crate::protocol::Reader::new(payload).string()?;
+                self.bach_ho_notice(&text, now, out);
+            }
             13 => {
                 let c = map_change(payload)?;
                 if c.map_id != s.map_id {
@@ -492,6 +497,7 @@ impl Bot {
                 let d = map_entities(payload)?;
                 self.atlas.record_mobs(&d.map_id, self.snap.zone, &d.mobs);
                 self.mobs = d.mobs;
+                self.bach_ho_mobs(&d.map_id, now, out);
                 if let Some((_, via)) = self.travelling.take() {
                     out.push(Out::Log(
                         LogKind::Travel,

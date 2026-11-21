@@ -111,7 +111,7 @@ function NoMobs({ account, busy }: { account: Account; busy: boolean }) {
         <div key={m.mapId} className="flex items-center gap-2 px-1.5 py-1 bg-bg-2">
           <span className="flex-1 min-w-0">
             <b className="text-12 text-fg">{m.name}</b>
-            <span className="text-11 text-fg-3"> · {m.hops} cổng</span>
+            <span className="text-11 text-fg-3"> · {m.warp ? "qua Bản đồ thế giới" : `${m.hops} cổng`}</span>
             <span className="block truncate text-11 text-fg-2">
               {fitting(m, c.level)
                 .map((k) => `${k.name} ${k.level}`)

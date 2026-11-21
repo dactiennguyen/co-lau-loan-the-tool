@@ -99,9 +99,10 @@ export const worldLevel = (atlas: Atlas, mapId: string | undefined) => atlas.wor
  * (it comes with s2c/10) and leaves no map out. */
 export const aboveLevel = (atlas: Atlas, mapId: string | undefined, level: number) => level > 0 && (worldLevel(atlas, mapId) ?? 0) - 1 > level;
 /** Portals of a map the character may try: not the "Bản đồ" button, not one that asked for a higher level, not one to a map
- * above the character's level (aboveLevel), not `skip`. */
+ * above the character's level (aboveLevel), not `skip`. A gate (type 1: the floors of Luyện Ngục, Hang Bạch Hổ and its
+ * way out) only once the map it leads to is measured. */
 export const portalsOf = (atlas: Atlas, mapId: string, level: number, skip: ReadonlySet<number> = new Set()) =>
-  (atlas.maps[mapId]?.places ?? []).filter(p => p.type === 0 && p.name !== 'Bản đồ' && !((atlas.portals[p.id]?.level ?? 0) > level)
+  (atlas.maps[mapId]?.places ?? []).filter(p => (p.type === 0 || (p.type === 1 && atlas.portals[p.id]?.mapId != null)) && p.name !== 'Bản đồ' && !((atlas.portals[p.id]?.level ?? 0) > level)
     && !aboveLevel(atlas, destination(atlas, p, mapId), level) && !skip.has(p.id));
 
 /** First portal on the shortest known way from `from` to another map where `wanted` holds; undefined when none is known. */
