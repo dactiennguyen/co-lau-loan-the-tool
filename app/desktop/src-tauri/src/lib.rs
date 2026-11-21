@@ -173,6 +173,7 @@ pub fn run() {
             commands::market_page,
             commands::market_buy,
             commands::market_sell,
+            commands::market_prices,
             commands::market_withdraw,
             commands::market_extend,
             commands::log_history,

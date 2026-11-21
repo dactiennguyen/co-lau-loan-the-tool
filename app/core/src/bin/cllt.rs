@@ -29,15 +29,18 @@
 //                                                       and stones; without --confirm only what it would do is printed
 //                                                       --worn: SLOT of --quote, --upgrade is a gear slot; the item is
 //                                                       taken off, upgraded, then worn again
-//   cllt market --account=NAME [--tab=N [--page=1]] [--sell=SLOT --price=N | --withdraw=UUID | --extend=UUID |
-//               --buy=UUID --price=N] [--confirm]
+//   cllt market --account=NAME [--tab=N [--page=1]] [--sell=SLOT [--quantity=Q] --price=N | --withdraw=UUID |
+//               --extend=UUID | --buy=UUID --price=N | --prices=ITEM_ID] [--confirm]
 //                                                       Chợ trời (anywhere): print the fee, the tabs, the items of the bag
 //                                                       that can be listed (not locked) and Đang bán; --tab also prints
-//                                                       that page of tab N (0–8). --sell lists one of bag slot SLOT at N
+//                                                       that page of tab N (0–8). --sell lists bag slot SLOT at N
 //                                                       Xu (the fee is spent), --withdraw takes a listing of Đang bán
 //                                                       back, --extend adds 24 h to it (the fee), --buy (with --tab of its
 //                                                       page) buys the listing if it still costs N Xu; without --confirm
-//                                                       only what it would do is printed
+//                                                       only what it would do is printed. --quantity of --sell: how many
+//                                                       of the slot (N is for them all). --prices reads the pages of the
+//                                                       tabs ITEM_ID is listed in and prints the cheapest and dearest of
+//                                                       one by others (read only, no --confirm)
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
 // --account=NAME also finds the one of .env when the file lacks it, and CLLT_USERNAME/CLLT_PASSWORD of the process
 // environment come first of all.
@@ -546,6 +549,9 @@ fn main() {
     // --tab (0–8) and --page: the page of a tab read with Đang bán, where --buy finds its listing.
     let market_tab: Option<i32> = arg("tab").and_then(|v| v.parse().ok());
     let market_page: i32 = arg("page").and_then(|v| v.parse().ok()).unwrap_or(1);
+    // --quantity of --sell (1 by default; --price is for them all); --prices=ITEM_ID: Gợi ý giá, read only.
+    let market_quantity: i32 = arg("quantity").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let market_prices: Option<i32> = arg("prices").and_then(|v| v.parse().ok());
     let market_task = match (
         slot("sell"),
         market_price,
@@ -555,6 +561,7 @@ fn main() {
     ) {
         (Some(slot), Some(price), None, None, None) => Some(MarketTask::Sell {
             slot,
+            quantity: market_quantity,
             price,
             uuid: None,
         }),
@@ -566,7 +573,9 @@ fn main() {
             })
         }
         (None, None, None, None, Some(uuid)) => Some(MarketTask::Extend(uuid)),
-        (None, None, None, None, None) => None,
+        (None, None, None, None, None) => {
+            market_prices.map(|item_id| MarketTask::Prices { item_id })
+        }
         _ if market => {
             eprintln!("cllt market: --sell=SLOT --price=N, --withdraw=UUID, --extend=UUID, hoặc --tab=N --buy=UUID --price=N");
             std::process::exit(2);
@@ -846,6 +855,8 @@ fn main() {
                         "Chưa gia hạn",
                         "Chưa mở Chợ trời",
                         "Chợ trời không trả lời",
+                        "Giá ",
+                        "Chưa xem giá",
                     ]
                     .iter()
                     .any(|v| text.starts_with(v))
@@ -891,7 +902,8 @@ fn main() {
                         market_page_lines(p).iter().for_each(|l| println!("{l}"));
                     }
                     match &market_task {
-                        Some(t) if confirm => {
+                        // Gợi ý giá only reads pages: no --confirm needed.
+                        Some(t) if confirm || matches!(t, MarketTask::Prices { .. }) => {
                             manager.send(id, Command::Market(t.clone()));
                         }
                         Some(t) => {

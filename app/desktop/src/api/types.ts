@@ -428,6 +428,27 @@ export interface Market {
   changing: boolean;
   /** The line the last of those ended with, as in the log. */
   last: string | null;
+  /** Gợi ý giá: the prices of one item on sale by others, as far as read; null before any. */
+  prices: MarketPrices | null;
+}
+/** What the market asks for an item (MarketPrices of bot/types.rs): listings found, how many they hold, the cheapest
+ * and dearest by the price of one (`unit`, rounded down); `done` once every page was read, `atMs` when. */
+export interface MarketPrices {
+  itemId: number;
+  name: string;
+  listings: number;
+  quantity: number;
+  cheapest: PriceSeen | null;
+  dearest: PriceSeen | null;
+  pages: number;
+  done: boolean;
+  atMs: number;
+}
+export interface PriceSeen {
+  unit: number;
+  price: number;
+  quantity: number;
+  seller: string;
 }
 export interface MarketTabs {
   tabs: { tab: number; name: string; listings: number }[];

@@ -4,8 +4,8 @@ use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
     BachHoRun, BackPoint, BattleView, Boost, BossTile, CraftRecipes, DailyState, EggRun,
-    FightSettings, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MarketState, Picked,
-    PointsRead, QuestRun, SmithRun, Target, WelfareState,
+    FightSettings, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MarketPrices,
+    MarketState, Picked, PointsRead, QuestRun, SmithRun, Target, WelfareState,
 };
 use cllt_core::farm::{self, FarmHint};
 use cllt_core::items::{book, Bag, Currencies, ItemRecord, ItemStat};
@@ -264,6 +264,7 @@ pub struct MarketView<'a> {
     pub busy_with: Option<&'a str>,
     pub changing: bool,
     pub last: Option<&'a str>,
+    pub prices: Option<&'a MarketPrices>,
 }
 impl<'a> MarketView<'a> {
     pub fn of(m: &'a MarketState) -> Self {
@@ -275,6 +276,7 @@ impl<'a> MarketView<'a> {
             busy_with: m.busy_with.as_deref(),
             changing: m.changing,
             last: m.last.as_deref(),
+            prices: m.prices.as_ref(),
         }
     }
 }

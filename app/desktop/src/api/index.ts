@@ -162,7 +162,9 @@ export interface Api {
   /** Chợ trời, Mua: the listing `uuid` of the page shown, at `price` Xu as shown. */
   marketBuy(id: number, uuid: string, price: number): Promise<void>;
   /** Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu; the fee is taken at once. */
-  marketSell(id: number, slot: number, price: number, uuid?: string): Promise<void>;
+  marketSell(id: number, slot: number, quantity: number, price: number, uuid?: string): Promise<void>;
+  /** Gợi ý giá: the pages of the tabs the item is listed in, for the cheapest and dearest of one (market.prices). */
+  marketPrices(id: number, itemId: number): Promise<void>;
   /** Chợ trời, Thu hồi: the listing `uuid` of Đang bán back to the bag. */
   marketWithdraw(id: number, uuid: string): Promise<void>;
   /** Chợ trời, Gia hạn: 24 more hours on the listing `uuid` of Đang bán, for the fee. */
@@ -309,7 +311,8 @@ const tauri: Api = {
   marketOpen: (id, tab, page) => invoke("market_open", { id, tab, page }),
   marketPage: (id, tab, page) => invoke("market_page", { id, tab, page }),
   marketBuy: (id, uuid, price) => invoke("market_buy", { id, uuid, price }),
-  marketSell: (id, slot, price, uuid) => invoke("market_sell", { id, slot, price, uuid: uuid ?? null }),
+  marketSell: (id, slot, quantity, price, uuid) => invoke("market_sell", { id, slot, quantity, price, uuid: uuid ?? null }),
+  marketPrices: (id, itemId) => invoke("market_prices", { id, itemId }),
   marketWithdraw: (id, uuid) => invoke("market_withdraw", { id, uuid }),
   marketExtend: (id, uuid) => invoke("market_extend", { id, uuid }),
   logHistory: (id, before, kinds, bad, limit) => invoke("log_history", { id, before, kinds, bad, limit }),
@@ -450,6 +453,7 @@ const preview: Api = {
   marketPage: nothing,
   marketBuy: nothing,
   marketSell: nothing,
+  marketPrices: nothing,
   marketWithdraw: nothing,
   marketExtend: nothing,
   logHistory: async () => [],

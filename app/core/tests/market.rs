@@ -346,6 +346,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
     b.market(
         MarketTask::Sell {
             slot: SLIME_SLOT,
+            quantity: 1,
             price: 1_000_000,
             uuid: None,
         },
@@ -361,6 +362,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
         b.market(
             MarketTask::Sell {
                 slot: SLIME_SLOT,
+                quantity: 1,
                 price,
                 uuid: None,
             },
@@ -371,6 +373,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
     b.market(
         MarketTask::Sell {
             slot: 41,
+            quantity: 1,
             price: 1000,
             uuid: None,
         },
@@ -401,6 +404,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
     b.market(
         MarketTask::Sell {
             slot: SLIME_SLOT,
+            quantity: 1,
             price: 1_000_000,
             uuid: Some("món khác".into()),
         },
@@ -430,6 +434,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
     b.market(
         MarketTask::Sell {
             slot: SLIME_SLOT,
+            quantity: 1,
             price: 1_000_000,
             uuid: None,
         },
@@ -644,4 +649,143 @@ fn one_task_at_a_time_and_nothing_else_while_mua_waits() {
         ["Chưa mua: đang nhập mã quà tặng, bấm Dừng trước"]
     );
     assert_eq!(sent(&out), [(1192, page_request(6, 4))]);
+}
+
+/// s2c/1192 kind 1: page `page` of `pages` of tab `tab`, with these (item id, quantity, price, seller).
+fn tab_page(tab: u8, page: i32, pages: i32, listings: &[(i32, i32, i32, &str)]) -> Vec<u8> {
+    let mut w = Writer::new()
+        .u8(1)
+        .u8(9)
+        .u8(tab)
+        .string("Đá Quý")
+        .i32(pages)
+        .i32(page)
+        .i32(listings.len() as i32);
+    for (i, &(item, quantity, price, seller)) in listings.iter().enumerate() {
+        w = w
+            .i32(item)
+            .i32(item)
+            .string(&format!("l{page}-{i}"))
+            .string(seller)
+            .i32(-1)
+            .i32(0)
+            .i32(0)
+            .i64(1_763_800_000_000)
+            .u8(0)
+            .i32(price)
+            .i32(0)
+            .i32(quantity)
+            .u8(1)
+            .i32(0);
+    }
+    w.build()
+}
+
+#[test]
+fn dang_ban_sells_how_many_of_a_stack_were_asked_at_the_price_for_them_all() {
+    let (mut b, mut out, now) = opened(1);
+    // An unlocked stack of 999 Đá cấp 2 in slot 0.
+    b.on_packet(1187, &bag(42, &[(412, 999, 1)]), now, &mut out)
+        .unwrap();
+    out.clear();
+    for quantity in [0, 1000] {
+        b.market(
+            MarketTask::Sell {
+                slot: 0,
+                quantity,
+                price: 999_000,
+                uuid: None,
+            },
+            now,
+            &mut out,
+        );
+    }
+    assert_eq!(
+        lines(&out),
+        [
+            "Chưa đăng bán: số lượng phải từ 1 tới 999 (ô túi có 999)",
+            "Chưa đăng bán: số lượng phải từ 1 tới 999 (ô túi có 999)",
+        ]
+    );
+    out.clear();
+    b.market(
+        MarketTask::Sell {
+            slot: 0,
+            quantity: 999,
+            price: 999_000,
+            uuid: None,
+        },
+        now,
+        &mut out,
+    );
+    // c2s/112: u8 1; i32 slot; i32 quantity; i64 price (14-npc.md#đăng-bán).
+    let wire = tohex(&Writer::new().u8(1).i32(0).i32(999).i64(999_000).build());
+    assert_eq!(sent(&out), [(112, wire)]);
+    out.clear();
+    b.on_packet(
+        112,
+        &Writer::new().i32(1).i32(0).i32(999).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(lines(&out)[0].starts_with("Xong đăng bán Đá cấp 2 ×999 giá 999.000 Xu"));
+    assert!(
+        b.snap.bag.as_ref().unwrap().items.is_empty(),
+        "the whole stack left"
+    );
+}
+
+#[test]
+fn goi_y_gia_reads_the_pages_of_the_tab_of_the_item_and_tells_the_cheapest_and_dearest_of_one() {
+    let (mut b, mut out, now) = bot(1);
+    b.market(MarketTask::Prices { item_id: 412 }, now, &mut out);
+    // Đá cấp 2 is a stone: tab 7 (Đá Quý) only.
+    assert_eq!(sent(&out), [(1192, page_request(7, 1))]);
+    out.clear();
+    let page1 = tab_page(
+        7,
+        1,
+        2,
+        &[
+            (412, 99, 99_000, "Ana"),
+            (413, 1, 1_000, "Bo"),
+            (412, 10, 20_000, "Ca"),
+        ],
+    );
+    b.on_packet(1192, &page1, now, &mut out).unwrap();
+    assert_eq!(sent(&out), [(1192, page_request(7, 2))]);
+    assert!(lines(&out).is_empty());
+    out.clear();
+    b.on_packet(
+        1192,
+        &tab_page(7, 2, 2, &[(412, 1, 5_000, "Du")]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        lines(&out),
+        ["Giá Đá cấp 2 trên chợ: 3 tin, 110 cái; rẻ nhất 1.000 Xu/cái (Ana, 99.000 Xu cho 99), đắt nhất 5.000 Xu/cái (Du, 5.000 Xu cho 1)"]
+    );
+    let p = b.snap.market.prices.clone().unwrap();
+    assert_eq!(
+        (p.item_id, p.listings, p.quantity, p.pages, p.done),
+        (412, 3, 110, 2, true)
+    );
+    assert_eq!(p.cheapest.unwrap().unit, 1_000);
+    // The pages read are not the page shown, and the market is free again.
+    assert!(b.snap.market.page.is_none());
+    assert!(b.snap.market.doing.is_none());
+    out.clear();
+    // Nobody sells it: said so.
+    b.market(MarketTask::Prices { item_id: 415 }, now, &mut out);
+    b.on_packet(
+        1192,
+        &tab_page(7, 1, 1, &[(412, 1, 5_000, "Du")]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(lines(&out), ["Giá Đá cấp 5 trên chợ: không ai đang bán"]);
 }

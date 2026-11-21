@@ -248,6 +248,7 @@ fn ct1_market() -> MarketState {
         busy_with: None,
         changing: false,
         last: Some("Xong mua Thú cưng Slime (1.000 Xu)".into()),
+        prices: None,
     }
 }
 

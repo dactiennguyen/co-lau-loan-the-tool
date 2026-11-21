@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { QUALITY_TEXT } from "@/game/quality";
 import { api } from "@/api";
-import type { Item, Listing, Market, MarketPage } from "@/api/types";
+import type { Item, Listing, Market, MarketPage, MarketPrices, PriceSeen } from "@/api/types";
 import { Button } from "@/components/Button";
 import { FilterChip } from "@/components/FilterChip";
 import { Hint } from "@/components/Hint";
 import { Icon } from "@/components/Icon";
+import { Stepper } from "@/components/Stepper";
 import { FIELD } from "@/components/TextField";
 import { itemIcon } from "@/game/itemIcons";
 import { cn } from "@/utils/cn";
@@ -271,20 +272,49 @@ function BuyView({ id, m, why, readWhy, ask, xu, free, go }: ViewProps) {
   );
 }
 
-/** Bán: an item of the bag not locked, its price, Đăng bán. One at a time: the sale of a stack is not measured yet. */
-function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] }) {
+/** "1.000 Xu/cái (Ana, 99.000 Xu cho 99)". */
+const seenText = (p: PriceSeen) => `${num(p.unit)} Xu/cái (${p.seller}${p.quantity > 1 ? `, ${num(p.price)} Xu cho ${num(p.quantity)}` : ""})`;
+
+/**
+ * Bán: an item of the bag not locked, how many of it (the whole stack at first), the price of one, Đăng bán for them
+ * all (the packet has one price: the price of one times the quantity). Picking an item asks Gợi ý giá: the pages of the
+ * tabs it is listed in are read for the cheapest and dearest of one by others, which an empty price takes.
+ */
+function SellView({ id, m, why, readWhy, ask, xu, items }: ViewProps & { items: Item[] }) {
   const field = useId();
   const [slot, setSlot] = useState<number | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const [text, setText] = useState("");
   const open = items.filter((i) => !i.locked);
   const picked = open.find((i) => i.slot === slot) ?? null;
-  const price = Number(text.replace(/\D/g, "")) || 0;
+  const has = Math.max(1, picked?.quantity ?? 1);
+  const count = Math.min(Math.max(1, quantity), has);
+  const unit = Number(text.replace(/\D/g, "")) || 0;
+  const price = unit * count;
   const tabs = m.tabs!;
   const cut = Math.floor((price * CUT) / 100);
+  const prices = picked && m.prices?.itemId === picked.id ? m.prices : null;
+  const looking = !!prices && !prices.done && m.doing != null && !prices.atMs;
+  const pick = (i: Item) => {
+    if (i.slot === slot) return setSlot(null);
+    setSlot(i.slot);
+    setQuantity(Math.max(1, i.quantity));
+    setText("");
+    if (!readWhy) void api.marketPrices(id, i.id);
+  };
+  // The cheapest of one once read, when no price is typed yet.
+  const filledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!picked || !prices?.cheapest || !prices.atMs || text) return;
+    const key = `${picked.uuid}:${prices.atMs}`;
+    if (filledFor.current === key) return;
+    filledFor.current = key;
+    setText(String(prices.cheapest.unit));
+  }, [picked, prices, text]);
   const sellWhy = !picked || !price
     ? null
     : price < MIN_PRICE || price > tabs.maxPrice
-      ? `Giá phải từ ${num(MIN_PRICE)} tới ${num(tabs.maxPrice)} Xu.`
+      ? `Tổng giá phải từ ${num(MIN_PRICE)} tới ${num(tabs.maxPrice)} Xu (đang là ${num(price)}).`
       : xu != null && xu < tabs.fee
         ? `Thiếu Xu cho phí đăng bán: cần ${num(tabs.fee)}, có ${num(xu)}.`
         : null;
@@ -293,13 +323,14 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
       title: "Đăng bán ở Chợ trời",
       message: (
         <>
-          Đăng bán <b>{i.name}</b> (1 cái) với giá <b>{num(price)} Xu</b>? Phí đăng bán {num(tabs.fee)} Xu trừ ngay, không hoàn
-          khi thu hồi. Bán trong {tabs.hours} giờ; bán được thì nhận {num(price - cut)} Xu (trừ {CUT}%) qua Hòm thư.
+          Đăng bán <b>{count > 1 ? `${i.name} ×${num(count)}` : i.name}</b> với giá <b>{num(price)} Xu</b>
+          {count > 1 && ` (${num(unit)} Xu/cái)`}? Phí đăng bán {num(tabs.fee)} Xu trừ ngay, không hoàn khi thu hồi. Bán trong{" "}
+          {tabs.hours} giờ; bán được thì nhận {num(price - cut)} Xu (trừ {CUT}%) qua Hòm thư.
         </>
       ),
       confirm: `Đăng bán ${num(price)} Xu`,
       icon: "market",
-      run: () => api.marketSell(id, i.slot, price, i.uuid),
+      run: () => api.marketSell(id, i.slot, count, price, i.uuid),
     });
   return (
     <>
@@ -307,7 +338,9 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
         <span className={SHOP.leadTitle}>Món trong túi chưa khoá</span>
         <Hint label="Món nào bán được?" id={`${field}-lock`}>
           Chỉ món chưa khoá. Món mua bằng Xu khóa, đã mặc hay đã nâng cấp đều bị khoá (ổ khoá trong túi), game không cho rao
-          bán. Món mua ở Chợ trời thì chưa khoá. Mỗi lần đăng một cái; đăng cả chồng thì chưa đo.
+          bán. Món mua ở Chợ trời thì chưa khoá. Một chồng bán được cả chồng hay một phần: nhập giá mỗi cái, app nhân ra tổng
+          giá (gói đăng bán chỉ có một giá cho cả lô). Bán một phần chồng đã đo (1 Trứng Gà từ chồng 14); bán nhiều cái một
+          lần chưa đo.
         </Hint>
       </div>
       {open.length === 0 ? (
@@ -321,7 +354,7 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
               role="radio"
               aria-checked={i.slot === slot}
               className={cn(SHOP.line, i.slot === slot && SHOP.lineOn)}
-              onClick={() => setSlot(i.slot === slot ? null : i.slot)}
+              onClick={() => pick(i)}
             >
               <ItemPic item={i} />
               <span className={SHOP.lineName}>
@@ -336,34 +369,107 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
       {picked && (
         <div className={cn(SHOP.buy, "px-3 py-2 bg-bg-2 border-2 border-line")}>
           <span className={SHOP.buyWhat}>
-            <b className="text-fg">{picked.name}</b> (1 cái, ô {picked.slot + 1})
+            <b className="text-fg">{picked.name}</b> (ô {picked.slot + 1}, có {num(has)})
           </span>
+          {has > 1 && <Stepper value={count} onChange={setQuantity} min={1} max={has} label="số lượng" />}
           <label htmlFor={`${field}-price`} className={FIELD.label}>
-            Giá (Xu)
+            {has > 1 ? "Giá mỗi cái" : "Giá (Xu)"}
           </label>
           <input
             id={`${field}-price`}
             // The price in the pixel face, right-aligned; the placeholder in the text face.
-            className={cn(FIELD.input, "w-[150px]", text && "px text-right")}
+            className={cn(FIELD.input, "w-[130px]", text && "px text-right")}
             inputMode="numeric"
             autoComplete="off"
             placeholder="Nhập giá"
-            value={text ? num(price) : ""}
+            value={text ? num(unit) : ""}
             // Digits only: a letter typed is dropped, not read as 0.
             onChange={(e) => setText(e.target.value.replace(/\D/g, ""))}
           />
           <Button kind="primary" small icon="market" disabled={!!why || !!sellWhy || !price} onClick={() => sell(picked)}>
-            Đăng bán
+            Đăng bán{price ? ` ${num(price)} Xu` : ""}
           </Button>
+          <PriceHint prices={prices} looking={looking} why={readWhy} onUse={(u) => setText(String(u))} onAgain={() => api.marketPrices(id, picked.id)} />
           <span className={cn("basis-full text-11", sellWhy ? "text-danger" : "text-fg-3")}>
             {sellWhy ??
               (price
-                ? `Phí ${num(tabs.fee)} Xu ngay · bán được thì nhận ${num(price - cut)} Xu (trừ ${CUT}%) qua Hòm thư · bán trong ${tabs.hours} giờ`
-                : `Giá từ ${num(MIN_PRICE)} tới ${num(tabs.maxPrice)} Xu.`)}
+                ? `${count > 1 ? `${num(count)} × ${num(unit)} = ${num(price)} Xu · ` : ""}Phí ${num(tabs.fee)} Xu ngay · bán được thì nhận ${num(price - cut)} Xu (trừ ${CUT}%) qua Hòm thư · bán trong ${tabs.hours} giờ`
+                : `Tổng giá từ ${num(MIN_PRICE)} tới ${num(tabs.maxPrice)} Xu.`)}
           </span>
         </div>
       )}
     </>
+  );
+}
+
+/** Gợi ý giá of the item picked: being read, nobody sells it, or the cheapest and dearest of one with a button to take
+ * either, and Xem lại. */
+function PriceHint({
+  prices,
+  looking,
+  why,
+  onUse,
+  onAgain,
+}: {
+  prices: MarketPrices | null;
+  looking: boolean;
+  why: string | null;
+  onUse: (unit: number) => void;
+  onAgain: () => void;
+}) {
+  const again = (
+    <Button small icon="refresh" disabled={!!why} onClick={onAgain}>
+      {prices ? "Xem lại" : "Xem giá trên chợ"}
+    </Button>
+  );
+  if (!prices || looking)
+    return (
+      <span className="basis-full flex flex-wrap items-center gap-2 text-11 text-fg-2" role="status">
+        {looking ? (
+          <>
+            <Icon name="refresh" size={12} className="text-primary animate-spin motion-reduce:animate-none" />
+            Đang xem giá trên chợ… (trang {prices!.pages + 1})
+          </>
+        ) : (
+          again
+        )}
+      </span>
+    );
+  const { cheapest: lo, dearest: hi } = prices;
+  const at = new Date(prices.atMs).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  return (
+    <span className="basis-full grid gap-1 text-11 text-fg-2" role="status">
+      {!lo || !hi ? (
+        <span>
+          Trên chợ không ai bán {prices.name} ({prices.pages} trang, lúc {at}).
+        </span>
+      ) : (
+        <>
+          <span>
+            Trên chợ: <b className="px text-fg">{prices.listings}</b> tin, <b className="px text-fg">{num(prices.quantity)}</b> cái
+            (đọc {prices.pages} trang lúc {at}
+            {!prices.done && ", chưa hết trang"})
+          </span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              Rẻ nhất <b className="px text-good">{seenText(lo)}</b>
+            </span>
+            <Button small onClick={() => onUse(lo.unit)}>
+              Theo giá rẻ nhất
+            </Button>
+          </span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              Đắt nhất <b className="px text-coin">{seenText(hi)}</b>
+            </span>
+            <Button small onClick={() => onUse(hi.unit)}>
+              Theo giá đắt nhất
+            </Button>
+          </span>
+        </>
+      )}
+      <span>{again}</span>
+    </span>
   );
 }
 

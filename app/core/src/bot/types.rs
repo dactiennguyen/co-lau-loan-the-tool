@@ -1007,13 +1007,18 @@ pub enum MarketTask {
     Page { tab: i32, page: i32 },
     /// c2s/115: the listing `uuid` of the page last read, which must still cost `price` Xu.
     Buy { uuid: String, price: i32 },
-    /// c2s/112 kind 1: one of the item of bag slot `slot`, at `price` Xu.
-    /// `uuid`, when given, is the item the window showed: refused when the slot holds another by now.
+    /// c2s/112 kind 1: `quantity` of the item of bag slot `slot` (1 up to what the slot holds), at `price` Xu for them
+    /// all (the packet has one price). `uuid`, when given, is the item the window showed: refused when the slot holds
+    /// another by now.
     Sell {
         slot: u8,
+        quantity: i32,
         price: i64,
         uuid: Option<String>,
     },
+    /// Gợi ý giá: the pages of the tabs item `item_id` is listed in (market::tabs_of), read one after the other, for the
+    /// lowest and highest price of one on sale by others (MarketState::prices).
+    Prices { item_id: i32 },
     /// c2s/113: the listing `uuid` of Đang bán back to the bag.
     Withdraw(String),
     /// c2s/112 kind 2: 24 more hours on the listing `uuid` of Đang bán, for the fee.
@@ -1037,6 +1042,33 @@ pub struct MarketState {
     pub changing: bool,
     /// The line the last of those ended with, as in the log ("Xong mua …", "Chưa mua được …").
     pub last: Option<String>,
+    /// Gợi ý giá (MarketTask::Prices): the prices of one item on sale, as far as read; None before any.
+    pub prices: Option<MarketPrices>,
+}
+
+/// What the market asks for an item (Gợi ý giá of Đăng bán): the listings of others found on the pages read, how many
+/// of the item they hold, the cheapest and dearest by the price of one; `done` once every page was read, `at_ms` when.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketPrices {
+    pub item_id: i32,
+    pub name: String,
+    pub listings: u32,
+    pub quantity: i64,
+    pub cheapest: Option<PriceSeen>,
+    pub dearest: Option<PriceSeen>,
+    pub pages: u32,
+    pub done: bool,
+    pub at_ms: u64,
+}
+/// A listing as Gợi ý giá saw it: the price of one (rounded down), the price of the listing, its quantity, the seller.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PriceSeen {
+    pub unit: i64,
+    pub price: i32,
+    pub quantity: i32,
+    pub seller: String,
 }
 
 /// The mailbox as the app knows it (Bot::mail, mailbox.rs), for the Hòm thư tab of Tiện ích.

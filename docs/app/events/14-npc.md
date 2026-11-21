@@ -415,7 +415,7 @@ Chưa đo: món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/11
 - **Gia hạn** bị server từ chối: `s2c/1256` "Chức năng gia hạn đang tạm đóng"; Xu không bị trừ.
 - **Thu hồi**: "Đã nhận lại vật phẩm Trứng Gà", Trứng Gà về túi (52), Đang bán trống; phí đăng bán không hoàn.
 
-App Rust làm Mua, Đăng bán (từng cái một), Gia hạn và Thu hồi ở tab Chợ trời của Tiện ích, cũng mở chợ như nút của thanh công cụ và hỏi lại trước mỗi việc tốn tiền hay chuyển đồ; chưa quét món rẻ nhất trên mọi trang ([features](../../integration/rust/features.md#chợ-trời)).
+App Rust làm Mua, Đăng bán (số lượng tuỳ chọn, giá nhập theo từng cái), Gợi ý giá (đọc các trang của mục chứa món, giá mỗi cái = giá ÷ số lượng), Gia hạn và Thu hồi ở tab Chợ trời của Tiện ích, cũng mở chợ như nút của thanh công cụ và hỏi lại trước mỗi việc tốn tiền hay chuyển đồ; chưa quét món rẻ nhất trên mọi trang ([features](../../integration/rust/features.md#chợ-trời)).
 
 ### Lời mời của người chơi khác
 

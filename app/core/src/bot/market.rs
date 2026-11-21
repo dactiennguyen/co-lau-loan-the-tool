@@ -6,6 +6,8 @@ use crate::market::{self as m, MarketDone, MarketListed, MarketListing, MARKET_M
 
 /// How long a step waits for the server (its answers took about 60 ms in CT1).
 const MARKET_WAIT: Duration = Duration::from_secs(8);
+/// The most pages Gợi ý giá reads (CT1: 33 pages for the 9 tabs, 592 listings).
+const PRICE_PAGES: u32 = 40;
 
 /// What the market waits for.
 #[derive(Debug, Clone)]
@@ -22,6 +24,14 @@ enum MarketStep {
     },
     /// s2c/112: listed (s2c/46 the fee before it, "Rao bán vật phẩm thành công" after).
     Sell { name: String, price: i64 },
+    /// s2c/1192 kind 1 of page `page` of `tab` for Gợi ý giá of `item_id`; the tabs after it in `rest`. The page is not
+    /// kept as the page shown.
+    Prices {
+        item_id: i32,
+        tab: i32,
+        page: i32,
+        rest: Vec<i32>,
+    },
     /// s2c/113 with the uuid: back in the bag (s2c/1187 before it, "Đã nhận lại vật phẩm …" after).
     Withdraw { uuid: String, name: String },
     /// s2c/1192 kind 2 with the listing 24 h later than `before` (s2c/46 the fee before it, "Gia hạn vật phẩm thành
@@ -58,25 +68,42 @@ impl Bot {
             MarketTask::Page { .. } => "Chưa xem trang chợ",
             MarketTask::Buy { .. } => "Chưa mua",
             MarketTask::Sell { .. } => "Chưa đăng bán",
+            MarketTask::Prices { .. } => "Chưa xem giá trên chợ",
             MarketTask::Withdraw(_) => "Chưa thu hồi",
             MarketTask::Extend(_) => "Chưa gia hạn",
         };
-        let change = !matches!(task, MarketTask::Open { .. } | MarketTask::Page { .. });
+        let change = !matches!(
+            task,
+            MarketTask::Open { .. } | MarketTask::Page { .. } | MarketTask::Prices { .. }
+        );
         let planned = match self.market_refusal(change, now) {
             Some(why) => Err(why),
             None => self.market_plan(task),
         };
         match planned {
-            Ok((step, ctx, words, about)) => self.market_go(step, ctx, words, about, now, out),
+            Ok((step, ctx, words, about)) => {
+                // Gợi ý giá starts again from nothing, for this item.
+                if let MarketStep::Prices { item_id, .. } = step {
+                    self.snap.market.prices = Some(MarketPrices {
+                        item_id,
+                        name: Picked::of(item_id, 1).name,
+                        ..MarketPrices::default()
+                    });
+                }
+                self.market_go(step, ctx, words, about, now, out)
+            }
             Err(why) => self.market_said(format!("{what}: {why}"), out),
         }
     }
 
     /// Mua, Đăng bán, Thu hồi or Gia hạn waits for the server: the character counts as busy (busy()).
     pub(super) fn market_changing(&self) -> bool {
-        self.market
-            .as_ref()
-            .is_some_and(|w| !matches!(w.step, MarketStep::Tabs { .. } | MarketStep::Page))
+        self.market.as_ref().is_some_and(|w| {
+            !matches!(
+                w.step,
+                MarketStep::Tabs { .. } | MarketStep::Page | MarketStep::Prices { .. }
+            )
+        })
     }
 
     fn market_refusal(&self, change: bool, now: Instant) -> Option<String> {
@@ -189,7 +216,28 @@ impl Bot {
                 };
                 (step, MarketCtx::Uuid(115, uuid.clone()), words, Some(uuid))
             }
-            MarketTask::Sell { slot, price, uuid } => {
+            MarketTask::Prices { item_id } => {
+                let def = crate::items::book()
+                    .get(item_id)
+                    .ok_or_else(|| format!("vật phẩm {item_id} không có trong bảng vật phẩm"))?;
+                let mut tabs = m::tabs_of(def.kind, def.gender);
+                let tab = tabs.remove(0);
+                let name = def.name.clone();
+                let step = MarketStep::Prices {
+                    item_id,
+                    tab,
+                    page: 1,
+                    rest: tabs,
+                };
+                let words = format!("xem giá {name} trên chợ");
+                (step, MarketCtx::Page(tab, 1), words, None)
+            }
+            MarketTask::Sell {
+                slot,
+                quantity,
+                price,
+                uuid,
+            } => {
                 let tabs = self.snap.market.tabs.as_ref().ok_or("chưa mở Chợ trời")?;
                 let item = self
                     .snap
@@ -197,6 +245,7 @@ impl Bot {
                     .as_ref()
                     .and_then(|b| b.items.iter().find(|i| i.slot == slot))
                     .ok_or_else(|| format!("ô túi {} trống", slot as u32 + 1))?;
+                let has = item.quantity.max(1);
                 let name = Picked::of(item.item_id, 1).name;
                 if uuid.as_ref().is_some_and(|u| *u != item.uuid) {
                     return Err(format!(
@@ -207,6 +256,14 @@ impl Bot {
                 if item.field1 == 0 {
                     return Err(format!("{name} đã khoá, không rao bán được"));
                 }
+                if !(1..=has).contains(&quantity) {
+                    return Err(format!(
+                        "số lượng phải từ 1 tới {} (ô túi có {})",
+                        smith::grouped(has as i64),
+                        smith::grouped(has as i64)
+                    ));
+                }
+                let name = Picked::of(item.item_id, quantity as i64).label();
                 let max = tabs.max_price as i64;
                 if !(m::MIN_PRICE..=max).contains(&price) {
                     return Err(format!(
@@ -226,7 +283,12 @@ impl Bot {
                 let words = format!("đăng bán {name} giá {} Xu", smith::grouped(price));
                 let uuid = item.uuid.clone();
                 let step = MarketStep::Sell { name, price };
-                (step, MarketCtx::Sell(slot, price), words, Some(uuid))
+                (
+                    step,
+                    MarketCtx::Sell(slot, quantity, price),
+                    words,
+                    Some(uuid),
+                )
             }
             MarketTask::Withdraw(uuid) => {
                 let name = listing_name(self.mine_listing(&uuid)?);
@@ -294,11 +356,11 @@ impl Bot {
                     ..Ctx::default()
                 },
             ),
-            MarketCtx::Sell(slot, price) => (
+            MarketCtx::Sell(slot, quantity, price) => (
                 112,
                 Ctx {
                     slot: Some(*slot as i32),
-                    quantity: Some(1),
+                    quantity: Some(*quantity),
                     price: Some(*price),
                     ..Ctx::default()
                 },
@@ -347,11 +409,17 @@ impl Bot {
         }
     }
 
-    /// s2c/1192: a page of a tab or of Đang bán (also the answer to Gia hạn), or the rules.
-    pub(super) fn market_page(&mut self, market: m::Market, out: &mut Vec<Out>) {
+    /// s2c/1192: a page of a tab or of Đang bán (also the answer to Gia hạn), or the rules. A page Gợi ý giá asked goes
+    /// to it instead of the page shown.
+    pub(super) fn market_page(&mut self, market: m::Market, now: Instant, out: &mut Vec<Out>) {
         let m::Market::Page(page) = market else {
             return;
         };
+        if let Some(MarketStep::Prices { .. }) = self.market.as_ref().map(|w| &w.step) {
+            if !page.mine() {
+                return self.market_prices_page(page, now, out);
+            }
+        }
         let mine = page.mine();
         match mine {
             true => self.snap.market.mine = Some(page),
@@ -384,6 +452,99 @@ impl Bot {
                 self.market_end(Some(line), out);
             }
             _ => {}
+        }
+    }
+
+    /// A page for Gợi ý giá: the listings of the item by others go into MarketState::prices; then the next page of the
+    /// tab, the first of the next tab, or the end, with the prices in the log.
+    fn market_prices_page(&mut self, page: m::MarketPage, now: Instant, out: &mut Vec<Out>) {
+        let Some(MarketStep::Prices {
+            item_id,
+            tab,
+            page: at,
+            mut rest,
+        }) = self.market.as_ref().map(|w| w.step.clone())
+        else {
+            return;
+        };
+        let me = self.snap.name.clone();
+        let p = self.snap.market.prices.get_or_insert_with(Default::default);
+        p.pages += 1;
+        for l in page
+            .listings
+            .iter()
+            .filter(|l| l.item_id == item_id && l.currency == 0 && l.quantity > 0 && l.seller != me)
+        {
+            let seen = PriceSeen {
+                unit: l.price as i64 / l.quantity as i64,
+                price: l.price,
+                quantity: l.quantity,
+                seller: l.seller.clone(),
+            };
+            p.listings += 1;
+            p.quantity += l.quantity as i64;
+            if p.cheapest.as_ref().is_none_or(|c| seen.unit < c.unit) {
+                p.cheapest = Some(seen.clone());
+            }
+            if p.dearest.as_ref().is_none_or(|c| seen.unit > c.unit) {
+                p.dearest = Some(seen);
+            }
+        }
+        let (pages_read, name) = (p.pages, p.name.clone());
+        let next = if page.page < page.pages && page.tab == tab {
+            Some((tab, at + 1))
+        } else if !rest.is_empty() {
+            Some((rest.remove(0), 1))
+        } else {
+            None
+        };
+        match next.filter(|_| pages_read < PRICE_PAGES) {
+            Some((tab, page)) => {
+                let task = format!("xem giá {name} trên chợ (trang {})", pages_read + 1);
+                self.market = None;
+                self.market_go(
+                    MarketStep::Prices {
+                        item_id,
+                        tab,
+                        page,
+                        rest,
+                    },
+                    MarketCtx::Page(tab, page),
+                    task,
+                    None,
+                    now,
+                    out,
+                );
+            }
+            None => {
+                let p = self.snap.market.prices.get_or_insert_with(Default::default);
+                p.done = next.is_none();
+                p.at_ms = epoch_ms();
+                let seen = |s: &PriceSeen| {
+                    format!(
+                        "{} Xu/cái ({}, {} Xu cho {})",
+                        smith::grouped(s.unit),
+                        s.seller,
+                        smith::grouped(s.price as i64),
+                        smith::grouped(s.quantity as i64)
+                    )
+                };
+                let line = match (&p.cheapest, &p.dearest) {
+                    (Some(lo), Some(hi)) => format!(
+                        "Giá {name} trên chợ: {} tin, {} cái; rẻ nhất {}, đắt nhất {}",
+                        p.listings,
+                        smith::grouped(p.quantity),
+                        seen(lo),
+                        seen(hi)
+                    ),
+                    _ => format!("Giá {name} trên chợ: không ai đang bán"),
+                };
+                let line = match p.done {
+                    true => line,
+                    false => format!("{line} (mới đọc {pages_read} trang đầu)"),
+                };
+                self.market_end(Some(line), out);
+            }
         }
     }
 
@@ -477,7 +638,7 @@ impl Bot {
             MarketStep::Extend { name, .. } => {
                 format!("Chưa gia hạn được {name}: server từ chối ({text})")
             }
-            MarketStep::Tabs { .. } | MarketStep::Page => return,
+            MarketStep::Tabs { .. } | MarketStep::Page | MarketStep::Prices { .. } => return,
         };
         self.market_end(Some(line), out);
     }
@@ -492,6 +653,10 @@ impl Bot {
         else {
             return;
         };
+        // Gợi ý giá cut short keeps what it read, with the time.
+        if let Some(p) = self.snap.market.prices.as_mut().filter(|p| p.at_ms == 0) {
+            p.at_ms = epoch_ms();
+        }
         let line = format!(
             "Chợ trời không trả lời sau {} s: thôi {task}",
             MARKET_WAIT.as_secs()
@@ -500,10 +665,11 @@ impl Bot {
     }
 }
 
-/// The request of a step: an empty one, a page (tab, page), one with a uuid (opcode, uuid), Đăng bán (bag slot, price).
+/// The request of a step: an empty one, a page (tab, page), one with a uuid (opcode, uuid), Đăng bán (bag slot,
+/// quantity, price).
 enum MarketCtx {
     Op(i32),
     Page(i32, i32),
     Uuid(i32, String),
-    Sell(u8, i64),
+    Sell(u8, i32, i64),
 }

@@ -930,7 +930,7 @@ impl Bot {
             }
             1192 => {
                 let page = crate::market::market(payload)?;
-                self.market_page(page, out);
+                self.market_page(page, now, out);
             }
             115 => {
                 let d = crate::market::market_done(payload, 115)?;

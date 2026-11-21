@@ -25,6 +25,28 @@ pub fn quality_name(quality: i32) -> Option<&'static str> {
         .and_then(crate::items::quality_name)
 }
 
+/// The tabs of s2c/116 an item of type `kind` (ItemDef::kind) and `gender` (items::GENDER_*) is listed in, as the
+/// 592 listings of CT1 put them: weapons 0, hats 1 (nam) and 2 (nữ), armour 3 and 4, rings 5, Huyết Châu and pets 6,
+/// stones 7, materials, Tăng Kinh Nghiệm, Tẩy điểm and eggs 8. Any other type was not seen on sale: every tab.
+pub fn tabs_of(kind: u8, gender: u8) -> Vec<i32> {
+    use crate::items::{GENDER_FEMALE, GENDER_MALE};
+    let pair = |nam: i32| match gender {
+        GENDER_MALE => vec![nam],
+        GENDER_FEMALE => vec![nam + 1],
+        _ => vec![nam, nam + 1],
+    };
+    match kind {
+        2 => vec![0],
+        0 => pair(1),
+        1 => pair(3),
+        3 => vec![5],
+        5 => vec![6],
+        10 => vec![7],
+        22 | 23 | 24 | 29 => vec![8],
+        _ => (0..9).collect(),
+    }
+}
+
 /// A stat of a listing, with the second value every listing seen had equal to the first.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct MarketStat {

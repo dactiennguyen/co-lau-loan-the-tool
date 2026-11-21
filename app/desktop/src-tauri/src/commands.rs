@@ -473,12 +473,30 @@ pub fn market_buy(shared: State<Shared>, id: u64, uuid: String, price: i32) {
     shared.with(|app| app.send(id, Command::Market(MarketTask::Buy { uuid, price })));
 }
 
-/// Chợ trời, Đăng bán: one of the item of bag slot `slot` at `price` Xu (the fee of s2c/116 is taken); `uuid`, the item
-/// the window showed, refused when the slot holds another by now.
+/// Chợ trời, Đăng bán: `quantity` of the item of bag slot `slot` at `price` Xu for them all (the fee of s2c/116 is
+/// taken); `uuid`, the item the window showed, refused when the slot holds another by now.
 #[tauri::command]
-pub fn market_sell(shared: State<Shared>, id: u64, slot: u8, price: i64, uuid: Option<String>) {
-    let task = MarketTask::Sell { slot, price, uuid };
+pub fn market_sell(
+    shared: State<Shared>,
+    id: u64,
+    slot: u8,
+    quantity: i32,
+    price: i64,
+    uuid: Option<String>,
+) {
+    let task = MarketTask::Sell {
+        slot,
+        quantity,
+        price,
+        uuid,
+    };
     shared.with(|app| app.send(id, Command::Market(task)));
+}
+
+/// Chợ trời, Gợi ý giá: the pages of the tabs item `item_id` is listed in, for the cheapest and dearest of one on sale.
+#[tauri::command]
+pub fn market_prices(shared: State<Shared>, id: u64, item_id: i32) {
+    shared.with(|app| app.send(id, Command::Market(MarketTask::Prices { item_id })));
 }
 
 /// Chợ trời, Thu hồi: the listing `uuid` of Đang bán back to the bag.
