@@ -66,12 +66,14 @@ const TURN_DELAY_MAX = 10;
 const STEP_DELAY_MAX = 30;
 const BREAK_EVERY_MAX = 1000;
 const BREAK_MINUTES_MAX = 120;
-/** The three waits of Thời gian chờ in seconds (bot/pace.rs, runner_v3.rs of cllt-core): its box and number, the most
- * seconds, its icon, its name, its word on the folded row, and when it waits. */
+/** The three waits of Thời gian chờ in seconds (bot/pace.rs, runner_v3.rs of cllt-core): its box and number, the least
+ * seconds and the step of − and + (half seconds for Chờ trước mỗi lượt đi), the most seconds, its icon, its name, its word on the folded row, and when it waits. */
 const WAIT_ROWS = [
   {
     on: "mobDelay",
     secs: "mobDelaySecs",
+    min: 1,
+    step: 1,
     max: MOB_DELAY_MAX,
     icon: "sword",
     name: "Chờ giữa các trận",
@@ -81,6 +83,9 @@ const WAIT_ROWS = [
   {
     on: "turnDelay",
     secs: "turnDelaySecs",
+    // Half a second at least, in half seconds (TURN_DELAY_MIN of cllt-core).
+    min: 0.5,
+    step: 0.5,
     max: TURN_DELAY_MAX,
     icon: "swap",
     name: "Chờ trước mỗi lượt đi",
@@ -90,6 +95,8 @@ const WAIT_ROWS = [
   {
     on: "stepDelay",
     secs: "stepDelaySecs",
+    min: 1,
+    step: 1,
     max: STEP_DELAY_MAX,
     icon: "scroll",
     name: "Chờ giữa các bước nhiệm vụ",
@@ -141,7 +148,7 @@ const BOUNDS = [
   ["mergeUpTo", 2, MERGE_MAX],
   ["mergeEvery", 1, MERGE_EVERY_MAX],
   ["mobDelaySecs", 1, MOB_DELAY_MAX],
-  ["turnDelaySecs", 1, TURN_DELAY_MAX],
+  ["turnDelaySecs", 0.5, TURN_DELAY_MAX],
   ["stepDelaySecs", 1, STEP_DELAY_MAX],
   ["breakEvery", 1, BREAK_EVERY_MAX],
   ["breakMinutes", 1, BREAK_MINUTES_MAX],
@@ -244,7 +251,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
       icon: r.icon,
       text: (
         <>
-          {r.word} <b className="px">{settings[r.secs]}</b> s
+          {r.word} <b className="px">{String(settings[r.secs]).replace(".", ",")}</b> s
         </>
       ),
     })),
@@ -545,7 +552,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
               <PaceName name={r.name} when={r.when} />
             </CheckRow>
             <span className={PACE_NUMBERS}>
-              <Stepper value={settings[r.secs]} min={1} max={r.max} label={`số giây ${r.name.toLowerCase()}`} onChange={(v) => save({ ...settings, [r.secs]: v }, true)} />
+              <Stepper value={settings[r.secs]} min={r.min} step={r.step} max={r.max} label={`số giây ${r.name.toLowerCase()}`} onChange={(v) => save({ ...settings, [r.secs]: v }, true)} />
               <span>giây</span>
             </span>
           </div>

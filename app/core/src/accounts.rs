@@ -165,7 +165,7 @@ mod tests {
                 mob_delay: true,
                 mob_delay_secs: 2,
                 turn_delay: true,
-                turn_delay_secs: 4,
+                turn_delay_secs: crate::bot::Tenths::secs(4),
                 step_delay: true,
                 step_delay_secs: 5,
                 rest_break: true,
@@ -243,7 +243,7 @@ mod tests {
         );
         assert_eq!(
             (b.mob_delay_secs, b.turn_delay_secs, b.step_delay_secs),
-            (1, 1, 1)
+            (1, crate::bot::Tenths::secs(1), 1)
         );
         assert_eq!((b.break_every, b.break_minutes), (30, 2));
         assert_eq!(b.turn_pause(), std::time::Duration::ZERO);

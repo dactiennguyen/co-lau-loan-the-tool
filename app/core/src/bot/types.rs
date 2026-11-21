@@ -326,11 +326,12 @@ pub struct FightSettings {
     #[serde(default = "one")]
     pub mob_delay_secs: u32,
     /// Chờ trước mỗi lượt đi: every own action of a battle (swap, skill, potion) waits turn_delay_secs
-    /// (1–TURN_DELAY_MAX) after the turn came; in a timed battle the longer of it and BotOptions::timed_move.
+    /// (0.5–TURN_DELAY_MAX, steps of 0.5) after the turn came; in a timed battle the longer of it and BotOptions::timed_move.
     #[serde(default)]
     pub turn_delay: bool,
-    #[serde(default = "one")]
-    pub turn_delay_secs: u32,
+    /// In steps of 0.5 s from TURN_DELAY_MIN; written as seconds (1, 0.5) in accounts.json.
+    #[serde(default = "Tenths::one_second")]
+    pub turn_delay_secs: Tenths,
     /// Chờ giữa các bước nhiệm vụ: step_delay_secs (1–STEP_DELAY_MAX) before each thing a quest run does that is not a
     /// battle: a portal, a zone, a talk to an NPC, a stat or skill point.
     #[serde(default)]
@@ -401,6 +402,51 @@ pub const MOB_DELAY_MAX: u32 = 60;
 /// The most seconds of Chờ trước mỗi lượt đi: twice it (Thời gian ngẫu nhiên) still leaves 10 s of the 30 s of a turn
 /// (05-battle.md).
 pub const TURN_DELAY_MAX: u32 = 10;
+/// The least of Chờ trước mỗi lượt đi, and its step: half a second.
+pub const TURN_DELAY_MIN: Tenths = Tenths(5);
+
+/// A time in tenths of a second, so that the settings holding it stay Eq; read and written as a number of seconds
+/// (1, 0.5, 2.5), whole seconds without a point, so accounts.json of before reads the same.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct Tenths(pub u32);
+impl Tenths {
+    pub const fn secs(s: u32) -> Self {
+        Tenths(s * 10)
+    }
+    fn one_second() -> Self {
+        Tenths(10)
+    }
+    pub fn duration(self) -> Duration {
+        Duration::from_millis(u64::from(self.0) * 100)
+    }
+    /// "1", "0,5", "2,5": seconds as the log writes them.
+    pub fn text(self) -> String {
+        match self.0 % 10 {
+            0 => (self.0 / 10).to_string(),
+            d => format!("{},{d}", self.0 / 10),
+        }
+    }
+}
+impl serde::Serialize for Tenths {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self.0 % 10 {
+            0 => s.serialize_u32(self.0 / 10),
+            _ => s.serialize_f64(f64::from(self.0) / 10.0),
+        }
+    }
+}
+impl<'de> serde::Deserialize<'de> for Tenths {
+    /// Any number of seconds, to the nearest tenth; less than 0 (or not a number) reads as 0, kept in bounds by its user.
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let secs = f64::deserialize(d)?;
+        let tenths = if secs.is_finite() {
+            (secs * 10.0).round().clamp(0.0, f64::from(u32::MAX))
+        } else {
+            0.0
+        };
+        Ok(Tenths(tenths as u32))
+    }
+}
 /// The most seconds of Chờ giữa các bước nhiệm vụ.
 pub const STEP_DELAY_MAX: u32 = 30;
 /// The most battles of Nghỉ giải lao between two breaks, and the most minutes of a break.
@@ -430,7 +476,7 @@ impl Default for FightSettings {
             mob_delay: false,
             mob_delay_secs: one(),
             turn_delay: false,
-            turn_delay_secs: one(),
+            turn_delay_secs: Tenths::one_second(),
             step_delay: false,
             step_delay_secs: one(),
             rest_break: false,
@@ -504,14 +550,16 @@ impl FightSettings {
     pub fn mob_delay_seconds(&self) -> u32 {
         self.mob_delay_secs.clamp(1, MOB_DELAY_MAX)
     }
-    /// Chờ trước mỗi lượt đi in seconds, 1 to TURN_DELAY_MAX.
-    pub fn turn_delay_seconds(&self) -> u32 {
-        self.turn_delay_secs.clamp(1, TURN_DELAY_MAX)
+    /// Chờ trước mỗi lượt đi, TURN_DELAY_MIN (0.5 s) to TURN_DELAY_MAX seconds, in steps of 0.5 s.
+    pub fn turn_delay_seconds(&self) -> Tenths {
+        let half = TURN_DELAY_MIN.0;
+        let t = self.turn_delay_secs.0.clamp(half, TURN_DELAY_MAX * 10);
+        Tenths((t + half / 2) / half * half)
     }
     /// Chờ trước mỗi lượt đi as a battle takes it: zero while off.
     pub fn turn_pause(&self) -> Duration {
         match self.turn_delay {
-            true => Duration::from_secs(self.turn_delay_seconds() as u64),
+            true => self.turn_delay_seconds().duration(),
             false => Duration::ZERO,
         }
     }

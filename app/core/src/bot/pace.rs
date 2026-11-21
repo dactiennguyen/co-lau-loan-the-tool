@@ -130,7 +130,7 @@ impl Bot {
                 match new.turn_delay {
                     true => format!(
                         "Chờ trước mỗi lượt đi: {} s trước mỗi nước đi, kỹ năng hay bình trong trận",
-                        new.turn_delay_seconds()
+                        new.turn_delay_seconds().text()
                     ),
                     false => "Tắt chờ trước mỗi lượt đi: đi ngay khi tới lượt".into(),
                 },

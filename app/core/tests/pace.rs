@@ -389,7 +389,7 @@ fn turned_on_or_off_each_wait_says_so_once_in_the_log() {
     let on = FightSettings {
         mob_delay: true,
         turn_delay: true,
-        turn_delay_secs: 2,
+        turn_delay_secs: cllt_core::bot::Tenths::secs(2),
         step_delay: true,
         rest_break: true,
         delay_random: true,
@@ -519,7 +519,7 @@ fn with_waits_turns_every_wait_on_once_and_then_keeps_what_is_set() {
             on.break_every,
             on.break_minutes
         ),
-        (4, 1, 30, 2)
+        (4, cllt_core::bot::Tenths::secs(1), 30, 2)
     );
     assert!(on.repair);
     // Turned off after: kept off, also through accounts.json.
@@ -539,5 +539,41 @@ fn with_waits_turns_every_wait_on_once_and_then_keeps_what_is_set() {
             && !d.step_delay
             && !d.rest_break
             && !d.delay_random
+    );
+}
+
+#[test]
+fn turn_delay_takes_half_seconds_and_reads_the_whole_seconds_of_before() {
+    use cllt_core::bot::Tenths;
+    let read = |json: &str| serde_json::from_str::<FightSettings>(json).unwrap();
+    // accounts.json of before: whole seconds.
+    let old = read(r#"{"turnDelay": true, "turnDelaySecs": 3}"#);
+    assert_eq!(old.turn_pause(), Duration::from_secs(3));
+    // Half a second, written back as 0.5; a whole second without a point.
+    let half = read(r#"{"turnDelay": true, "turnDelaySecs": 0.5}"#);
+    assert_eq!(half.turn_pause(), Duration::from_millis(500));
+    assert_eq!(
+        serde_json::to_value(half).unwrap()["turnDelaySecs"],
+        serde_json::json!(0.5)
+    );
+    assert_eq!(
+        serde_json::to_value(old).unwrap()["turnDelaySecs"],
+        serde_json::json!(3)
+    );
+    // Out of bounds or between steps: 0.5 s at least, 10 s at most, to the nearest half second.
+    let at = |t: u32| {
+        FightSettings {
+            turn_delay_secs: Tenths(t),
+            ..FightSettings::default()
+        }
+        .turn_delay_seconds()
+    };
+    assert_eq!(
+        (at(0), at(7), at(13), at(999)),
+        (Tenths(5), Tenths(5), Tenths(15), Tenths(100))
+    );
+    assert_eq!(
+        (Tenths(5).text(), Tenths(10).text(), Tenths(25).text()),
+        ("0,5".to_string(), "1".to_string(), "2,5".to_string())
     );
 }

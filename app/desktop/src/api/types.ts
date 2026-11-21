@@ -909,7 +909,7 @@ export interface FightSettings {
   mergeUpTo: number;
   mergeEvery: number;
   /** Thời gian chờ, every one off unless turned on. Chờ giữa các trận: mobDelaySecs (1–60) from the end of a battle to
-   * the next challenge, instead of 3 s. Chờ trước mỗi lượt đi: every own action of a battle waits turnDelaySecs (1–10).
+   * the next challenge, instead of 3 s. Chờ trước mỗi lượt đi: every own action of a battle waits turnDelaySecs (0.5–10, in half seconds).
    * Chờ giữa các bước nhiệm vụ: stepDelaySecs (1–30) before each thing of a quest run that is not a battle. Nghỉ giải
    * lao: breakMinutes (1–120) after every breakEvery battles (1–1000). Thời gian ngẫu nhiên: each wait that is on lasts
    * from its time to twice it. */
