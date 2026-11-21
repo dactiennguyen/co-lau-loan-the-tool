@@ -184,6 +184,33 @@ pub fn welfare(shared: State<Shared>, id: u64) {
     shared.with(|app| app.send(id, Command::Welfare));
 }
 
+/// Bắt đầu of the Bạch Hổ window: each account picked tries to get into the boss's battle from `from_ms` until
+/// `until_ms` (ms since 1970), waiting until then (Bot::bach_ho).
+#[tauri::command]
+pub fn bach_ho_start(shared: State<Shared>, ids: Vec<u64>, from_ms: u64, until_ms: u64) {
+    shared.with(|app| {
+        for id in ids {
+            app.send(id, Command::BachHo { from_ms, until_ms });
+        }
+    });
+}
+
+/// Dừng of the Bạch Hổ window, for these accounts (Bot::bach_ho_stop).
+#[tauri::command]
+pub fn bach_ho_stop(shared: State<Shared>, ids: Vec<u64>) {
+    shared.with(|app| {
+        for id in ids {
+            app.send(id, Command::BachHoStop);
+        }
+    });
+}
+
+/// Quay về chỗ cũ: back where Bạch Hổ took the account from (Bot::go_back).
+#[tauri::command]
+pub fn go_back(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::GoBack));
+}
+
 /// Nâng cấp on one skill of the Kỹ năng tab: one level, c2s/1191 (id, 1).
 #[tauri::command]
 pub fn upgrade_skill(shared: State<Shared>, id: u64, skill: i32) {

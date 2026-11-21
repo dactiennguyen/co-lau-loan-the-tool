@@ -35,6 +35,8 @@ pub(super) enum Wait {
     Pickup,
     /// Đập hết (bot/eggs.rs).
     Eggs,
+    /// Bạch Hổ (bot/bachho.rs).
+    BachHo,
 }
 
 /// How long a button of the Túi đồ tab waits for its answer (Bot::item, item_pending).
@@ -53,6 +55,7 @@ impl Wait {
             Wait::Mail { changing: true } => "đang nhận hay xoá thư, đợi server trả lời",
             Wait::Market { changing: true } => "đang mua bán ở Chợ trời, đợi server trả lời",
             Wait::Eggs => "đang đập trứng, bấm Dừng trước",
+            Wait::BachHo => "đang đi Bạch Hổ, bấm Dừng trước",
             _ => return None,
         })
     }
@@ -89,7 +92,7 @@ impl Bot {
             self.battle.is_some().then_some(Wait::Battle),
             self.job_running().then_some(Wait::Job),
             self.quest_running().then_some(Wait::Quest),
-            self.trip.is_some().then_some(Wait::Trip),
+            (self.trip.is_some() || self.warp.is_some()).then_some(Wait::Trip),
             self.travelling.is_some().then_some(Wait::Portal),
             self.zoning.is_some().then_some(Wait::Zone),
             self.smith.is_some().then_some(Wait::Smith),
@@ -103,6 +106,7 @@ impl Bot {
             now.filter(|&now| self.picked_at.is_some_and(|t| now < t + PICK_ANSWER))
                 .map(|_| Wait::Pickup),
             self.eggs.is_some().then_some(Wait::Eggs),
+            self.bach_ho.is_some().then_some(Wait::BachHo),
         ]
         .into_iter()
         .flatten()

@@ -39,6 +39,8 @@ export type Dialog =
   | { kind: "accountsJson" }
   /** Báo lỗi of the Nhật ký card. */
   | { kind: "report"; id: number }
+  /** Bạch Hổ (BachHoModal) of the sidebar: the world boss for the accounts in the game, picked with a tick. */
+  | { kind: "bachHo" }
   /** Đóng cửa sổ: the close button was pressed and Cài đặt says to ask; `back` is the dialog it took the place of. */
   | { kind: "close"; back: Dialog | null };
 

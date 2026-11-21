@@ -92,6 +92,21 @@ Chưa tìm được hàm native nào dùng "Tham gia ngay": bản 1.1.0 nạp ch
 
 **Vào hang:** đã biết (M15, cổng 1006, [19-luyen-nguc](19-luyen-nguc.md#hang-bạch-hổ-m24)). **Đánh boss thế nào: chưa đo.** Các nick nay đã trên cấp 30 (21/11: 80–91). Cách đo chắc nhất: lúc 21:00–21:59, trên điện thoại, nick cấp 30 trở lên, gắn Frida bắt gói như VG1 ([02-login](02-login.md#vg1)), rồi bấm "Tham gia ngay" (hay tìm nút Bạch Hổ ở Sự kiện). Gói gửi đi lúc đó là gói vào hang.
 
+## App: cửa sổ Bạch Hổ (21/11, chưa chạy thật)
+
+Nút **Bạch Hổ** ở cuối thanh bên mở cửa sổ chung cho mọi nick ([BachHoModal.tsx](../../../app/desktop/src/views/BachHoModal.tsx), [bachho.rs](../../../app/core/src/bot/bachho.rs)):
+
+- Chọn **giờ bắt đầu** và **giờ kết thúc** (mặc định 21:00–22:00, giờ Việt Nam), tích các nick đang trong game từ cấp 30, bấm **Bắt đầu**.
+- Mỗi nick dừng việc đang làm (Tự đánh, Nhiệm vụ), nhớ map và khu đang đứng, đợi tới giờ bắt đầu.
+- Tới giờ: đi qua **Bản đồ thế giới** `c2s/11 ("M99", 0, -1)` → `s2c/11` (cờ 0) → `c2s/13 ("M99", 14)` → Cổng Luyện Ngục (M15) → cổng 1006 → Hang Bạch Hổ (M24). Đường này đo ở LN1 (`captures/pl1-2026-11-20/3-frida-tiheo1.jsonl`, dòng 2289–2353): từ M25 gửi thẳng `c2s/11 "M99"`, dòng n − 1 của Bản đồ thế giới là map Mn. [Đo LN1]
+- Trong hang: cứ 5 giây thử thách đấu boss **như các boss khác** (`c2s/1178` với mobId của `s2c/43`/`s2c/1177`; boss là con có tên chứa "Bạch Hổ", không có thì boss hay quái đầu tiên của hang); không thấy thì hỏi lại `c2s/43`. Vào được trận thì đánh (thuật toán v3), hết trận 1,5 s sau thử lại, tới giờ kết thúc thì thôi. Cách vào trận này là **[Suy luận]**, chưa đo.
+- App không đọc bảng công trạng (`c2s/1252`): người dùng không cần bảng xếp hạng (21/11).
+- Mỗi trận vào được lưu vào lịch sử trận (`cllt.db`) như mọi trận, nguồn **Khác**; xem ở Thống kê của nick → Trận. Hết giờ hoặc bấm Dừng thì nhật ký có dòng tổng "Xong Bạch Hổ: … lần thử, … trận (… thắng), … sát thương".
+- Mỗi nick một dòng: đang làm gì, số lần thử, số trận, sát thương; nút **Dừng**, và **Quay về** khi xong: nhảy qua Bản đồ thế giới về đúng map cũ rồi sang khu cũ.
+- Test: `app/core/tests/bachho.rs` (đường đi và quay về theo đúng byte của LN1).
+
+Thư "Quà tham gia Bạch Hổ" của Hệ Thống có trong hòm thư tiheo1 (`s2c/1215`, LN1 dòng 1508): tham gia có quà qua thư. [Đo LN1]
+
 ## Chưa rõ, cần đo thật
 
 - Ý nghĩa thật của trạng thái 0 và 1 (2 đã thấy ngoài giờ, BH1), của hai số trước tên trong mỗi dòng, và của số cuối. Cần một `s2c/1252` trong giờ, khi đã có người đánh.

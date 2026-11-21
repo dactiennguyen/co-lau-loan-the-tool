@@ -159,6 +159,10 @@ impl Bot {
         if self.trip.is_some() {
             return self.trip_next(now, out);
         }
+        // Bạch Hổ (bachho.rs) runs on its own steps: no job nor quest run goes with it.
+        if self.bach_ho_on() {
+            return self.bach_ho_step(now, out);
+        }
         // A trip of Tự gộp đá khi túi đầy goes on by itself (merge_step) and calls the next battle once back.
         if self.merge_trip.is_some() {
             return;
@@ -279,6 +283,18 @@ impl Bot {
         let counted =
             self.battle_seq == self.job_seq && (self.job_running() || self.quest_running());
         self.battle_over(counted, now);
+        if self.bach_ho_on() && self.battle_seq == self.job_seq {
+            out.push(Out::Log(
+                LogKind::Battle,
+                format!(
+                    "Bạch Hổ: {}, {} lượt, gây {} sát thương",
+                    if end.won { "thắng" } else { "thua" },
+                    end.my_turns,
+                    end.damage
+                ),
+            ));
+            return self.bach_ho_battle_end(end.won, end.damage as i64, now);
+        }
         if self.battle_seq != self.job_seq {
             out.push(Out::Log(
                 LogKind::Battle,
@@ -376,7 +392,9 @@ impl Bot {
         let Challenge { mob_id, seq, .. } = self.challenges.remove(i);
         self.timer = None;
         self.battle_seq = seq;
-        if seq != self.job_seq || !(self.job_running() || self.quest_running()) {
+        // Bạch Hổ's battles are its own (bachho.rs), not left over from a challenge before.
+        if seq != self.job_seq || !(self.job_running() || self.quest_running() || self.bach_ho_on())
+        {
             let name = self
                 .mobs
                 .iter()

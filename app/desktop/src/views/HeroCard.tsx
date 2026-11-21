@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
 import { isConnected } from "@/utils/format";
 import type { Account } from "@/api/types";
+import { AppStatus } from "./AppStatus";
 import { BoostTag } from "./BoostTag";
 import { NearbyButton } from "./NearbyButton";
 import { ProxyButton } from "./ProxyButton";
@@ -30,7 +31,7 @@ interface Props {
 /** The selected account: who (name, level, element, gender, timed effects such as x2 EXP, status, and Thống kê at the end of the
  * status line, which opens the battle history in a modal) and where (map, zone, coordinates as text, and the icon
  * button after the map name that moves to another zone or map, then Xung quanh, the other players of the zone). Its
- * money is in the tiles under it (MetricRow). */
+ * money is in the tiles under it (MetricRow). At its right: the key and the version of the app (AppStatus), then Đăng xuất. */
 export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onStats }: Props) {
   const c = a.character;
   const connected = isConnected(a.status);
@@ -104,7 +105,9 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
         </div>
       )}
 
-      <div className="flex gap-1.5">
+      {/* The key and the version of the app (the same on every account) beside Đăng xuất. */}
+      <div className="flex items-center gap-3">
+        <AppStatus />
         {!connected && (
           <Button kind="glass" icon="trash" aria-label="Xoá nick" onClick={onRemove} />
         )}

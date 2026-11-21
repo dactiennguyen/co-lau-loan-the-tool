@@ -436,6 +436,8 @@ impl Bot {
                     );
                 }
             }
+            // Bản đồ thế giới (flag 0, "M99"): the jump of Bạch Hổ or Quay về chỗ cũ (bachho.rs).
+            11 if payload.first() == Some(&0) => self.warp_opened(now, out),
             13 => {
                 let c = map_change(payload)?;
                 if c.map_id != s.map_id {
@@ -444,6 +446,9 @@ impl Bot {
                 s.map_id = c.map_id.clone();
                 if let Some(z) = c.zone {
                     s.zone = z;
+                }
+                if self.warp_landed(&c.map_id, now, out) {
+                    return Ok(());
                 }
                 if let (None, Some(z)) = (&self.travelling, self.zoning) {
                     // The answer to c2s/1173: ask the map of that zone as the app does (B2, Z1).
@@ -494,6 +499,7 @@ impl Bot {
                     self.move_until = None;
                     self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                 }
+                self.warp_arrived(now, out);
                 if let Some(z) = self.zoning.take() {
                     (self.move_until, self.snap.moving) = (None, None);
                     out.push(Out::Log(

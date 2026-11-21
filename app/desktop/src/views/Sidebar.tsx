@@ -1,19 +1,20 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/api";
 import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
 import { Menu, type MenuItem } from "@/components/Menu";
+import { bachHoClock, minutesClock } from "@/game/bachHo";
+import { cn } from "@/utils/cn";
 import appIcon from "../../app-icon.png";
 import { inGame, useStore, type Dialog, type Store } from "@/store";
 import { logoutAllText, sessions } from "@/store/sessions";
 import type { Account } from "@/api/types";
 import { ConfirmDialog } from "@/views/dialogs/ConfirmDialog";
 import { AccountCard } from "./AccountCard";
-import { LicenseLine } from "./LicenseLine";
-import { UpdateBox } from "./UpdateBox";
 
 /** The accounts in the order `order`: shown at once, then written to accounts.json; put back with a toast when that
  * fails. */
@@ -71,6 +72,37 @@ function LogoutAllDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Bạch Hổ: opens its window (BachHoModal), with the time to 21:00 at its right, or "Đang mở" in red while the cave is
+ * open; its own clock, so the sidebar does not render again every minute. */
+function BachHoButton({ onOpen }: { onOpen: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 20_000);
+    return () => clearInterval(t);
+  }, []);
+  const clock = bachHoClock(now);
+  const open = clock.phase === "open";
+  return (
+    <button
+      type="button"
+      className={cn(
+        "relative flex items-center gap-2 h-[34px] px-2.5 border-2 notch-sm bevel-sm cursor-pointer text-left",
+        "focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-4 hover:brightness-112",
+        open ? "border-danger bg-[color-mix(in_srgb,var(--danger)_22%,var(--bg-2))]" : "border-line-strong bg-card",
+      )}
+      aria-haspopup="dialog"
+      title={open ? "Hang Bạch Hổ đang mở: chọn nick đi đánh" : "Bạch Hổ Thống Lĩnh: boss thế giới lúc 21:00"}
+      onClick={onOpen}
+    >
+      <span className={cn("grid place-items-center size-5", open ? "text-danger animate-blink motion-reduce:animate-none" : "text-coin")} aria-hidden>
+        <Icon name="crown" size={15} />
+      </span>
+      <span className="flex-1 min-w-0 whitespace-nowrap font-display font-extrabold text-12 uppercase tracking-[0.06em] text-fg">Bạch Hổ</span>
+      <span className={cn("shrink-0 whitespace-nowrap px text-11", open ? "text-danger" : "text-fg-2")}>{open ? "Đang mở" : `còn ${minutesClock(clock.minutes)}`}</span>
+    </button>
+  );
+}
+
 /** A card of the sidebar that a drag moves (@dnd-kit/sortable): the whole card is the handle, from 6 px of movement on
  * (PointerSensor), so a click still selects and its buttons still work. Lifted, it is drawn above the others. */
 function SortableCard({ id, onMenu }: { id: number; onMenu: (id: number, x: number, y: number) => void }) {
@@ -88,7 +120,7 @@ function SortableCard({ id, onMenu }: { id: number; onMenu: (id: number, x: numb
 }
 
 /**
- * Brand with the Cài đặt of the app, "Thêm nick", the accounts with their menus, the update of the app, and login/logout of every account
+ * Brand with the Cài đặt of the app, "Thêm nick", the accounts with their menus, Bạch Hổ, and login/logout of every account
  * (logout asks first while an account has a session). Its top strip drags the window.
  * It re-renders when the order of the accounts or the count in the game changes; each card follows its own account.
  */
@@ -178,8 +210,7 @@ export function Sidebar() {
       {menu && menuAccount && (
         <Menu x={menu.x} y={menu.y} label={`Nick ${menuAccount.label}`} items={accountMenu(menuAccount, open, order)} onClose={closeMenu} />
       )}
-      <LicenseLine />
-      <UpdateBox />
+      <BachHoButton onOpen={() => open({ kind: "bachHo" })} />
       <div className="flex gap-1.5">
         <Button kind="outline" icon="bolt" block disabled={order.length === 0} onClick={api.loginAll}>
           Đăng nhập tất cả

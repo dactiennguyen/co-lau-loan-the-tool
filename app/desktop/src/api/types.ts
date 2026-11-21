@@ -401,6 +401,10 @@ export interface Character {
   gift: GiftRun | null;
   /** Đập hết under way (Túi đồ); null once it ends, its end line in the log. */
   eggs: EggRun | null;
+  /** Bạch Hổ under way or last done (BachHoModal); null before any. */
+  bachHo: BachHoRun | null;
+  /** Where Bạch Hổ took the character from, for Quay về chỗ cũ; null once back. */
+  backPoint: BackPoint | null;
   /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
   giftLimits: GiftLimits;
   /** Hòm thư (Tiện ích): the list, the mails opened, the task under way. */
@@ -502,6 +506,26 @@ export interface MailBody {
   luong: number;
   items: Item[];
   slots: number;
+}
+
+/** Bạch Hổ (Bot::bach_ho): from when to when it tries (ms since 1970), what it does now, the tries, battles, wins and
+ * damage; `done` the words it ended with. */
+export interface BachHoRun {
+  fromMs: number;
+  untilMs: number;
+  doing: string;
+  tries: number;
+  battles: number;
+  wins: number;
+  damage: number;
+  done: string | null;
+}
+
+/** A map and zone Quay về chỗ cũ goes back to. */
+export interface BackPoint {
+  mapId: string;
+  mapName: string;
+  zone: number;
 }
 
 /** Đập hết (Bot::break_all): the stack's bag slot, the eggs broken of how many, the fee spent and what came out. */

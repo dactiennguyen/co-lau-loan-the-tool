@@ -96,6 +96,16 @@ pub enum Command {
     Mail(MailTask),
     /// A task of the Chợ trời tab (Bot::market).
     Market(MarketTask),
+    /// Bạch Hổ of its window: try to get into the boss's battle from `from_ms` until `until_ms`, ms since 1970
+    /// (Bot::bach_ho).
+    BachHo {
+        from_ms: u64,
+        until_ms: u64,
+    },
+    /// Dừng of the Bạch Hổ window (Bot::bach_ho_stop).
+    BachHoStop,
+    /// Quay về chỗ cũ: back where Bạch Hổ took the character from (Bot::go_back).
+    GoBack,
     /// Báo lỗi with the note of the user: the session answers with Event::Fault, its last packets and commands.
     Report(String),
     Logout,

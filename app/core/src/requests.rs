@@ -101,6 +101,8 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         42 | 29 => w
             .string(required(c.character_name, "characterName")?)
             .build(),
+        // Bản đồ thế giới: "M99" with (0, -1) (08-server-map-zone.md#c2s11-m99--s2c11; LN1).
+        11 if c.map_id == Some("M99") => w.string("M99").u8(0).i32(-1).build(),
         // After a zone change the app asks the map of that zone: (zone, 0) instead of (-1, -1) (B2).
         11 => w
             .string(required(c.map_id, "mapId")?)

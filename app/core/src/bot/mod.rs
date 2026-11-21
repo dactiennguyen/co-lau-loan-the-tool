@@ -39,6 +39,7 @@ use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod bachho;
 mod daily;
 mod eggs;
 mod fight;
@@ -305,6 +306,10 @@ pub struct Bot {
     discard_count: (usize, usize),
     /// Đập hết (bot/eggs.rs): the egg under way; its count and gains are snap.eggs.
     eggs: Option<eggs::EggStep>,
+    /// Bạch Hổ (bot/bachho.rs): the run under way; its figures are snap.bach_ho.
+    bach_ho: Option<bachho::State>,
+    /// A jump through Bản đồ thế giới under way (Bạch Hổ, Quay về chỗ cũ).
+    warp: Option<bachho::Warp>,
     /// The zone of c2s/1173 until s2c/43 of it (change_zone).
     zoning: Option<i32>,
     /// "Đổi map": the map (id, name) the bot walks to through portals (go_to), until it is there.
@@ -429,6 +434,8 @@ impl Bot {
             discards: VecDeque::new(),
             discard_count: (0, 0),
             eggs: None,
+            bach_ho: None,
+            warp: None,
             zoning: None,
             trip: None,
             zone_after: None,
@@ -743,6 +750,7 @@ impl Bot {
         self.welfare_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {
             (self.move_until, self.snap.moving) = (None, None);
+            self.warp_timeout(now, out);
             if let Some(z) = self.zoning.take() {
                 out.push(Out::Log(
                     LogKind::Travel,
@@ -767,6 +775,10 @@ impl Bot {
                 ));
                 if self.quest_running() {
                     self.finish_quest(&format!("Không vào được map sau cổng {name}"), out);
+                }
+                // Bạch Hổ's portal into the cave: tried again.
+                if self.bach_ho_on() {
+                    self.timer = Some((now + Duration::from_secs(5), Wake::Next));
                 }
             }
         }
@@ -810,6 +822,7 @@ impl Bot {
                 format!("Kết thúc: thôi đi tới {name}"),
             ));
         }
+        self.bach_ho_stop(out);
         self.smith_stop(now, out);
         self.egg_stop(out);
         self.gift_stop(out);

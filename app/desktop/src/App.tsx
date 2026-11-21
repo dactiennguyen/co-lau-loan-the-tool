@@ -9,6 +9,7 @@ import { PlaceDialog } from "@/views/dialogs/PlaceDialog";
 import { ReportDialog } from "@/views/dialogs/ReportDialog";
 import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
 import { AccountsJsonDialog } from "@/views/dialogs/AccountsJsonDialog";
+import { BachHoModal } from "@/views/BachHoModal";
 import { SkillsModal } from "@/views/SkillsModal";
 import { StatsModal } from "@/views/StatsModal";
 import { ShopModal } from "@/views/shop/ShopModal";
@@ -47,9 +48,9 @@ export default function App() {
   );
 }
 
-/** "Thêm nick", "Sửa nick", the question before removing one, Dừng during a battle, Đổi khu / map, Tiện ích, Báo lỗi,
- * Khởi động lại để cập nhật while accounts play, the Cài đặt of the app and Đóng cửa sổ; nothing once the account it is
- * about is gone. */
+/** "Thêm nick", "Sửa nick", Bạch Hổ, the question before removing one, Dừng during a battle, Đổi khu / map, Tiện ích,
+ * Báo lỗi, Khởi động lại để cập nhật while accounts play, the Cài đặt of the app and Đóng cửa sổ; nothing once the
+ * account it is about is gone. */
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   const account = useStore((s) => (dialog && "id" in dialog ? s.byId[dialog.id] : undefined));
@@ -75,6 +76,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "accountsJson") {
     return <AccountsJsonDialog onClose={close} />;
+  }
+  if (dialog?.kind === "bachHo") {
+    return <BachHoModal onClose={close} />;
   }
   if (dialog?.kind === "close") {
     // Huỷ, or the window back from the tray, finds the dialog that was open.

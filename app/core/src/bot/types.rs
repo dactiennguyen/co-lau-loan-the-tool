@@ -863,6 +863,30 @@ pub struct EggRun {
     pub got: Vec<EggGain>,
 }
 
+/// Bạch Hổ under way or last done (Bot::bach_ho): from when to when it tries (ms since 1970), what it does now in words,
+/// the tries to get into a battle with the boss, the battles fought and their damage; `done` the words it ended with.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BachHoRun {
+    pub from_ms: u64,
+    pub until_ms: u64,
+    pub doing: String,
+    pub tries: u32,
+    pub battles: u32,
+    pub wins: u32,
+    pub damage: i64,
+    pub done: Option<String>,
+}
+
+/// A map and zone to go back to (Quay về chỗ cũ).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackPoint {
+    pub map_id: String,
+    pub map_name: String,
+    pub zone: i32,
+}
+
 /// "Bạn vừa nhận được 252 Xu khóa": name and count, added up over the eggs.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct EggGain {
@@ -1156,6 +1180,10 @@ pub struct Snapshot {
     pub gift: Option<GiftRun>,
     /// Đập hết under way (Bot::break_all); None once it ends, its end line in the log.
     pub eggs: Option<EggRun>,
+    /// Bạch Hổ (bot/bachho.rs): the run under way or last done; None before any.
+    pub bach_ho: Option<BachHoRun>,
+    /// Where the character was before Bạch Hổ took it away, for Quay về chỗ cũ (Bot::go_back); None once back.
+    pub back_point: Option<BackPoint>,
     /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().
     pub gift_limits: GiftLimits,
     /// Hòm thư (Bot::mail).

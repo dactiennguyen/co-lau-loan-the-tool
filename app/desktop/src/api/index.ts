@@ -82,6 +82,12 @@ export interface Api {
   breakAll(id: number, slot: number, uuid: string): Promise<void>;
   /** Nhận ngay of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now, the switch on or not. */
   welfare(id: number): Promise<void>;
+  /** Bắt đầu of the Bạch Hổ window: these accounts try to get into the boss's battle from `fromMs` until `untilMs`. */
+  bachHoStart(ids: number[], fromMs: number, untilMs: number): Promise<void>;
+  /** Dừng of the Bạch Hổ window for these accounts. */
+  bachHoStop(ids: number[]): Promise<void>;
+  /** Quay về chỗ cũ: back where Bạch Hổ took the account from. */
+  goBack(id: number): Promise<void>;
   /** Khu vực: asks the zones of the map and their players again (c2s/1172). */
   listZones(id: number): Promise<void>;
   /** Another zone of the map (c2s/1173); the log tells how it went. */
@@ -270,6 +276,9 @@ const tauri: Api = {
   discardMany: (id, items) => invoke("discard_many", { id, items: items.map((i) => [i.slot, i.uuid]) }),
   breakAll: (id, slot, uuid) => invoke("break_all", { id, slot, uuid }),
   welfare: (id) => invoke("welfare", { id }),
+  bachHoStart: (ids, fromMs, untilMs) => invoke("bach_ho_start", { ids, fromMs, untilMs }),
+  bachHoStop: (ids) => invoke("bach_ho_stop", { ids }),
+  goBack: (id) => invoke("go_back", { id }),
   listZones: (id) => invoke("list_zones", { id }),
   changeZone: (id, zone) => invoke("change_zone", { id, zone }),
   goToMap: (id, mapId) => invoke("go_to_map", { id, mapId }),
@@ -408,6 +417,9 @@ const preview: Api = {
   discardMany: nothing,
   breakAll: nothing,
   welfare: nothing,
+  bachHoStart: nothing,
+  bachHoStop: nothing,
+  goBack: nothing,
   listZones: nothing,
   changeZone: nothing,
   goToMap: nothing,
