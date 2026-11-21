@@ -6,7 +6,13 @@ import { finish, itemRecord, itemLayouts } from './world.ts';
 
 export type ItemRecord = ReturnType<typeof itemRecord>;
 /** The fields of a bag item the plans below read. */
-export interface BagItem { slot: number; itemId: number; field0: number; field1: number }
+export interface BagItem { slot: number; itemId: number; field0: number; field1: number; quantity?: number }
+/** How many a slot holds: the stack, 1 where it is left out (0 or none). */
+export const countOf = (i: BagItem) => Math.max(1, i.quantity ?? 1);
+/** How many stones one stack holds at most: Đá cấp 1–12 stack to 999 since the item table of 16/11 (ST1). */
+export const STONE_STACK = 999;
+/** Stones a Nâng cấp window holds (s2c/96); upgradeStones gives no more of one stack. */
+export const UPGRADE_SLOTS = 18;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Where: the NPCs and the lines of their menus (c2s/57, mã dòng) that open each shop or window.
@@ -216,11 +222,13 @@ function mergeKinds({ upTo = 12, unlocked = true, level, locked: lock }: MergeOp
 /** Gộp đá: the sets of 4 stones of a level that Luyện đá makes into one of the next at 100%, lowest level first. Unlocked
  * stones go together in Luyện đá [Xu], paid in Xu, so the stone made stays tradeable; locked ones in [Xu khóa]. A level's
  * 1–3 stones left over stay. The stones made are not in this plan: plan again on the new bag to go on up. `sets` is not
- * applied here: the bot counts its merges. */
+ * applied here: the bot counts its merges. Stones stack (ST1): a slot stands in `slots` once per stone it holds, so a set
+ * may be four of one slot, put in with c2s/97 quantity 4. */
 export function mergePlan(bag: BagItem[], options: MergeOptions = {}): MergeSet[] {
   const sets: MergeSet[] = [];
   for (const { level, lock } of mergeKinds(options)) {
-    const slots = bag.filter(i => stoneLevel(i.itemId) === level && locked(i) === lock).map(i => i.slot).sort((a, b) => a - b);
+    const slots = bag.filter(i => stoneLevel(i.itemId) === level && locked(i) === lock).sort((a, b) => a.slot - b.slot)
+      .flatMap(i => Array<number>(countOf(i)).fill(i.slot));
     for (let k = 0; k + 4 <= slots.length; k += 4) {
       sets.push({ level, slots: slots.slice(k, k + 4), locked: lock, window: lock ? 'mergeXuKhoa' : 'mergeXu', fee: mergeFee(level + 1) });
     }
@@ -231,24 +239,31 @@ export function mergePlan(bag: BagItem[], options: MergeOptions = {}): MergeSet[
 /** What Gộp đá does in all, going on up with the stones it makes (mergePlan again after each), at most `sets` merges: how
  * many merges, the fees in Xu and Xu khóa, the bag slots freed, and the stones made by level and lock. */
 export function mergeForecast(bag: BagItem[], options: MergeOptions = {}) {
-  const count = new Map<string, number>(), made = new Map<string, number>();
-  for (const i of bag) {
-    const level = stoneLevel(i.itemId);
-    if (level) count.set(`${level}:${locked(i)}`, (count.get(`${level}:${locked(i)}`) ?? 0) + 1);
-  }
+  // The stacks of each level and lock in slot order, as Gộp đá takes them (mergePlan): four stones from the first ones,
+  // and the stone made onto the first stack of its kind with room, else into a slot of its own (ST1).
+  const stacks = new Map<string, number[]>(), made = new Map<string, number>();
+  const held = bag.filter(i => stoneLevel(i.itemId)).sort((a, b) => a.slot - b.slot);
+  const of = (key: string) => stacks.get(key) ?? (stacks.set(key, []), stacks.get(key)!);
+  for (const i of held) of(`${stoneLevel(i.itemId)}:${locked(i)}`).push(countOf(i));
   let merges = 0, xu = 0, xuKhoa = 0;
   for (const { level, lock } of mergeKinds(options)) {
-    const sets = Math.min(Math.floor((count.get(`${level}:${lock}`) ?? 0) / 4), (options.sets ?? Infinity) - merges);
-    if (sets <= 0) continue;
-    const key = `${level + 1}:${lock}`;
-    count.set(key, (count.get(key) ?? 0) + sets);
-    made.set(key, (made.get(key) ?? 0) + sets);
-    merges += sets;
-    if (lock) xuKhoa += sets * mergeFee(level + 1);
-    else xu += sets * mergeFee(level + 1);
+    const from = of(`${level}:${lock}`), key = `${level + 1}:${lock}`;
+    while (from.reduce((n, k) => n + k, 0) >= 4 && merges < (options.sets ?? Infinity)) {
+      let take = 4;
+      for (let k = 0; k < from.length; k++) { const t = Math.min(take, from[k]); from[k] -= t; take -= t; }
+      from.splice(0, from.length, ...from.filter(n => n > 0));
+      const to = of(key), room = to.findIndex(n => n < STONE_STACK);
+      if (room >= 0) to[room]++;
+      else to.push(1);
+      made.set(key, (made.get(key) ?? 0) + 1);
+      merges++;
+      if (lock) xuKhoa += mergeFee(level + 1);
+      else xu += mergeFee(level + 1);
+    }
   }
+  const after = [...stacks.values()].reduce((n, s) => n + s.length, 0);
   return {
-    merges, xu, xuKhoa, freed: merges * 3,
+    merges, xu, xuKhoa, freed: held.length - after,
     made: [...made].map(([k, n]) => ({ level: Number(k.split(':')[0]), locked: k.endsWith('true'), count: n }))
       .filter(m => m.count > 0).sort((a, b) => a.level - b.level || Number(a.locked) - Number(b.locked)),
   };
@@ -256,10 +271,12 @@ export function mergeForecast(bag: BagItem[], options: MergeOptions = {}) {
 
 /** The stones Nâng cấp may use, in the order to put them: lowest value first, and within a level the locked ones before
  * the unlocked ones, which stay tradeable longer. `unlocked` false leaves unlocked stones out. The server takes every
- * stone put in (J3), so the bot puts them one by one and stops as soon as the odds are reached. */
-export function upgradeStones<T extends BagItem>(bag: T[], { unlocked = true } = {}) {
+ * stone put in (J3), so the bot puts them one by one and stops as soon as the odds are reached. A stack stands once per
+ * stone, at most UPGRADE_SLOTS of it (a window's worth): c2s/97 of the same slot again adds one more stone (ST1). */
+export function upgradeStones<T extends BagItem>(bag: T[], { unlocked = true } = {}): T[] {
   return bag.filter(i => stoneLevel(i.itemId) && (unlocked || locked(i)))
-    .sort((a, b) => stoneLevel(a.itemId) - stoneLevel(b.itemId) || Number(locked(b)) - Number(locked(a)) || a.slot - b.slot);
+    .sort((a, b) => stoneLevel(a.itemId) - stoneLevel(b.itemId) || Number(locked(b)) - Number(locked(a)) || a.slot - b.slot)
+    .flatMap(i => Array<T>(Math.min(countOf(i), UPGRADE_SLOTS)).fill(i));
 }
 
 /** The bag items Chuyển hoá may move `source`'s level to (16-upgrade.md#chuyển-hoá): another item of the same type, at

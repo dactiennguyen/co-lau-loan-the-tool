@@ -6,6 +6,7 @@ Mốc: APK 1.0.3, server Thanh Khê, nhân vật symap (tài khoản tiheo1, c�
 - **J2** (01/11): bot TS chạy 4 lượt. Mỗi lượt mở các cửa sổ của Pháp sư, đặt món và đá (`c2s/97`), rồi đọc giá và tỉ lệ server báo. **Không bấm Bắt đầu lần nào**, nên không tốn gì. Dữ liệu thô và script ở `captures/n2-2026-11-01/` (chỉ có trên máy, không vào git).
 - **J3** (01/11, người dùng đồng ý tiêu): bot TS **bấm Bắt đầu thật** ở mọi cửa sổ: 7 lần Luyện đá (6 thành công, 1 bị từ chối), 3 lần Nâng cấp (1 thất bại), 2 lần Tách đá (lần đầu túi đầy), 1 Chuyển hoá; mua 2 món bằng Lượng, đổi 50 Lượng. Sau mỗi lần, bot xin lại cả túi (`c2s/42`) để so món nào mất, món nào thêm ([kết quả J3](#j3)). Tổng: tốn 2 Xu, 87 Lượng, 1.800 Xu khóa, nhận 55.000 Xu khóa.
 - **O1** (01/11, nhân vật Ttuananh của tài khoản tiheo2, cấp 31; người dùng nhờ "thử hết" Pháp sư): bot TS (`captures/o1-2026-11-01/probe.ts`, chỉ chạy với tiheo2) và điện thoại có Frida. Chế tạo Nhẫn Bậc I, thử Bậc II và III, nâng một Nhẫn Thái Cực từ +0 lên +7 (có thất bại tụt cấp, có bùa), Đổi Băng Tâm lấy bình. Trên máy chỉ để bắt gói client gửi khi đặt nguyên liệu chế tạo và đặt bùa. Tốn 6.400 Xu, 71.507 Xu khóa, 139 Lượng ([kết quả O1](#o1)).
+- **ST1** (21/11, nhân vật akaito của tài khoản tiheo2, cấp 57, máy chủ plays1; người dùng nhờ "check hết"): bot TS đặt **đá xếp chồng** vào Luyện đá và Nâng cấp theo nhiều cách mà không bấm, rồi bấm thật 1 lần Luyện đá (4 Đá cấp 2 của một chồng, 7 Xu khóa). App Rust (`cllt`) nâng 1 lần Nhẫn Chữ Thập +0→+1 (10 Xu khóa) và chạy Gộp đá ([đá xếp chồng](#đá-xếp-chồng-st1)).
 - **Cẩm nang** của game (`cam-nang.json` chép từ máy ngày 01/11, trang Trang bị và Tiền tệ). Chữ trích nguyên văn có nhãn [Cẩm nang].
 
 Nhãn: **[Đo]**, **[Suy luận]**, **[Chưa rõ]**, **[Cẩm nang]**.
@@ -71,6 +72,22 @@ Trang Tiền tệ: "Xu khóa: dùng mua đồ ở cửa hàng NPC, trả phí c�
 - **Khoá:** đá rơi từ quái và đá Tách đá trả về đều đã khoá. Đá mua bằng Lượng thì chưa khoá. Đá luyện ra chỉ không khoá khi mọi viên đặt vào chưa khoá và dùng Luyện đá [Xu] ([khoá](15-shops.md#khoá)). [Đo]
 - **Mã 43, 45, 46** cũng tên Đá cấp 9, 11, 12, cùng mô tả, nhưng là loại 22 và chồng được 999. Chưa thấy ở túi, đồ rơi hay cửa hàng nào; chưa biết server có nhận để nâng cấp không. [Chưa rõ]
 - **Không phải đá nâng cấp:** Gỗ, Da, Quặng, Linh Thạch Bậc 1–3 là nguyên liệu Chế tạo trang bị ([chế tạo](#chế-tạo)); Linh Thạch Bậc 4–6 ghi "bậc cao (chưa mở)". Kim Thạch, Huyết Thạch, Lông Vũ, Vuốt Quỷ, Băng Tâm dùng chế cánh và Băng Kiếm.
+
+### Đá xếp chồng (ST1)
+
+Từ bản cập nhật bảng vật phẩm ngày 16/11, Đá cấp 1–12 **xếp chồng tới 999 viên một ô** ([bảng 29](../artifact.md)), nên "mỗi viên một ô" ở các phần đo trước 16/11 không còn đúng. Túi của akaito ngày 21/11 có Đá cấp 2 ×37, cấp 3 ×82, cấp 4 ×58, cấp 5 ×38, cấp 6 ×2, mỗi loại một ô. Cách server nhận một chồng [Đo ST1]:
+
+| Gửi `c2s/97` | Luyện đá [Xu khóa] (`s2c/92`) | Nâng cấp [thường] Nhẫn Chữ Thập +0 (`s2c/90`) |
+|---|---|---|
+| Loại 0, ô chồng Đá 2, **sốLượng 4** | Đá cấp 3 Khóa, 7 Xu khóa, **100%** (tính đủ 4 viên) | |
+| Loại 0, sốLượng 8 | Đá cấp 4 Khóa, 26 Xu khóa, 50% (8 viên) | |
+| Loại 0, sốLượng 3 | | 80% (trần; 1 viên chỉ 66%) |
+| **Cùng ô, sốLượng 1, gửi nhiều lần** | lần 1 "Cần chọn đá số lượng 2 đến 24", rồi 50%, 75%, 100%: **cộng dồn** | 66% rồi 80%: **cộng dồn** |
+| Loại 1, sốLượng 4 / 3 | "Cần chọn đá số lượng 2 đến 24" | "Vật phẩm không phù hợp" |
+
+- Bấm thật 4 Đá cấp 2 gửi một gói sốLượng 4: chồng Đá 2 từ 37 còn 33, chồng Đá 3 từ 82 lên 83 (viên mới vào luôn chồng có sẵn, `s2c/93` báo ô 1 sốLượng 1), Xu khóa −7. Vậy server trừ đúng số viên đặt vào. [Đo ST1]
+- Trường sốLượng của `s2c/90` vẫn là 1 cả khi gửi sốLượng 3. [Đo ST1; ý nghĩa Chưa rõ]
+- **Với bot:** đặt đá từng viên như trước vẫn đúng, chỉ cần gửi **lại cùng ô** khi chồng còn viên (loại 0, sốLượng 1), hoặc gửi sốLượng N một lần khi đã biết đủ N viên (Luyện đá 4 viên). Code đếm theo ô sẽ coi cả chồng là 1 viên ([trong app](#trong-app)).
 
 <a id="cửa-sổ"></a>
 
@@ -504,6 +521,14 @@ Tiền của Tiheo2 trước và sau O1: Xu 15.103.600 → 15.097.200 (chế Nh�
 ## Trong app
 
 Modal **Tiện ích** của app Rust (trước gọi là Cửa hàng) làm được mọi việc ở trên, theo đúng các bước đã đo ([features](../../integration/rust/features.md#tiện-ích)): Mua ở 14 cửa hàng (cả Lượng), Gộp đá (chỉ bộ 4 viên, 100%; gộp hết tới một cấp, hay từng bộ một bằng nút Gộp của mỗi dòng), Nâng cấp tới trần của món (Thường hay Cẩn thận, đá rẻ nhất trước, mở lại cửa sổ khi một viên không làm tỉ lệ tăng, hết đá mà chưa đủ tỉ lệ thì không bấm; đồ đang mặc thì cởi ra, nâng, rồi mặc lại; **Bùa bảo vệ** `c2s/97` loại 1 ở mỗi lần nâng mà thất bại sẽ tụt cấp, không bùa thì dừng ở lần tụt đầu tiên), Hỏi giá (miễn phí), Tách đá, Chuyển hoá, **Chế tạo trang bị** (bảng 4 loại × 3 bậc hiện ngay theo công thức đã đo, với nguyên liệu đang có, cái còn thiếu và món đang mặc; bot đọc lại menu trước khi chế, nguyên liệu loại 1 với cả chồng), **Đổi Băng Tâm**, Đổi lượng. CLI: `cllt smith` (thêm `--charm=never`). **Tự gộp đá khi túi đầy** (Cài đặt đánh) dùng chính Gộp đá này giữa các trận của Tự đánh quái: túi đầy thì sang M1, gộp đá khoá chỉ bằng Xu khóa rồi quay về ([features](../../integration/rust/features.md#tự-gộp-đá-khi-túi-đầy)). Bùa, Chế tạo và Đổi Băng Tâm mới chạy trong test phát lại gói O1, chưa chạy thật trong app.
+
+**Đá xếp chồng (ST1 21/11):** trước bản sửa ngày 21/11, `npc::upgrade_stones`, `npc::merge_plan` (Rust) và `upgradeStones`, `mergePlan` (TS) coi mỗi ô là một viên. Đo với túi của akaito: Gộp đá báo "không có 4 viên đá cùng cấp nào để gộp" dù có 32 Đá cấp 2 trong một ô; Nâng cấp +0→+1 dùng Đá 2 + **Đá 3** thay vì 2 Đá 2; Tự gộp đá không bao giờ đi. Bản sửa ([đá xếp chồng](#đá-xếp-chồng-st1)):
+
+- Gộp đá đếm từng viên; bộ 4 viên của một chồng đi vào bằng một `c2s/97` số lượng 4. Túi đầy mà viên luyện ra không có chỗ thì dừng trước.
+- Nâng cấp gửi lại cùng ô cho mỗi viên thêm; 18 ô đầy đá rẻ chưa đủ tỉ lệ thì mở lại cửa sổ bỏ cấp thấp nhất.
+- Dự báo số ô trống tính theo chồng; Tự gộp đá chỉ đi khi lần gộp làm trống ít nhất một ô.
+- Bảng đá của app, `cllt` và `npm run smith` đếm từng viên.
+- Chưa chạy thật trong app sau bản sửa (chỉ test phát lại và các lần đo ST1).
 
 Bot TS `npm run smith` ([Pháp sư bằng Node.js](../../integration/nodejs/smith.md)) làm cùng các việc như app: Hỏi giá, Nâng cấp có bùa, Gộp đá, Tách đá, Chuyển hoá, Chế tạo trang bị, Đổi Băng Tâm. Khác ở chỗ bản TS mặc định dừng ở thất bại đầu tiên (`--tries` để bấm tiếp), còn app có bùa thì thử lại cấp đó. Không có `--confirm` thì bot dừng trước Bắt đầu. Đã có test phát lại gói O1; chưa chạy với server thật.
 

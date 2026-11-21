@@ -52,6 +52,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   }, [item?.uuid, item?.plus, top]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stones = (c.bag?.items ?? []).filter((i) => stoneLevel(i.id) && (unlocked || i.locked));
+  const stoneCount = stones.reduce((n, i) => n + Math.max(1, i.quantity), 0);
   // The stones by level, as the bot will put them: the cheapest first.
   const stoneRow = stoneCounts(c.bag?.items ?? [])
     .map(([locked, free], level): [number, number] => [level, locked + (unlocked ? free : 0)])
@@ -168,7 +169,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
             )}
           </div>
           <p className={SHOP.note}>
-            {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stones.length} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
+            {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stoneCount} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
             khi đủ tỉ lệ hoặc tỉ lệ không tăng nữa (server lấy hết đá đã đặt); hết đá mà chưa đủ tỉ lệ thì không bấm.
           </p>
           {risky.length > 0 && (

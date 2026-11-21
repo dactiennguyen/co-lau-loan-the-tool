@@ -17660,7 +17660,7 @@
      "merges": 6,
      "xu": 0,
      "xuKhoa": 3689,
-     "freed": 18,
+     "freed": 19,
      "made": [
       { "level": 6, "locked": true, "count": 5 },
       { "level": 7, "locked": true, "count": 1 }
@@ -17757,7 +17757,7 @@
      "merges": 7,
      "xu": 2,
      "xuKhoa": 3689,
-     "freed": 21,
+     "freed": 22,
      "made": [
       { "level": 2, "locked": false, "count": 1 },
       { "level": 6, "locked": true, "count": 5 },
@@ -17846,7 +17846,7 @@
      "merges": 5,
      "xu": 0,
      "xuKhoa": 2050,
-     "freed": 15,
+     "freed": 20,
      "made": [
       { "level": 6, "locked": true, "count": 5 }
      ]
@@ -17942,7 +17942,7 @@
      "merges": 6,
      "xu": 2,
      "xuKhoa": 2050,
-     "freed": 18,
+     "freed": 23,
      "made": [
       { "level": 2, "locked": false, "count": 1 },
       { "level": 6, "locked": true, "count": 5 }
@@ -18140,7 +18140,7 @@
      "merges": 6,
      "xu": 0,
      "xuKhoa": 3689,
-     "freed": 18,
+     "freed": 19,
      "made": [
       { "level": 6, "locked": true, "count": 5 },
       { "level": 7, "locked": true, "count": 1 }
@@ -18230,7 +18230,7 @@
      "merges": 6,
      "xu": 0,
      "xuKhoa": 3689,
-     "freed": 18,
+     "freed": 19,
      "made": [
       { "level": 6, "locked": true, "count": 5 },
       { "level": 7, "locked": true, "count": 1 }
@@ -18318,7 +18318,7 @@
      "merges": 1,
      "xu": 0,
      "xuKhoa": 410,
-     "freed": 3,
+     "freed": 4,
      "made": [
       { "level": 6, "locked": true, "count": 1 }
      ]
@@ -18407,7 +18407,7 @@
      "merges": 1,
      "xu": 0,
      "xuKhoa": 410,
-     "freed": 3,
+     "freed": 4,
      "made": [
       { "level": 6, "locked": true, "count": 1 }
      ]
@@ -18494,7 +18494,7 @@
      "merges": 5,
      "xu": 0,
      "xuKhoa": 2050,
-     "freed": 15,
+     "freed": 20,
      "made": [
       { "level": 6, "locked": true, "count": 5 }
      ]
@@ -18583,7 +18583,7 @@
      "merges": 5,
      "xu": 0,
      "xuKhoa": 2050,
-     "freed": 15,
+     "freed": 20,
      "made": [
       { "level": 6, "locked": true, "count": 5 }
      ]
@@ -18670,7 +18670,7 @@
      "merges": 2,
      "xu": 0,
      "xuKhoa": 820,
-     "freed": 6,
+     "freed": 8,
      "made": [
       { "level": 6, "locked": true, "count": 2 }
      ]
@@ -18766,7 +18766,7 @@
      "merges": 2,
      "xu": 2,
      "xuKhoa": 410,
-     "freed": 6,
+     "freed": 7,
      "made": [
       { "level": 2, "locked": false, "count": 1 },
       { "level": 6, "locked": true, "count": 1 }
@@ -19082,6 +19082,1048 @@
      "freed": 0,
      "made": []
     }
+   },
+   {
+    "bag": [
+     { "slot": 1, "itemId": 413, "field0": 0, "field1": 0, "quantity": 82 },
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 37 },
+     { "slot": 5, "itemId": 415, "field0": 0, "field1": 0, "quantity": 38 },
+     { "slot": 6, "itemId": 414, "field0": 0, "field1": 0, "quantity": 58 },
+     { "slot": 10, "itemId": 416, "field0": 0, "field1": 0, "quantity": 2 }
+    ],
+    "opts": {},
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 70,
+     "xu": 0,
+     "xuKhoa": 21545,
+     "freed": 1,
+     "made": [
+      { "level": 3, "locked": true, "count": 9 },
+      { "level": 4, "locked": true, "count": 22 },
+      { "level": 5, "locked": true, "count": 20 },
+      { "level": 6, "locked": true, "count": 14 },
+      { "level": 7, "locked": true, "count": 4 },
+      { "level": 8, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 4 }
+    ],
+    "opts": {},
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 0,
+     "xuKhoa": 7,
+     "freed": 0,
+     "made": [
+      { "level": 3, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 1, "itemId": 413, "field0": 0, "field1": 0, "quantity": 82 },
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 37 },
+     { "slot": 5, "itemId": 415, "field0": 0, "field1": 0, "quantity": 38 },
+     { "slot": 6, "itemId": 414, "field0": 0, "field1": 0, "quantity": 58 },
+     { "slot": 10, "itemId": 416, "field0": 0, "field1": 0, "quantity": 2 }
+    ],
+    "opts": { "upTo": 3 },
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     }
+    ],
+    "forecast": {
+     "merges": 9,
+     "xu": 0,
+     "xuKhoa": 63,
+     "freed": 0,
+     "made": [
+      { "level": 3, "locked": true, "count": 9 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 4 }
+    ],
+    "opts": { "upTo": 3 },
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 0,
+     "xuKhoa": 7,
+     "freed": 0,
+     "made": [
+      { "level": 3, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 1, "itemId": 413, "field0": 0, "field1": 0, "quantity": 82 },
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 37 },
+     { "slot": 5, "itemId": 415, "field0": 0, "field1": 0, "quantity": 38 },
+     { "slot": 6, "itemId": 414, "field0": 0, "field1": 0, "quantity": 58 },
+     { "slot": 10, "itemId": 416, "field0": 0, "field1": 0, "quantity": 2 }
+    ],
+    "opts": { "level": 2, "sets": 2 },
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     }
+    ],
+    "forecast": {
+     "merges": 2,
+     "xu": 0,
+     "xuKhoa": 14,
+     "freed": 0,
+     "made": [
+      { "level": 3, "locked": true, "count": 2 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 4 }
+    ],
+    "opts": { "level": 2, "sets": 2 },
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 0,
+     "xuKhoa": 7,
+     "freed": 0,
+     "made": [
+      { "level": 3, "locked": true, "count": 1 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 1, "itemId": 413, "field0": 0, "field1": 0, "quantity": 82 },
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 37 },
+     { "slot": 5, "itemId": 415, "field0": 0, "field1": 0, "quantity": 38 },
+     { "slot": 6, "itemId": 414, "field0": 0, "field1": 0, "quantity": 58 },
+     { "slot": 10, "itemId": 416, "field0": 0, "field1": 0, "quantity": 2 }
+    ],
+    "opts": { "upTo": 6 },
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 3,
+      "slots": [ 1, 1, 1, 1 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 26
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 4,
+      "slots": [ 6, 6, 6, 6 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 103
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     },
+     {
+      "level": 5,
+      "slots": [ 5, 5, 5, 5 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 410
+     }
+    ],
+    "forecast": {
+     "merges": 65,
+     "xu": 0,
+     "xuKhoa": 8435,
+     "freed": 1,
+     "made": [
+      { "level": 3, "locked": true, "count": 9 },
+      { "level": 4, "locked": true, "count": 22 },
+      { "level": 5, "locked": true, "count": 20 },
+      { "level": 6, "locked": true, "count": 14 }
+     ]
+    }
+   },
+   {
+    "bag": [
+     { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 4 }
+    ],
+    "opts": { "upTo": 6 },
+    "plan": [
+     {
+      "level": 2,
+      "slots": [ 2, 2, 2, 2 ],
+      "locked": true,
+      "window": "mergeXuKhoa",
+      "fee": 7
+     }
+    ],
+    "forecast": {
+     "merges": 1,
+     "xu": 0,
+     "xuKhoa": 7,
+     "freed": 0,
+     "made": [
+      { "level": 3, "locked": true, "count": 1 }
+     ]
+    }
    }
   ],
   "upgradeStones": [
@@ -19094,6 +20136,16 @@
     "slots": [ 34, 41, 20, 24, 25, 26, 30, 31, 32, 33, 35, 36, 37, 39, 43, 44, 46, 47, 48, 49, 51, 52, 53, 21 ]
    }
   ],
+  "upgradeStacked": {
+   "bag": [
+    { "slot": 1, "itemId": 413, "field0": 0, "field1": 0, "quantity": 82 },
+    { "slot": 2, "itemId": 412, "field0": 0, "field1": 0, "quantity": 37 },
+    { "slot": 5, "itemId": 415, "field0": 0, "field1": 0, "quantity": 38 },
+    { "slot": 6, "itemId": 414, "field0": 0, "field1": 0, "quantity": 58 },
+    { "slot": 10, "itemId": 416, "field0": 0, "field1": 0, "quantity": 2 }
+   ],
+   "slots": [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 10, 10 ]
+  },
   "requests": { "put45": "0000000000000000000000002d00000001", "start": "00000000" },
   "o1": {
    "decoders": [

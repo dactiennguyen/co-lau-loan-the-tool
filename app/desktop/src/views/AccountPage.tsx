@@ -11,7 +11,6 @@ import { HeroCard } from "./HeroCard";
 import { InventoryCard } from "./InventoryCard";
 import { LogCard } from "./LogCard";
 import { MetricRow } from "./MetricRow";
-import { PlayersCard } from "./PlayersCard";
 import { QuestCard } from "./QuestCard";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
@@ -82,79 +81,76 @@ export function AccountPage({ account }: { account: Account }) {
         onPlace={() => open({ kind: "place", id })}
         onStats={() => open({ kind: "battles", id })}
       />
-      <MetricRow character={c} onWelfare={() => open({ kind: "welfare", id })} />
-      <div className="grid grid-cols-[minmax(240px,300px)_minmax(0,1fr)] gap-3 min-h-0 narrow:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
-        {/* The top card keeps its full height; the bottom one takes what is left, and the page scrolls when that is too
-            little. */}
-        <div className="grid grid-rows-[max-content_minmax(140px,1fr)] gap-3 min-h-0 narrow:grid-rows-[max-content_230px]">
-          <StatsCard
-            account={account}
-            onAdd={(stat) => api.addStat(id, stat)}
-            onPlan={() => open({ kind: "stats", id })}
-            onSkills={() => open({ kind: "skills", id })}
+      {/* Row 2: HP and EXP, the money, and Chỉ số beside them (under them in a narrow window), so the tabs and the log
+          below take the whole width. */}
+      <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(450px,1fr)] gap-3 narrow:grid-cols-1">
+        <MetricRow character={c} onWelfare={() => open({ kind: "welfare", id })} />
+        <StatsCard
+          account={account}
+          onAdd={(stat) => api.addStat(id, stat)}
+          onPlan={() => open({ kind: "stats", id })}
+          onSkills={() => open({ kind: "skills", id })}
+        />
+      </div>
+      {/* Tabs, the quest or fight card (up to its full height, less when the window is short), the log. */}
+      <div className="grid grid-rows-[max-content_minmax(0,max-content)_minmax(150px,1fr)] gap-2.5 min-h-0 narrow:grid-rows-[max-content_max-content_210px]">
+        {/* The task tabs, and Tiện ích beside them. */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Tabs<Task>
+            className="flex-auto min-w-0"
+            id={tabs}
+            label="Việc của nick"
+            value={task}
+            onChange={setTask}
+            tabs={[
+              { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
+              { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
+              { key: "settings", label: "Cài đặt đánh", icon: "settings" },
+              // A full bag blinks: nothing more is picked up, bought or taken off until slots are freed.
+              { key: "bag", label: "Túi đồ", icon: "gem", ...(bagFull && { alert: "Đầy", alertLabel: "túi đồ đã đầy" }) },
+            ]}
           />
-          <PlayersCard character={c} />
-        </div>
-        {/* Tabs, the quest or fight card (up to its full height, less when the window is short), the log. */}
-        <div className="grid grid-rows-[max-content_minmax(0,max-content)_minmax(150px,1fr)] gap-2.5 min-h-0 narrow:grid-rows-[max-content_max-content_210px]">
-          {/* The task tabs, and Tiện ích beside them. */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Tabs<Task>
-              className="flex-auto min-w-0"
-              id={tabs}
-              label="Việc của nick"
-              value={task}
-              onChange={setTask}
-              tabs={[
-                { key: "quest", label: "Nhiệm vụ", icon: "scroll", busy: !!c?.questRun && c.questRun.done == null },
-                { key: "fight", label: "Đánh quái", icon: "sword", busy: !!c?.job && c.job.done == null },
-                { key: "settings", label: "Cài đặt đánh", icon: "settings" },
-                // A full bag blinks: nothing more is picked up, bought or taken off until slots are freed.
-                { key: "bag", label: "Túi đồ", icon: "gem", ...(bagFull && { alert: "Đầy", alertLabel: "túi đồ đã đầy" }) },
-              ]}
-            />
-            {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng, Hòm thư, Mã quà tặng (ShopModal). */}
-            <Button
-              kind="outline"
-              small
-              icon="grid"
-              // A line of the fighting colour along its bottom while Pháp sư works or gift codes go out.
-              className={cn(
-                "flex-none",
-                ((c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null)) && "shadow-[inset_0_-3px_0_var(--s-fighting)]",
-              )}
-              onClick={() => open({ kind: "shop", id })}
-            >
-              Tiện ích
-              {/* A mail not read yet (s2c/1220), as the red mark of the game's Thư button. */}
-              {c?.mailbox.unread && <i className="size-1.5 bg-danger" role="img" aria-label="có thư chưa đọc" />}
-            </Button>
-          </div>
-          <TabPanel id={tabs} value={task}>
-            {task === "quest" ? (
-              <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
-            ) : task === "bag" ? (
-              <InventoryCard
-                account={account}
-                onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)}
-                onDiscardMany={(items) => api.discardMany(id, items)}
-                onBreakAll={(slot, uuid) => api.breakAll(id, slot, uuid)}
-                onStop={onStop}
-              />
-            ) : task === "settings" ? (
-              <FightSettingsCard account={account} />
-            ) : (
-              <FightCard
-                account={account}
-                choice={{ ...choice, target }}
-                onChoice={setChoice}
-                onStart={() => api.fight(id, target, choice.count, choice.losses)}
-                onStop={onStop}
-              />
+          {/* Tiện ích opens as a large modal: the 14 shops, Gộp đá, Nâng cấp, Đổi lượng, Hòm thư, Mã quà tặng (ShopModal). */}
+          <Button
+            kind="outline"
+            small
+            icon="grid"
+            // A line of the fighting colour along its bottom while Pháp sư works or gift codes go out.
+            className={cn(
+              "flex-none",
+              ((c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null)) && "shadow-[inset_0_-3px_0_var(--s-fighting)]",
             )}
-          </TabPanel>
-          <LogCard id={id} lines={log} fighting={!!c?.battle} />
+            onClick={() => open({ kind: "shop", id })}
+          >
+            Tiện ích
+            {/* A mail not read yet (s2c/1220), as the red mark of the game's Thư button. */}
+            {c?.mailbox.unread && <i className="size-1.5 bg-danger" role="img" aria-label="có thư chưa đọc" />}
+          </Button>
         </div>
+        <TabPanel id={tabs} value={task}>
+          {task === "quest" ? (
+            <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
+          ) : task === "bag" ? (
+            <InventoryCard
+              account={account}
+              onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)}
+              onDiscardMany={(items) => api.discardMany(id, items)}
+              onBreakAll={(slot, uuid) => api.breakAll(id, slot, uuid)}
+              onStop={onStop}
+            />
+          ) : task === "settings" ? (
+            <FightSettingsCard account={account} />
+          ) : (
+            <FightCard
+              account={account}
+              choice={{ ...choice, target }}
+              onChoice={setChoice}
+              onStart={() => api.fight(id, target, choice.count, choice.losses)}
+              onStop={onStop}
+            />
+          )}
+        </TabPanel>
+        <LogCard id={id} lines={log} fighting={!!c?.battle} />
       </div>
     </div>
   );

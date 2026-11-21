@@ -46,12 +46,12 @@ export const MONEY = ["Xu", "Xu khóa", "Lượng"] as const;
 /** The picture of Đá cấp `level`, also for a stone the bag does not hold yet: data/items.json gives items 411–422 the
  * icons 167–178 (data/icons/i167.webp…). */
 export const stoneIcon = (level: number) => itemIcon(166 + level);
-/** The stones of the bag by level (index 1–12): [locked, unlocked]. Stones do not stack: one per slot. */
+/** The stones of the bag by level (index 1–12): [locked, unlocked], stone by stone (they stack to 999 since 16/11). */
 export function stoneCounts(items: Item[]): [number, number][] {
   const counts = Array.from({ length: 13 }, (): [number, number] => [0, 0]);
   for (const i of items) {
     const level = stoneLevel(i.id);
-    if (level) counts[level][i.locked ? 0 : 1] += 1;
+    if (level) counts[level][i.locked ? 0 : 1] += Math.max(1, i.quantity);
   }
   return counts;
 }

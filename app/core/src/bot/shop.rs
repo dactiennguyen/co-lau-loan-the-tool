@@ -193,6 +193,17 @@ impl Bot {
                 Some("cửa hàng không có ô này".into())
             } else if quantity < 1 {
                 Some("số lượng phải từ 1 trở lên".into())
+            } else if let Some(stack) = line
+                .as_ref()
+                .and_then(|l| book().get(l.item_id))
+                .map(|d| d.stack.max(1))
+                .filter(|&s| quantity > s)
+            {
+                // The server answers "Số lượng không chính xác!" to more than a slot holds (15-shops.md#mua-bằng-lượng).
+                Some(match stack {
+                    1 => "món này không xếp chồng: mỗi lần mua 1 cái".into(),
+                    _ => format!("mỗi lần mua tối đa {stack}"),
+                })
             } else {
                 have.filter(|&h| cost > h)
                     .map(|h| format!("không đủ {money} (cần {cost}, có {h})"))

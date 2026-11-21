@@ -6,7 +6,7 @@ import {
   quote, mergePlan, mergeForecast, mergeFee, upgradeStones, transmuteTargets, transmuteItem, upgradeCap, stoneLevel,
   SHOPS, WINDOWS, putRequest, startRequest,
 } from '../src/protocol/npc.ts';
-import { npcPackets as P, symapBag } from './fixtures-npc.ts';
+import { npcPackets as P, STACKED, symapBag } from './fixtures-npc.ts';
 
 const items = Items.load();
 const decode = (op: number, key: string) => decodeEvent('s2c', op, Buffer.from(P[key], 'hex')).fields as any;
@@ -87,9 +87,11 @@ test('Gộp đá: sets of 4 stones of a level and lock at 100%, and what going o
   assert.deepEqual(plan.map(s => [s.level, s.slots, s.window, s.fee]), [
     [5, [20, 24, 25, 26], 'mergeXuKhoa', 410], [5, [30, 31, 32, 33], 'mergeXuKhoa', 410], [5, [35, 36, 37, 39], 'mergeXuKhoa', 410],
     [5, [43, 44, 46, 47], 'mergeXuKhoa', 410], [5, [48, 49, 51, 52], 'mergeXuKhoa', 410]]);
-  // 21 locked Đá cấp 5 make 5 Đá cấp 6; with the one in the bag that is 6, so one more merge makes a Đá cấp 7.
-  assert.deepEqual(mergeForecast(BAG), { merges: 6, xu: 0, xuKhoa: 5 * 410 + 1639, freed: 18, made: [{ level: 6, locked: true, count: 5 }, { level: 7, locked: true, count: 1 }] });
-  assert.deepEqual(mergeForecast(BAG, { upTo: 6 }), { merges: 5, xu: 0, xuKhoa: 2050, freed: 15, made: [{ level: 6, locked: true, count: 5 }] });
+  // 21 locked Đá cấp 5 make 5 Đá cấp 6; with the one in the bag that is 6, so one more merge makes a Đá cấp 7. symap's
+  // stones are one per slot (before 16/11): the 20 merged free 20 slots, the Đá cấp 6 go onto the stack of slot 21 and
+  // the Đá cấp 7 takes a slot of its own.
+  assert.deepEqual(mergeForecast(BAG), { merges: 6, xu: 0, xuKhoa: 5 * 410 + 1639, freed: 19, made: [{ level: 6, locked: true, count: 5 }, { level: 7, locked: true, count: 1 }] });
+  assert.deepEqual(mergeForecast(BAG, { upTo: 6 }), { merges: 5, xu: 0, xuKhoa: 2050, freed: 20, made: [{ level: 6, locked: true, count: 5 }] });
   // Four unlocked Đá cấp 1 go to Luyện đá [Xu] and are paid in Xu; the stone made stays unlocked.
   const four = [...BAG, { slot: 60, itemId: 411, field0: 0, field1: 1 }, { slot: 61, itemId: 411, field0: 0, field1: 1 }];
   assert.deepEqual(mergePlan(four, { upTo: 2 }), [{ level: 1, slots: [16, 17, 60, 61], locked: false, window: 'mergeXu', fee: 2 }]);
@@ -98,9 +100,9 @@ test('Gộp đá: sets of 4 stones of a level and lock at 100%, and what going o
 
 test('Gộp đá of one row: only the stones of a level and lock, one level up, at most `sets` merges', () => {
   // One set of the 21 locked Đá cấp 5: one Đá cấp 6, nothing further up.
-  assert.deepEqual(mergeForecast(BAG, { level: 5, locked: true, sets: 1 }), { merges: 1, xu: 0, xuKhoa: 410, freed: 3, made: [{ level: 6, locked: true, count: 1 }] });
+  assert.deepEqual(mergeForecast(BAG, { level: 5, locked: true, sets: 1 }), { merges: 1, xu: 0, xuKhoa: 410, freed: 4, made: [{ level: 6, locked: true, count: 1 }] });
   // Every set of the level, but the Đá cấp 6 made stay: no Đá cấp 7 as without `level`.
-  assert.deepEqual(mergeForecast(BAG, { level: 5 }), { merges: 5, xu: 0, xuKhoa: 2050, freed: 15, made: [{ level: 6, locked: true, count: 5 }] });
+  assert.deepEqual(mergeForecast(BAG, { level: 5 }), { merges: 5, xu: 0, xuKhoa: 2050, freed: 20, made: [{ level: 6, locked: true, count: 5 }] });
   assert.deepEqual(mergeForecast(BAG, { sets: 2 }).merges, 2);
   assert.equal(mergePlan(BAG, { level: 5 }).length, 5);
   assert.deepEqual(mergePlan(BAG, { level: 5, locked: false }), []);
@@ -109,6 +111,26 @@ test('Gộp đá of one row: only the stones of a level and lock, one level up, 
   const four = [...BAG, { slot: 60, itemId: 411, field0: 0, field1: 1 }, { slot: 61, itemId: 411, field0: 0, field1: 1 }];
   assert.deepEqual(mergePlan(four, { level: 1, locked: false }), [{ level: 1, slots: [16, 17, 60, 61], locked: false, window: 'mergeXu', fee: 2 }]);
   assert.deepEqual(mergePlan(four, { level: 1, locked: false, unlocked: false }), []);
+});
+
+test('Stacked stones (ST1): a stack counts stone by stone in Gộp đá, its forecast and Nâng cấp', () => {
+  // 37 Đá cấp 2 in one slot: 9 sets of that slot, four times each (c2s/97 quantity 4).
+  const twos = mergePlan(STACKED, { level: 2 });
+  assert.equal(twos.length, 9);
+  assert.deepEqual(twos[0], { level: 2, slots: [2, 2, 2, 2], locked: true, window: 'mergeXuKhoa', fee: 7 });
+  // Up to Đá cấp 3: 9 merges onto the stack of Đá cấp 3, one Đá cấp 2 left: no slot freed.
+  assert.deepEqual(mergeForecast(STACKED, { upTo: 3 }), { merges: 9, xu: 0, xuKhoa: 63, freed: 0, made: [{ level: 3, locked: true, count: 9 }] });
+  // Four Đá cấp 2 alone empty their slot; the Đá cấp 3 made needs a new one when none is held: 0 in all.
+  const four = [{ slot: 2, itemId: 412, field0: 0, field1: 0, quantity: 4 }];
+  assert.deepEqual(mergeForecast(four, { upTo: 3 }).freed, 0);
+  assert.deepEqual(mergeForecast([...four, { slot: 7, itemId: 413, field0: 0, field1: 0, quantity: 5 }], { upTo: 3 }).freed, 1);
+  // Two stacks of one kind: the first slot is taken first, then the second.
+  const split = mergePlan([{ slot: 9, itemId: 412, field0: 0, field1: 0, quantity: 3 }, { slot: 4, itemId: 412, field0: 0, field1: 0, quantity: 2 }], { level: 2 });
+  assert.deepEqual(split.map(s => s.slots), [[4, 4, 9, 9]]);
+  // Nâng cấp: one entry per stone, at most a window's worth (18) of a stack, cheapest first.
+  const stones = upgradeStones(STACKED);
+  assert.deepEqual([stones.length, stones[0].slot, stones[17].slot, stones[18].slot, stones.at(-1)!.slot], [18 * 4 + 2, 2, 2, 1, 10]);
+  assert.deepEqual(mergeForecast(STACKED).merges > 0, true);
 });
 
 test('Nâng cấp takes the cheapest stones first, locked before unlocked; Chuyển hoá finds the targets and the item', () => {

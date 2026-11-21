@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { QUALITY_TEXT } from "@/game/quality";
 import { api } from "@/api";
 import type { Item, Listing, Market, MarketPage } from "@/api/types";
 import { Button } from "@/components/Button";
@@ -35,8 +36,8 @@ function left(at: number, now: number) {
   return h ? `còn ${h} giờ ${m % 60} phút` : `còn ${m} phút`;
 }
 
-/** The colour of the name by quality, as the phone draws it: Hiếm green, Sử Thi purple. */
-const QUALITY: Record<number, string> = { 1: "text-good", 3: "text-piece-yinyang" };
+/** The colour of the name by quality (game/quality.ts). */
+const QUALITY = QUALITY_TEXT;
 
 /** The colour of a result line, by its first words as the log writes them. */
 const tone = (line: string) =>

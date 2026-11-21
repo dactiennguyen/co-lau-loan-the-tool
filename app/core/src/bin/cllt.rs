@@ -194,7 +194,7 @@ fn stones_and_gear(s: &Snapshot) -> Vec<String> {
     for i in &bag.items {
         let level = cllt_core::npc::stone_level(i.item_id);
         if level > 0 {
-            counts[level as usize][(i.field1 == 0) as usize] += 1;
+            counts[level as usize][(i.field1 == 0) as usize] += i.quantity.max(1);
         } else if b.get(i.item_id).is_some_and(|d| d.kind <= 4) {
             let name = b
                 .get(i.item_id)

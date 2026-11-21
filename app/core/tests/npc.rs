@@ -193,6 +193,14 @@ fn gop_da_and_nang_cap_plan_what_the_ts_side_plans_on_symaps_bag() {
             .collect();
         assert_eq!(serde_json::to_value(slots).unwrap(), case["slots"]);
     }
+    // Stacked stones (ST1): one entry per stone, at most a window's worth of a stack.
+    let stacked = &all["npc"]["upgradeStacked"];
+    let bag: Vec<BagItem> = serde_json::from_value(stacked["bag"].clone()).unwrap();
+    let slots: Vec<i32> = npc::upgrade_stones(&bag, true)
+        .iter()
+        .map(|i| i.slot)
+        .collect();
+    assert_eq!(serde_json::to_value(slots).unwrap(), stacked["slots"]);
     assert_eq!(
         tohex(&npc::put_request(45, 1, npc::PUT_ITEM)),
         all["npc"]["requests"]["put45"].as_str().unwrap()
@@ -328,6 +336,12 @@ fn slot92(slot: i32, text: &str, ready: bool) -> Vec<u8> {
 }
 /// s2c/42 holding (slot, item, +level, field1) items.
 fn bag(items: &[(u8, i32, i32, u8)]) -> Vec<u8> {
+    let q: Vec<(u8, i32, i32, u8, i32)> =
+        items.iter().map(|&(s, i, p, f)| (s, i, p, f, 1)).collect();
+    bag_q(&q)
+}
+/// s2c/42 holding (slot, item, +level, field1, quantity) items: stacks of stones (ST1).
+fn bag_q(items: &[(u8, i32, i32, u8, i32)]) -> Vec<u8> {
     let mut w = Writer::new()
         .string("test dong 1")
         .i32(42)
@@ -335,14 +349,14 @@ fn bag(items: &[(u8, i32, i32, u8)]) -> Vec<u8> {
         .u8(2)
         .i32(54)
         .i32(items.len() as i32);
-    for &(slot, id, plus, f1) in items {
+    for &(slot, id, plus, f1, quantity) in items {
         w = w
             .u8(slot)
             .i32(id)
             .string(&format!("uuid-{slot}"))
             .i32(plus)
             .i32(-1)
-            .i32(1)
+            .i32(quantity)
             .u8(f1)
             .u8(255)
             .i32(0)
@@ -1332,6 +1346,23 @@ fn every_shop_opens_down_its_path_and_buys_for_xu_xu_khoa_or_luong() {
         "{out:?}"
     );
     assert_eq!(bot.snapshot().shop.unwrap().items[0].ranges.len(), 1);
+    // A ring does not stack: more than one in a purchase is refused before it goes ("Số lượng không chính xác!").
+    let ring = bot.snapshot().shop.unwrap().items[0].clone();
+    let name = cllt_core::items::book()
+        .get(ring.item_id)
+        .unwrap()
+        .name
+        .clone();
+    out.clear();
+    bot.buy(ring.shop_id, 2, now, &mut out);
+    assert!(
+        logged(
+            &out,
+            &format!("Chưa mua {name}: món này không xếp chồng: mỗi lần mua 1 cái")
+        ),
+        "{out:?}"
+    );
+    assert!(sent(&out, 1190).is_empty());
 }
 
 /// One item record (12-skills-items.md#bản-ghi-vật-phẩm): slot, item, uuid, +level, field1.
@@ -2298,4 +2329,180 @@ fn doi_bang_tam_roi_noi_lai_voi_phap_su_va_diem_nang_dong_chi_doc() {
         ),
         (Some(12), Some(3300), Some(500), true)
     );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Stacked stones (ST1, 21/11): Đá cấp 1–12 stack to 999; c2s/97 kind 0 with quantity N puts N stones of one stack, and
+// the same slot sent again adds one more.
+
+/// symap on M1 with a bag of stacks.
+fn symap_q(items: &[(u8, i32, i32, u8, i32)]) -> (Bot, Vec<Out>, Instant) {
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(42, &bag_q(items), now, &mut out).unwrap();
+    out.clear();
+    (bot, out, now)
+}
+
+fn open_merge(bot: &mut Bot, out: &mut Vec<Out>, now: Instant) {
+    bot.on_packet(57, &root(), now, out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        out,
+    )
+    .unwrap();
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1002".into()),
+        now,
+        out,
+    )
+    .unwrap();
+}
+
+#[test]
+fn gop_da_puts_four_of_one_stack_with_one_put_of_quantity_4() {
+    // akaito's 37 locked Đá cấp 2 in slot 2.
+    let (mut bot, mut out, now) = symap_q(&[(2, 412, 0, 0, 37)]);
+    let o = MergeOptions {
+        level: Some(2),
+        sets: Some(1),
+        ..MergeOptions::default()
+    };
+    bot.smith(SmithTask::Merge(o), now, &mut out);
+    assert!(!logged(&out, "không có 4 viên"), "{out:?}");
+    out.clear();
+    open_merge(&mut bot, &mut out, now);
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(2, 4, npc::PUT_ITEM))],
+        "one c2s/97 of quantity 4"
+    );
+    out.clear();
+    let text = "Luyện thành Đá cấp 3 Khóa\nCần: 7 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 100%";
+    bot.on_packet(92, &slot92(2, text, true), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
+}
+
+#[test]
+fn gop_da_in_a_full_bag_needs_a_slot_for_the_stone_made() {
+    // 53 other items and 5 Đá cấp 2: four leave one, and no Đá cấp 3 to stack onto.
+    let mut items: Vec<(u8, i32, i32, u8, i32)> = (3..56).map(|s| (s, 306, 0, 1, 1)).collect();
+    items.push((2, 412, 0, 0, 5));
+    let (mut bot, mut out, now) = symap_q(&items);
+    let o = MergeOptions {
+        level: Some(2),
+        ..MergeOptions::default()
+    };
+    bot.smith(SmithTask::Merge(o), now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Gộp hết Đá cấp 2 lên Đá cấp 3: túi đầy: Đá cấp 3 luyện ra cần một ô trống"
+        ),
+        "{out:?}"
+    );
+    assert!(sent(&out, 13).is_empty(), "nothing sent");
+    // With a stack of Đá cấp 3 to join, it goes.
+    items[0] = (3, 413, 0, 0, 9);
+    let (mut bot, mut out, now) = symap_q(&items);
+    bot.smith(SmithTask::Merge(o), now, &mut out);
+    assert_eq!(sent(&out, 13), [PHAP_SU], "{out:?}");
+}
+
+fn upgrade_task(rate: i32) -> SmithTask {
+    SmithTask::Upgrade {
+        slot: 15,
+        careful: false,
+        rate,
+        to_level: 4,
+        unlocked: true,
+        quote: false,
+        worn: false,
+        charm: true,
+    }
+}
+
+#[test]
+fn nang_cap_puts_the_same_stack_again_for_one_more_stone() {
+    let (mut bot, mut out, now) =
+        symap_q(&[(15, 306, 0, 1, 1), (2, 412, 0, 0, 37), (1, 413, 0, 0, 82)]);
+    bot.smith(upgrade_task(80), now, &mut out);
+    out.clear();
+    open_upgrade(&mut bot, &mut out, now);
+    let one = tohex(&npc::put_request(2, 1, npc::PUT_ITEM));
+    assert_eq!(sent(&out, 97).last(), Some(&one), "a Đá cấp 2 first");
+    out.clear();
+    bot.on_packet(90, &slot90(false, 2, &odds(66), true), now, &mut out)
+        .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [one],
+        "the same stack again, not the Đá cấp 3"
+    );
+    out.clear();
+    bot.on_packet(90, &slot90(false, 2, &odds(80), true), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
+}
+
+#[test]
+fn nang_cap_with_a_window_full_of_cheap_stones_opens_it_again_with_dearer_ones() {
+    let (mut bot, mut out, now) =
+        symap_q(&[(15, 306, 0, 1, 1), (2, 412, 0, 0, 37), (1, 413, 0, 0, 82)]);
+    bot.smith(upgrade_task(100), now, &mut out);
+    out.clear();
+    open_upgrade(&mut bot, &mut out, now);
+    // 18 Đá cấp 2, each 2% more, under 75: no cap, no 100%.
+    for k in 1..=18 {
+        out.clear();
+        bot.on_packet(90, &slot90(false, 2, &odds(2 * k), true), now, &mut out)
+            .unwrap();
+        if k < 18 {
+            assert_eq!(
+                sent(&out, 97),
+                [tohex(&npc::put_request(2, 1, npc::PUT_ITEM))]
+            );
+        }
+    }
+    assert!(
+        logged(
+            &out,
+            "18 viên Đá cấp 2 chỉ được 36%, chưa tới 100%: mở lại cửa sổ với đá cấp cao hơn"
+        ),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 13), [PHAP_SU], "the window again");
+    assert!(sent(&out, 91).is_empty(), "nothing pressed");
+    out.clear();
+    open_upgrade(&mut bot, &mut out, now);
+    assert_eq!(
+        sent(&out, 97).last(),
+        Some(&tohex(&npc::put_request(1, 1, npc::PUT_ITEM))),
+        "Đá cấp 3 now"
+    );
+}
+
+#[test]
+fn nang_cap_thuong_stalled_under_75_says_it_is_the_cap_not_more_stones() {
+    let (mut bot, mut out, now) =
+        symap_q(&[(15, 306, 3, 1, 1), (2, 412, 0, 0, 2), (1, 413, 0, 0, 1)]);
+    bot.smith(upgrade_task(100), now, &mut out);
+    out.clear();
+    open_upgrade(&mut bot, &mut out, now);
+    for rate in [40, 65, 65] {
+        out.clear();
+        bot.on_packet(90, &slot90(false, 2, &odds(rate), true), now, &mut out)
+            .unwrap();
+    }
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn tới +4: tỉ lệ dừng ở 65% dù thêm đá: có lẽ là trần của lần nâng +3 lên +4 ở chế độ Thường"
+        ),
+        "{out:?}"
+    );
+    assert!(sent(&out, 91).is_empty());
 }

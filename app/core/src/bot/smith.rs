@@ -11,7 +11,7 @@ use crate::mail::{self, DailyQuest};
 /// How long a step waits for the server (its answers came within 40 ms in J3).
 pub(super) const SMITH_WAIT: Duration = Duration::from_secs(8);
 /// Stones a Nâng cấp window holds (s2c/96).
-const STONE_SLOTS: usize = 18;
+const STONE_SLOTS: usize = npc::UPGRADE_SLOTS;
 /// The lowest cap of Nâng cấp [Thường] measured (80% at +0→+1, 75% at +1→+2): odds this high with the last stone of the
 /// bag may be the cap, so they are pressed although under the rate asked.
 const THUONG_CAP_LOW: i32 = 75;
@@ -72,6 +72,18 @@ pub(super) enum Stage {
 type Put = (i32, i32, i32);
 fn put_one(slot: i32) -> Put {
     (slot, 1, npc::PUT_ITEM)
+}
+/// The stones of a set of Gộp đá, the stones of one slot together: four of one stack go in with one c2s/97 of quantity
+/// 4, which Luyện đá counts as four stones (ST1).
+fn put_stones(slots: &[i32]) -> Vec<Put> {
+    let mut puts: Vec<Put> = vec![];
+    for &slot in slots {
+        match puts.last_mut() {
+            Some(p) if p.0 == slot => p.1 += 1,
+            _ => puts.push(put_one(slot)),
+        }
+    }
+    puts
 }
 
 /// A worn item taken off for Nâng cấp: its gear slot, its uuid (to find it in the bag), its name, and why the task ended
@@ -790,13 +802,31 @@ impl Bot {
                     );
                     return self.smith_finish(why, now, out);
                 }
+                // Stones stack (ST1): the stone made needs a slot unless a stack of its kind has room or the set
+                // empties a slot of its own. With none, the server would answer "Rương đã đầy".
+                if let Some(b) = self.snap.bag.as_ref() {
+                    let joins = bag.iter().any(|i| {
+                        npc::stone_level(i.item_id) == set.level + 1
+                            && i.locked() == set.locked
+                            && i.count() < npc::STONE_STACK
+                    });
+                    let empties = bag.iter().any(|i| {
+                        let used = set.slots.iter().filter(|&&s| s == i.slot).count() as i32;
+                        used > 0 && used >= i.count()
+                    });
+                    if b.items.len() as i32 >= b.capacity && !joins && !empties {
+                        let why =
+                            format!("túi đầy: Đá cấp {} luyện ra cần một ô trống", set.level + 1);
+                        return self.smith_finish(why, now, out);
+                    }
+                }
                 self.smith.as_mut().unwrap().makes = Some(set.level + 1);
                 let doing = format!(
                     "Luyện 4 Đá cấp {} thành Đá cấp {}",
                     set.level,
                     set.level + 1
                 );
-                let puts = set.slots.into_iter().map(put_one).collect();
+                let puts = put_stones(&set.slots);
                 open(self, set.window, puts, doing, now, out);
             }
             SmithTask::Upgrade {
@@ -864,6 +894,7 @@ impl Bot {
                     };
                     out.push(Out::Log(LogKind::Item, line));
                 }
+                // One entry per stone (a stack many times over, ST1).
                 let stones: Vec<i32> = upgrade_stones(&bag, unlocked)
                     .iter()
                     .map(|i| i.slot)
@@ -1142,6 +1173,19 @@ impl Bot {
     /// server rounds the odds down to (two Đá cấp 1 at +5 both say 0%), so the next stone goes in. Out of stones under the
     /// rate, the task ends without pressing, unless Thường reached THUONG_CAP_LOW.
     fn smith_put(&mut self, now: Instant, out: &mut Vec<Out>) {
+        // The level of each stone's slot and the item's level, for a window full of cheap stones and for the cap.
+        let bag = self.bag_items();
+        let level_of = |slot: i32| {
+            bag.iter()
+                .find(|i| i.slot == slot)
+                .map_or(0, |i| npc::stone_level(i.item_id))
+        };
+        let plus = match self.smith.as_ref().map(|s| &s.task) {
+            Some(SmithTask::Upgrade { slot, .. }) => {
+                self.bag_record(*slot as i32).map(|i| i.field0)
+            }
+            _ => None,
+        };
         let sm = self.smith.as_mut().unwrap();
         let mut next = sm.puts.pop_front();
         // A Bùa bảo vệ in the window takes one of its 18 slots.
@@ -1174,12 +1218,45 @@ impl Bot {
                         return self.smith_open(now, out);
                     }
                     None if !enough && more => next = Some(put_one(sm.stones[sm.tried.len()])),
-                    None if !enough && !quote && !capped => {
-                        let why = format!(
-                            "đặt hết {} viên đá chỉ được {}%, chưa tới {rate}% muốn đạt; thêm đá hoặc hạ tỉ lệ",
-                            sm.tried.len(),
+                    // The window is full of cheap stones under the rate, the odds still going up: four stones of a
+                    // level are worth one of the next, so the window opens again without the cheapest level (ST1:
+                    // stacks give many stones of one level).
+                    None if !enough
+                        && !capped
+                        && sm.tried.len() >= room
+                        && sm
+                            .stones
+                            .iter()
+                            .any(|&s| level_of(s) > level_of(sm.stones[0])) =>
+                    {
+                        let low = level_of(sm.stones[0]);
+                        sm.stones.retain(|&s| level_of(s) > low);
+                        (sm.tried, sm.rates) = (vec![], vec![]);
+                        sm.puts = VecDeque::from([put_one(slot as i32)]);
+                        sm.puts.extend(sm.charm.map(|c| (c, 1, npc::PUT_STACK)));
+                        let line = format!(
+                            "{room} viên Đá cấp {low} chỉ được {}%, chưa tới {rate}%: mở lại cửa sổ với đá cấp cao hơn",
                             last.unwrap_or(0)
                         );
+                        out.push(Out::Log(LogKind::Item, line));
+                        return self.smith_open(now, out);
+                    }
+                    None if !enough && !quote && !capped => {
+                        let odds = last.unwrap_or(0);
+                        let why = match (stalled && odds > 0, plus) {
+                            // Thường has caps under THUONG_CAP_LOW at higher levels: more stones raise nothing.
+                            (true, Some(p)) if !careful => format!(
+                                "tỉ lệ dừng ở {odds}% dù thêm đá: có lẽ là trần của lần nâng +{p} lên +{} ở chế độ Thường; hạ tỉ lệ muốn đạt xuống {odds}% hoặc dùng Cẩn thận",
+                                p + 1
+                            ),
+                            _ if sm.tried.len() >= room => format!(
+                                "cửa sổ chỉ nhận {room} viên đá, được {odds}%, chưa tới {rate}% muốn đạt; cần đá cấp cao hơn hoặc hạ tỉ lệ"
+                            ),
+                            _ => format!(
+                                "đặt hết {} viên đá chỉ được {odds}%, chưa tới {rate}% muốn đạt; thêm đá hoặc hạ tỉ lệ",
+                                sm.tried.len()
+                            ),
+                        };
                         return self.smith_finish(why, now, out);
                     }
                     None => {}

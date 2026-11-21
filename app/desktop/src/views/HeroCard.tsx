@@ -8,6 +8,7 @@ import { Pill } from "@/components/Pill";
 import { isConnected } from "@/utils/format";
 import type { Account } from "@/api/types";
 import { BoostTag } from "./BoostTag";
+import { NearbyButton } from "./NearbyButton";
 
 /** The block of where the character is (Vị trí), a line on its left; its label, and the line under the map name. */
 const BLOCK = "grid gap-0.5 min-w-0 pl-4 border-l-2 border-l-line";
@@ -27,8 +28,8 @@ interface Props {
 
 /** The selected account: who (name, level, element, gender, timed effects such as x2 EXP, status, and Thống kê at the end of the
  * status line, which opens the battle history in a modal) and where (map, zone, coordinates as text, and the icon
- * button after the map name that moves to another zone or map). Its money is in the tiles under it (MetricRow), the other players of the zone in their
- * card. */
+ * button after the map name that moves to another zone or map, then Xung quanh, the other players of the zone). Its
+ * money is in the tiles under it (MetricRow). */
 export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onStats }: Props) {
   const c = a.character;
   const connected = isConnected(a.status);
@@ -87,6 +88,8 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
                 {c.mapName}
               </span>
               <Button kind="outline" small icon="swap" className="flex-none w-[22px] h-[22px]" aria-label="Đổi khu / map" disabled={!!c.moving} onClick={onPlace} />
+              {/* Xung quanh: the others of the zone, a list that opens under the button. */}
+              <NearbyButton character={c} />
             </div>
             <span className={SUB}>
               {c.moving ? (

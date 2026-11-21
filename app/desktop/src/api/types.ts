@@ -559,6 +559,8 @@ export interface ShopLine {
   ranges: string[];
   /** Bought for Xu khóa, the item is trade-locked. */
   locks: boolean;
+  /** How many one bag slot holds: the most one purchase buys; 1 (gear) is bought one at a time. */
+  stack: number;
 }
 
 /** What a window of Pháp sư said last (npc::quote): the fee and its money, Lượng, the odds, the stone Luyện đá makes,
@@ -787,6 +789,9 @@ export interface Item {
   plus: number;
   /** Trade-locked: bought for Xu khóa, worn, or upgraded (15-shops.md#khoá). */
   locked: boolean;
+  /** Phẩm chất of gear: 0 Thường, 1 Hiếm, 2 Quý, 3 Sử Thi (field4); 0 for everything else. */
+  quality: number;
+  qualityName: string | null;
 }
 
 /** A button of the item detail: wear, use or throw away (discard) the item of a bag slot, take off or repair the one of a

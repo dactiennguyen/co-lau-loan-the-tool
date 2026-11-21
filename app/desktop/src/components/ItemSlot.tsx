@@ -1,4 +1,5 @@
 import { itemIcon } from "@/game/itemIcons";
+import { QUALITY_TEXT } from "@/game/quality";
 import { plusOf } from "@/game/shops";
 import type { Item } from "@/api/types";
 import { cn } from "@/utils/cn";
@@ -44,7 +45,8 @@ const SLOT =
   "relative grid place-items-center w-(--size) h-(--size) p-0 border-2 border-line bg-ink text-fg-3 cursor-pointer [--size:44px] " +
   "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1";
 /** Quantity bottom right, cường hoá top right in gold, and the level of gear above 1 bottom right (gear has no quantity;
- * its level sits above its wear bar, without "LV" from 100 up so that it leaves the gender sign alone). */
+ * its level sits above its wear bar): the number alone, in the colour of the gear's quality (game/quality.ts), with a
+ * red line under it while the character is below that level. */
 const CORNER = "absolute right-px px-0.5 bg-[rgb(15_17_21/0.75)] text-10 font-normal leading-[1.3]";
 
 /**
@@ -83,7 +85,7 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, charL
         broken && "border-accent-deep after:content-[''] after:absolute after:inset-0 after:bg-[rgb(205_122_114/0.22)] after:pointer-events-none",
         className,
       )}
-      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${item.level != null ? `, cấp ${item.level}` : ""}${
+      aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${item.level != null ? `, cấp ${item.level}` : ""}${item.qualityName && item.quality > 0 ? `, ${item.qualityName}` : ""}${
         short ? `, thiếu ${short} cấp` : ""
       }${broken ? ", hỏng" : ""}${
         item.gender != null ? `, đồ ${GENDER_WORD[item.gender]}${misfit ? ", không mặc được" : ""}` : ""
@@ -131,8 +133,16 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, charL
       )}
       {item.stacks && <b className={cn("px", CORNER, "bottom-0 text-fg")}>{item.quantity}</b>}
       {item.level != null && item.level > 1 && !item.stacks && (
-        <b className={cn("px", CORNER, wear && item.durability ? "bottom-[6px]" : "bottom-0", short ? "text-danger" : "text-fg")} aria-hidden="true">
-          {item.level < 100 && <span className="text-[7px]">LV</span>}
+        <b
+          className={cn(
+            "px",
+            CORNER,
+            wear && item.durability ? "bottom-[6px]" : "bottom-0",
+            QUALITY_TEXT[item.quality] ?? "text-fg",
+            !!short && "underline decoration-danger decoration-2 underline-offset-1",
+          )}
+          aria-hidden="true"
+        >
           {item.level}
         </b>
       )}

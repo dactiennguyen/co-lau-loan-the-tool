@@ -45,10 +45,12 @@ impl Bot {
         }
     }
 
+    /// The locked stones of the bag, stacks counted stone by stone (ST1).
     fn locked_stones(&self) -> usize {
         (self.bag_items().iter())
             .filter(|i| i.locked() && npc::stone_level(i.item_id) > 0)
-            .count()
+            .map(|i| i.count() as usize)
+            .sum()
     }
 
     /// Before the next battle of a fight job (Bot::next): with Tự gộp đá khi túi đầy on and no slot left in the bag, sets
@@ -117,8 +119,9 @@ impl Bot {
 
     /// What a trip would merge (merge_forecast_paid), or why there is none now, keyed to be said once: merge_every
     /// minutes not yet gone by since the last trip came back (merged or not, so a trip that fails does not set off again
-    /// before every battle), no known way back from M1, no set of four locked stones, none the Xu khóa pays for, or
-    /// something Pháp sư would refuse Gộp đá for still waiting for its answer (a purchase, an item action, a repair).
+    /// before every battle), no known way back from M1, no set of four locked stones, none that frees a slot (stacks), none
+    /// the Xu khóa pays for, or something Pháp sư would refuse Gộp đá for still waiting for its answer (a purchase, an
+    /// item action, a repair).
     fn merge_ready(&self, now: Instant) -> Result<MergeForecast, (&'static str, String)> {
         let minutes = self.fight.merge_minutes();
         let every = Duration::from_secs(minutes as u64 * 60);
@@ -141,6 +144,17 @@ impl Bot {
         }
         let (o, bag, xu_khoa) = (self.merge_options(), self.bag_items(), self.money().1);
         let plan = merge_forecast_paid(&bag, o, xu_khoa);
+        // Stones stack (ST1): merging a stack into the next level's stack may free no slot at all, and then the trip
+        // is no help to a full bag.
+        if plan.merges > 0 && plan.freed <= 0 {
+            return Err((
+                "nofree",
+                format!(
+                    "gộp {} lần cũng không làm trống ô nào (đá đã xếp chồng)",
+                    plan.merges
+                ),
+            ));
+        }
         if plan.merges > 0 {
             // smith_begin would refuse Gộp đá at Pháp sư for these, after the whole way there and back; a pickup's
             // answer is waited for at M1 instead (merge_step).

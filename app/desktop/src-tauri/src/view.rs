@@ -498,6 +498,8 @@ pub struct ShopLineView {
     pub ranges: Vec<String>,
     /// Bought for Xu khóa, the item is trade-locked (15-shops.md#khoá).
     pub locks: bool,
+    /// How many one bag slot holds: the most one purchase buys; 1 (gear) is bought one at a time (15-shops.md).
+    pub stack: i32,
 }
 impl<'a> ShopView<'a> {
     pub fn of(s: &'a ShopList) -> Self {
@@ -530,6 +532,7 @@ impl<'a> ShopView<'a> {
                             })
                             .collect(),
                         locks: l.flag == 0,
+                        stack: def.map_or(1, |d| d.stack.max(1)),
                     }
                 })
                 .collect(),
@@ -593,6 +596,9 @@ pub struct ItemView {
     pub plus: i32,
     /// Trade-locked (field1 0: bought for Xu khóa, worn, upgraded; 15-shops.md#khoá).
     pub locked: bool,
+    /// Phẩm chất of gear (field4: 0 Thường, 1 Hiếm, 2 Quý, 3 Sử Thi); 0 for everything else.
+    pub quality: u8,
+    pub quality_name: Option<&'static str>,
 }
 impl ItemView {
     pub fn of(i: &ItemRecord) -> Self {
@@ -625,7 +631,17 @@ impl ItemView {
             stats: i.stats.iter().map(|s| b.stat(s)).collect(),
             plus: i.field0,
             locked: i.field1 == 0,
+            quality: gear_quality(def, i),
+            quality_name: cllt_core::items::quality_name(gear_quality(def, i)),
         }
+    }
+}
+
+/// field4 of a gear record (types 0–9), its quality; 0 for items that are no gear.
+fn gear_quality(def: Option<&cllt_core::items::ItemDef>, i: &ItemRecord) -> u8 {
+    match def {
+        Some(d) if d.kind <= 9 => i.field4,
+        _ => 0,
     }
 }
 

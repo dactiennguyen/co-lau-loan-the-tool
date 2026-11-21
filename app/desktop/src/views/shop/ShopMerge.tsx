@@ -193,7 +193,13 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
           ? "…"
           : forecast.merges === 0
             ? "Không có bộ 4 viên cùng cấp và cùng khoá nào để gộp."
-            : `Sẽ luyện ${forecast.merges} lần, tốn ${fee}, túi trống thêm ${forecast.freed} ô. Ra:`}
+            : `Sẽ luyện ${forecast.merges} lần, tốn ${fee}, ${
+                forecast.freed > 0
+                  ? `túi trống thêm ${forecast.freed} ô`
+                  : forecast.freed < 0
+                    ? `túi dùng thêm ${-forecast.freed} ô`
+                    : "túi không trống thêm ô nào (đá xếp chồng)"
+              }. Ra:`}
         {forecast && forecast.merges > 0 && (
           <span className={STONES}>
             {forecast.made.map((m) => (

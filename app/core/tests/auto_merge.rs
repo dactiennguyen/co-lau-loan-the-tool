@@ -495,8 +495,8 @@ fn merge_forecast_paid_takes_the_cheapest_sets_the_xu_khoa_pays_for() {
     let some = npc::merge_forecast_paid(&bag, o, 10);
     assert_eq!(
         (some.merges, some.xu_khoa, some.freed),
-        (4, 8, 12),
-        "not the 7 of Đá cấp 3"
+        (4, 8, 15),
+        "not the 7 of Đá cấp 3 (the four Đá cấp 2 made share one stack)"
     );
     assert_eq!(npc::merge_forecast_paid(&bag, o, 1).merges, 0);
     let low = MergeOptions { up_to: 2, ..o };
@@ -656,6 +656,72 @@ fn a_full_bag_does_not_set_off_while_an_item_action_waits_for_its_answer() {
     bot.fight("Cóc Xanh", 5, 1, later, &mut out);
     assert!(
         logged(&out, "Túi đầy (54/54): sang Làng Thanh Khê"),
+        "{out:?}"
+    );
+}
+
+/// s2c/42 of 54 slots: Trứng Gà everywhere but the (slot, item, quantity) locked stacks of stones (ST1).
+fn stacked_full(stones: &[(u8, i32, i32)]) -> Vec<u8> {
+    let mut w = Writer::new()
+        .string("manina")
+        .i32(42)
+        .i32(3)
+        .u8(2)
+        .i32(54)
+        .i32(54);
+    for slot in 0..54u8 {
+        let (id, quantity) = stones
+            .iter()
+            .find(|x| x.0 == slot)
+            .map_or((3, 1), |x| (x.1, x.2));
+        w = w
+            .u8(slot)
+            .i32(id)
+            .string(&format!("uuid-{slot}"))
+            .i32(0)
+            .i32(-1)
+            .i32(quantity)
+            .u8(0)
+            .u8(255)
+            .i32(0)
+            .u8(0)
+            .u8(0)
+            .u8(0);
+    }
+    w.build()
+}
+
+#[test]
+fn stacked_stones_that_free_no_slot_are_no_reason_to_go() {
+    // akaito's 37 Đá cấp 2 and 82 Đá cấp 3: 37 merges up to Đá cấp 6, and not one slot freed.
+    let (mut bot, mut out, now) = manina(&full(&[]), 1_000_000);
+    bot.on_packet(
+        42,
+        &stacked_full(&[(10, 412, 37), (11, 413, 82)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert!(
+        logged(&out, "Túi đầy (54/54) nhưng chưa sang gộp đá: gộp 37 lần cũng không làm trống ô nào (đá đã xếp chồng); đánh tiếp"),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 15), [CHALLENGE]);
+    // Four Đá cấp 2 onto 2 Đá cấp 3: their slot is freed, so it goes.
+    let (mut bot, mut out, now) = manina(&full(&[]), 1_000_000);
+    bot.on_packet(
+        42,
+        &stacked_full(&[(10, 412, 4), (11, 413, 2)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 1, now, &mut out);
+    assert!(
+        logged(&out, "Túi đầy (54/54): sang Làng Thanh Khê gộp đá tới Đá cấp 12 (Max), dự kiến 1 lần, tốn 7 Xu khóa, túi trống thêm 1 ô"),
         "{out:?}"
     );
 }

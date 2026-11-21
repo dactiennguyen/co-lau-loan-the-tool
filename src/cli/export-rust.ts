@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { UNKNOWN, mobMoveOdds, answerValue, castSkill, mobBlock, battleItemResult, applyResult, type Board, type Strategy } from '../battle/battle.ts';
 import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from '../battle/battle-actions.ts';
 import { fixtures } from '../../test/fixtures.ts';
-import { npcPackets, symapBag } from '../../test/fixtures-npc.ts';
+import { npcPackets, STACKED, symapBag } from '../../test/fixtures-npc.ts';
 import { shopList } from '../protocol/world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, quote, mergePlan,
   mergeForecast, upgradeStones, putRequest, startRequest, craftSlot, recipes, craftMaterials, iceHeld, failLevel, charmUseful, charmFor, itemCap,
@@ -162,9 +162,13 @@ function npcCases() {
   const extra = [...symapBag, { slot: 60, itemId: 411, field0: 0, field1: 1 }, { slot: 61, itemId: 411, field0: 0, field1: 1 }];
   const plans = [{}, { upTo: 6 }, { upTo: 2 }, { unlocked: false }, { level: 5, locked: true, sets: 1 }, { level: 5 }, { sets: 2 },
     { level: 1, locked: false }, { level: 1, locked: false, unlocked: false }, { level: 12 }].flatMap(opts => [symapBag, extra].map(bag => ({ bag, opts, plan: mergePlan(bag, opts), forecast: mergeForecast(bag, opts) })));
+  // Stacked stones (ST1): akaito's bag, and four Đá cấp 2 alone.
+  const four = [{ slot: 2, itemId: 412, field0: 0, field1: 0, quantity: 4 }];
+  const stackedPlans = [{}, { upTo: 3 }, { level: 2, sets: 2 }, { upTo: 6 }].flatMap(opts => [STACKED, four].map(bag => ({ bag, opts, plan: mergePlan(bag, opts), forecast: mergeForecast(bag, opts) })));
   return {
-    decoders, quotes: [...texts].map(text => ({ text, expected: quote(text) })), plans,
+    decoders, quotes: [...texts].map(text => ({ text, expected: quote(text) })), plans: [...plans, ...stackedPlans],
     upgradeStones: [true, false].map(unlocked => ({ unlocked, slots: upgradeStones(symapBag, { unlocked }).map(i => i.slot) })),
+    upgradeStacked: { bag: STACKED, slots: upgradeStones(STACKED).map(i => i.slot) },
     requests: { put45: hex(putRequest(45)), start: hex(startRequest()) },
     o1: o1Cases(),
   };

@@ -47,3 +47,10 @@ export const symapBag: { slot: number; itemId: number; field0: number; field1: n
   [44, 415, 0, 0], [45, 227, 1, 0], [46, 415, 0, 0], [47, 415, 0, 0], [48, 415, 0, 0], [49, 415, 0, 0], [50, 357, 0, 0], [51, 415, 0, 0],
   [52, 415, 0, 0], [53, 415, 0, 0], [3, 36, 0, 1], [8, 21, 0, 0],
 ] as const).map(([slot, itemId, field0, field1]) => ({ slot, itemId, field0, field1 }));
+
+/** akaito's stones on 21/11 (ST1): one stack a level, all locked. */
+export const STACKED = [
+  { slot: 1, itemId: 413, field0: 0, field1: 0, quantity: 82 }, { slot: 2, itemId: 412, field0: 0, field1: 0, quantity: 37 },
+  { slot: 5, itemId: 415, field0: 0, field1: 0, quantity: 38 }, { slot: 6, itemId: 414, field0: 0, field1: 0, quantity: 58 },
+  { slot: 10, itemId: 416, field0: 0, field1: 0, quantity: 2 },
+];

@@ -121,7 +121,7 @@ export class SmithBot {
     const stones: Record<string, number> = {}, gear = [], charms = [], materials = [];
     for (const i of this.bag.toSorted((a, b) => a.slot - b.slot)) {
       const def = this.items.get(i.itemId), level = npc.stoneLevel(i.itemId);
-      if (level) { const key = `Đá ${level}${i.field1 === 0 ? ' khoá' : ''}`; stones[key] = (stones[key] ?? 0) + 1; }
+      if (level) { const key = `Đá ${level}${i.field1 === 0 ? ' khoá' : ''}`; stones[key] = (stones[key] ?? 0) + npc.countOf(i); }
       else if (npc.isGear(def)) gear.push({ slot: i.slot, name: def!.name, plus: i.field0, locked: i.field1 === 0, tier: def!.level, cap: npc.itemCap(def!) });
       else if (npc.CHARMS.some(c => c.itemId === i.itemId)) charms.push({ slot: i.slot, name: def?.name, quantity: i.quantity });
       else if (def?.type === 22) materials.push({ slot: i.slot, name: def.name, quantity: i.quantity });
@@ -163,7 +163,7 @@ export class SmithBot {
   /** Opens Nâng cấp, puts the item, a charm when a failure would lose levels, and the stones one by one, cheapest first,
    * until the rate asked. The server takes every stone put in: when the rate stops short of it and some stones did not
    * raise it (the cap), the window is opened again with only the stones that did. Checks the money; logs the plan. */
-  private async prepare(item: Item, t: UpgradeTask, rate: number, quoteOnly: boolean, only?: Item[]): Promise<UpgradePlan> {
+  private async prepare(item: Item, t: UpgradeTask, rate: number, quoteOnly: boolean, only?: Item[], above = 0): Promise<UpgradePlan> {
     const level = item.field0;
     await this.window(PATHS.upgrade(!!t.careful), 96);
     const gear = npc.serviceSlot((await this.put(item, [90])).payload);
@@ -175,24 +175,35 @@ export class SmithBot {
       const a = npc.serviceSlot((await this.put(charm, [90], { kind: npc.PUT_STACK })).payload);
       this.log({ event: 'put', what: 'bùa', slot: charm.slot, item: this.describe(charm), text: a.text, ready: a.ready });
     } else if (npc.charmUseful(level)) this.log({ event: 'warning', text: `không dùng bùa: thất bại sẽ tụt +${level} về +${npc.failLevel(level)}` });
-    const stones = only ?? npc.upgradeStones(this.bag, { unlocked: !t.lockedStones }).slice(0, charm ? 17 : 18);
+    const room = npc.UPGRADE_SLOTS - (charm ? 1 : 0);
+    const all = npc.upgradeStones(this.bag, { unlocked: !t.lockedStones }).filter(s => npc.stoneLevel(s.itemId) > above);
+    const stones = only ?? all.slice(0, room);
     if (!stones.length) throw new SmithStop(`túi không có đá nâng cấp${t.lockedStones ? ' đã khoá' : ''}`);
     const placed: Item[] = [], useful: Item[] = [];
+    let raised = false;
     let q: npc.Quote | undefined;
     for (const stone of stones) {
       const a = npc.serviceSlot((await this.put(stone, [90])).payload), next = npc.quote(a.text);
       this.log({ event: 'put', what: 'đá', slot: stone.slot, item: this.describe(stone), rate: next.rate, fee: next.fee?.amount, luong: next.luong, ready: a.ready });
-      if (only || (next.rate ?? 0) > (q?.rate ?? 0)) useful.push(stone);
+      raised = (next.rate ?? 0) > (q?.rate ?? 0);
+      if (only || raised) useful.push(stone);
       placed.push(stone);
       q = next;
       if (!only && (q.rate ?? 0) >= rate) break;
+    }
+    // A window full of cheap stones short of the rate, the last one still raising it: four stones of a level are worth one
+    // of the next, so the window opens again without the cheapest level (ST1: stacks give many stones of one level).
+    const low = npc.stoneLevel(stones[0].itemId);
+    if (!only && (q?.rate ?? 0) < rate && placed.length >= room && raised && all.some(s => npc.stoneLevel(s.itemId) > low)) {
+      this.log({ event: 'reopen', text: `${room} viên Đá cấp ${low} chỉ được ${q?.rate}%: mở lại cửa sổ với đá cấp cao hơn` });
+      return this.prepare(item, t, rate, quoteOnly, undefined, low);
     }
     // Hỏi giá short of the rate asked (the cap, or out of stones): the stones that did not raise the whole-number rate
     // would be wasted, so the price is that of the others, with the window opened again. Nâng cấp stops below the rate
     // anyway, and once the rate is reached the loop ended on a stone that raised it.
     if (quoteOnly && !only && (q?.rate ?? 0) < rate && useful.length && useful.length < placed.length) {
       this.log({ event: 'reopen', text: `${placed.length - useful.length} viên không làm tỉ lệ tăng: mở lại cửa sổ với ${useful.length} viên` });
-      const fewer = await this.prepare(item, t, rate, quoteOnly, useful);
+      const fewer = await this.prepare(item, t, rate, quoteOnly, useful, above);
       // A stone may add less than 1%: two of them raise the rate together and neither alone.
       if ((fewer.quote.rate ?? 0) < (q?.rate ?? 0)) this.log({ event: 'warning', text: `bỏ ${placed.length - useful.length} viên thì tỉ lệ còn ${fewer.quote.rate}% thay vì ${q?.rate}%: các viên đó cộng lại vẫn có ích` });
       return fewer;
@@ -202,7 +213,11 @@ export class SmithBot {
       rate: q!.rate, fee: q!.fee, luong: q!.luong, stones: plan.stones.map(s => this.describe(s)), charm: charm && this.describe(charm),
       onFail: charm || !npc.charmUseful(level) ? `giữ +${level}` : `tụt về +${npc.failLevel(level)}` });
     if (quoteOnly) return plan;
-    if ((q!.rate ?? 0) < rate) throw new SmithStop(`tỉ lệ cao nhất ${q!.rate}% thấp hơn --rate=${rate}`);
+    if ((q!.rate ?? 0) < rate) {
+      const capped = !t.careful && placed.length > useful.length;
+      throw new SmithStop(capped ? `tỉ lệ dừng ở ${q!.rate}% dù thêm đá: có lẽ là trần của lần nâng +${level} lên +${level + 1} ở chế độ Thường; thêm --rate=${q!.rate} hoặc --careful`
+        : `tỉ lệ cao nhất ${q!.rate}% thấp hơn --rate=${rate}`);
+    }
     this.checkMoney(q!.fee, q!.luong);
     return plan;
   }
@@ -222,10 +237,11 @@ export class SmithBot {
       if (!set) return 'done';
       await this.window(set.window === 'mergeXu' ? PATHS.mergeXu : PATHS.mergeXuKhoa, 99);
       let last: ReturnType<typeof npc.stoneSlot> | undefined;
-      for (const slot of set.slots) {
-        const stone = this.slot(slot);
-        last = npc.stoneSlot((await this.put(stone, [92])).payload);
-        this.log({ event: 'put', what: 'đá', slot, item: this.describe(stone), text: last.text, ready: last.ready });
+      // The stones of one slot together: four of one stack go in with one c2s/97 of quantity 4 (ST1).
+      for (const slot of new Set(set.slots)) {
+        const stone = this.slot(slot), quantity = set.slots.filter(s => s === slot).length;
+        last = npc.stoneSlot((await this.put(stone, [92], { quantity })).payload);
+        this.log({ event: 'put', what: 'đá', slot, quantity, item: this.describe(stone), text: last.text, ready: last.ready });
       }
       const q = npc.quote(last!.text);
       if (q.rate !== 100 || q.stone?.level !== set.level + 1) throw new SmithStop(`Luyện đá báo "${last!.text}", không phải Đá cấp ${set.level + 1} với 100%`);

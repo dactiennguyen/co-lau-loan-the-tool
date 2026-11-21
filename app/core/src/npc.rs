@@ -516,7 +516,16 @@ impl BagItem {
     pub fn locked(&self) -> bool {
         self.field1 == 0
     }
+    /// How many the slot holds: the stack, 1 where the vectors leave it out (0).
+    pub fn count(&self) -> i32 {
+        self.quantity.max(1)
+    }
 }
+
+/// How many stones one stack holds at most: Đá cấp 1–12 stack to 999 since the item table of 16/11 (ST1).
+pub const STONE_STACK: i32 = 999;
+/// Stones a Nâng cấp window holds (s2c/96); upgrade_stones gives no more of one stack.
+pub const UPGRADE_SLOTS: usize = 18;
 
 /// One Luyện đá: four stones of one level and lock, made into one of the next level at 100%.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -579,16 +588,20 @@ impl MergeOptions {
 /// Gộp đá: the sets of 4 stones of a level that Luyện đá makes into one of the next at 100%, lowest level first. Unlocked
 /// stones go together in Luyện đá [Xu], paid in Xu, so the stone made stays tradeable; locked ones in [Xu khóa]. A
 /// level's 1–3 stones left over stay. The stones made are not in this plan: plan again on the new bag to go on up.
-/// `sets` is not applied here: the bot counts its merges.
+/// `sets` is not applied here: the bot counts its merges. Stones stack (ST1): a slot stands in `slots` once per stone it
+/// holds, so a set may be four of one slot, put in with c2s/97 quantity 4.
 pub fn merge_plan(bag: &[BagItem], o: MergeOptions) -> Vec<MergeSet> {
     let mut sets = vec![];
     for (level, lock) in o.kinds() {
-        let mut slots: Vec<i32> = bag
+        let mut held: Vec<&BagItem> = bag
             .iter()
             .filter(|i| stone_level(i.item_id) == level && i.locked() == lock)
-            .map(|i| i.slot)
             .collect();
-        slots.sort();
+        held.sort_by_key(|i| i.slot);
+        let slots: Vec<i32> = held
+            .iter()
+            .flat_map(|i| std::iter::repeat_n(i.slot, i.count() as usize))
+            .collect();
         for four in slots.chunks_exact(4) {
             sets.push(MergeSet {
                 level,
@@ -632,24 +645,35 @@ pub fn merge_forecast(bag: &[BagItem], o: MergeOptions) -> MergeForecast {
 /// (Tự gộp đá khi túi đầy, planned before the trip to Pháp sư). Unlocked sets, paid in Xu, are counted as merge_forecast
 /// counts them.
 pub fn merge_forecast_paid(bag: &[BagItem], o: MergeOptions, xu_khoa: i64) -> MergeForecast {
-    let mut count = [[0i64; 2]; 14];
-    let mut made = [[0i64; 2]; 14];
-    for i in bag {
-        let level = stone_level(i.item_id);
-        if level > 0 {
-            count[level as usize][i.locked() as usize] += 1;
-        }
+    // The stacks of each level and lock in slot order, as Gộp đá takes them (merge_plan): four stones from the first
+    // ones, and the stone made onto the first stack of its kind with room, else into a slot of its own (ST1).
+    let mut stacks: Vec<Vec<Vec<i64>>> = vec![vec![vec![]; 2]; 14];
+    let mut held: Vec<&BagItem> = bag.iter().filter(|i| stone_level(i.item_id) > 0).collect();
+    held.sort_by_key(|i| i.slot);
+    for i in &held {
+        stacks[stone_level(i.item_id) as usize][i.locked() as usize].push(i.count() as i64);
     }
+    let mut made = [[0i64; 2]; 14];
     let (mut merges, mut xu, mut paid) = (0, 0, 0i64);
     let most = o.sets.unwrap_or(i64::MAX);
     'kinds: for (level, lock) in o.kinds() {
         let fee = merge_fee(level + 1);
-        while count[level as usize][lock as usize] >= 4 && merges < most {
+        while stacks[level as usize][lock as usize].iter().sum::<i64>() >= 4 && merges < most {
             if lock && paid.saturating_add(fee) > xu_khoa {
                 break 'kinds;
             }
-            count[level as usize][lock as usize] -= 4;
-            count[level as usize + 1][lock as usize] += 1;
+            let from = &mut stacks[level as usize][lock as usize];
+            let mut take = 4;
+            for n in from.iter_mut() {
+                let k = take.min(*n);
+                (*n, take) = (*n - k, take - k);
+            }
+            from.retain(|&n| n > 0);
+            let to = &mut stacks[level as usize + 1][lock as usize];
+            match to.iter_mut().find(|n| **n < STONE_STACK as i64) {
+                Some(n) => *n += 1,
+                None => to.push(1),
+            }
             made[level as usize + 1][lock as usize] += 1;
             merges += 1;
             match lock {
@@ -670,18 +694,20 @@ pub fn merge_forecast_paid(bag: &[BagItem], o: MergeOptions, xu_khoa: i64) -> Me
             }
         }
     }
+    let after: usize = stacks.iter().flatten().map(Vec::len).sum();
     MergeForecast {
         merges,
         xu,
         xu_khoa: paid,
-        freed: merges * 3,
+        freed: held.len() as i64 - after as i64,
         made: list,
     }
 }
 
 /// The stones Nâng cấp may use, in the order to put them: lowest value first, and within a level the locked ones before
 /// the unlocked ones, which stay tradeable longer. `unlocked` false leaves unlocked stones out. The server takes every
-/// stone put in (J3), so the bot puts them one by one and stops as soon as the odds are reached.
+/// stone put in (J3), so the bot puts them one by one and stops as soon as the odds are reached. A stack stands once per
+/// stone, at most UPGRADE_SLOTS of it (a window's worth): c2s/97 of the same slot again adds one more stone (ST1).
 pub fn upgrade_stones(bag: &[BagItem], unlocked: bool) -> Vec<BagItem> {
     let mut v: Vec<BagItem> = bag
         .iter()
@@ -694,7 +720,9 @@ pub fn upgrade_stones(bag: &[BagItem], unlocked: bool) -> Vec<BagItem> {
             .then(b.locked().cmp(&a.locked()))
             .then(a.slot.cmp(&b.slot))
     });
-    v
+    v.into_iter()
+        .flat_map(|i| std::iter::repeat_n(i, (i.count() as usize).min(UPGRADE_SLOTS)))
+        .collect()
 }
 
 /// The bag items Chuyển hoá may move `source`'s level to (16-upgrade.md#chuyển-hoá): another item of the same type, at

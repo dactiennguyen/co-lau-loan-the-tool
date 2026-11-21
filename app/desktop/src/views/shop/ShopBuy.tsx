@@ -64,7 +64,11 @@ export function ShopBuy({ account, why, ask, item }: ShopContext & { item?: numb
   const have = line ? wallet(line) : null;
   const short = line != null && have != null && cost > have;
   const owned = (itemId: number) => c.bag?.items.filter((i) => i.id === itemId).reduce((n, i) => n + i.quantity, 0) ?? 0;
-  const full = c.bag != null && c.bag.items.length >= c.bag.capacity;
+  // A full bag still takes what joins a stack of the same item and lock with room for the count (Kim Đan Dược onto its
+  // stack); anything else needs a free slot ("Rương đã đầy").
+  const joins =
+    line != null && line.stack > 1 && (c.bag?.items ?? []).some((i) => i.id === line.itemId && i.locked === line.locks && i.quantity + quantity <= line.stack);
+  const full = c.bag != null && c.bag.items.length >= c.bag.capacity && !joins;
 
   const log = useStore(selectedLog);
   const [mark, setMark] = useState<number | null>(null);
@@ -225,7 +229,7 @@ export function ShopBuy({ account, why, ask, item }: ShopContext & { item?: numb
             {line.name} · trong túi {owned(line.itemId)}
             {line.locks && " · sẽ bị khoá"}
           </span>
-          <Stepper value={quantity} onChange={setQuantity} min={1} label="số lượng" />
+          <Stepper value={quantity} onChange={setQuantity} min={1} max={Math.max(1, line.stack)} label="số lượng" />
           <span className={short ? SHOP.costShort : undefined}>
             = <b className={SHOP.costFig}>{num(cost)}</b> {MONEY[line.currency]}
             {short && ` · thiếu ${num(cost - (have ?? 0))}`}

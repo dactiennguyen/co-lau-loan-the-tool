@@ -93,7 +93,7 @@ Mỗi lần lên một cấp, bot làm như sau:
    - Khi đó bot đặt bùa bằng `c2s/97 ("", 0, 1, ô, 1)` (loại 1, như client).
    - Bùa sơ, trung, cao, siêu cấp (mã 35–38) dùng cho lần nâng tới +8, +12, +14, +16. Bot chọn bùa thấp nhất còn dùng được.
    - Bùa mất cả khi thành công lẫn thất bại.
-4. **Đá.** Bot đặt từng viên, giá trị thấp trước; cùng cấp thì đá khoá trước đá chưa khoá. Sau mỗi viên, bot đọc tỉ lệ trong `s2c/90` và dừng khi tỉ lệ đạt R.
+4. **Đá.** Bot đặt từng viên, giá trị thấp trước; cùng cấp thì đá khoá trước đá chưa khoá. Một chồng là nhiều viên: bot gửi lại `c2s/97` của cùng ô, mỗi lần thêm một viên ([ST1](../../app/events/16-upgrade.md#đá-xếp-chồng-st1)). Sau mỗi viên, bot đọc tỉ lệ trong `s2c/90` và dừng khi tỉ lệ đạt R. 18 ô đầy đá rẻ mà chưa tới R thì bot mở lại cửa sổ, bỏ cấp đá thấp nhất.
    - Nâng cấp: đặt hết đá (hoặc hết ô) mà tỉ lệ vẫn dưới R thì bot dừng ở bước 5, không bấm.
    - Hỏi giá (`--quote`): trong trường hợp đó, nếu có viên không làm tỉ lệ tăng (đã chạm trần), bot mở lại cửa sổ và đặt lại mà không có các viên đó, để giá báo ra là giá với số đá có ích. Lý do: server lấy hết đá đã đặt, kể cả viên thừa ([nâng cấp](../../app/events/16-upgrade.md#bảng-đo-nâng-cấp)). Tỉ lệ hiện số nguyên, nên hai viên nhỏ có thể cùng làm tỉ lệ tăng mà từng viên thì không: nếu bỏ chúng làm tỉ lệ giảm, bot ghi dòng `warning`.
    - Cửa sổ có 18 ô đá; khi có bùa thì bot đặt nhiều nhất 17 viên.
@@ -133,7 +133,7 @@ Hỏi giá (`--quote`) làm bước 1 tới 5 cho một cấp rồi dừng.
 
 **Gộp đá.**
 
-- Mỗi lần luyện bốn viên cùng cấp và cùng loại khoá. Bốn viên như vậy cho một viên cấp trên, chắc chắn 100% (`mergePlan`).
+- Mỗi lần luyện bốn viên cùng cấp và cùng loại khoá. Bốn viên như vậy cho một viên cấp trên, chắc chắn 100% (`mergePlan`). Đá xếp chồng: kế hoạch đếm từng viên, bốn viên của một chồng đi vào bằng một `c2s/97` số lượng 4.
 - Đá chưa khoá luyện ở Luyện đá [Xu] (1 → 1), nên viên ra vẫn chưa khoá. Đá khoá luyện ở [Xu khóa] (1 → 0).
 - Bot đặt bốn viên, kiểm `s2c/92` báo đúng viên cấp trên với 100%, rồi bấm.
 - Sau mỗi lần, bot xin túi rồi lập kế hoạch lại, nên viên vừa ra được luyện tiếp tới cấp `--merge` (mặc định 12).
