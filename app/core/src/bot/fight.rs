@@ -293,7 +293,7 @@ impl Bot {
                     end.damage
                 ),
             ));
-            return self.bach_ho_battle_end(end.won, end.damage as i64, now);
+            return self.bach_ho_battle_end(end.won, end.damage as i64, now, out);
         }
         if self.battle_seq != self.job_seq {
             out.push(Out::Log(

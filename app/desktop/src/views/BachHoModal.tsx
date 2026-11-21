@@ -308,6 +308,12 @@ function AccountRow({ account: a, why, on, onToggle }: { account: Account; why: 
           <span className="ml-auto text-fg-3 whitespace-nowrap">
             <b className="px text-fg">{run.tries}</b> lần thử · <b className="px text-fg">{run.battles}</b> trận · <b className="px text-coin">{num(run.damage)}</b> sát thương
           </span>
+          {run.standing && (
+            <span className="basis-full min-w-0 truncate text-fg-2" title="Kết quả Bạch Hổ của game (s2c/1275)">
+              <Icon name="crown" size={11} className="inline mr-1 text-coin" />
+              {run.standing}
+            </span>
+          )}
         </div>
       )}
     </li>

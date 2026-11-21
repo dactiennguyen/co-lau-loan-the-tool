@@ -56,6 +56,94 @@ fn clock(ms: u64) -> String {
     format!("{:02}:{:02}", m / 60, m % 60)
 }
 
+/// s2c/1275 ← sqtm.a of game 1.1.0 (17-bach-ho.md#đọc-tĩnh-110): u8 state; i64 run; i32 HP, most HP; i32 killer id;
+/// string killer; u8 its tier; i32 its damage; u8 n tiers × {u8 tier; i16 levels from, to; i32 threshold; i32
+/// players; u8 m rows × {u8 rank; i32 id; string name; i16 level; i32 damage}}; u8 own tier; i32 rank; i32 damage; u8
+/// threshold reached.
+pub fn bach_ho_result(p: &[u8]) -> crate::protocol::Result<BachHoResult> {
+    let mut r = crate::protocol::Reader::new(p);
+    let i16 = |r: &mut crate::protocol::Reader| r.u16().map(|v| v as i16);
+    let (state, session_at, hp, max_hp) = (r.u8()?, r.i64()?, r.i32()?, r.i32()?);
+    let (killer_id, killer, killer_tier, killer_damage) =
+        (r.i32()?, r.string()?, r.u8()?, r.i32()?);
+    let mut tiers = vec![];
+    for _ in 0..r.u8()? {
+        let tier = BachHoTier {
+            tier: r.u8()?,
+            min_level: i16(&mut r)?,
+            max_level: i16(&mut r)?,
+            threshold: r.i32()?,
+            players: r.i32()?,
+        };
+        // The ranking rows (rank, id, name, level, damage): read, not kept.
+        for _ in 0..r.u8()? {
+            r.u8()?;
+            r.i32()?;
+            r.string()?;
+            i16(&mut r)?;
+            r.i32()?;
+        }
+        tiers.push(tier);
+    }
+    let (own_tier, own_rank, own_damage, reached) = (r.u8()?, r.i32()?, r.i32()?, r.u8()? != 0);
+    r.finish(
+        BachHoResult {
+            state,
+            session_at,
+            hp,
+            max_hp,
+            killer_id,
+            killer,
+            killer_tier,
+            killer_damage,
+            tiers,
+            own_tier,
+            own_rank,
+            own_damage,
+            reached,
+        },
+        "s2c/1275",
+    )
+}
+
+/// "Bậc 2 (cấp 60+), hạng 4, 31.000 sát thương" as the game words it (sqtq): the levels of the tier as "cấp a–b", or
+/// "cấp a+" for the last; " (chưa đạt ngưỡng 20.000)" when under the threshold. None before the character fought.
+fn standing(b: &BachHoResult) -> Option<String> {
+    if b.own_tier == 0 || b.own_rank <= 0 {
+        return None;
+    }
+    let tier = b.tiers.iter().find(|t| t.tier == b.own_tier);
+    let levels = tier.map_or(String::new(), |t| {
+        if t.max_level >= 999 || t.max_level < t.min_level {
+            format!(" (cấp {}+)", t.min_level)
+        } else {
+            format!(" (cấp {}–{})", t.min_level, t.max_level)
+        }
+    });
+    let under = match tier {
+        Some(t) if !b.reached => {
+            format!(" (chưa đạt ngưỡng {})", smith::grouped(t.threshold as i64))
+        }
+        None if !b.reached => " (chưa đạt ngưỡng)".into(),
+        _ => String::new(),
+    };
+    Some(format!(
+        "Bậc {}{levels}, hạng {}, {} sát thương{under}",
+        b.own_tier,
+        b.own_rank,
+        smith::grouped(b.own_damage as i64)
+    ))
+}
+
+/// The boss's HP left in percent, as sqto.c() of the game.
+fn hp_percent(b: &BachHoResult) -> i64 {
+    if b.max_hp <= 0 {
+        0
+    } else {
+        (b.hp.max(0) as i64 * 100) / b.max_hp as i64
+    }
+}
+
 impl Bot {
     /// Bạch Hổ from `from_ms` until `until_ms` (ms since 1970): a fight job or quest run on is stopped, where the
     /// character stands is kept for Quay về chỗ cũ, and until the start time it waits. Refused while it is busy with
@@ -98,8 +186,10 @@ impl Bot {
             battles: 0,
             wins: 0,
             damage: 0,
+            standing: None,
             done: None,
         });
+        self.bach_ho_asked = false;
         out.push(Out::Log(
             LogKind::Battle,
             format!(
@@ -114,11 +204,12 @@ impl Bot {
     /// Dừng of the Bạch Hổ window (also Dừng of the account): the run ends; a battle on is played out.
     pub fn bach_ho_stop(&mut self, out: &mut Vec<Out>) {
         if self.bach_ho.is_some() {
-            self.bach_ho_end("Đã dừng", out);
+            self.bach_ho_end("Đã dừng", true, out);
         }
     }
 
-    fn bach_ho_end(&mut self, why: &str, out: &mut Vec<Out>) {
+    /// The run ends with `why`; with `ask`, Kết quả Bạch Hổ is asked once more when it fought, for where it stands.
+    fn bach_ho_end(&mut self, why: &str, ask: bool, out: &mut Vec<Out>) {
         self.bach_ho = None;
         if matches!(self.timer, Some((_, Wake::Next | Wake::ChallengeTimeout))) {
             self.timer = None;
@@ -134,6 +225,60 @@ impl Bot {
             r.doing = line.clone();
             r.done = Some(line.clone());
             out.push(Out::Log(LogKind::Battle, format!("Xong Bạch Hổ: {line}")));
+            if ask && r.battles > 0 {
+                self.bach_ho_ask(out);
+            }
+        }
+    }
+
+    /// c2s/1275 (empty): Kết quả Bạch Hổ, as "Xem tất cả bậc" of the game asks it.
+    fn bach_ho_ask(&mut self, out: &mut Vec<Out>) {
+        self.bach_ho_asked = true;
+        Self::send(out, 1275, Ctx::default());
+    }
+
+    /// s2c/1275: where the character stands goes on the run; asked by the run (after a battle, at its end), the log says
+    /// how the boss is, and a run still on ends once the boss is killed or got away: there is nothing left to fight in
+    /// a day's run the character fought in. Read quietly when the run did not ask.
+    pub(super) fn bach_ho_result_read(&mut self, payload: &[u8], out: &mut Vec<Out>) {
+        let b = match bach_ho_result(payload) {
+            Ok(b) => b,
+            Err(e) => {
+                out.push(Out::Log(
+                    LogKind::Battle,
+                    format!("Không đọc được kết quả Bạch Hổ (s2c/1275): {e}"),
+                ));
+                return;
+            }
+        };
+        let place = standing(&b);
+        if let (Some(r), Some(s)) = (self.snap.bach_ho.as_mut(), &place) {
+            r.standing = Some(s.clone());
+        }
+        if !std::mem::take(&mut self.bach_ho_asked) {
+            return;
+        }
+        let boss = match b.state {
+            0 => format!("Bạch Hổ còn {}% máu", hp_percent(&b)),
+            1 if b.killer_id > 0 => format!(
+                "Bạch Hổ đã bị tiêu diệt, kết liễu: {} (bậc {}, {} sát thương)",
+                b.killer,
+                b.killer_tier,
+                smith::grouped(b.killer_damage as i64)
+            ),
+            1 => "Bạch Hổ đã bị tiêu diệt".into(),
+            2 => format!("Bạch Hổ đã tẩu thoát, còn {}% máu", hp_percent(&b)),
+            _ => "Chưa có phiên Bạch Hổ nào".into(),
+        };
+        let you = place.unwrap_or_else(|| "nick chưa có hạng ở phiên này".into());
+        out.push(Out::Log(LogKind::Battle, format!("{boss}. {you}")));
+        if self.bach_ho.is_some() && matches!(b.state, 1 | 2) {
+            let why = if b.state == 1 {
+                "Boss đã bị tiêu diệt"
+            } else {
+                "Boss đã tẩu thoát"
+            };
+            self.bach_ho_end(why, false, out);
         }
     }
 
@@ -155,7 +300,7 @@ impl Bot {
         };
         let at = epoch_ms();
         if at >= r.until_ms {
-            return self.bach_ho_end("Hết giờ", out);
+            return self.bach_ho_end("Hết giờ", true, out);
         }
         if self.battle.is_some()
             || self.warp.is_some()
@@ -266,8 +411,16 @@ impl Bot {
         self.challenged(mob, now);
     }
 
-    /// A battle of the run is over: its figures, then the next try.
-    pub(super) fn bach_ho_battle_end(&mut self, won: bool, damage: i64, now: Instant) {
+    /// A battle of the run is over: its figures, Kết quả Bạch Hổ asked (where it stands, and whether the boss is still
+    /// there), then the next try.
+    pub(super) fn bach_ho_battle_end(
+        &mut self,
+        won: bool,
+        damage: i64,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        self.bach_ho_ask(out);
         if let Some(r) = self.snap.bach_ho.as_mut() {
             r.battles += 1;
             r.wins += u32::from(won);

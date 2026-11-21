@@ -74,7 +74,8 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
     Ok(match opcode {
         // c2s/1215 asks for the mailbox, c2s/1218 is Nhận hết. c2s/1221 (Xóa hết) has no arm: it deletes the gifts not
         // taken too (mail::DELETE_ALL).
-        -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 | 116 => w.build(),
+        // 1275: Kết quả Bạch Hổ (17-bach-ho.md#đọc-tĩnh-110).
+        -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 | 116 | 1275 => w.build(),
         1206 => w.string(PLATFORM).string(protocol_version()).i32(0).build(),
         // Command 0 of c2s/1284: the chat block list, asked for right before c2s/9 as the game does (VG1).
         1284 => w.u8(0).build(),

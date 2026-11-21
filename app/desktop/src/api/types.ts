@@ -518,6 +518,8 @@ export interface BachHoRun {
   battles: number;
   wins: number;
   damage: number;
+  /** Where the character stands in Kết quả Bạch Hổ (s2c/1275): "Bậc 2 (cấp 60+), hạng 4, 31.000 sát thương". */
+  standing: string | null;
   done: string | null;
 }
 

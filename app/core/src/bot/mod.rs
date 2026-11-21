@@ -40,6 +40,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod bachho;
+pub use bachho::bach_ho_result;
 mod daily;
 mod eggs;
 mod fight;
@@ -308,6 +309,8 @@ pub struct Bot {
     eggs: Option<eggs::EggStep>,
     /// Bạch Hổ (bot/bachho.rs): the run under way; its figures are snap.bach_ho.
     bach_ho: Option<bachho::State>,
+    /// c2s/1275 sent by Bạch Hổ and its answer not in yet (bachho.rs).
+    bach_ho_asked: bool,
     /// A jump through Bản đồ thế giới under way (Bạch Hổ, Quay về chỗ cũ).
     warp: Option<bachho::Warp>,
     /// The zone of c2s/1173 until s2c/43 of it (change_zone).
@@ -435,6 +438,7 @@ impl Bot {
             discard_count: (0, 0),
             eggs: None,
             bach_ho: None,
+            bach_ho_asked: false,
             warp: None,
             zoning: None,
             trip: None,

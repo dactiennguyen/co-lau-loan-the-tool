@@ -516,6 +516,29 @@ export function bachHoBoard(payload: Uint8Array) {
   return finish(r, { state, hp, maxHp, players, rows, ownRank: r.i32(), own: r.i32() }, 's2c/1252');
 }
 
+/**
+ * s2c/1275: Kết quả Bạch Hổ (17-bach-ho.md#đọc-tĩnh-110), the answer to c2s/1275 (empty; "Xem tất cả bậc" of the board).
+ * Read as sqtm.a of game 1.1.0 reads it into sqto, the meaning from the words sqtq builds with each field:
+ * - state: 0 Đang diễn ra (HP shown), 1 Boss đã bị tiêu diệt, 2 Boss đã tẩu thoát (HP shown), else Chưa có phiên nào;
+ * - sessionAt: the day's run (Phiên …, i64, its unit not measured); hp and maxHp of the boss;
+ * - killerId (above 0 when someone finished it), killer ("Kết liễu: …"), its tier ("Bậc …") and damage;
+ * - tiers (bậc): a level band of characters ("Cấp min - max"), its damage threshold ("Ngưỡng"), its players (" người")
+ *   and ranking rows (rank, id, name, level, damage);
+ * - own: the character's tier, rank and damage, and whether it reached the threshold (" (chưa đạt ngưỡng)" when not).
+ */
+export function bachHoResult(payload: Uint8Array) {
+  const r = new Reader(payload), i16 = () => r.take(2).readInt16BE();
+  const state = r.u8(), sessionAt = i64(r), hp = r.i32(), maxHp = r.i32(), killerId = r.i32(), killer = r.string();
+  const killerTier = r.u8(), killerDamage = r.i32(), tiers = [];
+  for (let n = r.u8(); n > 0; n--) {
+    const tier = r.u8(), minLevel = i16(), maxLevel = i16(), threshold = r.i32(), players = r.i32(), rows = [];
+    for (let m = r.u8(); m > 0; m--) rows.push({ rank: r.u8(), id: r.i32(), name: r.string(), level: i16(), damage: r.i32() });
+    tiers.push({ tier, minLevel, maxLevel, threshold, players, rows });
+  }
+  const own = { tier: r.u8(), rank: r.i32(), damage: r.i32(), reached: r.u8() !== 0 };
+  return finish(r, { state, sessionAt, hp, maxHp, killerId, killer, killerTier, killerDamage, tiers, own }, 's2c/1275');
+}
+
 /** s2c/1254: ranking. Kind 0 lists the tabs; kind 1 is one tab: top entries, then the own rank (-1 when unranked). */
 export function ranking(payload: Uint8Array) {
   const r = new Reader(payload), kind = r.u8();

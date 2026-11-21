@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 167 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 78 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 168 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 78 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -35,7 +35,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | NPC: hộp thoại của 20 NPC (`13`, `57`), Hương Lão, Chợ trời (`1192`), `s2c/0` là thông báo chung | [14-npc](14-npc.md) |
 | Cửa hàng NPC: 14 cửa hàng, 193 dòng hàng với giá, bản ghi 33 và 49 byte (`1190`), mua bằng Xu, Xu khóa, Lượng, Đổi lượng, đồ khoá giao dịch | [15-shops](15-shops.md) |
 | Pháp sư: nâng cấp thường và cẩn thận (`96`, `97`, `90`, `1258`, `91`), tỉ lệ và phí, thất bại, bùa, luyện đá (`99`, `92`, `93`), tách đá, chuyển hoá (`1260`), chế tạo, túi đầy, kết quả bấm thật | [16-upgrade](16-upgrade.md) |
-| Bạch Hổ Thống Lĩnh (boss thế giới): luật trong Cẩm nang, bảng công trạng `c2s/1252` (rỗng) và `s2c/1252` đọc từ code native | [17-bach-ho](17-bach-ho.md) |
+| Bạch Hổ Thống Lĩnh (boss thế giới): luật trong Cẩm nang, bảng công trạng `c2s/1252` (rỗng) và `s2c/1252`, kết quả và bậc `c2s/1275`/`s2c/1275`, đọc từ code native | [17-bach-ho](17-bach-ho.md) |
 | Người chơi với nhau (menu chạm vào người chơi, Xem thông tin, Kết bạn, Bạn bè, chat riêng, Gửi thư kèm đồ) và Điểm danh tháng (`c2s/1232`, quà ngày ngẫu nhiên vào thẳng túi), Quà thăng cấp và Quà online (`c2s/1233`) | [18-players-checkin](18-players-checkin.md) |
 | Luyện Ngục: Cổng Luyện Ngục (M15), Luyện Ngục 1–4 (M18–M21, cần Nhẫn Luyện Ngục, quái cấp 30–150), Hang Bạch Hổ (M24) | [19-luyen-nguc](19-luyen-nguc.md) |
 | Mọi gói client gửi được: hàm dựng, opcode, kiểu từng trường | [c2s-builders](../c2s-builders.md) |
@@ -175,7 +175,8 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/1285 | report_player | world | [Báo cáo người chơi](09-players-chat.md#chặn-chat-và-báo-cáo) |
 | s2c/1284 | chat_block_list | world | [Chặn chat](09-players-chat.md#chặn-chat-và-báo-cáo) |
 | s2c/1285 | report_result | world | [Báo cáo người chơi](09-players-chat.md#chặn-chat-và-báo-cáo) |
-| c2s/1275 | request_1275 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
+| c2s/1275 | bach_ho_result_request | world | [Bạch Hổ: kết quả](17-bach-ho.md#đọc-tĩnh-110) |
+| s2c/1275 | bach_ho_result | world | [Bạch Hổ: kết quả](17-bach-ho.md#đọc-tĩnh-110) |
 | c2s/1277 | request_1277 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
 | c2s/1281 | request_1281 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
 | s2c/46 | currency_notice | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-46) |

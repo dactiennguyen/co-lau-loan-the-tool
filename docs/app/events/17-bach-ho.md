@@ -92,6 +92,44 @@ Chưa tìm được hàm native nào dùng "Tham gia ngay": bản 1.1.0 nạp ch
 
 **Vào hang:** đã biết (M15, cổng 1006, [19-luyen-nguc](19-luyen-nguc.md#hang-bạch-hổ-m24)). **Đánh boss thế nào: chưa đo.** Các nick nay đã trên cấp 30 (21/11: 80–91). Cách đo chắc nhất: lúc 21:00–21:59, trên điện thoại, nick cấp 30 trở lên, gắn Frida bắt gói như VG1 ([02-login](02-login.md#vg1)), rồi bấm "Tham gia ngay" (hay tìm nút Bạch Hổ ở Sự kiện). Gói gửi đi lúc đó là gói vào hang.
 
+## Đọc tĩnh 1.1.0
+
+Ngày 21/11: bậc, kết quả, gói thách đấu.
+
+Nguồn: `libgdx-flashds.so` và jadx của bản 1.1.0 trên điện thoại. Cách tìm: mọi lớp native dùng chung một kho chuỗi (`native_jvm::string_pool::get_pool()` = `0x3899400`), mỗi chuỗi được nạp bằng `kho + độ lệch` (`add`, hoặc `mov`/`movk` rồi `add`). Quét các độ lệch đó trong `.text` thì ra hàm và lớp dùng chuỗi; thứ tự đọc gói lấy từ dãy `GetMethodID` của lớp đọc gói (`a ()B` = u8, `b ()S` = i16, `c ()I` = i32, `d ()J` = i64, `f ()String`). [Đo]
+
+**Bạch Hổ có nhiều bậc.** Hộp "Kết quả Bạch Hổ" (`com.g.e.sqjx`) có chữ "Chưa có ai trong bậc này"; bảng công trạng (`com.g.e.sqjs`) có nút "Xem tất cả bậc". Các chữ hộp kết quả dùng nằm trong mảng `cstrings` của `com.mh.sqtq` (tạo lúc nạp lớp bằng `NewStringUTF`, rồi mỗi hàm đọc `cstrings[i]`): "Phiên ", "Bậc ", "Cấp ", "+", " - ", "   Ngưỡng ", " người", "Kết liễu: ", " (", ")", "Bạn: ", ", hạng ", " (chưa đạt ngưỡng)", "Bạn chưa đánh phiên này", "Đang diễn ra - HP ", "%", "Boss đã bị tiêu diệt", "Boss đã tẩu thoát - HP ", "Chưa có phiên nào". Ghép từng hàm của `sqtq` với trường nó đọc (`GetIntField` + tên trường) và chữ nó nối thì ra nghĩa của các trường [Đo]:
+
+| Hàm `sqtq` | Đọc | Chữ hiện ra |
+|---|---|---|
+| `a(int)` | số bậc | "Bậc " + n |
+| `a(sqtn)` | `c`, rồi `b`, `c` | "Cấp " + b + " - " + c, hay "Cấp " + b + "+" ở bậc cuối: **bậc là một khung cấp nhân vật** |
+| `b(sqtn)` | `a(sqtn)`, `d`, `e` | "Cấp …   Ngưỡng " + d (số có dấu chấm) + "   " + e + " người" |
+| `a(sqto)` | `a`, `c()` | theo `a`: 0 "Đang diễn ra - HP " + % máu; 1 "Boss đã bị tiêu diệt"; 2 "Boss đã tẩu thoát - HP " + %; khác "Chưa có phiên nào" (nhánh `cmp w8, 2` / `cmp w8, 1` / `cbnz`) |
+| `b(sqto)` | `b` (i64) | "Phiên " + ngày giờ (`sqtg.a(long)`) |
+| `c(sqto)` | `a()`, `f`, `g`, `h` | "Kết liễu: " + f + " (Bậc " + g + ")" + h (sát thương) khi `a()` (`e` > 0) |
+| `d(sqto)` | `b()`, `j`, `k`, `m` | "Bạn chưa đánh phiên này" khi chưa đánh; không thì "Bạn: Bậc " + j + ", hạng " + k, thêm " (chưa đạt ngưỡng)" khi `m` sai |
+| `e(sqto)` | `i`, `j` | bậc của mình trong danh sách bậc |
+| `sqto.c()` | `a`, `d`, `c` | % máu = c × 100 / d |
+
+Vậy: mỗi tối là một **phiên**, chung **một thanh máu boss**. Người chơi được chia **bậc theo cấp nhân vật**; mỗi bậc có **ngưỡng** sát thương (dưới ngưỡng thì "chưa đạt ngưỡng"), **số người** và bảng xếp hạng riêng. Bậc của mình do server gửi. [Đo]
+
+**`1275` = Kết quả Bạch Hổ.** `com.mh.sqtm` có hằng 1275; `sqtm.a(sqi)` đọc `s2c/1275` thành `sqto`. `c2s/1275` là `sqnf.Z()` (rỗng), do hộp `sqjx` gửi khi mở từ nút "Xem tất cả bậc" (`sqjw.clicked` → `sqjx`). Bố cục [Đo thứ tự đọc; nghĩa theo bảng trên]:
+
+```text
+u8 trạng thái (sqto.a); i64 phiên (b); i32 máu (c); i32 máu tối đa (d); i32 id người kết liễu (e, > 0 khi có)
+string người kết liễu (f); u8 bậc của họ (g); i32 sát thương của họ (h)
+u8 n bậc (i), mỗi bậc sqtn:  u8 bậc (a); i16 cấp từ (b); i16 cấp tới (c); i32 ngưỡng (d); i32 số người (e); u8 m dòng
+    mỗi dòng sqtp:  u8 hạng; i32 id; string tên; i16 cấp; i32 sát thương   (+ boolean client tự tính)
+u8 bậc của mình (j); i32 hạng (k); i32 sát thương (l); u8 đạt ngưỡng (m)
+```
+
+**Bảng công trạng và nút Bạch Hổ.** Nút Bạch Hổ trên màn chơi (`com.g.r.sqae.touchDown`, lớp nghe chạm của thanh trên) chỉ mở hộp bảng công trạng `sqjs`; hộp gửi `sqnf.Y()` khi mở và khi Làm mới (`c2s/1252`). Không có gói "vào Bạch Hổ" riêng: vào hang rồi thách đấu boss như thường. [Đo]
+
+**Gói thách đấu chọn theo loại quái.** `com.mh.sqeo.a(int loại, boolean z)` (`0xba2be4`): `loại == 2` hoặc `z` → **1181**; `loại == 1` → **1178**; còn lại → **15**. `sqip.a(sqkd, boolean, int, boolean)` (màn bản đồ, `0xf1ecf8`) đọc `loại` từ byte `sqkf.h` của thực thể rồi gọi `sqnf.b(String, Z)` (15), `sqnf.a(String, Z)` (1178) hay `sqnf.a(String, int, Z)` (1181). `s2c/43` không mang byte loại (byte `a` là hệ, [06](06-map-mobs.md#hệ-của-quái)), nên loại do nguồn của thực thể: quái của `s2c/43` là 0, boss của `s2c/1177` là 1, quái tỷ thí của `s2c/1180` là 2 (`c2s/1181`, [10](10-quests.md#s2c-1180)). App làm đúng quy tắc này: boss của `s2c/1177` → `c2s/1178`, còn lại `c2s/15`. Bạch Hổ đến qua gói nào vẫn [Chưa rõ]; không thấy gói mới nào của 1.1.0 (1273, 1276, 1280, 1283) là boss. [Đo]
+
+**Khác:** "Bạn không đủ Xu để tham gia trận đánh này!" thuộc `com.mh.sqna` (lớp xử lý gói của server), nên là lời server trả cho một lần thách đấu, chưa biết của trận nào. "Không thấy boss trên bản đồ" thuộc `com.mh.b.sqa`, bộ "Tự động" có sẵn trong game: nó biết đi đánh boss trên bản đồ. [Đo]
+
 ## App: cửa sổ Bạch Hổ (21/11, chưa chạy thật)
 
 Nút **Bạch Hổ** ở cuối thanh bên mở cửa sổ chung cho mọi nick ([BachHoModal.tsx](../../../app/desktop/src/views/BachHoModal.tsx), [bachho.rs](../../../app/core/src/bot/bachho.rs)):
@@ -101,9 +139,10 @@ Nút **Bạch Hổ** ở cuối thanh bên mở cửa sổ chung cho mọi nick 
 - Tới giờ: đi qua **Bản đồ thế giới** `c2s/11 ("M99", 0, -1)` → `s2c/11` (cờ 0) → `c2s/13 ("M99", 14)` → Cổng Luyện Ngục (M15) → cổng 1006 → Hang Bạch Hổ (M24). Đường này đo ở LN1 (`captures/pl1-2026-11-20/3-frida-tiheo1.jsonl`, dòng 2289–2353): từ M25 gửi thẳng `c2s/11 "M99"`, dòng n − 1 của Bản đồ thế giới là map Mn. [Đo LN1]
 - Trong hang: cứ 5 giây thử thách đấu boss **như các boss khác** (`c2s/1178` với mobId của `s2c/43`/`s2c/1177`; boss là con có tên chứa "Bạch Hổ", không có thì boss hay quái đầu tiên của hang); không thấy thì hỏi lại `c2s/43`. Vào được trận thì đánh (thuật toán v3), hết trận 1,5 s sau thử lại, tới giờ kết thúc thì thôi. Cách vào trận này là **[Suy luận]**, chưa đo.
 - App không đọc bảng công trạng (`c2s/1252`): người dùng không cần bảng xếp hạng (21/11).
+- Sau mỗi trận và lúc xong, app hỏi **Kết quả Bạch Hổ** (`c2s/1275`). Dòng của nick hiện chỗ đứng ("Bậc 2 (cấp 60+), hạng 4, 31.000 sát thương", thêm "(chưa đạt ngưỡng …)" khi dưới ngưỡng), nhật ký ghi máu boss hay ai kết liễu. Đã đánh mà server báo boss bị tiêu diệt (1) hay tẩu thoát (2) thì phiên dừng, vì không còn gì để đánh. Gói trả lời không do app hỏi chỉ cập nhật chỗ đứng.
 - Mỗi trận vào được lưu vào lịch sử trận (`cllt.db`) như mọi trận, nguồn **Khác**; xem ở Thống kê của nick → Trận. Hết giờ hoặc bấm Dừng thì nhật ký có dòng tổng "Xong Bạch Hổ: … lần thử, … trận (… thắng), … sát thương".
 - Mỗi nick một dòng: đang làm gì, số lần thử, số trận, sát thương; nút **Dừng**, và **Quay về** khi xong: nhảy qua Bản đồ thế giới về đúng map cũ rồi sang khu cũ.
-- Test: `app/core/tests/bachho.rs` (đường đi và quay về theo đúng byte của LN1).
+- Test: `app/core/tests/bachho.rs` (đường đi và quay về theo đúng byte của LN1; một vòng trong hang; đọc `s2c/1275`; boss bị tiêu diệt thì dừng) và `test/world.test.ts` (`bachHoResult`).
 
 Thư "Quà tham gia Bạch Hổ" của Hệ Thống có trong hòm thư tiheo1 (`s2c/1215`, LN1 dòng 1508): tham gia có quà qua thư. [Đo LN1]
 

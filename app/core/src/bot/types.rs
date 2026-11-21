@@ -864,7 +864,8 @@ pub struct EggRun {
 }
 
 /// Bạch Hổ under way or last done (Bot::bach_ho): from when to when it tries (ms since 1970), what it does now in words,
-/// the tries to get into a battle with the boss, the battles fought and their damage; `done` the words it ended with.
+/// the tries to get into a battle with the boss, the battles fought and their damage; `standing` where the character
+/// stands in Kết quả Bạch Hổ (s2c/1275: tier, rank, damage, threshold) once read; `done` the words it ended with.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BachHoRun {
@@ -875,7 +876,39 @@ pub struct BachHoRun {
     pub battles: u32,
     pub wins: u32,
     pub damage: i64,
+    pub standing: Option<String>,
     pub done: Option<String>,
+}
+
+/// Kết quả Bạch Hổ (s2c/1275, 17-bach-ho.md#đọc-tĩnh-110), as sqtm.a of game 1.1.0 reads it: the state of the day's run
+/// (0 under way, 1 the boss killed, 2 it got away, else none yet), the boss's HP, who finished it (id above 0, name,
+/// tier, damage), the tiers (level bands of characters, each with its threshold and players; their ranking rows are
+/// read, not kept), and the character's own tier, rank, damage and whether it reached its tier's threshold.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BachHoResult {
+    pub state: u8,
+    pub session_at: i64,
+    pub hp: i32,
+    pub max_hp: i32,
+    pub killer_id: i32,
+    pub killer: String,
+    pub killer_tier: u8,
+    pub killer_damage: i32,
+    pub tiers: Vec<BachHoTier>,
+    pub own_tier: u8,
+    pub own_rank: i32,
+    pub own_damage: i32,
+    pub reached: bool,
+}
+/// A tier (bậc) of Bạch Hổ: characters of levels `min_level` to `max_level`, the least damage that counts (Ngưỡng), its
+/// players.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BachHoTier {
+    pub tier: u8,
+    pub min_level: i16,
+    pub max_level: i16,
+    pub threshold: i32,
+    pub players: i32,
 }
 
 /// A map and zone to go back to (Quay về chỗ cũ).

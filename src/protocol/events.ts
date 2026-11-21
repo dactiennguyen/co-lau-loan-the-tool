@@ -2,7 +2,7 @@ import { Reader, Writer, PLATFORM, PROTOCOL_VERSION, loginPayload, passwordProof
   sessionKey, notification, characterPrefix, characterProfile, characterLocation, mapPrefix } from './protocol.ts';
 import { BASELINE } from './config.ts';
 import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveRequest, positions, playerRecord, playerStatus, playersSnapshot, groundDrop, groundItems,
-  zoneList, worldMap, itemUsed, bachHoBoard, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
+  zoneList, worldMap, itemUsed, bachHoBoard, bachHoResult, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
   playerSay, worldChat } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
 import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
@@ -147,7 +147,8 @@ event('c2s', 1284, 'chat_block', 'world', 'Lệnh 0: ngay sau c2s/1282, trước
 event('c2s', 1285, 'report_player', 'world', 'Báo cáo người chơi: chọn lý do Xúc phạm, Spam, Lừa đảo, Khác (com.mh.d.sqc.a(int, int))', 's2c/1285', 'i32 id người chơi; u8 lý do', 'Đọc từ code 1.1.0; chưa đo, thứ tự lý do suy theo thứ tự trên hộp thoại');
 event('s2c', 1284, 'chat_block_list', 'world', 'Trả c2s/1284; server cũng tự gửi một lần sau c2s/30 (cả cho bot không gửi c2s/1284)', 'Không', 'u8; u8; string thông báo; i16 n; n * {i32 id người chơi; string tên}', 'Đo VG1: 8 byte 0 (danh sách trống). Kiểu đọc từ code (sqc.a(sqi) → sqd(int, int, String, int[], String[])); nghĩa hai u8 chưa rõ');
 event('s2c', 1285, 'report_result', 'world', 'Trả c2s/1285', 'Không', 'u8 kết quả; string thông báo', 'Đọc từ code (sqc.b(sqi) → sqe(int, String)); chưa đo. Game hiện "Đã gửi báo cáo, chúng tôi sẽ xem xét trong 24 giờ." hoặc "Không gửi được báo cáo. Vui lòng thử lại!"');
-event('c2s', 1275, 'request_1275', 'world', 'sqnf.Z() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
+event('c2s', 1275, 'bach_ho_result_request', 'world', 'Kết quả Bạch Hổ: nút "Xem tất cả bậc" của bảng công trạng mở hộp sqjx, hộp gửi sqnf.Z() (APK 1.1.0)', 's2c/1275', 'Rỗng', 'Đọc tĩnh 1.1.0 (21/11); chưa đo');
+event('s2c', 1275, 'bach_ho_result', 'world', 'Trả bach_ho_result_request', 'Không', 'u8 trạng thái (0 đang diễn ra, 1 bị tiêu diệt, 2 tẩu thoát); i64 phiên; i32 máu; i32 máu tối đa; i32 id người kết liễu; string tên người kết liễu; u8 bậc của họ; i32 sát thương của họ; u8 n bậc; n × {u8 bậc; i16 cấp từ; i16 cấp tới; i32 ngưỡng; i32 số người; u8 m; m × {u8 hạng; i32 id; string tên; i16 cấp; i32 sát thương}}; u8 bậc của mình; i32 hạng; i32 sát thương; u8 đạt ngưỡng', 'Đọc tĩnh 1.1.0 (sqtm.a → sqto, chữ của sqtq); chưa đo');
 event('c2s', 1277, 'request_1277', 'world', 'sqnf.Q() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 event('c2s', 1281, 'request_1281', 'world', 'sqnf.N(), do com.mh.sqip.h14 gọi (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
 // Phúc lợi (PL1, 20/11, docs/app/events/18-players-checkin.md): Điểm danh tháng, Quà thăng cấp, Quà online.
@@ -264,7 +265,7 @@ function required<T>(value: T | undefined, name: string): T {
 export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
   const w = new Writer();
   switch (opcode) {
-    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: case 116: case 1252: return w.build();
+    case -1: case 1: case 2: case 3: case 1172: case 1257: case 1215: case 1218: case 116: case 1252: case 1275: return w.build();
     case 1192: return marketPageRequest(required(ctx.tab, 'tab'), ctx.page ?? 1);
     case 115: return marketBuyRequest(required(ctx.uuid, 'uuid'));
     case 113: return marketWithdrawRequest(required(ctx.uuid, 'uuid'));
@@ -454,6 +455,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 35: fields = questComplete(payload); r.take(payload.length); break;
       case 1254: fields = ranking(payload); r.take(payload.length); break;
       case 1252: fields = bachHoBoard(payload); r.take(payload.length); break;
+      case 1275: fields = bachHoResult(payload); r.take(payload.length); break;
       case 1215: fields = mailList(payload); r.take(payload.length); break;
       case 1196: fields = { count: r.i32() }; break;
       case 1240: case 1241: fields = { flag: r.u8() }; break;

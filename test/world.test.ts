@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtures } from './fixtures.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
-import { duelInvite, mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed, bachHoBoard } from '../src/protocol/world.ts';
+import { duelInvite, mapGrid, mapData, gearDurability, ZonePlayers, mapEntities, mapBoss, questData, characterExtra, inventory, groundItems, groundDrop, characterTail, shopList, ranking, gearUpdate, itemUsed, bachHoBoard, bachHoResult } from '../src/protocol/world.ts';
 import { market } from '../src/protocol/market.ts';
 import { v007Packets } from './fixtures-v007.ts';
 import { mapPrefix, Writer } from '../src/protocol/protocol.ts';
@@ -241,6 +241,31 @@ test('s2c/1252: the board of Bạch Hổ outside its hour (BH1)', () => {
   const row = new Writer().u8(1).i32(400).i32(1000).i32(3).i32(1).i32(1).i32(77).string('akaito').i32(600).i32(1).i32(600).build();
   assert.deepEqual(bachHoBoard(row).rows, [{ a: 1, b: 77, name: 'akaito', d: 600 }]);
   assert.equal(buildRequest(1252).length, 0);
+});
+
+test('s2c/1275: Kết quả Bạch Hổ, as sqtm.a of game 1.1.0 reads it (killed, two tiers, one row)', () => {
+  const i16 = (v: number) => { const b = Buffer.alloc(2); b.writeInt16BE(v); return b; };
+  const i64 = (v: number) => { const b = Buffer.alloc(8); b.writeBigInt64BE(BigInt(v)); return b; };
+  const w = (f: (x: Writer) => Writer) => f(new Writer()).build();
+  const p = Buffer.concat([
+    w(x => x.u8(1)), i64(1_763_733_600_000), w(x => x.i32(0).i32(500_000).i32(77).string('akaito').u8(2).i32(9_000)),
+    w(x => x.u8(2)),
+    w(x => x.u8(1)), i16(30), i16(59), w(x => x.i32(5_000).i32(0).u8(0)),
+    w(x => x.u8(2)), i16(60), i16(999), w(x => x.i32(20_000).i32(3).u8(1)),
+    w(x => x.u8(1).i32(77).string('akaito')), i16(88), w(x => x.i32(120_000)),
+    w(x => x.u8(2).i32(4).i32(31_000).u8(1)),
+  ]);
+  const b = bachHoResult(p);
+  assert.deepEqual({ ...b, tiers: b.tiers.map(t => ({ ...t, rows: t.rows.length })) }, {
+    state: 1, sessionAt: 1_763_733_600_000, hp: 0, maxHp: 500_000, killerId: 77, killer: 'akaito', killerTier: 2, killerDamage: 9_000,
+    tiers: [
+      { tier: 1, minLevel: 30, maxLevel: 59, threshold: 5_000, players: 0, rows: 0 },
+      { tier: 2, minLevel: 60, maxLevel: 999, threshold: 20_000, players: 3, rows: 1 },
+    ],
+    own: { tier: 2, rank: 4, damage: 31_000, reached: true },
+  });
+  assert.deepEqual(b.tiers[1].rows[0], { rank: 1, id: 77, name: 'akaito', level: 88, damage: 120_000 });
+  assert.equal(buildRequest(1275).length, 0);
 });
 
 test('s2c/84: Tăng Kinh Nghiệm used, the slot left empty and x2 EXP for 24 hours (U2)', () => {

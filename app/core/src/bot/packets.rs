@@ -438,6 +438,7 @@ impl Bot {
             }
             // Bản đồ thế giới (flag 0, "M99"): the jump of Bạch Hổ or Quay về chỗ cũ (bachho.rs).
             11 if payload.first() == Some(&0) => self.warp_opened(now, out),
+            1275 => self.bach_ho_result_read(payload, out),
             13 => {
                 let c = map_change(payload)?;
                 if c.map_id != s.map_id {
