@@ -7,6 +7,7 @@ import { addDuration, create as createLicense, verify as verifyLicense } from '.
 import { database } from '../src/db/client.ts';
 import worker from '../src/index.ts';
 import { syncGap } from '../src/controllers/license.controller.tsx';
+import { proxyLine } from '../src/views/accounts.view.tsx';
 import { d1 } from './d1.ts';
 
 const ORIGIN = 'https://cllt.example';
@@ -601,6 +602,39 @@ test('key sync: a key never writes nor takes an account another key holds; its o
   assert.deepEqual([claimed.json.updated, claimed.json.refused, claimed.json.taken], [1, 0, 0]);
   assert.deepEqual((await kept(c)).map((x) => [x.password, x.fight]), [['p2', { autoRepair: true }]]);
   assert.equal(await c.env.DB.prepare('SELECT source FROM accounts').first('source'), `Key ${office.slice(0, 9)}`);
+});
+
+test('key sync: the info of its characters goes on the Nick page, never an older one nor on an account of another key; the proxy shows whole, to copy as one line', async () => {
+  const c = await ready();
+  const home = await newKey(c, { note: 'Nhà' });
+  const office = await newKey(c, { note: '' });
+  await verify(c.call, home);
+  await verify(c.call, office, { id: OTHER, hostname: 'MAY-CTY' });
+  const proxy = { enabled: true, kind: 'http', host: '1.2.3.4', port: 8080, username: 'u', password: 'p:w' };
+  const nick = { label: '', username: 'tiheo1', password: 'p1', serverId: 24, proxy };
+  const now = Date.now();
+  const seen = { username: 'TIHEO1', serverId: 24, at: now, name: 'Tiheo1', level: 90, levelPart: 0.5, map: 'Tiên Cốc', zone: 0, xu: 6500, luong: 3, online: true };
+  const send = (key: string, id: string, accounts: object[], info: object[]) =>
+    c.call('/api/license/sync', { body: JSON.stringify({ key, id, accounts, info }) });
+  assert.equal((await send(home, DEVICE, [{ account: nick, changed: {} }], [seen, { username: 'x', bad: true }])).status, 200);
+
+  const page = (await c.call('/admin')).text;
+  assert.match(page, /Tiheo1<\/span><span class="tag">LV 90<\/span><span class="small muted">50%/);
+  assert.match(page, /Tiên Cốc · Khu 0/);
+  assert.match(page, /6\.500 Xu · 3 Lượng/);
+  assert.match(page, /đang trong game/);
+  assert.match(page, /data-secret="1\.2\.3\.4:8080:u:p:w" data-hidden="1\.2\.3\.4:8080:u:••••"/);
+  assert.match(page, /data-copy="1\.2\.3\.4:8080:u:p:w"/);
+
+  // An older info is left; the office key cannot write the info of an account the home key holds.
+  await send(home, DEVICE, [], [{ ...seen, at: now - 60_000, level: 89 }]);
+  await send(office, OTHER, [], [{ ...seen, at: now + 60_000, name: 'Ke khac' }]);
+  const info = JSON.parse((await c.env.DB.prepare('SELECT info FROM accounts').first<string>('info'))!);
+  assert.deepEqual([info.level, info.name, info.at], [90, 'Tiheo1', now]);
+
+  assert.equal(proxyLine({ kind: 'socks5', host: 'h.vn', port: 1080, username: 'u', password: 'p' }), 'socks5://u:p@h.vn:1080');
+  assert.equal(proxyLine({ kind: 'http', host: 'h.vn', port: 3128 }), 'h.vn:3128');
+  assert.equal(proxyLine({ kind: 'http', host: '::1', port: 3128, username: 'u' }), 'http://u@[::1]:3128');
 });
 
 test('key sync: refused with its code for an unknown key, another device, a key revoked, ended or never activated; devices are gone', async () => {

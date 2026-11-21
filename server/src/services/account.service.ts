@@ -1,10 +1,10 @@
 // The accounts of the desktop app, in the JSON of its Xuất JSON (app/desktop/src-tauri/src/backup.rs): kept by POST
 // /api/license/sync and given back by Tải JSON, so that Nhập JSON of the app reads them as they are.
-import { and, asc, count as rowCount, eq, getTableColumns, isNotNull, isNull, or } from 'drizzle-orm';
+import { and, asc, count as rowCount, eq, getTableColumns, isNotNull, isNull, lte, or } from 'drizzle-orm';
 import { APP_NAME, EXPORT_FORMAT } from '../config/constants.ts';
 import type { Db } from '../db/client.ts';
 import { licenses, accounts as table } from '../db/schema.ts';
-import type { Account, AccountRow, AppEvent, Changed, Merged, Stamped } from '../models/index.ts';
+import type { Account, AccountInfo, AccountRow, AppEvent, Changed, Merged, Stamped } from '../models/index.ts';
 import { isObject } from '../validators/account.validator.ts';
 
 /** JSON with the keys of every object in order, so that the same account is the same text however it was sent. */
@@ -272,6 +272,28 @@ export async function remove(db: Db, id: number) {
     .where(eq(table.id, id))
     .returning({ username: table.username, serverId: table.serverId, licenseId: table.licenseId });
   return gone;
+}
+
+/** What the app of the key `licenseId` saw of its characters (POST /api/license/sync "info"), written on the accounts
+ * the key holds; one older than the info kept (by `at`) is left. Accounts of other keys are never touched. */
+export async function saveInfo(db: Db, info: AccountInfo[], licenseId: number) {
+  const last = new Map<string, AccountInfo>();
+  for (const i of [...info].sort((a, b) => a.at - b.at)) last.set(rowKey(i.serverId, i.username.toLowerCase()), i);
+  const writes = [...last.values()].map(({ username, serverId, ...seen }) =>
+    db
+      .update(table)
+      .set({ info: JSON.stringify(seen), infoAt: seen.at })
+      .where(
+        and(
+          eq(table.serverId, serverId),
+          eq(table.usernameKey, username.toLowerCase()),
+          eq(table.licenseId, licenseId),
+          or(isNull(table.infoAt), lte(table.infoAt, seen.at)),
+        ),
+      ),
+  );
+  const [first, ...rest] = writes;
+  if (first) await db.batch([first, ...rest]);
 }
 
 /** The writes of what the app of the key `licenseId` did to its accounts (POST /api/license/sync "events"), to go in a

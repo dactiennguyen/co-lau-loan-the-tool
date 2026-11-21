@@ -18,7 +18,7 @@ import {
   MAX_VERSION,
 } from '../config/constants.ts';
 import { LICENSE } from '../config/messages.ts';
-import type { AppEvent, Changed, DurationUnit, LicenseSync, Verify } from '../models/index.ts';
+import type { AccountInfo, AppEvent, Changed, DurationUnit, LicenseSync, Verify } from '../models/index.ts';
 import { endOfDay, type Term } from '../services/license.service.ts';
 import { today } from '../utils/format.ts';
 import { accountError, accountSchema } from './account.validator.ts';
@@ -85,6 +85,41 @@ const events = z
     }),
   );
 
+/** What the app saw of one character: the account it is of, when, the name and level, and the figures it knew. */
+const infoSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(1)
+    .transform((s) => s.slice(0, MAX_EVENT_TEXT)),
+  serverId: z.int(),
+  at: z.number().finite().positive(),
+  name: clipped(MAX_EVENT_TEXT),
+  level: z.int().min(0).max(10_000),
+  levelPart: z.number().min(0).max(1).optional(),
+  map: clipped(MAX_EVENT_TEXT).optional(),
+  zone: z.int().min(0).max(1000).optional(),
+  xu: z.number().finite().min(0).optional(),
+  xuKhoa: z.number().finite().min(0).optional(),
+  luong: z.number().finite().min(0).optional(),
+  coin: z.number().finite().min(0).optional(),
+  online: z.boolean().optional(),
+}) satisfies z.ZodType<AccountInfo, unknown>;
+
+/** What the app saw of its characters since its last sync: up to MAX_SYNC_ACCOUNTS, none when not sent (apps before
+ * it); one that is not such a record is left out. */
+const info = z
+  .array(z.unknown())
+  .max(MAX_SYNC_ACCOUNTS)
+  .optional()
+  .catch(undefined)
+  .transform((list) =>
+    (list ?? []).flatMap((i) => {
+      const r = infoSchema.safeParse(i);
+      return r.success ? [r.data] : [];
+    }),
+  );
+
 export const syncSchema = z.object(
   {
     key: typedKey,
@@ -102,6 +137,7 @@ export const syncSchema = z.object(
         return text && text.length <= MAX_SETTINGS ? text : null;
       }),
     events,
+    info,
   },
   { error: LICENSE.notObject },
 );

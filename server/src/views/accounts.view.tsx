@@ -1,6 +1,8 @@
 // Nick: a strip of stats, then every account the app of a key synced, with its password behind Hiện and Chép, its game
-// server, proxy and key, and Xoá; "Đã xoá ở máy" on those the app removed, and a filter for them; the accounts of one
+// server, what the app last saw of its character (name, level, map, money), its proxy whole (its password behind Hiện,
+// Chép as one line the app reads back) and key, and Xoá; "Đã xoá ở máy" on those the app removed, and a filter for them; the accounts of one
 // key alone with ?key=<id>; Tải JSON of them all.
+import type { AccountInfo } from '../models/index.ts';
 import type { Listed } from '../services/account.service.ts';
 import { ago, keyName, time } from '../utils/format.ts';
 import { actOf, Empty, Field, Icon, Layout, None, Pill, Select, Stat, Table } from './layout.tsx';
@@ -10,20 +12,104 @@ export type KeyName = { id: number; key: string; note: string };
 
 const HIDDEN = '••••••••';
 
-/** "host:port" of the account's proxy, "(tắt)" when it is off. */
-function proxyText(data: string): string {
+type ProxyData = { host?: string; port?: number; enabled?: boolean; kind?: string; username?: string; password?: string };
+
+/** The account's proxy as the app keeps it, or null for none. */
+function proxyOf(data: string): ProxyData | null {
   try {
-    const p = (JSON.parse(data) as { proxy?: { host?: string; port?: number; enabled?: boolean } }).proxy;
-    if (!p?.host) return '';
-    return `${p.host}:${p.port ?? ''}${p.enabled === false ? ' (tắt)' : ''}`;
+    const p = (JSON.parse(data) as { proxy?: ProxyData }).proxy;
+    return p?.host ? p : null;
   } catch {
-    return '';
+    return null;
   }
+}
+
+/** The proxy as one line to copy, in a shape the app's form reads back (app/desktop/src/utils/proxyText.ts): HTTP as
+ * host:port:user:pass, as proxies are sold; SOCKS5 and an IPv6 host as a URL, which says the kind and holds the brackets. */
+export function proxyLine(p: ProxyData): string {
+  const auth = p.username ? `${p.username}${p.password ? `:${p.password}` : ''}` : '';
+  const ipv6 = (p.host ?? '').includes(':');
+  if (p.kind === 'socks5' || ipv6) {
+    const scheme = p.kind === 'socks5' ? 'socks5' : 'http';
+    const host = ipv6 ? `[${p.host}]` : p.host;
+    return `${scheme}://${auth ? `${auth}@` : ''}${host}:${p.port ?? ''}`;
+  }
+  return `${p.host}:${p.port ?? ''}${auth ? `:${auth}` : ''}`;
+}
+
+/** The same line with the password hidden, as the cell shows it until Hiện. */
+const proxyMasked = (p: ProxyData) => (p.password ? proxyLine({ ...p, password: '••••' }) : proxyLine(p));
+
+const numbers = new Intl.NumberFormat('vi-VN');
+const pct = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
+
+/** What the app last saw of the character (models/index.ts#AccountInfo), or null before any. */
+function infoOf(r: Listed): (Omit<AccountInfo, 'username' | 'serverId'> & { at: number }) | null {
+  if (!r.info) return null;
+  try {
+    return JSON.parse(r.info) as Omit<AccountInfo, 'username' | 'serverId'>;
+  } catch {
+    return null;
+  }
+}
+
+function InfoCell({ r, now }: { r: Listed; now: number }) {
+  const i = infoOf(r);
+  if (!i) return <None />;
+  const money = [
+    i.xu !== undefined && `${numbers.format(i.xu)} Xu`,
+    i.xuKhoa !== undefined && `${numbers.format(i.xuKhoa)} Xu khoá`,
+    i.luong !== undefined && `${numbers.format(i.luong)} Lượng`,
+    i.coin !== undefined && `${numbers.format(i.coin)} Vàng`,
+  ].filter(Boolean);
+  return (
+    <div title={`App thấy lúc ${time(i.at)}`}>
+      <div class="cell">
+        <span class="strong">{i.name}</span>
+        <span class="tag">LV {i.level}</span>
+        {i.levelPart !== undefined && <span class="small muted">{pct.format(i.levelPart * 100)}%</span>}
+      </div>
+      {i.map && (
+        <div class="small faint">
+          {i.map}
+          {i.zone !== undefined && ` · Khu ${i.zone}`}
+        </div>
+      )}
+      {money.length > 0 && <div class="small mono muted">{money.join(' · ')}</div>}
+      <div class="small faint">
+        {i.online ? 'đang trong game · ' : ''}
+        {ago(i.at, now)}
+      </div>
+    </div>
+  );
+}
+
+function ProxyCell({ r }: { r: Listed }) {
+  const p = proxyOf(r.data);
+  if (!p) return <None />;
+  const id = `px${r.id}`;
+  const line = proxyLine(p);
+  return (
+    <span class="cell">
+      <span class="mono small secret" id={id} data-secret={line} data-hidden={proxyMasked(p)}>
+        {proxyMasked(p)}
+      </span>
+      {p.enabled === false && <span class="small faint">(tắt)</span>}
+      {p.password && (
+        <button type="button" class="icon-btn" aria-pressed="false" data-reveal={id} aria-label={`Hiện mật khẩu proxy của ${r.username}`} title="Hiện / Ẩn">
+          <Icon name="eye" cls="off" />
+          <Icon name="eye-off" cls="on" />
+        </button>
+      )}
+      <button type="button" class="icon-btn" data-copy={line} aria-label={`Chép proxy của ${r.username}`} title={`Chép ${p.kind === 'socks5' ? 'SOCKS5' : 'HTTP'}: một dòng, dán vào app được`}>
+        <Icon name="copy" />
+      </button>
+    </span>
+  );
 }
 
 function AccountRowView({ r, now }: { r: Listed; now: number }) {
   const secretId = `pw${r.id}`;
-  const proxy = proxyText(r.data);
   return (
     <tr data-find={`${r.label} ${r.username}`.toLowerCase()} data-state={r.removedAt !== null ? 'removed' : 'kept'}>
       <td>
@@ -60,7 +146,12 @@ function AccountRowView({ r, now }: { r: Listed; now: number }) {
           S{r.serverId}
         </span>
       </td>
-      <td class="mono small">{proxy || <None />}</td>
+      <td>
+        <InfoCell r={r} now={now} />
+      </td>
+      <td>
+        <ProxyCell r={r} />
+      </td>
       <td>
         {r.license ? (
           <a class="tag" href={`/admin?key=${r.license.id}`} title={`Chỉ nick của key ${r.license.key}`}>
@@ -108,7 +199,7 @@ type AccountsProps = {
 };
 
 export function AccountsView({ nonce, rows, now, flash, keys, shown }: AccountsProps) {
-  const withProxy = rows.filter((r) => proxyText(r.data)).length;
+  const withProxy = rows.filter((r) => proxyOf(r.data)).length;
   const keyed = new Set(rows.flatMap((r) => (r.license ? [r.license.id] : []))).size;
   const loose = rows.filter((r) => !r.license).length;
   const removed = rows.filter((r) => r.removedAt !== null).length;
@@ -154,13 +245,13 @@ export function AccountsView({ nonce, rows, now, flash, keys, shown }: AccountsP
         </a>
       </div>
       {rows.length ? (
-        <Table head={['Nick', 'Mật khẩu', 'Server', 'Proxy', 'Key', 'Cập nhật', <span class="sr">Xoá</span>]}>
+        <Table head={['Nick', 'Mật khẩu', 'Server', 'Nhân vật', 'Proxy', 'Key', 'Cập nhật', <span class="sr">Xoá</span>]}>
           <>
             {rows.map((r) => (
               <AccountRowView r={r} now={now} />
             ))}
             <tr class="none" data-none hidden>
-              <td colspan={7}>Không có nick nào khớp.</td>
+              <td colspan={8}>Không có nick nào khớp.</td>
             </tr>
           </>
         </Table>

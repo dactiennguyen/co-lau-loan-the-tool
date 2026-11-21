@@ -41,11 +41,12 @@ function toast(text: string) {
 
 // ---- Secrets ---------------------------------------------------------------------------------------------------------
 
-/** Shows or hides the secret of a Hiện button (aria-pressed: shown). */
+/** Shows or hides the secret of a Hiện button (aria-pressed: shown); hidden, it shows its data-hidden (a proxy with its
+ * password masked) or dots. */
 function reveal(button: HTMLElement, on: boolean) {
   const secret = document.getElementById(button.dataset.reveal!);
   if (!secret) return;
-  secret.textContent = on ? (secret.dataset.secret ?? '') : HIDDEN;
+  secret.textContent = on ? (secret.dataset.secret ?? '') : (secret.dataset.hidden ?? HIDDEN);
   button.setAttribute('aria-pressed', String(on));
 }
 

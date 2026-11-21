@@ -31,14 +31,35 @@ export interface AppEvent {
   label: string;
 }
 
+/** What the app last saw of the character of one of its accounts ("info" of POST /api/license/sync), `at` epoch ms on
+ * the app's clock: name, level and the share of it done (0–1), map and zone, the money, whether it was in the game. A
+ * figure the app did not know yet is left out. */
+export interface AccountInfo {
+  username: string;
+  serverId: number;
+  at: number;
+  name: string;
+  level: number;
+  levelPart?: number;
+  map?: string;
+  zone?: number;
+  xu?: number;
+  xuKhoa?: number;
+  luong?: number;
+  coin?: number;
+  online?: boolean;
+}
+
 /** What the app sends to POST /api/license/sync: its key (as typed) and device id, the accounts that changed since its
- * last sync, its Cài đặt (JSON, null when not sent), and what it did to its accounts since then. */
+ * last sync, its Cài đặt (JSON, null when not sent), what it did to its accounts since then, and what it saw of their
+ * characters since then. */
 export interface LicenseSync {
   key: string;
   id: string;
   settings: string | null;
   accounts: Stamped[];
   events: AppEvent[];
+  info: AccountInfo[];
 }
 
 /** What POST /api/license/sync did. */

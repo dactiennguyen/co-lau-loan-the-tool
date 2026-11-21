@@ -48,6 +48,10 @@ export const accounts = sqliteTable(
     /** When the app of a key removed it (an event "remove" of POST /api/license/sync, migrations/0008_logs.sql): the
      * server keeps it; null while the app has it. */
     removedAt: integer('removed_at'),
+    /** What the app last saw of the character (models/index.ts#AccountInfo, JSON; migrations/0009_account_info.sql),
+     * and when it saw it; null until the app of its key sends one. */
+    info: text('info'),
+    infoAt: integer('info_at'),
   },
   (t) => [unique().on(t.serverId, t.usernameKey), index('accounts_license').on(t.licenseId)],
 );

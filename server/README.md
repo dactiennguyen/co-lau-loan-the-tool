@@ -208,6 +208,20 @@ Chỉ một chiều, **từ app lên server**: server giữ bản sao để xem 
 - Mỗi việc là một dòng [Log](#log) ("Thêm nick manina (S24)", "Xoá nick manina (S24) trên máy", "Sửa nick …", "Nhập nick … từ JSON"), kèm key, mã máy và tên máy của key.
 - `remove` **không xoá** nick trên server: nick đó (cùng server game, tài khoản không phân biệt hoa thường), nếu key này hay không key nào giữ, được ghi `removed_at` = `at`. Trang Nick hiện "Đã xoá ở máy" (rê chuột xem lúc nào) và có nút lọc riêng các nick này. `add`, `import`, `edit`, hay chính nick đó gửi lại trong `accounts`, thì bỏ đánh dấu. Nhiều việc cho cùng một nick thì việc có `at` sau cùng quyết định.
 
+**Thông tin nhân vật (`info`)**, không bắt buộc (app trước 2.0.13 không gửi): những gì app thấy của nhân vật từng nick, chỉ khi đổi so với lần gửi trước:
+
+```json
+{"key": "…", "id": "<64 ký tự hex>", "accounts": [],
+ "info": [{"username": "tiheo1", "serverId": 24, "at": 1762059000000, "name": "Tiheo1", "level": 90, "levelPart": 0.5,
+           "map": "Tiên Cốc", "zone": 0, "xu": 6500, "xuKhoa": 120000, "luong": 3, "coin": 4200, "online": true}]}
+```
+
+- Bắt buộc `username`, `serverId`, `at` (lúc app thấy, ms), `name`, `level`; các số khác app chưa biết thì bỏ trống. `levelPart` là phần cấp đã đạt (0–1). Mục sai dạng thì bỏ qua, tối đa 200 mục.
+- Chỉ ghi vào nick **key này đang giữ** (cột `info`, `info_at`; migration 0009), và chỉ khi `at` không cũ hơn bản đang có.
+- Trang Nick có cột **Nhân vật**: tên, LV và %, map · khu, Xu · Xu khoá · Lượng · Vàng, "đang trong game" và lúc app thấy.
+
+**Proxy** gửi nguyên trong `account.proxy`, cả `username` và `password`. Trang Nick hiện cả dòng (mật khẩu che `••••` tới khi bấm Hiện) và nút **Chép** cho một dòng dán vào app được: HTTP dạng `host:port:user:pass`, SOCKS5 (hay host IPv6) dạng `socks5://user:pass@host:port`.
+
 **Kết quả:** server trả `{"added", "updated", "unchanged", "kept", "repeated", "refused", "taken", "logged"}`, `logged` là số việc trong `events` lần này mới ghi Log (việc có `id` đã ghi rồi không tính). JSON sai thì 400, quá 1 MB thì 413. Lần gửi có nick mới hay bị từ chối (`added` hay `refused` > 0) thì ghi thêm một dòng Log tóm tắt ("Đồng bộ: thêm 3 nick, 1 nick của key khác"); lần gửi chỉ cập nhật thì không.
 
 **Giới hạn D1:** mỗi lần gửi chỉ đọc bảng nick một lần và ghi chung một batch, vì gói Workers Free chỉ cho 50 truy vấn D1 mỗi lần gọi. Lần đồng bộ của key, các dấu "Đã xoá ở máy" và các dòng Log đi chung một batch nữa.

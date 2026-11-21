@@ -50,6 +50,8 @@ export async function sync(c: Ctx) {
   }
   try {
     const done = await accounts.syncLicense(c.var.db, s.accounts, l, licenses.sourceOf(l));
+    // After the accounts: an account new in this sync gets its info too.
+    await accounts.saveInfo(c.var.db, s.info, l.id);
     const logged = await licenses.synced(c.var.db, l, s.settings, s.events, done, clientIp(c));
     return c.json({ ...done, logged });
   } catch (e) {
