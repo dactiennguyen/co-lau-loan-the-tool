@@ -12,25 +12,39 @@ import { isConnected, levelProgress, num, pct } from "@/utils/format";
 import { selectedId, useStore } from "@/store";
 import { ProxyButton } from "./ProxyButton";
 
-/** The share of the level from which it is about to go up (the ring and the share cycle their colours). */
+/** The share of the level from which it is about to go up (the ring cycles its colours). */
 const NEAR = 0.9;
-/** The colours of the ring, clockwise from the top: red, orange, yellow, green, cyan, blue, violet. */
-const RAINBOW = "#ff5f6d, #ffa53b, #ffe14d, #5fe07a, #3fd0ff, #6a7bff, #d46bff";
-const RAINBOW_RING = `conic-gradient(from 0deg, ${RAINBOW}, #ff5f6d)`;
-const RAINBOW_TEXT = `linear-gradient(90deg, ${RAINBOW})`;
+/** The colours of the ring along its way: red at the bottom left corner, then orange, yellow, green, cyan, blue, violet.
+ * A conic gradient turns clockwise and the way goes the other way round, so the colours are listed backwards from there. */
+const RAINBOW_RING = "conic-gradient(from 225deg, #d46bff, #6a7bff, #3fd0ff, #5fe07a, #ffe14d, #ffa53b, #ff5f6d)";
+/** The width of the ring. */
+const RING = "3px";
+
+/** How much of one side of the frame is drawn: each side is a quarter of the way. */
+const side = (part: number, n: number) => `${Math.round(Math.min(1, Math.max(0, part * 4 - n)) * 1000) / 10}%`;
 
 /**
- * EXP of the level as a 3px frame around the avatar: rainbow over the share done, clockwise from the top, the rest dim.
- * Near the next level the colours cycle. Without a character (`part` null) the avatar shows as it is.
+ * EXP of the level as a 3px frame around the avatar, drawn along its edge: from the bottom left corner to the right, up the
+ * right side, back along the top and down the left side, the whole way round at the next level; the rest dim. Near the
+ * next level the colours cycle. Without a character (`part` null) the avatar shows as it is.
  */
-function LevelRing({ part, near, children }: { part: number | null; near: boolean; children: ReactNode }) {
+function LevelRing({ part, near, title, children }: { part: number | null; near: boolean; title?: string; children: ReactNode }) {
   if (part == null) return children;
-  const deg = Math.round(part * 360);
+  const black = "linear-gradient(#000,#000)";
+  // One layer of the mask per side, each grown from where the way enters it.
+  const mask = [
+    `${black} left bottom / ${side(part, 0)} ${RING}`,
+    `${black} right bottom / ${RING} ${side(part, 1)}`,
+    `${black} right top / ${side(part, 2)} ${RING}`,
+    `${black} left top / ${RING} ${side(part, 3)}`,
+  ]
+    .map((l) => `${l} no-repeat`)
+    .join(", ");
   return (
-    <span className="relative flex-none p-[3px] bg-line bevel-sm">
+    <span className="relative flex-none p-[3px] bg-line bevel-sm" title={title}>
       <span
         className={cn("absolute inset-0", near && "animate-hue motion-reduce:animate-none")}
-        style={{ backgroundImage: RAINBOW_RING, mask: `conic-gradient(#000 ${deg}deg, transparent 0)`, WebkitMask: `conic-gradient(#000 ${deg}deg, transparent 0)` }}
+        style={{ backgroundImage: RAINBOW_RING, mask, WebkitMask: mask }}
         aria-hidden
       />
       <span className="relative flex">{children}</span>
@@ -64,7 +78,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
   const connected = isConnected(a.status);
   const line = a.status === 4 ? a.error : c ? `${c.mapName} · Khu ${c.zone}` : a.label !== a.username ? a.username : a.statusText;
   const lv = c && levelProgress(c);
-  // From NEAR of the level on, the ring and the share cycle their colours: the level is about to go up.
+  // From NEAR of the level on, the ring cycles its colours: the level is about to go up.
   const near = !!lv && lv.part >= NEAR;
   const expTitle = lv && `EXP ${pct(lv.part)} cấp ${c.level}: còn ${num(lv.left)} EXP lên cấp ${c.level + 1}`;
   return (
@@ -82,7 +96,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
         onMenu(a.id, e.clientX, e.clientY);
       }}
     >
-      <LevelRing part={lv ? lv.part : null} near={near}>
+      <LevelRing part={lv ? lv.part : null} near={near} title={expTitle ?? undefined}>
         <Avatar name={a.username} status={a.status} />
       </LevelRing>
       <div className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)] gap-1">
@@ -114,22 +128,15 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
           )}
           {c && <Badge className="shrink-0">LV {c.level}</Badge>}
         </div>
-        {/* The place, and at its end the share of the level done (the ring around the avatar draws the same). */}
-        <div className="flex items-baseline gap-1.5 min-w-0">
-          <div id={`${id}line`} className={cn("flex-1 min-w-0 text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>
-            {line}
-          </div>
-          {lv && (
-            <span
-              id={`${id}exp`}
-              className={cn("shrink-0 px text-11 bg-clip-text text-transparent", near && "animate-hue motion-reduce:animate-none")}
-              style={{ backgroundImage: RAINBOW_TEXT }}
-              title={expTitle ?? undefined}
-            >
-              {pct(lv.part)}
-            </span>
-          )}
+        {/* The place; the share of the level done is drawn by the ring around the avatar, and said to screen readers. */}
+        <div id={`${id}line`} className={cn("min-w-0 text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>
+          {line}
         </div>
+        {expTitle && (
+          <span id={`${id}exp`} className="sr-only">
+            {expTitle}
+          </span>
+        )}
         <div className="flex items-center gap-1.5 mt-0.5">
           <Pill id={`${id}status`} status={a.status} text={a.statusText} />
           {c && (
