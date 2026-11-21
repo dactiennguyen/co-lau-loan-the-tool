@@ -211,11 +211,11 @@ impl Bot {
             .or_else(|| self.mobs.iter().find(|m| self.bosses.contains(&m.id)))
             .or_else(|| self.mobs.first())
             .cloned();
-        let tries = {
-            let r = self.snap.bach_ho.as_mut().unwrap();
-            r.tries += 1;
-            r.tries
+        let Some(r) = self.snap.bach_ho.as_mut() else {
+            return;
         };
+        r.tries += 1;
+        let tries = r.tries;
         let Some(mob) = boss else {
             self.bach_ho_doing(format!(
                 "Chưa thấy Bạch Hổ trong hang, thử lại sau {} s (lần {tries})",
