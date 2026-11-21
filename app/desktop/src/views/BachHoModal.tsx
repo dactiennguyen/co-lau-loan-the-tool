@@ -1,8 +1,9 @@
 import { useEffect, useId, useState } from "react";
 import { api } from "@/api";
-import type { Account } from "@/api/types";
+import type { Account, BachHoResult, BachHoTier } from "@/api/types";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
+import { Bar } from "@/components/Bar";
 import { Button } from "@/components/Button";
 import { CHECK_BOX } from "@/components/CheckRow";
 import { Dialog } from "@/components/Dialog";
@@ -11,6 +12,7 @@ import { FIELD } from "@/components/TextField";
 import { Hint } from "@/components/Hint";
 import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
+import { Stepper } from "@/components/Stepper";
 import { BACH_HO_HOUR, BACH_HO_LEVEL, minutesText, runWindow } from "@/game/bachHo";
 import { useStore } from "@/store";
 import { cn } from "@/utils/cn";
@@ -23,9 +25,36 @@ const FROM_KEY = "bachHo.from";
 const UNTIL_KEY = "bachHo.until";
 const DEFAULT_FROM = `${BACH_HO_HOUR}:00`;
 const DEFAULT_UNTIL = `${BACH_HO_HOUR + 1}:00`;
+/** The run's own waits in seconds (not Cài đặt đánh's): between two swaps, and between a battle and the next try. */
+const MOVE_KEY = "bachHo.moveSecs";
+const REJOIN_KEY = "bachHo.rejoinSecs";
+/** The longest of them, as cllt-core's BACH_HO_WAIT_MAX_MS. */
+const WAIT_MAX = 10;
+/** A wait kept, 0 by default (and for anything not a number from 0 to WAIT_MAX). */
+const recalledWait = (key: string) => {
+  const n = Number(recalled(key) ?? 0);
+  return Number.isFinite(n) && n >= 0 && n <= WAIT_MAX ? n : 0;
+};
 
 const HEAD = "flex flex-wrap items-center gap-x-2 gap-y-1";
 const TITLE = "text-[12.5px] font-bold text-fg";
+
+/** The state of a Kết quả Bạch Hổ in words, as the game's box (sqtq.a). */
+const STATE: Record<number, string> = { 0: "Đang diễn ra", 1: "Đã bị tiêu diệt", 2: "Đã tẩu thoát" };
+/** The boss's HP in percent with one decimal: the server sends it per mille. */
+const hpPercent = (r: BachHoResult) => (r.maxHp > 0 ? (Math.max(0, r.hp) * 100) / r.maxHp : 0);
+/** "Cấp 51–100", "Cấp 151+" (a last tier ends at 0 or at 999). */
+const levels = (t: BachHoTier) => (t.maxLevel <= 0 || t.maxLevel >= 999 || t.maxLevel < t.minLevel ? `Cấp ${t.minLevel}+` : `Cấp ${t.minLevel}–${t.maxLevel}`);
+/** "21:00 21/11" of ms since 1970, Vietnam time. */
+const clock = (ms: number) =>
+  new Date(ms).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+/** "21/11" of ms since 1970, Vietnam time: the day of a session. */
+const day = (ms: number) => new Date(ms).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit" });
+/** "12 s", "3 phút" ago. */
+const ago = (ms: number, now: number) => {
+  const s = Math.max(0, Math.round((now - ms) / 1000));
+  return s < 60 ? `${s} s` : `${Math.round(s / 60)} phút`;
+};
 
 /** The time now, every 5 s, for the countdown and the runs under way. */
 function useNow() {
@@ -75,6 +104,13 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
   const [picked, setPicked] = useState(readPicked);
   const [from, setFrom] = useState(() => recalled(FROM_KEY) ?? DEFAULT_FROM);
   const [until, setUntil] = useState(() => recalled(UNTIL_KEY) ?? DEFAULT_UNTIL);
+  const [moveSecs, setMoveSecs] = useState(() => recalledWait(MOVE_KEY));
+  const [rejoinSecs, setRejoinSecs] = useState(() => recalledWait(REJOIN_KEY));
+  const setWait = (which: "move" | "rejoin", v: number) => {
+    if (which === "move") setMoveSecs(v);
+    else setRejoinSecs(v);
+    remember(which === "move" ? MOVE_KEY : REJOIN_KEY, String(v));
+  };
   const keep = (next: Set<number>) => {
     setPicked(next);
     remember(PICKED_KEY, JSON.stringify([...next]));
@@ -106,6 +142,8 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
       chosen.map((a) => a.id),
       span.fromMs,
       span.untilMs,
+      Math.round(moveSecs * 1000),
+      Math.round(rejoinSecs * 1000),
     );
   };
 
@@ -114,7 +152,7 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
       title="Bạch Hổ Thống Lĩnh"
       subtitle={`Boss thế giới · Hang Bạch Hổ (M24) · game mở ${BACH_HO_HOUR}:00–${BACH_HO_HOUR}:59 mỗi ngày · từ cấp ${BACH_HO_LEVEL}`}
       className="w-[min(760px,94vw)] max-w-none"
-      formClassName="max-h-[min(820px,92vh)] box-border grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
+      formClassName="max-h-[min(860px,94vh)] box-border grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
       onClose={onClose}
       onSubmit={(e) => {
         e.preventDefault();
@@ -161,7 +199,20 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
             )}
           </span>
         </div>
+        <div className="col-start-2 mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-12 text-fg-2">
+          <span>Chờ giữa các nước</span>
+          <Stepper value={moveSecs} min={0} max={WAIT_MAX} step={0.1} label="số giây chờ giữa hai nước đi trong trận Bạch Hổ" onChange={(v) => setWait("move", v)} />
+          <span>giây · Chờ vào trận lại</span>
+          <Stepper value={rejoinSecs} min={0} max={WAIT_MAX} step={0.1} label="số giây chờ từ hết trận tới lần vào trận sau" onChange={(v) => setWait("rejoin", v)} />
+          <span>giây</span>
+          <Hint label="Thời gian chờ của Bạch Hổ là gì?" id={`${hint}-wait`}>
+            Riêng cho Bạch Hổ, không dùng Thời gian chờ của Cài đặt đánh. Mặc định 0: mỗi nước vẫn đợi server trả lời nước trước rồi mới đi. Boss đánh mỗi 30 giây dù mình làm gì, nên đi
+            càng nhanh càng nhiều sát thương. Áp dụng cho lần Bắt đầu sau.
+          </Hint>
+        </div>
       </section>
+
+      <BossPanel accounts={accounts} now={now} />
 
       <div className={HEAD}>
         <Icon name="users" size={13} className="text-primary" />
@@ -309,14 +360,127 @@ function AccountRow({ account: a, why, on, onToggle }: { account: Account; why: 
           <span className="ml-auto text-fg-3 whitespace-nowrap">
             <b className="px text-fg">{run.tries}</b> lần thử · <b className="px text-fg">{run.battles}</b> trận · <b className="px text-coin">{num(run.damage)}</b> sát thương
           </span>
-          {run.standing && (
-            <span className="basis-full min-w-0 truncate text-fg-2" title="Kết quả Bạch Hổ của game (s2c/1275)">
-              <Icon name="crown" size={11} className="inline mr-1 text-coin" />
-              {run.standing}
-            </span>
+        </div>
+      )}
+      {c?.bachHoResult && <Standing result={c.bachHoResult} />}
+    </li>
+  );
+}
+
+/** Where the account stands in Kết quả Bạch Hổ: tier, rank, damage, and a bar to its tier's threshold (the gift of the
+ * day's run goes to every character over it, BH2). Nothing before it fought. */
+function Standing({ result: r }: { result: BachHoResult }) {
+  if (r.ownTier <= 0 || r.ownRank <= 0) return null;
+  const tier = r.tiers.find((t) => t.tier === r.ownTier);
+  const threshold = tier?.threshold ?? 0;
+  const share = threshold > 0 ? Math.min(1, r.ownDamage / threshold) : 1;
+  // A result of an earlier day's session (the app stayed on) says its day, not to pass for today's.
+  const old = r.sessionAt > 0 && day(r.sessionAt) !== day(Date.now()) ? day(r.sessionAt) : null;
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(80px,160px)] items-center gap-x-3 pl-[58px] text-11" title="Kết quả Bạch Hổ của game (s2c/1275)">
+      <span className="min-w-0 truncate text-fg-2">
+        <Icon name="crown" size={11} className="inline mr-1 text-coin" />
+        {old && <span className="text-fg-3">Phiên {old} · </span>}
+        Bậc <b className="px text-fg">{r.ownTier}</b>
+        {tier && ` (${levels(tier)})`} · hạng <b className="px text-fg">{r.ownRank}</b>
+        {tier && tier.players > 0 && `/${num(tier.players)}`} · <b className="px text-coin">{num(r.ownDamage)}</b>
+        {threshold > 0 && ` / ${num(threshold)}`}{" "}
+        {r.reached ? <b className="text-good">đủ ngưỡng nhận quà</b> : <span className="text-danger">chưa đủ ngưỡng</span>}
+      </span>
+      <Bar value={share} fill={r.reached ? "var(--good)" : "var(--coin)"} thin label={`${Math.round(share * 100)}% ngưỡng`} />
+    </div>
+  );
+}
+
+/** The boss of the day's run, from the freshest Kết quả Bạch Hổ of the accounts (the boss is the same for all): its
+ * state and HP, who finished it, and each tier (levels, threshold, players) with its ranking, the accounts' own rows
+ * marked. The bot asks it after each battle and on the boss's clock hits; nothing before any account asked. */
+function BossPanel({ accounts, now }: { accounts: Account[]; now: number }) {
+  const results = accounts.map((a) => a.character?.bachHoResult).filter((r): r is BachHoResult => !!r);
+  const r = results.reduce<BachHoResult | null>((best, x) => (!best || x.readAtMs > best.readAtMs ? x : best), null);
+  const mine = new Set(accounts.map((a) => a.character?.name).filter(Boolean));
+  // The tiers of the accounts (marked ★); open first the tier of the account whose result is shown, else another's.
+  const ownTiers = new Set(results.map((x) => x.ownTier).filter((t) => t > 0));
+  const ownTier = r && r.ownTier > 0 ? r.ownTier : [...ownTiers][0];
+  const [picked, setPicked] = useState<number | null>(null);
+  if (!r) {
+    return (
+      <p className="m-0 px-3 py-2 text-12 text-fg-3 bg-bg-2 border-2 border-line">
+        Chưa có Kết quả Bạch Hổ: nick đang chạy hỏi server sau mỗi trận và mỗi đòn của boss (khoảng 30 s).
+      </p>
+    );
+  }
+  const pct = hpPercent(r);
+  const tier = r.tiers.find((t) => t.tier === (picked ?? ownTier)) ?? r.tiers.find((t) => t.players > 0) ?? r.tiers[0];
+  const live = r.state === 0;
+  return (
+    <section className="grid gap-2 px-3 py-2.5 bg-bg-2 border-2 border-line" aria-label="Boss Bạch Hổ">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+        <span className="flex flex-wrap items-baseline gap-x-2 min-w-0">
+          <b className={cn("text-13", r.state === 1 ? "text-good" : live ? "text-danger" : "text-fg")}>{STATE[r.state] ?? "Chưa có phiên nào"}</b>
+          {r.sessionAt > 0 && <span className="text-11 text-fg-3">phiên {clock(r.sessionAt)}</span>}
+        </span>
+        <span className="text-11 text-fg-3 whitespace-nowrap" title="Lần cuối bot đọc Kết quả Bạch Hổ">
+          cập nhật {ago(r.readAtMs, now)} trước
+        </span>
+        <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <Bar value={pct / 100} fill="var(--hp)" label={`Máu boss ${pct.toFixed(1)}%`} />
+          <b className="px text-13 text-fg whitespace-nowrap">{pct.toFixed(1)}%</b>
+        </div>
+        {r.killerId > 0 && (
+          <span className="col-span-2 text-12 text-fg-2">
+            Kết liễu: <b className="text-fg">{r.killer}</b> (bậc {r.killerTier}) · <b className="px text-coin">{num(r.killerDamage)}</b> sát thương
+          </span>
+        )}
+      </div>
+      {r.tiers.length > 0 && (
+        <div className="grid gap-1.5">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Bậc">
+            {r.tiers.map((t) => (
+              <button
+                key={t.tier}
+                type="button"
+                aria-pressed={t.tier === tier?.tier}
+                className={cn(
+                  "px-2 py-0.5 border-2 text-11 font-bold cursor-pointer",
+                  t.tier === tier?.tier ? "border-coin text-ink bg-coin" : "border-line text-fg-2 bg-ink hover:text-fg",
+                )}
+                onClick={() => setPicked(t.tier)}
+              >
+                Bậc {t.tier}
+                {ownTiers.has(t.tier) && " ★"}
+              </button>
+            ))}
+          </div>
+          {tier && (
+            <>
+              <span className="text-11 text-fg-3">
+                {levels(tier)} · ngưỡng <b className="px text-fg">{num(tier.threshold)}</b> · <b className="px text-fg">{num(tier.players)}</b> người
+              </span>
+              {tier.rows.length === 0 ? (
+                <span className="text-11 text-fg-3">Chưa ai gây sát thương ở bậc này.</span>
+              ) : (
+                <ol className="grid gap-0.5 m-0 p-0 list-none max-h-[150px] overflow-y-auto scroll">
+                  {tier.rows.map((row) => (
+                    <li
+                      key={row.rank}
+                      className={cn(
+                        "grid grid-cols-[24px_minmax(0,1fr)_auto_auto] items-center gap-2 px-1.5 py-0.5 text-12",
+                        mine.has(row.name) ? "bg-[color-mix(in_srgb,var(--good)_18%,var(--bg-2))]" : row.rank <= 5 ? "bg-ink" : "",
+                      )}
+                    >
+                      <b className={cn("px text-right", row.rank <= 3 ? "text-coin" : "text-fg-3")}>{row.rank}</b>
+                      <span className="truncate text-fg">{row.name}</span>
+                      <span className="text-11 text-fg-3">Lv {row.level}</span>
+                      <b className="px text-right text-fg-2">{num(row.damage)}</b>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
           )}
         </div>
       )}
-    </li>
+    </section>
   );
 }

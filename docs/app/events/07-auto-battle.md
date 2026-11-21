@@ -463,7 +463,7 @@ Code ở `bestAction` trong [src/battle/battle-actions.ts](../../../src/battle/b
 | "Biến từ a đến b quân cờ thành kiếm lửa, và có P% cơ hội đi tiếp" | Đặt Kiếm lửa vào các ô ngẫu nhiên, cho rơi như sau một nước đổi chỗ, P% được đi tiếp | [Đo 5 lần] các ô của `s2c/20` thành Kiếm lửa, không ô nào bị phá; hàng 3 chúng làm thành rơi ngay như sau một nước đổi chỗ ([s2c/20](05-battle.md#s2c-20)). Server chọn ô, bot đoán ô ngẫu nhiên |
 | Hoàn Linh Dược / Kim Đan Dược | ⌊25% HP tối đa⌋ / +25 nội lực. Dùng bình mất lượt | [Đo A1] |
 
-Những viên kỹ năng phá được tính gấp 3 với tim, âm dương và đào. Những viên rơi thành hàng sau đó tính như thường ([Đo A1](#đo-trên-máy-a1)).
+Những viên kỹ năng phá được tính gấp 3 với tim, âm dương và đào. Những viên rơi thành hàng sau đó tính như thường ([Đo A1](#đo-trên-máy-a1)). **Từ game 1.1.0 viên bị phá chỉ tính 1 lần**: 5 468 lần dùng kỹ năng của 20–21/11 (cllt.db) khớp 1 lần, chỉ 5 lần khớp 3 lần; ngày 2/11 thì 77 lần khớp 3 lần, 2 lần khớp 1 lần. Từ 21/11 `skillScore` / `skill_score` tính 1 lần. [Đo]
 
 **Cách chấm điểm kỹ năng:**
 - Kỹ năng phá ô được thử với 16 cách đặt vùng ngẫu nhiên. Cách đặt cố định theo bàn cờ, nên cùng một bàn luôn cho cùng điểm.
@@ -552,6 +552,23 @@ Mỗi giờ tốn khoảng 1500–2400 Xu khóa (120 mỗi bình) để thua ít
 - Tiheo2 (cấp 18; sau A1 còn 10 điểm kỹ năng) nên dùng **2 điểm nâng Băng Tiễn Thuật lên cấp 4**. Trên mô phỏng với quái khó, bot thắng thêm khoảng 13% trận mỗi giờ. Cấp 5 cần cấp nhân vật 22.
 - Chưa nên tốn điểm cho Hàn Lưu Thánh Thủy cấp 2, Băng Đao Kích hay Tuyết Sơn Áp Đỉnh khi Băng Tiễn còn nâng được.
 - Bình chỉ đáng dùng khi một trận thua đáng giá hơn khoảng 5–6 bình.
+
+### Trận tính giờ: nhìn 2 nước, một kỹ năng theo kế hoạch (21/11)
+
+Trận tính giờ (Bạch Hổ, Sơn Tặc; `s2c/18` timed 1) khác trận thường: quái không đi quân, đánh theo đồng hồ (Bạch Hổ khoảng 30–31 s một đòn), nên nước sau luôn là của mình và sát thương chỉ phụ thuộc số nước đi được và sát thương mỗi nước. Chiến lược của trận này có `timed` (`Strategy.timed`, đặt ở `strategy()` của runner, TS và Rust):
+- **Nhìn 2 nước:** mỗi nước đổi chỗ được cộng `FOLLOW` (0,5) × nước tốt nhất sau nó, với máu, nội lực và sức mạnh sau nước đầu (đòn kiếm lúc sức mạnh đầy làm sức mạnh về 0). Trước đây 34% nước của mokali có điểm 0, tức chọn bừa.
+- **Một kỹ năng theo kế hoạch** (`planSkill` / `plan_skill`): kỹ năng biến quân thành kiếm lửa (Hỏa Kiếm Thuật 1001) nếu đã học, không thì kỹ năng sát thương rẻ nhất (Hỏa Cầu 1000, Xích Lôi Công 2000, Băng Tiễn Thuật 4000). Đủ nội lực là dùng ngay (trừ khi một nước đổi chỗ giết được quái); các kỹ năng gây sát thương khác không dùng. Kỹ năng hồi máu, buff, hút nội lực vẫn được chấm như trận thường (quái Sơn Tặc vẫn đánh theo đồng hồ, mà trận tính giờ không uống bình). Không có kỹ năng sát thương nào thì chơi như cũ.
+- **Bạch Hổ:** máu boss trong `s2c/22` và `s2c/19` là phần nghìn (973/1000), bot từng đọc như máu thật nên dưới khoảng 33% nước kiếm nào cũng được chấm là giết. Nay `RunnerOptions::mob_hp_unknown` giữ máu boss là không biết.
+
+Mô phỏng (21/11, `timed-sim.ts` dựng trên luật bàn cờ của repo, chỉnh theo trận thật của mokali: 136,5 sát thương/nước so với 131,5 thật; một Hỏa Cầu 619 so với 615 thật), 9 nick của trận Bạch Hổ tối 21/11, nội lực 2,06 và 5,5 mỗi âm dương:
+
+| Nick, kỹ năng | v3 cũ | Kế hoạch mới |
+|---|---|---|
+| Hỏa có Hỏa Kiếm (mokali, akaito, minika: 1001 cấp 7–10) | — | +26% tới +92% (Hỏa Kiếm) |
+| Hỏa không Hỏa Kiếm, Lôi (kakami, mania4), Thủy | — | +12% tới +19% (kỹ năng gốc) |
+| Chạy chính `bestAction` mới trên mô phỏng: mokali / kakami / Thủy cấp 10 | 72 435 / 79 938 / 83 559 mỗi phiên | 95 160 / 89 072 / 94 460 (+31% / +11% / +13%) |
+
+Thiên Hỏa Kích, Bách Lôi Uy Vũ, Tuyết Sơn Áp Đỉnh kém kỹ năng gốc (trừ kakami với 5,5 nội lực mỗi âm dương: Bách Lôi hơn); kỹ năng chỉ gây sát thương (1003, 1004, 2003, 4003) và 1007, 4007 kém cả v3. Nhịp đi vẫn quan trọng nhất: 0,53 s một nước gấp đôi 1,08 s. [Mô phỏng; Hỏa Kiếm chưa từng được dùng trong trận tính giờ thật]
 
 <a id="bình-máu-và-mana"></a>
 

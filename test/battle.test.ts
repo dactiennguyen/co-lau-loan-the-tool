@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
-import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, applyResult, battleResult, FIRE, type Move } from '../src/battle/battle.ts';
+import { N, EMPTY, UNKNOWN, swap, settle, findRuns, legalMoves, bestMove, moveValue, fighter, unknownMob, STRATEGIES, MOB_AI, mobMoveOdds, answerValue, castSkill, mobBlock, applyResult, battleResult, timeoutResult, FIRE, type Move } from '../src/battle/battle.ts';
 import { Reader, Writer } from '../src/protocol/protocol.ts';
 import { fireCasts } from './fixtures-fire.ts';
 import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
@@ -303,4 +304,13 @@ test('s2c/22 is read from its battle uuid: the tail of 1.0.3 and the up to two b
     const s = decodeEvent('s2c', 22, setup(extra)).fields as any;
     assert.deepEqual([s.me, s.level, s.hp, s.uuid, s.turnSeconds, s.board.length, s.board[7]], ['akaito', 3, 72, uuid, 30, 64, 1], `${extra.length} extra`);
   }
+});
+
+test('s2c/21 with a refill (the Bạch Hổ kill, mokali 21/11) reads to its end', () => {
+  const hexText = readFileSync(new URL('../app/core/tests/fixtures/bh-s2c21-kill.hex', import.meta.url), 'utf8').trim();
+  const x = timeoutResult(new Reader(Buffer.from(hexText, 'hex')));
+  assert.deepEqual([x.seq, x.refill], [39, [2, 5, 70]]);
+  assert.equal(x.actor, 'mob800');
+  assert.equal(x.end, true);
+  assert.equal(x.reward?.won, true);
 });

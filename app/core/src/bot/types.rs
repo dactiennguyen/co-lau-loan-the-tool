@@ -863,9 +863,31 @@ pub struct EggRun {
     pub got: Vec<EggGain>,
 }
 
+/// The waits of a Bạch Hổ run, set in its window apart from Cài đặt đánh (whose Chờ trước mỗi lượt đi and random
+/// time are not used in the run): between two own swaps of a battle with the boss, and between a battle and the next
+/// try, in ms (0 by default: a swap still waits for the server's answer to the one before, runner_v3 TimedMove).
+/// Taken up to BACH_HO_WAIT_MAX_MS whatever is sent.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BachHoPace {
+    pub move_ms: u32,
+    pub rejoin_ms: u32,
+}
+
+/// The longest wait of BachHoPace, in ms.
+pub const BACH_HO_WAIT_MAX_MS: u32 = 10_000;
+
+impl BachHoPace {
+    pub fn move_gap(&self) -> Duration {
+        Duration::from_millis(self.move_ms.min(BACH_HO_WAIT_MAX_MS).into())
+    }
+    pub fn rejoin(&self) -> Duration {
+        Duration::from_millis(self.rejoin_ms.min(BACH_HO_WAIT_MAX_MS).into())
+    }
+}
+
 /// Bạch Hổ under way or last done (Bot::bach_ho): from when to when it tries (ms since 1970), what it does now in words,
-/// the tries to get into a battle with the boss, the battles fought and their damage; `standing` where the character
-/// stands in Kết quả Bạch Hổ (s2c/1275: tier, rank, damage, threshold) once read; `done` the words it ended with.
+/// the tries to get into a battle with the boss, the battles fought and their damage; `done` the words it ended with.
+/// Where the character stands is Snapshot::bach_ho_result.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BachHoRun {
@@ -876,15 +898,16 @@ pub struct BachHoRun {
     pub battles: u32,
     pub wins: u32,
     pub damage: i64,
-    pub standing: Option<String>,
     pub done: Option<String>,
 }
 
 /// Kết quả Bạch Hổ (s2c/1275, 17-bach-ho.md#đọc-tĩnh-110), as sqtm.a of game 1.1.0 reads it: the state of the day's run
 /// (0 under way, 1 the boss killed, 2 it got away, else none yet), the boss's HP, who finished it (id above 0, name,
-/// tier, damage), the tiers (level bands of characters, each with its threshold and players; their ranking rows are
-/// read, not kept), and the character's own tier, rank, damage and whether it reached its tier's threshold.
-#[derive(Debug, Clone, PartialEq)]
+/// tier, damage), the tiers (level bands of characters, each with its threshold, players and ranking), and the
+/// character's own tier, rank, damage and whether it reached its tier's threshold. The HP is per mille (BH2: 0 of 1000
+/// at the kill). `read_at_ms` is when the bot read it (ms since 1970), 0 from bach_ho_result.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BachHoResult {
     pub state: u8,
     pub session_at: i64,
@@ -899,16 +922,29 @@ pub struct BachHoResult {
     pub own_rank: i32,
     pub own_damage: i32,
     pub reached: bool,
+    pub read_at_ms: u64,
 }
-/// A tier (bậc) of Bạch Hổ: characters of levels `min_level` to `max_level`, the least damage that counts (Ngưỡng), its
-/// players.
-#[derive(Debug, Clone, PartialEq)]
+/// A tier (bậc) of Bạch Hổ: characters of levels `min_level` to `max_level` (0 for no end: tier 4 is 151–0 in BH2), the
+/// least damage that counts (Ngưỡng), its players, and its ranking as the server sends it (10 rows in BH2).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BachHoTier {
     pub tier: u8,
     pub min_level: i16,
     pub max_level: i16,
     pub threshold: i32,
     pub players: i32,
+    pub rows: Vec<BachHoRow>,
+}
+/// A row of a tier's ranking: rank, character id, name, level, damage.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BachHoRow {
+    pub rank: u8,
+    pub id: i32,
+    pub name: String,
+    pub level: i16,
+    pub damage: i32,
 }
 
 /// A map and zone to go back to (Quay về chỗ cũ).
@@ -1250,6 +1286,9 @@ pub struct Snapshot {
     pub eggs: Option<EggRun>,
     /// Bạch Hổ (bot/bachho.rs): the run under way or last done; None before any.
     pub bach_ho: Option<BachHoRun>,
+    /// The last Kết quả Bạch Hổ read (s2c/1275): the boss's HP and state, the tiers and their ranking, where the character
+    /// stands. Kept after the run, for the window.
+    pub bach_ho_result: Option<BachHoResult>,
     /// Where the character was before Bạch Hổ took it away, for Quay về chỗ cũ (Bot::go_back); None once back.
     pub back_point: Option<BackPoint>,
     /// The codes refused in a row and the server's lock, from GiftMemory; filled by snapshot().

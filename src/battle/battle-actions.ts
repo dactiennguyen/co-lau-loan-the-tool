@@ -2,12 +2,11 @@
 // each learnt skill the nội lực pays for, and each potion of the bag. A skill's effect is read from its description in
 // s2c/30 (12-skills-items.md#bảng-kỹ-năng); its value comes from the damage formula and the measurements of A1:
 // - damage skill: W × (3 + swords it clears) × 2 at full power + K, K lost one cast in seven;
-// - a piece a skill destroys counts three times (a destroyed heart heals 10 when a run of 3 hearts heals 10), the pieces
-//   falling into runs after it once;
+// - a piece a skill destroys counts once, as the pieces falling into runs after it (game 1.1.0; three times before);
 // - Hàn Lưu Thánh Thủy heals ⌊pct × max HP⌋; Hoàn Linh Dược ⌊25% max HP⌋ (the item says 30%); Kim Đan Dược +25 nội lực;
 // - a skill or a potion ends the turn like a swap, unless a run ≥4 falls after it or the skill says it keeps the turn.
 // Everything is worth HP: damage to the mob, HP healed (up to the max), nội lực at what the best damage skill makes of it.
-import { N, kind, swap, settle, legalMoves, blastCells, bestMove, answerValue, moveValue, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
+import { N, swap, settle, legalMoves, bestMove, answerValue, moveValue, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
 
 /** One level of a skill as its description in s2c/30 states it. The 14 kinds of description of the three trees are
  * all read; `kind` 'unknown' is a description of none of them, and the bot does not cast it. */
@@ -119,12 +118,18 @@ export interface ActionOptions {
 export function bestAction(b: Board, me: Fighter, mob: Fighter, s: Strategy, o: ActionOptions = {}) {
   const all: Scored[] = [], pick = bestMove(b, me, mob, s), perS1 = me.skillCost ? me.skillDamage / me.skillCost : 0;
   if (pick) all.push({ action: { kind: 'swap', move: pick.move }, score: pick.score, label: 'swap' });
-  const castable = (o.skills ?? []).filter(e => e.kind !== 'unknown' && me.s1 >= e.cost && !(e.buff && (o.buffs?.[e.buff.stat] ?? 0) > 0));
+  // A timed battle casts only its plan skill of those that deal damage, as soon as it is paid for unless a swap kills;
+  // a heal, buff or sap skill is weighed as in any battle (the mob still hits on its clock, and no potion is drunk).
+  const plan = s.timed ? planSkill(o.skills ?? []) : undefined, planned = (e: SkillEffect) => !plan || e === plan || (e.kind !== 'damage' && e.kind !== 'fire');
+  const castable = (o.skills ?? []).filter(e => e.kind !== 'unknown' && me.s1 >= e.cost && !(e.buff && (o.buffs?.[e.buff.stat] ?? 0) > 0) && planned(e));
   // The nội lực spent is charged (SPEND), but not when the bar is too full for the cheapest skill to be cast later
   // without losing what comes in meanwhile, nor in a timed battle (the mob does not answer: every action should deal the
   // most). The same for every skill, so a dearer one is never free while a cheaper one is charged.
   const charged = !!s.reply && me.s1 + Math.min(...castable.map(e => e.cost)) <= 100;
-  for (const e of castable) all.push({ action: { kind: 'skill', id: e.id }, score: skillScore(b, e, me, mob, s, charged ? perS1 * (o.spend ?? SPEND) : 0, perS1, o, pick?.score ?? 0), label: `skill ${e.id}` });
+  for (const e of castable) {
+    const v = skillScore(b, e, me, mob, s, charged ? perS1 * (o.spend ?? SPEND) : 0, perS1, o, pick?.score ?? 0), swapScore = pick?.score ?? -Infinity;
+    all.push({ action: { kind: 'skill', id: e.id }, score: e === plan && swapScore < 1e4 ? Math.max(v, swapScore + 1) : v, label: `skill ${e.id}` });
+  }
   // No potion in a timed battle (reply 0): the mob's clock hits are not scored, so neither is the death a potion saves
   // from.
   for (const p of s.reply ? o.potions ?? [] : []) {
@@ -138,6 +143,15 @@ export function bestAction(b: Board, me: Fighter, mob: Fighter, s: Strategy, o: 
   }
   all.sort((x, y) => y.score - x.score);
   return { best: all[0] as Scored | undefined, all };
+}
+
+/** The one skill a timed battle casts, as soon as the nội lực pays for it: one that turns pieces into Kiếm lửa (Hỏa Kiếm
+ * Thuật), else the cheapest damage skill (Hỏa Cầu, Xích Lôi Công, Băng Tiễn Thuật). In the Bạch Hổ simulator (21/11, the
+ * nine characters of that night's run, nội lực 2.06 and 5.5 a yin-yang) holding for Hỏa Kiếm dealt 26–92% more than v3,
+ * the cheapest damage skill 12–19% more (Lôi, Thủy, Hỏa without it), Thiên Hỏa Kích, Bách Lôi Uy Vũ, Tuyết Sơn Áp Đỉnh
+ * less but for one Lôi build, the plain damage skills (1003, 1004, 2003, 4003) and 1007, 4007 less than v3. */
+export function planSkill(skills: readonly SkillEffect[]): SkillEffect | undefined {
+  return skills.find(e => e.kind === 'fire') ?? skills.filter(e => e.kind === 'damage').sort((x, y) => x.cost - y.cost || x.id - y.id)[0];
 }
 
 /** Share of the nội lực's worth charged to the skill that spends it. A skill kept for a later turn deals the same damage
@@ -164,10 +178,10 @@ function skillScore(b: Board, e: SkillEffect, me: Fighter, mob: Fighter, s: Stra
   for (const removed of samples) {
     const t = b.slice();
     if (e.fire) { total += fireValue(t, removed, e, me, mob, s) - charge; continue; }
-    const destroyed: Record<number, number> = {};
-    if (removed.length) for (const i of blastCells(t, removed)) if (t[i] >= 0) destroyed[kind(t[i])] = (destroyed[kind(t[i])] ?? 0) + 1;
     const out: Outcome = removed.length ? settle(t, null, removed) : { cleared: {}, waves: 0, extraTurn: false, refillUsed: 0 };
-    const n = (k: number) => (out.cleared[k] ?? 0) + 2 * (destroyed[k] ?? 0);
+    // A heart, yin-yang or peach the skill destroys counts once, as one cleared in a run (game 1.1.0: 5468 casts of
+    // 20–21/11 fit once, 5 fit three times; before it, 2/11, three times).
+    const n = (k: number) => out.cleared[k] ?? 0;
     let damage = 0, kill = 0;
     if (e.kind === 'damage') {
       const least = me.sword * (3 + (out.cleared[0] ?? 0)) * (full ? 2 : 1), k = e.damage ?? 0;

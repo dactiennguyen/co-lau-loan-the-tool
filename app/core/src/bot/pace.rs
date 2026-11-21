@@ -181,8 +181,16 @@ impl Bot {
             ));
         }
         if (new.turn_pause(), new.delay_random) != (old.turn_pause(), old.delay_random) {
+            // `self.fight` is still the old one here: the new wait is `new`'s (none in Bạch Hổ, its waits are its own).
+            let bach_ho = self.bach_ho_on();
+            let pause = if bach_ho {
+                Duration::ZERO
+            } else {
+                new.turn_pause()
+            };
+            let random = new.delay_random && !bach_ho;
             if let Some(r) = self.battle.as_mut() {
-                r.set_turn_delay(new.turn_pause(), new.delay_random);
+                r.set_turn_delay(pause, random);
             }
         }
     }

@@ -126,7 +126,7 @@ export function replay(b: RecordedBattle) {
     let x: Result, kind: ReplayedMove['kind'];
     if (p.op === 's2c/19' || p.op === 's2c/20') { x = battleResult(new Reader(p.payload), p.op === 's2c/19' ? 19 : 20); kind = x.move ? 'swap' : 'skill'; }
     else if (p.op === 's2c/21') { x = timeoutResult(new Reader(p.payload)); kind = 'timer'; }
-    else if (p.op === 's2c/44') { x = { ...battleItemResult(new Reader(p.payload)), cells: [] }; kind = 'item'; }
+    else if (p.op === 's2c/44') { x = { ...battleItemResult(new Reader(p.payload)), cells: [], newBoard: undefined }; kind = 'item'; }
     else continue;
     const o = applyResult(board, x), desync = o.desync;
     if (x.newBoard) board = [...x.newBoard];

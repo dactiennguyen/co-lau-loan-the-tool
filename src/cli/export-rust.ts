@@ -596,7 +596,7 @@ function battleV3() {
   const hp = (x: number) => Number(x.toFixed(6)), odd = (x: number) => Number(x.toFixed(9));
   const finite = (f: Fighter) => ({ ...f, hp: Number.isFinite(f.hp) ? f.hp : null, maxHp: Number.isFinite(f.maxHp) ? f.maxHp : null });
   const positions = battles().flatMap(b => [b.board, ...b.steps.map(s => s.board)]) as Board[];
-  const timed = (s: Strategy): Strategy => ({ ...s, reply: 0, extraTurn: 0, lookahead: 0 });
+  const timed = (s: Strategy): Strategy => ({ ...s, reply: 0, extraTurn: 0, lookahead: 0, timed: true });
   const strategies: Strategy[] = [STRATEGIES.win, STRATEGIES.farm, timed(STRATEGIES.win), { ...STRATEGIES.win, lookahead: 0.5 }, STRATEGIES.kill, STRATEGIES.exp, { ...STRATEGIES.farm, reply: 0.5 }];
   // Both sides by position: own HP, nội lực and power across their range, the mob near death, full or unknown.
   const side = (i: number) => {

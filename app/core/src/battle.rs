@@ -427,7 +427,9 @@ pub enum MobModel {
 
 /// extra_turn: worth of keeping the turn; reply: share of the opponent's answer subtracted (0 in a timed battle);
 /// bonus: worth of own EXP and coin pieces; mob_model: how that answer is valued; lookahead: a move that keeps the turn
-/// is worth this share of the best own move after it, in place of the flat extra_turn (0: none). Strategy of battle.ts.
+/// is worth this share of the best own move after it, in place of the flat extra_turn (0: none); timed: a timed battle
+/// (Bạch Hổ, Sơn Tặc), where the mob never moves pieces and the next action is ours too: each swap is also worth FOLLOW
+/// × the best swap after it, and battle_actions::best_action casts only plan_skill. Strategy of battle.ts.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Strategy {
     pub extra_turn: f64,
@@ -435,7 +437,13 @@ pub struct Strategy {
     pub bonus: Vec<(i16, f64)>,
     pub mob_model: MobModel,
     pub lookahead: f64,
+    pub timed: bool,
 }
+
+/// Share of the best next swap a swap of a timed battle is worth on top of its own (two own plies). In the Bạch Hổ
+/// simulator (21/11, 12,000 actions a strategy) 0.5 dealt 16% more per action than one ply, 1 and 1.5 less (151.5,
+/// 137.8 against 158.1). FOLLOW of battle.ts.
+pub const FOLLOW: f64 = 0.5;
 impl Strategy {
     /// Ends battles soonest (Q20).
     pub fn kill() -> Self {
@@ -445,6 +453,7 @@ impl Strategy {
             bonus: vec![],
             mob_model: MobModel::Best,
             lookahead: 0.0,
+            timed: false,
         }
     }
     /// Also collects drops, stars and gold (Q20).
@@ -786,6 +795,20 @@ pub fn best_move(b: &Board, me: &Fighter, mob: &Fighter, s: &Strategy) -> Option
             };
             if o.extra_turn && s.lookahead != 0.0 {
                 score += s.lookahead * best_next(&t, &me_after, &mob_after, own);
+            } else if s.timed {
+                // The next swap is ours whatever this one does, with the nội lực and sức mạnh this one brings (a hit at
+                // full power spends the sức mạnh).
+                let (full, hit) = (me.s2 >= 100.0, o.n(0) > 0.0);
+                let after = Fighter {
+                    s1: f64::min(100.0, me.s1 + o.n(2) * me.yinyang),
+                    s2: if full && hit {
+                        0.0
+                    } else {
+                        f64::min(100.0, me.s2 + o.n(3) * me.peach)
+                    },
+                    ..me_after
+                };
+                score += FOLLOW * best_next(&t, &after, &mob_after, own);
             } else if !o.extra_turn && s.reply != 0.0 {
                 score -= s.reply * answer_value(&t, &mob_after, &me_after, s);
             }
@@ -1167,11 +1190,23 @@ pub fn battle_item_result(p: &[u8]) -> Result<ItemResult> {
         reward,
     })
 }
+/// s2c/21, the mob's clock hit of a timed battle: seq, an i32, then the refill as s2c/19 (with its reshuffle flag and 3
+/// bytes when not empty) and the unit line. The refill is not always empty: 9 of 241 recorded (21/11) carry 3–17 pieces,
+/// all ending the battle (time out of Sơn Tặc, the Bạch Hổ kill); read as 0 before, they lost the battle's end.
+/// timeoutResult of battle.ts.
 pub fn timeout_result(p: &[u8]) -> Result<BattleResult> {
     let mut r = Reader::new(p);
     let seq = r.i32()?;
     r.i32()?;
-    r.i32()?;
+    let refill: Vec<i16> = r.bytes()?.iter().map(|&v| v as i16).collect();
+    let new_board = if !refill.is_empty() && r.u8()? == 1 {
+        Some(r.bytes()?.iter().map(|&v| v as i16).collect())
+    } else {
+        None
+    };
+    if !refill.is_empty() {
+        r.take(3)?;
+    }
     let (units, extra_turn, actor, end, reward) = result_tail(&mut r)?;
     Ok(BattleResult {
         seq,
@@ -1179,8 +1214,8 @@ pub fn timeout_result(p: &[u8]) -> Result<BattleResult> {
         skill: None,
         targets: None,
         cells: vec![],
-        refill: vec![],
-        new_board: None,
+        refill,
+        new_board,
         units,
         extra_turn,
         actor,

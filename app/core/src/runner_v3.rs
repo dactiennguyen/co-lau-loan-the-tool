@@ -65,6 +65,9 @@ pub struct RunnerOptions {
     /// (Thời gian ngẫu nhiên) each wait lasts from it to twice it.
     pub turn_delay: Duration,
     pub turn_random: bool,
+    /// The mob's HP is not its HP (Bạch Hổ: thousandths of the boss's, s2c/22 973 of 1000): it stays unknown, so no
+    /// swap is scored as a kill because the number is small.
+    pub mob_hp_unknown: bool,
 }
 impl Default for RunnerOptions {
     fn default() -> Self {
@@ -81,6 +84,7 @@ impl Default for RunnerOptions {
             timed_move: Duration::from_millis(1000),
             turn_delay: Duration::ZERO,
             turn_random: false,
+            mob_hp_unknown: false,
         }
     }
 }
@@ -229,7 +233,7 @@ impl BattleRunner {
             skill_damage: 4.0 * 8.0 + 11.0,
             ..unknown_mob()
         };
-        if let Some(m) = &options.mob {
+        if let Some(m) = options.mob.as_ref().filter(|_| !options.mob_hp_unknown) {
             (mob.hp, mob.max_hp) = (m.hp as f64, m.max_hp as f64);
         }
         let mob_key = options
@@ -521,6 +525,7 @@ impl BattleRunner {
                 reply: 0.0,
                 extra_turn: 0.0,
                 lookahead: 0.0,
+                timed: true,
                 ..s
             },
             false => s,
@@ -704,7 +709,12 @@ impl BattleRunner {
             .find(|e| skill && x.actor == self.name && Some(e.id) == x.skill)
             .map(|e| e.fire.is_some());
         let before_board = self.board;
-        let applied = apply_result(&mut self.board, &x, fire);
+        let mut applied = apply_result(&mut self.board, &x, fire);
+        // The clock hit that ends a timed battle (time out, the Bạch Hổ kill) brings a refill without the cells it
+        // fills: not a board out of step, and the battle is over anyway.
+        if x.end && x.mv.is_none() && x.skill.is_none() && x.cells.is_empty() {
+            applied.desync = false;
+        }
         let fire_used = applied.fire;
         if applied.desync && !self.desynced {
             out.push(Act::Log(desync_line(&x, &self.name)));
@@ -738,9 +748,10 @@ impl BattleRunner {
                 continue;
             };
             let damage = self.damage as f64;
+            let hp_known = !(s == Side::Mob && self.options.mob_hp_unknown);
             let f = self.side(s);
             // The mob's HP shows up after its first hit; its max is that plus the damage dealt so far.
-            if u.hp >= 0 {
+            if u.hp >= 0 && hp_known {
                 if s == Side::Mob && f.max_hp.is_infinite() {
                     f.max_hp = u.hp as f64 + damage;
                 }

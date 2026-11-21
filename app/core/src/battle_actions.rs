@@ -11,8 +11,8 @@
 //! Floating point follows the TS side step by step, and destroy patterns come from the same seeded generator, so the
 //! picks are the same.
 use crate::battle::{
-    answer_value, best_move, best_next, blast_cells, kind, move_value, settle, Board, Fighter,
-    Move, Outcome, Strategy, N,
+    answer_value, best_move, best_next, move_value, settle, Board, Fighter, Move, Outcome,
+    Strategy, N,
 };
 use crate::skills::SkillDef;
 use serde::Serialize;
@@ -502,6 +502,9 @@ pub fn best_action(
             label: "swap".into(),
         });
     }
+    // A timed battle casts only its plan skill of those that deal damage, as soon as it is paid for unless a swap kills;
+    // a heal, buff or sap skill is weighed as in any battle (the mob still hits on its clock, and no potion is drunk).
+    let plan = if s.timed { plan_skill(o.skills) } else { None };
     let castable: Vec<&SkillEffect> = o
         .skills
         .iter()
@@ -509,6 +512,9 @@ pub fn best_action(
             e.kind != EffectKind::Unknown
                 && me.s1 >= e.cost as f64
                 && e.buff.is_none_or(|f| o.buffs.get(f.stat) <= 0)
+                && plan.is_none_or(|p| {
+                    std::ptr::eq(p, *e) || !matches!(e.kind, EffectKind::Damage | EffectKind::Fire)
+                })
         })
         .collect();
     // The nội lực spent is charged (SPEND), but not when the bar is too full for the cheapest skill to be cast later
@@ -521,9 +527,15 @@ pub fn best_action(
     let swap_score = pick.as_ref().map_or(0.0, |p| p.score);
     for e in castable {
         let cost_per_s1 = if charged { per_s1 * o.spend } else { 0.0 };
+        let v = skill_score(b, e, me, mob, s, cost_per_s1, per_s1, o, swap_score);
+        let swap = pick.as_ref().map_or(f64::NEG_INFINITY, |p| p.score);
         all.push(Scored {
             action: Action::Skill(e.id),
-            score: skill_score(b, e, me, mob, s, cost_per_s1, per_s1, o, swap_score),
+            score: if plan.is_some_and(|p| std::ptr::eq(p, e)) && swap < 1e4 {
+                v.max(swap + 1.0)
+            } else {
+                v
+            },
             label: format!("skill {}", e.id),
         });
     }
@@ -574,6 +586,24 @@ pub fn best_action(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     all
+}
+
+/// The one skill a timed battle casts, as soon as the nội lực pays for it: one that turns pieces into Kiếm lửa (Hỏa Kiếm
+/// Thuật), else the cheapest damage skill (Hỏa Cầu, Xích Lôi Công, Băng Tiễn Thuật). In the Bạch Hổ simulator (21/11, the
+/// nine characters of that night's run, nội lực 2.06 and 5.5 a yin-yang) holding for Hỏa Kiếm dealt 26–92% more than
+/// v3, the cheapest damage skill 12–19% more (Lôi, Thủy, Hỏa without it), Thiên Hỏa Kích, Bách Lôi Uy Vũ, Tuyết Sơn Áp
+/// Đỉnh less but for one Lôi build, the plain damage skills (1003, 1004, 2003, 4003) and 1007, 4007 less than v3.
+/// planSkill of battle-actions.ts.
+pub fn plan_skill(skills: &[SkillEffect]) -> Option<&SkillEffect> {
+    skills
+        .iter()
+        .find(|e| e.kind == EffectKind::Fire)
+        .or_else(|| {
+            skills
+                .iter()
+                .filter(|e| e.kind == EffectKind::Damage)
+                .min_by_key(|e| (e.cost, e.id))
+        })
 }
 
 /// `s` with its extra turn left out: an own move after one that keeps the turn.
@@ -644,19 +674,14 @@ fn skill_score(
             total += fire_value(&mut t, removed, e, me, mob, s) - charge;
             continue;
         }
-        let mut destroyed: BTreeMap<i16, u32> = BTreeMap::new();
-        if !removed.is_empty() {
-            let cells = blast_cells(&t, removed);
-            for i in (0..N * N).filter(|&i| cells[i] && t[i] >= 0) {
-                *destroyed.entry(kind(t[i])).or_default() += 1;
-            }
-        }
         let out = if removed.is_empty() {
             Outcome::default()
         } else {
             settle(&mut t, None, removed)
         };
-        let n = |k: i16| out.n(k) + 2.0 * *destroyed.get(&k).unwrap_or(&0) as f64;
+        // A heart, yin-yang or peach the skill destroys counts once, as one cleared in a run (game 1.1.0: 5468 casts of
+        // 20–21/11 fit once, 5 fit three times; before it, 2/11, three times).
+        let n = |k: i16| out.n(k);
         let (mut damage, mut kill) = (0.0, 0.0);
         if e.kind == EffectKind::Damage {
             let least = me.sword * (3.0 + out.n(0)) * if full { 2.0 } else { 1.0 };

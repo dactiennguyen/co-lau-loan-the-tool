@@ -28,6 +28,10 @@ impl Bot {
         if opcode != 22 {
             self.record_received(opcode, payload, now, out);
         }
+        // The boss's clock hit in a battle of Bạch Hổ: its HP asked again (bachho.rs peek).
+        if opcode == 21 && self.battle.is_some() && self.bach_ho_on() {
+            self.bach_ho_peek(now, out);
+        }
         if let Some(b) = &mut self.battle {
             let mut acts = vec![];
             if b.on_packet(opcode, payload, now, &mut acts)? {
@@ -438,7 +442,7 @@ impl Bot {
             }
             // Bản đồ thế giới (flag 0, "M99"): the jump of Bạch Hổ or Quay về chỗ cũ (bachho.rs).
             11 if payload.first() == Some(&0) => self.warp_opened(now, out),
-            1275 => self.bach_ho_result_read(payload, out),
+            1275 => self.bach_ho_result_read(payload, now, out),
             // The line the server sends every player (bosses, Bạch Hổ): read for Bạch Hổ only.
             45 => {
                 let text = crate::protocol::Reader::new(payload).string()?;

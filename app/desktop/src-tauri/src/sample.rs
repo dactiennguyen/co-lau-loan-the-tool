@@ -612,6 +612,8 @@ fn main_character() -> Snapshot {
         },
         // Phúc lợi: today not checked yet, 125 minutes online (60 taken, 120 to take), level 34 (40 ahead).
         welfare: welfare_sample(),
+        // Kết quả Bạch Hổ of BH2 (21/11): the boss killed, mimosa's tier 2 and ranking.
+        bach_ho_result: bach_ho_sample(),
         ..Snapshot::default()
     }
 }
@@ -1105,4 +1107,16 @@ fn welfare_sample() -> WelfareState {
         last: Some("Quà online: Đã nhận 2 phần thưởng (5.000 Xu khóa, Đá cấp 5)".into()),
         last_at: Some(ago(1800)),
     }
+}
+
+/// The s2c/1275 of BH2 (core/tests/fixtures), read as the bot reads it, a minute old.
+fn bach_ho_sample() -> Option<cllt_core::bot::BachHoResult> {
+    let hex = include_str!("../../../core/tests/fixtures/bh2-s2c1275.hex").trim();
+    let bytes: Vec<u8> = (0..hex.len())
+        .step_by(2)
+        .filter_map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
+        .collect();
+    let mut b = cllt_core::bot::bach_ho_result(&bytes).ok()?;
+    b.read_at_ms = ago(60);
+    Some(b)
 }

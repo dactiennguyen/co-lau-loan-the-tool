@@ -412,7 +412,7 @@ impl Bot {
                 RunnerOptions {
                     skill: self.options.skill,
                     strategy: self.options.strategy.clone(),
-                    timed_move: self.options.timed_move,
+                    timed_move: self.timed_move(),
                 },
             ))),
             Algorithm::V3 => {
@@ -569,9 +569,27 @@ impl Bot {
             mob,
             memory: Arc::clone(&self.battle_memory),
             strategy: Strategy::win(),
-            timed_move: self.options.timed_move,
-            turn_delay: self.fight.turn_pause(),
-            turn_random: self.fight.delay_random,
+            timed_move: self.timed_move(),
+            turn_delay: self.turn_pause(),
+            turn_random: self.fight.delay_random && !self.bach_ho_on(),
+            mob_hp_unknown: self.bach_ho_on(),
+        }
+    }
+
+    /// The pause between own swaps of a timed battle: Chờ giữa các nước of the Bạch Hổ run (its window), else
+    /// BotOptions::timed_move.
+    fn timed_move(&self) -> Duration {
+        match &self.bach_ho {
+            Some(s) => s.pace.move_gap(),
+            None => self.options.timed_move,
+        }
+    }
+
+    /// Chờ trước mỗi lượt đi, none in Bạch Hổ: its own waits are set in its window (BachHoPace).
+    pub(super) fn turn_pause(&self) -> Duration {
+        match self.bach_ho_on() {
+            true => Duration::ZERO,
+            false => self.fight.turn_pause(),
         }
     }
 }

@@ -329,7 +329,11 @@ pub(super) async fn session(
                     Some(Command::Mail(task)) => bot.mail(task, now, out),
                     Some(Command::Market(task)) => bot.market(task, now, out),
                     Some(Command::Welfare) => bot.welfare(now, out),
-                    Some(Command::BachHo { from_ms, until_ms }) => bot.bach_ho(from_ms, until_ms, now, out),
+                    Some(Command::BachHo {
+                        from_ms,
+                        until_ms,
+                        pace,
+                    }) => bot.bach_ho(from_ms, until_ms, pace, now, out),
                     Some(Command::BachHoStop) => bot.bach_ho_stop(out),
                     Some(Command::GoBack) => bot.go_back(now, out),
                 }

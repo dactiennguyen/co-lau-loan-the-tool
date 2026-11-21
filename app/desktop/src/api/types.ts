@@ -403,6 +403,8 @@ export interface Character {
   eggs: EggRun | null;
   /** Bạch Hổ under way or last done (BachHoModal); null before any. */
   bachHo: BachHoRun | null;
+  /** The last Kết quả Bạch Hổ read (s2c/1275), kept after the run. */
+  bachHoResult: BachHoResult | null;
   /** Where Bạch Hổ took the character from, for Quay về chỗ cũ; null once back. */
   backPoint: BackPoint | null;
   /** Codes refused in a row, and the server's lock on codes; kept across the logins of the app's run. */
@@ -539,9 +541,42 @@ export interface BachHoRun {
   battles: number;
   wins: number;
   damage: number;
-  /** Where the character stands in Kết quả Bạch Hổ (s2c/1275): "Bậc 2 (cấp 60+), hạng 4, 31.000 sát thương". */
-  standing: string | null;
   done: string | null;
+}
+
+/** Kết quả Bạch Hổ (s2c/1275, 17-bach-ho.md#bh2). `state` 0 under way, 1 killed, 2 got away, else none yet; `hp` of
+ * `maxHp` per mille; `sessionAt` the start of the day's run and `readAtMs` when the bot read it (ms since 1970). */
+export interface BachHoResult {
+  state: number;
+  sessionAt: number;
+  hp: number;
+  maxHp: number;
+  killerId: number;
+  killer: string;
+  killerTier: number;
+  killerDamage: number;
+  tiers: BachHoTier[];
+  ownTier: number;
+  ownRank: number;
+  ownDamage: number;
+  reached: boolean;
+  readAtMs: number;
+}
+/** A tier: characters of levels minLevel to maxLevel (0: no end), its threshold (Ngưỡng), players and ranking. */
+export interface BachHoTier {
+  tier: number;
+  minLevel: number;
+  maxLevel: number;
+  threshold: number;
+  players: number;
+  rows: BachHoRow[];
+}
+export interface BachHoRow {
+  rank: number;
+  id: number;
+  name: string;
+  level: number;
+  damage: number;
 }
 
 /** A map and zone Quay về chỗ cũ goes back to. */

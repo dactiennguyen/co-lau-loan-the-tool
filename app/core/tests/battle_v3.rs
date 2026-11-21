@@ -10,8 +10,8 @@ use cllt_core::battle::{
     mob_move_odds, Board, Fighter, MobBlock, MobModel, Strategy, N, UNKNOWN,
 };
 use cllt_core::battle_actions::{
-    best_action, destroy_patterns, learnt_skills, skill_effect, skill_worth, sword_prior, Action,
-    ActionOptions, Buffs, Potion, SkillEffect, Stat,
+    best_action, destroy_patterns, learnt_skills, plan_skill, skill_effect, skill_worth,
+    sword_prior, Action, ActionOptions, Buffs, Potion, SkillEffect, Stat,
 };
 use cllt_core::bot::{
     Algorithm, Bot, BotOptions, FightSettings, Out, HP_POTION_SHARE, MP_POTION_SHARE,
@@ -75,6 +75,7 @@ fn strategy(v: &Value) -> Strategy {
             _ => MobModel::Best,
         },
         lookahead: v["lookahead"].as_f64().unwrap_or(0.0),
+        timed: v["timed"].as_bool().unwrap_or(false),
     }
 }
 /// A skill of data/skills.json at a level, as skillEffect reads it.
@@ -1204,4 +1205,51 @@ fn runner_plays_hoa_kiem_thuat_on_the_board_and_logs_a_desync_once_as_a_fault() 
         ["Bàn cờ lệch với server ở lượt 7, sau kỹ năng 1001 của mình"]
     );
     assert!(cllt_core::net::is_fault(&lines[0]));
+}
+
+/// Bạch Hổ (mob_hp_unknown): the boss's HP of s2c/22 is thousandths of it (973 of 1000), so it stays unknown and no swap
+/// scores as a kill; without the flag the block's HP is taken as before.
+#[test]
+fn a_mob_hp_in_thousandths_stays_unknown() {
+    let block = Some(MobBlock {
+        name: "Bạch Hổ Thống Lĩnh".into(),
+        element: 1,
+        level: 155,
+        sprite: 800,
+        hp: 300,
+        max_hp: 1000,
+    });
+    let runner = |unknown| {
+        BattleRunner::new(
+            &setup("mimosa", 68, 510, 510, two_moves()),
+            "mob800",
+            RunnerOptions {
+                mob: block.clone(),
+                mob_hp_unknown: unknown,
+                ..RunnerOptions::default()
+            },
+        )
+    };
+    assert!(runner(true).mob.hp.is_infinite());
+    assert_eq!(runner(false).mob.hp, 300.0);
+}
+
+/// plan_skill (planSkill of battle-actions.ts): Hỏa Kiếm when learnt, else the cheapest damage skill; none of a heal.
+#[test]
+fn a_timed_battle_plans_hoa_kiem_else_the_cheapest_damage_skill() {
+    let plan = |xs: &[(i32, i32)]| {
+        let skills: Vec<SkillEffect> = xs.iter().map(|&(i, l)| effect(i, l)).collect();
+        plan_skill(&skills).map(|e| e.id)
+    };
+    assert_eq!(
+        plan(&[(1000, 10), (1001, 7), (1003, 9), (1006, 9)]),
+        Some(1001)
+    );
+    assert_eq!(plan(&[(1000, 10), (1003, 9), (1006, 9)]), Some(1000));
+    assert_eq!(
+        plan(&[(2000, 19), (2001, 10), (2003, 10), (2006, 10)]),
+        Some(2000)
+    );
+    assert_eq!(plan(&[(4001, 5), (4003, 10), (4006, 10)]), Some(4003));
+    assert_eq!(plan(&[(4001, 5)]), None);
 }

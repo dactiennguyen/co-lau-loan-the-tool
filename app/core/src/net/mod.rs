@@ -5,8 +5,8 @@ use crate::accounts::Account;
 use crate::atlas::Atlas;
 use crate::battle_record::BattleData;
 use crate::bot::{
-    BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind, MailTask,
-    MarketTask, Out, PickupRecord, SmithTask, Snapshot,
+    BachHoPace, BattleRecord, Bot, BotOptions, FightSettings, GiftMemory, ItemAct, LogKind,
+    MailTask, MarketTask, Out, PickupRecord, SmithTask, Snapshot,
 };
 use crate::opcodes::{HOST, PORT};
 use crate::potentials::StatPlan;
@@ -101,6 +101,7 @@ pub enum Command {
     BachHo {
         from_ms: u64,
         until_ms: u64,
+        pace: BachHoPace,
     },
     /// Dừng of the Bạch Hổ window (Bot::bach_ho_stop).
     BachHoStop,

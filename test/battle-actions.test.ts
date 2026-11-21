@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
 import { N, UNKNOWN, fighter, STRATEGIES, answerValue } from '../src/battle/battle.ts';
-import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, POTION_MARGIN, type SkillEffect } from '../src/battle/battle-actions.ts';
+import { skillEffect, learntSkills, destroyPatterns, bestAction, planSkill, skillWorth, swordPrior, POTION_MARGIN, type SkillEffect } from '../src/battle/battle-actions.ts';
 import { BattleRunner } from '../src/battle/battle-runner.ts';
 import { decodeEvent } from '../src/protocol/events.ts';
 
@@ -172,4 +172,24 @@ test('battle runner: a potion the server does not answer is not tried again; own
   assert.deepEqual([...memory.keys()], ['me>Chỉ Huy Sơn Tặc.sword']);
   assert.equal(new BattleRunner(setup(), 'mob872601', io).me.sword, (25 / 3 * 6 + 22) / 9, 'the same kind: what was learnt');
   assert.equal(new BattleRunner(setup(), 'mob42000', { ...io, mob: { name: 'Sơn Tặc', hp: 248, maxHp: 248 } }).me.sword, 25 / 3, 'another kind: the prior from Tấn công');
+});
+
+test('a timed battle casts only its plan skill: Hỏa Kiếm when learnt, else the cheapest damage skill, as soon as paid for', () => {
+  const ids = (xs: [number, number][]) => planSkill(xs.map(([i, l]) => skill(i, l)))?.id;
+  assert.equal(ids([[1000, 10], [1001, 7], [1003, 9], [1006, 9]]), 1001);
+  assert.equal(ids([[1000, 10], [1003, 9], [1006, 9]]), 1000);
+  assert.equal(ids([[2000, 19], [2001, 10], [2003, 10], [2006, 10]]), 2000);
+  assert.equal(ids([[4001, 5], [4003, 10], [4006, 10]]), 4003, 'no 25 skill: the cheapest damage one, by id');
+  assert.equal(ids([[4001, 5]]), undefined, 'a heal is no plan');
+  // On a real board: 60 nội lực casts Hỏa Kiếm; 30 (enough for Hỏa Cầu only) swaps.
+  const board = (fixtures.battles as { board: number[] }[])[0].board;
+  const skills = [skill(1000, 10), skill(1001, 10), skill(1003, 9)];
+  const timed = { ...STRATEGIES.win, reply: 0, extraTurn: 0, lookahead: 0, timed: true };
+  const pick = (s1: number) => bestAction(board, fighter(500, 500, { s1, sword: 100, skillDamage: 600, skillCost: 25 }), fighter(Infinity, Infinity), timed, { skills }).best?.action;
+  assert.deepEqual(pick(60), { kind: 'skill', id: 1001 });
+  assert.equal(pick(30)?.kind, 'swap');
+  // A heal is still weighed (Sơn Tặc hits too, and no potion is drunk): Hàn Lưu Thánh Thủy is among the actions.
+  const thuy = [skill(4000, 10), skill(4001, 5), skill(4003, 10)];
+  const all = bestAction(board, fighter(100, 500, { s1: 60, sword: 100, skillDamage: 600, skillCost: 25 }), fighter(Infinity, Infinity), timed, { skills: thuy }).all.map(a => a.label);
+  assert.ok(all.includes('skill 4001') && all.includes('skill 4000') && !all.includes('skill 4003'), all.join());
 });

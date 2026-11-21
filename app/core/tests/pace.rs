@@ -577,3 +577,27 @@ fn turn_delay_takes_half_seconds_and_reads_the_whole_seconds_of_before() {
         ("0,5".to_string(), "1".to_string(), "2,5".to_string())
     );
 }
+
+/// Chờ trước mỗi lượt đi changed during a battle holds from its next own turn: turned off, the bot moves at once.
+#[test]
+fn cho_truoc_moi_luot_di_turned_off_during_a_battle_moves_at_once_from_the_next_turn() {
+    let on = FightSettings {
+        turn_delay: true,
+        turn_delay_secs: cllt_core::bot::Tenths::secs(3),
+        ..FightSettings::default()
+    };
+    let (mut bot, mut out, now, setup) = coc_xanh_bot(on);
+    bot.fight("Cóc Xanh", 5, 10, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    bot.set_fight(
+        FightSettings {
+            turn_delay: false,
+            ..on
+        },
+        now,
+        &mut out,
+    );
+    out.clear();
+    bot.on_packet(24, &turn_of(5, true), now, &mut out).unwrap();
+    assert!(out.iter().any(|o| matches!(o, Out::Send(19, _))), "{out:?}");
+}

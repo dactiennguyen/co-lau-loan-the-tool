@@ -83,7 +83,8 @@ export interface Api {
   /** Nhận ngay of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now, the switch on or not. */
   welfare(id: number): Promise<void>;
   /** Bắt đầu of the Bạch Hổ window: these accounts try to get into the boss's battle from `fromMs` until `untilMs`. */
-  bachHoStart(ids: number[], fromMs: number, untilMs: number): Promise<void>;
+  /** `moveMs`: Chờ giữa các nước; `rejoinMs`: Chờ vào trận lại (the window's own waits, 0 by default). */
+  bachHoStart(ids: number[], fromMs: number, untilMs: number, moveMs: number, rejoinMs: number): Promise<void>;
   /** Dừng of the Bạch Hổ window for these accounts. */
   bachHoStop(ids: number[]): Promise<void>;
   /** Quay về chỗ cũ: back where Bạch Hổ took the account from. */
@@ -278,7 +279,7 @@ const tauri: Api = {
   discardMany: (id, items) => invoke("discard_many", { id, items: items.map((i) => [i.slot, i.uuid]) }),
   breakAll: (id, slot, uuid) => invoke("break_all", { id, slot, uuid }),
   welfare: (id) => invoke("welfare", { id }),
-  bachHoStart: (ids, fromMs, untilMs) => invoke("bach_ho_start", { ids, fromMs, untilMs }),
+  bachHoStart: (ids, fromMs, untilMs, moveMs, rejoinMs) => invoke("bach_ho_start", { ids, fromMs, untilMs, moveMs, rejoinMs }),
   bachHoStop: (ids) => invoke("bach_ho_stop", { ids }),
   goBack: (id) => invoke("go_back", { id }),
   listZones: (id) => invoke("list_zones", { id }),

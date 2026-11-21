@@ -3,8 +3,8 @@
 use crate::app::Entry;
 use crate::store::StoredLog;
 use cllt_core::bot::{
-    BachHoRun, BackPoint, BattleView, Boost, BossTile, CraftRecipes, DailyState, EggRun,
-    FightSettings, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MarketPrices,
+    BachHoResult, BachHoRun, BackPoint, BattleView, Boost, BossTile, CraftRecipes, DailyState,
+    EggRun, FightSettings, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice, MarketPrices,
     MarketState, Picked, PointsRead, QuestRun, SmithRun, Target, WelfareState,
 };
 use cllt_core::farm::{self, FarmHint};
@@ -243,6 +243,8 @@ pub struct CharacterView<'a> {
     pub eggs: Option<&'a EggRun>,
     /// Bạch Hổ under way or last done, and the place Quay về chỗ cũ goes back to.
     pub bach_ho: Option<&'a BachHoRun>,
+    /// The last Kết quả Bạch Hổ (s2c/1275): boss HP, tiers and their ranking, where the character stands.
+    pub bach_ho_result: Option<&'a BachHoResult>,
     pub back_point: Option<&'a BackPoint>,
     /// Codes refused in a row, how many the bot allows, and the server's lock on codes.
     pub gift_limits: &'a GiftLimits,
@@ -810,6 +812,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             gift: s.gift.as_ref(),
             eggs: s.eggs.as_ref(),
             bach_ho: s.bach_ho.as_ref(),
+            bach_ho_result: s.bach_ho_result.as_ref(),
             back_point: s.back_point.as_ref(),
             gift_limits: &s.gift_limits,
             mailbox: MailboxView::of(&s.mailbox, s.bag.as_ref()),

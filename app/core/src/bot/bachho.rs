@@ -22,8 +22,15 @@ const GATE: &str = "M15";
 const GATE_PORTAL: i32 = 1006;
 /// Between two tries when the boss is not there or did not open a battle.
 const RETRY: Duration = Duration::from_secs(5);
-/// Between a battle and the next try.
-const AFTER_BATTLE: Duration = Duration::from_millis(1500);
+/// The longest the next try waits after a battle for the answer of Kết quả Bạch Hổ asked at its end (whether the boss
+/// is still there), when Chờ vào trận lại is shorter: the answer comes in a round trip, this is in case none does.
+const ANSWER_WAIT: Duration = Duration::from_millis(1_500);
+/// A peek (Kết quả Bạch Hổ asked during a battle) not answered after this long is taken as lost when the battle ends,
+/// so the answers after it are not matched to the wrong ask (an answer comes in a round trip, 1.25 s at the slowest
+/// seen live).
+const PEEK_LOST: Duration = Duration::from_secs(3);
+/// The least time between two Kết quả Bạch Hổ asked during a battle (on the boss's clock hits).
+const PEEK_EVERY: Duration = Duration::from_secs(15);
 /// The longest the run sleeps before the start time: it wakes now and then to say how long is left.
 const WAIT_STEP: Duration = Duration::from_secs(30);
 
@@ -31,6 +38,15 @@ const WAIT_STEP: Duration = Duration::from_secs(30);
 /// no mob afterwards means it is gone.
 pub(super) struct State {
     seen: bool,
+    /// When Kết quả Bạch Hổ was last asked during a battle (peek).
+    peeked: Option<Instant>,
+    /// The waits of the run (its window): between swaps, and between a battle and the next try (the server takes the
+    /// next challenge at once, BH2). A battle with the boss is timed (it hits every 30 s whatever is done), so the
+    /// damage is the swaps made between its hits.
+    pub(super) pace: BachHoPace,
+    /// After a battle: when the next try may go (its end plus Chờ vào trận lại), once the answer of Kết quả Bạch Hổ is
+    /// in and the boss still there.
+    rejoin_at: Option<Instant>,
 }
 
 /// The flag of c2s/15 the game sends for Bạch Hổ (BH2).
@@ -96,14 +112,17 @@ pub fn bach_ho_result(p: &[u8]) -> crate::protocol::Result<BachHoResult> {
             max_level: i16(&mut r)?,
             threshold: r.i32()?,
             players: r.i32()?,
+            rows: vec![],
         };
-        // The ranking rows (rank, id, name, level, damage): read, not kept.
+        let mut tier = tier;
         for _ in 0..r.u8()? {
-            r.u8()?;
-            r.i32()?;
-            r.string()?;
-            i16(&mut r)?;
-            r.i32()?;
+            tier.rows.push(BachHoRow {
+                rank: r.u8()?,
+                id: r.i32()?,
+                name: r.string()?,
+                level: i16(&mut r)?,
+                damage: r.i32()?,
+            });
         }
         tiers.push(tier);
     }
@@ -123,6 +142,7 @@ pub fn bach_ho_result(p: &[u8]) -> crate::protocol::Result<BachHoResult> {
             own_rank,
             own_damage,
             reached,
+            read_at_ms: 0,
         },
         "s2c/1275",
     )
@@ -170,7 +190,14 @@ impl Bot {
     /// Bạch Hổ from `from_ms` until `until_ms` (ms since 1970): a fight job or quest run on is stopped, where the
     /// character stands is kept for Quay về chỗ cũ, and until the start time it waits. Refused while it is busy with
     /// something else than a job, a quest run or a battle (which it plays out first), and for an end already past.
-    pub fn bach_ho(&mut self, from_ms: u64, until_ms: u64, now: Instant, out: &mut Vec<Out>) {
+    pub fn bach_ho(
+        &mut self,
+        from_ms: u64,
+        until_ms: u64,
+        pace: BachHoPace,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
         let busy = self
             .busy_but(true)
             .filter(|_| self.battle.is_none())
@@ -199,7 +226,12 @@ impl Bot {
                 zone: self.snap.zone,
             });
         }
-        self.bach_ho = Some(State { seen: false });
+        self.bach_ho = Some(State {
+            seen: false,
+            peeked: None,
+            pace,
+            rejoin_at: None,
+        });
         // Tự sửa đồ of this run starts afresh, as that of a fight job.
         (self.repair_failed, self.repair_warned) = (HashSet::new(), false);
         self.snap.bach_ho = Some(BachHoRun {
@@ -210,10 +242,9 @@ impl Bot {
             battles: 0,
             wins: 0,
             damage: 0,
-            standing: None,
             done: None,
         });
-        self.bach_ho_asked = false;
+        self.bach_ho_asks.clear();
         out.push(Out::Log(
             LogKind::Battle,
             format!(
@@ -257,14 +288,17 @@ impl Bot {
 
     /// c2s/1275 (empty): Kết quả Bạch Hổ, as "Xem tất cả bậc" of the game asks it.
     fn bach_ho_ask(&mut self, out: &mut Vec<Out>) {
-        self.bach_ho_asked = true;
+        self.bach_ho_asks.push_back(true);
         Self::send(out, 1275, Ctx::default());
     }
 
     /// s2c/1275: where the character stands goes on the run; asked by the run (after a battle, at its end), the log says
     /// how the boss is, and a run still on ends once the boss is killed or got away: there is nothing left to fight in
-    /// a day's run the character fought in. Read quietly when the run did not ask.
-    pub(super) fn bach_ho_result_read(&mut self, payload: &[u8], out: &mut Vec<Out>) {
+    /// a day's run the character fought in; else the next try waits no longer for it (bach_ho_battle_end). Read quietly
+    /// when the run did not ask (a peek, or nobody asked).
+    pub(super) fn bach_ho_result_read(&mut self, payload: &[u8], now: Instant, out: &mut Vec<Out>) {
+        // Popped before the read can fail, so a bad answer does not shift the ones after it.
+        let asked = self.bach_ho_asks.pop_front() == Some(true);
         let b = match bach_ho_result(payload) {
             Ok(b) => b,
             Err(e) => {
@@ -276,10 +310,11 @@ impl Bot {
             }
         };
         let place = standing(&b);
-        if let (Some(r), Some(s)) = (self.snap.bach_ho.as_mut(), &place) {
-            r.standing = Some(s.clone());
-        }
-        if !std::mem::take(&mut self.bach_ho_asked) {
+        self.snap.bach_ho_result = Some(BachHoResult {
+            read_at_ms: epoch_ms(),
+            ..b.clone()
+        });
+        if !asked {
             return;
         }
         let boss = match b.state {
@@ -303,11 +338,30 @@ impl Bot {
                 "Boss đã tẩu thoát"
             };
             self.bach_ho_end(why, false, out);
+            return;
+        }
+        let at = self.bach_ho.as_mut().and_then(|st| st.rejoin_at.take());
+        if let (Some(at), Some((_, Wake::Next))) = (at, &self.timer) {
+            self.timer = Some((at.max(now), Wake::Next));
         }
     }
 
     pub(super) fn bach_ho_on(&self) -> bool {
         self.bach_ho.is_some()
+    }
+
+    /// A clock hit of the boss (s2c/21) in a battle of the run: Kết quả Bạch Hổ asked quietly, at most every PEEK_EVERY,
+    /// so the window follows the boss's HP and the character's damage during the battle too.
+    pub(super) fn bach_ho_peek(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let Some(st) = self.bach_ho.as_mut() else {
+            return;
+        };
+        if st.peeked.is_some_and(|t| now < t + PEEK_EVERY) {
+            return;
+        }
+        st.peeked = Some(now);
+        self.bach_ho_asks.push_back(false);
+        Self::send(out, 1275, Ctx::default());
     }
 
     fn bach_ho_doing(&mut self, doing: String) {
@@ -378,6 +432,10 @@ impl Bot {
     /// In the cave: the boss challenged as the game does (c2s/15, flag 1), or another try in RETRY. Before 21:00 the
     /// cave has no mob.
     fn bach_ho_try(&mut self, now: Instant, out: &mut Vec<Out>) {
+        // A late answer of the battle before no longer moves the timer of this try.
+        if let Some(st) = self.bach_ho.as_mut() {
+            st.rejoin_at = None;
+        }
         let boss = cave_boss(&self.mobs).cloned();
         let Some(r) = self.snap.bach_ho.as_mut() else {
             return;
@@ -460,7 +518,13 @@ impl Bot {
 
     /// A run waiting for its next try (its timer, not a challenge, a battle, a repair's answer or a move) tries now.
     fn bach_ho_wake(&mut self, now: Instant) {
-        let waiting = matches!(self.timer, Some((_, Wake::Next)))
+        // After a battle the next try waits for the answer of Kết quả Bạch Hổ and Chờ vào trận lại (bach_ho_battle_end).
+        let rejoining = self
+            .bach_ho
+            .as_ref()
+            .is_some_and(|st| st.rejoin_at.is_some());
+        let waiting = !rejoining
+            && matches!(self.timer, Some((_, Wake::Next)))
             && self.battle.is_none()
             && self.repairing.is_none()
             && self.warp.is_none()
@@ -503,6 +567,10 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) {
+        let peeked = self.bach_ho.as_ref().and_then(|st| st.peeked);
+        if peeked.is_none_or(|t| now >= t + PEEK_LOST) {
+            self.bach_ho_asks.retain(|&asked| asked);
+        }
         self.bach_ho_ask(out);
         if let Some(r) = self.snap.bach_ho.as_mut() {
             r.battles += 1;
@@ -515,7 +583,14 @@ impl Bot {
                 smith::grouped(damage)
             );
         }
-        self.timer = Some((now + AFTER_BATTLE, Wake::Next));
+        // The next try once the answer says the boss is still there (bach_ho_result_read), not before Chờ vào trận lại;
+        // ANSWER_WAIT at the latest with no answer.
+        let Some(st) = self.bach_ho.as_mut() else {
+            return;
+        };
+        let rejoin = st.pace.rejoin();
+        st.rejoin_at = Some(now + rejoin);
+        self.timer = Some((now + rejoin.max(ANSWER_WAIT), Wake::Next));
     }
 
     /// Quay về chỗ cũ: back to the map and zone Bạch Hổ took the character from, through Bản đồ thế giới, then the

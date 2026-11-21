@@ -145,7 +145,7 @@ export class BattleRunner {
    * and no turn to keep. */
   private strategy(): Strategy {
     const s = this.io.strategy ?? STRATEGIES.kill;
-    return this.timed ? { ...s, reply: 0, extraTurn: 0, lookahead: 0 } : s;
+    return this.timed ? { ...s, reply: 0, extraTurn: 0, lookahead: 0, timed: true } : s;
   }
 
   private myMove(seq: number) {
@@ -214,6 +214,9 @@ export class BattleRunner {
     }
     const mine = skill && x.actor === this.name ? this.io.skills?.find(k => k.id === x.skill) : undefined;
     const o = applyResult(this.board, x, mine ? !!mine.fire : undefined);
+    // The clock hit that ends a timed battle (time out, the Bạch Hổ kill) brings a refill without the cells it fills:
+    // not a board out of step, and the battle is over anyway.
+    if (x.end && !('move' in x && x.move) && !skill && !x.cells.length) o.desync = false;
     if (o.desync && !this.desynced) this.io.log('board_desync', { seq: x.seq, actor: x.actor === this.name ? 'me' : 'mob', ...(skill ? { skill: x.skill } : {}) });
     this.desynced ||= o.desync;
     if ('newBoard' in x && x.newBoard) { this.board = x.newBoard; this.desynced = false; this.io.log('board_reshuffled', { seq: x.seq, actor: x.actor }); }

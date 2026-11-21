@@ -14,9 +14,9 @@ import { ProxyButton } from "./ProxyButton";
 
 /** The share of the level from which it is about to go up (the ring cycles its colours). */
 const NEAR = 0.9;
-/** The colours of the ring along its way: red at the bottom left corner, then orange, yellow, green, cyan, blue, violet.
- * A conic gradient turns clockwise and the way goes the other way round, so the colours are listed backwards from there. */
-const RAINBOW_RING = "conic-gradient(from 225deg, #d46bff, #6a7bff, #3fd0ff, #5fe07a, #ffe14d, #ffa53b, #ff5f6d)";
+/** The colours of the ring along its way: red at the bottom right corner, then orange, yellow, green, cyan, blue, violet.
+ * The way goes clockwise, as a conic gradient turns, from the bottom right corner (135deg). */
+const RAINBOW_RING = "conic-gradient(from 135deg, #ff5f6d, #ffa53b, #ffe14d, #5fe07a, #3fd0ff, #6a7bff, #d46bff)";
 /** The width of the ring. */
 const RING = "3px";
 
@@ -24,8 +24,8 @@ const RING = "3px";
 const side = (part: number, n: number) => `${Math.round(Math.min(1, Math.max(0, part * 4 - n)) * 1000) / 10}%`;
 
 /**
- * EXP of the level as a 3px frame around the avatar, drawn along its edge: from the bottom left corner to the right, up the
- * right side, back along the top and down the left side, the whole way round at the next level; the rest dim. Near the
+ * EXP of the level as a 3px frame around the avatar, drawn along its edge: from the bottom right corner to the left, up the
+ * left side, along the top and down the right side, the whole way round at the next level; the rest dim. Near the
  * next level the colours cycle. Without a character (`part` null) the avatar shows as it is.
  */
 function LevelRing({ part, near, title, children }: { part: number | null; near: boolean; title?: string; children: ReactNode }) {
@@ -33,10 +33,10 @@ function LevelRing({ part, near, title, children }: { part: number | null; near:
   const black = "linear-gradient(#000,#000)";
   // One layer of the mask per side, each grown from where the way enters it.
   const mask = [
-    `${black} left bottom / ${side(part, 0)} ${RING}`,
-    `${black} right bottom / ${RING} ${side(part, 1)}`,
-    `${black} right top / ${side(part, 2)} ${RING}`,
-    `${black} left top / ${RING} ${side(part, 3)}`,
+    `${black} right bottom / ${side(part, 0)} ${RING}`,
+    `${black} left bottom / ${RING} ${side(part, 1)}`,
+    `${black} left top / ${side(part, 2)} ${RING}`,
+    `${black} right top / ${RING} ${side(part, 3)}`,
   ]
     .map((l) => `${l} no-repeat`)
     .join(", ");

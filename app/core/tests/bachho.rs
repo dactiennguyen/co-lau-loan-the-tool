@@ -2,7 +2,7 @@
 //! 19-luyen-nguc.md), and the fight as BH2 recorded it (21/11, mimosa on the phone with Frida): the boss in s2c/43,
 //! c2s/15 with flag 1, the s2c/45 of its kill, and s2c/1275 byte for byte.
 use cllt_core::atlas::{find_upwards, Atlas};
-use cllt_core::bot::{bach_ho_result, Bot, BotOptions, Out};
+use cllt_core::bot::{bach_ho_result, BachHoPace, Bot, BotOptions, Out};
 use cllt_core::protocol::Writer;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -72,7 +72,13 @@ fn in_the_cave_it_challenges_the_boss_plays_the_battle_by_itself_and_tries_again
     let (mut bot, mut out, now) = in_the_cave();
     let setup = setup();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_timer(now, &mut out);
     // Not a boss of s2c/1177: challenged as a mob (c2s/15), no warp since it is in the cave.
     let first = sent(&mut out);
@@ -101,7 +107,7 @@ fn in_the_cave_it_challenges_the_boss_plays_the_battle_by_itself_and_tries_again
         "the bot moves by itself"
     );
 
-    // Lost: counted, saved as any battle, and 1.5 s later the boss is challenged again.
+    // Lost: counted, saved as any battle, and the boss challenged again (Chờ vào trận lại 0 by default).
     let end = now + Duration::from_secs(20);
     bot.on_packet(19, &lost_battle(), end, &mut out).unwrap();
     assert!(out.iter().any(|o| matches!(o, Out::Battle(_))));
@@ -118,6 +124,34 @@ fn in_the_cave_it_challenges_the_boss_plays_the_battle_by_itself_and_tries_again
         "tries again"
     );
     assert_eq!(bot.snap.bach_ho.as_ref().unwrap().tries, 2);
+}
+
+/// Chờ vào trận lại of the window: the next try waits that long after a battle, not Cài đặt đánh's waits.
+#[test]
+fn the_windows_wait_between_a_battle_and_the_next_try_is_kept() {
+    let (mut bot, mut out, now) = in_the_cave();
+    let at = epoch_ms();
+    let pace = BachHoPace {
+        move_ms: 0,
+        rejoin_ms: 3_000,
+    };
+    bot.bach_ho(at - 1_000, at + 3_600_000, pace, now, &mut out);
+    bot.on_timer(now, &mut out);
+    assert!(sent(&mut out).iter().any(|(op, _)| *op == 15));
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    let end = now + Duration::from_secs(20);
+    bot.on_packet(19, &lost_battle(), end, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(end + Duration::from_millis(2_500), &mut out);
+    assert!(
+        !sent(&mut out).iter().any(|(op, _)| *op == 15),
+        "not before 3 s"
+    );
+    bot.on_timer(end + Duration::from_millis(3_100), &mut out);
+    assert!(
+        sent(&mut out).iter().any(|(op, _)| *op == 15),
+        "tries again"
+    );
 }
 
 /// s2c/1275 as sqtm.a of game 1.1.0 reads it: `state`, the boss at 0 of 500.000 HP, akaito (id 77, tier 2, 9.000)
@@ -202,24 +236,28 @@ fn kết_quả_bạch_hổ_reads_whole() {
 fn the_boss_killed_after_a_battle_ends_the_run_with_where_the_character_stands() {
     let (mut bot, mut out, now) = in_the_cave();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_timer(now, &mut out);
     bot.on_packet(22, &setup(), now, &mut out).unwrap();
     bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
     out.clear();
-    // Under way: the place goes on the run, the log says the HP, the run goes on.
+    // Under way: the log says the HP and the place, the snapshot keeps the read, the run goes on.
     let mut going = result_bytes(0);
     going[9..13].copy_from_slice(&250_000i32.to_be_bytes());
     bot.on_packet(1275, &going, now, &mut out).unwrap();
-    assert!(out
-        .iter()
-        .any(|o| matches!(o, Out::Log(_, l) if l.contains("Bạch Hổ còn 50% máu"))));
-    let run = bot.snap.bach_ho.clone().unwrap();
+    assert!(out.iter().any(|o| matches!(o, Out::Log(_, l)
+        if l.contains("Bạch Hổ còn 50% máu") && l.contains("Bậc 2 (cấp 60+), hạng 4, 31.000 sát thương"))));
     assert_eq!(
-        run.standing.as_deref(),
-        Some("Bậc 2 (cấp 60+), hạng 4, 31.000 sát thương")
+        bot.snap.bach_ho_result.as_ref().map(|r| r.own_rank),
+        Some(4)
     );
-    assert!(run.done.is_none());
+    assert!(bot.snap.bach_ho.as_ref().unwrap().done.is_none());
     // An answer not asked for changes the place quietly.
     out.clear();
     bot.on_packet(1275, &going, now, &mut out).unwrap();
@@ -294,7 +332,13 @@ fn bach_ho_goes_to_the_cave_through_the_world_map_then_back_where_it_was() {
     .unwrap();
     out.clear();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_timer(now, &mut out);
     // Bản đồ thế giới: c2s/11 "M99" (0, -1), as LN1.
     assert!(sent(&mut out).contains(&(11, "000000034d393900ffffffff".into())));
@@ -404,7 +448,13 @@ fn waiting_in_the_cave() -> (Bot, Vec<Out>, Instant) {
 fn the_boss_of_bh2_comes_in_s2c_43_and_is_challenged_with_the_games_c2s_15_at_once() {
     let (mut bot, mut out, now) = waiting_in_the_cave();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_timer(now, &mut out);
     // Nobody yet: the cave asked again, and the next try in 5 s.
     let first = sent(&mut out);
@@ -431,7 +481,13 @@ fn the_s2c_45_of_the_kill_ends_the_run_and_nothing_more_is_challenged() {
     let (mut bot, mut out, now) = waiting_in_the_cave();
     bot.on_packet(43, &hex(BH2_BOSS), now, &mut out).unwrap();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_timer(now, &mut out);
     bot.on_packet(22, &setup(), now, &mut out).unwrap();
     bot.on_packet(19, &lost_battle(), now, &mut out).unwrap();
@@ -459,7 +515,13 @@ fn the_s2c_45_of_the_kill_ends_the_run_and_nothing_more_is_challenged() {
 fn a_cave_emptied_after_the_boss_was_seen_ends_the_run_without_the_notice() {
     let (mut bot, mut out, now) = waiting_in_the_cave();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_packet(43, &hex(BH2_BOSS), now, &mut out).unwrap();
     bot.on_packet(43, &hex(BH2_EMPTY), now, &mut out).unwrap();
     let run = bot.snap.bach_ho.clone().unwrap();
@@ -509,6 +571,60 @@ fn the_s2c_1275_of_bh2_reads_as_the_games_board_showed_it() {
         (b.own_tier, b.own_rank, b.own_damage, b.reached),
         (2, 50, 15_261, true)
     );
+    // The ranking of each tier as the box shows it: 10 rows of tier 2, LoveLove first.
+    let rows = &b.tiers[1].rows;
+    assert_eq!(rows.len(), 10);
+    assert_eq!(
+        (
+            rows[0].rank,
+            rows[0].name.as_str(),
+            rows[0].level,
+            rows[0].damage
+        ),
+        (1, "LoveLove", 95, 466_247)
+    );
+    assert_eq!(
+        (rows[1].name.as_str(), rows[1].damage),
+        ("XiaoMeiMei", 393_717)
+    );
+    assert!(b.tiers[2].rows.is_empty());
+}
+
+#[test]
+fn kết_quả_bạch_hổ_goes_on_the_snapshot_and_is_asked_again_on_the_bosss_clock_hits() {
+    let (mut bot, mut out, now) = waiting_in_the_cave();
+    bot.on_packet(43, &hex(BH2_BOSS), now, &mut out).unwrap();
+    let at = epoch_ms();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    out.clear();
+    // A clock hit of the boss (s2c/21): Kết quả Bạch Hổ asked; another within 15 s is not.
+    let hit = Writer::new().i32(4).build();
+    let _ = bot.on_packet(21, &hit, now, &mut out);
+    assert_eq!(
+        out.iter()
+            .filter(|o| matches!(o, Out::Send(1275, _)))
+            .count(),
+        1
+    );
+    out.clear();
+    let _ = bot.on_packet(21, &hit, now + Duration::from_secs(5), &mut out);
+    assert!(!out.iter().any(|o| matches!(o, Out::Send(1275, _))));
+    let _ = bot.on_packet(21, &hit, now + Duration::from_secs(16), &mut out);
+    assert!(out.iter().any(|o| matches!(o, Out::Send(1275, _))));
+    // Its answer, asked or not, is kept whole for the window, with when it was read.
+    let bytes = hex(include_str!("fixtures/bh2-s2c1275.hex").trim());
+    bot.on_packet(1275, &bytes, now, &mut out).unwrap();
+    let kept = bot.snapshot().bach_ho_result.unwrap();
+    assert_eq!((kept.state, kept.own_rank, kept.tiers.len()), (1, 50, 4));
+    assert!(kept.read_at_ms >= at);
 }
 
 #[test]
@@ -542,7 +658,13 @@ fn bach_ho_repairs_a_broken_worn_item_before_its_next_challenge_without_tu_sua_d
     bot.on_packet(43, &hex(BH2_BOSS), now, &mut out).unwrap();
     out.clear();
     let at = epoch_ms();
-    bot.bach_ho(at - 1_000, at + 3_600_000, now, &mut out);
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
     bot.on_timer(now, &mut out);
     let first = sent(&mut out);
     assert_eq!(first.first().map(|s| s.0), Some(48), "{first:?}");
@@ -676,5 +798,175 @@ fn a_quest_run_in_the_cave_jumps_through_the_world_map_to_its_mob_and_fights_it(
     assert!(
         sent(&mut out).contains(&(15, "000000056d6f62313000".into())),
         "Gà Điên challenged on arrival"
+    );
+}
+
+/// After a battle the next try waits for the answer of Kết quả Bạch Hổ (not for a peek's): an answer with the boss still
+/// there lets it go at once (Chờ vào trận lại 0), one with the boss killed ends the run, even when the answer of a peek
+/// sent during the battle comes in first.
+#[test]
+fn the_next_try_waits_for_the_answer_asked_after_the_battle_not_a_peeks() {
+    let try_now = |bot: &mut Bot, at: Instant, out: &mut Vec<Out>| {
+        bot.on_timer(at, out);
+        sent(out).iter().any(|(op, _)| *op == 15)
+    };
+    // The boss still there: no try before the answer, one at once after it.
+    let (mut bot, mut out, now) = in_the_cave();
+    let at = epoch_ms();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    let end = now + Duration::from_secs(20);
+    bot.on_packet(19, &lost_battle(), end, &mut out).unwrap();
+    out.clear();
+    assert!(
+        !try_now(&mut bot, end + Duration::from_millis(500), &mut out),
+        "the answer first"
+    );
+    bot.on_packet(
+        1275,
+        &result_bytes(0),
+        end + Duration::from_millis(600),
+        &mut out,
+    )
+    .unwrap();
+    assert!(
+        try_now(&mut bot, end + Duration::from_millis(600), &mut out),
+        "at once after it"
+    );
+
+    // A peek during the battle, then the battle's end: the peek's answer (boss on) comes first, the battle's (killed)
+    // second, and the run ends on it.
+    let (mut bot, mut out, now) = in_the_cave();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    out.clear();
+    // The peek 1 s before the battle's end: its answer is still on the way when the battle ends.
+    let end = now + Duration::from_secs(20);
+    let _ = bot.on_packet(
+        21,
+        &Writer::new().i32(4).build(),
+        end - Duration::from_secs(1),
+        &mut out,
+    );
+    assert!(
+        out.iter().any(|o| matches!(o, Out::Send(1275, _))),
+        "peeked"
+    );
+    bot.on_packet(19, &lost_battle(), end, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(1275, &result_bytes(0), end, &mut out)
+        .unwrap();
+    assert!(
+        !out.iter().any(|o| matches!(o, Out::Log(..))),
+        "the peek's answer is read quietly"
+    );
+    bot.on_packet(1275, &result_bytes(1), end, &mut out)
+        .unwrap();
+    assert!(
+        bot.snap.bach_ho.as_ref().unwrap().done.is_some(),
+        "ended on the battle's answer"
+    );
+    assert!(!try_now(&mut bot, end + Duration::from_secs(5), &mut out));
+}
+
+/// s2c/21 of the Bạch Hổ kill as mokali's app got it (21/11, cllt.db): its refill (3 pieces, with the reshuffle flag and
+/// 3 bytes after) is read, so the battle ends won instead of failing at byte 17 and being dropped.
+#[test]
+fn the_s2c_21_of_the_kill_reads_with_its_refill() {
+    let bytes = hex(include_str!("fixtures/bh-s2c21-kill.hex").trim());
+    let x = cllt_core::battle::timeout_result(&bytes).unwrap();
+    assert_eq!((x.seq, x.refill.as_slice()), (39, &[2, 5, 70][..]));
+    assert_eq!(x.actor, "mob800");
+    assert!(x.end);
+    assert!(x.reward.unwrap().won);
+}
+
+/// The review of 22/11: an s2c/43 with the boss while the next try waits for the answer does not start it early; a
+/// peek never answered is dropped at the battle's end, so the battle's answer (boss killed) still ends the run; the
+/// clock hit that ends the battle with a refill is not a board out of step.
+#[test]
+fn the_wait_after_a_battle_holds_against_a_push_and_a_lost_peek() {
+    let at = epoch_ms();
+    let boss = hex(BH2_BOSS);
+    // A push of the cave with the boss right after the battle: no try before the answer.
+    let (mut bot, mut out, now) = in_the_cave();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    let end = now + Duration::from_secs(20);
+    bot.on_packet(19, &lost_battle(), end, &mut out).unwrap();
+    bot.on_packet(43, &boss, end, &mut out).unwrap();
+    out.clear();
+    bot.on_timer(end + Duration::from_millis(100), &mut out);
+    assert!(
+        !sent(&mut out).iter().any(|(op, _)| *op == 15),
+        "waits for the answer"
+    );
+
+    // A peek at 5 s never answered; the battle ends at 20 s; its answer says the boss is dead: the run ends.
+    let (mut bot, mut out, now) = in_the_cave();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    let _ = bot.on_packet(
+        21,
+        &Writer::new().i32(4).build(),
+        now + Duration::from_secs(5),
+        &mut out,
+    );
+    let end = now + Duration::from_secs(20);
+    bot.on_packet(19, &lost_battle(), end, &mut out).unwrap();
+    bot.on_packet(1275, &result_bytes(1), end, &mut out)
+        .unwrap();
+    assert!(bot.snap.bach_ho.as_ref().unwrap().done.is_some(), "ended");
+
+    // The kill's clock hit (refill, no cells): the battle ends without a line of the board out of step.
+    let (mut bot, mut out, now) = in_the_cave();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    out.clear();
+    let kill = hex(include_str!("fixtures/bh-s2c21-kill.hex").trim());
+    let _ = bot.on_packet(21, &kill, now + Duration::from_secs(20), &mut out);
+    assert!(
+        !out.iter()
+            .any(|o| matches!(o, Out::Log(_, l) if l.contains("lệch"))),
+        "{out:?}"
+    );
+    assert!(
+        out.iter().any(|o| matches!(o, Out::Battle(_))),
+        "the battle is saved"
     );
 }

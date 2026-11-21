@@ -131,7 +131,13 @@ export const unknownMob = (): Fighter => fighter(Infinity, Infinity, { sword: 8,
  * mobModel `best` (Q20): the mob answers with the move worth most to it. `odds`: the mob plays as MOB_AI says it does
  * and the answer is what it is worth on average. lookahead: a move that keeps the turn is worth this share of the best
  * move after it, in place of the flat extraTurn. */
-export interface Strategy { extraTurn: number; reply: number; bonus: Partial<Record<number, number>>; mobModel?: 'best' | 'odds'; lookahead?: number }
+/** `timed`: a timed battle (Bạch Hổ, Sơn Tặc), where the mob never moves pieces and the next action is ours too: each swap
+ * is also worth FOLLOW × the best swap after it, and bestAction casts only planSkill (battle-actions.ts). */
+export interface Strategy { extraTurn: number; reply: number; bonus: Partial<Record<number, number>>; mobModel?: 'best' | 'odds'; lookahead?: number; timed?: boolean }
+/** Share of the best next swap a swap of a timed battle is worth on top of its own (two own plies). In the Bạch Hổ
+ * simulator (21/11, 12,000 actions a strategy) 0.5 dealt 16% more per action than one ply, 1 and 1.5 less (151.5, 137.8
+ * against 158.1). */
+export const FOLLOW = 0.5;
 /** `kill` ends battles soonest; `exp` also collects drops, stars and gold on the way. `win` and `farm` are the same goals
  * with the mob as it really plays (MOB_AI) and a look at the move after an extra turn. In the simulator of
  * 07-auto-battle.md#thuật-toán-v2 (manina 174 HP against Cóc Xanh, HP carried from battle to battle, 12 hours) `win`
@@ -207,6 +213,14 @@ export function bestMove(b: Board, me: Fighter = fighter(100, 100), mob: Fighter
         let next = 0;
         for (const m2 of legalMoves(t)) { const u = t.slice(); swap(u, m2); next = Math.max(next, moveValue(settle(u, null), meAfter, mobAfter, own, s.bonus)); }
         score += s.lookahead * next;
+      } else if (s.timed) {
+        // The next swap is ours whatever this one does, with the nội lực and sức mạnh this one brings (a hit at full
+        // power spends the sức mạnh).
+        const full = me.s2 >= 100, hit = (o.cleared[0] ?? 0) > 0;
+        const after = { ...meAfter, s1: Math.min(100, me.s1 + (o.cleared[2] ?? 0) * me.yinyang), s2: full && hit ? 0 : Math.min(100, me.s2 + (o.cleared[3] ?? 0) * me.peach) };
+        let next = 0;
+        for (const m2 of legalMoves(t)) { const u = t.slice(); swap(u, m2); next = Math.max(next, moveValue(settle(u, null), after, mobAfter, own, s.bonus)); }
+        score += FOLLOW * next;
       } else if (!o.extraTurn && s.reply) score -= s.reply * answerValue(t, mobAfter, meAfter, s);
     }
     if (!best || score > best.score) best = { move: m, score, outcome: o };
@@ -315,10 +329,15 @@ export function battleItemResult(r: Reader) {
   return { seq, a, slot, refill, ...resultTail(r) };
 }
 
-/** s2c/21: in a timed battle the mob hits on its ~30 s timer, without a board move; same tail as s2c/19 (Q6–Q9). */
+/** s2c/21, the mob's clock hit of a timed battle: seq, an i32, then the refill as s2c/19 (with its reshuffle flag and 3
+ * bytes when not empty) and the unit line. The refill is not always empty: 9 of 241 recorded (21/11) carry 3–17 pieces,
+ * all ending the battle (time out of Sơn Tặc, the Bạch Hổ kill); read as 0 before, they lost the battle's end. */
 export function timeoutResult(r: Reader) {
-  const seq = r.i32(); r.i32(); r.i32();
-  return { seq, cells: [] as number[], refill: [] as number[], ...resultTail(r) };
+  const seq = r.i32(); r.i32();
+  const refill = [...r.take(r.i32())];
+  const newBoard = refill.length && r.u8() === 1 ? [...r.take(r.i32())] : undefined;
+  if (refill.length) r.take(3);
+  return { seq, cells: [] as number[], refill, newBoard, ...resultTail(r) };
 }
 
 function resultTail(r: Reader) {

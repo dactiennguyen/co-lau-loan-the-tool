@@ -10,8 +10,9 @@ use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailTask, MarketTask, SmithTask,
-    BREAK_EVERY_MAX, BREAK_MINUTES_MAX, MERGE_EVERY_MAX, MOB_DELAY_MAX, POTION_MAX, STEP_DELAY_MAX,
+    BachHoPace, BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailTask, MarketTask,
+    SmithTask, BREAK_EVERY_MAX, BREAK_MINUTES_MAX, MERGE_EVERY_MAX, MOB_DELAY_MAX, POTION_MAX,
+    STEP_DELAY_MAX,
 };
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
@@ -185,12 +186,28 @@ pub fn welfare(shared: State<Shared>, id: u64) {
 }
 
 /// Bắt đầu of the Bạch Hổ window: each account picked tries to get into the boss's battle from `from_ms` until
-/// `until_ms` (ms since 1970), waiting until then (Bot::bach_ho).
+/// `until_ms` (ms since 1970), waiting until then (Bot::bach_ho), with the window's waits in ms: between swaps
+/// (`move_ms`) and between a battle and the next try (`rejoin_ms`).
 #[tauri::command]
-pub fn bach_ho_start(shared: State<Shared>, ids: Vec<u64>, from_ms: u64, until_ms: u64) {
+pub fn bach_ho_start(
+    shared: State<Shared>,
+    ids: Vec<u64>,
+    from_ms: u64,
+    until_ms: u64,
+    move_ms: u32,
+    rejoin_ms: u32,
+) {
+    let pace = BachHoPace { move_ms, rejoin_ms };
     shared.with(|app| {
         for id in ids {
-            app.send(id, Command::BachHo { from_ms, until_ms });
+            app.send(
+                id,
+                Command::BachHo {
+                    from_ms,
+                    until_ms,
+                    pace,
+                },
+            );
         }
     });
 }
