@@ -816,6 +816,7 @@ pub fn entries() -> Vec<Entry> {
             ok: 2,
             failed: 0,
             quote: None,
+            rates: vec![],
             preview: None,
             item: None,
             worn: false,

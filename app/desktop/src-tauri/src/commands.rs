@@ -282,7 +282,8 @@ pub fn merge_forecast(
 
 /// Nâng cấp the item of bag slot `slot` (gear slot with `worn`: taken off first, worn again after) up to +`to_level` with
 /// stones up to `rate` % each level ([Cẩn thận] with `careful`); `quote` only asks the price and odds of the next level.
-/// `charm` (default true): Bùa bảo vệ on every press a failure would lose levels on.
+/// `charm` (default true): Bùa bảo vệ on every press a failure would lose levels on. `stones` (Tự chọn đá): the bag slot of
+/// each stone the player picked, a stack's slot once per stone; exactly those go in and one level is tried at most.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub fn smith_upgrade(
@@ -296,6 +297,7 @@ pub fn smith_upgrade(
     quote: bool,
     worn: Option<bool>,
     charm: Option<bool>,
+    stones: Option<Vec<i32>>,
 ) {
     let task = SmithTask::Upgrade {
         slot,
@@ -306,6 +308,7 @@ pub fn smith_upgrade(
         quote,
         worn: worn.unwrap_or(false),
         charm: charm.unwrap_or(true),
+        stones: stones.unwrap_or_default(),
     };
     shared.with(|app| app.send(id, Command::Smith(task)));
 }

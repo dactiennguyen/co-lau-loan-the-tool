@@ -17,17 +17,22 @@ const STONE_SLOTS: usize = npc::UPGRADE_SLOTS;
 const THUONG_CAP_LOW: i32 = 75;
 
 /// Why Nâng cấp may not press at `odds`: under the rate asked, unless Thường reached THUONG_CAP_LOW (odds that may be the
-/// cap of the level). The last check before Bắt đầu, whatever put the stones in; Hỏi giá presses nothing anyway.
+/// cap of the level). The last check before Bắt đầu, whatever put the stones in; Hỏi giá presses nothing anyway, and
+/// stones the player picked are pressed at the odds they give (the UI showed them before asking).
 fn under_rate(task: &SmithTask, odds: Option<i32>) -> Option<String> {
     let SmithTask::Upgrade {
         rate,
         careful,
         quote: false,
+        ref stones,
         ..
     } = *task
     else {
         return None;
     };
+    if !stones.is_empty() {
+        return None;
+    }
     let odds = odds.unwrap_or(0);
     (odds < rate && (careful || odds < THUONG_CAP_LOW))
         .then(|| format!("tỉ lệ chỉ {odds}%, chưa tới {rate}% muốn đạt; không bấm"))
@@ -84,6 +89,35 @@ fn put_stones(slots: &[i32]) -> Vec<Put> {
         }
     }
     puts
+}
+
+/// Why stones the player picked for Nâng cấp (one bag slot per stone) cannot go in: a slot that holds no stone, more
+/// stones of a slot than it holds, more than the window's 18 slots.
+fn picked_why(bag: &[BagItem], stones: &[i32]) -> Option<String> {
+    if stones.len() > STONE_SLOTS {
+        return Some(format!(
+            "cửa sổ chỉ nhận {STONE_SLOTS} viên đá, đã chọn {}",
+            stones.len()
+        ));
+    }
+    let mut slots: Vec<i32> = stones.to_vec();
+    slots.sort_unstable();
+    slots.dedup();
+    slots.into_iter().find_map(|slot| {
+        let want = stones.iter().filter(|&&s| s == slot).count() as i32;
+        match bag.iter().find(|i| i.slot == slot) {
+            Some(i) if npc::stone_level(i.item_id) == 0 => {
+                Some(format!("ô túi {} không phải đá nâng cấp", slot + 1))
+            }
+            Some(i) if i.count() < want => Some(format!(
+                "ô túi {} chỉ có {} viên, đã chọn {want}",
+                slot + 1,
+                i.count()
+            )),
+            Some(_) => None,
+            None => Some(format!("ô túi {} không còn đá", slot + 1)),
+        }
+    })
 }
 
 /// A worn item taken off for Nâng cấp: its gear slot, its uuid (to find it in the bag), its name, and why the task ended
@@ -424,6 +458,12 @@ impl Bot {
                     .then(|| "chưa có túi đồ và tiền của nick".into())
             })
             .or_else(|| match &task {
+                SmithTask::Upgrade { stones, .. } if !stones.is_empty() => {
+                    picked_why(&self.bag_items(), stones)
+                }
+                _ => None,
+            })
+            .or_else(|| match &task {
                 // Checked before it is taken off, so a task that cannot run leaves the gear as it is.
                 SmithTask::Upgrade {
                     slot,
@@ -431,6 +471,7 @@ impl Bot {
                     quote,
                     to_level,
                     unlocked,
+                    stones,
                     ..
                 } => match self.gear_record(*slot) {
                     None => Some(format!("không mặc món nào ở ô trang bị {slot}")),
@@ -450,7 +491,9 @@ impl Bot {
                         let (kind, wear) = kind_level(i.item_id);
                         if i.field0 >= upgrade_top(kind, wear, *quote, *to_level) {
                             Some(format!("{} đã +{}", item_name(i.item_id), i.field0))
-                        } else if upgrade_stones(&self.bag_items(), *unlocked).is_empty() {
+                        } else if stones.is_empty()
+                            && upgrade_stones(&self.bag_items(), *unlocked).is_empty()
+                        {
                             Some("hết đá nâng cấp trong túi".into())
                         } else {
                             None
@@ -540,6 +583,7 @@ impl Bot {
             ok: 0,
             failed: 0,
             quote: None,
+            rates: vec![],
             preview: None,
             item: shown,
             worn: matches!(task, SmithTask::Upgrade { worn: true, .. }),
@@ -836,6 +880,7 @@ impl Bot {
                 unlocked,
                 quote,
                 charm,
+                stones: picked,
                 ..
             } => {
                 let Some(item) = self.bag_record(slot as i32) else {
@@ -864,11 +909,14 @@ impl Bot {
                     );
                     return self.smith_finish(why, now, out);
                 }
-                if item.field0 >= top || (quote && steps > 0) {
+                // Stones the player picked: one press, as the game's window (the stones are gone after it).
+                let once = quote || !picked.is_empty();
+                if item.field0 >= top || (once && steps > 0) {
                     let why = match (quote, item.field0 >= cap) {
                         (_, true) => format!("{name} đã tới trần +{cap}"),
                         (true, _) => "đã có giá".into(),
-                        _ => format!("{name} đã +{}", item.field0),
+                        _ if item.field0 >= top => format!("{name} đã +{}", item.field0),
+                        _ => format!("đã bấm với đá đã chọn; {name} còn +{}", item.field0),
                     };
                     return self.smith_finish(why, now, out);
                 }
@@ -894,16 +942,33 @@ impl Bot {
                     };
                     out.push(Out::Log(LogKind::Item, line));
                 }
-                // One entry per stone (a stack many times over, ST1).
-                let stones: Vec<i32> = upgrade_stones(&bag, unlocked)
-                    .iter()
-                    .map(|i| i.slot)
-                    .collect();
+                // One entry per stone (a stack many times over, ST1); the player's own, all of them, when picked.
+                let exact = (!picked.is_empty()).then_some(picked.len());
+                let stones: Vec<i32> = match exact {
+                    Some(_) => picked,
+                    None => upgrade_stones(&bag, unlocked)
+                        .iter()
+                        .map(|i| i.slot)
+                        .collect(),
+                };
                 if stones.is_empty() {
                     return self.smith_finish("hết đá nâng cấp trong túi", now, out);
                 }
+                // A Bùa bảo vệ takes one of the 18 slots: the stones picked must leave it room.
+                let room = STONE_SLOTS - held.is_some() as usize;
+                if exact.is_some_and(|k| k > room) {
+                    let why = format!(
+                        "cửa sổ chỉ nhận {room} viên đá{}, đã chọn {}: bỏ bớt đá",
+                        if held.is_some() { " khi có bùa" } else { "" },
+                        stones.len()
+                    );
+                    return self.smith_finish(why, now, out);
+                }
+                if let Some(r) = self.snap.smith.as_mut() {
+                    r.rates.clear();
+                }
                 let sm = self.smith.as_mut().unwrap();
-                (sm.stones, sm.tried, sm.rates, sm.exact) = (stones, vec![], vec![], None);
+                (sm.stones, sm.tried, sm.rates, sm.exact) = (stones, vec![], vec![], exact);
                 sm.charm = held.map(|c| c.slot);
                 let window = if careful {
                     WindowKind::Careful
@@ -1317,6 +1382,9 @@ impl Bot {
         }
         if stone && matches!(sm.task, SmithTask::Upgrade { .. }) {
             sm.rates.push(q.rate.unwrap_or(0));
+            if let Some(r) = self.snap.smith.as_mut() {
+                r.rates = sm.rates.clone();
+            }
         }
         self.smith_put(now, out);
     }

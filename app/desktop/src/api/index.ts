@@ -104,7 +104,8 @@ export interface Api {
   /** What Gộp đá would do with these options on the bag as it is now; null without a bag. */
   mergeForecast(id: number, options: MergeOptions): Promise<MergeForecast | null>;
   /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
-  /** `worn`: `slot` is a gear slot; the bot takes the item off, upgrades it and wears it again. */
+  /** `worn`: `slot` is a gear slot; the bot takes the item off, upgrades it and wears it again. `stones` (Tự chọn đá): the
+   * bag slot of each stone picked, a stack's slot once per stone; exactly those go in, one level at most. */
   smithUpgrade(
     id: number,
     slot: number,
@@ -115,6 +116,7 @@ export interface Api {
     quote: boolean,
     worn: boolean,
     charm: boolean,
+    stones?: number[],
   ): Promise<void>;
   /** Chế tạo trang bị: the recipes of item kind `kind` (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), or with `tier` make `times`
    * items of that tier, one after another (1 when left out). */
@@ -278,8 +280,8 @@ const tauri: Api = {
   openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
   smithMerge: (id, options) => invoke("smith_merge", { id, options }),
   mergeForecast: (id, options) => invoke("merge_forecast", { id, options }),
-  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn, charm) =>
-    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn, charm }),
+  smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn, charm, stones) =>
+    invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn, charm, stones }),
   smithCraft: (id, kind, tier, times = 1) => invoke("smith_craft", { id, kind, tier, times }),
   smithIce: (id, option) => invoke("smith_ice", { id, option }),
   elderPoints: (id, rules) => invoke("elder_points", { id, rules }),

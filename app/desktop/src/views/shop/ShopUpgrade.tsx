@@ -12,6 +12,7 @@ import { CHARMS, charmUseful, failLevel, isGear, itemCap, SAFE_LEVEL, stoneCount
 import type { Item } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
 import { ItemChip, Stone, STONES } from "./Stone";
+import { UpgradeWindow } from "./UpgradeWindow";
 
 /** A part of the item picked: Tách đá, Chuyển hoá. */
 const PART = "grid [align-content:start] justify-items-start gap-1.5 px-2.5 py-2 bg-bg-2 border-2 border-line";
@@ -40,6 +41,8 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
   const worn = item != null && (isWorn(item) || upgrading);
   const full = c.bag != null && c.bag.items.length >= c.bag.capacity;
   const wornWhy = worn && full ? "Túi đầy: cần 1 ô trống để cởi món ra nâng cấp." : null;
+  // Tự chọn đá (the game's window, one level with the stones picked) or the bot up to a level (stones it picks).
+  const [mode, setMode] = useState<"pick" | "bot">("pick");
   const [careful, setCareful] = useState(false);
   const [rate, setRate] = useState(100);
   const [unlocked, setUnlocked] = useState(false);
@@ -105,6 +108,18 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
       )}
       {item && (
         <>
+          <div className={SHOP.chips} role="group" aria-label="Cách nâng">
+            <FilterChip on={mode === "pick"} onClick={() => setMode("pick")}>
+              Tự chọn đá (như game)
+            </FilterChip>
+            <FilterChip on={mode === "bot"} onClick={() => setMode("bot")}>
+              Bot tự nâng nhiều cấp
+            </FilterChip>
+            <Hint label="Tự chọn đá khác Bot tự nâng thế nào?" id={`${hint}-way`}>
+              Tự chọn đá giống cửa sổ trong game: bạn đặt từng viên đá vào 18 ô, xem phí và tỉ lệ Pháp sư báo, rồi bấm Bắt đầu để
+              nâng 1 cấp. Bot tự nâng thì bot tự chọn đá rẻ nhất tới tỉ lệ muốn đạt, và nâng liền nhiều cấp tới cấp bạn chọn.
+            </Hint>
+          </div>
           <div className={SHOP.opts}>
             <div className={SHOP.chips} role="group" aria-label="Kiểu nâng cấp">
               <FilterChip on={!careful} onClick={() => setCareful(false)}>
@@ -118,24 +133,28 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
                 khi +1→+2. Phí Xu khóa như nhau. Muốn chắc 100% thì chọn Cẩn thận.
               </Hint>
             </div>
-            <label className={SHOP.opt}>
-              Tỉ lệ muốn đạt
-              <Stepper value={rate} onChange={setRate} min={1} max={100} label="tỉ lệ %" />%
-            </label>
-            <Hint label="Tỉ lệ muốn đạt là gì?" id={`${hint}-rate`}>
-              Bot đặt từng viên đá, rẻ nhất trước, tới khi tỉ lệ Pháp sư báo đạt mức này thì bấm Bắt đầu. Đá đặt vào đều mất kể cả
-              viên thừa, nên bot không đặt dư. Tỉ lệ chạm trần của Thường (80% ở +0→+1, 75% ở +1→+2) thì bot bấm ở trần. Đặt hết đá
-              mà tỉ lệ vẫn thấp hơn mức này thì bot dừng, không bấm, không tốn gì.
-            </Hint>
-            <label className={SHOP.opt}>
-              Nâng tới +
-              <Stepper value={toLevel} onChange={setToLevel} min={Math.min(top, item.plus + 1)} max={top} label="cấp muốn đạt" />
-            </label>
-            <Hint label="Nâng tới + là gì?" id={`${hint}-to`}>
-              Bot nâng từng cấp một tới cấp này. Dưới +{SAFE_LEVEL}, hay có bùa, thất bại giữ cấp nên bot thử lại đúng cấp đó với đá mới,
-              cho tới khi đạt, hết đá, hết bùa hay hết tiền; bấm Dừng để thôi giữa chừng. Trần theo bậc món: bậc 1 tới +4, bậc 21 tới
-              +8, bậc 51 tới +12, bậc 101 và Cánh tới +16.
-            </Hint>
+            {mode === "bot" && (
+              <>
+                <label className={SHOP.opt}>
+                  Tỉ lệ muốn đạt
+                  <Stepper value={rate} onChange={setRate} min={1} max={100} label="tỉ lệ %" />%
+                </label>
+                <Hint label="Tỉ lệ muốn đạt là gì?" id={`${hint}-rate`}>
+                  Bot đặt từng viên đá, rẻ nhất trước, tới khi tỉ lệ Pháp sư báo đạt mức này thì bấm Bắt đầu. Đá đặt vào đều mất kể cả
+                  viên thừa, nên bot không đặt dư. Tỉ lệ chạm trần của Thường (80% ở +0→+1, 75% ở +1→+2) thì bot bấm ở trần. Đặt hết đá
+                  mà tỉ lệ vẫn thấp hơn mức này thì bot dừng, không bấm, không tốn gì.
+                </Hint>
+                <label className={SHOP.opt}>
+                  Nâng tới +
+                  <Stepper value={toLevel} onChange={setToLevel} min={Math.min(top, item.plus + 1)} max={top} label="cấp muốn đạt" />
+                </label>
+                <Hint label="Nâng tới + là gì?" id={`${hint}-to`}>
+                  Bot nâng từng cấp một tới cấp này. Dưới +{SAFE_LEVEL}, hay có bùa, thất bại giữ cấp nên bot thử lại đúng cấp đó với đá mới,
+                  cho tới khi đạt, hết đá, hết bùa hay hết tiền; bấm Dừng để thôi giữa chừng. Trần theo bậc món: bậc 1 tới +4, bậc 21 tới
+                  +8, bậc 51 tới +12, bậc 101 và Cánh tới +16.
+                </Hint>
+              </>
+            )}
             <label className={SHOP.check}>
               <input className={SHOP.checkInput} type="checkbox" checked={charm} onChange={(e) => setCharm(e.target.checked)} />
               <span className={SHOP.checkBox} aria-hidden="true">
@@ -149,86 +168,108 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
               tới +8, trung cấp tới +12, cao cấp tới +14, siêu cấp tới +16); hết bùa thì dừng trước khi bấm. Bỏ chọn thì nâng không
               bùa, và thất bại đầu tiên làm tụt cấp thì bot dừng.
             </Hint>
-            <label className={SHOP.check}>
-              <input className={SHOP.checkInput} type="checkbox" checked={unlocked} onChange={(e) => setUnlocked(e.target.checked)} />
-              <span className={SHOP.checkBox} aria-hidden="true">
-                <Icon name="check" size={11} />
-              </span>
-              Dùng cả đá chưa khoá
-            </label>
-            <Hint label="Dùng cả đá chưa khoá là gì?" id={`${hint}-unlocked`}>
-              Mặc định bot chỉ đặt đá đã khoá (đá rơi từ quái, đá Tách đá trả về). Chọn thì dùng cả đá chưa khoá (mua bằng Lượng, bán
-              được), nhưng đá đã khoá vẫn được đặt trước.
-            </Hint>
-          </div>
-          <div className={STONES} role="group" aria-label="Đá dùng được, rẻ nhất trước">
-            {stoneRow.length === 0 ? (
-              <span className={SHOP.note}>Không có đá {unlocked ? "" : "đã khoá "}nào trong túi.</span>
-            ) : (
-              stoneRow.map(([level, n]) => <Stone key={level} level={level} count={n} short chip />)
+            {mode === "bot" && (
+              <>
+                <label className={SHOP.check}>
+                  <input className={SHOP.checkInput} type="checkbox" checked={unlocked} onChange={(e) => setUnlocked(e.target.checked)} />
+                  <span className={SHOP.checkBox} aria-hidden="true">
+                    <Icon name="check" size={11} />
+                  </span>
+                  Dùng cả đá chưa khoá
+                </label>
+                <Hint label="Dùng cả đá chưa khoá là gì?" id={`${hint}-unlocked`}>
+                  Mặc định bot chỉ đặt đá đã khoá (đá rơi từ quái, đá Tách đá trả về). Chọn thì dùng cả đá chưa khoá (mua bằng Lượng, bán
+                  được), nhưng đá đã khoá vẫn được đặt trước.
+                </Hint>
+              </>
             )}
           </div>
-          <p className={SHOP.note}>
-            {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stoneCount} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
-            khi đủ tỉ lệ hoặc tỉ lệ không tăng nữa (server lấy hết đá đã đặt); hết đá mà chưa đủ tỉ lệ thì không bấm.
-          </p>
-          {risky.length > 0 && (
-            <p className={cn(SHOP.note, charm && lacking.length > 0 && "text-danger")}>
-              {charm
-                ? `Bùa: mỗi lần bấm ở +${risky.join(", +")} dùng 1 bùa. Túi có: ${
-                    charms.filter((ch) => ch.count > 0).map((ch) => `${ch.count} Bùa bảo vệ ${ch.name}`).join(", ") || "không có bùa"
-                  }.${lacking.length ? ` Thiếu bùa cho +${lacking.join(", +")}: bot sẽ dừng trước cấp đó.` : ""}`
-                : `Không dùng bùa: thất bại ở +${risky[0]} sẽ tụt về +${failLevel(risky[0])} và bot dừng.`}
-            </p>
+          {mode === "pick" && (
+            <UpgradeWindow
+              account={account}
+              why={why}
+              ask={ask}
+              track={track}
+              item={item}
+              worn={worn}
+              wornWhy={wornWhy}
+              careful={careful}
+              charm={charm}
+              cap={cap}
+            />
           )}
-          {mine?.quote && (
-            <div className="grid gap-0.5 px-2.5 py-2 text-12 text-fg bg-bg-2 border-l-3 border-l-primary">
-              <span>
-                Pháp sư báo: {mine.quote.fee ? `${num(mine.quote.fee.amount)} ${mine.quote.fee.money === "xu" ? "Xu" : "Xu khóa"}` : "miễn phí"}
-                {mine.quote.luong > 0 && ` + ${mine.quote.luong} Lượng`}
-                {mine.quote.rate != null && ` · tỉ lệ ${mine.quote.rate}%`}
-              </span>
-              {mine.preview && (
-                <span className="text-11 text-s-online">
-                  +{mine.preview.plus}: <Stats stats={mine.preview.stats} />
-                </span>
+          {mode === "bot" && (
+            <>
+              <div className={STONES} role="group" aria-label="Đá dùng được, rẻ nhất trước">
+                {stoneRow.length === 0 ? (
+                  <span className={SHOP.note}>Không có đá {unlocked ? "" : "đã khoá "}nào trong túi.</span>
+                ) : (
+                  stoneRow.map(([level, n]) => <Stone key={level} level={level} count={n} short chip />)
+                )}
+              </div>
+              <p className={SHOP.note}>
+                {item.name} +{item.plus} · cấp mặc {item.level} · trần +{cap} · {stoneCount} viên đá dùng được. Bot đặt đá rẻ nhất trước, dừng
+                khi đủ tỉ lệ hoặc tỉ lệ không tăng nữa (server lấy hết đá đã đặt); hết đá mà chưa đủ tỉ lệ thì không bấm.
+              </p>
+              {risky.length > 0 && (
+                <p className={cn(SHOP.note, charm && lacking.length > 0 && "text-danger")}>
+                  {charm
+                    ? `Bùa: mỗi lần bấm ở +${risky.join(", +")} dùng 1 bùa. Túi có: ${
+                        charms.filter((ch) => ch.count > 0).map((ch) => `${ch.count} Bùa bảo vệ ${ch.name}`).join(", ") || "không có bùa"
+                      }.${lacking.length ? ` Thiếu bùa cho +${lacking.join(", +")}: bot sẽ dừng trước cấp đó.` : ""}`
+                    : `Không dùng bùa: thất bại ở +${risky[0]} sẽ tụt về +${failLevel(risky[0])} và bot dừng.`}
+                </p>
               )}
-            </div>
+              {mine?.quote && (
+                <div className="grid gap-0.5 px-2.5 py-2 text-12 text-fg bg-bg-2 border-l-3 border-l-primary">
+                  <span>
+                    Pháp sư báo: {mine.quote.fee ? `${num(mine.quote.fee.amount)} ${mine.quote.fee.money === "xu" ? "Xu" : "Xu khóa"}` : "miễn phí"}
+                    {mine.quote.luong > 0 && ` + ${mine.quote.luong} Lượng`}
+                    {mine.quote.rate != null && ` · tỉ lệ ${mine.quote.rate}%`}
+                  </span>
+                  {mine.preview && (
+                    <span className="text-11 text-s-online">
+                      +{mine.preview.plus}: <Stats stats={mine.preview.stats} />
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  kind="outline"
+                  icon="eye"
+                  disabled={!!why || !!wornWhy || item.plus >= cap || stones.length === 0}
+                  onClick={() => {
+                    track();
+                    api.smithUpgrade(account.id, item.slot, careful, rate, item.plus + 1, unlocked, true, worn, charm);
+                  }}
+                >
+                  {worn ? "Hỏi giá (miễn phí; cởi ra rồi mặc lại)" : "Hỏi giá (miễn phí)"}
+                </Button>
+                <Button
+                  kind="primary"
+                  icon="hammer"
+                  disabled={!!why || !!wornWhy || item.plus >= top || stones.length === 0}
+                  onClick={() =>
+                    ask({
+                      title: `Nâng cấp ${item.name}`,
+                      message: `Nâng ${item.name} từ +${item.plus} tới +${toLevel}${careful ? " (Cẩn thận, mỗi lần +5 Lượng)" : ""}, mỗi lần đặt đá tới tỉ lệ ${rate}% hoặc tới trần. Mỗi lần nâng tốn đá và Xu khóa, thất bại thì mất cả hai; thành công thì món bị khoá giao dịch.${risky.length ? (charm ? ` Ở +${risky.join(", +")} mỗi lần bấm dùng 1 Bùa bảo vệ (mất cả khi thành công), thất bại thì giữ cấp và bot thử lại.` : ` Không dùng bùa: thất bại ở +${risky[0]} sẽ tụt về +${failLevel(risky[0])} và bot dừng.`) : " Dưới +4 thất bại không tụt cấp."}${worn ? " Món đang mặc: bot cởi ra túi trước, xong (hay dừng giữa chừng) thì mặc lại." : ""}`,
+                      confirm: "Nâng cấp",
+                      icon: "hammer",
+                      run: () => api.smithUpgrade(account.id, item.slot, careful, rate, toLevel, unlocked, false, worn, charm),
+                    })
+                  }
+                >
+                  Nâng cấp
+                </Button>
+                <Hint label="Hỏi giá khác Nâng cấp thế nào?" id={`${hint}-quote`}>
+                  Hỏi giá mở cửa sổ Nâng cấp, đặt đá để xem phí và tỉ lệ Pháp sư báo cho cấp sau, rồi đóng lại: không bấm Bắt đầu nên
+                  không tốn gì. Nâng cấp làm thật, tốn đá và Xu khóa (Cẩn thận thêm Lượng); app hỏi lại một lần trước khi bắt đầu. Với
+                  đồ đang mặc, cả hai đều cởi món ra túi trước (cần 1 ô trống) rồi mặc lại sau, vì cửa sổ chỉ nhận món trong túi.
+                </Hint>
+              </div>
+            </>
           )}
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              kind="outline"
-              icon="eye"
-              disabled={!!why || !!wornWhy || item.plus >= cap || stones.length === 0}
-              onClick={() => {
-                track();
-                api.smithUpgrade(account.id, item.slot, careful, rate, item.plus + 1, unlocked, true, worn, charm);
-              }}
-            >
-              {worn ? "Hỏi giá (miễn phí; cởi ra rồi mặc lại)" : "Hỏi giá (miễn phí)"}
-            </Button>
-            <Button
-              kind="primary"
-              icon="hammer"
-              disabled={!!why || !!wornWhy || item.plus >= top || stones.length === 0}
-              onClick={() =>
-                ask({
-                  title: `Nâng cấp ${item.name}`,
-                  message: `Nâng ${item.name} từ +${item.plus} tới +${toLevel}${careful ? " (Cẩn thận, mỗi lần +5 Lượng)" : ""}, mỗi lần đặt đá tới tỉ lệ ${rate}% hoặc tới trần. Mỗi lần nâng tốn đá và Xu khóa, thất bại thì mất cả hai; thành công thì món bị khoá giao dịch.${risky.length ? (charm ? ` Ở +${risky.join(", +")} mỗi lần bấm dùng 1 Bùa bảo vệ (mất cả khi thành công), thất bại thì giữ cấp và bot thử lại.` : ` Không dùng bùa: thất bại ở +${risky[0]} sẽ tụt về +${failLevel(risky[0])} và bot dừng.`) : " Dưới +4 thất bại không tụt cấp."}${worn ? " Món đang mặc: bot cởi ra túi trước, xong (hay dừng giữa chừng) thì mặc lại." : ""}`,
-                  confirm: "Nâng cấp",
-                  icon: "hammer",
-                  run: () => api.smithUpgrade(account.id, item.slot, careful, rate, toLevel, unlocked, false, worn, charm),
-                })
-              }
-            >
-              Nâng cấp
-            </Button>
-            <Hint label="Hỏi giá khác Nâng cấp thế nào?" id={`${hint}-quote`}>
-              Hỏi giá mở cửa sổ Nâng cấp, đặt đá để xem phí và tỉ lệ Pháp sư báo cho cấp sau, rồi đóng lại: không bấm Bắt đầu nên
-              không tốn gì. Nâng cấp làm thật, tốn đá và Xu khóa (Cẩn thận thêm Lượng); app hỏi lại một lần trước khi bắt đầu. Với
-              đồ đang mặc, cả hai đều cởi món ra túi trước (cần 1 ô trống) rồi mặc lại sau, vì cửa sổ chỉ nhận món trong túi.
-            </Hint>
-          </div>
           {worn && (
             <p className={SHOP.note}>
               Đang mặc: bot cởi {item.name} ra túi, nâng, rồi mặc lại vào ô cũ; xong, lỗi hay bấm Dừng đều mặc lại.

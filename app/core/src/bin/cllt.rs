@@ -152,6 +152,7 @@ fn smith_task(
             quote: true,
             worn,
             charm,
+            stones: vec![],
         }));
     }
     if let Some(slot) = slot("upgrade")? {
@@ -164,6 +165,7 @@ fn smith_task(
             quote: false,
             worn,
             charm,
+            stones: vec![],
         }));
     }
     if let Some(up_to) = int("merge")? {

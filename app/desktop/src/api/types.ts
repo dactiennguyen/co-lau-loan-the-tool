@@ -691,6 +691,8 @@ export interface SmithRun {
   ok: number;
   failed: number;
   quote: Quote | null;
+  /** Nâng cấp: the odds after each stone put in, in order; a stone that raised nothing was wasted. */
+  rates: number[];
   /** Nâng cấp: the item one level up, and the item as it is now. */
   preview: Item | null;
   item: Item | null;

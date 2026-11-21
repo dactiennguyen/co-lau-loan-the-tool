@@ -638,6 +638,7 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
         quote: false,
         worn: false,
         charm: true,
+        stones: vec![],
     };
     bot.smith(task, now, &mut out);
     let open = |bot: &mut Bot, out: &mut Vec<Out>| {
@@ -773,6 +774,120 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
 }
 
 #[test]
+fn nang_cap_with_stones_picked_puts_exactly_those_and_presses_once() {
+    // Nhẫn Trơn +0, two Đá cấp 1 and a locked Đá cấp 4 the player keeps.
+    let (mut bot, mut out, now) = symap(&[
+        (15, 306, 0, 1),
+        (16, 411, 0, 1),
+        (17, 411, 0, 1),
+        (34, 414, 0, 0),
+    ]);
+    let picked = |stones: Vec<i32>| SmithTask::Upgrade {
+        slot: 15,
+        careful: false,
+        rate: 100,
+        to_level: 4,
+        unlocked: false,
+        quote: false,
+        worn: false,
+        charm: true,
+        stones,
+    };
+    // More of a slot than it holds, or a slot without a stone: refused, nothing sent.
+    bot.smith(picked(vec![34, 34]), now, &mut out);
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Chưa Nâng cấp Nhẫn Trơn tới +4: ô túi 35 chỉ có 1 viên, đã chọn 2"
+        ),
+        "{out:?}"
+    );
+    out.clear();
+    bot.smith(picked(vec![16, 15]), now, &mut out);
+    assert!(
+        logged(
+            &out,
+            "Chưa Nâng cấp Nhẫn Trơn tới +4: ô túi 16 không phải đá nâng cấp"
+        ),
+        "{out:?}"
+    );
+    // The two unlocked Đá cấp 1 (unlocked off), at 33% although 100% is asked: the player saw the odds.
+    out.clear();
+    bot.smith(picked(vec![16, 17]), now, &mut out);
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu(
+            "Pháp sư",
+            &[
+                "Nâng cấp [Thường]",
+                "Nâng cấp [Cẩn thận]",
+                "Chuyển hoá trang bị",
+            ],
+        ),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        96,
+        &captured("serviceWindow", "title", "Nâng cấp [thường]".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    let price = |rate: i32| {
+        format!(
+            "Cần: 19 Xu khóa (không đủ sẽ sử dụng cả Xu)\nCần: 0 Lượng\nTỉ lệ thành công: {rate}%"
+        )
+    };
+    let mut put = sent(&out, 97);
+    for answer in [
+        slot90(
+            true,
+            15,
+            "Cần chọn trang bị và đá (có thể thêm bùa bảo vệ)",
+            false,
+        ),
+        slot90(false, 16, &price(16), true),
+    ] {
+        out.clear();
+        bot.on_packet(90, &answer, now, &mut out).unwrap();
+        put.extend(sent(&out, 97));
+    }
+    assert_eq!(
+        put,
+        [15, 16, 17].map(|s| tohex(&npc::put_request(s, 1, npc::PUT_ITEM)))
+    );
+    out.clear();
+    bot.on_packet(90, &slot90(false, 17, &price(33), true), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
+    assert_eq!(bot.snapshot().smith.unwrap().rates, [16, 33]);
+    // It failed: the task ends on the next bag instead of trying again with other stones.
+    out.clear();
+    bot.on_packet(
+        91,
+        &captured("serviceResult", "ok", false.into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    bot.on_packet(42, &bag(&[(15, 306, 0, 1), (34, 414, 0, 0)]), now, &mut out)
+        .unwrap();
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Nâng cấp Nhẫn Trơn tới +4: đã bấm với đá đã chọn; Nhẫn Trơn còn +0 (1 lần, tốn 19 Xu khóa)"
+        ),
+        "{out:?}"
+    );
+}
+
+#[test]
 fn nang_cap_out_of_stones_under_the_rate_presses_nothing() {
     // Nhẫn Trơn +0 and one Đá cấp 1: 16%, far under the 100% asked and under any cap of Thường.
     let (mut bot, mut out, now) = symap(&[(15, 306, 0, 1), (16, 411, 0, 1)]);
@@ -786,6 +901,7 @@ fn nang_cap_out_of_stones_under_the_rate_presses_nothing() {
             quote: false,
             worn: false,
             charm: true,
+            stones: vec![],
         },
         now,
         &mut out,
@@ -852,6 +968,7 @@ fn upgrade_window(items: &[(u8, i32, i32, u8)], rate: i32) -> (Bot, Vec<Out>, In
             quote: false,
             worn: false,
             charm: true,
+            stones: vec![],
         },
         now,
         &mut out,
@@ -1009,6 +1126,7 @@ fn hoi_gia_says_the_price_and_odds_and_presses_nothing() {
             quote: true,
             worn: false,
             charm: true,
+            stones: vec![],
         },
         now,
         &mut out,
@@ -1173,6 +1291,7 @@ fn a_refusal_or_silence_ends_the_task_and_tach_da_reads_the_stones_it_gave() {
             quote: true,
             worn: false,
             charm: true,
+            stones: vec![],
         },
         now,
         &mut out,
@@ -1415,6 +1534,7 @@ fn worn_ring(rate: i32, to_level: i32) -> SmithTask {
         quote: false,
         worn: true,
         charm: true,
+        stones: vec![],
     }
 }
 
@@ -1779,6 +1899,7 @@ fn upgrade(slot: u8, careful: bool, rate: i32, to_level: i32, charm: bool) -> Sm
         quote: false,
         worn: false,
         charm,
+        stones: vec![],
     }
 }
 
@@ -2422,6 +2543,7 @@ fn upgrade_task(rate: i32) -> SmithTask {
         quote: false,
         worn: false,
         charm: true,
+        stones: vec![],
     }
 }
 

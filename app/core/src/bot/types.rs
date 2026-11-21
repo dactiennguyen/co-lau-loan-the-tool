@@ -617,6 +617,10 @@ pub enum SmithTask {
     /// the task ends, however it ends. With `charm`, every press a failure would lose levels on (+5–+7, +9–+11, +13, +15)
     /// takes the lowest Bùa bảo vệ that protects it, and the task ends before it without one; without `charm` such a
     /// failure drops the item to +4, +8, +12 or +14 and ends the task.
+    ///
+    /// `stones` not empty: the stones the player picked (Tự chọn đá, as the 18 slots of the game's window), one bag slot
+    /// per stone (a stack's slot once per stone of it). Exactly those go in, in that order, whatever the odds; `rate` and
+    /// `unlocked` count for nothing, and one level is tried with one press at most (Hỏi giá with `quote`).
     Upgrade {
         slot: u8,
         careful: bool,
@@ -626,6 +630,7 @@ pub enum SmithTask {
         quote: bool,
         worn: bool,
         charm: bool,
+        stones: Vec<i32>,
     },
     /// Tách đá of the item of bag slot `slot`.
     Separate { slot: u8 },
@@ -727,6 +732,9 @@ pub struct SmithRun {
     pub failed: u32,
     /// The price and odds the window said last (s2c/90, s2c/92).
     pub quote: Option<Quote>,
+    /// Nâng cấp: the odds the window said after each stone put in, in order (a stone that raised nothing is wasted, as
+    /// the server takes every stone put in).
+    pub rates: Vec<i32>,
     /// Nâng cấp: the item one level up (s2c/1258), and the item as it is now.
     pub preview: Option<ItemRecord>,
     pub item: Option<ItemRecord>,
