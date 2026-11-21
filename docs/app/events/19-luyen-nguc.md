@@ -47,6 +47,8 @@ Giống hệt Luyện Ngục 1: cùng hình map (`s2c/11` 4374 byte), một cổ
 | 3 | M20 | Ác Ma Nhất Cấp (90, 2, 5), Ác Ma Nhị Cấp (100, 4, 5), Hỏa Hồng Trư (110, 0, 6) |
 | 4 | M21 | Ác Ma Tam Cấp (120, 2, 5), Ác Ma Tứ Cấp (130, 4, 5), Đại Địa Cự Hùng (140, 0, 5), **Ngưu Ma Thống Lĩnh** (150, 0, 1 con) |
 
+**Luyện Ngục 5 (M22) và 6 (M23)** (MP1, 22/11, cấp 98): vào thẳng qua Bản đồ thế giới (`c2s/13 ("M99", 21)` và `22`), không có quái nào lúc 05:03 sáng, mỗi map một cổng ra 21, 22 "Cổng Luyện Ngục" (loại 1). Có quái theo giờ hay theo sự kiện thì chưa biết. [Đo]
+
 Cấp quái tăng 10 mỗi loại, từ 30 tới 150. Ngưu Ma Thống Lĩnh chỉ có một con và nằm trong `s2c/43` như quái thường (không có `s2c/1177` như boss) [Đo LN1]. Quái ở đây có lẽ là nơi luyện cấp cho nhân vật cao cấp, nhưng chưa đánh nên chưa biết EXP, đồ rơi và độ bền nhẫn mất bao nhiêu mỗi trận [Chưa đo].
 
 ## Hang Bạch Hổ (M24)
