@@ -326,7 +326,7 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
               <ItemPic item={i} />
               <span className={SHOP.lineName}>
                 <span className={cn(SHOP.lineTitle, "truncate")}>{named(i)}</span>
-                <span className={SHOP.lineSub}>{[`ô ${i.slot}`, ...i.stats].join(" · ")}</span>
+                <span className={SHOP.lineSub}>{[`ô ${i.slot + 1}`, ...i.stats].join(" · ")}</span>
               </span>
               <span className={SHOP.linePrice}>{i.kindName ?? ""}</span>
             </button>
@@ -336,7 +336,7 @@ function SellView({ id, m, why, ask, xu, items }: ViewProps & { items: Item[] })
       {picked && (
         <div className={cn(SHOP.buy, "px-3 py-2 bg-bg-2 border-2 border-line")}>
           <span className={SHOP.buyWhat}>
-            <b className="text-fg">{picked.name}</b> (1 cái, ô {picked.slot})
+            <b className="text-fg">{picked.name}</b> (1 cái, ô {picked.slot + 1})
           </span>
           <label htmlFor={`${field}-price`} className={FIELD.label}>
             Giá (Xu)

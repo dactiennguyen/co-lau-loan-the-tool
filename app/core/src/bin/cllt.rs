@@ -29,11 +29,15 @@
 //                                                       and stones; without --confirm only what it would do is printed
 //                                                       --worn: SLOT of --quote, --upgrade is a gear slot; the item is
 //                                                       taken off, upgraded, then worn again
-//   cllt market --account=NAME [--sell=SLOT --price=N | --withdraw=UUID] [--confirm]
-//                                                       Chợ trời (anywhere): print the fee, the items of the bag that can
-//                                                       be listed (not locked) and Đang bán; --sell lists one of bag slot
-//                                                       SLOT at N Xu (the fee is spent), --withdraw takes a listing of
-//                                                       Đang bán back; without --confirm only what it would do is printed
+//   cllt market --account=NAME [--tab=N [--page=1]] [--sell=SLOT --price=N | --withdraw=UUID | --extend=UUID |
+//               --buy=UUID --price=N] [--confirm]
+//                                                       Chợ trời (anywhere): print the fee, the tabs, the items of the bag
+//                                                       that can be listed (not locked) and Đang bán; --tab also prints
+//                                                       that page of tab N (0–8). --sell lists one of bag slot SLOT at N
+//                                                       Xu (the fee is spent), --withdraw takes a listing of Đang bán
+//                                                       back, --extend adds 24 h to it (the fee), --buy (with --tab of its
+//                                                       page) buys the listing if it still costs N Xu; without --confirm
+//                                                       only what it would do is printed
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
 // --account=NAME also finds the one of .env when the file lacks it, and CLLT_USERNAME/CLLT_PASSWORD of the process
 // environment come first of all.
@@ -389,6 +393,12 @@ fn market_lines(s: &Snapshot) -> Vec<String> {
             t.max_price,
             s.currencies.as_ref().map_or(-1, |c| c.xu)
         ));
+        let tabs: Vec<_> = t
+            .tabs
+            .iter()
+            .map(|t| format!("{} {} ({})", t.tab, t.name, t.listings))
+            .collect();
+        out.push(format!("mục: {}", tabs.join(", ")));
     }
     out.push("bán được (chưa khoá):".into());
     for i in s
@@ -414,6 +424,29 @@ fn market_lines(s: &Snapshot) -> Vec<String> {
             l.quantity,
             l.price,
             l.uuid
+        ));
+    }
+    out
+}
+
+/// `cllt market --tab=N`: the page read, one listing per line with what --buy needs (uuid, price).
+fn market_page_lines(p: &cllt_core::market::MarketPage) -> Vec<String> {
+    let b = book();
+    let mut out = vec![format!(
+        "mục {} {}: trang {}/{}, {} món",
+        p.tab,
+        p.tab_name,
+        p.page,
+        p.pages,
+        p.listings.len()
+    )];
+    for l in &p.listings {
+        let name = b
+            .get(l.item_id)
+            .map_or_else(|| format!("#{}", l.item_id), |d| d.name.clone());
+        out.push(format!(
+            "  {name} ×{} giá {} Xu, người bán {}, uuid {}",
+            l.quantity, l.price, l.seller, l.uuid
         ));
     }
     out
@@ -503,28 +536,46 @@ fn main() {
     let fight = command == Some("fight") || quest;
     let smith = command == Some("smith");
     let market = command == Some("market");
-    let market_task = match (slot("sell"), arg("price"), arg("withdraw")) {
-        (Some(slot), Some(price), None) => match price.replace('.', "").parse::<i64>() {
-            Ok(price) => Some(MarketTask::Sell {
-                slot,
-                price,
-                uuid: None,
-            }),
-            Err(_) => {
-                eprintln!("--price: một số Xu, như --price=50000");
-                std::process::exit(2);
-            }
-        },
-        (None, None, Some(uuid)) => Some(MarketTask::Withdraw(uuid)),
-        (None, None, None) => None,
+    let market_price = arg("price").map(|p| match p.replace('.', "").parse::<i64>() {
+        Ok(price) => price,
+        Err(_) => {
+            eprintln!("--price: một số Xu, như --price=50000");
+            std::process::exit(2);
+        }
+    });
+    // --tab (0–8) and --page: the page of a tab read with Đang bán, where --buy finds its listing.
+    let market_tab: Option<i32> = arg("tab").and_then(|v| v.parse().ok());
+    let market_page: i32 = arg("page").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let market_task = match (
+        slot("sell"),
+        market_price,
+        arg("withdraw"),
+        arg("buy"),
+        arg("extend"),
+    ) {
+        (Some(slot), Some(price), None, None, None) => Some(MarketTask::Sell {
+            slot,
+            price,
+            uuid: None,
+        }),
+        (None, None, Some(uuid), None, None) => Some(MarketTask::Withdraw(uuid)),
+        (None, Some(price), None, Some(uuid), None) if market_tab.is_some() => {
+            Some(MarketTask::Buy {
+                uuid,
+                price: price as i32,
+            })
+        }
+        (None, None, None, None, Some(uuid)) => Some(MarketTask::Extend(uuid)),
+        (None, None, None, None, None) => None,
         _ if market => {
-            eprintln!("cllt market: --sell=SLOT với --price=N, hoặc --withdraw=UUID");
+            eprintln!("cllt market: --sell=SLOT --price=N, --withdraw=UUID, --extend=UUID, hoặc --tab=N --buy=UUID --price=N");
             std::process::exit(2);
         }
         _ => None,
     };
     // `cllt market`: Đang bán is being read (after the login, or after the task), then the lines are printed.
     let mut market_reading = false;
+    let mut market_page_asked = false;
     let mut market_done: Option<Instant> = None;
     let flag = |f: &str| args.iter().any(|a| a == f);
     let smith_task = match smith_task(&arg, flag("--careful"), flag("--worn")) {
@@ -789,6 +840,10 @@ fn main() {
                         "Chưa đăng bán",
                         "Xong thu hồi",
                         "Chưa thu hồi",
+                        "Xong mua",
+                        "Chưa mua",
+                        "Xong gia hạn",
+                        "Chưa gia hạn",
                         "Chưa mở Chợ trời",
                         "Chợ trời không trả lời",
                     ]
@@ -807,14 +862,34 @@ fn main() {
                 }
             }
             Event::Snapshot(s) => {
-                // `cllt market`: the tabs and Đang bán have come; print them, then the task (with --confirm) or log out.
+                // `cllt market`: the tabs and Đang bán have come; with --tab its page is read next. Print them, then the
+                // task (with --confirm) or log out.
+                if let Some(tab) = market_tab.filter(|_| market_reading && !market_page_asked) {
+                    if s.market.tabs.is_some()
+                        && s.market.mine.is_some()
+                        && s.market.doing.is_none()
+                    {
+                        market_page_asked = true;
+                        manager.send(
+                            id,
+                            Command::Market(MarketTask::Page {
+                                tab,
+                                page: market_page,
+                            }),
+                        );
+                    }
+                }
                 if market_reading
                     && s.market.tabs.is_some()
                     && s.market.mine.is_some()
                     && s.market.doing.is_none()
+                    && market_tab.is_some() == s.market.page.is_some()
                 {
                     market_reading = false;
                     market_lines(&s).iter().for_each(|l| println!("{l}"));
+                    if let Some(p) = &s.market.page {
+                        market_page_lines(p).iter().for_each(|l| println!("{l}"));
+                    }
                     match &market_task {
                         Some(t) if confirm => {
                             manager.send(id, Command::Market(t.clone()));
