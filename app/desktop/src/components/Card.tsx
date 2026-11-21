@@ -10,6 +10,8 @@ interface Props {
   subtitle?: ReactNode;
   /** Right side of the header. */
   aside?: ReactNode;
+  /** Right after the title, on its line: a "?" of the card. */
+  titleAside?: ReactNode;
   /** On the frame; its colour is var(--frame), the line colour unless a view sets it. */
   className?: string;
   /** On the body under the header, a column by default. */
@@ -18,7 +20,7 @@ interface Props {
 }
 
 /** Notched surface with a header (icon tile, title, subtitle, aside) and a body that fills the rest. */
-export function Card({ title, icon, tone = "var(--primary)", subtitle, aside, className, bodyClassName, children }: Props) {
+export function Card({ title, icon, tone = "var(--primary)", subtitle, aside, titleAside, className, bodyClassName, children }: Props) {
   return (
     <section
       className={cn(
@@ -36,7 +38,14 @@ export function Card({ title, icon, tone = "var(--primary)", subtitle, aside, cl
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className="font-display font-extrabold text-12 leading-[1.2] tracking-[0.06em] uppercase text-fg">{title}</h2>
+          {titleAside ? (
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-display font-extrabold text-12 leading-[1.2] tracking-[0.06em] uppercase text-fg">{title}</h2>
+              {titleAside}
+            </div>
+          ) : (
+            <h2 className="font-display font-extrabold text-12 leading-[1.2] tracking-[0.06em] uppercase text-fg">{title}</h2>
+          )}
           {subtitle && <p className="mt-0.5 mb-0 text-11 text-fg-3 truncate">{subtitle}</p>}
         </div>
         {aside}

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
+import { Popover } from "@/components/Popover";
 import type { Character } from "@/api/types";
 
 /** Level tag colour against the own level: stronger players red, the same gold, weaker green. */
@@ -49,8 +49,7 @@ export function NearbyButton({ character: c }: { character: Character }) {
   );
 }
 
-/** The list of Xung quanh, drawn on the body (as Menu) so no clipped frame hides it, under its button and kept on
- * screen. */
+/** The list of Xung quanh in a Popover under its button. */
 function NearbyPanel({
   character: c,
   anchor,
@@ -60,47 +59,9 @@ function NearbyPanel({
   anchor: React.RefObject<HTMLSpanElement | null>;
   onClose: (refocus: boolean) => void;
 }) {
-  const panel = useRef<HTMLDivElement>(null);
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  useLayoutEffect(() => {
-    const a = anchor.current?.getBoundingClientRect();
-    const el = panel.current;
-    if (!a || !el) return;
-    const { width, height } = el.getBoundingClientRect();
-    setAt({
-      left: Math.max(4, Math.min(a.left, innerWidth - width - 4)),
-      top: a.bottom + height + 6 <= innerHeight ? a.bottom + 4 : Math.max(4, a.top - height - 4),
-    });
-  }, [anchor, c.players.length]);
-  useEffect(() => {
-    // The button toggles by itself: a press on it is not "elsewhere".
-    const away = (e: Event) =>
-      panel.current?.contains(e.target as Node) || anchor.current?.contains(e.target as Node) || onClose(false);
-    const close = () => onClose(false);
-    const keys = (e: KeyboardEvent) => e.key === "Escape" && onClose(true);
-    document.addEventListener("pointerdown", away, true);
-    // A wheel turn outside (the page scrolls away from the button) closes it too, as Menu; inside, the list scrolls.
-    document.addEventListener("wheel", away, { capture: true, passive: true });
-    document.addEventListener("keydown", keys);
-    window.addEventListener("resize", close);
-    window.addEventListener("blur", close);
-    return () => {
-      document.removeEventListener("pointerdown", away, true);
-      document.removeEventListener("wheel", away, true);
-      document.removeEventListener("keydown", keys);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("blur", close);
-    };
-  }, [anchor, onClose]);
   const players = c.players;
-  return createPortal(
-    <div
-      ref={panel}
-      role="dialog"
-      aria-label="Xung quanh"
-      className="fixed z-50 w-[260px] max-h-[min(380px,70vh)] flex flex-col gap-2 p-2.5 bg-card border-2 border-line-strong notch-sm bevel-sm"
-      style={at ?? { left: -9999, top: 0 }}
-    >
+  return (
+    <Popover anchor={anchor} label="Xung quanh" onClose={onClose} className="w-[260px] max-h-[min(380px,70vh)]">
       <header className="flex items-center gap-2">
         <span className="grid place-items-center size-[22px] bg-ink text-points">
           <Icon name="users" size={13} />
@@ -119,9 +80,7 @@ function NearbyPanel({
         </span>
       </header>
       {!c.playersKnown && (
-        <p className="m-0 text-fg-3 text-12">
-          Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.
-        </p>
+        <p className="m-0 text-fg-3 text-12">Không đọc được danh sách người chơi của khu (s2c/1263); dưới đây chỉ có người vào sau.</p>
       )}
       {c.playersKnown && players.length === 0 && <p className="m-0 text-fg-3 text-12">Chỉ có bạn ở khu này.</p>}
       {players.length > 0 && (
@@ -135,7 +94,6 @@ function NearbyPanel({
           ))}
         </ul>
       )}
-    </div>,
-    document.body,
+    </Popover>
   );
 }
