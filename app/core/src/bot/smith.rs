@@ -475,8 +475,8 @@ impl Bot {
                     ..
                 } => match self.gear_record(*slot) {
                     None => Some(format!("không mặc món nào ở ô trang bị {slot}")),
-                    Some(i) if book().get(i.item_id).is_none_or(|d| d.kind > 4) => {
-                        Some("chỉ Nón, Áo, Vũ khí, Nhẫn và Cánh nâng cấp được".into())
+                    Some(i) if book().get(i.item_id).is_none_or(|d| !npc::upgradable(d.kind)) => {
+                        Some(format!("chỉ {} nâng cấp được", npc::UPGRADABLE_NAMES))
                     }
                     Some(_)
                         if self
@@ -502,8 +502,8 @@ impl Bot {
                 },
                 SmithTask::Upgrade { slot, .. } | SmithTask::Separate { slot } => match item(*slot) {
                     None => Some(format!("không có món nào ở ô túi {}", *slot as u32 + 1)),
-                    Some(i) if book().get(i.item_id).is_none_or(|d| d.kind > 4) => {
-                        Some("chỉ Nón, Áo, Vũ khí, Nhẫn và Cánh nâng cấp được".into())
+                    Some(i) if book().get(i.item_id).is_none_or(|d| !npc::upgradable(d.kind)) => {
+                        Some(format!("chỉ {} nâng cấp được", npc::UPGRADABLE_NAMES))
                     }
                     Some(i) if matches!(task, SmithTask::Separate { .. }) && i.field0 < 1 => {
                         Some("chỉ tách đá được món đã nâng cấp".into())

@@ -29,5 +29,6 @@ export const TRANSMUTE_ITEMS = [
   { id: 617, upTo: 13 },
   { id: 618, upTo: 16 },
 ];
-/** The gear Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh. */
-export const isGear = (i: Item) => i.kind != null && i.kind <= 4;
+/** The gear Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh (0–4), and Giày, Dây chuyền (8, 9) of the game 1.1.0
+ * (npc::upgradable). */
+export const isGear = (i: Item) => i.kind != null && (i.kind <= 4 || i.kind === 8 || i.kind === 9);

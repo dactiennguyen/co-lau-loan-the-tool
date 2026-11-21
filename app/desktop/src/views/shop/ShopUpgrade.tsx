@@ -98,7 +98,7 @@ export function ShopUpgrade({ account, why, ask, track }: ShopContext) {
         </Hint>
       </div>
       {gear.length === 0 ? (
-        <p className={SHOP.note}>Không có Nón, Áo, Vũ khí, Nhẫn hay Cánh nào, trong túi hay đang mặc.</p>
+        <p className={SHOP.note}>Không có Nón, Áo, Vũ khí, Nhẫn, Cánh, Giày hay Dây chuyền nào, trong túi hay đang mặc.</p>
       ) : (
         <div className={SHOP.list} role="radiogroup" aria-label="Món nâng cấp">
           {gear.map((i) => (

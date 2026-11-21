@@ -327,8 +327,8 @@ export function charmFor<T extends { itemId: number }>(bag: T[], level: number) 
 }
 /** Trần cường hoá of an item from its it1 type and wear level: wings (type 4) go to +16 whatever their level. */
 export const itemCap = (def: { type: number; level: number }) => (def.type === 4 ? 16 : upgradeCap(def.level));
-/** Gear that Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh (it1 types 0–4). */
-export const isGear = (def: { type: number } | undefined) => !!def && def.type >= 0 && def.type <= 4;
+/** Gear that Pháp sư upgrades: Nón, Áo, Vũ khí, Nhẫn, Cánh (it1 types 0–4), Giày and Dây chuyền (8, 9) of the game 1.1.0. */
+export const isGear = (def: { type: number } | undefined) => !!def && ((def.type >= 0 && def.type <= 4) || def.type === 8 || def.type === 9);
 
 /** Chế tạo trang bị: Pháp sư → 3 Chế tạo → 1 Chế tạo trang bị → the kind (0 Nón, 1 Áo, 2 Vũ khí, 3 Nhẫn), whose s2c/57
  * gives the recipes; a tier line opens the window s2c/99 "abcd1001". */

@@ -197,7 +197,10 @@ fn stones_and_gear(s: &Snapshot) -> Vec<String> {
         let level = cllt_core::npc::stone_level(i.item_id);
         if level > 0 {
             counts[level as usize][(i.field1 == 0) as usize] += i.quantity.max(1);
-        } else if b.get(i.item_id).is_some_and(|d| d.kind <= 4) {
+        } else if b
+            .get(i.item_id)
+            .is_some_and(|d| cllt_core::npc::upgradable(d.kind))
+        {
             let name = b
                 .get(i.item_id)
                 .map_or_else(|| format!("#{}", i.item_id), |d| d.name.clone());
@@ -209,7 +212,10 @@ fn stones_and_gear(s: &Snapshot) -> Vec<String> {
         .gear
         .iter()
         .flatten()
-        .filter(|i| b.get(i.item_id).is_some_and(|d| d.kind <= 4))
+        .filter(|i| {
+            b.get(i.item_id)
+                .is_some_and(|d| cllt_core::npc::upgradable(d.kind))
+        })
         .map(|i| {
             let name = b
                 .get(i.item_id)

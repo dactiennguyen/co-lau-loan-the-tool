@@ -783,6 +783,14 @@ pub fn charm_for(bag: &[BagItem], level: i32) -> Option<BagItem> {
         .filter(|(_, up_to)| *up_to > level)
         .find_map(|(id, _)| bag.iter().find(|i| i.item_id == *id).copied())
 }
+/// Gear Pháp sư upgrades, by it1 type: Nón, Áo, Vũ khí, Nhẫn, Cánh (0–4), and Giày, Dây chuyền (8, 9) of the game
+/// 1.1.0. Not Huyết Châu or thú cưng (5) nor Danh hiệu (7).
+pub fn upgradable(kind: u8) -> bool {
+    matches!(kind, 0..=4 | 8 | 9)
+}
+/// The names of the gear upgradable, for a refusal.
+pub const UPGRADABLE_NAMES: &str = "Nón, Áo, Vũ khí, Nhẫn, Cánh, Giày và Dây chuyền";
+
 /// Trần cường hoá of an item from its it1 type and wear level: wings (type 4) go to +16 whatever their level.
 pub fn item_cap(kind: u8, wear_level: i32) -> i32 {
     match kind {

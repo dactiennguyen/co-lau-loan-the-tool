@@ -774,6 +774,40 @@ fn nang_cap_puts_the_cheapest_stones_and_opens_the_window_again_without_a_stone_
 }
 
 #[test]
+fn nang_cap_takes_giay_and_day_chuyen_of_the_game_110_but_not_a_title() {
+    // Giày Hào Kiệt (type 8), Dây Chuyền Trơn (type 9), a title (type 7) and a Đá cấp 3.
+    let bag = [
+        (15, 670, 0, 1),
+        (16, 700, 0, 1),
+        (17, 427, 0, 1),
+        (29, 413, 0, 1),
+    ];
+    let up = |slot: u8| SmithTask::Upgrade {
+        slot,
+        careful: false,
+        rate: 100,
+        to_level: 4,
+        unlocked: true,
+        quote: true,
+        worn: false,
+        charm: true,
+        stones: vec![],
+    };
+    for slot in [15, 16] {
+        let (mut bot, mut out, now) = symap(&bag);
+        bot.smith(up(slot), now, &mut out);
+        assert_eq!(sent(&out, 13), [PHAP_SU], "slot {slot}: {out:?}");
+    }
+    let (mut bot, mut out, now) = symap(&bag);
+    bot.smith(up(17), now, &mut out);
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        out.iter().any(|o| matches!(o, Out::Log(_, t) if t.ends_with("chỉ Nón, Áo, Vũ khí, Nhẫn, Cánh, Giày và Dây chuyền nâng cấp được"))),
+        "{out:?}"
+    );
+}
+
+#[test]
 fn nang_cap_with_stones_picked_puts_exactly_those_and_presses_once() {
     // Nhẫn Trơn +0, two Đá cấp 1 and a locked Đá cấp 4 the player keeps.
     let (mut bot, mut out, now) = symap(&[
