@@ -67,8 +67,10 @@ export function AccountPage({ account }: { account: Account }) {
   };
   const tabs = useId();
   const targets = c?.targets ?? [];
-  // The chosen target, else the first one offered (bosses first, then the strongest).
-  const target = targets.some((t) => t.name === choice.target) ? choice.target : (targets[0]?.name ?? "");
+  // The chosen target, else the one Gợi ý quái says to farm, else the strongest mob, else the first (a boss).
+  const target = targets.some((t) => t.name === choice.target)
+    ? choice.target
+    : (targets.find((t) => t.farm?.best) ?? targets.find((t) => !t.boss) ?? targets[0])?.name ?? "";
   // As tall as the window, so the bottom cards take what is left (and scroll inside); below 800 px the page scrolls.
   // Narrow windows (up to 1120 px): the page grows with its cards and scrolls.
   return (

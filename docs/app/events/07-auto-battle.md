@@ -28,6 +28,7 @@ Mọi luật bàn cờ trong file này đã kiểm bằng cách replay 52 bướ
 | Bot có tự dùng kỹ năng, hồi máu, bình không? | **Có** (v3). Mỗi lượt bot so nước đổi chỗ, từng kỹ năng đã học đủ nội lực, và bình nếu được phép, tính hết ra HP. Hiệu ứng đọc từ mô tả kỹ năng trong `s2c/30` (cả 540 mô tả). Nội lực tiêu đi bị trừ đúng giá trị của nó, nên kỹ năng chỉ được dùng khi lượt này có lợi hơn để dành. Trên mô phỏng v3 thắng thêm 1,1–1,4 trận mỗi giờ so với v2. Chạy thật thắng 13/13 trận. | [Chọn hành động](#chọn-hành-động) [Mô phỏng; Đo A2] |
 | App có tự uống bình máu, bình mana không? | **Có, khi bật** Dùng bình máu hay Dùng bình mana ở Cài đặt đánh (mặc định tắt). Mặc định mỗi trận tối đa 1 bình máu và 2 bình mana, luôn giữ lại 30 bình mỗi loại trong túi, không tự mua. Bình máu chỉ uống khi sắp chết (khoảng 15–20% máu). Bình mana uống khi kỹ năng cần nội lực, gần như trận nào cũng đủ 2 bình: thắng thêm 40–70% số trận mỗi giờ. | [Bình máu và mana](#bình-máu-và-mana) [Mô phỏng] |
 | Nên cộng điểm tiềm năng vào đâu? | Tuỳ hệ. Theo mô phỏng với công thức F2 (01/11): manina (Hỏa) nên cộng Nội Lực, vì nội lực đang nạp quá chậm; Ttuananh (Thủy) chia đôi Nội Lực và Thể Lực; wangpt (Lôi) giữ Thân Pháp. | [Cộng điểm theo chỉ số](#cộng-điểm-f2) [Mô phỏng] |
+| Nên đánh quái nào? | Con nhiều EXP mỗi giờ nhất mà thua dưới 30%. Tab Đánh quái của app đánh dấu nó **Nên farm** và đánh dấu **Khó** con thua từ 30%, theo trận gần đây của nick hoặc ước tính theo chỉ số hai bên (lệch 4,2 điểm % thua). Quái Thủy có Tấn công gấp 1,5–2,5 lần quái cùng cấp nên đánh đau hơn với mọi hệ; không có luật khắc hệ nào đo được. | [Gợi ý quái](#gợi-ý-quái) [Đo, 12.657 trận] |
 | Nên cộng điểm kỹ năng nào? | Kỹ năng gốc (Băng Tiễn, Hỏa Cầu) trước: nó cho nhiều sát thương nhất trên mỗi điểm nội lực. Tiheo2 nâng Băng Tiễn lên cấp 4 thì thắng thêm khoảng 13% trận mỗi giờ với quái khó. Hồi 11–12% máu gần như không được dùng. | [Kỹ năng và điểm kỹ năng](#chọn-hành-động) [Mô phỏng] |
 
 ## Online hay offline
@@ -592,6 +593,49 @@ Cài đặt đánh có dòng **Dùng bình trong trận**. Bấm ▾ để mở 
 - **Bình mana**: giá `0,3 × HP tối đa` ở cấp thấp tốt ngang `0,17` (Tiheo2 thắng 68,5/giờ, thua 16,8/giờ), nhưng ở ×20 gần như không uống (0,24–0,32 bình mỗi trận). `0,17` uống đều ở mọi cấp nên được chọn.
 - **Chi phí**: 2 bình mana mỗi trận là 130–250 bình mỗi giờ, khoảng 15 000–30 000 Xu khóa mỗi giờ (120 mỗi bình). Có 200 bình và giữ lại 30 thì bot dùng được khoảng 1 giờ rồi thôi.
 - **Chưa chạy thật.** App chưa đánh trận nào với hai cài đặt này. [Mô phỏng]
+
+<a id="gợi-ý-quái"></a>
+
+### Gợi ý quái (21/11)
+
+Dữ liệu: 12.657 trận của 12 nick, cấp 3–89, 02/11–21/11 (bảng `battle_data` của `cllt.db`), mọi trận phát lại khớp gói. Script ở scratchpad `sim/` (`statfit.py`, `farmfit.py`), chỉ có trên máy. [Đo]
+
+**Chỉ số của quái.** Công thức F2 ([W theo chỉ số](#công-thức-theo-chỉ-số)) khớp với mọi đòn 3 kiếm không gấp đôi: đoán đòn của mình lệch trung vị 0,4% (667 nhóm), đòn của quái lệch 1,9% (575 nhóm). Mỗi quái có Tấn công và P.Thủ riêng, ở `data/mob-stats.json`. Ví dụ: [Đo]
+
+| Quái | Cấp | Hệ | HP | Tấn công | P.Thủ | Tấn công / cấp |
+|---|---:|---|---:|---:|---:|---:|
+| Hỏa Hầu | 29 | Hỏa | 766 | 67 | 19 | 2,3 |
+| Cá Sấu | 31 | Thủy | 577 | 108 | 24 | 3,5 |
+| Heo Lửa | 46 | Hỏa | 1270 | 126 | 31 | 2,7 |
+| Báo Đốm | 51 | Lôi | 1192 | 135 | 59 | 2,7 |
+| Voi Mập | 56 | Thủy | 1270 | 317 | 54 | 5,7 |
+| Báo Đen | 62 | Lôi | 1430 | 181 | 61 | 2,9 |
+| Lam Linh | 79 | Thủy | 1849 | 586 | 64 | 7,4 |
+
+- **"Khắc hệ" là Tấn công của quái Thủy.** So với quái cùng cấp, sát thương của mình gần như không đổi theo hệ (±6%), còn quái Thủy đánh Hỏa đau hơn 22% và đánh Lôi đau hơn 36%; quái Lôi đánh nhẹ hơn khoảng 20%. Quái Thủy có Tấn công trên mỗi cấp gấp 1,5–2,5 lần quái Hỏa và Lôi, và công thức theo chỉ số đã gồm điều đó. Chưa đủ trận Thủy đánh quái Thủy để biết có thêm luật nào. Dữ liệu game không có chữ "khắc". [Đo]
+- **EXP mỗi trận thắng** giảm khoảng 1,4% cho mỗi cấp nhân vật cao hơn quái (Heo Lửa: 892 khi bằng cấp, 692 khi cao hơn 18 cấp). [Đo]
+
+**Ước tính theo chỉ số** (`core/src/farm.rs`):
+
+```text
+W mình  = Tấn công × (1 + 0,0175 × (cấp mình − cấp quái)) × 200 / (200 + P.Thủ quái) / 3
+W quái  = Tấn công quái × (1 + 0,0175 × (cấp quái − cấp mình)) × 200 / (200 + P.Thủ mình) / 3
+x       = ln(HP quái × W quái / (HP tối đa mình × W mình))
+thua    = 1 / (1 + e^−(a_hệ + lệch_quái + 1,581 x))      a: Hỏa −0,951, Lôi −1,785, Thủy −1,483
+giây    = c0_hệ + c1_hệ × HP quái / W mình + 4,5           Hỏa 8,41 + 1,187; Lôi 12,87 + 0,744; Thủy 6,07 + 0,528
+EXP/giờ = (1 − thua) × EXP thắng × max(0,3, 1 − 0,014 × (cấp mình − cấp quái)) × 3600 / giây
+```
+
+- `lệch_quái` (`lossBias` của bảng) là phần chỉ số không nói hết về quái: kỹ năng, cách đi. Từ −0,99 (Hỏa Hầu) tới +1,3 (Lam Linh). Khớp cùng lúc với `a` và hệ số 1,581 trên 411 nhóm (nick, cấp, quái) từ 10 trận. [Đo]
+- **Độ khớp:** đoán % thua của mỗi nick chỉ từ trận của các nick khác lệch trung bình 4,2 điểm % (không có `lệch_quái` thì 5,7). Thời gian một trận lệch 10–19%. EXP mỗi giờ lệch trung vị 11%. Ở 9 trường hợp một nick đánh từ hai loại quái trở lên ở cùng cấp, ước tính chọn đúng con nhiều EXP mỗi giờ nhất 7 lần; 2 lần còn lại con được chọn vẫn cho trung bình 88% EXP của con tốt nhất. [Đo]
+- **Kiểm bằng mô phỏng:** cùng chỉ số đưa vào mô phỏng v3 (bàn cờ thật, quái chọn nước theo mô hình fit từ 131.465 nước của quái) đoán tỉ lệ thắng lệch trung bình 2,5 điểm % trên 111 nhóm. App dùng công thức trên vì nó tính ngay, không cần mô phỏng. [Mô phỏng]
+
+**Trong app.** Tab Đánh quái gắn cho mỗi quái thường EXP mỗi giờ và % thua:
+- Nick đã đánh con đó từ 15 trận trở lên trong 14 ngày, ở cấp hiện tại hay thấp hơn tối đa 3 cấp: chỉ dùng số thật (EXP thật chia cho thời gian trận cộng 4,5 s mỗi trận). Ít hơn thì trộn với ước tính theo tỉ lệ số trận / 15. Chưa đánh thì chỉ dùng ước tính.
+- Con nhiều EXP mỗi giờ nhất trong các con thua dưới 30% là **Nên farm**; con thua từ 30% là **Khó**. Boss và quái thấp hơn quá 20 cấp không có gợi ý.
+- Chưa chọn quái thì tab chọn con Nên farm thay cho boss đầu danh sách.
+
+**Chưa biết:** EXP mất khi thua (bảng `battles` ghi 0 cho trận thua, nên EXP mỗi giờ chưa trừ phần này); quái chưa ai đánh không có trong bảng nên chỉ có gợi ý khi nick đã đánh nó từ 5 trận.
 
 <a id="quái-mạnh-h1"></a>
 

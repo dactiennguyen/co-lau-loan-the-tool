@@ -7,6 +7,7 @@ use cllt_core::bot::{
     GiftRun, Job, LogKind, Mailbox, MapChoice, MarketState, Picked, PointsRead, QuestRun, SmithRun,
     Target, WelfareState,
 };
+use cllt_core::farm::{self, FarmHint};
 use cllt_core::items::{book, Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{self, MailBody, MailHeader, Money};
 use cllt_core::market::{self, MarketListing, MarketPage, MarketTabs};
@@ -196,7 +197,8 @@ pub struct CharacterView<'a> {
     /// False when the last s2c/1263 did not read: `players` is not the whole zone.
     pub players_known: bool,
     pub bosses: &'a [BossTile],
-    pub targets: &'a [Target],
+    /// With Gợi ý quái: EXP an hour, losses, the one to farm (cllt_core::farm).
+    pub targets: Vec<TargetView<'a>>,
     pub job: Option<&'a Job>,
     /// The current main quest (s2c/39) with the step and progress seen since.
     pub quest: Option<&'a Quest>,
@@ -659,6 +661,42 @@ impl BagView {
     }
 }
 
+/// A mob or boss of the list of Tự đánh with its hint (cllt_core::farm::hints).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TargetView<'a> {
+    #[serde(flatten)]
+    pub target: &'a Target,
+    pub farm: Option<FarmHint>,
+}
+
+/// The hints of the account's list of mobs: from its own recent battles (Entry::farm) and its stats.
+fn targets(e: &Entry) -> Vec<TargetView<'_>> {
+    let s = &e.snap;
+    let me = s.combat.map(|c| farm::Me {
+        level: s.level,
+        attack: c[0],
+        defence: c[1],
+        max_hp: s.max_hp,
+        element: s.element,
+    });
+    let list: Vec<farm::Candidate> = s
+        .targets
+        .iter()
+        .map(|t| farm::Candidate {
+            name: &t.name,
+            level: t.level,
+            boss: t.boss,
+            no_exp: t.no_exp,
+        })
+        .collect();
+    farm::hints(me.as_ref(), s.level, &e.farm, &list)
+        .into_iter()
+        .zip(&s.targets)
+        .map(|(farm, target)| TargetView { target, farm })
+        .collect()
+}
+
 fn status(e: &Entry) -> (u8, &'static str) {
     let running = e.snap.job.as_ref().is_some_and(|j| j.done.is_none());
     let questing = e.snap.quest_run.as_ref().is_some_and(|r| r.done.is_none());
@@ -721,7 +759,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             players: &s.players,
             players_known: !s.players_unread,
             bosses: &s.bosses,
-            targets: &s.targets,
+            targets: targets(e),
             job: s.job.as_ref(),
             quest: s.quest.as_ref(),
             quest_run: s.quest_run.as_ref(),

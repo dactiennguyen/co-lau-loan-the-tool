@@ -5,6 +5,7 @@
 use crate::settings::BattleDataSize;
 use cllt_core::battle_record::BattleData;
 use cllt_core::bot::{BattleRecord, BattleResult, BattleSource, LogKind, Picked, PickupRecord};
+use cllt_core::farm::FarmBattle;
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, Row};
 use serde::Serialize;
@@ -581,6 +582,26 @@ impl Store {
         Ok(())
     }
 
+    /// The battles of `username` against mobs (not bosses) won or lost since `since` (ms), oldest first, for Gợi ý quái
+    /// (cllt_core::farm::FarmBook).
+    pub fn farm_battles(&self, username: &str, since: u64) -> rusqlite::Result<Vec<FarmBattle>> {
+        let db = self.db();
+        let mut q = db.prepare(
+            "SELECT level, mob_name, result, exp, ended_at - started_at FROM battles \
+             WHERE username = ? AND ended_at >= ? AND boss = 0 AND result IN ('won', 'lost') ORDER BY id",
+        )?;
+        let rows = q.query_map(params![username, since as i64], |r| {
+            Ok(FarmBattle {
+                level: r.get(0)?,
+                mob: r.get(1)?,
+                won: r.get::<_, String>(2)? == "won",
+                exp: r.get(3)?,
+                seconds: r.get::<_, i64>(4)?.max(0) as f64 / 1000.0,
+            })
+        })?;
+        rows.collect()
+    }
+
     pub fn add_battle_data(&self, username: &str, d: &BattleData) -> rusqlite::Result<()> {
         self.db().execute(
             "INSERT INTO battle_data (username, started_at, uuid, format, header, packets) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -1049,6 +1070,37 @@ mod tests {
         assert_eq!(
             (line.at, line.kind, line.text.as_str()),
             (at, LogKind::Connection, "Đã vào game")
+        );
+    }
+
+    /// Gợi ý quái reads the battles won or lost against mobs since a time, oldest first, with how long each lasted.
+    #[test]
+    fn farm_battles_leave_out_bosses_left_and_old() {
+        let s = Store::memory().unwrap();
+        let day = 1_793_400_000_000;
+        use BattleResult::*;
+        use BattleSource::Fight;
+        s.add_battle("manina2", &record("Cóc Xanh", 13, Won, Fight, day - 10))
+            .unwrap();
+        s.add_battle("manina2", &record("Cóc Xanh", 13, Won, Fight, day))
+            .unwrap();
+        s.add_battle("manina2", &record("Cua Càng", 15, Lost, Fight, day + 1))
+            .unwrap();
+        s.add_battle("manina2", &record("Cua Càng", 15, Left, Fight, day + 2))
+            .unwrap();
+        let mut boss = record("Hào Trưởng phía Bắc", 21, Lost, Fight, day + 3);
+        boss.boss = true;
+        s.add_battle("manina2", &boss).unwrap();
+        s.add_battle("tiheo2", &record("Cóc Xanh", 13, Won, Fight, day))
+            .unwrap();
+        let got = s.farm_battles("manina2", day).unwrap();
+        let brief: Vec<_> = got
+            .iter()
+            .map(|b| (b.mob.as_str(), b.won, b.level, b.seconds))
+            .collect();
+        assert_eq!(
+            brief,
+            [("Cóc Xanh", true, 21, 30.0), ("Cua Càng", false, 21, 30.0)]
         );
     }
 

@@ -220,6 +220,20 @@ export interface Target {
   element: number | null;
   /** More than 20 levels below the character (NO_EXP_GAP of bot/mod.rs): no EXP, Xu or drops. */
   noExp: boolean;
+  /** Gợi ý quái (cllt_core::farm): null for a boss, a mob that gives no EXP, or one with neither stats nor battles. */
+  farm: FarmHint | null;
+}
+
+/** How a mob of the list pays to farm: from the account's own battles with it at about its level, else the stats. */
+export interface FarmHint {
+  expPerHour: number;
+  /** Battles lost, %. */
+  loss: number;
+  /** Own battles counted (15 or more: they alone). */
+  battles: number;
+  source: "battles" | "mixed" | "stats";
+  /** The one to farm: most EXP an hour among those losing under 30%. */
+  best: boolean;
 }
 
 export interface Job {

@@ -8,6 +8,7 @@ use crate::store::Store;
 use crate::view::{self, AccountView, LogLine};
 use cllt_core::accounts::{self, Account};
 use cllt_core::bot::{add_picked, BattleResult, FightSettings, LogKind, Snapshot};
+use cllt_core::farm::{self, FarmBattle, FarmBook};
 use cllt_core::items::book;
 use cllt_core::net::{Command, ConnState, Event, Fault, Manager, Server};
 use cllt_core::npc::{self, BagItem, MergeForecast, MergeOptions};
@@ -50,6 +51,8 @@ pub struct Entry {
     pub battle: BattleState,
     /// The IP its proxy went out with in this session (Event::ProxyIp); None when offline or not asked yet.
     pub proxy_ip: Option<String>,
+    /// Its recent battles against mobs, for Gợi ý quái of the list of mobs (view.rs, cllt_core::farm).
+    pub farm: FarmBook,
 }
 impl Entry {
     pub fn new(id: u64, account: Account) -> Self {
@@ -66,6 +69,7 @@ impl Entry {
             loot_line: None,
             battle: BattleState::default(),
             proxy_ip: None,
+            farm: FarmBook::default(),
         }
     }
     /// Numbers the line, so the UI can tell the lines it has from new ones, and keeps it.
@@ -648,6 +652,13 @@ impl App {
             for l in lines.iter().rev() {
                 e.push(LogLine::stored(l));
             }
+            let since = epoch_ms().saturating_sub(farm::BOOK_DAYS * crate::store::DAY_MS);
+            for b in store
+                .farm_battles(&username(&e.account), since)
+                .unwrap_or_default()
+            {
+                e.farm.push(b);
+            }
         }
     }
 
@@ -1092,6 +1103,16 @@ impl App {
                 if let Some(e) = self.entry_mut(id) {
                     e.loot_next = (record.result == BattleResult::Won).then_some(record.ended_at);
                     e.battle.ended_at = Some(record.ended_at);
+                    if !record.boss && record.result != BattleResult::Left {
+                        e.farm.push(FarmBattle {
+                            level: record.level,
+                            mob: record.mob_name.clone(),
+                            won: record.result == BattleResult::Won,
+                            exp: record.exp,
+                            seconds: record.ended_at.saturating_sub(record.started_at) as f64
+                                / 1000.0,
+                        });
+                    }
                 }
                 let Some(user) = self.username(id) else {
                     return;

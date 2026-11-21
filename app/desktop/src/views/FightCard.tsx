@@ -13,7 +13,7 @@ import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { useStore } from "@/store";
 import { api } from "@/api";
-import type { Account, Character, MapChoice } from "@/api/types";
+import type { Account, Character, FarmHint, MapChoice } from "@/api/types";
 import { OpenBattleWindow } from "@/battle/OpenBattleWindow";
 import { BattlePanel } from "./BattlePanel";
 import { LootRow } from "./LootRow";
@@ -34,6 +34,45 @@ function TargetElement({ element }: { element: number | null }) {
   return (
     <span className={cn("flex-none grid place-items-center", elementText(element))} title={name} role="img" aria-label={name}>
       <Icon name={icon} size={12} />
+    </span>
+  );
+}
+
+/** Losses (%) from which a mob is marked Khó (farm::HARD_LOSS). */
+const HARD_LOSS = 30;
+
+/** EXP an hour, short: 95k, 1.2M. */
+function perHour(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}k`;
+  return String(n);
+}
+
+/** Where the numbers of a hint come from, for its title. */
+function farmSource(f: FarmHint) {
+  if (f.source === "battles") return `theo ${f.battles} trận gần đây của bạn với quái này`;
+  if (f.source === "mixed") return `theo ${f.battles} trận của bạn và chỉ số hai bên (đủ 15 trận thì chỉ dùng số trận thật)`;
+  return "ước tính theo chỉ số của bạn và của quái (chưa đánh quái này)";
+}
+
+/** Gợi ý quái of a row: Nên farm on the one with most EXP an hour among those losing under 30%, Khó with the losses
+ * from 30%, and the EXP an hour of every mob; the title says how it was found. */
+function FarmTag({ farm }: { farm: FarmHint | null }) {
+  if (!farm) return null;
+  const hard = farm.loss >= HARD_LOSS;
+  const title = `Khoảng ${num(farm.expPerHour)} EXP/giờ, thua khoảng ${farm.loss}%: ${farmSource(farm)}.${
+    farm.best ? " Nhiều EXP nhất trong các quái thua dưới 30%." : hard ? " Thua nhiều: nên chọn quái khác." : ""
+  }`;
+  return (
+    <span className="flex-none inline-flex items-center gap-1.5" title={title}>
+      {farm.best && (
+        <span className="inline-flex items-center gap-0.5 h-4 px-1 bg-good text-ink text-10 font-extrabold whitespace-nowrap">
+          <Icon name="star" size={9} />
+          Nên farm
+        </span>
+      )}
+      {hard && <span className="h-4 px-1 inline-flex items-center bg-danger text-ink text-10 font-extrabold whitespace-nowrap">Khó · thua {farm.loss}%</span>}
+      <span className={cn("text-10 px whitespace-nowrap", farm.best ? "text-good" : "text-fg-3")}>{perHour(farm.expPerHour)}/h</span>
     </span>
   );
 }
@@ -126,7 +165,9 @@ interface Props {
  * stop, progress, and the HP of the battle on under Chi tiết. */
 export function FightCard({ account, choice, onChoice, onStart, onStop }: Props) {
   const c = account.character;
-  const targets = c?.targets ?? [];
+  // The one Gợi ý quái says to farm first, so it is seen without scrolling; the rest as the bot lists them (bosses first,
+  // then the strongest).
+  const targets = [...(c?.targets ?? [])].sort((a, b) => Number(!!b.farm?.best) - Number(!!a.farm?.best));
   const job = c?.job;
   const running = !!job && job.done == null;
   // Losses to a boss never end the job (Bot::on_battle_end).
@@ -164,6 +205,8 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
               "bg-bg-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
               // The one chosen keeps its colour under the pointer.
               t.name === choice.target ? "bg-card-2 border-primary" : "hover:bg-card",
+              // The one to farm: a green stripe on its left.
+              t.farm?.best && "shadow-[inset_3px_0_0_var(--good)]",
             )}
             onClick={() => set({ target: t.name })}
             onKeyDown={(e) => e.key === "Enter" && set({ target: t.name })}
@@ -179,6 +222,7 @@ export function FightCard({ account, choice, onChoice, onStart, onStop }: Props)
                 <Badge tone="var(--fg-3)">0 EXP</Badge>
               </span>
             )}
+            <FarmTag farm={t.farm} />
             {t.boss && <Badge tone="var(--accent)">BOSS</Badge>}
             <span className="flex-none min-w-11 text-right text-11 text-fg-2 px">LV {t.level}</span>
           </li>
