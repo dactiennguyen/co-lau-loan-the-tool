@@ -12,6 +12,9 @@
 // Nhập JSON brings old data, not an edit made now: what it adds or replaces counts as from before too (`imported`), so
 // it fills in an account the server lacks but does not undo a later edit of another device.
 //
+// With them goes what the app saw of each character (info_of: name, level, map, money, in the game or not) when it
+// changed, for the Nick page of the server; the proxy goes whole with its account, its username and password too.
+//
 // license-sync.json holds hashes and times, no password. Nothing comes back: the server keeps a copy, the app does not read it.
 use crate::app::Shared;
 use crate::settings::Settings;
@@ -38,6 +41,67 @@ pub struct State {
     /// Hash of the Cài đặt last sent.
     #[serde(default)]
     settings: String,
+    /// By account as `accounts`: hash of the info of its character last sent (info_of, without its time).
+    #[serde(default)]
+    info: BTreeMap<String, String>,
+}
+
+/// What the app saw of the character of an account, for the Nick page of the server ("info" of the sync): its name,
+/// level and share of it done, map and zone, Xu, Xu khoá, Lượng, Vàng, and whether it is in the game; `at` now. None
+/// before the character was ever seen.
+pub fn info_of(
+    account: &Account,
+    s: &cllt_core::bot::Snapshot,
+    online: bool,
+    now: u64,
+) -> Option<Value> {
+    if s.name.is_empty() {
+        return None;
+    }
+    let mut m = Map::new();
+    m.insert("username".into(), json!(account.username));
+    m.insert("serverId".into(), json!(account.server_id));
+    m.insert("at".into(), json!(now));
+    m.insert("name".into(), json!(s.name));
+    m.insert("level".into(), json!(s.level.max(0)));
+    m.insert("online".into(), json!(online));
+    if let (Some(exp), Some([lo, hi])) = (s.exp, s.level_exp) {
+        if hi > lo {
+            let part = (f64::from(exp - lo) / f64::from(hi - lo)).clamp(0.0, 1.0);
+            m.insert("levelPart".into(), json!((part * 1000.0).round() / 1000.0));
+        }
+    }
+    if !s.map_name.is_empty() {
+        m.insert("map".into(), json!(s.map_name));
+        m.insert("zone".into(), json!(s.zone.max(0)));
+    }
+    if let Some(c) = &s.currencies {
+        m.insert("xu".into(), json!(c.xu.max(0)));
+        m.insert("xuKhoa".into(), json!(c.xu_khoa.max(0)));
+        m.insert("luong".into(), json!(c.luong.max(0)));
+    }
+    if let Some(coin) = s.coin {
+        m.insert("coin".into(), json!(coin.max(0)));
+    }
+    Some(Value::Object(m))
+}
+
+/// The infos (info_of) that changed since the last sync, and license-sync.json's hashes once the server took them.
+fn info_plan(state: &State, infos: Vec<(String, Value)>) -> (Vec<Value>, BTreeMap<String, String>) {
+    let mut next = state.info.clone();
+    let mut out = Vec::new();
+    for (k, v) in infos {
+        let mut timeless = v.clone();
+        if let Value::Object(m) = &mut timeless {
+            m.remove("at");
+        }
+        let h = digest(&timeless);
+        if next.get(&k) != Some(&h) {
+            next.insert(k, h);
+            out.push(v);
+        }
+    }
+    (out, next)
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -188,7 +252,8 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &s
         return;
     };
     // An accounts.json that could not be read is not "no account": nothing is sent until it is.
-    let Some((accounts, settings)) = shared.with(|a| {
+    let now = crate::app::epoch_ms();
+    let Some((accounts, settings, infos)) = shared.with(|a| {
         a.load_error.is_none().then(|| {
             (
                 a.entries
@@ -196,6 +261,14 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &s
                     .map(|e| e.account.clone())
                     .collect::<Vec<_>>(),
                 a.settings().clone(),
+                a.entries
+                    .iter()
+                    .filter_map(|e| {
+                        let online = matches!(e.state, cllt_core::net::ConnState::Online);
+                        info_of(&e.account, &e.snap, online, now)
+                            .map(|v| (self::key(&e.account), v))
+                    })
+                    .collect::<Vec<_>>(),
             )
         })
     }) else {
@@ -217,18 +290,20 @@ pub async fn run<R: Runtime>(app: &AppHandle<R>, server: &str, id: &str, key: &s
         &accounts,
         &settings,
         saved.is_none(),
-        crate::app::epoch_ms(),
+        now,
     );
+    let (info, info_next) = info_plan(saved.as_ref().unwrap_or(&State::default()), infos);
     // Thêm, Sửa, Xoá, Nhập nick since the last sync (events.rs): they go even when no account changed.
     let events = crate::events::pending();
-    if plan.accounts.is_empty() && plan.settings.is_none() && events.is_empty() {
+    if plan.accounts.is_empty() && plan.settings.is_none() && events.is_empty() && info.is_empty() {
         return;
     }
-    let body = json!({ "id": id, "key": key, "settings": plan.settings, "accounts": plan.accounts, "events": events });
+    let body = json!({ "id": id, "key": key, "settings": plan.settings, "accounts": plan.accounts, "events": events, "info": info });
     match post(server, &body).await {
         Ok(m) => {
             crate::events::sent(events.len());
             let mut next = plan.next;
+            next.info = info_next;
             if m.refused > 0 {
                 // Which new accounts the key had no room for is not said: every account new to the server is sent
                 // again next time, with the times it has (the server takes those it already has as unchanged).
@@ -357,5 +432,57 @@ mod tests {
         let text = serde_json::to_string(&p.next).unwrap();
         assert!(!text.contains("mat-khau-bi-mat"));
         assert_eq!(serde_json::from_str::<State>(&text).unwrap(), p.next);
+    }
+
+    #[test]
+    fn the_proxy_goes_whole_with_its_username_and_password() {
+        let mut a = account("a", "1");
+        a.proxy = serde_json::from_value(
+            json!({ "kind": "http", "host": "1.2.3.4", "port": 8080, "username": "u", "password": "p" }),
+        )
+        .unwrap();
+        let p = plan(&State::default(), &[a], &Settings::default(), true, 1);
+        let proxy = &p.accounts[0]["account"]["proxy"];
+        assert_eq!(
+            (&proxy["username"], &proxy["password"]),
+            (&json!("u"), &json!("p"))
+        );
+    }
+
+    #[test]
+    fn info_goes_once_seen_and_again_only_when_it_changed() {
+        let a = account("Tiheo1", "1");
+        let mut s = cllt_core::bot::Snapshot::default();
+        assert!(info_of(&a, &s, false, 5).is_none(), "never seen: nothing");
+        s.name = "Tiheo1".into();
+        s.level = 90;
+        s.exp = Some(150);
+        s.level_exp = Some([100, 200]);
+        s.map_name = "Tiên Cốc".into();
+        let v = info_of(&a, &s, true, 5).unwrap();
+        assert_eq!(
+            v,
+            json!({ "username": "Tiheo1", "serverId": a.server_id, "at": 5, "name": "Tiheo1", "level": 90,
+                    "online": true, "levelPart": 0.5, "map": "Tiên Cốc", "zone": 0 })
+        );
+        let (sent, next) = info_plan(&State::default(), vec![(key(&a), v)]);
+        assert_eq!(sent.len(), 1);
+        let state = State {
+            info: next,
+            ..State::default()
+        };
+        // The same character later: nothing to send. A level up: sent.
+        assert!(
+            info_plan(&state, vec![(key(&a), info_of(&a, &s, true, 99).unwrap())])
+                .0
+                .is_empty()
+        );
+        s.level = 91;
+        assert_eq!(
+            info_plan(&state, vec![(key(&a), info_of(&a, &s, true, 99).unwrap())])
+                .0
+                .len(),
+            1
+        );
     }
 }
