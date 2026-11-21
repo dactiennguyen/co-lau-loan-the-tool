@@ -10,6 +10,7 @@ import { Pill } from "@/components/Pill";
 import { cn } from "@/utils/cn";
 import { isConnected } from "@/utils/format";
 import { selectedId, useStore } from "@/store";
+import { ProxyButton } from "./ProxyButton";
 
 interface Props {
   id: number;
@@ -95,15 +96,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
           )}
           {/* The proxy the account connects through, only while it is on (no proxy, or one turned off: nothing); the
               players around are on the Người chơi card of its page. */}
-          {a.proxy?.enabled && (
-            <span
-              className={cn("inline-flex items-center gap-[3px] text-10 font-bold uppercase tracking-[0.04em] text-good whitespace-nowrap", !c && "ml-auto")}
-              title={`Kết nối qua proxy ${a.proxy.label}${a.proxy.ip ? `, ra ngoài bằng IP ${a.proxy.ip}` : ""}`}
-            >
-              <Icon name="shield" size={12} />
-              {a.proxy.kind === "http" ? "HTTP" : "SOCKS5"}
-            </span>
-          )}
+          {a.proxy?.enabled && <ProxyButton proxy={a.proxy} frameClassName={cn(!c && "ml-auto")} />}
         </div>
       </div>
       <Button

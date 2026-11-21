@@ -9,6 +9,7 @@ import { isConnected } from "@/utils/format";
 import type { Account } from "@/api/types";
 import { BoostTag } from "./BoostTag";
 import { NearbyButton } from "./NearbyButton";
+import { ProxyButton } from "./ProxyButton";
 
 /** The block of where the character is (Vị trí), a line on its left; its label, and the line under the map name. */
 const BLOCK = "grid gap-0.5 min-w-0 pl-4 border-l-2 border-l-line";
@@ -44,15 +45,7 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
             {c && <ElementTag element={c.element} iconOnly className="h-5 px-1 border border-current" />}
             {c && <GenderTag gender={c.gender} iconOnly className="h-5 px-1 border border-current" />}
             {c?.boosts.map((b) => <BoostTag key={b.key} boost={b} />)}
-            {a.proxy?.enabled && (
-              <span
-                className="inline-flex items-center gap-[3px] h-5 px-1.5 py-0 border border-good-shade text-10 font-bold tracking-[0.04em] uppercase text-good whitespace-nowrap"
-                title={`Kết nối qua proxy ${a.proxy.label}${a.proxy.ip ? `, ra ngoài bằng IP ${a.proxy.ip}` : ""}`}
-              >
-                {/* The IP the game sees, once asked through the proxy (soon after login); "Proxy" until then. */}
-                <Icon name="shield" size={11} /> {a.proxy.ip ?? "Proxy"}
-              </span>
-            )}
+            {a.proxy?.enabled && <ProxyButton proxy={a.proxy} className="h-5 w-5 border border-good-shade" />}
           </div>
           <div className="flex items-center gap-2 min-w-0 text-11 text-fg-2">
             <Pill status={a.status} text={a.statusText} />
