@@ -28,7 +28,13 @@ export function ShopBuy({ account, why, ask, item }: ShopContext & { item?: numb
   // Mua búa opens on Dược phẩm with the hammer picked.
   const [category, setCategory] = useState<Category>(() => (item != null ? "potion" : ((recalled("shop.category") as Category) ?? "potion")));
   const [money, setMoney] = useState<Money>(() => (recalled("shop.money") === "0" ? 0 : 1));
-  const [gender, setGender] = useState<Gender>(() => (recalled("shop.gender") === "nu" ? "nu" : "nam"));
+  // Nam or Nữ follows the character (flag2 of s2c/9: 0 nam, 1 nữ), as gear of the other one cannot be worn; the chips
+  // still switch it for a while, and the character's comes back when it is known or changes (another account).
+  const own: Gender | null = c.gender === 1 ? "nu" : c.gender === 0 ? "nam" : null;
+  const [gender, setGender] = useState<Gender>(() => own ?? "nam");
+  useEffect(() => {
+    if (own) setGender(own);
+  }, [own]);
   const [tier, setTier] = useState<number | null>(null);
   const cat = CATEGORIES.find((x) => x.key === category) ?? CATEGORIES[4];
   const kind = shopKind(cat.key, money, gender);
@@ -145,7 +151,6 @@ export function ShopBuy({ account, why, ask, item }: ShopContext & { item?: numb
                 on={gender === g}
                 onClick={() => {
                   setGender(g);
-                  remember("shop.gender", g);
                   setPicked(null);
                 }}
               >
@@ -155,6 +160,7 @@ export function ShopBuy({ account, why, ask, item }: ShopContext & { item?: numb
           <Hint label="Xu hay Xu khóa?" id={`${hint}-money`}>
             Mỗi cửa hàng trang bị có hai bản: trả bằng Xu hoặc bằng Xu khóa. Món mua bằng Xu khóa bị khoá giao dịch (không bán,
             không đưa người khác được); mua bằng Xu hay Lượng thì không khoá. Xu khóa còn dùng trả phí nâng cấp và gộp đá.
+            Nam hay Nữ tự chọn theo giới tính nhân vật, vì đồ khác giới tính không mặc được; bấm chip kia để xem đồ còn lại.
           </Hint>
           <span className="w-0.5 h-[18px] bg-line" aria-hidden="true" />
           {TIERS.map((t) => (
