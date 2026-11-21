@@ -507,7 +507,7 @@ export function questComplete(payload: Uint8Array) {
 }
 
 /** s2c/1252: Bảng công trạng of Bạch Hổ Thống Lĩnh (17-bach-ho.md), the answer to c2s/1252 (empty), anywhere. Read as
- * sqrj.a of the game reads it: state (0, 1, 2; 2 outside 9:00–9:59 on 20/11, the HP full), the boss HP and its most,
+ * sqrj.a of the game reads it: state (0, 1, 2; 2 outside 21:00–21:59 on 20/11, the HP full), the boss HP and its most,
  * the players, at most 64 rows (two ints, the name, an int: rank, id, damage are guesses), then the own rank (0: no
  * damage yet) and an int (the own damage, a guess). BH1 (tiheo2, 20/11 15:08): `02 000003e8 000003e8` and zeros. */
 export function bachHoBoard(payload: Uint8Array) {

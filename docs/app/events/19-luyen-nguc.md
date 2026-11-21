@@ -51,7 +51,7 @@ Cấp quái tăng 10 mỗi loại, từ 30 tới 150. Ngưu Ma Thống Lĩnh ch�
 
 ## Hang Bạch Hổ (M24)
 
-- Cổng 1006 ở tầng dưới cùng của Cổng Luyện Ngục. `c2s/13 ("M15", 1006)` → `s2c/13 ("M24", 23, 0, 0xff)` → `s2c/11` "Hang Bạch Hổ" (2169 byte). **Vào được lúc 20/11 ngoài giờ boss (9:00–9:59)**, không có thông báo, không cần nhẫn. [Đo LN1]
+- Cổng 1006 ở tầng dưới cùng của Cổng Luyện Ngục. `c2s/13 ("M15", 1006)` → `s2c/13 ("M24", 23, 0, 0xff)` → `s2c/11` "Hang Bạch Hổ" (2169 byte). **Vào được lúc 20/11 ngoài giờ boss (21:00–21:59)**, không có thông báo, không cần nhẫn. [Đo LN1]
 - Trong hang: không quái (`s2c/43` chỉ có `"M24"` và `03`), một tảng đá mắt đỏ ở giữa, một cổng ra id 23 "Cổng Luyện Ngục" (x 97, y 328). Không có gói boss (`s2c/1252`, `s2c/1177`) lúc ở trong hang. [Đo LN1]
 - Đây là câu hỏi còn mở của [17-bach-ho](17-bach-ho.md) ("Vào hang bằng cách nào?"): đi M15 rồi vào cổng 1006. Bot TS gửi `c2s/13 ("M15", 1006)` khi đang ở M15 là được, như mọi cổng. Chưa biết trong giờ boss thì boss hiện ở đâu và đánh bằng gì. [Đo LN1, phần sau là suy luận]
 

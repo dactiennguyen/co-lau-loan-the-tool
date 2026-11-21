@@ -15,12 +15,12 @@ Nhãn: **[Đo]** (đọc từ code hoặc file), **[Suy luận]**, **[Chưa rõ]
 
 | Câu hỏi | Trả lời |
 |---|---|
-| Là gì, ở đâu, khi nào? | Boss thế giới ở **Hang Bạch Hổ (Luyện Ngục)**, **9:00–9:59 mỗi ngày**, từ cấp 30. [Cẩm nang] |
+| Là gì, ở đâu, khi nào? | Boss thế giới ở **Hang Bạch Hổ (Luyện Ngục)**, **9 giờ tối mỗi ngày (21:00–21:59)**, từ cấp 30. Người dùng xác nhận 21/11 là 9 giờ tối; bản trước ghi 9:00 sáng là đọc nhầm. Giờ kết thúc 21:59 là [Suy luận]. [Cẩm nang; người dùng] |
 | Đánh thế nào? | Mọi người cùng đánh vào **một thanh máu**. Trong trận không có kinh nghiệm, vàng, đồ rơi; thua không bị trừ kinh nghiệm. [Cẩm nang] |
 | Thưởng? | Boss bị tiêu diệt thì **top 5 sát thương** và **người kết liễu** nhận quà qua Hòm thư. Người kết liễu phải gây đủ sát thương tối thiểu mới có thưởng. Hết giờ mà boss chưa chết thì không ai nhận. [Cẩm nang] |
 | Còn gì nữa? | +3 Điểm năng động mỗi ngày khi tham gia, từ cấp 30 ([14-npc](14-npc.md)). Bình Huyết Linh: mặc Băng Kiếm, đánh đủ sát thương thì bình rỗng trong túi thành bình đầy, tối đa 3 bình mỗi lần boss xuất hiện ([15-shops](15-shops.md), [16-upgrade](16-upgrade.md)). [Cẩm nang] |
 | Xem bảng xếp hạng? | Nút bảng xếp hạng cạnh nút chat trong trận. Client gửi `c2s/1252` (rỗng), server trả `s2c/1252` (máu boss, số người, top sát thương, hạng của mình). Xem [Gói](#gói). [Cẩm nang; Đo] |
-| Vào hang bằng cách nào? | **[Chưa rõ]** Luyện Ngục là tên một map Lv.30 trên bản đồ thế giới, có thể là M15 ([08](08-server-map-zone.md)). Bảng 29 có "Luyện Ngục Tầng 1–4" (375, 402, 405, 408), "Đeo để đánh quái tại Luyện Ngục" ([13](13-drops-items.md#bảng-29)). |
+| Vào hang bằng cách nào? | Cổng Luyện Ngục (M15), tầng dưới cùng, cổng 1006 → **Hang Bạch Hổ (M24)**: `c2s/13 ("M15", 1006)`. Vào được ngoài giờ boss, không cần nhẫn ([19-luyen-nguc](19-luyen-nguc.md#hang-bạch-hổ-m24)). [Đo LN1] |
 | Mất phí không? | **[Chưa rõ]** File chạy có câu "Bạn không đủ Xu để tham gia trận đánh này!", chưa biết thuộc trận nào. |
 
 ## Gói
@@ -69,7 +69,7 @@ Bot TS đăng nhập tiheo2 (akaito cấp 13, M1) lúc 15:08 ngày 20/11, gửi 
 trạng thái 2; máu 1000; máu tối đa 1000; 0 người; 0 dòng; hạng 0; 0
 ```
 
-Bố cục khớp đúng hàm đọc tĩnh ở trên, đọc hết byte. Ngoài giờ trạng thái là **2** và máu đầy. Vì máu đầy, 2 nhiều khả năng là "Hang chưa mở", không phải "HP 0% - Đã kết thúc" như đoán trước đây [Suy luận]. Hôm nay Open Beta mở lúc 12:00, nên khung 9:00–9:59 chưa diễn ra lần nào. `bachHoBoard` của bot TS đọc gói này; app Rust chưa đọc. [Đo]
+Bố cục khớp đúng hàm đọc tĩnh ở trên, đọc hết byte. Ngoài giờ trạng thái là **2** và máu đầy. Vì máu đầy, 2 nhiều khả năng là "Hang chưa mở", không phải "HP 0% - Đã kết thúc" như đoán trước đây [Suy luận]. Lúc đo là 15:08, ngoài khung 21:00–21:59. `bachHoBoard` của bot TS đọc gói này; app Rust chưa đọc. [Đo]
 
 Cũng trong BH1: Làng Thanh Khê vẫn đúng 7 NPC như trước (Hương Lão, Vệ Binh, Thành Chủ, Bà Tư Hạnh, Lái Buôn, Pháp sư, Ngọc Nga), không có NPC mới nào dẫn vào hang. [Đo]
 
@@ -90,7 +90,7 @@ Chuỗi UTF-8 trong `libgdx-flashds.so` của APK 1.1.0 [Đo], cách hiểu là 
 
 Chưa tìm được hàm native nào dùng "Tham gia ngay": bản 1.1.0 nạp chuỗi qua `string_pool` riêng của từng lớp, cách tìm xref của 1.0.3 không áp dụng được. [Chưa rõ]
 
-**Vào hang thế nào: chưa biết.** Hiện cũng chưa đo được, vì Bạch Hổ cần cấp 30 mà các nick sau khi bị xoá ở Open Beta đều thấp hơn (20/11: wangpt 24, manina2 và manina3 21, tiheo1 20, tiheo2 13). Cách đo chắc nhất: lúc 9:00–9:59, trên điện thoại, nick cấp 30 trở lên, gắn Frida bắt gói như VG1 ([02-login](02-login.md#vg1)), rồi bấm "Tham gia ngay" (hay tìm nút Bạch Hổ ở Sự kiện). Gói gửi đi lúc đó là gói vào hang.
+**Vào hang:** đã biết (M15, cổng 1006, [19-luyen-nguc](19-luyen-nguc.md#hang-bạch-hổ-m24)). **Đánh boss thế nào: chưa đo.** Các nick nay đã trên cấp 30 (21/11: 80–91). Cách đo chắc nhất: lúc 21:00–21:59, trên điện thoại, nick cấp 30 trở lên, gắn Frida bắt gói như VG1 ([02-login](02-login.md#vg1)), rồi bấm "Tham gia ngay" (hay tìm nút Bạch Hổ ở Sự kiện). Gói gửi đi lúc đó là gói vào hang.
 
 ## Chưa rõ, cần đo thật
 
