@@ -15,8 +15,9 @@ import type { Account, Item, ItemAction } from "@/api/types";
 import { ItemDetail } from "./ItemDetail";
 import { useStore } from "@/store";
 
-/** The body of the card: a column of parts that keep their height, scrolling inside; narrow ones a container. */
-const BODY = "grid [align-content:start] gap-2.5 @container overflow-auto";
+/** The body of the card, a container for narrow cards. The bag grid scrolls by itself (down to one row) so the strips under
+ * it stay in sight; the body scrolls only when even that does not fit. */
+const BODY = "@container overflow-auto";
 /** Said in place of the gear and the bag, or of the bag alone. */
 const NONE = "text-12 text-fg-3";
 /** A column of four gear slots, either side of the character. */
@@ -409,10 +410,14 @@ export function InventoryCard({
         </div>
       }
     >
-      {/* The gear (two columns of slots around the character) beside the bag grid, then the shown item. Narrow cards put the
-          bag under the gear. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 [align-items:start] [@container(max-width:560px)]:grid-cols-[minmax(0,1fr)]">
-        <section className="grid grid-cols-[auto_minmax(96px,auto)_auto] gap-2 [@container(max-width:560px)]:[justify-content:start]" aria-label="Trang bị đang mặc">
+      {/* The gear (two columns of slots around the character) beside the bag. In the bag's column, the grid of slots scrolls
+          by itself and the strips (Đập hết, Xóa nhiều, the shown item) stay at its foot, so a click shows its item without
+          scrolling. Narrow cards put the bag under the gear. */}
+      <div className="flex-1 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-3 min-h-0 [@container(max-width:560px)]:grid-cols-[minmax(0,1fr)] [@container(max-width:560px)]:grid-rows-[auto_minmax(0,1fr)]">
+        <section
+          className="grid grid-cols-[auto_minmax(96px,auto)_auto] gap-2 [align-content:start] min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] [@container(max-width:560px)]:[justify-content:start]"
+          aria-label="Trang bị đang mặc"
+        >
           <div className={COL}>{LEFT.map(gearSlot)}</div>
           <div className="grid justify-items-center content-center gap-1 py-2 px-1.5 bg-bg-2 text-center">
             <Avatar name={account.username} size={44} />
@@ -424,96 +429,98 @@ export function InventoryCard({
           <div className={COL}>{RIGHT.map(gearSlot)}</div>
         </section>
 
-        <section aria-label="Túi đồ">
+        <section className="@container flex flex-col gap-2 min-h-0" aria-label="Túi đồ">
           {bag ? (
-            <div className="grid grid-cols-[repeat(auto-fill,44px)] gap-1">
-              {Array.from({ length: cells }, (_, n) => slot(`bag-${n}`, bySlot.get(n) ?? null, `Ô ${n + 1}`))}
+            <div className="flex-[0_1_auto] min-h-[48px] overflow-auto">
+              <div className="grid grid-cols-[repeat(auto-fill,44px)] gap-1">
+                {Array.from({ length: cells }, (_, n) => slot(`bag-${n}`, bySlot.get(n) ?? null, `Ô ${n + 1}`))}
+              </div>
             </div>
           ) : (
             <p className={NONE}>Server chưa gửi túi đồ (s2c/42).</p>
           )}
+
+          {c.eggs && (
+            <div className="flex-none flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-primary bg-bg-2" role="status" aria-label="Đập hết">
+              <span className="grid gap-0.5 text-12 text-fg">
+                <span>
+                  Đang đập {c.eggs.name}: {c.eggs.done}/{c.eggs.total} quả · tốn {num(c.eggs.spent)} {c.eggs.currency}
+                </span>
+                {c.eggs.got.length > 0 && (
+                  <span className="text-11 text-fg-2">Được {c.eggs.got.map((g) => `${g.name} ×${num(g.count)}`).join(", ")}</span>
+                )}
+              </span>
+              <Button kind="ghost" small icon="stop" onClick={onStop}>
+                Dừng
+              </Button>
+            </div>
+          )}
+
+          {picking && (
+            <div className="flex-none flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-danger bg-bg-2" role="region" aria-label="Xóa nhiều">
+              {askMany ? (
+                <>
+                  <span className="text-12 text-fg">
+                    Vứt bỏ {picked.length} trang bị: {picked.map((i) => i.name).join(", ")}? Mất hẳn, không lấy lại được.
+                  </span>
+                  <div className={BUTTONS}>
+                    <Button kind="danger" small icon="trash" disabled={!!busy || !picked.length} title={busy ?? undefined} onClick={discardMany}>
+                      Vứt {picked.length} món
+                    </Button>
+                    <Button kind="ghost" small onClick={() => setAskMany(false)}>
+                      Huỷ
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid gap-1">
+                    <span className="text-12 text-fg-2">
+                      Bấm vào trang bị trong túi để chọn ({picked.length}/{gearInBag.length} đã chọn). Vật phẩm, đá, bình không chọn được.
+                    </span>
+                    <span className="flex flex-wrap gap-x-3 gap-y-1 text-11 text-fg-2">
+                      {FLAGS.map(({ flag, label }) => (
+                        <span key={flag} className="inline-flex items-center gap-1">
+                          <i className={cn(SWATCH, FLAG_GLOW[flag], "border-(--glow) shadow-[0_0_6px_1px_var(--glow)]")} />
+                          {label} ({flagged(flag).length})
+                        </span>
+                      ))}
+                      <span className="inline-flex items-center gap-1">
+                        <i className={cn(SWATCH, "border-danger bg-danger/25")} />
+                        Đã chọn ({picked.length})
+                      </span>
+                    </span>
+                  </div>
+                  <div className={cn(BUTTONS, "flex-wrap")}>
+                    {FLAGS.map(({ flag, pick }) => {
+                      const items = flagged(flag);
+                      const all = items.length > 0 && items.every((i) => chosen.get(i.slot) === i.uuid);
+                      return (
+                        <Button key={flag} kind="ghost" small disabled={!items.length} onClick={() => pickFlagged(items)}>
+                          {all ? "Bỏ chọn" : "Chọn"} {pick} ({items.length})
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      kind="ghost"
+                      small
+                      disabled={!gearInBag.length}
+                      onClick={() => setChosen(picked.length === gearInBag.length ? new Map() : new Map(gearInBag.map((i) => [i.slot, i.uuid])))}
+                    >
+                      {picked.length === gearInBag.length && gearInBag.length > 0 ? "Bỏ chọn hết" : "Chọn hết trang bị"}
+                    </Button>
+                    <Button kind="danger" small icon="trash" disabled={!picked.length || !!busy} title={busy ?? undefined} onClick={() => setAskMany(true)}>
+                      Xóa {picked.length} món…
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <ItemDetail item={shown} where={where} element={c.element} gender={c.gender} level={c.level} actions={actions} />
         </section>
       </div>
-
-      {c.eggs && (
-        <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-primary bg-bg-2" role="status" aria-label="Đập hết">
-          <span className="grid gap-0.5 text-12 text-fg">
-            <span>
-              Đang đập {c.eggs.name}: {c.eggs.done}/{c.eggs.total} quả · tốn {num(c.eggs.spent)} {c.eggs.currency}
-            </span>
-            {c.eggs.got.length > 0 && (
-              <span className="text-11 text-fg-2">Được {c.eggs.got.map((g) => `${g.name} ×${num(g.count)}`).join(", ")}</span>
-            )}
-          </span>
-          <Button kind="ghost" small icon="stop" onClick={onStop}>
-            Dừng
-          </Button>
-        </div>
-      )}
-
-      {picking && (
-        <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2.5 border-2 border-danger bg-bg-2" role="region" aria-label="Xóa nhiều">
-          {askMany ? (
-            <>
-              <span className="text-12 text-fg">
-                Vứt bỏ {picked.length} trang bị: {picked.map((i) => i.name).join(", ")}? Mất hẳn, không lấy lại được.
-              </span>
-              <div className={BUTTONS}>
-                <Button kind="danger" small icon="trash" disabled={!!busy || !picked.length} title={busy ?? undefined} onClick={discardMany}>
-                  Vứt {picked.length} món
-                </Button>
-                <Button kind="ghost" small onClick={() => setAskMany(false)}>
-                  Huỷ
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid gap-1">
-                <span className="text-12 text-fg-2">
-                  Bấm vào trang bị trong túi để chọn ({picked.length}/{gearInBag.length} đã chọn). Vật phẩm, đá, bình không chọn được.
-                </span>
-                <span className="flex flex-wrap gap-x-3 gap-y-1 text-11 text-fg-2">
-                  {FLAGS.map(({ flag, label }) => (
-                    <span key={flag} className="inline-flex items-center gap-1">
-                      <i className={cn(SWATCH, FLAG_GLOW[flag], "border-(--glow) shadow-[0_0_6px_1px_var(--glow)]")} />
-                      {label} ({flagged(flag).length})
-                    </span>
-                  ))}
-                  <span className="inline-flex items-center gap-1">
-                    <i className={cn(SWATCH, "border-danger bg-danger/25")} />
-                    Đã chọn ({picked.length})
-                  </span>
-                </span>
-              </div>
-              <div className={cn(BUTTONS, "flex-wrap")}>
-                {FLAGS.map(({ flag, pick }) => {
-                  const items = flagged(flag);
-                  const all = items.length > 0 && items.every((i) => chosen.get(i.slot) === i.uuid);
-                  return (
-                    <Button key={flag} kind="ghost" small disabled={!items.length} onClick={() => pickFlagged(items)}>
-                      {all ? "Bỏ chọn" : "Chọn"} {pick} ({items.length})
-                    </Button>
-                  );
-                })}
-                <Button
-                  kind="ghost"
-                  small
-                  disabled={!gearInBag.length}
-                  onClick={() => setChosen(picked.length === gearInBag.length ? new Map() : new Map(gearInBag.map((i) => [i.slot, i.uuid])))}
-                >
-                  {picked.length === gearInBag.length && gearInBag.length > 0 ? "Bỏ chọn hết" : "Chọn hết trang bị"}
-                </Button>
-                <Button kind="danger" small icon="trash" disabled={!picked.length || !!busy} title={busy ?? undefined} onClick={() => setAskMany(true)}>
-                  Xóa {picked.length} món…
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      <ItemDetail item={shown} where={where} element={c.element} gender={c.gender} level={c.level} actions={actions} />
       {menu && menuItem && (
         <Menu x={menu.x} y={menu.y} label={`Món ${menuItem.name}`} items={menuItems(menu.key, menuItem)} onClose={() => setMenu(null)} />
       )}

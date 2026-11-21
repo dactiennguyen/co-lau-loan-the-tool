@@ -9,9 +9,9 @@ import { GENDER_ICON, GENDER_TEXT, GENDER_WORD, levelsShort, misfit } from "@/ga
 import type { ReactNode } from "react";
 import type { Item } from "@/api/types";
 
-/** The shown item, a strip under the bag: the icon in a well on the left; then its name, element and facts on one line,
+/** The shown item, a strip at the foot of the bag's column: the icon in a well on the left; then its name, element and facts on one line,
  * and the durability (red when worn out), the stats as chips and the description on the next. */
-const STRIP = "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 min-h-[60px] py-1.5 px-2.5 bg-ink";
+const STRIP = "flex-none grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 min-h-[60px] py-1.5 px-2.5 bg-ink";
 /** The line of the name, and the line of the durability, stats and description. */
 const LINE = "flex flex-wrap items-center gap-y-[3px] gap-x-2";
 
@@ -45,7 +45,8 @@ export function ItemDetail({ item, where, element, gender, level, actions }: Pro
     where,
   ].filter(Boolean);
   return (
-    <div className={cn(STRIP, actions ? "grid-cols-[auto_minmax(0,1fr)_auto]" : null)} aria-live="polite">
+    // The buttons at the right end; in a narrow bag column (its container) on a row of their own under the text.
+    <div className={cn(STRIP, actions ? "grid-cols-[auto_minmax(0,1fr)_auto] @max-[440px]:grid-cols-[auto_minmax(0,1fr)]" : null)} aria-live="polite">
       <span className="grid place-items-center w-[46px] h-[46px] bg-bg-2">
         {url ? <img src={url} alt="" className="w-[42px] h-[42px]" /> : <span className="px">#{item.id}</span>}
       </span>
@@ -116,7 +117,7 @@ export function ItemDetail({ item, where, element, gender, level, actions }: Pro
           </div>
         )}
       </div>
-      {actions}
+      {actions && <div className="grid justify-items-end @max-[440px]:col-span-2">{actions}</div>}
     </div>
   );
 }
