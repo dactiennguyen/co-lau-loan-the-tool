@@ -263,6 +263,8 @@ mỗi động tác: u8 id; u16 rộng; u16 cao; u8 a (36 hoặc 0); u8 lặp; u1
               u16 n; n × i16 bước vẽ ở mỗi nhịp (−1: không vẽ)
 ```
 
+**Game 1.1.0 (21/11):** tấm nằm ở `files/dyncache2/offline-a2`, mã hoá bằng khoá asset mới ([13-drops-items](13-drops-items.md#bảng-32)); `npm run mobs -- --adb=…` đọc thư mục này. Vẫn đúng 86 tấm `.fx` như trước, hình quái giống hệt bản 1.0.3. Quái của map chưa có trong atlas (Tiên Cốc) lấy tấm theo `s2c/22` của các trận đã ghi (`--battles`, cả cllt.db của app desktop): Mộc Linh tấm 26, Thanh Xà 28, Hỏa Điểu 30, Báo Hồng 46, Yêu Cáo Chiến Binh 39, Lính Tiên Cốc 66, Tướng quân Lạc Cốc 106. `names.json` giữ các tên đã có, nên chạy lại không có `--battles` cũng không mất. Boss chưa đánh trận nào (Tướng Vũ Kình) vẫn chưa có ảnh. [Đo]
+
 Động tác 0 là quái đứng thở: Gà Điên lặp bước 0, 1, 2, 1, mỗi bước 7 nhịp. Ở Gà Điên, động tác 4 (không lặp) nháy bước 0 với −1, như lúc quái chết; các tấm `1010x0` có tới 8 động tác. Các động tác 1–3 chưa rõ là gì. Ở cả 86 tấm, bước đầu của động tác 0 chỉ có một mảnh, nên ảnh đứng yên là đúng một khung cắt ra.
 
 <a id="tấm-ảnh-của-quái"></a>

@@ -6,7 +6,7 @@ import { battlesIn, battlesInDb, mobIdOf } from '../battle/battle-data.ts';
 import { mobBlock } from '../battle/battle.ts';
 import { loadAtlas, recordSprite, saveAtlas } from '../bot/atlas.ts';
 import { decodeAsset } from '../protocol/items.ts';
-import { mobPictures, mobSheet, spriteSheet, standingParts } from '../protocol/sprite.ts';
+import { mobPictures, mobSheet, sheetNumber, spriteSheet, standingParts } from '../protocol/sprite.ts';
 
 // The mob icons of the app (docs/app/events/06-map-mobs.md#ảnh-quái): data/icons/mobs/names.json, the picture of every
 // mob name of data/maps.json (mobPictures: the sheet s2c/22 named, else the sheet of the mob's type), and
@@ -25,8 +25,11 @@ const atlasPath = arg('atlas') ?? 'data/maps.json', icons = arg('icons') ?? 'dat
 const size = Number(arg('size') ?? 44), serial = arg('adb');
 const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 
-if (has('battles')) await storeSprites(arg('battles')?.split(',') ?? ['captures/battles', 'app/cllt.db']);
-const pictures = mobPictures(JSON.parse(readFileSync(atlasPath, 'utf8')).maps);
+const fought = has('battles') ? await storeSprites(arg('battles')?.split(',') ?? ['captures/battles', 'app/cllt.db']) : {};
+// The atlas first; then the mobs of maps the atlas has not got (Tiên Cốc of the game 1.1.0), by the sheet their battles named,
+// and those names.json already had, so that a run without --battles keeps them.
+const before: Record<string, number> = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')).icons : {};
+const pictures: Record<string, number> = { ...before, ...fought, ...mobPictures(JSON.parse(readFileSync(atlasPath, 'utf8')).maps) };
 const work = mkdtempSync(join(tmpdir(), 'cllt-mobs-'));
 try {
   const from = serial ? pull(serial, work) : arg('from');
@@ -56,13 +59,17 @@ async function storeSprites(sources: string[]) {
   const stored = [...sheets].filter(([name, s]) => s.size === 1 && recordSprite(atlas, name, [...s][0])).map(([name]) => name);
   if (stored.length) saveAtlas(atlasPath, atlas);
   show({ kind: 'summary', event: 'mob_sprites_stored', path: atlasPath, names: sheets.size, stored, twice });
+  // Every name with one sheet, also those on no map of the atlas: their pictures by name.
+  return Object.fromEntries([...sheets].filter(([, s]) => s.size === 1).map(([name, s]) => [name, sheetNumber([...s][0])]));
 }
 
 /** Copies offline-a2/10xxxx.dat and .fx (the sheets 100000–101079, n 0–107) to /data/local/tmp with su, then adb
  * pull, as npm run items: `adb exec-out su -c cat` would turn every 0a into 0d 0a. The game itself is not opened. */
 function pull(serial: string, dir: string) {
-  const tmp = '/data/local/tmp/cllt-mobs', assets = '/data/data/com.lotasoft.colauloanthe/files/dyncache/offline-a2';
+  const tmp = '/data/local/tmp/cllt-mobs', files = '/data/data/com.lotasoft.colauloanthe/files';
   const adb = (...args: string[]) => execFileSync('adb', ['-s', serial, ...args], { encoding: 'utf8' });
+  // The game 1.1.0 keeps its assets in files/dyncache2, 1.0.3 in files/dyncache.
+  const assets = `${files}/${adb('shell', `su -c 'ls ${files}'`).split(/\s+/).includes('dyncache2') ? 'dyncache2' : 'dyncache'}/offline-a2`;
   adb('shell', `su -c 'rm -rf ${tmp} && mkdir -p ${tmp} && cp ${assets}/10[01][0-9][0-9][0-9].* ${tmp}/ && chmod -R 755 ${tmp}'`);
   try { adb('pull', tmp, dir); } finally { adb('shell', `su -c 'rm -rf ${tmp}'`); }
   return join(dir, 'cllt-mobs');
