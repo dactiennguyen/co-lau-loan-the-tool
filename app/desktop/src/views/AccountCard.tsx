@@ -1,4 +1,4 @@
-import { memo, useId, useRef } from "react";
+import { memo, useId, useRef, type ReactNode } from "react";
 import { api } from "@/api";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
@@ -8,9 +8,35 @@ import { ELEMENT_ICON, ELEMENT_NAME, elementText } from "@/components/ElementTag
 import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
 import { cn } from "@/utils/cn";
-import { isConnected } from "@/utils/format";
+import { isConnected, levelProgress, num, pct } from "@/utils/format";
 import { selectedId, useStore } from "@/store";
 import { ProxyButton } from "./ProxyButton";
+
+/** The share of the level from which it is about to go up (the ring and the share cycle their colours). */
+const NEAR = 0.9;
+/** The colours of the ring, clockwise from the top: red, orange, yellow, green, cyan, blue, violet. */
+const RAINBOW = "#ff5f6d, #ffa53b, #ffe14d, #5fe07a, #3fd0ff, #6a7bff, #d46bff";
+const RAINBOW_RING = `conic-gradient(from 0deg, ${RAINBOW}, #ff5f6d)`;
+const RAINBOW_TEXT = `linear-gradient(90deg, ${RAINBOW})`;
+
+/**
+ * EXP of the level as a 3px frame around the avatar: rainbow over the share done, clockwise from the top, the rest dim.
+ * Near the next level the colours cycle. Without a character (`part` null) the avatar shows as it is.
+ */
+function LevelRing({ part, near, children }: { part: number | null; near: boolean; children: ReactNode }) {
+  if (part == null) return children;
+  const deg = Math.round(part * 360);
+  return (
+    <span className="relative flex-none p-[3px] bg-line bevel-sm">
+      <span
+        className={cn("absolute inset-0", near && "animate-hue motion-reduce:animate-none")}
+        style={{ backgroundImage: RAINBOW_RING, mask: `conic-gradient(#000 ${deg}deg, transparent 0)`, WebkitMask: `conic-gradient(#000 ${deg}deg, transparent 0)` }}
+        aria-hidden
+      />
+      <span className="relative flex">{children}</span>
+    </span>
+  );
+}
 
 interface Props {
   id: number;
@@ -37,6 +63,10 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
   const c = a.character;
   const connected = isConnected(a.status);
   const line = a.status === 4 ? a.error : c ? `${c.mapName} · Khu ${c.zone}` : a.label !== a.username ? a.username : a.statusText;
+  const lv = c && levelProgress(c);
+  // From NEAR of the level on, the ring and the share cycle their colours: the level is about to go up.
+  const near = !!lv && lv.part >= NEAR;
+  const expTitle = lv && `EXP ${pct(lv.part)} cấp ${c.level}: còn ${num(lv.left)} EXP lên cấp ${c.level + 1}`;
   return (
     <div
       ref={card}
@@ -52,7 +82,9 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
         onMenu(a.id, e.clientX, e.clientY);
       }}
     >
-      <Avatar name={a.username} status={a.status} />
+      <LevelRing part={lv ? lv.part : null} near={near}>
+        <Avatar name={a.username} status={a.status} />
+      </LevelRing>
       <div className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)] gap-1">
         {/* Login/logout sits in the corner beside the name, so the place and the status row below get the whole width. */}
         <div className="flex items-center gap-1 min-w-0 pr-[26px]">
@@ -63,7 +95,7 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
               "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1 supports-[selector(:has(*))]:focus-visible:outline-none"
             }
             aria-current={active || undefined}
-            aria-describedby={`${id}line ${id}status`}
+            aria-describedby={`${id}line ${id}exp ${id}status`}
             onKeyDown={(e) => {
               if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
                 e.preventDefault();
@@ -82,8 +114,21 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
           )}
           {c && <Badge className="shrink-0">LV {c.level}</Badge>}
         </div>
-        <div id={`${id}line`} className={cn("text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>
-          {line}
+        {/* The place, and at its end the share of the level done (the ring around the avatar draws the same). */}
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <div id={`${id}line`} className={cn("flex-1 min-w-0 text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>
+            {line}
+          </div>
+          {lv && (
+            <span
+              id={`${id}exp`}
+              className={cn("shrink-0 px text-11 bg-clip-text text-transparent", near && "animate-hue motion-reduce:animate-none")}
+              style={{ backgroundImage: RAINBOW_TEXT }}
+              title={expTitle ?? undefined}
+            >
+              {pct(lv.part)}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
           <Pill id={`${id}status`} status={a.status} text={a.statusText} />

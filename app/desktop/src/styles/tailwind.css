@@ -108,6 +108,8 @@
   --animate-toast-in: toast-in var(--slow) var(--step);
   --animate-turn-in: turn-in var(--slow) var(--step);
   --animate-spin: spin 1.2s steps(8) infinite;
+  /* The EXP ring of an account close to its next level (AccountCard): its rainbow turns round its colours. */
+  --animate-hue: hue 2.4s steps(12) infinite;
   /* The battle window (src/battle): a piece that bursts or flashes in --dur, Kiếm lửa burning, a number floating up
      off a side, a banner over the board. */
   --animate-pop: pop var(--dur, 220ms) ease-in forwards;
@@ -120,6 +122,9 @@
   @keyframes blink {
     from { opacity: 1; }
     to { opacity: 0.25; }
+  }
+  @keyframes hue {
+    to { filter: hue-rotate(360deg); }
   }
   /* A tab that needs a look (a full bag): red, then as it is. */
   @keyframes alarm {
