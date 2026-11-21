@@ -29,6 +29,11 @@
 //                                                       and stones; without --confirm only what it would do is printed
 //                                                       --worn: SLOT of --quote, --upgrade is a gear slot; the item is
 //                                                       taken off, upgraded, then worn again
+//   cllt market --account=NAME [--sell=SLOT --price=N | --withdraw=UUID] [--confirm]
+//                                                       Chợ trời (anywhere): print the fee, the items of the bag that can
+//                                                       be listed (not locked) and Đang bán; --sell lists one of bag slot
+//                                                       SLOT at N Xu (the fee is spent), --withdraw takes a listing of
+//                                                       Đang bán back; without --confirm only what it would do is printed
 // Accounts: --accounts=FILE, else accounts.json of app/, else CLLT_USERNAME/CLLT_PASSWORD of the repository .env;
 // --account=NAME also finds the one of .env when the file lacks it, and CLLT_USERNAME/CLLT_PASSWORD of the process
 // environment come first of all.
@@ -36,8 +41,9 @@
 use cllt_core::accounts::{self, Account};
 use cllt_core::atlas::{find_upwards, Atlas};
 use cllt_core::battle_record::BattleData;
-use cllt_core::bot::{ItemAct, SmithTask, Snapshot};
+use cllt_core::bot::{ItemAct, MarketTask, SmithTask, Snapshot};
 use cllt_core::items::book;
+use cllt_core::market::MARKET_MINE_TAB;
 use cllt_core::net::{Command, ConnState, Event, Manager};
 use cllt_core::npc::MergeOptions;
 use cllt_core::skills::skill_tree;
@@ -367,6 +373,52 @@ fn wallet(s: &Snapshot, item_id: i32) -> String {
     }
 }
 
+/// `cllt market`: the fee and rules of s2c/116, the bag items that can be listed (not locked) and Đang bán.
+fn market_lines(s: &Snapshot) -> Vec<String> {
+    let b = book();
+    let name = |id: i32| {
+        b.get(id)
+            .map_or_else(|| format!("#{id}"), |d| d.name.clone())
+    };
+    let mut out = vec![];
+    if let Some(t) = &s.market.tabs {
+        out.push(format!(
+            "Chợ trời: phí đăng bán {} Xu, bán trong {} giờ, giá tối đa {} Xu; Xu đang có {}",
+            t.fee,
+            t.hours,
+            t.max_price,
+            s.currencies.as_ref().map_or(-1, |c| c.xu)
+        ));
+    }
+    out.push("bán được (chưa khoá):".into());
+    for i in s
+        .bag
+        .iter()
+        .flat_map(|b| &b.items)
+        .filter(|i| i.field1 != 0)
+    {
+        out.push(format!(
+            "  ô túi {} (slot {}): {} ×{}",
+            i.slot as u32 + 1,
+            i.slot,
+            name(i.item_id),
+            i.quantity
+        ));
+    }
+    let mine: Vec<_> = s.market.mine.iter().flat_map(|p| &p.listings).collect();
+    out.push(format!("đang bán ({}):", mine.len()));
+    for l in mine {
+        out.push(format!(
+            "  {} ×{} giá {} Xu, uuid {}",
+            name(l.item_id),
+            l.quantity,
+            l.price,
+            l.uuid
+        ));
+    }
+    out
+}
+
 fn gear_and_bag(s: &Snapshot) -> Vec<String> {
     let b = book();
     let name = |id: i32| {
@@ -450,6 +502,30 @@ fn main() {
     let confirm = args.iter().any(|a| a == "--confirm");
     let fight = command == Some("fight") || quest;
     let smith = command == Some("smith");
+    let market = command == Some("market");
+    let market_task = match (slot("sell"), arg("price"), arg("withdraw")) {
+        (Some(slot), Some(price), None) => match price.replace('.', "").parse::<i64>() {
+            Ok(price) => Some(MarketTask::Sell {
+                slot,
+                price,
+                uuid: None,
+            }),
+            Err(_) => {
+                eprintln!("--price: một số Xu, như --price=50000");
+                std::process::exit(2);
+            }
+        },
+        (None, None, Some(uuid)) => Some(MarketTask::Withdraw(uuid)),
+        (None, None, None) => None,
+        _ if market => {
+            eprintln!("cllt market: --sell=SLOT với --price=N, hoặc --withdraw=UUID");
+            std::process::exit(2);
+        }
+        _ => None,
+    };
+    // `cllt market`: Đang bán is being read (after the login, or after the task), then the lines are printed.
+    let mut market_reading = false;
+    let mut market_done: Option<Instant> = None;
     let flag = |f: &str| args.iter().any(|a| a == f);
     let smith_task = match smith_task(&arg, flag("--careful"), flag("--worn")) {
         Ok(t) => t,
@@ -459,23 +535,24 @@ fn main() {
         }
         Err(_) => None,
     };
-    let chosen: Vec<(u64, Account)> = if fight || skill || item || zone || goto || buy || smith {
-        let name = arg("account").unwrap_or_else(|| all[0].username.clone());
-        let env = || find_upwards(".env").and_then(|p| accounts::from_env(&p));
-        all.iter()
-            .find(|a| a.username == name || a.label == name)
-            .cloned()
-            .or_else(|| env().filter(|a| a.username == name))
-            .map(|a| (0, a))
-            .into_iter()
-            .collect()
-    } else {
-        all.iter()
-            .cloned()
-            .enumerate()
-            .map(|(i, a)| (i as u64, a))
-            .collect()
-    };
+    let chosen: Vec<(u64, Account)> =
+        if fight || skill || item || zone || goto || buy || smith || market {
+            let name = arg("account").unwrap_or_else(|| all[0].username.clone());
+            let env = || find_upwards(".env").and_then(|p| accounts::from_env(&p));
+            all.iter()
+                .find(|a| a.username == name || a.label == name)
+                .cloned()
+                .or_else(|| env().filter(|a| a.username == name))
+                .map(|a| (0, a))
+                .into_iter()
+                .collect()
+        } else {
+            all.iter()
+                .cloned()
+                .enumerate()
+                .map(|(i, a)| (i as u64, a))
+                .collect()
+        };
     if chosen.is_empty() {
         eprintln!("Không có tài khoản tên đó");
         std::process::exit(2);
@@ -532,6 +609,12 @@ fn main() {
                 }
                 manager.send(0, Command::Logout);
             }
+            // Xong or Chưa of the market task: a moment later Đang bán has been read again (Bot::market_listed).
+            if market_done.is_some_and(|t| t.elapsed() > Duration::from_secs(2)) {
+                market_done = None;
+                market_lines(&snaps[0]).iter().for_each(|l| println!("{l}"));
+                manager.send(0, Command::Logout);
+            }
             if upgrading.is_some_and(|t| t.elapsed() > Duration::from_secs(10)) {
                 upgrading = None;
                 println!("Server không trả lời lần nâng cấp sau 10 s");
@@ -571,6 +654,16 @@ fn main() {
                                 manager.send(i as u64, Command::Logout);
                             }
                         }
+                    } else if market {
+                        println!("{}", line(&chosen[i].1, &snaps[i]));
+                        market_reading = true;
+                        manager.send(
+                            i as u64,
+                            Command::Market(MarketTask::Open {
+                                tab: MARKET_MINE_TAB,
+                                page: 1,
+                            }),
+                        );
                     } else if goto {
                         println!("{}", line(&chosen[i].1, &snaps[i]));
                         match arg("map") {
@@ -690,6 +783,20 @@ fn main() {
                 if over {
                     moved = Some(Instant::now());
                 }
+                if market
+                    && [
+                        "Xong đăng bán",
+                        "Chưa đăng bán",
+                        "Xong thu hồi",
+                        "Chưa thu hồi",
+                        "Chưa mở Chợ trời",
+                        "Chợ trời không trả lời",
+                    ]
+                    .iter()
+                    .any(|v| text.starts_with(v))
+                {
+                    market_done = Some(Instant::now());
+                }
                 // Bot::item echoes the button ("Mặc Áo Hào Kiệt (ô túi 3)"); the next line is its refusal, the answer
                 // ("Đã mặc …") or a notice of the server.
                 let echo = ["Mặc ", "Cởi ", "Dùng ", "Sửa ", "Vứt ", "Sắp xếp "]
@@ -700,6 +807,27 @@ fn main() {
                 }
             }
             Event::Snapshot(s) => {
+                // `cllt market`: the tabs and Đang bán have come; print them, then the task (with --confirm) or log out.
+                if market_reading
+                    && s.market.tabs.is_some()
+                    && s.market.mine.is_some()
+                    && s.market.doing.is_none()
+                {
+                    market_reading = false;
+                    market_lines(&s).iter().for_each(|l| println!("{l}"));
+                    match &market_task {
+                        Some(t) if confirm => {
+                            manager.send(id, Command::Market(t.clone()));
+                        }
+                        Some(t) => {
+                            println!("Sẽ làm: {t:?}; thêm --confirm để làm (đăng bán tốn phí)");
+                            manager.send(id, Command::Logout);
+                        }
+                        None => {
+                            manager.send(id, Command::Logout);
+                        }
+                    }
+                }
                 let done = if quest {
                     s.quest_run.as_ref().is_some_and(|r| r.done.is_some())
                 } else {

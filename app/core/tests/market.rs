@@ -382,7 +382,7 @@ fn dang_ban_only_an_unlocked_item_at_a_price_in_range_then_dang_ban_is_read_agai
         [
             "Chưa đăng bán: giá phải từ 1.000 tới 100.000.000 Xu",
             "Chưa đăng bán: giá phải từ 1.000 tới 100.000.000 Xu",
-            "Chưa đăng bán: ô túi 41 trống",
+            "Chưa đăng bán: ô túi 42 trống",
         ]
     );
     assert!(sent(&out).is_empty());

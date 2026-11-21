@@ -406,6 +406,8 @@ Chưa đo: món hết hạn về hòm thư. Các hàm dựng khác gần `c2s/11
 
 `npm run market` xem chợ, quét món rẻ nhất, Mua, Đăng bán, Thu hồi bằng đúng các gói trên, mở chợ như nút của thanh công cụ (không qua Ngọc Nga). Không có `--confirm` thì chỉ đọc. Cách chạy, các bước kiểm tra trước khi gửi và TODO: [Chợ trời bằng Node.js](../../integration/nodejs/market.md).
 
+**Đăng bán ở protocol 0.0.7 (21/11, app Rust qua `cllt market`, manina2):** 1 Trứng Gà (ô túi 19) giá 9.000 Xu. Server trả như CT1: Xu 6.500 → 5.500 (phí 1.000), "Rao bán vật phẩm thành công", Trứng Gà 14 → 13, Đang bán đọc lại có món đó (×1, 9.000 Xu, uuid mới). `s2c/112` và Đang bán của 0.0.7 đọc đúng. [Đo]
+
 App Rust làm Mua, Đăng bán (từng cái một), Gia hạn và Thu hồi ở tab Chợ trời của Tiện ích, cũng mở chợ như nút của thanh công cụ và hỏi lại trước mỗi việc tốn tiền hay chuyển đồ; chưa quét món rẻ nhất trên mọi trang ([features](../../integration/rust/features.md#chợ-trời)).
 
 ### Lời mời của người chơi khác

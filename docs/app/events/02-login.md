@@ -355,4 +355,4 @@ Không khác (ngoài bản ghi vật phẩm): `s2c/9` (trừ trang bị), `s2c/3
 
 Chạy thật với mặc định mới (tiheo2, 20/11): bot TS làm nhiệm vụ 4, thắng 4/4 trận, 1.022 gói, đọc hết byte. App Rust (`cllt quest`, 8 phút) thắng 17/17 trận, xong nhiệm vụ 4 và 5, sang nhiệm vụ 6, lên cấp 11, nhặt đồ, tự cộng điểm, không có lỗi đọc gói. [Đo]
 
-**Chưa đo ở `0.0.7`:** Bạch Hổ, thư có vật phẩm (`s2c/1216`; hòm thư đang trống), mua/đăng bán/thu hồi ở Chợ trời (`s2c/112`, `113`, `115`: không có bản ghi vật phẩm), kết quả Pháp sư (`s2c/91`, `93`: tốn tiền), dùng bình trong trận, tab 2–6 của bảng xếp hạng. Nghĩa của `e`, `f`, `field5` và các số mới của `s2c/39` cũng chưa rõ. [Chưa rõ]
+**Chưa đo ở `0.0.7`:** Bạch Hổ, thư có vật phẩm (`s2c/1216`; hòm thư đang trống), mua và thu hồi ở Chợ trời (`s2c/113`, `115`: không có bản ghi vật phẩm; đăng bán `s2c/112` đã đo 21/11, [Ngọc Nga](14-npc.md#ngọc-nga)), kết quả Pháp sư (`s2c/91`, `93`: tốn tiền), dùng bình trong trận, tab 2–6 của bảng xếp hạng. Nghĩa của `e`, `f`, `field5` và các số mới của `s2c/39` cũng chưa rõ. [Chưa rõ]

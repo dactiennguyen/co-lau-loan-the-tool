@@ -196,7 +196,7 @@ impl Bot {
                     .bag
                     .as_ref()
                     .and_then(|b| b.items.iter().find(|i| i.slot == slot))
-                    .ok_or_else(|| format!("ô túi {slot} trống"))?;
+                    .ok_or_else(|| format!("ô túi {} trống", slot as u32 + 1))?;
                 let name = Picked::of(item.item_id, 1).name;
                 if uuid.as_ref().is_some_and(|u| *u != item.uuid) {
                     return Err(format!(
