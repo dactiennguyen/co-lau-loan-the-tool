@@ -23,18 +23,20 @@ test('it1 and it0 layouts: every field in order, and no byte left over', () => {
   assert.deepEqual(parseStatTable(new Writer().i32(2).i32(6).string('# phòng thủ').i32(8).string('#% chí mạng').build()), { 6: '# phòng thủ', 8: '#% chí mạng' });
 });
 
-test('data/items.json: table 29 (14/11), 727 items with id = index, names seen on the phone, 31 stat templates', () => {
+test('data/items.json: table 32 (game 1.1.0, 20/11), 731 items with id = index, names seen on the phone, 31 stat templates', () => {
   const { book } = items;
-  assert.equal(book.version, 29);
-  assert.equal(book.items.length, 727);
+  assert.equal(book.version, 32);
+  assert.equal(book.items.length, 731);
   assert.ok(book.items.every((item, i) => item.id === i));
-  assert.equal(book.items.filter(i => i.name !== RETIRED).length, 323);
+  assert.equal(book.items.filter(i => i.name !== RETIRED).length, 327);
   // Popups and quest rewards on the phone (E1, E2, s2c/35), and the ground-item ids of 13-drops-items.md.
   for (const [id, name] of [[0, 'Hoàn Linh Dược'], [1, 'Kim Đan Dược'], [2, 'Búa Sửa Chữa'], [3, 'Trứng Gà'], [41, 'Xu khóa'], [48, 'Nón Lá'],
     [54, 'Nón Âu Lạc'], [147, 'Áo Hào Kiệt'], [261, 'Rìu Âu Lạc'], [306, 'Nhẫn Trơn'], [412, 'Đá cấp 2'], [415, 'Đá cấp 5']] as const) assert.equal(items.name(id), name);
   assert.equal(Object.keys(book.stats).length, 31);
   // Table 29: Đá cấp stacks (999), Giày (type 8) and Dây Chuyền (type 9) are new gear.
   assert.deepEqual([items.get(411)?.stack, items.name(670), items.get(670)?.type, items.name(700), items.get(700)?.type], [999, 'Giày Hào Kiệt', 8, 'Dây Chuyền Trơn', 9]);
+  // Table 32: item 727 (seen on Chợ trời) is Bùa Tự Động 1 giờ, icon 336.
+  assert.deepEqual([items.name(727), items.get(727)?.icon, items.name(730)], ['Bùa Tự Động 1 giờ', 336, 'Rương Đá Nâng Cấp']);
   assert.equal(items.name(9999), '#9999');
 });
 
@@ -76,9 +78,12 @@ test('offline assets: reverse the first 63 bytes, then AES-128-ECB; the real i0.
 });
 
 test('data/icons holds a WebP icon for every item in use', () => {
+  // i336–338 (Bùa Tự Động 1, 8, 24 giờ of table 32) are on the CDN at revision 137 but the game 1.1.0 changed the asset key
+  // (artifact.md#cơ-chế-cập-nhật), so they are not decoded yet; the app shows the item's number in their place.
+  const undecoded = [336, 337, 338];
   const missing = [...new Set(items.book.items.filter(i => i.name !== RETIRED).map(i => i.icon))]
     .filter(n => { const p = `data/icons/i${n}.webp`; return !existsSync(p) || readFileSync(p).subarray(8, 12).toString() !== 'WEBP'; });
-  assert.deepEqual(missing, []);
+  assert.deepEqual(missing.sort((a, b) => a - b), undecoded);
 });
 
 test('map scanner names the items on the ground of each map (s2c/1184)', () => {

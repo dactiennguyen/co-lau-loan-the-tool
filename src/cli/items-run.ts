@@ -25,7 +25,7 @@ try {
   const items = parseItemTable(readFileSync(join(from, 'it1'))), stats = parseStatTable(readFileSync(join(from, 'it0')));
   const version = readFileSync(join(from, 'itv'))[0];
   const book: ItemBook = {
-    source: `files/dyncache/it1, it0, itv of Cờ Lau Loạn Thế 1.0.3 (${new Date().toISOString().slice(0, 10)}); docs/app/events/13-drops-items.md`,
+    source: `files/dyncache2/it1, it0, itv of Cờ Lau Loạn Thế 1.1.0 (${new Date().toISOString().slice(0, 10)}); docs/app/events/13-drops-items.md`,
     version, types: ITEM_TYPES, elements: ITEM_ELEMENTS, stats, items,
   };
   writeFileSync(out, bookJson(book));
@@ -43,10 +43,11 @@ function bookJson({ items, ...head }: ItemBook) {
 }
 
 /** Copies the tables and the icons to /data/local/tmp with su, then adb pull: `adb exec-out su -c cat` would turn every
- * 0a into 0d 0a. The game itself is not opened. */
+ * 0a into 0d 0a. The game itself is not opened. The game 1.1.0 keeps them in files/dyncache2, 1.0.3 in files/dyncache. */
 function pull(serial: string, dir: string) {
-  const tmp = '/data/local/tmp/cllt-items', cache = '/data/data/com.lotasoft.colauloanthe/files/dyncache';
+  const tmp = '/data/local/tmp/cllt-items', files = '/data/data/com.lotasoft.colauloanthe/files';
   const adb = (...args: string[]) => execFileSync('adb', ['-s', serial, ...args], { encoding: 'utf8' });
+  const cache = `${files}/${adb('shell', `su -c 'ls ${files}'`).split(/\s+/).includes('dyncache2') ? 'dyncache2' : 'dyncache'}`;
   adb('shell', `su -c 'rm -rf ${tmp} && mkdir -p ${tmp}/offline-a2 && cp ${cache}/it0 ${cache}/it1 ${cache}/itv ${tmp}/ && cp ${cache}/offline-a2/i[0-9]*.dat ${cache}/offline-a2/skill[0-9]*.dat ${tmp}/offline-a2/ && chmod -R 755 ${tmp}'`);
   try { adb('pull', tmp, dir); } finally { adb('shell', `su -c 'rm -rf ${tmp}'`); }
   return join(dir, 'cllt-items');

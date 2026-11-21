@@ -348,6 +348,21 @@ Icon xuất ra WebP, mặc định chất lượng 90 với alpha nguyên vẹn:
 
 <a id="mã-chỉ-số"></a>
 
+<a id="bảng-32"></a>
+
+### Bảng 32 (game 1.1.0, 20/11)
+
+Game 1.1.0 ghi bảng vào `files/dyncache2/` (không còn `files/dyncache/`), cùng `offline-a2/` ở revision 137. Bảng `it1` ngày 20/11 10:52 là **phiên bản 32**, **731 món** (327 còn dùng), vẫn 31 mã chỉ số. So với bảng 29 chỉ thêm 4 món ở cuối, không món cũ nào đổi [Đo 21/11, `npm run items -- --from=…`]:
+
+| Mã | Tên | Loại | Icon | Ghi chú |
+|---:|---|---:|---:|---|
+| 727 | Bùa Tự Động 1 giờ | 23 | 336 | "Dùng để cộng 1 giờ tự động đánh quái, cộng dồn không giới hạn. Giờ chỉ trôi khi đang bật tự động." Đã thấy ở Chợ trời (Vật Dụng) |
+| 728 | Bùa Tự Động 8 giờ | 23 | 337 | "Đã ngừng dùng, thay bằng Bùa Tự Động 1 giờ." |
+| 729 | Bùa Tự Động 24 giờ | 23 | 338 | như trên |
+| 730 | Rương Đá Nâng Cấp | 29 | 324 | "Mở ra ngẫu nhiên 1 đá cường hoá 6,7,8" |
+
+Ba icon i336–338 có trên máy và trên CDN (giống nhau từng byte), nhưng chưa giải mã được: lớp `com.e.sqa` của 1.1.0 giữ tên hằng "AES/ECB/PKCS5Padding" mà mọi hàm và khoá đã thành native (`native0.Loader.registerNativesForClass(810, …)`, `Hidden0.special_clinit_810_90`), nên khoá không còn đọc được từ dex. Lấy khoá cần chạy game và bắt `SecretKey` (Frida) lúc game giải mã icon; người dùng chọn chưa mở game (21/11). Trong app ba món này hiện số thay cho hình. [Đo dex; khoá Chưa rõ]
+
 ## Mã chỉ số (`it0`)
 
 File `files/dyncache/it0` (387 byte): `i32 n; n × {i32 mã; string mẫu}`, với `#` là chỗ điền giá trị. Đọc hết 17 mã:

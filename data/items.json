@@ -1,6 +1,6 @@
 {
- "source": "files/dyncache/it1, it0, itv of Cờ Lau Loạn Thế 1.0.3 (2026-11-16); docs/app/events/13-drops-items.md",
- "version": 29,
+ "source": "files/dyncache2/it1, it0, itv of Cờ Lau Loạn Thế 1.1.0 (2026-11-21); docs/app/events/13-drops-items.md",
+ "version": 32,
  "types": {
   "0": "Nón",
   "1": "Áo",
@@ -784,6 +784,10 @@
   {"id":723,"name":"Vô địch Đấu trường","desc":"Danh hiệu dành cho người đạt hạng 1 Đấu trường trong tuần. Hạn 7 ngày.","type":7,"icon":332,"graphic":9288,"elementBits":0,"level":1,"gender":2,"stack":1,"e":0,"durability":0,"g":0},
   {"id":724,"name":"Á quân Đấu trường","desc":"Danh hiệu dành cho người đạt hạng 2 Đấu trường trong tuần. Hạn 7 ngày.","type":7,"icon":333,"graphic":9289,"elementBits":0,"level":1,"gender":2,"stack":1,"e":0,"durability":0,"g":0},
   {"id":725,"name":"Hạng ba Đấu trường","desc":"Danh hiệu dành cho người đạt hạng 3 Đấu trường trong tuần. Hạn 7 ngày.","type":7,"icon":334,"graphic":9290,"elementBits":0,"level":1,"gender":2,"stack":1,"e":0,"durability":0,"g":0},
-  {"id":726,"name":"Võ sĩ Lôi Đài","desc":"Danh hiệu đổi ở Cửa hàng Lôi Đài. Hạn 30 ngày kể từ lúc mua.","type":7,"icon":335,"graphic":9291,"elementBits":0,"level":1,"gender":2,"stack":1,"e":0,"durability":0,"g":0}
+  {"id":726,"name":"Võ sĩ Lôi Đài","desc":"Danh hiệu đổi ở Cửa hàng Lôi Đài. Hạn 30 ngày kể từ lúc mua.","type":7,"icon":335,"graphic":9291,"elementBits":0,"level":1,"gender":2,"stack":1,"e":0,"durability":0,"g":0},
+  {"id":727,"name":"Bùa Tự Động 1 giờ","desc":"Hỗ trợ tự động đánh quái. Dùng để cộng 1 giờ tự động đánh quái, cộng dồn không giới hạn. Giờ chỉ trôi khi đang bật tự động.","type":23,"icon":336,"graphic":-1,"elementBits":0,"level":1,"gender":2,"stack":99,"e":0,"durability":0,"g":-1},
+  {"id":728,"name":"Bùa Tự Động 8 giờ","desc":"Hỗ trợ tự động đánh quái. Đã ngừng dùng, thay bằng Bùa Tự Động 1 giờ.","type":23,"icon":337,"graphic":-1,"elementBits":0,"level":1,"gender":2,"stack":99,"e":0,"durability":0,"g":-1},
+  {"id":729,"name":"Bùa Tự Động 24 giờ","desc":"Hỗ trợ tự động đánh quái. Đã ngừng dùng, thay bằng Bùa Tự Động 1 giờ.","type":23,"icon":338,"graphic":-1,"elementBits":0,"level":1,"gender":2,"stack":99,"e":0,"durability":0,"g":-1},
+  {"id":730,"name":"Rương Đá Nâng Cấp","desc":"Mở ra ngẫu nhiên 1 đá cường hoá 6,7,8","type":29,"icon":324,"graphic":-1,"elementBits":0,"level":0,"gender":2,"stack":99,"e":0,"durability":0,"g":-1}
  ]
 }

@@ -587,7 +587,7 @@ mod tests {
     #[test]
     fn the_built_in_table_names_items_and_writes_stats_as_the_game() {
         let b = book();
-        assert_eq!((b.items.len(), b.version), (727, 29));
+        assert_eq!((b.items.len(), b.version), (731, 32));
         let hat = b.get(54).unwrap();
         assert_eq!(
             (hat.name.as_str(), hat.kind, hat.icon, hat.durability),
