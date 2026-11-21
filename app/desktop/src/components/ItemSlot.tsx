@@ -87,7 +87,7 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, charL
       )}
       aria-label={`${label}: ${item.name}${plus ? ` +${plus}` : ""}${qty}${item.level != null ? `, cấp ${item.level}` : ""}${item.qualityName && item.quality > 0 ? `, ${item.qualityName}` : ""}${
         short ? `, thiếu ${short} cấp` : ""
-      }${broken ? ", hỏng" : ""}${
+      }${broken ? ", hỏng" : ""}${item.locked ? ", khoá giao dịch" : ""}${
         item.gender != null ? `, đồ ${GENDER_WORD[item.gender]}${misfit ? ", không mặc được" : ""}` : ""
       }${picked}`}
       aria-pressed={selected ?? active}
@@ -161,6 +161,15 @@ export function ItemSlot({ item, label, placeholder, active, wear, misfit, charL
           aria-hidden="true"
         >
           <Icon name={ELEMENT_ICON[item.element]} size={9} />
+        </span>
+      )}
+      {/* Trade-locked (bought for Xu khóa, worn, upgraded): a small grey lock top left, beside the element's sign. */}
+      {item.locked && (
+        <span
+          className={cn("absolute top-px grid place-items-center size-[13px] bg-ink text-fg-3", item.element != null && ELEMENT_ICON[item.element] ? "left-[15px]" : "left-px")}
+          aria-hidden="true"
+        >
+          <Icon name="lock" size={9} />
         </span>
       )}
       {item.gender != null && GENDER_ICON[item.gender] && (

@@ -1,4 +1,5 @@
 import { cn } from "@/utils/cn";
+import { QUALITY_TEXT } from "@/game/quality";
 import { Icon } from "@/components/Icon";
 import { ELEMENT_ICON, elementText } from "@/components/ElementTag";
 import { num } from "@/utils/format";
@@ -54,6 +55,17 @@ export function ItemDetail({ item, where, element, gender, level, actions }: Pro
             {item.name}
             {plus > 0 && <span className="text-12 text-primary px"> +{plus}</span>}
           </b>
+          {item.quality > 0 && item.qualityName && (
+            <span className={cn("text-11 font-bold", QUALITY_TEXT[item.quality])}>{item.qualityName}</span>
+          )}
+          {item.locked && (
+            <span
+              className="inline-flex items-center gap-[3px] py-0 px-[5px] border border-line text-10 font-bold text-fg-3"
+              title="Mua bằng Xu khóa, đã mặc hay đã nâng cấp: Chợ trời không nhận bán"
+            >
+              <Icon name="lock" size={10} /> Khoá giao dịch
+            </span>
+          )}
           {item.element != null && item.elementName && (
             <span className={cn("inline-flex items-center gap-[3px] text-11 font-bold", elementText(item.element))}>
               {ELEMENT_ICON[item.element] && <Icon name={ELEMENT_ICON[item.element]} size={11} />} {item.elementName}

@@ -92,6 +92,16 @@ export function BagLegend() {
               Góc dưới trái: chỉ <b className={GENDER_TEXT[0]}>nam</b> hay chỉ <b className={GENDER_TEXT[1]}>nữ</b> mặc được; tô đỏ khi khác
               giới nhân vật. Không có dấu thì ai cũng mặc được.
             </Row>
+            <Row
+              mark={
+                <span className={cn(ICON_MARK, "text-fg-3")}>
+                  <Icon name="lock" size={11} />
+                </span>
+              }
+            >
+              Ổ khoá xám (góc trên trái, cạnh hệ): <b className="text-fg">khoá giao dịch</b>, vì mua bằng Xu khóa, đã mặc hay đã nâng
+              cấp: Chợ trời không nhận bán. Không có ổ khoá thì đăng bán được.
+            </Row>
             <Row mark={<b className={cn(MARK, "text-fg")}>12</b>}>
               Góc dưới phải của vật phẩm (không phải trang bị): <b className="text-fg">số lượng</b> trong chồng.
             </Row>

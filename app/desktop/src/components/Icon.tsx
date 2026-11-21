@@ -65,6 +65,12 @@ const paths = {
     </>
   ),
   shield: <path d="M12 3 20 6v6c0 4.6-3.4 8.1-8 9-4.6-.9-8-4.4-8-9V6z" />,
+  lock: (
+    <>
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      <rect {...filled} x="5" y="11" width="14" height="10" rx="1.5" />
+    </>
+  ),
   key: (
     <>
       <circle cx="8" cy="15" r="4.5" />
