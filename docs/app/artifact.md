@@ -96,7 +96,9 @@ Revision trên CDN ngày 16/11:
 | pc, pc-a2 | 92 | 12/11 | i335 |
 | ios-a2 | 93 | 12/11 | i335 |
 
-Ngày 21/11 mọi manifest (android-a2, pc-a2, ios-a2, pc) đều ở **revision 137**: gói `base-137` (2.067 file), `icons-137` (339 icon, tới **i338**) và `from-92-137`. Ba icon mới i336, i337, i338 tải được ở `…/revisions/137/files/` (size, CRC32 khớp manifest), nhưng **khoá AES cũ không giải mã được**: i335 và i336 của revision 137 giải ra cùng 8 byte đầu mà không phải chữ ký PNG, thử đảo 0–512 byte đầu hay đảo cả file đều không ra. Vậy game 1.1.0 đã đổi khoá asset (hoặc cách mã hoá), và revision 92 không còn trên CDN (trả trang HTML). Cần đọc lại `com.e.sqa` trong APK 1.1.0 để lấy khoá mới. [Đo 21/11; khoá mới Chưa rõ]
+Ngày 21/11 mọi manifest (android-a2, pc-a2, ios-a2, pc) đều ở **revision 137**: gói `base-137` (2.067 file), `icons-137` (339 icon, tới **i338**) và `from-92-137`. Ba icon mới i336, i337, i338 tải được ở `…/revisions/137/files/` (size, CRC32 khớp manifest), nhưng **khoá AES cũ không giải mã được**: i335 và i336 của revision 137 giải ra cùng 8 byte đầu mà không phải chữ ký PNG, thử đảo 0–512 byte đầu hay đảo cả file đều không ra. Vậy game 1.1.0 đã đổi khoá asset, và revision 92 không còn trên CDN (trả trang HTML). [Đo 21/11]
+
+Khoá mới `ba6e1e7c642829f57b94acb38026be62` đọc tĩnh từ hàm `__ngen_special_clinit_810_9` (`com.e.sqa`) trong `libgdx-flashds.so` của APK 1.1.0; cách mã hoá giữ nguyên. i336–i338 giải ra PNG ([13-drops-items](events/13-drops-items.md#bảng-32)). [Đo 21/11]
 
 Nội dung Android dừng ở revision 64 (bản cài đầu tiên). Điện thoại có `_state.json` revision 64, `offline-a2/` không đổi từ 29/10, nên các món mới của bảng 29 không có icon trên Android. Cloudflare trả 403 cho trình tải có user agent của Python; curl tải được.
 

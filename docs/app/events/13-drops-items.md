@@ -361,7 +361,15 @@ Game 1.1.0 ghi bảng vào `files/dyncache2/` (không còn `files/dyncache/`), c
 | 729 | Bùa Tự Động 24 giờ | 23 | 338 | như trên |
 | 730 | Rương Đá Nâng Cấp | 29 | 324 | "Mở ra ngẫu nhiên 1 đá cường hoá 6,7,8" |
 
-Ba icon i336–338 có trên máy và trên CDN (giống nhau từng byte), nhưng chưa giải mã được: lớp `com.e.sqa` của 1.1.0 giữ tên hằng "AES/ECB/PKCS5Padding" mà mọi hàm và khoá đã thành native (`native0.Loader.registerNativesForClass(810, …)`, `Hidden0.special_clinit_810_90`), nên khoá không còn đọc được từ dex. Lấy khoá cần chạy game và bắt `SecretKey` (Frida) lúc game giải mã icon; người dùng chọn chưa mở game (21/11). Trong app ba món này hiện số thay cho hình. [Đo dex; khoá Chưa rõ]
+Ba icon i336–338 có trên máy và trên CDN (giống nhau từng byte). Game 1.1.0 **đổi khoá asset**: khoá 1.0.3 không mở được file nào của 1.1.0, kể cả các `.dat` trong `assets/` của APK. Lớp `com.e.sqa` của 1.1.0 giữ tên hằng "AES/ECB/PKCS5Padding" mà mọi hàm đã thành native (`native0.Loader.registerNativesForClass(810, …)`, `Hidden0.special_clinit_810_90`).
+
+Khoá mới đọc tĩnh từ `lib/arm64-v8a/libgdx-flashds.so` của APK 1.1.0, không cần mở game [Đo 21/11]:
+- Thư viện còn tên hàm: `native_jvm::classes::__ngen_com_e_sqa_810::__ngen_special_clinit_810_9` ở 0x023abac0.
+- Hàm tạo `new byte[16]` rồi ghi từng byte, chỉ số 0–15 là các hằng `mov w3, …` trước mỗi lần gọi ghi mảng.
+- Khoá: `ba6e1e7c642829f57b94acb38026be62`. Cách mã hoá không đổi (đảo 63 byte đầu, AES-128-ECB).
+- Giải ra PNG 96 × 96: i335–i338 của revision 137 và `assets/info/icon_exp.dat` của APK.
+
+`decodeAsset` thử khoá 1.1.0 trước, rồi khoá 1.0.3, nên file của cả hai bản đều mở được. Icon i336 (1 lá bùa), i337 (2 lá), i338 (3 lá) đã có trong `data/icons/`.
 
 ## Mã chỉ số (`it0`)
 

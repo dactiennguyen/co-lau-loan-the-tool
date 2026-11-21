@@ -68,13 +68,24 @@ export class Items {
 // Assets of files/dyncache/offline-a2 (item icons i<n>.dat, worn sprites, effects). The loader
 // com.tlgdx.twelvelord.sqo.b6 reads the file, reverses its first 63 bytes (sqo.a(byte[], 63)), then decrypts with
 // com.e.sqa: AES/ECB/PKCS5Padding under a 16-byte key that its static initialiser stores byte by byte (13-drops-items.md).
-const ASSET_KEY = Buffer.from([-88, 76, -38, -24, -40, 117, 124, 91, 41, -31, 88, -51, -50, -9, 14, -3].map(b => b & 255));
+// The game 1.1.0 changed the key and made com.e.sqa native; its initialiser __ngen_special_clinit_810_9 in
+// libgdx-flashds.so still stores the 16 bytes one by one as immediates. Assets of 1.0.3 keep the old key.
+const ASSET_KEYS = [
+  [-0x46, 0x6e, 0x1e, 0x7c, 0x64, 0x28, 0x29, -0xb, 0x7b, -0x6c, -0x54, -0x4d, -0x80, 0x26, -0x42, 0x62], // 1.1.0
+  [-88, 76, -38, -24, -40, 117, 124, 91, 41, -31, 88, -51, -50, -9, 14, -3], // 1.0.3
+].map(k => Buffer.from(k.map(b => b & 255)));
 const ASSET_REVERSED = 63;
+const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 
-/** Decodes one offline asset; icons come out as PNG. `padding: false` decodes a block-aligned prefix of a file. */
+/** Decodes one offline asset; icons come out as PNG. `padding: false` decodes a block-aligned prefix of a file.
+ * The key is the one that turns the file into a PNG, else the first whose padding checks. */
 export function decodeAsset(data: Uint8Array, { padding = true } = {}): Buffer {
   const b = Buffer.from(data);
   b.subarray(0, ASSET_REVERSED).reverse();
-  const d = createDecipheriv('aes-128-ecb', ASSET_KEY, null); d.setAutoPadding(padding);
-  return Buffer.concat([d.update(b), d.final()]);
+  const tries = ASSET_KEYS.map(key => {
+    try { const d = createDecipheriv('aes-128-ecb', key, null); d.setAutoPadding(padding); return Buffer.concat([d.update(b), d.final()]); } catch { return null; }
+  });
+  const out = tries.find(o => o?.subarray(0, 8).equals(PNG)) ?? tries.find(o => o);
+  if (!out) throw new Error('asset does not decode under any known key');
+  return out;
 }

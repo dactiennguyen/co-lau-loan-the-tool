@@ -75,15 +75,17 @@ test('offline assets: reverse the first 63 bytes, then AES-128-ECB; the real i0.
   const c = createCipheriv('aes-128-ecb', key, null), stored = Buffer.concat([c.update(plain), c.final()]);
   stored.subarray(0, 63).reverse();
   assert.deepEqual(decodeAsset(stored), plain);
+  // The game 1.1.0 key (com.e.sqa, native since 1.1.0): first 64 bytes of i336.dat (Bùa Tự Động 1 giờ) of CDN revision 137.
+  const head110 = Buffer.from('9e7bbfe88739b6f23464721798a01638dd447fd871bc8f0c58f81017bde39b3c134d8af18f384e77e9ebc198f82a982b2785065af44b25514951794c7be75c25', 'hex');
+  const png110 = decodeAsset(head110, { padding: false });
+  assert.equal(png110.subarray(0, 16).toString('hex'), '89504e470d0a1a0a0000000d49484452');
+  assert.deepEqual([png110.readUInt32BE(16), png110.readUInt32BE(20)], [96, 96]);
 });
 
 test('data/icons holds a WebP icon for every item in use', () => {
-  // i336–338 (Bùa Tự Động 1, 8, 24 giờ of table 32) are on the CDN at revision 137 but the game 1.1.0 changed the asset key
-  // (artifact.md#cơ-chế-cập-nhật), so they are not decoded yet; the app shows the item's number in their place.
-  const undecoded = [336, 337, 338];
   const missing = [...new Set(items.book.items.filter(i => i.name !== RETIRED).map(i => i.icon))]
     .filter(n => { const p = `data/icons/i${n}.webp`; return !existsSync(p) || readFileSync(p).subarray(8, 12).toString() !== 'WEBP'; });
-  assert.deepEqual(missing.sort((a, b) => a - b), undecoded);
+  assert.deepEqual(missing, []);
 });
 
 test('map scanner names the items on the ground of each map (s2c/1184)', () => {
