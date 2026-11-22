@@ -64,7 +64,7 @@ type Split = { type: number; base: number };
 /** Every way to read the ids of one mob of one map. `mobId` = "mob" + (type + 1) + a serial, run together, so every
  * split of the digits is tried: the type + 1 has at most 3 digits (the types seen are 0–107), the serial no leading
  * zero; a boss of zone z is 100000 + 100 z + n (mob86100001, mob86100101); a mob of zone z, i-th of the zone's `count`,
- * is base + z × count + i with a base of whole hundreds. */
+ * is base + z × count + i with a base of whole hundreds, or since the game 1.1.0 (start + i) × 100 + z. */
 function splits({ ids }: AtlasMob): Split[] {
   const zones = Object.entries(ids).map(([zone, v]) => ({ zone: Number(zone), boss: !Array.isArray(v), list: ([] as string[]).concat(v).map(id => id.slice(3)) }));
   const first = zones[0]?.list[0];
@@ -75,7 +75,11 @@ function splits({ ids }: AtlasMob): Split[] {
     const boss = zones.every(z => z.boss && z.list.every(d => serial(d) - 100000 - 100 * z.zone >= 0 && serial(d) - 100000 - 100 * z.zone < 100));
     const base = serial(first) - zones[0].zone * zones[0].list.length;
     const mob = base >= 0 && base % 100 === 0 && zones.every(z => !z.boss && z.list.every((d, i) => serial(d) === base + z.zone * z.list.length + i));
-    if (boss || mob) found.push({ type: Number(head) - 1, base: boss ? -1 : base });
+    // Since the game 1.1.0 (22/11): (start + i) × 100 + z, the start the same in every zone (Tam Khê: Quái Nhân Đầu Trọc
+    // mob640…mob641000, Quái Nhân mob631100…). Its base for the chain is start × 100: the next mob starts count later.
+    const start = Math.floor(serial(first) / 100);
+    const hundreds = !mob && zones.every(z => !z.boss && z.list.every((d, i) => serial(d) === (start + i) * 100 + z.zone));
+    if (boss || mob || hundreds) found.push({ type: Number(head) - 1, base: boss ? -1 : mob ? base : start * 100 });
   }
   return found;
 }

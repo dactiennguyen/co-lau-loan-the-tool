@@ -47,6 +47,19 @@ test('mobTypes: without the rest of its map a mob may be read two ways and is le
     { 'Sơn Tặc': 3, 'Báo Đốm': 44, 'Hổ Vằn': 56 });
 });
 
+test('mobTypes: the ids of the game 1.1.0, (start + i) × 100 + zone, chain too (Tam Khê and Huyền Hồ of MP3, 22/11)', () => {
+  const ids = (prefix: string, start: number, count: number, zones = [0]) =>
+    Object.fromEntries(zones.map(z => [String(z), Array.from({ length: count }, (_, i) => `mob${prefix}${(start + i) * 100 + z}`)]));
+  const m12 = [['Quái Nhân Đầu Trọc', '64', 0, 11], ['Quái Nhân', '63', 11, 11], ['Độc Điểu', '33', 22, 11], ['Lão Yêu Dê', '43', 33, 12],
+    ['Độc Hoa', '34', 45, 11], ['Hổ Nanh Kiếm', '58', 56, 11]].map(([name, prefix, start, count]) => ({ name: name as string, ids: ids(prefix as string, start as number, count as number) }));
+  assert.equal(m12[0].ids[0][1], 'mob64100');
+  assert.deepEqual(mobTypes({ M12: { mobs: m12, bosses: [{ name: 'Tướng Nham Hổ', ids: { 0: 'mob109100010' } }] } }), {
+    'Độc Điểu': 32, 'Độc Hoa': 33, 'Lão Yêu Dê': 42, 'Hổ Nanh Kiếm': 57, 'Quái Nhân': 62, 'Quái Nhân Đầu Trọc': 63, 'Tướng Nham Hổ': 108,
+  });
+  // Two zones (Gà Điên of M1): mob10, mob1100… and mob11, mob1101….
+  assert.deepEqual(mobTypes({ M1: { mobs: [{ name: 'Gà Điên', ids: ids('1', 0, 8, [0, 1]) }] } }), { 'Gà Điên': 0 });
+});
+
 test('s2c/22 names the sheet of the mob: the type\'s for Gà Điên, another for Báo Đen and the bosses (06-map-mobs.md#tấm-ảnh-của-quái)', () => {
   const sheets = Object.fromEntries(Object.entries(spriteBlocks).map(([name, b]) => {
     const block = mobBlock(Buffer.from(b.hex, 'hex'), b.id);

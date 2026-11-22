@@ -152,7 +152,8 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
       title="Bạch Hổ Thống Lĩnh"
       subtitle={`Boss thế giới · Hang Bạch Hổ (M24) · game mở ${BACH_HO_HOUR}:00–${BACH_HO_HOUR}:59 mỗi ngày · từ cấp ${BACH_HO_LEVEL}`}
       className="w-[min(760px,94vw)] max-w-none"
-      formClassName="max-h-[min(860px,94vh)] box-border grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
+      // Rows: Dialog's own header, the times, the boss, the head of the list, the list (the one that scrolls), the footer.
+      formClassName="max-h-[min(860px,94vh)] box-border grid-rows-[auto_auto_auto_auto_minmax(0,1fr)_auto] gap-2.5 px-5 py-4"
       onClose={onClose}
       onSubmit={(e) => {
         e.preventDefault();
