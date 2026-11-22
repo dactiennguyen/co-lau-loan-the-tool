@@ -80,6 +80,8 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
         // 1275: Kết quả Bạch Hổ (17-bach-ho.md#đọc-tĩnh-110).
         -1 | 1 | 2 | 3 | 1172 | 1257 | 1215 | 1218 | 116 | 1275 => w.build(),
         1206 => w.string(PLATFORM).string(protocol_version()).i32(0).build(),
+        // A clean phone: no adb (USB or Wi-Fi), developer options off, no accessibility service (02-login.md#c2s-1282).
+        1282 => w.u8(0).u8(0).u8(0).build(),
         // Command 0 of c2s/1284: the chat block list, asked for right before c2s/9 as the game does (VG1).
         1284 => w.u8(0).build(),
         5 => w

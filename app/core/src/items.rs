@@ -276,6 +276,9 @@ pub struct CharacterTail {
     pub faction_field: i32,
     pub faction: String,
     pub faction_flags: [u8; 2],
+    /// Since the server update of 22/11 09:02 (game 1.1.1): one more string, digits ("100028687" for tuananh2000).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
 }
 pub fn character_tail(p: &[u8]) -> Result<CharacterTail> {
     item_layouts(|| character_rest(p)).map(|(_, tail)| tail)
@@ -291,6 +294,11 @@ fn character_rest(p: &[u8]) -> Result<(Vec<Option<ItemRecord>>, CharacterTail)> 
     let effects = effects(&mut r)?;
     let (faction_field, faction) = (r.i32()?, r.string()?);
     let faction_flags = [r.u8()?, r.u8()?];
+    let code = if r.remaining() > 0 {
+        Some(r.string()?)
+    } else {
+        None
+    };
     let tail = CharacterTail {
         field,
         appearance_bytes,
@@ -298,6 +306,7 @@ fn character_rest(p: &[u8]) -> Result<(Vec<Option<ItemRecord>>, CharacterTail)> 
         faction_field,
         faction,
         faction_flags,
+        code,
     };
     r.finish((gear, tail), "s2c/9")
 }

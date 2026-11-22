@@ -52,6 +52,11 @@ export async function startSimulator(options: SimOptions = {}) {
           const opcode = [...encodedOpcodes].find(([, value]) => value === body.readInt32BE())?.[0];
           if (opcode === undefined) throw new Error('Unknown client opcode');
           if (opcode === 1) { reply(1, Buffer.alloc(0), 'synthetic heartbeat'); continue; }
+          // c2s/1282 (the state of the phone) right after s2c/4: the server answers nothing (VG1 20/11, game 1.1.1 22/11).
+          if (opcode === 1282) {
+            if (!body.subarray(4).equals(buildRequest(1282, {}))) throw new Error('Wrong request body for 1282');
+            continue;
+          }
           // c2s/1284 command 0 (chat block list) before c2s/9: the empty list as the server sent it to the game (VG1, 20/11).
           if (opcode === 1284) {
             if (!body.subarray(4).equals(buildRequest(1284, {}))) throw new Error('Wrong request body for 1284');

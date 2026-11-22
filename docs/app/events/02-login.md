@@ -309,7 +309,7 @@ Trong 60 giây đầu, client gửi **33 gói thuộc 15 loại**: 19 heartbeat 
 | 34,894 | `c2s/2` | 0 | rỗng (người dùng bấm Đăng nhập) | giống |
 | 34,919 | `c2s/3` | 0 | rỗng (xin challenge) | giống |
 | 34,944 | `c2s/4` | 65 | `string "tiheo2"; bytes proof (23); string "android"; string "0.0.7"; i32 24; i32 0x4f348aa6` (hash của tên) | **khác:** `"0.0.2"`; các trường khác giống từng byte |
-| 35,355 | `c2s/1282` | 3 | `01 00 00`: gỡ lỗi USB bật; chế độ nhà phát triển tắt; 0 dịch vụ trợ năng ([APK 1.1.0](../apk-1.1.0.md#c2s1282-trạng-thái-máy-chống-bot)) | **không gửi** (cố ý) |
+| 35,355 | `c2s/1282` | 3 | `01 00 00`: gỡ lỗi USB bật; chế độ nhà phát triển tắt; 0 dịch vụ trợ năng ([APK 1.1.0](../apk-1.1.0.md#c2s1282-trạng-thái-máy-chống-bot)) | từ 22/11 bot TS và app gửi `00 00 00` (máy sạch), cùng chỗ: ngay sau `s2c/4`, trước `c2s/1284` ([1.1.1](../apk-1.1.1.md)) |
 | 35,356 | `c2s/1284` | 1 | `00`: lệnh 0, lấy danh sách chặn chat ([09-players-chat](09-players-chat.md#chặn-chat-và-báo-cáo)) | lúc đo chưa gửi; từ 20/11 bot TS và app gửi như game, ngay trước `c2s/9` |
 | 35,357 | `c2s/9` | 15 | `string "tiheo2"; u8 2; i32 −1` | giống |
 | 35,399 | `c2s/30` | 1 | `01` | giống |

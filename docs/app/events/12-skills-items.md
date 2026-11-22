@@ -710,7 +710,8 @@ Server gửi nó trong **đuôi `s2c/9`** lúc đăng nhập, ngay sau khối ng
 ```text
 … 8 ô trang bị; i32 (symap 1, manina 0); khối ngoại hình (như bản ghi người chơi);
 i32 n; n × {string khoá; i32 tỉLệ; i32; i32 msCònLại};
-i32; string tên sứ quân; u8; u8
+i32; string tên sứ quân; u8; u8;
+string mã nhân vật   (từ server cập nhật 22/11 09:02, game 1.1.1: "100005131" của tiheo1; gói cũ không có)
 ```
 
 | Nick | Hiệu ứng | Sứ quân |

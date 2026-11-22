@@ -178,7 +178,9 @@ function characterRest(payload: Uint8Array) {
     const field = r.i32(), appearanceBytes = appearance(r), effects = [];
     for (let n = r.i32(); n > 0; n--) effects.push({ key: r.string(), rate: r.i32(), field: r.i32(), remainingMs: r.i32() });
     const factionField = r.i32(), faction = r.string(), factionFlags = [r.u8(), r.u8()];
-    return finish(r, { gear, field, appearanceBytes, effects, factionField, faction, factionFlags }, 's2c/9');
+    // Since the server update of 22/11 09:02 (game 1.1.1): one more string, digits ("100028687" for tuananh2000).
+    const code = r.offset < r.data.length ? r.string() : undefined;
+    return finish(r, { gear, field, appearanceBytes, effects, factionField, faction, factionFlags, ...(code !== undefined && { code }) }, 's2c/9');
   });
 }
 

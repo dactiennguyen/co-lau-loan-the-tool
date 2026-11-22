@@ -6,6 +6,7 @@ import { fixtures } from './fixtures.ts';
 import { Writer } from '../src/protocol/protocol.ts';
 import { bagAfter, characterExtra, characterGear, characterTail, currencies, gearUpdate, groundItems, inventory } from '../src/protocol/world.ts';
 import { eggPackets } from './fixtures-egg.ts';
+import { v111Packets } from './fixtures-v111.ts';
 import { QuestBot } from '../src/bot/quest.ts';
 import { decodeAsset, Items, parseItemTable, parseStatTable, RETIRED } from '../src/protocol/items.ts';
 import { MapScanner } from '../src/bot/map-scan.ts';
@@ -181,4 +182,19 @@ test('tail of s2c/9: the x2 EXP star (item 7, rate 200000, time left) and the fa
     effects: [{ key: 'ef7', rate: 200000, field: 0, remainingMs: 13257567 }], factionField: 2, faction: 'Thiên Tôn', factionFlags: [1, 0] });
   assert.deepEqual(characterTail(Buffer.from(fixtures.profile['s2c/9 level 21'], 'hex')).effects, []);
   assert.match(items.get(7)!.desc, /^Tăng x2 kinh nghiệm trong 24 giờ/);
+});
+
+test('s2c/9 after the server update of 22/11 (game 1.1.1): one more string after the faction, the character\'s code', () => {
+  const p = Buffer.from(v111Packets['s2c/9'], 'hex');
+  const tail = characterTail(p);
+  assert.equal(tail.code, '100005131');
+  assert.equal(tail.faction, 'Chiến');
+  assert.equal(characterGear(p).length, 10);
+  // A packet of before the update has no such string and still reads to its end.
+  assert.equal(characterTail(Buffer.from(fixtures.equip['s2c/9 symap'], 'hex')).code, undefined);
+});
+
+test('c2s/1282: a clean phone, sent right after s2c/4 as the game does (02-login.md#c2s-1282)', () => {
+  assert.equal(buildRequest(1282, {}).toString('hex'), '000000');
+  assert.deepEqual(decodeEvent('c2s', 1282, buildRequest(1282, {})).fields, { adb: 0, devOptions: false, accessibility: 0 });
 });

@@ -142,7 +142,7 @@ event('s2c', 21, 'timed_attack', 'battle', 'Trận tính giờ: quái đánh the
 event('c2s', 1178, 'challenge_boss', 'battle', 'Nhân vật va vào boss của s2c/1177 (sqhz.a18 → sqlq.b121(mobId, false))', 's2c/22 sau ~2,8 s, rồi trận như c2s/15', 'string mobId; i32 flag=0', 'Đo B4 1 lần (Thủ Lĩnh Sơn Tặc mob86100201); boss bỏ qua c2s/15');
 event('c2s', 40, 'battle_leave', 'battle', 'Đầu hàng (nút Đầu hàng → OK), cùng lúc với c2s/11', 's2c/11, s2c/10, s2c/1214 rồi c2s/43', 'string battleUuid', 'Đo B2 4 lần; kết thúc bình thường không có gói này');
 event('s2c', 36, 'durability', 'battle', 'Cùng lúc kết quả cuối trận, và sau đầu hàng', 'Không', 'i32 n (8 ô trang bị); n * {u8 0xff: ô trống | u8 ô; i32 độBền}', 'Đọc hết byte: B1 16 byte (nón 49), G2 24 byte (ô 0, 1, 2: 55, 60, 0); về 0 thì món hỏng (HP tối đa và sát thương tụt)');
-event('c2s', 1282, 'device_signals', 'world', 'Game 1.1.0: ngay sau s2c/4, trước c2s/1284 và c2s/9 (sqnf.p() đọc DeviceSignals)', 'Không có', 'u8 adb (bit 1 gỡ lỗi USB, bit 2 adb Wi-Fi); u8 chế độ nhà phát triển (0/1); u8 số dịch vụ trợ năng (0–127)', 'Đo VG1 20/11: game gửi 01 00 00 (máy đang bật gỡ lỗi USB); bot không gửi');
+event('c2s', 1282, 'device_signals', 'world', 'Game 1.1.0: ngay sau s2c/4, trước c2s/1284 và c2s/9 (sqnf.p() đọc DeviceSignals)', 'Không có', 'u8 adb (bit 1 gỡ lỗi USB, bit 2 adb Wi-Fi); u8 chế độ nhà phát triển (0/1); u8 số dịch vụ trợ năng (0–127)', 'Đo VG1 20/11 và 22/11 (game 1.1.1): game gửi 01 00 00 (máy đang bật gỡ lỗi USB). Bot và app gửi 00 00 00 (máy sạch) từ 22/11, cùng chỗ');
 event('c2s', 1284, 'chat_block', 'world', 'Lệnh 0: ngay sau c2s/1282, trước c2s/9 (lấy danh sách chặn chat). Lệnh có id: Chặn chat, Bỏ chặn ở popup người chơi (com.mh.d.sqc)', 's2c/1284', 'u8 lệnh (0 lấy danh sách; 1, 2 chặn hay bỏ chặn); lệnh 1, 2: i32 id người chơi', 'Đo VG1: game gửi 00 khi vào game; lệnh 1, 2 đọc từ code (sqc.a(int), sqc.b(int)), chưa đo, chưa rõ số nào là chặn');
 event('c2s', 1285, 'report_player', 'world', 'Báo cáo người chơi: chọn lý do Xúc phạm, Spam, Lừa đảo, Khác (com.mh.d.sqc.a(int, int))', 's2c/1285', 'i32 id người chơi; u8 lý do', 'Đọc từ code 1.1.0; chưa đo, thứ tự lý do suy theo thứ tự trên hộp thoại');
 event('s2c', 1284, 'chat_block_list', 'world', 'Trả c2s/1284; server cũng tự gửi một lần sau c2s/30 (cả cho bot không gửi c2s/1284)', 'Không', 'u8; u8; string thông báo; i16 n; n * {i32 id người chơi; string tên}', 'Đo VG1: 8 byte 0 (danh sách trống). Kiểu đọc từ code (sqc.a(sqi) → sqd(int, int, String, int[], String[])); nghĩa hai u8 chưa rõ');
@@ -167,6 +167,7 @@ const pushes: [number, string, string, string, string?][] = [
   [1269, 'config_1269', 'Sau c2s/4', '30 byte cấu hình, opaque'],
   [1271, 'social_links', 'Sau c2s/4', '140 byte; có URL Facebook, chưa giải cấu trúc danh sách'],
   [1272, 'config_1272', 'Sau c2s/4', '47 byte tham số, opaque'],
+  [1266, 'chat_history', 'Vào thế giới (game 1.1.1, 22/11): lịch sử chat', 'u8 kênh; u8 n; n * {i64 lúcMs; i32 idNgườiChơi (0 = hệ thống); string tên; u8; string nội dung}', 'Đo MP3/v111 22/11: 790 byte, 14 tin sứ quân đọc hết byte; 2 byte (0 tin) sau khi server khởi động lại'],
   [1279, 'welfare_dots', 'Vào thế giới: sau s2c/1220, ngay trước s2c/1284 (APK 1.1.0); sau Điểm danh và sau nhận quà Phúc lợi', 'i32 mặt nạ: một bit mỗi tab Phúc lợi còn quà (chấm đỏ), Online 0, Tri ân 1, Mua chung 2, Điểm danh 3, Giftcode 4, Nạp đầu 5', 'Đo PL1 20/11 (akaito): 9 lúc vào game, 1 sau Điểm danh, 0 sau quà Online'],
   [1274, 'config_1274', 'Sau c2s/4, trước s2c/1265 (APK 1.1.0)', '884 byte, opaque', 'Đo VG1 20/11; chưa giải'],
   [46, 'currency_notice', 'Sau s2c/9; khi tiền đổi (trả nhiệm vụ)', 'string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong', 'Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng'],
@@ -280,6 +281,8 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 1233: return claimRequest(required(ctx.event, 'event'));
     case 1223: return giftCodeRequest(required(ctx.code, 'code'));
     case 1206: return w.string(PLATFORM).string(PROTOCOL_VERSION).i32(0).build();
+    // A clean phone: no adb (USB or Wi-Fi), developer options off, no accessibility service (02-login.md#c2s-1282).
+    case 1282: return w.u8(0).u8(0).u8(0).build();
     case 1284: return w.u8(0).build();
     case 5: return w.i32(ctx.serverId ?? BASELINE.observedServerId).i32(-1).u8(1).build();
     case 4: return loginPayload(required(ctx.username, 'username'), passwordProof(required(ctx.challenge, 'challenge'), required(ctx.password, 'password')), ctx.serverId ?? BASELINE.observedServerId);

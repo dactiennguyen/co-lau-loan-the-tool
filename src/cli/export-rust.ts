@@ -40,6 +40,7 @@ import { ct1Packets } from '../../test/fixtures-ct1.ts';
 import { np1Packets } from '../../test/fixtures-np1.ts';
 import { fireCasts } from '../../test/fixtures-fire.ts';
 import { v007Packets } from '../../test/fixtures-v007.ts';
+import { v111Packets } from '../../test/fixtures-v111.ts';
 
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -126,6 +127,7 @@ function decoders() {
   add('inventory', v007Packets['s2c/1187 bag'], inventory(v('s2c/1187 bag')));
   add('characterGear', v007Packets['s2c/9'], characterGear(v('s2c/9')));
   add('characterTail', v007Packets['s2c/9'], characterTail(v('s2c/9')));
+  add('characterTail', v111Packets['s2c/9'], characterTail(bytes(v111Packets['s2c/9'])));
   add('groundItemAdd', v007Packets['s2c/1182 drop'], pick(decodeEvent('s2c', 1182, v('s2c/1182 drop')).fields as any, ['mapId', 'itemId', 'uuid', 'quantity', 'x', 'y', 'expiresAt']));
   add('groundItems', v007Packets['s2c/1184 ground'], (decodeEvent('s2c', 1184, v('s2c/1184 ground')).fields as any).items.map((i: any) =>
     pick(i, ['itemId', 'uuid', 'quantity', 'element', 'x', 'y', 'expiresAt'])));

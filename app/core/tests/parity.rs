@@ -456,8 +456,9 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
         assert_eq!(got, case["expected"], "{f} {}", case["hex"]);
         seen += 1;
     }
-    // 11 of 0.0.2, 6 of 0.0.7 (test/fixtures-v007.ts: bag, gear, s2c/37 on and off).
-    assert_eq!(seen, 17);
+    // 11 of 0.0.2, 6 of 0.0.7 (test/fixtures-v007.ts: bag, gear, s2c/37 on and off), 1 of the server of 22/11
+    // (test/fixtures-v111.ts: s2c/9 with the character's code).
+    assert_eq!(seen, 18);
 }
 
 /// The x2 EXP of Tăng Kinh Nghiệm comes in the s2c/9 tail with the time it has left: the snapshot keeps when it ends and

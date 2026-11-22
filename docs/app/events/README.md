@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 168 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 78 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 169 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 76 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -165,6 +165,7 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1214 | battle_end_1214 | battle | [Byte, bố cục, nguồn quan sát](05-battle.md#battle-end) |
 | s2c/1259 | config_1259 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1259) |
 | s2c/1265 | faction | push | [Byte lúc đăng nhập](04-push.md#s2c-1265), [bảng Sứ quân](11-panels.md) |
+| s2c/1266 | chat_history | push | [Lịch sử chat lúc vào game](../apk-1.1.1.md#gói-mới-giải-được) |
 | s2c/1269 | config_1269 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1269) |
 | s2c/1271 | social_links | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1271) |
 | s2c/1272 | config_1272 | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-1272) |
