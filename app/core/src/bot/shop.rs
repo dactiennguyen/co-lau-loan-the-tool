@@ -48,6 +48,7 @@ impl Bot {
             || self.mail_changing()
             || self.market_changing()
             || self.battle.is_some()
+            || self.reload.is_some()
         {
             return;
         }

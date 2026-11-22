@@ -230,15 +230,12 @@ impl BattleRunner {
         self.send(out, 18, Ctx::default());
     }
 
-    /// Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map, then c2s/40. The session reads
-    /// the server's answer; clearing `leaving` plays on from the next turn (s2c/24, or s2c/21 in a timed battle).
-    pub fn leave(&mut self, map_id: &str, out: &mut Vec<Act>) {
+    /// Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map (`map`: the zone stood in and the
+    /// map's index, game 1.1.1), then c2s/40. The session reads the server's answer; clearing `leaving` plays on from the
+    /// next turn (s2c/24, or s2c/21 in a timed battle).
+    pub fn leave(&mut self, map: Ctx, out: &mut Vec<Act>) {
         (self.skill_wait, self.turn_wait, self.missed) = (None, None, None);
         (self.leaving, self.surrendered) = (true, true);
-        let map = Ctx {
-            map_id: Some(map_id),
-            ..Ctx::default()
-        };
         self.send(out, 11, map);
         self.send(out, 40, Ctx::default());
     }
@@ -326,6 +323,9 @@ impl BattleRunner {
                 if self.played(t.seq, t.player_turn == 1) {
                     return Ok(true);
                 }
+                // A battle opened with timed 1 that sends turns is a turn battle with the player first (game 1.1.1;
+                // runner_v3): no swap on a timer from here.
+                self.timed = false;
                 self.turn_wait = None;
                 self.views.push(BattleEvent::Turn {
                     seq: t.seq,
@@ -500,7 +500,12 @@ impl BattleRunner {
         }
         if !x.end {
             self.turn_wait = Some(if self.timed {
-                (now + self.options.timed_move, Wake::TimedMove(x.seq))
+                // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer.
+                let pause = match x.seq <= 1 {
+                    true => self.options.timed_move.max(crate::human::TURN_OR_TIMED),
+                    false => self.options.timed_move,
+                };
+                (now + pause, Wake::TimedMove(x.seq))
             } else {
                 let again = (x.actor == self.name) == x.extra_turn;
                 (now + Duration::from_secs(2), Wake::Infer(x.seq, again))

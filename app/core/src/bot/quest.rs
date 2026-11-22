@@ -374,15 +374,9 @@ impl Bot {
                 format!("{}: {} → {TALK}", menu.npc, menu.text),
             ));
             let map_id = self.snap.map_id.clone();
-            let ctx = Ctx {
-                option: Some(option as i32),
-                map_id: Some(&map_id),
-                npc_id: Some(step.npc_id),
-                ..Ctx::default()
-            };
-            Self::send(out, 57, ctx);
+            let gap = self.reply57(option, &map_id, step.npc_id, now, out);
             self.timer = Some((
-                now + Duration::from_secs(8),
+                now + gap + Duration::from_secs(8),
                 Wake::Silence("NPC không trả lời sau Nói chuyện"),
             ));
             return;
@@ -408,15 +402,9 @@ impl Bot {
             format!("{}: {} → {DUEL_YES}", menu.npc, menu.text),
         ));
         let map_id = self.snap.map_id.clone();
-        let ctx = Ctx {
-            option: Some(option as i32),
-            map_id: Some(&map_id),
-            npc_id: Some(step.npc_id),
-            ..Ctx::default()
-        };
-        Self::send(out, 57, ctx);
+        let gap = self.reply57(option, &map_id, step.npc_id, now, out);
         self.timer = Some((
-            now + Duration::from_secs(8),
+            now + gap + Duration::from_secs(8),
             Wake::Silence("Server không gửi trận tỷ thí sau Đồng ý"),
         ));
     }
@@ -737,6 +725,9 @@ impl Bot {
                 n => format!("Không thấy quái của bước này ở {} khu đã tìm", n + 1),
             };
             return self.finish_quest(&reason, out);
+        }
+        if self.walking(now) {
+            return;
         }
         let Some(r) = &mut self.snap.quest_run else {
             return;

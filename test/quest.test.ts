@@ -163,7 +163,7 @@ test('quest bot: talk step sends c2s/13, the NPC reply advances to the kill step
   bot.onPacket(34, Buffer.from(q['s2c/34 dialogue'], 'hex'));
   assert.equal(bot.quest!.current, 2);
   bot.next();
-  assert.deepEqual(sent.at(-1), { opcode: 15, hex: new Writer().string('mob2806').u8(0).build().toString('hex') });
+  assert.deepEqual(sent.at(-1), { opcode: 15, hex: new Writer().string('mob2806').u8(1).build().toString('hex') });
   bot.options.maxFights = 0; // stop timers
   (bot as any).stop('test done');
 });
@@ -262,10 +262,11 @@ const surrendering = () => {
   return { bot, sent, events };
 };
 
-test('quest bot: --surrender-after leaves with c2s/11 then c2s/40, moves no more, reloads the map, and stops on s2c/1214', () => {
+test('quest bot: --surrender-after leaves with c2s/11 (zone stood in, map index) then c2s/40, moves no more, reloads the map, and stops on s2c/1214', () => {
   const { bot, sent, events } = surrendering();
   assert.deepEqual(sent.map(s => s.opcode), [18, 14, 19, 11, 40]);
-  assert.deepEqual(sent.slice(-2).map(s => s.hex), [new Writer().string('M2').u8(-1).i32(-1).build().toString('hex'), new Writer().string(UUID).build().toString('hex')]);
+  // Zone 0, and -1: M2 was never loaded in this session (the test sent no s2c/11 before).
+  assert.deepEqual(sent.slice(-2).map(s => s.hex), [new Writer().string('M2').u8(0).i32(-1).build().toString('hex'), new Writer().string(UUID).build().toString('hex')]);
   bot.onPacket(24, Buffer.from(bp['s2c/24 mob turn'], 'hex'));
   assert.equal(sent.length, 5, 'no step request while leaving');
   // The order of the game's Đầu hàng (06-map-mobs): s2c/11, then c2s/43; s2c/10; s2c/1214.

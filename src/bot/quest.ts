@@ -8,9 +8,10 @@ import { BattleRunner, type BattleEnd } from '../battle/battle-runner.ts';
 import { learntSkills, POTIONS } from '../battle/battle-actions.ts';
 import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
+import { HUMAN, OFF, type Human } from '../net/human.ts';
 import { ITEM_ELEMENTS, type Items } from '../protocol/items.ts';
 import { skillTree } from '../protocol/skills.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, groundDrop, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, slotLeft, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
+import { MapLoads, mapData, mapChange, mapEntities, mapBoss, notice, groundDrop, characterStats, ZonePlayers, questData, questProgress, questComplete, npcMenu, duelInvite, skillTable, inventory, BAG_ADD, bagAfter, slotLeft, characterExtra, characterGear, characterTail, currencies, gearDurability, POTENTIALS, MAIN_STAT, type Mob, type Place, type Quest, type QuestStep, type Skill } from '../protocol/world.ts';
 import { BattleRecorder } from './battle-record.ts';
 import { DAILY_DONE, DAILY_PROGRESS, dailyQuest, dailyText } from '../protocol/mail.ts';
 import { type Atlas, type MapRecord, loadAtlas, atlasJson, saveAtlas, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, recordSprite, destination, portalsOf, route } from './atlas.ts';
@@ -97,6 +98,11 @@ export interface QuestBotOptions {
   /** Keeps each battle as a file in `dir` (battle-record.ts); `tags` go into the header of every file (quest-run: the
    * commit and the --goal). */
   record?: { dir: string; tags?: Record<string, unknown> };
+  /** The gaps of the game 1.1.1 (human.ts; quest-run: humanPace()): c2s/11 0.3–0.4 s after s2c/13 and c2s/43 0.4–1.2 s
+   * after s2c/11 on entering a map, 2–4 s in a map before its next portal, the map reloaded after every battle
+   * (c2s/11 2.4–4.7 s after its end, c2s/43 0.3–0.8 s after s2c/11, then the pickups and the next challenge), c2s/57
+   * 1.5–4 s after an NPC's dialog, and the battle gaps of BattleIo.human. Default OFF: none of these, no reload. */
+  human?: Human;
 }
 
 /** Plays the steps of the current main quest that stepAction knows; stops on any other step, after maxLosses losses, or after maxFights. */
@@ -154,9 +160,20 @@ export class QuestBot implements WorldSession {
   /** Items picked up in this run. */
   picked = 0;
   private wait?: ReturnType<typeof setTimeout>;
+  /** With options.human, no challenge before this (ms): the walk to the mob after its s2c/43 (HUMAN.challengeAfterEntities). */
+  private walkUntil = 0;
+  /** The maps loaded in this session and their index, for c2s/11 (MapLoads). */
+  private maps = new MapLoads();
+  private human: Human;
+  /** A c2s/11 or c2s/43 waiting for its human gap (entering a map, the reload after a battle). */
+  private entryWait?: ReturnType<typeof setTimeout>;
+  /** The reload of the map after a battle (options.human): 'wait' for its c2s/11, 'map' for s2c/11, 'mobs' for its c2s/43;
+   * `ended` is when the battle ended. Pickups and the next challenge wait for it. */
+  private reload?: { stage: 'wait' | 'map' | 'mobs'; ended: number };
+  private reloadWait?: ReturnType<typeof setTimeout>;
   options: QuestBotOptions;
   constructor(options: QuestBotOptions) {
-    this.options = options; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas);
+    this.options = options; this.human = options.human ?? OFF; this.atlas = loadAtlas(options.atlas); this.saved = atlasJson(this.atlas);
     if (options.record) this.recorder = new BattleRecorder(options.record.dir, r => this.log('error' in r ? 'battle_record_error' : 'battle_recorded', r));
   }
   private log(event: string, fields: Record<string, unknown> = {}) { this.options.log({ kind: 'quest', event, at: Date.now(), ...fields }); }
@@ -177,6 +194,7 @@ export class QuestBot implements WorldSession {
   }
 
   private handle(opcode: number, payload: Buffer) {
+    this.maps.on(opcode, payload);
     if (this.battle?.onPacket(opcode, payload)) {
       const n = this.options.surrenderAfter;
       if (n !== undefined && !this.surrenderTried && this.battle && this.battle.turns >= n) { this.surrenderTried = true; this.surrender(); }
@@ -228,21 +246,31 @@ export class QuestBot implements WorldSession {
         this.log('map', { mapId: d.mapId, name: d.name, npcs: d.places.filter(p => p.type === 2).map(p => `${p.id} ${p.name}`), portals: d.places.filter(p => p.type === 0).map(p => `${p.id} ${p.name}`) });
         // After a surrender the map comes back for the c2s/11 sent with c2s/40; it answers that request, so it does not
         // prove the battle over (s2c/36 or s2c/1214 does).
-        const reload = this.reloadMap; this.reloadMap = false;
-        if (this.travelling || reload) this.send(43, buildRequest(43, { mapId: d.mapId }));
+        // With options.human that c2s/43 goes after s2c/1214 instead (left), as the game's does.
+        const reload = this.reloadMap && !this.human.on; this.reloadMap = false;
+        const mobs = () => this.send(43, buildRequest(43, { mapId: d.mapId }));
+        if (this.travelling || reload) this.after(this.human.ms(HUMAN.entitiesAfterMap), mobs);
+        // The reload after a battle: its c2s/43, then the pickups and the next challenge (reloaded).
+        else if (this.reload?.stage === 'map') { this.reload.stage = 'mobs'; this.after(this.human.ms(HUMAN.entitiesAfterReload), () => { mobs(); this.reloaded(); }); }
         break;
       }
       // Through a portal: the new map; the client then asks for the map (c2s/11) and its mobs (c2s/43), B5.
       case 13: {
         const { mapId } = mapChange(payload);
         this.log('map_changed', { mapId, portal: this.travelling?.name });
-        if (this.travelling) { clearTimeout(this.wait); recordPortal(this.atlas, this.travelling.id, { name: this.travelling.name, mapId }); this.send(11, buildRequest(11, { mapId })); }
+        if (this.travelling) {
+          clearTimeout(this.wait); recordPortal(this.atlas, this.travelling.id, { name: this.travelling.name, mapId });
+          // (0xff, its index once loaded in this session, else -1): 06-map-mobs.md#c2s-11.
+          const map = this.maps.request(mapId);
+          this.after(this.human.ms(HUMAN.mapAfterPortal), () => this.send(11, buildRequest(11, map)));
+        }
         break;
       }
       case 43: {
         const d = mapEntities(payload); this.mobs = d.mobs;
         recordMobs(this.atlas, d.mapId, this.zone, d.mobs); this.remember();
-        if (this.travelling) { this.log('arrived', { mapId: this.mapId, name: this.atlas.maps[this.mapId]?.name, via: this.travelling.name }); this.travelling = undefined; this.later(2000); }
+        if (this.human.on) this.walkUntil = Date.now() + this.human.ms(HUMAN.challengeAfterEntities);
+        if (this.travelling) { this.log('arrived', { mapId: this.mapId, name: this.atlas.maps[this.mapId]?.name, via: this.travelling.name }); this.travelling = undefined; this.later(this.human.on ? this.human.ms(HUMAN.portalAfterArrival) : 2000); }
         break;
       }
       // A portal the character may not enter answers c2s/13 with "Bạn phải đạt cấp 40 mới vào được Lạc Cốc" (Q15) or
@@ -389,6 +417,11 @@ export class QuestBot implements WorldSession {
     this.log('step_advanced', { reason, current: q.current, step: q.steps[q.current]?.text ?? null });
   }
   private later(ms: number) { clearTimeout(this.wait); this.wait = setTimeout(() => this.next(), ms); }
+  /** `then` after a human gap of `ms` (at once for 0). */
+  private after(ms: number, then: () => void) {
+    if (ms <= 0) return then();
+    clearTimeout(this.entryWait); this.entryWait = setTimeout(then, ms);
+  }
   /** Sends a talk or stat-point request; s2c/34 or s2c/39 must answer within 8 s. */
   private ask(opcode: number, payload: Uint8Array, silence: string, fields: Record<string, unknown> = {}) {
     this.awaitingReply = true;
@@ -411,8 +444,8 @@ export class QuestBot implements WorldSession {
       clearTimeout(this.wait);
       this.talked = true;
       this.log('npc_talk', { npc: menu.npc, npcId: step.npcId, option: talk.option });
-      this.send(57, buildRequest(57, { option: talk.option, mapId: this.mapId, npcId: step.npcId }));
-      this.wait = setTimeout(() => this.stop('npc did not answer after Nói chuyện', { npc: menu.npc }), 8000);
+      const gap = this.reply(57, buildRequest(57, { option: talk.option, mapId: this.mapId, npcId: step.npcId }));
+      this.wait = setTimeout(() => this.stop('npc did not answer after Nói chuyện', { npc: menu.npc }), 8000 + gap);
       return;
     }
     if (!yes) return this.stop('npc asked something the bot cannot answer', { npc: menu.npc, text: menu.text });
@@ -423,8 +456,14 @@ export class QuestBot implements WorldSession {
     clearTimeout(this.wait);
     this.duels++;
     this.log('duel', { npc: menu.npc, npcId: step.npcId, option: yes.option, duels: this.duels });
-    this.send(57, buildRequest(57, { option: yes.option, mapId: this.mapId, npcId: step.npcId }));
-    this.wait = setTimeout(() => this.stop('no duel after Đồng ý', { npc: menu.npc }), 8000);
+    const gap = this.reply(57, buildRequest(57, { option: yes.option, mapId: this.mapId, npcId: step.npcId }));
+    this.wait = setTimeout(() => this.stop('no duel after Đồng ý', { npc: menu.npc }), 8000 + gap);
+  }
+  /** A line of an NPC's dialog, after the time a player reads it (HUMAN.npcReply with options.human); returns that time. */
+  private reply(opcode: number, payload: Uint8Array) {
+    const gap = this.human.ms(HUMAN.npcReply);
+    if (gap <= 0) this.send(opcode, payload); else setTimeout(() => this.send(opcode, payload), gap);
+    return gap;
   }
 
   /** s2c/1180 after Đồng ý: the mob of the duel (mob880 "Võ Quan Đinh Mộc" cấp 20, N2). Challenged at once with c2s/1181
@@ -454,7 +493,8 @@ export class QuestBot implements WorldSession {
   private pick(drop: { uuid: string; name: string }) {
     if (this.picking.has(drop.uuid) || this.toPick.some(d => d.uuid === drop.uuid)) return;
     this.toPick.push(drop);
-    if (!this.pickTimer) this.pickNext();
+    // After a battle the map is reloaded first (options.human): its items are picked up once c2s/43 went (reloaded).
+    if (!this.pickTimer && !this.reload) this.pickNext();
   }
   private pickNext() {
     const drop = this.toPick.shift();
@@ -472,7 +512,7 @@ export class QuestBot implements WorldSession {
     const b = this.battle;
     if (!b || b.leaving) return;
     this.log('surrender', { mobId: b.mobId, turns: b.turns });
-    b.leave(this.mapId); this.reloadMap = true;
+    b.leave(this.maps.request(this.mapId, this.zone)); this.reloadMap = true;
     this.leaving = setTimeout(() => { if (this.battle === b && b.leaving) { this.log('surrender_no_answer', { mobId: b.mobId }); b.resume(); } }, 8000);
   }
   private left(by: number) {
@@ -480,12 +520,15 @@ export class QuestBot implements WorldSession {
     this.log('battle_left', { by: `s2c/${by}`, mobId: this.battle?.mobId });
     this.recorder?.end({ left: `s2c/${by}` });
     this.battle = undefined;
+    // The game asks the mobs of the map ~0.6 s after s2c/1214 (B2, game 1.1.1), before stop() closes the session in 1 s.
+    if (this.human.on) this.after(this.human.ms(HUMAN.entitiesAfterSurrender), () => this.send(43, buildRequest(43, { mapId: this.mapId })));
     this.stop('surrendered');
   }
 
   /** Decide the next action from the current quest step. */
   next(): void {
-    if (!this.api || this.battle || this.allotting) return;
+    // The map reloaded after a battle comes first: reloaded() calls this again.
+    if (!this.api || this.battle || this.allotting || this.reload) return;
     const q = this.quest, step = q?.steps[q.current];
     if (this.options.farm) { if (!this.allot()) this.farm(this.options.farm); return; }
     // The step moves on after the NPC reply (s2c/34), a new s2c/39, or the kill count or damage reached just below. It is
@@ -593,6 +636,8 @@ export class QuestBot implements WorldSession {
     if (this.maxHp && this.hp < this.maxHp * (this.options.minHpRatio ?? 0)) return this.stop('hp too low to fight', { hp: this.hp });
     this.waits = 0;
     if (!targets.length) return this.stop('target mob not in this zone', { reason });
+    // The walk to the mob after the mobs of the map came (game 1.1.1: c2s/1169 then c2s/15, 4–26 s after c2s/43).
+    if (this.human.on && Date.now() < this.walkUntil) return this.later(this.walkUntil - Date.now());
     const mob = this.target = targets[this.fights % targets.length];
     this.fights++; this.challenged = Date.now();
     this.log('challenge', { reason, opcode, mobId: mob.id, name: mob.name, level: mob.level, fight: this.fights });
@@ -696,7 +741,7 @@ export class QuestBot implements WorldSession {
     // The bot's notes go to the battle file too, except the move lines that its packets hold.
     const log = (event: string, fields?: Record<string, unknown>) => { this.log(event, fields); if (event !== 'move' && event !== 'choice') this.recorder?.note(event, fields); };
     this.battle = new BattleRunner(s, mobId, { send: (op, p) => this.send(op, p), log, note: (event, fields) => this.recorder?.note(event, fields), onEnd: end => this.onBattleEnd(end), skill: this.options.skill, strategy: this.options.strategy, timedMoveMs: this.options.timedMoveMs,
-      mob, memory: this.battleMemory, skills, potions, potionCost: this.options.potionCost, stats: this.attack === undefined ? undefined : { attack: this.attack, level: this.level } });
+      mob, memory: this.battleMemory, skills, potions, potionCost: this.options.potionCost, stats: this.attack === undefined ? undefined : { attack: this.attack, level: this.level }, human: this.human });
     this.battle.start();
   }
 
@@ -734,6 +779,8 @@ export class QuestBot implements WorldSession {
   }
 
   private onBattleEnd(end: BattleEnd) {
+    // The game reloads the map after every battle, won or lost (reloadAfter): the drops wait for it.
+    if (this.human.on) this.reload = { stage: 'wait', ended: Date.now() };
     if (end.won) this.wins++; else this.losses++;
     this.hp = end.hp;
     this.lastBattle = { endedAt: Date.now(), won: end.won, hp: end.hp, maxHp: this.maxHp, mobId: end.mobId };
@@ -757,6 +804,32 @@ export class QuestBot implements WorldSession {
     if (counted && action.kind === 'kill' && end.won) { q.progress++; this.log('kill_counted', { step: step.text, progress: `${q.progress}/${step.required}` }); }
     if (this.surrenderTried) return this.stop('battle over without the surrender');
     if (!end.won && !this.bosses.has(end.mobId) && this.losses >= (this.options.maxLosses ?? 1)) return this.stop('lost a battle');
+    if (this.reload) return this.reloadAfter();
     this.later(this.options.restMs ?? 3000);
+  }
+
+  /** After a battle, as the game 1.1.1 does (05-battle.md#sau-trận): c2s/11 (the map, the zone stood in, its index)
+   * 2.4–4.7 s after the end, c2s/43 0.3–0.8 s after its s2c/11; the drops (still on the ground for the killer) and the
+   * next challenge come after it. A s2c/11 that never comes lets the bot go on after 8 s. */
+  private reloadAfter() {
+    const r = this.reload!;
+    clearTimeout(this.wait);
+    this.after(this.human.ms(HUMAN.reloadAfterBattle), () => {
+      if (this.reload !== r) return;
+      r.stage = 'map';
+      this.log('map_reload', { mapId: this.mapId, zone: this.zone });
+      this.send(11, buildRequest(11, this.maps.request(this.mapId, this.zone)));
+      this.reloadWait = setTimeout(() => { if (this.reload === r) { this.log('map_reload_no_answer', { mapId: this.mapId }); this.reloaded(); } }, 8000);
+    });
+  }
+  /** The reload is over: the drops queued meanwhile go one every 200 ms, and the next challenge after them, not before
+   * restMs after the battle's end. */
+  private reloaded() {
+    const r = this.reload;
+    if (!r) return;
+    this.reload = undefined; clearTimeout(this.reloadWait);
+    const picks = this.toPick.length;
+    if (picks && !this.pickTimer) this.pickNext();
+    this.later(Math.max((this.options.restMs ?? 3000) - (Date.now() - r.ended), picks * 200 + 100));
   }
 }

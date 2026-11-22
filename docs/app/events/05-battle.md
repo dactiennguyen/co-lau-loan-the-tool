@@ -143,10 +143,10 @@ lặp tới hết payload: string mobId; string tên; i32 cấp; u8 a; i32 b; i3
 |---|---|
 | Hướng | Client → Server |
 | Nhãn phân tích | challenge_mob |
-| Xuất hiện khi | Nhân vật va vào một con quái trên bản đồ; c2s/1169 cuối cùng ở ngay trước, cách ~0,1 s |
+| Xuất hiện khi | Game 1.1.1: bấm nút tấn công khi đã chọn quái (chạm quái chỉ chọn nó). Game 1.0.3 (B1): nhân vật va vào quái; c2s/1169 cuối cùng ở ngay trước, cách ~0,1 s |
 | Sau đó | s2c/22 sau ~2,5 s (trong lúc màn VS hiện) |
-| Bố cục payload | `string mobId; u8 flag` (flag = 0 cả hai lần) |
-| Độ chắc chắn | [Đo] hai lần: `mob13`, `mob872604` |
+| Bố cục payload | `string mobId; u8 flag`: **1** với mọi lần thách đấu bằng nút tấn công ở game 1.1.1 (quái thường và Bạch Hổ); 0 cả hai lần ở game 1.0.3 (B1, chạm quái) |
+| Độ chắc chắn | [Đo] B1 hai lần (`mob13`, `mob872604`, cờ 0); game 1.1.1 ngày 22/11 hai lần, một lần ngay sau khi mở game chưa mở Tự động (cờ 1); BH2 6 lần với Bạch Hổ (cờ 1). Bot TS và app gửi cờ 1 từ 22/11 |
 
 ```text
 00000009 6d6f62383732363034 00          "mob872604", 0
@@ -230,8 +230,8 @@ Phần đuôi:
 | Thuộc tính | Điều tra được |
 |---|---|
 | Nhãn phân tích | battle_join / battle_join_ack |
-| C→S | `string battleUuid` (40 byte), gửi ~1,1 s sau s2c/22 |
-| S→C | 6 byte `i32 0; u8 timed; u8 0`. `timed = 0` ở mọi trận Gà Điên, Heo Mọi, Kẻ Gây Rối, Chỉ Huy Sơn Tặc: trận theo lượt, quái đi trước. `timed = 1` ở mọi trận Sơn Tặc (Q6–Q9): **trận tính giờ**, xem [dưới](#trận-tính-giờ) [Đo] |
+| C→S | `string battleUuid` (40 byte), gửi 1,1–1,6 s sau s2c/22 (game 1.1.1; bot TS và app chờ như vậy từ 22/11, [sau trận](#sau-trận)) |
+| S→C | 6 byte `i32 0; u8 timed; u8 0`. `timed = 0` ở mọi trận Gà Điên, Heo Mọi, Kẻ Gây Rối, Chỉ Huy Sơn Tặc: trận theo lượt, quái đi trước. **Game 1.1.1 (22/11): cờ của `c2s/15` chọn kiểu trận.** Cờ 0 (bot cũ) → `timed = 0`, quái đi trước. Cờ 1 (nút kiếm của game, bot từ 22/11) → `timed = 1` với mọi quái: **mình đi trước**, rồi server vẫn gửi `s2c/24` theo lượt, mỗi lượt có đồng hồ ~30 s (hết giờ thì `s2c/24` cờ 0 sau ~34 s). Đo: game với Hổ Nanh Kiếm (Frida), bot TS với Độc Hoa (2 trận, 22/11 10:15, chạy lại không lệch). Chỉ Sơn Tặc và Bạch Hổ là trận tính giờ thật: không bao giờ có `s2c/24` (25 trận Sơn Tặc, BH2), quái đánh theo đồng hồ `s2c/21`. Vì vậy bot TS và app coi trận `timed = 1` là trận theo lượt từ `s2c/24` đầu tiên (`turn_battle`), và tới lúc đó chờ nước thứ hai ít nhất 2,5 s. `timed = 1` ở mọi trận Sơn Tặc (Q6–Q9): **trận tính giờ**, xem [dưới](#trận-tính-giờ) [Đo] |
 | Sau đó | ~1 s sau, c2s/14 với `seq=0` để lấy bước đầu của quái; trận tính giờ thì c2s/19 với `seq=0` |
 
 <a id="s2c-24"></a>
@@ -246,7 +246,7 @@ Phần đuôi:
 | Độ chắc chắn | [Đo] qua 21 bước |
 
 - `playerTurn=1`: tới lượt người chơi. Đồng hồ 30 s chạy, nút Kỹ năng/Túi đồ sáng.
-- `playerTurn=0`: tới lượt bot. Client gửi c2s/14 trong vòng ~30 ms. Gói này cũng đến khi người chơi **hết giờ**: lúc đó cách gói `playerTurn=1` trước khoảng 34 s, cùng `seq`.
+- `playerTurn=0`: tới lượt bot. Client gửi c2s/14 trong vòng ~30 ms khi lượt đến do hết giờ, và 1–2 s khi nước trước của mình còn rơi dây chuyền (game 1.1.1). Gói này cũng đến khi người chơi **hết giờ**: lúc đó cách gói `playerTurn=1` trước khoảng 34 s, cùng `seq`.
 
 ```text
 00000004 00000000 01 00     seq 4, tới lượt người chơi
@@ -261,7 +261,7 @@ Phần đuôi:
 |---|---|
 | Hướng | Client → Server |
 | Nhãn phân tích | battle_step_request |
-| Xuất hiện khi | Sau s2c/18 (`seq=0`); sau mỗi s2c/24 `playerTurn=0` |
+| Xuất hiện khi | Sau s2c/18 (`seq=0`); sau mỗi s2c/24 `playerTurn=0`: 1–2 s khi bàn cờ còn rơi sau nước của mình, 10–40 ms khi lượt hết giờ (game 1.1.1) |
 | Sau đó | s2c/19 hoặc s2c/20 với `seq+1`, chứa nước của bot |
 | Bố cục payload | `string battleUuid; i32 seq` (44 byte) |
 | Độ chắc chắn | [Đo] 21 lần, không lần nào lệch `seq` |
@@ -428,7 +428,7 @@ Gặp ở mọi trận Sơn Tặc (cấp 9), đánh dấu bằng `s2c/18` byte 4
 |---|---|
 | Nhãn phân tích | battle_leave / character_stats |
 | Xuất hiện khi | **Đầu hàng**: nút "Đầu hàng" → OK (B2 đo 4 lần, xem [06-map-mobs](06-map-mobs.md#đầu-hàng)). Trong B1, trận Gà Điên cũng kết thúc bằng 40 sau nước đầu của bot; lúc đó tay vẫn giữ joystick, nguyên nhân [Chưa rõ] |
-| C→S 40 | `string battleUuid` (40 byte), gửi cùng lúc với c2s/11 `"M1"` để tải lại bản đồ, sau đó là c2s/43 |
+| C→S 40 | `string battleUuid` (40 byte), gửi cùng lúc với c2s/11 (map, khu đang đứng, số thứ tự map) để tải lại bản đồ; c2s/43 đi ~0,6 s sau s2c/1214 ([sau trận](#sau-trận)) |
 | S→C 10 | 62 byte: `i32 4; string "manina"; i32 hp 130; i32 hpMax 130; i32 exp 176; i32 150; i32 300 (mốc EXP cấp 3); i32 tiền 0; i32 10000; i32 22; i32 9; i32 30; i32 20; i32 6`. HP, EXP, mốc, tiền [Đo qua trận thắng run4: 176 → 184, 0 → 4]; các số khác [Chưa rõ] |
 | Độ chắc chắn | 1 lần. Kết thúc bình thường (hết HP) **không** có c2s/40 |
 
@@ -460,7 +460,7 @@ Cùng một mili giây, server gửi thêm:
 | s2c/36 | `00000008 00000000 31 ffffffffffffff` (16 byte) | Độ bền 8 ô trang bị: ô 0 còn 49, các ô khác trống ([bố cục](#s2c-36)) |
 | s2c/1214 | rỗng | Cũng có sau lần huỷ trận Gà Điên [Đo]; vai trò [Chưa rõ] |
 
-Sau ~5 s, client gửi c2s/11 `"M1"` rồi c2s/43 và nhận lại map, danh sách quái và người chơi như lúc mới vào bản đồ. Nhân vật xuất hiện lại tại vị trí đã chạm quái (x=1735, y=672 trong s2c/11).
+Sau ~5 s, client gửi c2s/11 `"M1"` rồi c2s/43 và nhận lại map, danh sách quái và người chơi như lúc mới vào bản đồ. Nhân vật xuất hiện lại tại vị trí đã chạm quái (x=1735, y=672 trong s2c/11). Game 1.1.1 đo kỹ hơn ở [sau trận](#sau-trận).
 
 <a id="s2c-36"></a>
 
@@ -483,6 +483,26 @@ i32 n (8); n × { u8 0xff (ô trống) | u8 ô; i32 độBền }
 - Byte trước độ bền là số ô (`00`, `01`, `02` ở G2), như byte ô của bản ghi vật phẩm. [Đo]
 - G2: cả 6 gói giống hệt nhau, độ bền không giảm qua 6 trận thắng. Gói đến 1 ms sau kết quả cuối trận, ngay sau `s2c/10` kiểu 4. Vậy không phải trận nào cũng làm mòn đồ; quy luật mòn chưa rõ (Q2 giảm gần như mỗi trận). [Đo; quy luật Chưa rõ]
 - Bot TS đọc gói bằng `gearDurability` (src/protocol/world.ts). App Rust cập nhật độ bền trên tab Túi đồ sau mỗi trận, và dựa vào đó để tự sửa đồ ([Tự sửa đồ](../../integration/rust/features.md#tự-sửa-đồ)).
+
+<a id="sau-trận"></a>
+
+## Sau trận: tải lại map (game 1.1.1)
+
+Sau **mọi** trận thường, thắng hay thua, game tải lại map: `s2c/1214` về khoảng 15 ms sau `s2c/19` end=1, game chờ thêm 2,4–4,7 s rồi gửi `c2s/11` (map, **khu đang đứng**, số thứ tự map: `"M12" 00 0000000b` ở Tam Khê khu 0), `s2c/11` về, 0,3–0,8 s sau là `c2s/43`, rồi `s2c/43`, `s2c/1177` (boss), `s2c/1184` (đồ trên đất). [Đo game 1.1.1, ba lần]
+
+Bot TS (`QuestBot` với `human`) và app (`bot/reload.rs`, trừ Bạch Hổ vẫn giữ nhịp nhanh riêng) làm đúng như vậy, và chỉ **sau** `c2s/43` mới nhặt đồ (`c2s/1188`) rồi thách đấu con kế tiếp, không sớm hơn Chờ giữa các trận tính từ lúc hết trận. Đồ rơi của mình được khoá cho người hạ quái khoảng 16 s và nằm trên đất khoảng 600 s ([13](13-drops-items.md)), nên nhặt chậm vài giây không mất gì. `s2c/11` của lần tải lại xoá đồ trên đất của khu và người chơi quanh đó, nhưng hàng đợi nhặt của trận vừa xong vẫn giữ; `s2c/1184` sau `c2s/43` dựng lại đồ trên đất. Không thấy `s2c/11` sau 8 s thì bot đánh tiếp. [Đo, bài test `test/human.test.ts`, `app/core/tests/human.rs`]
+
+**Đầu hàng:** game gửi `c2s/11` (map, khu đang đứng, số thứ tự map) và `c2s/40` trong cùng một lúc, nhận `s2c/11`, `s2c/10`, `s2c/1214`, rồi gửi `c2s/43` khoảng 0,6 s sau `s2c/1214` (không phải ngay sau `s2c/11`). Bot TS và app làm theo từ 22/11; trước đó bot gửi `c2s/11` với `ff ffffffff`. [Đo]
+
+**Nhịp trong trận theo lượt** (game 1.1.1; trận tính giờ và Bạch Hổ giữ như cũ):
+
+| Gói | Game gửi |
+|---|---|
+| `c2s/18` | 1,1–1,6 s sau `s2c/22` |
+| `c2s/14` (lượt quái, `s2c/24` playerTurn 0) | 1–2 s khi nước trước của mình có rơi dây chuyền (bàn còn đang rơi), 10–40 ms khi lượt đến do hết giờ |
+| nước của mình | Chờ trước mỗi lượt đi của Cài đặt đánh, nhưng không dưới ~1,2 s sau `s2c/24` |
+
+Đường dự phòng khi `s2c/24` đến trễ (đoán lượt sau 2 s) vẫn còn, và cũng đi qua các khoảng chờ trên nên không bao giờ nhanh hơn chúng. [Đo]
 
 ## Push trên bản đồ: đính chính
 

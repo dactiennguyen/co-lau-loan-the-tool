@@ -796,7 +796,7 @@ fn a_quest_run_in_the_cave_jumps_through_the_world_map_to_its_mob_and_fights_it(
     out.clear();
     bot.on_timer(now + Duration::from_secs(2), &mut out);
     assert!(
-        sent(&mut out).contains(&(15, "000000056d6f62313000".into())),
+        sent(&mut out).contains(&(15, "000000056d6f62313001".into())),
         "Gà Điên challenged on arrival"
     );
 }

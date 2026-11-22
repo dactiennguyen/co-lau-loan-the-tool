@@ -372,7 +372,8 @@ impl Bot {
             return false;
         }
         self.to_pick.push_back(fallen);
-        if self.pick_at.is_none() {
+        // After a battle the map is reloaded first (reload.rs): what it queued goes once its c2s/43 went.
+        if self.pick_at.is_none() && self.reload.is_none() {
             self.pick_next(now, out);
         }
         true

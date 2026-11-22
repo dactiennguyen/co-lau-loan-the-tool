@@ -79,6 +79,7 @@ C→S 19  uuid, 1, r1+2,c1+2,r2+2,c2+2 →                                      
 - Từ lúc gửi c2s/15 tới lúc thắng: **21,5 s** cho 5 nước của bot và 5 nước của quái. [Đo]
 - Bên nào có lượt là do s2c/24 quyết định. Lượt đầu của cả 5 trận đã thấy (B1 hai trận, run2–run4) đều là của quái: c2s/14 `seq=0` trả về nước của quái. [Đo]
 - Muốn huỷ trận thì gửi c2s/40 (uuid). Server trả s2c/36, s2c/1214. [Đo]
+- Thời gian trên là của bot lúc run4 (gửi ngay). Game 1.1.1 chờ lâu hơn, và từ 22/11 bot TS (`QuestBot` với `human`) và app chờ như game trong trận theo lượt: c2s/18 1,1–1,6 s sau s2c/22, c2s/14 1–2 s sau lượt quái khi bàn còn rơi dây chuyền (10–40 ms khi không), nước mình không dưới ~1,2 s (app: Chờ trước mỗi lượt đi nếu dài hơn); thách đấu c2s/15 cờ 1. Hết trận thì tải lại map (c2s/11 2,4–4,7 s sau, c2s/43 sau s2c/11) rồi mới nhặt đồ và thách đấu con tiếp; đầu hàng gửi c2s/11 (khu, số thứ tự map) cùng c2s/40. Bạch Hổ và trận tính giờ giữ nhịp cũ. Chi tiết: [05-battle](05-battle.md#sau-trận). [Đo game 1.1.1]
 - Phiên để không lâu (run1) có thể chết ngầm: TCP vẫn ESTABLISHED nhưng server không trả gì, cả heartbeat. Bot cần theo dõi heartbeat (s2c/1) và đăng nhập lại khi mất. [Đo]
 
 ## Luật bàn cờ

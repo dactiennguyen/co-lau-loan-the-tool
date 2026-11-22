@@ -14,8 +14,8 @@ pub struct Ctx<'a> {
     pub map_id: Option<&'a str>,
     pub npc_id: Option<i32>,
     pub mob_id: Option<&'a str>,
-    /// The u8 after the mob of c2s/15: 0 as the game sends it for a mob touched on the map (B1), 1 as it sends it for
-    /// Bạch Hổ Thống Lĩnh (BH2, 17-bach-ho.md). None is 0.
+    /// The u8 after the mob of c2s/15: 1 as the game 1.1.1 sends it for every challenge by the attack button (22/11),
+    /// Bạch Hổ Thống Lĩnh too (BH2, 17-bach-ho.md); 0 was a mob touched in the game 1.0.3 (B1). None is 1.
     pub challenge_flag: Option<u8>,
     pub battle_uuid: Option<&'a str>,
     pub seq: Option<i32>,
@@ -25,8 +25,12 @@ pub struct Ctx<'a> {
     pub amount: Option<i32>,
     /// The character's element, field01 of s2c/9 (1 Hỏa, 2 Lôi, 4 Thủy): c2s/30 asks for the skill tree of that element.
     pub element: Option<i32>,
-    /// The zone of c2s/1173, and of c2s/11 after a zone change (s2c/13 with the zone).
+    /// The zone of c2s/1173, and of c2s/11: the new one after a zone change, the one stood in after a battle or Đầu hàng;
+    /// None (0xff) after a portal and at login.
     pub zone: Option<i32>,
+    /// The i32 of c2s/11: the map's index (s2c/29, s2c/13) once that map was loaded in this session (world::MapLoads);
+    /// None is -1, the first load.
+    pub map_index: Option<i32>,
     pub skill_id: Option<i32>,
     /// Bag or gear slot of c2s/1186, c2s/84, c2s/48; `action` 0 equip (a bag slot), 1 unequip (a gear slot); `place` is
     /// `where` of TS, 0 for the gear.
@@ -109,11 +113,12 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .build(),
         // Bản đồ thế giới: "M99" with (0, -1) (08-server-map-zone.md#c2s11-m99--s2c11; LN1).
         11 if c.map_id == Some("M99") => w.string("M99").u8(0).i32(-1).build(),
-        // After a zone change the app asks the map of that zone: (zone, 0) instead of (-1, -1) (B2).
+        // The zone: 0xff after a portal and at login, the new zone after a zone change, the zone stood in after a battle or
+        // Đầu hàng; the map's index once loaded in this session, -1 the first time (06-map-mobs.md#c2s-11, game 1.1.1).
         11 => w
             .string(required(c.map_id, "mapId")?)
             .u8(c.zone.map_or(0xff, |z| z as u8))
-            .i32(if c.zone.is_some() { 0 } else { -1 })
+            .i32(c.map_index.unwrap_or(-1))
             .build(),
         1173 => w.u8(required(c.zone, "zone")? as u8).build(),
         43 => w.string(required(c.map_id, "mapId")?).build(),
@@ -161,7 +166,7 @@ pub fn build(opcode: i32, c: &Ctx) -> Result<Vec<u8>> {
             .build(),
         15 => w
             .string(required(c.mob_id, "mobId")?)
-            .u8(c.challenge_flag.unwrap_or(0))
+            .u8(c.challenge_flag.unwrap_or(1))
             .build(),
         1188 => w.string(required(c.uuid, "uuid")?).build(),
         // Mã quà tặng (G1): the code alone, from anywhere in the world.

@@ -141,7 +141,7 @@ u8 bậc của mình (j); i32 hạng (k); i32 sát thương (l); u8 đạt ngư�
 |---|---|---|
 | 21:00:00 | `s2c/45` | "Bạch Hổ Thống Lĩnh đã phá vỡ Phong Ấn, đang ẩn náu tại Hang Bạch Hổ của Luyện Ngục" (gửi mọi người chơi). |
 | 21:00:00 | `s2c/43` | Mob của hang: `mob800` "Bạch Hổ Thống Lĩnh" cấp 155, trường thứ hai 3 (bố cục 1.1.0). **Không có `s2c/1177`.** Trước 21:00 danh sách trống. |
-| 21:00:37 | `c2s/15 ("mob800", 1)` | Game thách đấu boss bằng gói của quái thường, **cờ 1** (quái thường chạm vào là cờ 0, B1). Không có `c2s/1178`. |
+| 21:00:37 | `c2s/15 ("mob800", 1)` | Game thách đấu boss bằng gói của quái thường, **cờ 1**, như mọi lần thách đấu bằng nút tấn công ở game 1.1.1 (cờ 0 là quái chạm vào ở game 1.0.3, B1). Không có `c2s/1178`. |
 | 21:00:39 | `s2c/22`, `c2s/18`, `s2c/18` | Bàn cờ như đánh quái, `turnSeconds` 30. Máu boss trong `s2c/21` là -1 (giấu). |
 | 21:01:12 | `s2c/21` (kết thúc), `s2c/10`, `s2c/36`, `s2c/1256` | Boss đánh 239 > 181 máu: thua sau một lượt. `reward` thua, 0 EXP, 0 xu; `s2c/10` **hồi đầy máu** (510/510); `s2c/36` trừ 1 độ bền mỗi món ("Nhẫn Long Cơ đã hỏng"). |
 | 21:01–21:09 | `c2s/15` × 5 | Vào lại ngay mỗi lần (6–30 s sau khi thua, là thời gian người dùng bấm). Boss đánh 219–290 mỗi lượt; trận dài 30 s tới 2 phút. `s2c/1256` "Cần mặc Băng Kiếm để làm đầy Bình Huyết Linh". |
@@ -179,5 +179,5 @@ Thư "Quà tham gia Bạch Hổ" của Hệ Thống có trong hòm thư tiheo1 (
 
 - Ý nghĩa thật của trạng thái 0 và 1 (2 đã thấy ngoài giờ, BH1), của hai số trước tên trong mỗi dòng, và của số cuối. Cần một `s2c/1252` trong giờ, khi đã có người đánh.
 - Câu `s2c/45` khi boss tẩu thoát (hết giờ mà chưa chết); app đoán có chữ "tẩu thoát".
-- Nghĩa của cờ `c2s/15` (1 với Bạch Hổ, 0 khi chạm quái) và của trường thứ hai `s2c/43` (3 thường, 1 lúc boss chết).
+- Nghĩa của trường thứ hai `s2c/43` (3 thường, 1 lúc boss chết). Cờ `c2s/15` đã rõ: game 1.1.1 gửi 1 cho mọi lần thách đấu bằng nút tấn công, quái thường cũng vậy (đo hai lần ngày 22/11, một lần ngay sau khi mở game chưa mở Tự động); 0 là quái chạm vào ở game 1.0.3 (B1). Bot TS và app gửi 1 từ 22/11 ([05-battle](05-battle.md#c2s-15)).
 - Sát thương mỗi trận nằm ở đâu trong `s2c/21` (1.480 byte chưa đọc); mức sát thương của Bình Huyết Linh; quà của top 5 và người kết liễu.

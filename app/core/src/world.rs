@@ -253,7 +253,52 @@ pub fn map_change(p: &[u8]) -> Result<MapChange> {
     )
 }
 
-/// One zone of s2c/1172: `load` 0, 1, 2 as the panel colours it (2 red), players of `capacity` (20).
+/// What the i32 of c2s/11 says (06-map-mobs.md#c2s-11, game 1.1.1 on 22/11): the map's index (the i32 of s2c/29 and of
+/// the long s2c/13: M1 0, M11 10, M12 11, M15 14) when the client loaded that map earlier in this session, -1 the first
+/// time. Fed every packet of the session from the login on, as MapLoads of src/protocol/world.ts.
+#[derive(Debug, Clone, Default)]
+pub struct MapLoads {
+    loaded: std::collections::HashSet<String>,
+    index: std::collections::HashMap<String, i32>,
+}
+impl MapLoads {
+    /// s2c/29, s2c/13 (the map's index) and s2c/11 flag 1 (the map loaded); what does not read is left alone.
+    pub fn on(&mut self, opcode: i32, payload: &[u8]) {
+        match opcode {
+            29 => {
+                if let Ok(l) = crate::protocol::character_location(payload) {
+                    self.locate(&l.map_id, Some(l.field));
+                }
+            }
+            13 => {
+                if let Ok(c) = map_change(payload) {
+                    self.locate(&c.map_id, c.map_index);
+                }
+            }
+            11 if payload.first() == Some(&1) => {
+                let mut r = Reader::new(payload);
+                if let Ok(id) = r.u8().and_then(|_| r.string()) {
+                    self.loaded.insert(id);
+                }
+            }
+            _ => {}
+        }
+    }
+    fn locate(&mut self, map_id: &str, index: Option<i32>) {
+        if let Some(i) = index.filter(|&i| i >= 0) {
+            self.index.insert(map_id.to_string(), i);
+        }
+    }
+    /// The i32 of c2s/11 for `map_id` now.
+    pub fn map_index(&self, map_id: &str) -> i32 {
+        match self.loaded.contains(map_id) {
+            true => self.index.get(map_id).copied().unwrap_or(-1),
+            false => -1,
+        }
+    }
+}
+
+/// One zone of s2c/1172:`load` 0, 1, 2 as the panel colours it (2 red), players of `capacity` (20).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Zone {

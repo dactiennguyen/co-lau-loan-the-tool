@@ -1,5 +1,6 @@
-//! One TCP session per account over tokio: the login of FLOW in src/net/client.ts, heartbeat c2s/1 every 2 s from the key
-//! exchange on, then the Bot with its commands and timers. Manager runs one session per account on a shared runtime.
+//! One TCP session per account over tokio: the login of FLOW in src/net/client.ts with the gaps of the game (human.rs),
+//! heartbeat c2s/1 every 2 s from the key exchange to s2c/4 and every 30 s in the world, then the Bot with its commands and
+//! timers. Manager runs one session per account on a shared runtime.
 //! An account with a proxy turned on connects through it (proxy.rs); the game protocol is the same inside the tunnel.
 use crate::accounts::Account;
 use crate::atlas::Atlas;
@@ -21,7 +22,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::time::{interval, sleep_until, timeout, Instant, MissedTickBehavior};
+use tokio::time::{sleep_until, timeout, Instant};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -165,12 +166,18 @@ impl Server {
 type Emit = Arc<dyn Fn(Event) + Send + Sync>;
 type Error = String;
 const STEP: Duration = Duration::from_secs(8);
-/// In the game, how long the server may send nothing (it answers the heartbeat every 2 s) before the connection is
-/// taken as gone (session.rs). Shorter in the tests, still over the heartbeat.
+/// In the game, how long the server may send nothing (it answers the heartbeat, every 30 s there as the game 1.1.1 beats)
+/// before the connection is taken as gone (session.rs): two beats missed and some. Shorter in the tests, still over
+/// their heartbeat.
 #[cfg(not(test))]
-const SILENT: Duration = Duration::from_secs(30);
+const SILENT: Duration = Duration::from_secs(70);
 #[cfg(test)]
 const SILENT: Duration = Duration::from_secs(3);
+/// The heartbeat of human::heartbeat_delay is this many times faster in the tests: 1 s in the world, under SILENT.
+#[cfg(not(test))]
+const BEAT_SCALE: u32 = 1;
+#[cfg(test)]
+const BEAT_SCALE: u32 = 30;
 /// After s2c/43, how long to wait for s2c/1263: a zone with no other player sends none (M25, 31/10; snapshotWaitMs of
 /// src/net/client.ts).
 const PLAYERS_WAIT: Duration = Duration::from_millis(1500);

@@ -2371,7 +2371,7 @@
   {
    "opcode": 15,
    "ctx": { "mobId": "mob61000" },
-   "hex": "000000086d6f62363130303000"
+   "hex": "000000086d6f62363130303001"
   },
   {
    "opcode": 1178,
@@ -2427,8 +2427,33 @@
   },
   {
    "opcode": 11,
-   "ctx": { "mapId": "M1", "zone": 20 },
+   "ctx": { "mapId": "M1", "zone": 20, "mapIndex": 0 },
    "hex": "000000024d311400000000"
+  },
+  {
+   "opcode": 11,
+   "ctx": { "mapId": "M99" },
+   "hex": "000000034d393900ffffffff"
+  },
+  {
+   "opcode": 11,
+   "ctx": { "mapId": "M11", "zone": 1, "mapIndex": 10 },
+   "hex": "000000034d3131010000000a"
+  },
+  {
+   "opcode": 11,
+   "ctx": { "mapId": "M15", "mapIndex": 14 },
+   "hex": "000000034d3135ff0000000e"
+  },
+  {
+   "opcode": 11,
+   "ctx": { "mapId": "M12", "zone": 0, "mapIndex": 11 },
+   "hex": "000000034d3132000000000b"
+  },
+  {
+   "opcode": 15,
+   "ctx": { "mobId": "mob800", "challengeFlag": 0 },
+   "hex": "000000066d6f6238303000"
   },
   {
    "opcode": 1186,
@@ -4460,7 +4485,7 @@
     {
      "next": true,
      "sent": [
-      [ 15, "000000076d6f623238303600" ]
+      [ 15, "000000076d6f623238303601" ]
      ],
      "stopped": false,
      "current": 2
@@ -4761,7 +4786,7 @@
     {
      "start": true,
      "sent": [
-      [ 15, "000000086d6f62363130303000" ]
+      [ 15, "000000086d6f62363130303001" ]
      ],
      "stopped": false,
      "current": 3
@@ -4806,7 +4831,7 @@
     {
      "start": true,
      "sent": [
-      [ 15, "000000056d6f62383000" ]
+      [ 15, "000000056d6f62383001" ]
      ],
      "stopped": false,
      "current": 0

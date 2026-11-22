@@ -37,6 +37,8 @@ pub(super) enum Wait {
     Eggs,
     /// Bạch Hổ (bot/bachho.rs).
     BachHo,
+    /// The map reloaded after a battle (bot/reload.rs).
+    Reload,
 }
 
 /// How long a button of the Túi đồ tab waits for its answer (Bot::item, item_pending).
@@ -56,6 +58,7 @@ impl Wait {
             Wait::Market { changing: true } => "đang mua bán ở Chợ trời, đợi server trả lời",
             Wait::Eggs => "đang đập trứng, bấm Dừng trước",
             Wait::BachHo => "đang đi Bạch Hổ, bấm Dừng trước",
+            Wait::Reload => "đang tải lại map sau trận, đợi chút",
             _ => return None,
         })
     }
@@ -107,6 +110,7 @@ impl Bot {
                 .map(|_| Wait::Pickup),
             self.eggs.is_some().then_some(Wait::Eggs),
             self.bach_ho.is_some().then_some(Wait::BachHo),
+            self.reload.is_some().then_some(Wait::Reload),
         ]
         .into_iter()
         .flatten()

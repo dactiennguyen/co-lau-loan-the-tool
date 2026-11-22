@@ -96,8 +96,15 @@ fn answers(op: i32, fault: Fault) -> Vec<(i32, Vec<u8>)> {
     }
 }
 
+/// What the local server got, with when.
+type Seen = Arc<Mutex<Vec<(i32, std::time::Instant)>>>;
+
 /// A local server playing the login of FLOW with `answers`; returns its port.
 async fn server(fault: Fault) -> u16 {
+    server_seen(fault, Seen::default()).await
+}
+/// `server`, noting each request it gets in `seen`.
+async fn server_seen(fault: Fault, seen: Seen) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
@@ -128,6 +135,7 @@ async fn server(fault: Fault) -> u16 {
                 rx.apply(&mut body);
             }
             let op = opcode_of(i32::from_be_bytes(body[..4].try_into().unwrap())).unwrap();
+            seen.lock().unwrap().push((op, std::time::Instant::now()));
             let replies = if op == -1 {
                 vec![(-1, key_body.clone())]
             } else {
@@ -231,7 +239,15 @@ async fn login_via(
     fault: Fault,
     proxy: Option<Proxy>,
 ) -> (Events, UnboundedSender<Command>, JoinHandle<()>) {
-    let port = server(fault).await;
+    login_seen(fault, proxy, Seen::default()).await
+}
+/// `login_via`, with what the server got in `seen`.
+async fn login_seen(
+    fault: Fault,
+    proxy: Option<Proxy>,
+    seen: Seen,
+) -> (Events, UnboundedSender<Command>, JoinHandle<()>) {
+    let port = server_seen(fault, seen).await;
     let events: Events = Default::default();
     let sink = events.clone();
     let (tx, rx) = unbounded_channel();
@@ -320,6 +336,38 @@ async fn a_login_whose_answers_read_goes_online() {
         states(&events),
         [ConnState::Connecting, ConnState::Online, ConnState::Offline]
     );
+}
+
+#[tokio::test]
+async fn the_heartbeat_follows_the_login_schedule_until_s2c_4_then_the_world_one() {
+    // human::heartbeat_delay BEAT_SCALE times faster: 2 s / 30 until s2c/4, the first 25 s / 30 after it, then 30 s / 30.
+    let seen = Seen::default();
+    let (events, tx, task) = login_seen(Fault::None, None, seen.clone()).await;
+    online(&events).await;
+    tokio::time::sleep(Duration::from_millis(2900)).await;
+    tx.send(Command::Logout).unwrap();
+    ends(task).await;
+    let seen = seen.lock().unwrap().clone();
+    // c2s/1282 goes right after s2c/4.
+    let auth = seen.iter().find(|s| s.0 == 1282).unwrap().1;
+    let beats: Vec<Duration> = (seen.iter())
+        .filter(|s| s.0 == 1 && s.1 > auth)
+        .map(|s| s.1 - auth)
+        .collect();
+    let first = crate::human::HEARTBEAT_FIRST / BEAT_SCALE;
+    let every = crate::human::HEARTBEAT_WORLD / BEAT_SCALE;
+    assert!((2..=3).contains(&beats.len()), "{beats:?}");
+    assert!(beats[0] >= first - Duration::from_millis(30), "{beats:?}");
+    assert!(
+        beats[0] < every,
+        "the first sooner than the rest: {beats:?}"
+    );
+    for w in beats.windows(2) {
+        assert!(
+            w[1] - w[0] >= every - Duration::from_millis(30),
+            "{beats:?}"
+        );
+    }
 }
 
 #[tokio::test]

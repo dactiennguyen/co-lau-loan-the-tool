@@ -381,7 +381,7 @@ Mở "Khu vực" (góc trên phải) ra danh sách khu kèm "Dân số N/20". H�
 |---|---|---|
 | Chọn khu | **c2s/1173** | `14` (`u8 khu`) |
 | Server nhận | **s2c/13** | `00000002 4d31 00000014` (`string mapId; i32 khu`) |
-| Xin map | c2s/11 | `00000002 4d31 14 00000000` (`string mapId; u8 khu; i32 0`); lúc login là `ff, -1` |
+| Xin map | c2s/11 | `00000002 4d31 14 00000000` (`string mapId; u8 khu; i32 số thứ tự map`, M1 là 0); lúc login là `ff, -1` ([c2s/11](#c2s-11)) |
 | Map | s2c/11 | 11379 byte, byte `area` = 20 |
 | Xin quái | c2s/43 | `00000002 4d31` |
 | Quái | s2c/43 | 33 id của khu 20 |
@@ -405,6 +405,25 @@ Toàn bộ chuỗi mất ~3,6 s. Hàm dựng gói (tìm qua hằng số): `sqlq.
 - Lần đầu script dừng ngay sau `s2c/13` (chưa đọc được dạng dài), không gửi `c2s/11`. Đăng nhập lại thì vẫn ở khu 0. [Đo]
 - Sau khi đổi khu trọn chuỗi rồi thoát, đăng nhập lại cũng về **khu 0**: server không nhớ khu giữa hai lần đăng nhập, chỉ nhớ map. [Đo]
 - App Rust làm lại cùng chuỗi (`cllt zone --zone=4`), rồi đi M2 → M1 → M2 qua cổng (`cllt goto`): qua cổng Làng Thanh Khê thì server xếp manina vào **khu 1** của M1, đăng nhập lại vẫn khu 1; về M2 thì khu 0. Có lẽ server xếp vào khu đầu tiên còn chỗ (khu 0 của M1 hay đông). [Đo; lý do là Suy luận]
+
+<a id="c2s-11"></a>
+
+## c2s/11: khu và số thứ tự map (game 1.1.1)
+
+`string mapId; u8 khu; i32 số`. Đo bằng Frida trên game 1.1.1 ngày 22/11 (`captures/v111-2026-11-22`) và so với `bh2-2026-11-21`, `mp1-2026-11-22`: [Đo]
+
+- **`i32`** là số thứ tự của map, đúng số mà `s2c/29` và `s2c/13` dạng dài mang theo (M1 0, M11 10, M12 11, M15 14, M24 23, M25 24), khi client **đã tải map đó trước đây trong phiên**; lần đầu tải một map trong phiên là `-1`. Bản đồ thế giới `"M99"` luôn `00 ffffffff`.
+- **`u8`** là `ff` sau cổng và lúc đăng nhập; khu mới sau đổi khu; khu đang đứng khi tải lại map sau trận và khi đầu hàng.
+
+| Lúc | Game gửi |
+|---|---|
+| Đăng nhập (lần đầu tải M1) | `"M1" ff ffffffff` |
+| Đổi khu ở M11 (sang khu 1) | `"M11" 01 0000000a` |
+| Qua cổng về lại M15 (đã tải trước đó) | `"M15" ff 0000000e` |
+| Sau trận ở M12 khu 0 | `"M12" 00 0000000b` |
+| Bản đồ thế giới | `"M99" 00 ffffffff` |
+
+B2 thấy `(khu, 0)` sau đổi khu vì M1 có số 0. Bot TS và app gửi đúng quy tắc này từ 22/11: mỗi phiên nhớ map đã tải và số của nó (`MapLoads` ở `src/protocol/world.ts` và `app/core/src/world.rs`), từ `s2c/29`, `s2c/13`, `s2c/11`.
 
 ## Code khi va chạm quái
 
@@ -430,7 +449,7 @@ com.mh.sqhz.a18(Object mob, boolean)          kiểm tra va chạm của quái
 
 ## Đầu hàng
 
-Nút "Đầu hàng" → "Bạn muốn thoát khỏi trận đấu" → OK. Client gửi **c2s/11** (map) rồi **c2s/40** (`string battleUuid`), nhận s2c/11, s2c/10, s2c/1214, sau đó gửi c2s/43. Không có opcode đầu hàng riêng. [Đo 4 lần]
+Nút "Đầu hàng" → "Bạn muốn thoát khỏi trận đấu" → OK. Client gửi **c2s/11** (map, khu đang đứng, số thứ tự map: [c2s/11](#c2s-11)) rồi **c2s/40** (`string battleUuid`) trong cùng một lúc, nhận s2c/11, s2c/10, s2c/1214, sau đó gửi c2s/43 khoảng 0,6 s sau s2c/1214 (game 1.1.1). Không có opcode đầu hàng riêng. [Đo 4 lần ở B2, lại ở game 1.1.1] Bot TS và app làm theo từ 22/11 ([05-battle](05-battle.md#sau-trận)).
 
 c2s/40 được dựng trong `sqlq.s77`, gọi từ luồng `com.mh.sqln.run1`, do nút OK của `com.g.c.sqaj.a5` kích hoạt.
 

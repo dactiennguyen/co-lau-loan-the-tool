@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import { once } from 'node:events';
 import { runClient } from '../src/net/client.ts';
+import { ZERO_PACE } from '../src/net/human.ts';
 import { ProtocolError } from '../src/protocol/protocol.ts';
 import { ProxyTunnel, parseProxy, proxyLabel } from '../src/net/proxy.ts';
 import { startSimulator } from './support/game-server.ts';
@@ -78,7 +79,7 @@ async function viaProxy(proxyUrl: (port: number) => string, options: FakeProxyOp
   const game = await startSimulator(), proxy = await startProxy(options);
   try {
     const result = await runClient({ host: gameHost, port: game.port, mode: 'world', username: 'probe_user', password: 'abc', proxy: proxyUrl(proxy.port),
-      settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 300, snapshotWaitMs: 40, log: e => events.push(e) });
+      settleMs: 30, heartbeatMs: 20, worldHeartbeatMs: [20, 20], human: ZERO_PACE, responseTimeoutMs: 300, snapshotWaitMs: 40, log: e => events.push(e) });
     return { result, events, seen: proxy.seen, gamePort: game.port, proxyPort: proxy.port };
   } finally { await proxy.close(); await game.close(); }
 }

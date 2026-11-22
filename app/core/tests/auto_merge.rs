@@ -143,7 +143,7 @@ fn arrive(bot: &mut Bot, out: &mut Vec<Out>, now: Instant, map_id: &str, name: &
 }
 const PHAP_SU: &str = "000000024d31000000a1";
 /// c2s/15 of the job's challenge of Cóc Xanh.
-const CHALLENGE: &str = "000000086d6f62363130303000";
+const CHALLENGE: &str = "000000086d6f62363130303001";
 
 /// manina on M2 zone 3 with Cóc Xanh around, `bag` and `xu_khoa`, Tự gộp đá khi túi đầy on (up to Max, 5 minutes).
 fn manina(bag_items: &[(u8, i32, u8)], xu_khoa: i64) -> (Bot, Vec<Out>, Instant) {

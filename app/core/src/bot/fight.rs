@@ -89,7 +89,14 @@ impl Bot {
             return;
         };
         let mut acts = vec![];
-        b.leave(&map_id, &mut acts);
+        // The zone stood in and the map's index (06-map-mobs.md#c2s-11), with c2s/40 in the same instant.
+        let map = Ctx {
+            map_id: Some(&map_id),
+            zone: Some(self.snap.zone),
+            map_index: Some(self.maps.map_index(&map_id)),
+            ..Ctx::default()
+        };
+        b.leave(map, &mut acts);
         let mob = b.mob_id().to_string();
         let name = self
             .mobs
@@ -100,7 +107,8 @@ impl Bot {
             LogKind::Battle,
             format!("Đầu hàng trận với {name}"),
         ));
-        self.reload_map = true;
+        // Its c2s/43 follows s2c/11 (reload_map), or with the human pace s2c/1214 (left), as the game 1.1.1.
+        self.reload_map = !self.human.on();
         self.leave_until = Some(now + Duration::from_secs(8));
         self.apply(acts, now, out);
     }
@@ -125,6 +133,16 @@ impl Bot {
         Self::battle_end(EndKind::Left, None, None, out);
         (self.battle, self.leave_until) = (None, None);
         out.push(Out::Log(LogKind::Battle, format!("Đã rời trận (s2c/{by})")));
+        // The game asks the mobs of the map ~0.6 s after s2c/1214 (B2, game 1.1.1).
+        if self.human.on() {
+            let map_id = self.snap.map_id.clone();
+            let gap = self.human.pick(crate::human::ENTITIES_AFTER_SURRENDER);
+            let ctx = Ctx {
+                map_id: Some(&map_id),
+                ..Ctx::default()
+            };
+            self.send_after(gap, 43, ctx, reload::Then::Nothing, now, out);
+        }
         if self.job_running() || self.quest_running() {
             self.timer = Some((now + Duration::from_secs(2), Wake::Next));
         }
@@ -153,7 +171,12 @@ impl Bot {
     }
 
     pub(super) fn next(&mut self, now: Instant, out: &mut Vec<Out>) {
-        if self.battle.is_some() || self.allotting.is_some() || self.skilling.is_some() {
+        // The map reloaded after a battle comes first (reload.rs): reloaded() calls this again.
+        if self.battle.is_some()
+            || self.reload.is_some()
+            || self.allotting.is_some()
+            || self.skilling.is_some()
+        {
             return;
         }
         if self.trip.is_some() {
@@ -215,6 +238,9 @@ impl Bot {
         if targets.is_empty() {
             return self.finish(&format!("Không thấy {} ở khu này", job.target), out);
         }
+        if self.walking(now) {
+            return;
+        }
         let mob = targets[job.fights as usize % targets.len()].clone();
         let opcode = if boss { 1178 } else { 15 };
         let j = self.snap.job.as_mut().unwrap();
@@ -238,6 +264,18 @@ impl Bot {
     }
 
     /// Keeps the challenge until its s2c/22 and waits 8 s for it.
+    /// Nhịp như người chơi: no challenge within the walk to the mob after the mobs of the map came (walk_until), the
+    /// next step then.
+    pub(super) fn walking(&mut self, now: Instant) -> bool {
+        match self.walk_until {
+            Some(at) if now < at => {
+                self.timer = Some((at, Wake::Next));
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn challenged(&mut self, mob: Mob, now: Instant) {
         self.challenges
             .retain(|c| now.duration_since(c.at) < CHALLENGE_KEPT);
@@ -251,6 +289,8 @@ impl Bot {
     }
 
     pub(super) fn on_battle_end(&mut self, end: BattleEnd, now: Instant, out: &mut Vec<Out>) {
+        // The game reloads the map after every battle, won or lost (reload.rs); the drops wait for it.
+        self.reload_after_battle(now, out);
         let kind = if end.won { EndKind::Won } else { EndKind::Lost };
         Self::battle_end(kind, end.exp, end.coin, out);
         // The result that ended it reaches no snapshot with the battle on: the snapshot keeps it until the next battle.
@@ -425,7 +465,8 @@ impl Bot {
             }
         };
         let mut acts = vec![];
-        runner.start(&mut acts);
+        let mut runner = runner;
+        runner.start(now, &mut acts);
         (self.battle, self.snap.turn) = (Some(runner), None);
         self.battle_started = now;
         // As on_battle_end counts it: the quest run's unless a fight job runs; a challenge of an earlier job is neither.
@@ -546,7 +587,7 @@ impl Bot {
     /// tree, v2 with the account's skill. Tấn công and level give the damage per sword before the first hit, the mob
     /// block of s2c/22 its HP, and the memory what the earlier battles of the session learnt.
     fn runner_options(
-        &self,
+        &mut self,
         mob: Option<crate::battle::MobBlock>,
         potions: Vec<crate::battle_actions::Potion>,
     ) -> crate::runner_v3::RunnerOptions {
@@ -573,6 +614,11 @@ impl Bot {
             turn_delay: self.turn_pause(),
             turn_random: self.fight.delay_random && !self.bach_ho_on(),
             mob_hp_unknown: self.bach_ho_on(),
+            // Bạch Hổ keeps its own fast pace (BachHoPace).
+            human: match self.bach_ho_on() {
+                true => crate::human::Human::Off,
+                false => self.human.fork(),
+            },
         }
     }
 

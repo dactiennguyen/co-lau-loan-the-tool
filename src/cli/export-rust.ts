@@ -539,7 +539,11 @@ function requests() {
     [1178, { mobId: 'mob89100002' }], [18, { battleUuid }], [14, { battleUuid, seq: 4 }], [19, { battleUuid, seq: 3, move }], [20, { battleUuid, seq: 7, skill: 1000 }],
     [10, { stat: 0, amount: 1 }], [1191, { skillId: 1000, amount: 1 }],
     // Khu vực (B2, Z1): the list, the zone picked, then the map of that zone.
-    [1172, {}], [1173, { zone: 20 }], [11, { mapId: 'M1', zone: 20 }],
+    [1172, {}], [1173, { zone: 20 }], [11, { mapId: 'M1', zone: 20, mapIndex: 0 }],
+    // c2s/11 of the game 1.1.1 (06-map-mobs.md#c2s-11): Bản đồ thế giới, a zone change in M11, back through a portal to a
+    // map loaded before, after a battle in M12.
+    [11, { mapId: 'M99' }], [11, { mapId: 'M11', zone: 1, mapIndex: 10 }], [11, { mapId: 'M15', mapIndex: 14 }], [11, { mapId: 'M12', zone: 0, mapIndex: 11 }],
+    [15, { mobId: 'mob800', challengeFlag: 0 }],
     // Item actions of P4: Cởi ra the pet, Trang bị it again from bag slot 39, Sử dụng bag slot 3, Sửa chữa gear slot 2.
     [1186, { action: 1, slot: 5 }], [1186, { action: 0, slot: 39 }], [84, { slot: 3 }], [48, { slot: 2 }], [48, { where: 0, slot: 0 }],
     // Vứt bỏ the Đá cấp 2 of bag slot 4 (K3), Sắp xếp (I1).

@@ -237,6 +237,9 @@ pub struct BotOptions {
     /// Mã quà tặng: codes refused in a row and the server's lock, shared by the sessions of the account so a new login
     /// does not forget them (Manager keeps one per username).
     pub gift: Arc<Mutex<GiftMemory>>,
+    /// The gaps of the game 1.1.1 (human.rs): the session's Human::new(); Off by default, as the tests build it (no wait,
+    /// no reload of the map after a battle, the bot as before 22/11).
+    pub human: crate::human::Human,
 }
 impl Default for BotOptions {
     fn default() -> Self {
@@ -251,6 +254,7 @@ impl Default for BotOptions {
             fight: FightSettings::default(),
             record: true,
             gift: Arc::default(),
+            human: crate::human::Human::Off,
         }
     }
 }

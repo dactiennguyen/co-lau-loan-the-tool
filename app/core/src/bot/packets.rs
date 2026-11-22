@@ -10,6 +10,8 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) -> crate::protocol::Result<()> {
+        // The maps loaded in this session, for the index of c2s/11 (06-map-mobs.md#c2s-11).
+        self.maps.on(opcode, payload);
         let done = self.packet(opcode, payload, now, out);
         // After every packet, those handled early too (an answer of Pháp sư, of a pickup, one that did not decode): the
         // trip of Tự gộp đá goes on from where the packet left it, with nothing else to wake it.
@@ -425,19 +427,24 @@ impl Bot {
                         }
                     }
                 }
-                // Through a portal the client asks for the mobs of the new map next (B5), and after Đầu hàng for those of
-                // the map it asked with c2s/40 (06-map-mobs). That map answers our c2s/11: it does not end the battle.
+                // Through a portal or into a zone the client asks for the mobs of the new map next (B5), ENTITIES_AFTER_MAP
+                // later with the human pace; after Đầu hàng without it, or a jump of Bản đồ thế giới, for those of the map
+                // asked with c2s/11 at once (06-map-mobs). That map answers our c2s/11: it does not end the battle. The
+                // reload after a battle has its own c2s/43 (reload.rs).
                 let reload = std::mem::take(&mut self.reload_map);
                 if self.travelling.is_some() || self.zoning.is_some() || reload {
                     let map_id = self.snap.map_id.clone();
-                    Self::send(
-                        out,
-                        43,
-                        Ctx {
-                            map_id: Some(&map_id),
-                            ..Ctx::default()
-                        },
-                    );
+                    let gap = match reload {
+                        true => Duration::ZERO,
+                        false => self.human.pick(crate::human::ENTITIES_AFTER_MAP),
+                    };
+                    let ctx = Ctx {
+                        map_id: Some(&map_id),
+                        ..Ctx::default()
+                    };
+                    self.send_after(gap, 43, ctx, reload::Then::Nothing, now, out);
+                } else {
+                    self.reload_map_came(now, out);
                 }
             }
             // Bản đồ thế giới (flag 0, "M99"): the jump of Bạch Hổ or Quay về chỗ cũ (bachho.rs).
@@ -461,17 +468,17 @@ impl Bot {
                     return Ok(());
                 }
                 if let (None, Some(z)) = (&self.travelling, self.zoning) {
-                    // The answer to c2s/1173: ask the map of that zone as the app does (B2, Z1).
+                    // The answer to c2s/1173: ask the map of that zone as the app does (B2, Z1), with the map's index
+                    // ("M11" 01 0000000a, game 1.1.1).
                     let zone = c.zone.unwrap_or(z);
-                    Self::send(
-                        out,
-                        11,
-                        Ctx {
-                            map_id: Some(&c.map_id),
-                            zone: Some(zone),
-                            ..Ctx::default()
-                        },
-                    );
+                    let ctx = Ctx {
+                        map_id: Some(&c.map_id),
+                        zone: Some(zone),
+                        map_index: Some(self.maps.map_index(&c.map_id)),
+                        ..Ctx::default()
+                    };
+                    let gap = self.human.pick(crate::human::MAP_AFTER_PORTAL);
+                    self.send_after(gap, 11, ctx, reload::Then::Nothing, now, out);
                 }
                 if let Some((id, name)) = self.travelling.clone() {
                     self.timer = None;
@@ -487,20 +494,25 @@ impl Bot {
                             ..Portal::default()
                         },
                     );
-                    Self::send(
-                        out,
-                        11,
-                        Ctx {
-                            map_id: Some(&c.map_id),
-                            ..Ctx::default()
-                        },
-                    );
+                    // (0xff, its index once loaded in this session, else -1).
+                    let ctx = Ctx {
+                        map_id: Some(&c.map_id),
+                        map_index: Some(self.maps.map_index(&c.map_id)),
+                        ..Ctx::default()
+                    };
+                    let gap = self.human.pick(crate::human::MAP_AFTER_PORTAL);
+                    self.send_after(gap, 11, ctx, reload::Then::Nothing, now, out);
                 }
             }
             43 => {
                 let d = map_entities(payload)?;
                 self.atlas.record_mobs(&d.map_id, self.snap.zone, &d.mobs);
                 self.mobs = d.mobs;
+                // The walk to a mob before its challenge (game 1.1.1: c2s/1169, then c2s/15 4–26 s after c2s/43).
+                if self.human.on() && !self.bach_ho_on() {
+                    let walk = self.human.pick(crate::human::CHALLENGE_AFTER_ENTITIES);
+                    self.walk_until = Some(now + walk);
+                }
                 self.bach_ho_mobs(&d.map_id, now, out);
                 if let Some((_, via)) = self.travelling.take() {
                     out.push(Out::Log(
@@ -508,7 +520,8 @@ impl Bot {
                         format!("Đã tới {} qua cổng {via}", self.snap.map_name),
                     ));
                     self.move_until = None;
-                    self.timer = Some((now + Duration::from_secs(2), Wake::Next));
+                    let gap = self.arrival_gap();
+                    self.timer = Some((now + gap, Wake::Next));
                 }
                 self.warp_arrived(now, out);
                 if let Some(z) = self.zoning.take() {
@@ -628,18 +641,9 @@ impl Bot {
                     match left.first().copied() {
                         Some(option) if menu.options.iter().any(|o| o.0 == option) => {
                             left.remove(0);
-                            Self::send(
-                                out,
-                                57,
-                                Ctx {
-                                    option: Some(option as i32),
-                                    map_id: Some(SELLER.0),
-                                    npc_id: Some(npc_id),
-                                    ..Ctx::default()
-                                },
-                            );
+                            let gap = self.reply57(option, SELLER.0, npc_id, now, out);
                             self.shopping =
-                                Some((Shopping::Menu { npc: npc_id, left }, now + SHOP_WAIT));
+                                Some((Shopping::Menu { npc: npc_id, left }, now + gap + SHOP_WAIT));
                         }
                         // The last line went out: this menu is not the shop's (another NPC answered); nothing more is sent.
                         None => {}

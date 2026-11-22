@@ -21,6 +21,17 @@ impl Jitter {
         x
     }
 
+    /// Another stream of numbers, drawn from this one (the waits of a battle apart from the Bot's).
+    pub fn fork(&mut self) -> Self {
+        Self::new(self.next())
+    }
+
+    /// A time from `lo` to `hi` ms, to the millisecond (human.rs).
+    pub fn between(&mut self, lo: u64, hi: u64) -> Duration {
+        let span = hi.saturating_sub(lo);
+        Duration::from_millis(lo + self.next() % (span + 1))
+    }
+
     /// `base`, or with `random` a time from `base` to twice it, to the millisecond.
     pub fn wait(&mut self, base: Duration, random: bool) -> Duration {
         if !random || base.is_zero() {

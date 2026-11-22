@@ -70,6 +70,26 @@ export function mapChange(payload: Uint8Array) {
   return finish(r, { mapId, mapIndex: value, extra, ...(extra[1] !== 0xff && { zone: extra[1] }) }, 's2c/13');
 }
 
+/** What the i32 of c2s/11 says (06-map-mobs.md#c2s-11, game 1.1.1 on 22/11): the map's index (the i32 of s2c/29 and of
+ * the long s2c/13: M1 0, M11 10, M12 11, M15 14) when the client loaded that map earlier in this session, -1 the first
+ * time. Fed every packet of the session from the login on; MapLoads of app/core/src/world.rs is the same. */
+export class MapLoads {
+  private loaded = new Set<string>();
+  private index = new Map<string, number>();
+  /** The map stood in: s2c/29, then s2c/11 and s2c/13. */
+  current = '';
+  on(opcode: number, payload: Uint8Array) {
+    if (opcode === 29) { const r = new Reader(payload); r.string(); this.current = r.string(); this.locate(this.current, r.i32()); }
+    else if (opcode === 13) { const c = mapChange(payload); this.current = c.mapId; this.locate(c.mapId, 'mapIndex' in c ? c.mapIndex : undefined); }
+    else if (opcode === 11 && payload[0] === 1) { const r = new Reader(payload); r.u8(); this.current = r.string(); this.loaded.add(this.current); }
+  }
+  private locate(mapId: string, index: number | undefined) { if (index !== undefined && index >= 0) this.index.set(mapId, index); }
+  /** The i32 of c2s/11 for `mapId` now. */
+  mapIndex(mapId: string) { return this.loaded.has(mapId) ? this.index.get(mapId) ?? -1 : -1; }
+  /** The fields of c2s/11 for `mapId`: `zone` as the request says it (none, 0xff, after a portal and at login). */
+  request(mapId: string, zone?: number) { return { mapId, zone, mapIndex: this.mapIndex(mapId) }; }
+}
+
 /** s2c/1177: a boss of the map. field 0 (after s2c/43, and when it moves): a mob record as in s2c/43, then u8 1 and the
  * tile column and row it stands on (M1 is 156 × 23 tiles of 32). field 1: only the mob id, the boss left its tile;
  * ~13 s later a field 0 brings the new tile (Q16: Hào Trưởng phía Bắc (38, 6) → (59, 7)). */

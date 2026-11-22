@@ -3,6 +3,7 @@ import { Protocol, ProtocolError, Reader, handshake, sessionKey, characterPrefix
 import { buildRequest, decodeEvent, findEvent } from '../protocol/events.ts';
 import { BASELINE } from '../protocol/config.ts';
 import { ProxyTunnel, parseProxy, proxyLabel } from './proxy.ts';
+import { HUMAN, heartbeatDelay, humanPace, type Human } from './human.ts';
 
 /** Login/world flow: entering `state` sends `request`; the state ends when its `expect` responses arrived. */
 export const FLOW: { state: string; request: number; expect: number[] }[] = [
@@ -21,7 +22,12 @@ export const NO_CHARACTER = 'Nick chưa có nhân vật: vào game tạo nhân v
 export interface ClientOptions {
   host?: string; port?: number; serverId?: number; username?: string; password?: string;
   mode?: 'bootstrap' | 'login' | 'world'; responseTimeoutMs?: number; overallTimeoutMs?: number;
-  settleMs?: number; heartbeatMs?: number; log?: (event: Record<string, unknown>) => void;
+  settleMs?: number; log?: (event: Record<string, unknown>) => void;
+  /** c2s/1 every `heartbeatMs` (default 2000) until s2c/4; then the first `worldHeartbeatMs[0]` after s2c/4 and every
+   * `worldHeartbeatMs[1]` (default 25 s, 30 s), as the game 1.1.1 (02-login.md#nhịp-như-người-chơi). */
+  heartbeatMs?: number; worldHeartbeatMs?: readonly [number, number];
+  /** The gaps of the login as the game leaves them (human.ts HUMAN; default humanPace()). ZERO_PACE for tests. */
+  human?: Human;
   /** After s2c/43, how long to wait for s2c/1263 (default 1500 ms): a zone with no other player sends none (M25, 31/10). */
   snapshotWaitMs?: number;
   /** socks5://[user:pass@]host:port or http://[user:pass@]host:port (CLLT_PROXY): the TCP connection goes through it,
@@ -59,7 +65,22 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     let state = 'seed', done = false, characterName = '', mapId = '', packets = 0;
     let entities = false, snapshot = false, players = false, ready = false, lastReceiveOpcode: number | null = null;
     let lastServerMessage: { flag: unknown; text: unknown; at: number } | undefined;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let heartbeat: ReturnType<typeof setTimeout> | undefined, gap: ReturnType<typeof setTimeout> | undefined;
+    let inWorld = false, noticeAt = 0, noticeAsked = false;
+    const human = options.human ?? humanPace();
+    const beats = { login: options.heartbeatMs ?? HUMAN.heartbeat.login, firstInWorld: options.worldHeartbeatMs?.[0] ?? HUMAN.heartbeat.firstInWorld,
+      inWorld: options.worldHeartbeatMs?.[1] ?? HUMAN.heartbeat.inWorld };
+    /** The next c2s/1, `ms` after now (heartbeatDelay). */
+    function beat(ms: number) {
+      clearTimeout(heartbeat);
+      heartbeat = setTimeout(() => { if (done) return; write(1, buildRequest(1)); beat(heartbeatDelay(inWorld, false, beats)); }, ms);
+    }
+    /** The game's own gap before its next request: no answer is due meanwhile, so no response deadline runs. */
+    function later(ms: number, then: () => void) {
+      if (ms <= 0) return then();
+      clearTimeout(stepTimer);
+      gap = setTimeout(() => { if (!done) then(); }, ms);
+    }
     let stepTimer: ReturnType<typeof setTimeout> | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
     let snapshotTimer: ReturnType<typeof setTimeout> | undefined;
@@ -76,7 +97,7 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
     }
     function finish(diagnostic?: Record<string, unknown>) {
       if (done) return;
-      done = true; clearInterval(heartbeat); clearTimeout(stepTimer); clearTimeout(settleTimer); clearTimeout(snapshotTimer); clearTimeout(overall);
+      done = true; clearTimeout(heartbeat); clearTimeout(gap); clearTimeout(stepTimer); clearTimeout(settleTimer); clearTimeout(snapshotTimer); clearTimeout(overall);
       socket.destroy(); resolve({ ok: !diagnostic, state, diagnostic, packets, user });
     }
     function fail(code: string, reason: string, details: Record<string, unknown> = {}) {
@@ -99,7 +120,9 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
       write(opcode, buildRequest(opcode, { username, password, serverId, characterName, mapId, element: user.character?.field01, ...extra }));
     }
     function requestNotice() {
-      if (state === 'version' && haveList && haveFlag) step('notice');
+      if (state !== 'version' || !haveList || !haveFlag || noticeAsked) return;
+      noticeAsked = true;
+      later(human.ms(HUMAN.noticeAfterFlag), () => { noticeAt = Date.now(); step('notice'); });
     }
     function worldReady() {
       if (!entities || !snapshot || settleTimer) return;
@@ -182,14 +205,15 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
             case -1:
               if (state !== 'key') throw new ProtocolError('UNSUPPORTED_BRANCH', 'Repeated key exchange');
               protocol.enableKey(sessionKey(packet.payload)); step('version');
-              heartbeat = setInterval(() => { if (!done) write(1, buildRequest(1)); }, options.heartbeatMs ?? 2000); break;
+              beat(heartbeatDelay(false, true, beats)); break;
             case 1207: emit('server_list', { value: r.string() }); haveList = true; requestNotice(); break;
             case 1209: emit('server_flag', { value: r.u8() }); haveFlag = true; requestNotice(); break;
             case 5:
               emit('notification', { fields: decoded?.fields });
               if (state !== 'notice') throw new ProtocolError('SERVER_NOTIFICATION', 'Notification outside bootstrap', { notification: decoded?.fields });
               if (mode === 'bootstrap') { emit('bootstrap_verified'); finish(); break; }
-              step('challenge2'); break;
+              // c2s/2 1.3–2.5 s after c2s/5, as the game reads its notice first.
+              later(human.ms(HUMAN.gateAfterNotice) - (Date.now() - noticeAt), () => step('challenge2')); break;
             case 2:
               if (state !== 'challenge2') break;
               if (r.string() !== '') throw new ProtocolError('UNSUPPORTED_BRANCH', 'Nonempty login gate; capture the official app branch');
@@ -201,6 +225,8 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
               if (state !== 'authenticating') break;
               if (packet.payload.length) throw new ProtocolError('UNSUPPORTED_BRANCH', 'Nonempty authentication ACK');
               emit('authentication_acknowledged');
+              // In the world the game beats every 30 s, the first ~25 s after s2c/4 (02-login.md#nhịp-như-người-chơi).
+              inWorld = true; beat(heartbeatDelay(true, true, beats));
               // As the game does (VG1 20/11, game 1.1.1 22/11): c2s/1282, the state of the phone (adb, developer options,
               // accessibility services), here a clean phone 00 00 00, then the chat block list (c2s/1284 command 0), then c2s/9.
               write(1282, buildRequest(1282, {}));
@@ -218,17 +244,19 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
               if (mode === 'login') { emit('login_verified_by_character_response'); finish(); break; }
               step('skills'); break;
             }
-            case 30: if (state === 'skills') step('profile42'); break;
+            case 30: if (state === 'skills') later(human.ms(HUMAN.profileAfterSkills), () => step('profile42')); break;
             case 42: if (state === 'profile42') step('location'); break;
             case 29:
               if (state !== 'location') break;
               user.location = characterLocation(packet.payload); mapId = user.location.mapId;
               emit('user_location', { kind: 'derived', sourceEvent: 's2c/29', location: user.location });
-              step('map'); break;
+              // The first load of the map in this session: (0xff, -1).
+              later(human.ms(HUMAN.mapAfterLocation), () => step('map')); break;
             case 11:
               if (state !== 'map') break;
               user.map = mapPrefix(packet.payload);
-              emit('user_map', { kind: 'derived', sourceEvent: 's2c/11', map: user.map }); step('entities'); break;
+              emit('user_map', { kind: 'derived', sourceEvent: 's2c/11', map: user.map });
+              later(human.ms(HUMAN.entitiesAfterMap), () => step('entities')); break;
             case 43:
               if (state !== 'entities') break;
               entities = true; emit('initial_entities_received', { mapId: r.string(), payloadBytes: packet.payload.length }); worldReady();

@@ -615,6 +615,8 @@ fn requests_match_build_request() {
             action: i("action"),
             place: i("where"),
             zone: i("zone"),
+            map_index: i("mapIndex"),
+            challenge_flag: i("challengeFlag").map(|f| f as u8),
             uuid: s("uuid"),
             option: i("option"),
             ..Ctx::default()
@@ -1345,7 +1347,7 @@ fn fight_job_against_a_mob_stops_at_max_losses_and_a_missing_mob_ends_it() {
     bot.fight("Cóc Xanh", 5, 1, now, &mut out);
     assert!(out.contains(&Out::Send(
         15,
-        Writer::new().string("mob61000").u8(0).build()
+        Writer::new().string("mob61000").u8(1).build()
     )));
     bot.on_packet(22, &setup, now, &mut out).unwrap();
     assert!(matches!(out.last(), Some(Out::Send(18, _))));
@@ -1524,7 +1526,7 @@ fn a_late_setup_counts_for_the_job_whose_challenge_it_answers() {
     bot.on_timer(now + Duration::from_secs(9), &mut out);
     assert!(out.contains(&Out::Send(
         15,
-        Writer::new().string("mob62000").u8(0).build()
+        Writer::new().string("mob62000").u8(1).build()
     )));
     // Then the battle of the first challenge (mob61000) opens after all: played out, counted for the first job only.
     bot.on_packet(22, &setup, now + Duration::from_secs(10), &mut out)
@@ -1941,7 +1943,7 @@ fn quest_run_counts_a_won_kill_then_goes_on_to_the_report() {
         out.last(),
         Some(&Out::Send(
             15,
-            Writer::new().string("mob61000").u8(0).build()
+            Writer::new().string("mob61000").u8(1).build()
         ))
     );
     bot.on_packet(22, &setup, now, &mut out).unwrap();
@@ -1994,7 +1996,7 @@ fn one_step_ends_when_its_kill_count_is_reached_and_refuses_a_step_already_past(
         out.last(),
         Some(&Out::Send(
             15,
-            Writer::new().string("mob61000").u8(0).build()
+            Writer::new().string("mob61000").u8(1).build()
         ))
     );
     bot.on_packet(22, &setup, now, &mut out).unwrap();
@@ -2371,7 +2373,8 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
     assert_eq!(
         sent,
         [
-            &Out::Send(11, Writer::new().string("M2").u8(0xff).i32(-1).build()),
+            // The zone stood in, and -1: this bot never got the s2c/11 of M2 (06-map-mobs.md#c2s-11).
+            &Out::Send(11, Writer::new().string("M2").u8(0).i32(-1).build()),
             &Out::Send(40, Writer::new().string(&uuid).build()),
         ]
     );
@@ -2401,7 +2404,7 @@ fn stop_with_surrender_leaves_like_the_games_dau_hang_and_plays_on_without_an_an
         out.last(),
         Some(&Out::Send(
             15,
-            Writer::new().string("mob61000").u8(0).build()
+            Writer::new().string("mob61000").u8(1).build()
         ))
     );
 
@@ -2474,6 +2477,9 @@ fn mobs_of(map_id: &str) -> Vec<u8> {
 #[test]
 fn khu_vuc_lists_the_zones_and_c2s_1173_follows_s2c_13_to_the_map_and_mobs_of_that_zone() {
     let (mut bot, mut out, now, _) = coc_xanh_bot();
+    // M2 loaded at the login, as in every session.
+    bot.on_packet(11, &map_head("M2", "Trại Vân Sơn", 0), now, &mut out)
+        .unwrap();
     out.clear();
     bot.list_zones(&mut out);
     assert_eq!(sent(&out, 1172).as_deref(), Some(""));
@@ -2514,11 +2520,12 @@ fn khu_vuc_lists_the_zones_and_c2s_1173_follows_s2c_13_to_the_map_and_mobs_of_th
     assert_eq!(bot.snapshot().moving.as_deref(), Some("Sang khu 4"));
     bot.fight("Cóc Xanh", 1, 1, now, &mut out);
     assert!(logged(&out, "Đang đổi chỗ: đợi tới nơi rồi mới đánh quái"));
-    // Z1: s2c/13 in the long form with the zone last, then c2s/11 of zone 4 as the phone asked it in B2.
+    // Z1: s2c/13 in the long form with the zone last, then c2s/11 of zone 4 with the index of M2 (1, loaded since the
+    // login), as the game 1.1.1 asks it ("M11" 01 0000000a).
     out.clear();
     bot.on_packet(13, &hex("000000024d32000000010004"), now, &mut out)
         .unwrap();
-    assert_eq!(sent(&out, 11).as_deref(), Some("000000024d320400000000"));
+    assert_eq!(sent(&out, 11).as_deref(), Some("000000024d320400000001"));
     out.clear();
     bot.on_packet(11, &map_head("M2", "Trại Vân Sơn", 4), now, &mut out)
         .unwrap();

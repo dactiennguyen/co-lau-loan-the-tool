@@ -53,6 +53,7 @@ mod pace;
 mod packets;
 mod quest;
 mod record;
+mod reload;
 mod shop;
 mod smith;
 mod stats;
@@ -384,11 +385,19 @@ pub struct Bot {
     break_until: Option<Instant>,
     step_ready: bool,
     battle_ended: Option<Instant>,
+    /// Nhịp như người chơi (reload.rs): the maps loaded in this session for the index of c2s/11, the pace of
+    /// BotOptions::human, the requests held for their gap, and the reload of the map after a battle under way.
+    maps: crate::world::MapLoads,
+    human: crate::human::Human,
+    deferred: Vec<reload::Deferred>,
+    reload: Option<reload::Reload>,
+    /// No challenge before it: the walk to the mob after the mobs of the map came (human::CHALLENGE_AFTER_ENTITIES).
+    walk_until: Option<Instant>,
 }
 
 impl Bot {
     pub fn new(options: BotOptions, atlas: Arc<Atlas>) -> Self {
-        let (stat_plan, fight) = (options.stats, options.fight);
+        let (stat_plan, fight, human) = (options.stats, options.fight, options.human.clone());
         Self {
             snap: Snapshot::default(),
             mobs: vec![],
@@ -481,6 +490,11 @@ impl Bot {
             break_until: None,
             step_ready: false,
             battle_ended: None,
+            maps: crate::world::MapLoads::default(),
+            human,
+            deferred: vec![],
+            reload: None,
+            walk_until: None,
         }
     }
 
@@ -671,6 +685,7 @@ impl Bot {
             self.pick_at,
             self.egg_deadline(),
             self.welfare_deadline(),
+            self.human_deadline(),
         ]
         .into_iter()
         .flatten()
@@ -799,6 +814,7 @@ impl Bot {
                 self.apply(acts, now, out);
             }
         }
+        self.human_timer(now, out);
         self.walk_back(now, out);
         self.merge_step(now, out);
     }

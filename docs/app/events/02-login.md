@@ -292,13 +292,41 @@ Nguồn: A2: packet đọc từ native reader, record 94.
 
 Ở chỗ của `s2c/9`, server gửi gói này khi tài khoản chưa có nhân vật. Game thật lúc đó mở màn tạo nhân vật (Khuôn Mặt, Kiểu Tóc, Màu Tóc, Màu Da, ô "Nhập tên nhân vật"). Bot TS dừng với mã `NO_CHARACTER` ("Nick chưa có nhân vật: vào game tạo nhân vật trước"), app Rust báo cùng câu đó. Gói tạo nhân vật mà client gửi đi thì chưa bắt được. Xem [APK 1.1.0](../apk-1.1.0.md#đo-thật-sau-open-beta-1202-ngày-2011). [Đo]
 
+<a id="nhịp-như-người-chơi"></a>
+
+## Nhịp như người chơi (game 1.1.1, 22/11)
+
+Đo bằng Frida trên game 1.1.1 (`captures/v111-2026-11-22/game-1.1.1*.jsonl`, cùng `bh2-2026-11-21`, `mp1-2026-11-22`, `vg1-2026-11-20`; kịch bản đo ở hai lượt kiểm tra `audit-c2s`, `audit-seq`). Bot TS và app gửi đúng các gói này, nhưng trước 22/11 gửi ngay khi nhận gói trước, và heartbeat 2 giây suốt phiên. Từ 22/11 cả hai chờ như game, mọi khoảng chờ lấy từ một chỗ: `src/net/human.ts` (TS) và `app/core/src/human.rs` (Rust). [Đo]
+
+**Heartbeat `c2s/1`.** Mỗi 2 giây từ lúc trao khoá tới `s2c/4` (màn đăng nhập). Vào game thì thưa hẳn: lần đầu khoảng 25 s sau `s2c/4`, sau đó mỗi 30 s (đo 30,00–30,8 s), cả trong trận. App coi kết nối là mất khi server im **70 s** (trước là 30 s, lúc heartbeat còn 2 s): đủ cho hai nhịp không được trả lời. Bot TS không có giới hạn im lặng riêng. [Đo]
+
+**Khoảng chờ lúc đăng nhập và vào map:**
+
+| Từ | Tới | Game chờ |
+|---|---|---|
+| `s2c/1209` | `c2s/5` | 0,4–0,7 s |
+| `c2s/5` | `c2s/2` | 1,3–2,5 s (tính từ `c2s/5`; `s2c/5` về sau ~30 ms) |
+| `s2c/30` | `c2s/42` | 0,1–0,35 s |
+| `s2c/29` | `c2s/11` | 0,3–0,4 s |
+| `s2c/11` | `c2s/43` | 0,4–1,2 s, mỗi lần vào map: đăng nhập, qua cổng, đổi khu |
+| `s2c/13` | `c2s/11` | 0,3–0,4 s, sau cổng hay đổi khu |
+| tới map | cổng kế tiếp | 2–4 s trước khi qua cổng tiếp theo (Đổi map, nhiệm vụ) |
+| `s2c/57` | `c2s/57` | game 4–23 s; bot chờ 1,5–4 s để nhiệm vụ không quá chậm |
+| `s2c/43` | `c2s/15` | đi bộ tới quái: game gửi loạt `c2s/1169` rồi `c2s/15`, trận sau 4–26 s sau `c2s/43`; bot chờ 1,5–4 s mỗi khi danh sách quái mới về (đăng nhập, qua cổng, đổi khu, tải lại map sau trận) |
+| `s2c/18` (timed 1) | nước đầu | mình đi trước: bot chờ 1,2–2,6 s (game đánh tay 22 s, Bạch Hổ nhanh nhất 1,15 s) |
+| `s2c/24` lượt mình | `c2s/19` | bot chờ 1,2–2,6 s, hoặc Chờ trước mỗi lượt đi nếu dài hơn (game: Bạch Hổ trung vị 2,6 s, đánh tay 4,6–5,9 s) |
+
+Các gói khác của đăng nhập (`c2s/1206`, `3`, `4`, `1282`, `1284`, `9`, `30`, `29`) vẫn đi ngay như game. Hạn chờ server của từng bước (8 s) và hạn cả lượt đăng nhập vẫn tính như trước; trong lúc bot cố ý chờ thì không có câu trả lời nào được chờ. Sau trận và khi đầu hàng: [05-battle](05-battle.md#sau-trận). [Đo]
+
+Trong code: `runClient` (TS) nhận `human` (mặc định `humanPace()`), `QuestBot` nhận `options.human` (`quest-run` truyền `humanPace()`); `BotOptions::human` của Rust, phiên (`session.rs`) đặt `Human::new()`. Bài test dùng `ZERO_PACE` / `Human::Zero` (đúng thứ tự, không chờ) hay `OFF` / `Human::Off` (như trước 22/11, mặc định của `BotOptions::default()`).
+
 <a id="vg1"></a>
 
 ## Client vào game: mọi gói gửi lên (VG1)
 
 Đo ngày 20/11/2026 với game bản 1.1.0 trên điện thoại, nick `tiheo2` (nhân vật akaito, M1), máy chủ Thanh Khê `plays1.colauloanthe.vn:1688`. Frida gắn vào tiến trình ngay khi game mở, trước gói đầu tiên; agent `captures/vg1-2026-11-20/agent.js` ghi hàm gửi `com.mh.sqkj.a(sqi)` và hàm đọc `com.mh.sqpq.e()`, kèm đủ byte của mọi gói. Ở `c2s/4`, proof (mật khẩu XOR challenge) được che. Người dùng không bấm gì ngoài đóng thông báo và bấm Đăng nhập. [Đo]
 
-Trong 60 giây đầu, client gửi **33 gói thuộc 15 loại**: 19 heartbeat `c2s/1` (khoảng 2 giây một lần; 18 lần lúc chờ ở màn đăng nhập, lần thứ 19 ở giây 60,4) và 14 gói khác. Thời điểm tính từ gói đầu tiên:
+Trong 60 giây đầu, client gửi **33 gói thuộc 15 loại**: 19 heartbeat `c2s/1` (khoảng 2 giây một lần; 18 lần lúc chờ ở màn đăng nhập, lần thứ 19 ở giây 60,4, tức ~25 s sau `s2c/4`: trong game heartbeat thưa còn 30 s, [nhịp như người chơi](#nhịp-như-người-chơi)) và 14 gói khác. Thời điểm tính từ gói đầu tiên:
 
 | Lúc (s) | Gói | Byte | Thân gói của game | Bot TS và app gửi |
 |---:|---|---:|---|---|

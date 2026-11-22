@@ -68,6 +68,10 @@ pub struct RunnerOptions {
     /// The mob's HP is not its HP (Bạch Hổ: thousandths of the boss's, s2c/22 973 of 1000): it stays unknown, so no
     /// swap is scored as a kill because the number is small.
     pub mob_hp_unknown: bool,
+    /// The gaps of the game 1.1.1 in a turn battle (human.rs): c2s/18 1.1–1.6 s after s2c/22, c2s/14 1–2 s after the
+    /// mob's turn while our move's cascades still fall (10–40 ms otherwise), an own move never within OWN_MOVE_MIN of its
+    /// turn. Off (the default, and in Bạch Hổ): none of these.
+    pub human: crate::human::Human,
 }
 impl Default for RunnerOptions {
     fn default() -> Self {
@@ -85,6 +89,7 @@ impl Default for RunnerOptions {
             turn_delay: Duration::ZERO,
             turn_random: false,
             mob_hp_unknown: false,
+            human: crate::human::Human::Off,
         }
     }
 }
@@ -148,6 +153,8 @@ impl Key {
 enum Wake {
     TimedMove(i32),
     Infer(i32, bool),
+    /// The c2s/14 of the mob's turn waiting for its human gap.
+    Step(i32),
 }
 
 /// What an own turn waits for: the answer to a skill (c2s/20) or to an item of a bag slot (c2s/44).
@@ -210,6 +217,10 @@ pub struct BattleRunner {
     inferred: Option<(i32, bool)>,
     /// Thời gian ngẫu nhiên of Chờ trước mỗi lượt đi.
     jitter: crate::delay::Jitter,
+    /// When c2s/18 goes, with RunnerOptions::human.
+    join_wait: Option<Instant>,
+    /// The last result was an own move whose board cascaded (more than one wave): the mob's c2s/14 waits for it to fall.
+    cascaded: bool,
 }
 
 impl BattleRunner {
@@ -287,6 +298,8 @@ impl BattleRunner {
             turn_wait: None,
             inferred: None,
             jitter: crate::delay::Jitter::default(),
+            join_wait: None,
+            cascaded: false,
         }
     }
 
@@ -305,9 +318,36 @@ impl BattleRunner {
     /// An own turn came (s2c/24, s2c/18 of a timed battle, inferred, or given back by resume): played at once, or after
     /// Chờ trước mỗi lượt đi, through the timer of turn_wait.
     fn own_turn(&mut self, seq: i32, now: Instant, out: &mut Vec<Act>) {
-        match self.pause() {
+        // With RunnerOptions::human never within OWN_MOVE_MIN of the turn, as a player looks at the board first.
+        // The first move of a battle the player opens (timed 1) after FIRST_MOVE.
+        let floor = match (self.options.human.on(), self.timed) {
+            (true, false) => self
+                .options
+                .human
+                .pick(crate::human::OWN_MOVE)
+                .max(crate::human::OWN_MOVE_MIN),
+            (true, true) if seq == 0 => self.options.human.pick(crate::human::FIRST_MOVE),
+            _ => Duration::ZERO,
+        };
+        match self.pause().max(floor) {
             d if d.is_zero() => self.my_move(seq, now, out),
             d => self.turn_wait = Some((now + d, Wake::TimedMove(seq))),
+        }
+    }
+
+    /// The mob's turn: c2s/14 at once, or with RunnerOptions::human after the gap the game leaves (STEP_AFTER_CASCADE
+    /// while our move's board still falls, else STEP_AFTER_TIMEOUT).
+    fn mob_turn(&mut self, seq: i32, now: Instant, out: &mut Vec<Act>) {
+        if !self.options.human.on() || self.timed {
+            return self.step(seq, out);
+        }
+        let range = match self.cascaded {
+            true => crate::human::STEP_AFTER_CASCADE,
+            false => crate::human::STEP_AFTER_TIMEOUT,
+        };
+        match self.options.human.pick(range) {
+            d if d.is_zero() => self.step(seq, out),
+            d => self.turn_wait = Some((now + d, Wake::Step(seq))),
         }
     }
 
@@ -333,24 +373,27 @@ impl BattleRunner {
         });
     }
 
-    pub fn start(&self, out: &mut Vec<Act>) {
-        self.send(out, 18, Ctx::default());
+    /// c2s/18, at once or with RunnerOptions::human JOIN_AFTER_SETUP after s2c/22.
+    pub fn start(&mut self, now: Instant, out: &mut Vec<Act>) {
+        match self.options.human.pick(crate::human::JOIN_AFTER_SETUP) {
+            d if d.is_zero() => self.send(out, 18, Ctx::default()),
+            d => self.join_wait = Some(now + d),
+        }
     }
 
-    /// Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map, then c2s/40. The session reads
-    /// the server's answer; clearing `leaving` plays on from the next turn (s2c/24, or s2c/21 in a timed battle).
-    pub fn leave(&mut self, map_id: &str, out: &mut Vec<Act>) {
-        // An own turn of a turn battle waiting for Chờ trước mỗi lượt đi is the turn passed over: resume() plays it.
+    /// Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map (`map`: the zone stood in and the
+    /// map's index, game 1.1.1), then c2s/40 in the same instant. The session reads the server's answer; clearing
+    /// `leaving` plays on from the next turn (s2c/24, or s2c/21 in a timed battle).
+    pub fn leave(&mut self, map: Ctx, out: &mut Vec<Act>) {
+        // An own turn of a turn battle waiting for Chờ trước mỗi lượt đi, or the mob's c2s/14 waiting for its gap, is the
+        // turn passed over: resume() plays it.
         let waiting = match self.turn_wait {
             Some((_, Wake::TimedMove(seq))) if !self.timed => Some((seq, true)),
+            Some((_, Wake::Step(seq))) => Some((seq, false)),
             _ => None,
         };
         (self.skill_wait, self.turn_wait, self.missed) = (None, None, waiting);
-        (self.leaving, self.surrendered) = (true, true);
-        let map = Ctx {
-            map_id: Some(map_id),
-            ..Ctx::default()
-        };
+        (self.leaving, self.surrendered, self.join_wait) = (true, true, None);
         self.send(out, 11, map);
         self.send(out, 40, Ctx::default());
     }
@@ -370,6 +413,7 @@ impl BattleRunner {
         [
             self.skill_wait.as_ref().map(|w| w.at),
             self.turn_wait.as_ref().map(|w| w.0),
+            self.join_wait,
         ]
         .into_iter()
         .flatten()
@@ -377,6 +421,10 @@ impl BattleRunner {
     }
 
     pub fn on_timer(&mut self, now: Instant, out: &mut Vec<Act>) {
+        if self.join_wait.is_some_and(|t| t <= now) {
+            self.join_wait = None;
+            self.send(out, 18, Ctx::default());
+        }
         if let Some(w) = self.skill_wait.filter(|w| w.at <= now) {
             self.skill_wait = None;
             let seq = w.seq;
@@ -407,12 +455,13 @@ impl BattleRunner {
         if self.turn_wait.as_ref().is_some_and(|w| w.0 <= now) {
             match self.turn_wait.take().unwrap().1 {
                 Wake::TimedMove(seq) => self.my_move(seq, now, out),
+                Wake::Step(seq) => self.step(seq, out),
                 Wake::Infer(seq, mine) => {
                     self.inferred = Some((seq, mine));
                     if mine {
                         self.own_turn(seq, now, out)
                     } else {
-                        self.step(seq, out)
+                        self.mob_turn(seq, now, out)
                     }
                 }
             }
@@ -448,7 +497,7 @@ impl BattleRunner {
                 } else if self.timed {
                     self.own_turn(0, now, out)
                 } else {
-                    self.step(0, out)
+                    self.mob_turn(0, now, out)
                 }
             }
             24 => {
@@ -456,6 +505,15 @@ impl BattleRunner {
                 // Left as it is: the turn after it may be inferred already.
                 if self.played(t.seq, t.player_turn == 1) {
                     return Ok(true);
+                }
+                // A battle opened with timed 1 that sends turns is a turn battle with the player first (game 1.1.1:
+                // every challenge with c2s/15 flag 1; only Sơn Tặc and Bạch Hổ are timed, without an s2c/24): no swap
+                // on a timer from here, the search of a turn battle (05-battle.md#s2c-18).
+                if self.timed {
+                    self.timed = false;
+                    if matches!(self.turn_wait, Some((_, Wake::TimedMove(_)))) {
+                        self.turn_wait = None;
+                    }
                 }
                 // The s2c/24 again of the own turn waiting for Chờ trước mỗi lượt đi: it keeps its time.
                 let waiting = matches!(self.turn_wait, Some((_, Wake::TimedMove(s))) if s == t.seq);
@@ -473,11 +531,14 @@ impl BattleRunner {
                 } else if t.player_turn == 1 {
                     self.own_turn(t.seq, now, out)
                 } else {
-                    self.step(t.seq, out)
+                    self.mob_turn(t.seq, now, out)
                 }
             }
             19 | 20 => self.on_result(battle_result(payload, opcode)?, now, out),
-            21 => self.on_result(timeout_result(payload)?, now, out),
+            21 => {
+                self.cascaded = false;
+                self.on_result(timeout_result(payload)?, now, out)
+            }
             // An item of the bag used in battle: the unit line carries the new HP.
             44 => {
                 let x = battle_item_result(payload)?;
@@ -716,6 +777,9 @@ impl BattleRunner {
             applied.desync = false;
         }
         let fire_used = applied.fire;
+        if x.actor == self.name {
+            self.cascaded = applied.outcome.waves > 1;
+        }
         if applied.desync && !self.desynced {
             out.push(Act::Log(desync_line(&x, &self.name)));
         }
@@ -785,7 +849,11 @@ impl BattleRunner {
         }
         if !x.end {
             self.turn_wait = Some(if self.timed {
-                let pause = self.options.timed_move.max(self.pause());
+                let mut pause = self.options.timed_move.max(self.pause());
+                // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer.
+                if self.options.human.on() && x.seq <= 1 {
+                    pause = pause.max(crate::human::TURN_OR_TIMED);
+                }
                 (now + pause, Wake::TimedMove(x.seq))
             } else {
                 let again = (x.actor == self.name) == x.extra_turn;
@@ -968,11 +1036,14 @@ impl Runner {
             Runner::V3(_) => Algorithm::V3,
         }
     }
-    pub fn start(&self, out: &mut Vec<Act>) {
-        both!(self, r => r.start(out))
+    pub fn start(&mut self, now: Instant, out: &mut Vec<Act>) {
+        match self {
+            Runner::V1(r) => r.start(out),
+            Runner::V3(r) => r.start(now, out),
+        }
     }
-    pub fn leave(&mut self, map_id: &str, out: &mut Vec<Act>) {
-        both!(self, r => r.leave(map_id, out))
+    pub fn leave(&mut self, map: Ctx, out: &mut Vec<Act>) {
+        both!(self, r => r.leave(map, out))
     }
     pub fn resume(&mut self, now: Instant, out: &mut Vec<Act>) {
         both!(self, r => r.resume(now, out))

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runClient } from '../src/net/client.ts';
+import { ZERO_PACE } from '../src/net/human.ts';
 import { startSimulator } from './support/game-server.ts';
 import type { SimFault } from './support/game-server.ts';
 
@@ -8,7 +9,7 @@ async function run(fault: SimFault = 'none') {
   const events: Record<string, any>[] = [], serverEvents: Record<string, any>[] = [];
   const server = await startSimulator({ fault, log: e => serverEvents.push(e) });
   try {
-    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 120, snapshotWaitMs: 40, log: e => events.push(e) });
+    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, worldHeartbeatMs: [20, 20], human: ZERO_PACE, responseTimeoutMs: 120, snapshotWaitMs: 40, log: e => events.push(e) });
     return { result, events, serverEvents };
   } finally { await server.close(); }
 }
@@ -69,7 +70,7 @@ test('in the world s2c/0 is a message box: logged as server_message and handed t
   const server = await startSimulator({ fault: 'message-in-world' });
   try {
     let api: { close(): void } | undefined;
-    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 120, snapshotWaitMs: 40, log: e => events.push(e),
+    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, worldHeartbeatMs: [20, 20], human: ZERO_PACE, responseTimeoutMs: 120, snapshotWaitMs: 40, log: e => events.push(e),
       session: { onReady(a) { api = a; }, onPacket(op) { seen.push(op); if (op === 0) setTimeout(() => api?.close(), 50); } } });
     assert.equal(result.ok, true, JSON.stringify(result.diagnostic));
     assert.ok(seen.includes(0));
@@ -80,7 +81,7 @@ test('in the world s2c/0 is a message box: logged as server_message and handed t
 test('in the world "logged in elsewhere" still ends the session at once: it was taken over', async () => {
   const server = await startSimulator({ fault: 'kicked-in-world' });
   try {
-    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, responseTimeoutMs: 120, snapshotWaitMs: 40,
+    const result = await runClient({ host: '127.0.0.1', port: server.port, mode: 'world', username: 'probe_user', password: 'abc', settleMs: 30, heartbeatMs: 20, worldHeartbeatMs: [20, 20], human: ZERO_PACE, responseTimeoutMs: 120, snapshotWaitMs: 40,
       session: { onReady() {}, onPacket() {} } });
     assert.equal(result.ok, false);
     assert.deepEqual([result.diagnostic?.code, result.diagnostic?.reason], ['SERVER_MESSAGE', 'Tài khoản hiện đang đăng nhập ở một nơi khác']);

@@ -7,7 +7,7 @@
 import { Writer } from '../protocol/protocol.ts';
 import { buildRequest } from '../protocol/events.ts';
 import type { SessionApi, WorldSession } from '../net/client.ts';
-import { mapData, mapChange, mapEntities, mapBoss, notice, worldMap, groundItems, type Place } from '../protocol/world.ts';
+import { MapLoads, mapData, mapChange, mapEntities, mapBoss, notice, worldMap, groundItems, type Place } from '../protocol/world.ts';
 import type { Items } from '../protocol/items.ts';
 import { type Atlas, recordWorld, recordMap, recordMobs, recordBoss, recordPortal, recordRefusal, destination, portalsOf } from './atlas.ts';
 
@@ -25,12 +25,14 @@ type Answer = { opcode: number; payload: Buffer } | undefined;
 export class MapScanner implements WorldSession {
   api?: SessionApi; mapId = ''; zone = 0; level = 0; visited = new Set<string>(); finished?: Promise<void>;
   private waiting?: { opcodes: number[]; resolve: (answer: Answer) => void };
+  /** The maps loaded in this session, for the index of c2s/11 (06-map-mobs.md#c2s-11). */
+  private maps = new MapLoads();
   options: MapScanOptions;
   constructor(options: MapScanOptions) { this.options = options; }
   private log(event: string, fields: Record<string, unknown> = {}) { this.options.log({ kind: 'scan', event, at: Date.now(), ...fields }); }
 
   onPacket(opcode: number, payload: Buffer) {
-    try { this.record(opcode, payload); }
+    try { this.maps.on(opcode, payload); this.record(opcode, payload); }
     catch (error) { this.log('parse_error', { opcode, reason: (error as Error).message }); }
     if (this.waiting?.opcodes.includes(opcode)) this.waiting.resolve({ opcode, payload });
   }
@@ -95,7 +97,7 @@ export class MapScanner implements WorldSession {
     }
     const { mapId } = mapChange(answer.payload);
     recordPortal(atlas, p.id, { name: p.name, mapId });
-    await this.ask(11, buildRequest(11, { mapId }), [11]);
+    await this.ask(11, buildRequest(11, this.maps.request(mapId)), [11]);
     this.log('portal', { from, portal: p.id, name: p.name, mapId, zone: this.zone });
     await this.ask(43, buildRequest(43, { mapId }), [43]);
     await new Promise(resolve => setTimeout(resolve, this.options.settleMs ?? 1500));

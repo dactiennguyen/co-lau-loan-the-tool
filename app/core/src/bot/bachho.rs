@@ -704,11 +704,13 @@ impl Bot {
             format!("Bản đồ thế giới: sang {map_id}"),
         ));
         self.reload_map = true;
+        // (0xff, the map's index once loaded in this session, else -1): 06-map-mobs.md#c2s-11.
         Self::send(
             out,
             11,
             Ctx {
                 map_id: Some(map_id),
+                map_index: Some(self.maps.map_index(map_id)),
                 ..Ctx::default()
             },
         );

@@ -6,6 +6,7 @@ import { applyResult, bestMove, castSkill, battleSetup, battleJoinAck, battleRes
   STRATEGIES, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
 import { bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from './battle-actions.ts';
 import { buildRequest } from '../protocol/events.ts';
+import { HUMAN, OFF, type Human } from '../net/human.ts';
 
 export interface BattleEnd { won: boolean; actor: string; exp?: number; coin?: number; myTurns: number; hp: number; mobId: string; damage: number }
 export interface BattleIo {
@@ -38,7 +39,12 @@ export interface BattleIo {
   /** An own action in place of the search's on this turn: a skill by id (c2s/20), the bag slot of an item (c2s/44, P5),
    * or the best swap without any skill. Test plans use it; without an answer in 3 s the turn falls back to a swap. */
   choose?(runner: BattleRunner, seq: number): { skill: number } | { item: number } | { swap: true } | undefined;
+  /** The game's gaps in a turn battle (human.ts): c2s/18 1.1–1.6 s after s2c/22, c2s/14 1–2 s after the mob's turn while
+   * our move's cascades still fall (10–40 ms otherwise), an own move never within 1.2 s of its turn. Default OFF. */
+  human?: Human;
 }
+/** The fields of c2s/11 that go with c2s/40 (MapLoads.request of world.ts). */
+export interface MapRequest { mapId: string; zone?: number; mapIndex?: number }
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
@@ -76,6 +82,11 @@ export class BattleRunner {
   private skillWait?: ReturnType<typeof setTimeout>;
   /** Fallback for a turn-based battle whose s2c/24 does not come: 2 s after a result the next turn is inferred from it. */
   private turnWait?: ReturnType<typeof setTimeout>;
+  /** c2s/18, an own move or a c2s/14 waiting for its human gap (io.human). */
+  private actWait?: ReturnType<typeof setTimeout>;
+  /** The last result was an own move whose board cascaded (more than one wave). */
+  private cascaded = false;
+  private human: Human;
   constructor(setup: ReturnType<typeof battleSetup>, mobId: string, io: BattleIo) {
     this.uuid = setup.uuid; this.name = setup.me; this.mobId = mobId; this.board = setup.board;
     this.me = fighter(setup.hp, setup.maxHp, { skillCost: io.skill?.cost ?? 0, yinyang: 2 });
@@ -90,17 +101,35 @@ export class BattleRunner {
       const f = who === 'me' || who === `me>${this.mobKey}` ? this.me : who === this.mobKey ? this.mob : undefined;
       if (f && (who !== 'me' || key !== 'sword')) f[key] = sum / n;
     }
-    this.io = io;
+    this.io = io; this.human = io.human ?? OFF;
   }
 
-  start() { this.io.send(18, buildRequest(18, { battleUuid: this.uuid })); }
+  start() {
+    const join = () => this.io.send(18, buildRequest(18, { battleUuid: this.uuid }));
+    if (!this.human.on) return join();
+    this.actWait = setTimeout(join, this.human.ms(HUMAN.joinAfterSetup));
+  }
 
-  /** Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map, then c2s/40. The session reads
-   * the server's answer, or gives up on it with resume(). */
-  leave(mapId: string) {
-    clearTimeout(this.skillWait); clearTimeout(this.turnWait); this.missed = undefined;
+  /** An own turn (s2c/24, inferred): played at once, or with io.human after HUMAN.ownMove (never within ownMoveMin). */
+  private ownTurn(seq: number) {
+    clearTimeout(this.actWait);
+    if (!this.human.on || this.timed) return this.myMove(seq);
+    this.actWait = setTimeout(() => this.myMove(seq), Math.max(HUMAN.ownMoveMin, this.human.ms(HUMAN.ownMove)));
+  }
+  /** The mob's turn: c2s/14 at once, or with io.human after the board of our move stops falling. */
+  private mobTurn(seq: number) {
+    clearTimeout(this.actWait);
+    if (!this.human.on || this.timed) return this.step(seq);
+    this.actWait = setTimeout(() => this.step(seq), this.human.ms(this.cascaded ? HUMAN.stepAfterCascade : HUMAN.stepAfterTimeout));
+  }
+
+  /** Surrenders as the game's "Đầu hàng" → OK does (06-map-mobs): c2s/11 for the map (the zone stood in and the map's
+   * index, game 1.1.1), then c2s/40 in the same instant. The session reads the server's answer, or gives up on it with
+   * resume(). */
+  leave(map: MapRequest) {
+    clearTimeout(this.skillWait); clearTimeout(this.turnWait); clearTimeout(this.actWait); this.missed = undefined;
     this.leaving = true; this.surrendered = true;
-    this.io.send(11, buildRequest(11, { mapId }));
+    this.io.send(11, buildRequest(11, map));
     this.io.send(40, buildRequest(40, { battleUuid: this.uuid }));
   }
 
@@ -117,17 +146,25 @@ export class BattleRunner {
       case 18:
         this.timed = battleJoinAck(new Reader(payload)).timed === 1;
         if (this.leaving) { this.missed = [0, this.timed]; return true; }
-        if (this.timed) this.myMove(0); else this.step(0);
+        // timed 1: the player moves first. In 1.1.1 every challenge with c2s/15 flag 1 gets it, and only Sơn Tặc and Bạch
+        // Hổ are timed battles (no s2c/24); the others go on by turns from the first s2c/24 (05-battle.md#s2c-18).
+        if (this.timed) {
+          if (!this.human.on) this.myMove(0);
+          else this.actWait = setTimeout(() => this.myMove(0), this.human.ms(HUMAN.firstMove));
+        } else this.mobTurn(0);
         return true;
       case 24: {
         clearTimeout(this.turnWait);
+        // A battle opened with timed 1 that sends turns is a turn battle with the player first (game 1.1.1): no swap on a
+        // timer from here, the search of a turn battle.
+        if (this.timed) { this.timed = false; this.io.log('turn_battle', { seq: turnState(new Reader(payload)).seq }); }
         const t = turnState(new Reader(payload));
         if (this.leaving) { this.missed = [t.seq, t.playerTurn === 1]; return true; }
-        if (t.playerTurn === 1) this.myMove(t.seq); else this.step(t.seq);
+        if (t.playerTurn === 1) this.ownTurn(t.seq); else this.mobTurn(t.seq);
         return true;
       }
       case 19: case 20: this.onResult(battleResult(new Reader(payload), opcode)); return true;
-      case 21: this.io.log('timed_attack', {}); this.onResult(timeoutResult(new Reader(payload))); return true;
+      case 21: this.io.log('timed_attack', {}); this.cascaded = false; this.onResult(timeoutResult(new Reader(payload))); return true;
       case 44: {
         const x = battleItemResult(new Reader(payload)), p = this.potions.find(q => q.slot === x.slot);
         if (p) p.quantity--;
@@ -214,6 +251,7 @@ export class BattleRunner {
     }
     const mine = skill && x.actor === this.name ? this.io.skills?.find(k => k.id === x.skill) : undefined;
     const o = applyResult(this.board, x, mine ? !!mine.fire : undefined);
+    if (x.actor === this.name) this.cascaded = o.waves > 1;
     // The clock hit that ends a timed battle (time out, the Bạch Hổ kill) brings a refill without the cells it fills:
     // not a board out of step, and the battle is over anyway.
     if (x.end && !('move' in x && x.move) && !skill && !x.cells.length) o.desync = false;
@@ -235,13 +273,18 @@ export class BattleRunner {
     this.io.log('move', { seq: x.seq, actor: x.actor === this.name ? 'me' : 'mob', skill, cleared: o.cleared, waves: o.waves, extraTurn: x.extraTurn,
       units: x.units.map(u => [u.name === this.name ? 'me' : 'mob', u.damage, u.hp, u.s1, u.s2]) });
     if (!x.end && this.leaving) { this.missed = [x.seq, this.timed || (x.actor === this.name) === x.extraTurn]; return; }
-    if (!x.end && this.timed) { this.turnWait = setTimeout(() => this.myMove(x.seq), this.io.timedMoveMs ?? 1000); return; }
-    if (!x.end) {
-      const mine = x.actor === this.name, again = mine === x.extraTurn;
-      this.turnWait = setTimeout(() => { this.io.log('turn_inferred', { seq: x.seq, myTurn: again }); if (again) this.myMove(x.seq); else this.step(x.seq); }, 2000);
+    if (!x.end && this.timed) {
+      // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer (HUMAN.turnOrTimed).
+      const pause = Math.max(this.io.timedMoveMs ?? 1000, this.human.on && x.seq <= 1 ? HUMAN.turnOrTimed : 0);
+      this.turnWait = setTimeout(() => this.myMove(x.seq), pause);
       return;
     }
-    clearTimeout(this.skillWait);
+    if (!x.end) {
+      const mine = x.actor === this.name, again = mine === x.extraTurn;
+      this.turnWait = setTimeout(() => { this.io.log('turn_inferred', { seq: x.seq, myTurn: again }); if (again) this.ownTurn(x.seq); else this.mobTurn(x.seq); }, 2000);
+      return;
+    }
+    clearTimeout(this.skillWait); clearTimeout(this.actWait);
     const round = (f: Fighter) => Object.fromEntries((['sword', 'heart', 'yinyang', 'peach', 'skillCost', 'skillDamage'] as const).map(k => [k, Math.round(f[k] * 10) / 10]));
     this.io.log('estimates', { mobId: this.mobId, mobMaxHp: this.mob.maxHp, me: round(this.me), mob: round(this.mob) });
     this.io.onEnd({ won: x.reward?.won ?? x.actor === this.name, actor: x.actor, exp: x.reward?.exp, coin: x.reward?.coin, myTurns: this.turns, hp: this.me.hp, mobId: this.mobId, damage: this.damage });

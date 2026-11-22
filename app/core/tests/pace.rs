@@ -93,7 +93,11 @@ fn an_own_turn_waits_cho_truoc_moi_luot_di_then_moves_once_and_a_mob_turn_goes_a
 fn a_surrender_during_the_wait_keeps_the_turn_so_resume_plays_it_at_once() {
     let (mut r, mut acts, now) = (runner(Duration::from_secs(3)), vec![], Instant::now());
     r.on_packet(24, &turn_of(5, true), now, &mut acts).unwrap();
-    r.leave("M2", &mut acts);
+    let map = cllt_core::requests::Ctx {
+        map_id: Some("M2"),
+        ..Default::default()
+    };
+    r.leave(map, &mut acts);
     assert_eq!(sent(&acts), [11, 40]);
     assert_eq!(r.deadline(), None, "no move while leaving");
     // The server did not take the surrender: the turn passed over is played at once, without a second wait.

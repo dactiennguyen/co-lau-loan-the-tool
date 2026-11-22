@@ -1207,17 +1207,16 @@ impl Bot {
         };
         sm.until = now + SMITH_WAIT;
         let npc_id = sm.npc;
-        Self::send(
-            out,
-            57,
-            Ctx {
-                option: Some(option as i32),
-                map_id: Some(npc::NPC_MAP),
-                npc_id: Some(npc_id),
-                ..Ctx::default()
-            },
-        );
+        self.smith_reply(option, npc_id, now, out);
         true
+    }
+
+    /// c2s/57 of a line of the menu after the human gap (reply57); the wait for the answer starts after it.
+    fn smith_reply(&mut self, option: u8, npc_id: i32, now: Instant, out: &mut Vec<Out>) {
+        let gap = self.reply57(option, npc::NPC_MAP, npc_id, now, out);
+        if let Some(sm) = self.smith.as_mut() {
+            sm.until += gap;
+        }
     }
 
     /// A window of Pháp sư opened (s2c/96, s2c/99): the items go in.
@@ -1603,18 +1602,6 @@ impl Bot {
         let Some(task) = self.smith.as_ref().map(|s| s.task.clone()) else {
             return;
         };
-        let send57 = |out: &mut Vec<Out>, option: u8, npc_id: i32| {
-            Self::send(
-                out,
-                57,
-                Ctx {
-                    option: Some(option as i32),
-                    map_id: Some(npc::NPC_MAP),
-                    npc_id: Some(npc_id),
-                    ..Ctx::default()
-                },
-            )
-        };
         let bag = self.bag_items();
         let free = self
             .snap
@@ -1702,7 +1689,7 @@ impl Bot {
                     .collect();
                 (sm.window, sm.ready, sm.text) = (WindowKind::Upgrade, false, String::new());
                 (sm.stage, sm.until) = (Stage::Window, now + SMITH_WAIT);
-                send57(out, recipe.option, npc::SMITH);
+                self.smith_reply(recipe.option, npc::SMITH, now, out);
             }
             SmithTask::Ice { option } => {
                 let in_bag: i64 = (bag.iter())
@@ -1735,7 +1722,7 @@ impl Bot {
                 }
                 let sm = self.smith.as_mut().unwrap();
                 (sm.stage, sm.until) = (Stage::IceDone, now + SMITH_WAIT);
-                send57(out, option, npc::SMITH);
+                self.smith_reply(option, npc::SMITH, now, out);
             }
             SmithTask::Points { rules } => {
                 let points = npc::points_text(&menu.text);
@@ -1761,7 +1748,7 @@ impl Bot {
                 if rules {
                     let sm = self.smith.as_mut().unwrap();
                     (sm.stage, sm.until) = (Stage::Rules, now + SMITH_WAIT);
-                    return send57(out, npc::POINTS_RULES, npc::ELDER);
+                    return self.smith_reply(npc::POINTS_RULES, npc::ELDER, now, out);
                 }
                 self.smith_finish(format!("{line}{limit}"), now, out);
             }
@@ -1855,16 +1842,7 @@ impl Bot {
         let sm = self.smith.as_mut().unwrap();
         sm.daily = held;
         (sm.stage, sm.until) = (Stage::Daily, now + SMITH_WAIT);
-        Self::send(
-            out,
-            57,
-            Ctx {
-                option: Some(option as i32),
-                map_id: Some(npc::NPC_MAP),
-                npc_id: Some(npc::ELDER),
-                ..Ctx::default()
-            },
-        );
+        self.smith_reply(option, npc::ELDER, now, out);
     }
 
     /// s2c/1195 while SmithTask::Daily waits for its line (Stage::Daily): Nhận brings the new quest, Hủy none, Hoàn thành

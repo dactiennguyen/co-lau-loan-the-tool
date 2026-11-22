@@ -3,10 +3,11 @@ import { envConnection } from '../net/env.ts';
 import { buildRequest, decodeEvent } from '../protocol/events.ts';
 import { mapPrefix } from '../protocol/protocol.ts';
 import { mapChange, mapEntities, playersSnapshot, zoneList, type Mob } from '../protocol/world.ts';
+import { HUMAN, humanPace } from '../net/human.ts';
 
 // Logs in (CLLT_USERNAME/CLLT_PASSWORD from .env), asks the zones of the current map (c2s/1172) and prints them; with
 // --zone=N then moves to zone N as the game's Khu vực panel does (06-map-mobs.md#đổi-khu-vực-trong-cùng-map):
-//   c2s/1173 (N) → s2c/13 (mapId, N) → c2s/11 (mapId, N, 0) → s2c/11 → c2s/43 → s2c/43 and s2c/1263
+//   c2s/1173 (N) → s2c/13 (mapId, N) → c2s/11 (mapId, N, index of the map) → s2c/11 → c2s/43 → s2c/43 and s2c/1263
 // prints the mobs and the players of the new zone, and logs out. Nothing is spent. A zone past the list, the zone the
 // character is in, or a full one is refused before anything is sent.
 // The account must not be online on another device: the server then answers s2c/0 and refuses the login.
@@ -16,6 +17,7 @@ const show = (e: Record<string, unknown>) => console.log(JSON.stringify(e));
 /** "Cóc Xanh 13 ×4", one entry per kind, as the Đánh quái tab lists them. */
 const kinds = (mobs: Mob[]) => [...Map.groupBy(mobs, m => `${m.name} ${m.level}`)].map(([k, v]) => `${k} ×${v.length}`);
 
+const human = humanPace();
 let api: SessionApi | undefined, timer: ReturnType<typeof setTimeout> | undefined, sentAt = 0;
 let phase: 'list' | 'move' | 'map' | 'players' | 'done' = 'list';
 function stop(reason?: string) {
@@ -55,13 +57,19 @@ const result = await runClient({
         show({ event: 'zone_changed', ...c, ms: Date.now() - sentAt });
         if (!('zone' in c)) return stop('s2c/13 without a zone');
         phase = 'map';
-        api.send(11, buildRequest(11, { mapId: c.mapId, zone: c.zone }));
+        // The new zone and the map's index (the map is loaded since the login): 06-map-mobs.md#c2s-11.
+        const mapIndex = 'mapIndex' in c ? c.mapIndex : api.user.location?.mapId === c.mapId ? api.user.location.field : -1;
+        // 0.3–0.4 s after s2c/13, as the game 1.1.1 (human.ts).
+        const a = api;
+        setTimeout(() => a.send(11, buildRequest(11, { mapId: c.mapId, zone: c.zone, mapIndex })), human.ms(HUMAN.mapAfterPortal));
         return expect('s2c/11');
       }
       if (opcode === 11 && phase === 'map' && payload[0] === 1) {
         const m = mapPrefix(payload);
         show({ event: 'map', mapId: m.mapId, name: m.name, zone: m.area, x: m.x, y: m.y });
-        api.send(43, buildRequest(43, { mapId: m.mapId }));
+        // 0.4–1.2 s after s2c/11 (human.ts).
+        const a = api;
+        setTimeout(() => a.send(43, buildRequest(43, { mapId: m.mapId })), human.ms(HUMAN.entitiesAfterMap));
         return expect('s2c/43');
       }
       if (opcode === 43 && phase === 'map') {

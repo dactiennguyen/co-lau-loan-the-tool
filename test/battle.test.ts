@@ -176,7 +176,9 @@ test('timed battles (Q6–Q9 Sơn Tặc): s2c/18 flag, s2c/21 hit, s2c/1256 noti
 
 test('battle and quest requests: builders match the captured layouts and decode back', () => {
   const uuid = 'c451ecac-ea99-42b8-a22a-c5c72e898659', move: Move = { from: [5, 6], to: [4, 6] };
-  assert.equal(buildRequest(15, { mobId: 'mob872604' }).toString('hex'), '000000096d6f6238373236303400');
+  // Flag 1: the attack button of the game 1.1.1 (22/11); B1 (1.0.3) touched the mob, flag 0.
+  assert.equal(buildRequest(15, { mobId: 'mob872604' }).toString('hex'), '000000096d6f6238373236303401');
+  assert.equal(buildRequest(15, { mobId: 'mob872604', challengeFlag: 0 }).toString('hex'), '000000096d6f6238373236303400');
   assert.equal(buildRequest(1173, { zone: 20 }).toString('hex'), '14');
   assert.deepEqual(buildRequest(19, { battleUuid: uuid, seq: 13, move }), new Writer().string(uuid).i32(13).i32(7).i32(8).i32(6).i32(8).build());
   for (const [opcode, ctx] of [[13, { mapId: 'M1', npcId: 103 }], [15, { mobId: 'mob10' }], [18, { battleUuid: uuid }], [40, { battleUuid: uuid }],
@@ -187,15 +189,16 @@ test('battle and quest requests: builders match the captured layouts and decode 
   assert.deepEqual(decodeEvent('c2s', 19, buildRequest(19, { battleUuid: uuid, seq: 13, move })).fields, { battleUuid: uuid, seq: 13, ...move });
 });
 
-test('battle runner: leave() sends c2s/11 then c2s/40 like the game\'s Đầu hàng, no move after it, and resume() plays the turn passed over', () => {
+test('battle runner: leave() sends c2s/11 (zone, map index) then c2s/40 like the game\'s Đầu hàng, no move after it, and resume() plays the turn passed over', () => {
   const sent: [number, Buffer][] = [];
   const runner = new BattleRunner({ me: 'manina', level: 3, hp: 130, maxHp: 130, uuid: 'u', board: battles[0].board.slice(), turnSeconds: 30, knownBytes: 0 }, 'mob872604',
     { send: (op, p) => sent.push([op, Buffer.from(p)]), log: () => {}, onEnd: () => {} });
   runner.start();
   runner.onPacket(18, Buffer.from(packets['s2c/18'], 'hex'));
-  runner.leave('M1');
+  // As the game 1.1.1 surrenders: the zone stood in and the map's index (06-map-mobs.md#c2s-11).
+  runner.leave({ mapId: 'M12', zone: 0, mapIndex: 11 });
   assert.deepEqual(sent.slice(-2).map(([op, p]) => [op, decodeEvent('c2s', op, p).fields]),
-    [[11, { mapId: 'M1', area: 255, field: -1 }], [40, { battleUuid: 'u' }]]);
+    [[11, { mapId: 'M12', area: 0, field: 11 }], [40, { battleUuid: 'u' }]]);
   const before = sent.length;
   assert.equal(runner.onPacket(24, Buffer.from(packets['s2c/24 own turn'], 'hex')), true);
   assert.equal(runner.onPacket(24, Buffer.from(packets['s2c/24 mob turn'], 'hex')), true);

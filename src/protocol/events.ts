@@ -36,7 +36,7 @@ event('s2c', 1207, 'server_list', 'boot', 'Sau client_info', 'Đợi thêm 1209 
 event('s2c', 1209, 'server_flag', 'boot', 'Sau client_info', 'Đợi thêm 1207 rồi c2s/5', 'u8 flag; từ APK 1.1.0 thêm, mỗi phần chỉ khi còn byte: i32 sqj (com.mh.d.sqj); u8 sqh (com.mh.a.sqh); i32 tA, i16 tB, u8 tC (com.mh.t.sqa); u8 z (com.mh.z.sqa)', 'Đo: 1.0.3 một byte (18); 1.1.0 (20/11) 14 byte 20 00000005 01 000003e8 0014 01 00. Bố cục đọc từ sqpq.aq (native): byte đầu vào static field, 13 byte sau do bốn hàm static a(sqi) đọc; ý nghĩa chưa rõ');
 event('c2s', 5, 'notice_request', 'boot', 'Đã nhận danh sách server và flag', 's2c/5', 'i32 serverId; i32 field=-1; u8 flag=1');
 event('s2c', 5, 'notification', 'boot', 'Thông báo boot, hoặc thông báo trong giai đoạn khác', 'Boot: chờ bấm login; nhánh khác: dừng và đọc thông báo', 'u8 kind; i32 field0..3; string text');
-event('c2s', 1, 'heartbeat_request', 'boot', 'Timer khoảng 2 giây tại login', 's2c/1', 'Rỗng');
+event('c2s', 1, 'heartbeat_request', 'boot', 'Mỗi 2 giây từ trao khoá tới s2c/4; trong game lần đầu ~25 s sau s2c/4, rồi mỗi 30 s, cả trong trận (game 1.1.1, 22/11)', 's2c/1', 'Rỗng');
 event('s2c', 1, 'heartbeat_response', 'boot', 'Trả heartbeat', 'Không gửi ACK riêng', 'Rỗng');
 event('s2c', 0, 'server_message', 'login', 'Server gửi hộp thông báo: lúc đăng nhập khi account online nơi khác; trong game là lời nhắc thường (Hương Lão → Cách tính điểm, Chế tạo thiếu nguyên liệu)', 'Lúc đăng nhập: đọc text và dừng phiên đang chờ, không coi là sai mật khẩu. Trong game: client ghi server_message, giao gói cho phiên và chạy tiếp', 'i8 flag; string text', 'Đã nhận trực tiếp từ server thật bằng kết nối kiểm chứng độc lập: flag=-1, thông báo account đang đăng nhập nơi khác. Trong game cũng flag=-1 (J1, G1, O1)');
 event('c2s', 2, 'login_begin', 'login', 'Người dùng bấm Đăng nhập', 's2c/2', 'Rỗng');
@@ -54,7 +54,7 @@ event('c2s', 42, 'character_extra_request', 'world', 'Đã nhận skills_data', 
 event('s2c', 42, 'character_extra', 'world', 'Trả character_extra_request', 'c2s/29', 'string label ("test dong 1"); i32 42; i32 3; túi đồ: u8 2; i32 capacity; i32 n; n * item record (như s2c/1187)', 'Đọc hết 608 byte (E1): 8 món khớp túi trên máy; i32 42, i32 3 sau label chưa rõ');
 event('c2s', 29, 'location_request', 'world', 'Đã nhận character_extra', 's2c/29', 'string characterName');
 event('s2c', 29, 'character_location', 'world', 'Trả location_request', 'c2s/11', 'string characterName; string mapId; i32 field');
-event('c2s', 11, 'map_request', 'world', 'Đã có mapId; mapId "M99" khi mở Bản đồ thế giới', 's2c/11', 'string mapId; u8 area=-1 (ff; 00 với "M99"); i32 field=-1. Sau đổi khu: u8 khu; i32 0 (B2)');
+event('c2s', 11, 'map_request', 'world', 'Đã có mapId; mapId "M99" khi mở Bản đồ thế giới', 's2c/11', 'string mapId; u8 khu (ff sau cổng và lúc đăng nhập; khu mới sau đổi khu; khu đang đứng sau trận, khi đầu hàng; 00 với "M99"); i32 số thứ tự map (của s2c/29, s2c/13: M1 0, M12 11) khi map đã tải trong phiên, -1 lần đầu và với "M99" (06-map-mobs.md#c2s-11)');
 event('s2c', 11, 'map_data', 'world', 'Trả map_request', 'c2s/43', 'flag 1: u8 flag; string mapId,name; u8 area; i32 x,y,field36,dimension1,dimension2; bytes tiles; bytes lớp 2; bytes lớp 3; i32 ×3; i32 n; n * {i32 id; string tên; u8 loại (0 cổng, 2 NPC); i32 x,y,w,h; u8; i32 p,q}; i32 ×3. flag 0 ("M99"): string "M99"; i32 n; n * {i32 index; string mapId; 17 byte 0; u8 locked; 8 byte 0}; i32 n; n * {i32 index; i32 levelRequired}', 'Getter/offset đã đo; x/y và kích thước lưới là suy luận; nhánh M99 đọc hết 1132 byte, cấp yêu cầu khớp nhãn Lv. trên bản đồ; danh sách NPC/cổng đọc hết byte M1, M2 (B5)');
 event('c2s', 43, 'entities_request', 'world', 'Đã nhận map_data', 's2c/43 và snapshot 1263', 'string mapId');
 event('s2c', 43, 'entities_data', 'world', 'Trả entities_request', 'Đồng bộ push thế giới; không gửi ACK nguyên gói', 'string mapId; u8 field; tới hết payload: {string mobId; string name; i32 level; u8 a; i32 b; i32 c; u8 d}', 'Đọc hết byte: M1 khu 0 (1398 byte), khu 1 (bot Q2); ý nghĩa field, a..d chưa chốt; không có toạ độ quái');
@@ -128,12 +128,12 @@ event('c2s', 1241, 'season_quests_request', 'world', 'Mở Bảo Điển', 's2c/
 event('s2c', 1241, 'season_quests', 'world', 'Trả season_quests_request', 'Không', 'u8 (0 = chưa có nhiệm vụ mùa)', 'Đo 1 lần');
 event('c2s', 1265, 'faction_request', 'world', 'Mở Sứ quân', 's2c/1265', 'u8 lệnh: 0 = sứ quân của mình; 1 + 6 byte = danh sách', 'Đo 1 lần mỗi lệnh');
 
-event('c2s', 15, 'challenge_mob', 'battle', 'Nhân vật va vào quái; bot gửi từ xa cũng được', 's2c/22 sau ~2,5 s', 'string mobId; u8 flag (0 khi chạm quái, 1 với Bạch Hổ)', 'Đo: B1 2 lần, bot Q1/Q2 11 lần; BH2 6 lần với Bạch Hổ, cờ 1');
+event('c2s', 15, 'challenge_mob', 'battle', 'Nút tấn công khi đã chọn quái (game 1.1.1); bot gửi từ xa cũng được', 's2c/22 sau ~2,5 s', 'string mobId; u8 flag (1 với nút tấn công ở game 1.1.1, cả Bạch Hổ; 0 khi chạm quái ở game 1.0.3)', 'Đo: B1 2 lần (1.0.3, cờ 0), bot Q1/Q2 11 lần; BH2 6 lần với Bạch Hổ, cờ 1; game 1.1.1 22/11 mọi quái thường cờ 1');
 event('s2c', 22, 'battle_setup', 'battle', 'Trả challenge_mob', 'c2s/18 với uuid trận', 'khối người chơi; khối quái; string battleUuid; i32 64; u8[64] bàn; u8 turnSeconds; u8', 'Đuôi (uuid, bàn, giây/lượt) đo; khối nhân vật mới đọc tên, cấp, HP; phần còn lại opaque');
-event('c2s', 18, 'battle_join', 'battle', '~1,1 s sau s2c/22', 's2c/18', 'string battleUuid');
+event('c2s', 18, 'battle_join', 'battle', '1,1–1,6 s sau s2c/22 (game 1.1.1)', 's2c/18', 'string battleUuid');
 event('s2c', 18, 'battle_join_ack', 'battle', 'Trả battle_join', 'timed 0: c2s/14 seq 0 (theo lượt, quái đi trước); 1: c2s/19 liên tục (trận tính giờ)', 'i32 field0; u8 timed; u8 field5', 'Đo: 0 ở mọi trận Gà Điên, Heo Mọi, Kẻ Gây Rối, Chỉ Huy; 1 ở mọi trận Sơn Tặc (Q6–Q9): không có s2c/24, server bỏ qua c2s/14, nhận c2s/19 bất cứ lúc nào');
 event('s2c', 24, 'turn_state', 'battle', 'Sau mỗi kết quả nước đi (~1 s), hoặc khi người chơi hết 30 s', 'playerTurn 1: c2s/19; 0: c2s/14', 'i32 seq; i32 field; u8 playerTurn; u8 field9', 'Đo: B1 21 bước, Q1/Q2 228 gói');
-event('c2s', 14, 'battle_step_request', 'battle', 'Sau s2c/18 (seq 0) và sau s2c/24 playerTurn 0', 's2c/19 hoặc s2c/20: nước của quái', 'string battleUuid; i32 seq', 'Đo: không lần nào lệch seq');
+event('c2s', 14, 'battle_step_request', 'battle', 'Sau s2c/18 (seq 0) và sau s2c/24 playerTurn 0: 1–2 s khi bàn cờ còn rơi sau nước của mình, 10–40 ms khi lượt hết giờ (game 1.1.1)', 's2c/19 hoặc s2c/20: nước của quái', 'string battleUuid; i32 seq', 'Đo: không lần nào lệch seq');
 event('c2s', 19, 'swap_pieces', 'battle', 'Người chơi đổi hai viên kề nhau trong lượt của mình', 's2c/19 lặp lại nước vừa gửi; nước sai không được trả lời', 'string battleUuid; i32 seq; i32 row1+2, col1+2, row2+2, col2+2', 'Đo: nước kéo tay, bot run4 và Q2');
 event('s2c', 19, 'move_result', 'battle', 'Trả swap_pieces hoặc battle_step_request', 's2c/24 sau ~1 s; end 1: trận kết thúc', 'i32 seq; i32 0; u32 seed; i32 row1+2, col1+2, row2+2, col2+2; i32 1; i32 n; u8[n] viên mới; u8 reshuffled; [i32 64; u8[64] bàn mới]; 3 byte; u8 m; m * {string name; i32 damage; u8; i32 hp; i32 stat1; i32 stat2}; u8 flags[4]; string actor; u8 end; end 1: u8 won; i32 exp; i32 coin; opaque tail', 'Đọc hết byte: 111 gói trận B1, 223 mẫu đủ byte Q1/Q2 (trừ đuôi khi end 1); damage/hp khớp HUD; stat1, stat2, flags[0], flags[2] chưa rõ');
 event('c2s', 20, 'use_skill', 'battle', 'Người chơi dùng kỹ năng trong lượt của mình', 's2c/20 với actor là người chơi', 'string battleUuid; i32 seq; i32 skillId', 'Đo Q9: server trả s2c/20 với actor là người chơi (Hỏa Cầu Thuật 62 sát thương, 122 khi thanh sức mạnh đầy). Bố cục suy từ hàm dựng gói sqlq.f75(int skillId, int seq), ghi tham số cuối trước như a74');
@@ -150,7 +150,7 @@ event('s2c', 1285, 'report_result', 'world', 'Trả c2s/1285', 'Không', 'u8 k�
 event('c2s', 1275, 'bach_ho_result_request', 'world', 'Kết quả Bạch Hổ: nút "Xem tất cả bậc" của bảng công trạng mở hộp sqjx, hộp gửi sqnf.Z() (APK 1.1.0)', 's2c/1275', 'Rỗng', 'Đọc tĩnh 1.1.0 (21/11); chưa đo');
 event('s2c', 1275, 'bach_ho_result', 'world', 'Trả bach_ho_result_request', 'Không', 'u8 trạng thái (0 đang diễn ra, 1 bị tiêu diệt, 2 tẩu thoát); i64 phiên; i32 máu; i32 máu tối đa; i32 id người kết liễu; string tên người kết liễu; u8 bậc của họ; i32 sát thương của họ; u8 n bậc; n × {u8 bậc; i16 cấp từ; i16 cấp tới; i32 ngưỡng; i32 số người; u8 m; m × {u8 hạng; i32 id; string tên; i16 cấp; i32 sát thương}}; u8 bậc của mình; i32 hạng; i32 sát thương; u8 đạt ngưỡng', 'Đọc tĩnh 1.1.0 (sqtm.a → sqto, chữ của sqtq); chưa đo');
 event('c2s', 1277, 'request_1277', 'world', 'sqnf.Q() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
-event('c2s', 1281, 'request_1281', 'world', 'sqnf.N(), do com.mh.sqip.h14 gọi (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
+event('c2s', 1281, 'request_1281', 'world', 'Mở tab Thư đã gửi của Hòm thư (sqnf.N(), do com.mh.sqip.h14 gọi, APK 1.1.0)', 's2c/1281: i32 số thư đã gửi', 'Rỗng', 'Đo game 1.1.1 22/11: s2c/1281 00000000 (chưa gửi thư nào)');
 // Phúc lợi (PL1, 20/11, docs/app/events/18-players-checkin.md): Điểm danh tháng, Quà thăng cấp, Quà online.
 event('c2s', 1236, 'welfare_definition_request', 'world', 'Mở Phúc lợi hay một tab của nó (một lần mỗi khoá mỗi lượt đăng nhập)', 's2c/1236', 'string khoá (CHECKIN_MONTHLY, ONLINE_DAILY, LEVEL_UP, RECHARGE_TOTAL, SPEND_TOTAL, FIRST_CHARGE)', 'Đo PL1 (20/11)');
 event('s2c', 1236, 'welfare_definition', 'world', 'Trả c2s/1236', 'Không', 'u8 ok; i64 ?; i64 mãSựKiện; string khoá; string tên; i32 n; n × {i64 mãMốc; i32 điềuKiện; i32 k; k × item record}; CHECKIN_MONTHLY thêm i32 n; n × {item record; i16 ?}', 'Đo PL1: đọc hết byte cho 3 khoá bot dùng; khoá khác còn đuôi chưa giải');
@@ -236,8 +236,11 @@ export function findEvent(direction: Direction, opcode: number | undefined) {
 export interface RequestContext {
   username?: string; password?: string; challenge?: Uint8Array; serverId?: number;
   characterName?: string; mapId?: string; npcId?: number; zone?: number; stat?: number; amount?: number;
-  /** u8 after the mob of c2s/15: 0 for a mob touched (B1), 1 for Bạch Hổ (BH2). */
+  /** u8 after the mob of c2s/15: 1 (the default) as the game 1.1.1 sends for every challenge by the attack button, Bạch
+   * Hổ too (BH2, 22/11); 0 was a mob touched in the game 1.0.3 (B1). */
   challengeFlag?: number;
+  /** i32 of c2s/11: the map's index (s2c/29, s2c/13) once that map was loaded in this session, else -1 (MapLoads). */
+  mapIndex?: number;
   mobId?: string; battleUuid?: string; seq?: number; move?: Move; skill?: number; skillId?: number;
   /** uuid of an item on the ground (s2c/1182, s2c/1184) for c2s/1188. */
   uuid?: string;
@@ -290,8 +293,11 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     // The app sends the element of s2c/9 (sqlq.e49(1) for manina, Hỏa); with 4 the server sends the Thủy tree 4000–4008.
     case 30: return w.u8(ctx.element ?? 1).build();
     case 42: case 29: return w.string(required(ctx.characterName, 'characterName')).build();
-    // After a zone change (s2c/13 with the zone) the app asks the map of that zone: (zone, 0) instead of (-1, -1) (B2).
-    case 11: return w.string(required(ctx.mapId, 'mapId')).u8(ctx.zone ?? -1).i32(ctx.zone === undefined ? -1 : 0).build();
+    // Bản đồ thế giới: "M99" with (0, -1) (08-server-map-zone.md#c2s11-m99--s2c11; LN1).
+    case 11: if (ctx.mapId === 'M99') return w.string('M99').u8(0).i32(-1).build();
+      // The zone: 0xff after a portal and at login, the new zone after a zone change, the zone stood in after a battle or
+      // Đầu hàng; the map's index once loaded in this session, -1 the first time (06-map-mobs.md#c2s-11, game 1.1.1).
+      return w.string(required(ctx.mapId, 'mapId')).u8(ctx.zone ?? 0xff).i32(ctx.mapIndex ?? -1).build();
     case 43: return w.string(required(ctx.mapId, 'mapId')).build();
     case 13: return w.string(required(ctx.mapId, 'mapId')).i32(required(ctx.npcId, 'npcId')).build();
     case 10: return w.i32(required(ctx.stat, 'stat')).i32(required(ctx.amount, 'amount')).build();
@@ -316,7 +322,7 @@ export function buildRequest(opcode: number, ctx: RequestContext = {}): Buffer {
     case 91: return startRequest();
     // Túi đồ in battle (P5): sqlq.g76(slot, 0) writes the 0 first, like c2s/20 writes seq before the skill.
     case 44: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(0).i32(required(ctx.slot, 'slot')).build();
-    case 15: return w.string(required(ctx.mobId, 'mobId')).u8(ctx.challengeFlag ?? 0).build();
+    case 15: return w.string(required(ctx.mobId, 'mobId')).u8(ctx.challengeFlag ?? 1).build();
     case 1178: return w.string(required(ctx.mobId, 'mobId')).i32(0).build();
     case 18: case 40: return w.string(required(ctx.battleUuid, 'battleUuid')).build();
     case 14: return w.string(required(ctx.battleUuid, 'battleUuid')).i32(required(ctx.seq, 'seq')).build();

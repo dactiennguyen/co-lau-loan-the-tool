@@ -58,6 +58,17 @@ pub async fn run(
 /// How the session's error starts when the server refused the login (s2c/0 before the game).
 const REFUSED: &str = "Server từ chối";
 
+/// A login request the game sends a moment after the answer before it (human.rs): c2s/5 after s2c/1209, c2s/2 after
+/// c2s/5, c2s/42 after s2c/30, c2s/11 after s2c/29, c2s/43 after s2c/11.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Pending {
+    Notice,
+    Gate,
+    Profile,
+    Map,
+    Entities,
+}
+
 /// Login states of FLOW (src/net/client.ts): each sends one request and waits for its answers.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum Step {
@@ -137,7 +148,14 @@ pub(super) async fn session(
 
     let mut proto = Protocol::default();
     proto.push(&early[have..]);
+    // The gaps of the game 1.1.1 (human.rs), at login and in the Bot; the tests of this module keep the order without
+    // the waits.
+    #[cfg(not(test))]
+    let mut human = crate::human::Human::new();
+    #[cfg(test)]
+    let mut human = crate::human::Human::Zero;
     let options = BotOptions {
+        human: human.fork(),
         algorithm: account.algorithm,
         skill: account.skill,
         stats: account.stats,
@@ -152,8 +170,13 @@ pub(super) async fn session(
     // Set by s2c/43 while no s2c/1263 has come: the login goes on without it at that time.
     let mut players_wait: Option<Instant> = None;
     let (mut name, mut map_id) = (String::new(), String::new());
-    let mut heartbeat = interval(Duration::from_secs(2));
-    heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    // c2s/1 every 2 s until s2c/4, then 25 s after it and every 30 s (02-login.md#nhịp-như-người-chơi).
+    let beat =
+        |in_world: bool, first: bool| crate::human::heartbeat_delay(in_world, first) / BEAT_SCALE;
+    let (mut next_beat, mut in_world): (Option<Instant>, bool) = (None, false);
+    // The login request waiting for its gap, and when c2s/5 went (c2s/2 counts from it).
+    let mut later: Option<(Instant, Pending)> = None;
+    let mut notice_at = Instant::now();
     let mut buf = vec![0u8; 65536];
     let mut last = Snapshot::default();
     // When the server last sent anything. It answers each c2s/1 of the heartbeat: in the game, SILENT without a byte is a
@@ -204,18 +227,20 @@ pub(super) async fn session(
                     match (step, op) {
                         (Step::Key, -1) => {
                             proto.enable_key(session_key(&p.payload).map_err(|e| unread(op, e))?);
-                            heartbeat.reset();
+                            next_beat = Some(Instant::now() + beat(false, true));
                             send!(1206, Ctx::default());
                             step = Step::Version;
                         }
                         (Step::Version, 1207 | 1209) => {
                             if op == 1207 { have_list = true } else { have_flag = true }
-                            if have_list && have_flag {
-                                send!(5, Ctx { server_id: Some(account.server_id), ..Ctx::default() });
-                                step = Step::Notice;
+                            if have_list && have_flag && later.is_none() {
+                                later = Some((Instant::now() + human.pick(crate::human::NOTICE_AFTER_FLAG), Pending::Notice));
                             }
                         }
-                        (Step::Notice, 5) => { send!(2, Ctx::default()); step = Step::Gate; }
+                        // c2s/2 1.3–2.5 s after c2s/5, as the game reads its notice first.
+                        (Step::Notice, 5) if later.is_none() => {
+                            later = Some((notice_at + human.pick(crate::human::GATE_AFTER_NOTICE), Pending::Gate));
+                        }
                         (Step::Gate, 2) => {
                             if !Reader::new(&p.payload).string().map_err(|e| unread(op, e))?.is_empty() {
                                 return Err("Cổng đăng nhập không rỗng (nhánh chưa điều tra)".into());
@@ -232,6 +257,9 @@ pub(super) async fn session(
                             if !p.payload.is_empty() {
                                 return Err("Xác thực trả về nhánh chưa điều tra".into());
                             }
+                            // In the world the game beats every 30 s, the first ~25 s after s2c/4.
+                            in_world = true;
+                            next_beat = Some(Instant::now() + beat(true, true));
                             // As the game does (VG1 20/11, game 1.1.1 22/11): c2s/1282, the state of the phone
                             // (adb, developer options, accessibility services), here a clean phone 00 00 00, then
                             // the chat block list (c2s/1284 command 0), then c2s/9.
@@ -251,18 +279,18 @@ pub(super) async fn session(
                             send!(30, Ctx { element: Some(c.field01 as i32), ..Ctx::default() });
                             step = Step::Skills;
                         }
-                        (Step::Skills, 30) => { send!(42, Ctx { character_name: Some(&name), ..Ctx::default() }); step = Step::Profile; }
+                        (Step::Skills, 30) if later.is_none() => {
+                            later = Some((Instant::now() + human.pick(crate::human::PROFILE_AFTER_SKILLS), Pending::Profile));
+                        }
                         (Step::Profile, 42) => { send!(29, Ctx { character_name: Some(&name), ..Ctx::default() }); step = Step::Location; }
-                        (Step::Location, 29) => {
+                        (Step::Location, 29) if later.is_none() => {
                             map_id = character_location(&p.payload).map_err(|e| unread(op, e))?.map_id;
-                            send!(11, Ctx { map_id: Some(&map_id), ..Ctx::default() });
-                            step = Step::Map;
+                            later = Some((Instant::now() + human.pick(crate::human::MAP_AFTER_LOCATION), Pending::Map));
                         }
                         // The map and its mobs must read, as in src/net/client.ts: the bot moves and fights from them.
-                        (Step::Map, 11) => {
+                        (Step::Map, 11) if later.is_none() => {
                             map_prefix(&p.payload).map_err(|e| unread(op, e))?;
-                            send!(43, Ctx { map_id: Some(&map_id), ..Ctx::default() });
-                            step = Step::Entities;
+                            later = Some((Instant::now() + human.pick(crate::human::ENTITIES_AFTER_MAP), Pending::Entities));
                         }
                         (Step::Entities, 43 | 1263) => {
                             // s2c/1263 only lists the other players: one record this decoder does not know leaves them
@@ -287,7 +315,25 @@ pub(super) async fn session(
                     }
                 }
             }
-            _ = heartbeat.tick(), if step != Step::Key => send!(1, Ctx::default()),
+            _ = sleep_until(next_beat.unwrap_or_else(Instant::now)), if next_beat.is_some() => {
+                send!(1, Ctx::default());
+                next_beat = Some(Instant::now() + beat(in_world, false));
+            }
+            // The login request whose gap is over: the first load of the map is c2s/11 (0xff, -1).
+            _ = sleep_until(later.map_or_else(Instant::now, |l| l.0)), if later.is_some() => {
+                let Some((_, pending)) = later.take() else { continue };
+                match pending {
+                    Pending::Notice => {
+                        send!(5, Ctx { server_id: Some(account.server_id), ..Ctx::default() });
+                        (step, notice_at) = (Step::Notice, Instant::now());
+                    }
+                    Pending::Gate => { send!(2, Ctx::default()); step = Step::Gate; }
+                    Pending::Profile => { send!(42, Ctx { character_name: Some(&name), ..Ctx::default() }); step = Step::Profile; }
+                    Pending::Map => { send!(11, Ctx { map_id: Some(&map_id), ..Ctx::default() }); step = Step::Map; }
+                    Pending::Entities => { send!(43, Ctx { map_id: Some(&map_id), ..Ctx::default() }); step = Step::Entities; }
+                }
+                deadline = Instant::now() + STEP;
+            }
             cmd = commands.recv() => {
                 let now = std::time::Instant::now();
                 if let Some(c) = &cmd {

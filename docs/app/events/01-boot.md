@@ -298,7 +298,7 @@ Nguồn: A2: packet đọc từ native reader, record 25.
 |---|---|
 | Hướng | Client → Server |
 | Nhãn phân tích | heartbeat_request |
-| Xuất hiện khi | Timer khoảng 2 giây tại login |
+| Xuất hiện khi | Mỗi 2 giây từ trao khoá tới s2c/4; trong game lần đầu ~25 s sau s2c/4, rồi mỗi 30 s, cả trong trận (game 1.1.1, 22/11) |
 | Sau đó | s2c/1 |
 | Bố cục payload | Rỗng |
 | Độ chắc chắn | Đã đo kiểu/byte; tên field chưa rõ được giữ trung tính |
