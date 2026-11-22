@@ -353,6 +353,12 @@ pub struct FightSettings {
     /// Thời gian ngẫu nhiên: each of the four waits above that is on lasts from its time to twice it (delay::Jitter).
     #[serde(default)]
     pub delay_random: bool,
+    /// Nhịp như người chơi, off unless turned on (the user's choice of 22/11/2026): the gaps of the game 1.1.1
+    /// (human.rs) at login, in battles, before a challenge, around NPCs and portals, and the map asked again after each
+    /// battle. Off, the bot plays at its old pace (Human::Off); the heartbeat, c2s/15 flag 1 and the map index of
+    /// c2s/11 stay as the game's either way. Bạch Hổ never takes it.
+    #[serde(default)]
+    pub human_pace: bool,
     /// Whether Thời gian chờ got its defaults: every wait on, from 1.1.14 (the user's choice of 20/11/2026). An account
     /// without it (saved before 1.1.14, or made in code) gets them once when the desktop app takes it in (with_waits,
     /// App::add), then keeps whatever is set. Default leaves every wait off and this false: the tests and cllt play
@@ -487,6 +493,7 @@ impl Default for FightSettings {
             break_every: thirty(),
             break_minutes: two(),
             delay_random: false,
+            human_pace: false,
             waits_set: false,
             fight_count: five(),
             fight_losses: one(),

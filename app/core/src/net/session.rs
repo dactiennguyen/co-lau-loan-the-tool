@@ -148,10 +148,13 @@ pub(super) async fn session(
 
     let mut proto = Protocol::default();
     proto.push(&early[have..]);
-    // The gaps of the game 1.1.1 (human.rs), at login and in the Bot; the tests of this module keep the order without
-    // the waits.
+    // The gaps of the game 1.1.1 (human.rs), at login and in the Bot, when Nhịp như người chơi is on (off by default);
+    // the tests of this module keep the order without the waits.
     #[cfg(not(test))]
-    let mut human = crate::human::Human::new();
+    let mut human = match account.fight.human_pace {
+        true => crate::human::Human::new(),
+        false => crate::human::Human::Off,
+    };
     #[cfg(test)]
     let mut human = crate::human::Human::Zero;
     let options = BotOptions {

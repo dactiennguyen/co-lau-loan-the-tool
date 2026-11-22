@@ -28,6 +28,18 @@ pub(super) struct Reload {
 const RELOAD_WAIT: Duration = Duration::from_secs(8);
 
 impl Bot {
+    /// Nhịp như người chơi turned on or off while the session runs: the next waits are drawn (or none) from now on; a
+    /// battle under way keeps its pace, the next takes the new one. Off, the walk to the mob is dropped; a request
+    /// already held or a reload under way still ends as it began.
+    pub(super) fn set_human(&mut self, on: bool) {
+        self.human = match on {
+            true => crate::human::Human::new(),
+            false => crate::human::Human::Off,
+        };
+        if !on {
+            self.walk_until = None;
+        }
+    }
     /// `opcode` with `ctx` after `gap`, at once for none (Human::Off or Zero); `then` once it went.
     pub(super) fn send_after(
         &mut self,

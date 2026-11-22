@@ -180,6 +180,17 @@ impl Bot {
                 .into(),
             ));
         }
+        if new.human_pace != old.human_pace {
+            out.push(Out::Log(
+                LogKind::Battle,
+                match new.human_pace {
+                    true => "Bật nhịp như người chơi: chờ như game thật trước khi thách đấu, mỗi nước đi, sau trận và với NPC",
+                    false => "Tắt nhịp như người chơi: đánh nhanh như trước",
+                }
+                .into(),
+            ));
+            self.set_human(new.human_pace);
+        }
         if (new.turn_pause(), new.delay_random) != (old.turn_pause(), old.delay_random) {
             // `self.fight` is still the old one here: the new wait is `new`'s (none in Bạch Hổ, its waits are its own).
             let bach_ho = self.bach_ho_on();

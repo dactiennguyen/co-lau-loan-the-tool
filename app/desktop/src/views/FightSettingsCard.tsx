@@ -176,6 +176,7 @@ const KEYS = [
   "breakEvery",
   "breakMinutes",
   "delayRandom",
+  "humanPace",
 ] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -519,6 +520,19 @@ export function FightSettingsCard({ account }: { account: Account }) {
           <span>phút</span>
         </div>
       </div>
+      <SettingRow
+        id={`${id}human`}
+        on={settings.humanPace}
+        onChange={(humanPace) => save({ ...settings, humanPace })}
+        icon="user"
+        title="Nhịp như người chơi"
+        hint="Bot chờ như người chơi game thật (đo trên game 1.1.1): đăng nhập, qua cổng và trả lời NPC có khoảng nghỉ; đi tới quái 1,5–4 giây rồi mới thách đấu; vào trận sau 1,1–1,6 giây; mỗi nước đi 1,2–2,6 giây; hết trận thì xin lại bản đồ và quái như game rồi mới nhặt đồ, đánh tiếp. Mỗi trận chậm hơn khoảng 5–8 giây nhưng giống người hơn. Tắt thì đánh nhanh như trước. Bạch Hổ luôn giữ nhịp riêng. Cộng thêm vào Thời gian chờ nếu có bật. Đổi khi đang chạy thì có hiệu lực từ trận sau (đăng nhập lại mới áp cho lúc đăng nhập). Mặc định tắt."
+      >
+        <span className={SETTING_FACT}>
+          <Icon name="clock" size={12} />
+          {settings.humanPace ? "Chậm hơn khoảng 5–8 giây mỗi trận" : "Đánh nhanh như trước"}
+        </span>
+      </SettingRow>
       {/* The waits under one row without a box of its own, lit while any wait is on; folded, what is on. */}
       <SettingRow
         id={`${id}pace`}

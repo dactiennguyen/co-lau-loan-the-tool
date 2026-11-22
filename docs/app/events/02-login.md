@@ -298,6 +298,8 @@ Nguồn: A2: packet đọc từ native reader, record 94.
 
 Đo bằng Frida trên game 1.1.1 (`captures/v111-2026-11-22/game-1.1.1*.jsonl`, cùng `bh2-2026-11-21`, `mp1-2026-11-22`, `vg1-2026-11-20`; kịch bản đo ở hai lượt kiểm tra `audit-c2s`, `audit-seq`). Bot TS và app gửi đúng các gói này, nhưng trước 22/11 gửi ngay khi nhận gói trước, và heartbeat 2 giây suốt phiên. Từ 22/11 cả hai chờ như game, mọi khoảng chờ lấy từ một chỗ: `src/net/human.ts` (TS) và `app/core/src/human.rs` (Rust). [Đo]
 
+**Bật hay tắt.** Trong app là nút **Nhịp như người chơi** của Cài đặt đánh (`FightSettings::human_pace`), **mặc định tắt** (người dùng chọn 22/11, bản 2.2.5): tắt thì không có khoảng chờ nào dưới đây và không xin lại map sau trận (`Human::Off`), đánh nhanh như trước. Heartbeat 30 s, cờ `c2s/15` = 1 và số map của `c2s/11` giữ như game dù bật hay tắt. Bật giữa chừng thì có hiệu lực từ trận sau; khoảng chờ lúc đăng nhập theo nút lúc đăng nhập. Bot TS (`runClient`, `quest-run`) vẫn bật sẵn (`humanPace()`).
+
 **Heartbeat `c2s/1`.** Mỗi 2 giây từ lúc trao khoá tới `s2c/4` (màn đăng nhập). Vào game thì thưa hẳn: lần đầu khoảng 25 s sau `s2c/4`, sau đó mỗi 30 s (đo 30,00–30,8 s), cả trong trận. App coi kết nối là mất khi server im **70 s** (trước là 30 s, lúc heartbeat còn 2 s): đủ cho hai nhịp không được trả lời. Bot TS không có giới hạn im lặng riêng. [Đo]
 
 **Khoảng chờ lúc đăng nhập và vào map:**
