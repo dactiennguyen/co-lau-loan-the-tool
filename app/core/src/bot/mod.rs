@@ -89,6 +89,10 @@ struct Challenge {
 }
 /// A challenge left unanswered this long is taken as refused: no battle opens that late.
 const CHALLENGE_KEPT: Duration = Duration::from_secs(60);
+/// A battle without a packet of its own this long is left (Đầu hàng) so the job goes on: every turn has a clock of 30 s
+/// that the server ends with s2c/21 or s2c/24, so a battle this quiet is stuck (2.2.5: a swap in the mob's turn left
+/// battles hanging for 40 minutes).
+const BATTLE_SILENT: Duration = Duration::from_secs(90);
 /// Cẩm nang: a mob more than 20 levels below the character gives no EXP, Xu or drops. Measured on 02/11: won battles 15–18
 /// levels below gave EXP, 21 and more none (cllt.db of the app, symap and the others).
 pub const NO_EXP_GAP: i32 = 20;
@@ -393,6 +397,8 @@ pub struct Bot {
     reload: Option<reload::Reload>,
     /// No challenge before it: the walk to the mob after the mobs of the map came (human::CHALLENGE_AFTER_ENTITIES).
     walk_until: Option<Instant>,
+    /// When the battle under way last had a packet of its own (or opened): BATTLE_SILENT after it, it is left.
+    battle_heard: Option<Instant>,
 }
 
 impl Bot {
@@ -495,6 +501,7 @@ impl Bot {
             deferred: vec![],
             reload: None,
             walk_until: None,
+            battle_heard: None,
         }
     }
 
@@ -686,6 +693,11 @@ impl Bot {
             self.egg_deadline(),
             self.welfare_deadline(),
             self.human_deadline(),
+            self.battle
+                .as_ref()
+                .filter(|b| !b.leaving())
+                .and(self.battle_heard)
+                .map(|t| t + BATTLE_SILENT),
         ]
         .into_iter()
         .flatten()
@@ -815,6 +827,7 @@ impl Bot {
             }
         }
         self.human_timer(now, out);
+        self.battle_silent(now, out);
         self.walk_back(now, out);
         self.merge_step(now, out);
     }

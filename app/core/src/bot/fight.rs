@@ -81,6 +81,24 @@ impl Bot {
         }
     }
 
+    /// A battle quiet for BATTLE_SILENT is stuck: it is left as with Đầu hàng (an EXP loss as a lost battle) and the job
+    /// or quest run goes on after s2c/1214; unanswered, it is played on and left again BATTLE_SILENT later.
+    pub(super) fn battle_silent(&mut self, now: Instant, out: &mut Vec<Out>) {
+        let quiet = self.battle_heard.is_some_and(|t| t + BATTLE_SILENT <= now);
+        if !quiet || self.battle.as_ref().is_none_or(|b| b.leaving()) {
+            return;
+        }
+        self.battle_heard = Some(now);
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "Trận không có gói nào trong {} giây (bị kẹt): đầu hàng để đánh tiếp",
+                BATTLE_SILENT.as_secs()
+            ),
+        ));
+        self.surrender(now, out);
+    }
+
     /// Leaves the battle in progress (BattleRunner::leave). s2c/1214 (every capture) or s2c/36 then ends it; without
     /// either in 8 s it is played on (`surrender` of QuestBot).
     pub(super) fn surrender(&mut self, now: Instant, out: &mut Vec<Out>) {
@@ -453,6 +471,7 @@ impl Bot {
                     skill: self.options.skill,
                     strategy: self.options.strategy.clone(),
                     timed_move: self.timed_move(),
+                    wait_for_turns: !self.bach_ho_on(),
                 },
             ))),
             Algorithm::V3 => {
@@ -468,6 +487,7 @@ impl Bot {
         let mut runner = runner;
         runner.start(now, &mut acts);
         (self.battle, self.snap.turn) = (Some(runner), None);
+        self.battle_heard = Some(now);
         self.battle_started = now;
         // As on_battle_end counts it: the quest run's unless a fight job runs; a challenge of an earlier job is neither.
         self.battle_source = if seq != self.job_seq {
@@ -614,6 +634,7 @@ impl Bot {
             turn_delay: self.turn_pause(),
             turn_random: self.fight.delay_random && !self.bach_ho_on(),
             mob_hp_unknown: self.bach_ho_on(),
+            wait_for_turns: !self.bach_ho_on(),
             // Bạch Hổ keeps its own fast pace (BachHoPace).
             human: match self.bach_ho_on() {
                 true => crate::human::Human::Off,

@@ -464,3 +464,82 @@ fn a_battle_opened_with_timed_1_moves_first_after_first_move_and_turns_into_a_tu
         "{own:?}"
     );
 }
+
+/// s2c/19 of manina's own swap `seq`, the battle going on (the mob's turn next).
+fn own_swap(seq: i32) -> Vec<u8> {
+    Writer::new()
+        .i32(seq)
+        .i32(0)
+        .i32(0)
+        .i32(2)
+        .i32(2)
+        .i32(2)
+        .i32(3)
+        .i32(1)
+        .bytes(&[])
+        .u8(1)
+        .string("manina")
+        .i32(40)
+        .u8(0)
+        .i32(0)
+        .i32(-1)
+        .i32(-1)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .u8(0)
+        .string("manina")
+        .u8(0)
+        .build()
+}
+
+#[test]
+fn with_the_pace_off_a_battle_opened_with_timed_1_waits_for_a_late_s2c_24_before_a_second_swap() {
+    // 2.2.5 hung battles: the s2c/24 of the mob's turn came ~1.1 s after the first move's s2c/19 (cascades), later than
+    // timed_move, and the second swap on the timer went in the mob's turn.
+    let now = Instant::now();
+    let (mut r, mut acts) = (runner(Human::Off, Duration::ZERO), vec![]);
+    r.start(now, &mut acts);
+    acts.clear();
+    r.on_packet(
+        18,
+        &Writer::new().i32(0).u8(1).u8(0).build(),
+        now,
+        &mut acts,
+    )
+    .unwrap();
+    assert_eq!(
+        acts_sent(&acts),
+        [19],
+        "the pace off, the first move at once"
+    );
+    acts.clear();
+    r.on_packet(19, &own_swap(1), now, &mut acts).unwrap();
+    assert!(acts_sent(&acts).is_empty());
+    assert!(r.deadline().unwrap() - now >= human::TURN_OR_TIMED);
+    let late = now + Duration::from_millis(1100);
+    r.on_timer(late, &mut acts);
+    assert!(acts_sent(&acts).is_empty(), "no swap before the s2c/24");
+    r.on_packet(24, &turn_of(1, false), late, &mut acts)
+        .unwrap();
+    assert!(!r.timed);
+    assert_eq!(
+        acts_sent(&acts),
+        [14],
+        "the mob's turn, no swap of ours in it"
+    );
+}
+
+#[test]
+fn a_battle_without_a_packet_for_90_s_is_left_so_the_job_goes_on() {
+    let (mut bot, mut out, now, setup) = manina(Human::Off);
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    // s2c/18 timed 1: the first move at once, then the battle goes quiet.
+    bot.on_packet(18, &Writer::new().i32(0).u8(1).u8(0).build(), now, &mut out)
+        .unwrap();
+    let quiet = run_to(&mut bot, now + Duration::from_secs(89));
+    assert!(quiet.iter().all(|s| s.1 != 40), "{quiet:?}");
+    let left = run_to(&mut bot, now + Duration::from_secs(91));
+    assert!(left.iter().any(|s| s.1 == 40), "{left:?}");
+}

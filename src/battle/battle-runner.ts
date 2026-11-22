@@ -274,8 +274,10 @@ export class BattleRunner {
       units: x.units.map(u => [u.name === this.name ? 'me' : 'mob', u.damage, u.hp, u.s1, u.s2]) });
     if (!x.end && this.leaving) { this.missed = [x.seq, this.timed || (x.actor === this.name) === x.extraTurn]; return; }
     if (!x.end && this.timed) {
-      // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer (HUMAN.turnOrTimed).
-      const pause = Math.max(this.io.timedMoveMs ?? 1000, this.human.on && x.seq <= 1 ? HUMAN.turnOrTimed : 0);
+      // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer (HUMAN.turnOrTimed), whatever
+      // the pace: the s2c/24 of the mob's turn comes up to ~1.1 s after a first move that cascades, and a swap on the
+      // timer before it would go in the mob's turn and hang the battle.
+      const pause = Math.max(this.io.timedMoveMs ?? 1000, x.seq <= 1 ? HUMAN.turnOrTimed : 0);
       this.turnWait = setTimeout(() => this.myMove(x.seq), pause);
       return;
     }

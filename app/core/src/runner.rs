@@ -91,6 +91,10 @@ pub struct RunnerOptions {
     pub strategy: Strategy,
     /// Pause between own swaps in a timed battle.
     pub timed_move: Duration,
+    /// Whether the second swap of a battle opened with timed 1 waits at least human::TURN_OR_TIMED for an s2c/24 that
+    /// shows a turn battle: every mob battle since c2s/15 flag 1; never Bạch Hổ's, whose boss is always timed and whose
+    /// waits are its window's (0 by default).
+    pub wait_for_turns: bool,
 }
 impl Default for RunnerOptions {
     fn default() -> Self {
@@ -98,6 +102,7 @@ impl Default for RunnerOptions {
             skill: None,
             strategy: Strategy::kill(),
             timed_move: Duration::from_millis(1000),
+            wait_for_turns: true,
         }
     }
 }
@@ -501,7 +506,7 @@ impl BattleRunner {
         if !x.end {
             self.turn_wait = Some(if self.timed {
                 // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer.
-                let pause = match x.seq <= 1 {
+                let pause = match self.options.wait_for_turns && x.seq <= 1 {
                     true => self.options.timed_move.max(crate::human::TURN_OR_TIMED),
                     false => self.options.timed_move,
                 };

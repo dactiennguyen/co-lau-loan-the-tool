@@ -173,6 +173,17 @@ test('s2c/1263 of APK 1.1.0: the two bytes before the appearance are read, recor
   assert.equal(decodeEvent('s2c', 1263, both).opaqueBytes, 0);
 });
 
+test('s2c/1263 of game 1.1.1: a status of mode 2 whose flag is 1 brings an i32 after it', () => {
+  const status = (more: boolean) => more
+    ? new Writer().i32(22).u8(2).u8(0).u8(1).i32(9288).build()
+    : new Writer().i32(22).u8(2).u8(1).u8(1).i32(9301).u8(1).u8(0).build();
+  const rec = (name: string, more: boolean) => { const r = record110(name, 4); return Buffer.concat([r.subarray(0, r.length - 11), status(more)]); };
+  const e = decodeEvent('s2c', 1263, Buffer.concat([Buffer.from([0, 2]), rec('Moi', true), rec('Cu', false)]));
+  const { players } = e.fields as any;
+  assert.deepEqual(players.map((p: any) => [p.name, p.status.extra]), [['Moi', 9288], ['Cu', undefined]]);
+  assert.equal(e.opaqueBytes, 0);
+});
+
 /** A mob of s2c/43 as the server sends it to a client of protocol 0.0.2, or of 0.0.7 with its 9 more bytes (VG1, 20/11). */
 const mob = (w: Writer, id: string, extended: boolean) => {
   w.string(id).string('Heo Mọi').i32(7).u8(2).i32(3).i32(1).u8(0);

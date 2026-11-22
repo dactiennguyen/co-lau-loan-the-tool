@@ -200,7 +200,7 @@ mod tests {
             assert_eq!(mode & 0o777, 0o600);
         }
         assert!(!dir.join("accounts.json.tmp").exists());
-        // Tự nhặt đồ, Nhặt cả đồ khác giới tính and Nhặt cả đồ người khác are on, Chỉ nhặt trang bị đúng hệ off, every
+        // Tự nhặt đồ, Chỉ nhặt trang bị đúng hệ and Nhặt cả đồ người khác are on, Nhặt cả đồ khác giới tính off, every
         // box of Phẩm chất trang bị nhặt ticked, Dùng bình máu and Dùng bình mana off at 1 and 2 a battle keeping 30, Tự
         // gộp đá off, and the tabs offer 5 battles and 1 loss, for an account saved before they existed, or with only Tự
         // sửa đồ set.
@@ -208,8 +208,8 @@ mod tests {
         let old = load(&path).unwrap();
         assert_eq!(old[0].fight, FightSettings::default());
         assert!(old[0].fight.pickup && old[1].fight.pickup && old[1].fight.repair);
-        assert!(old[0].fight.pickup_other_gender && old[1].fight.pickup_other_gender);
-        assert!(old[1].fight.pickup_others && !old[1].fight.pickup_own_element);
+        assert!(!old[0].fight.pickup_other_gender && !old[1].fight.pickup_other_gender);
+        assert!(old[1].fight.pickup_others && old[1].fight.pickup_own_element);
         assert_eq!(old[1].fight.qualities(), [true; 4], "every quality ticked");
         let b = old[1].fight;
         assert_eq!(

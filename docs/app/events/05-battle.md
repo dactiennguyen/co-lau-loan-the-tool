@@ -494,6 +494,8 @@ Bot TS (`QuestBot` với `human`) và app (`bot/reload.rs`, trừ Bạch Hổ v�
 
 **Đầu hàng:** game gửi `c2s/11` (map, khu đang đứng, số thứ tự map) và `c2s/40` trong cùng một lúc, nhận `s2c/11`, `s2c/10`, `s2c/1214`, rồi gửi `c2s/43` khoảng 0,6 s sau `s2c/1214` (không phải ngay sau `s2c/11`). Bot TS và app làm theo từ 22/11; trước đó bot gửi `c2s/11` với `ff ffffffff`. [Đo]
 
+**Trận bị kẹt (app 2.2.6):** trận không có gói nào của nó trong 90 giây thì app tự đầu hàng như trên rồi đánh tiếp (nhật ký: *Trận không có gói nào trong 90 giây (bị kẹt): đầu hàng để đánh tiếp*); mỗi lượt có đồng hồ 30 giây nên trận im lâu vậy là đã kẹt. Bản 2.2.5 có trận kẹt 40 phút: nút Nhịp như người chơi tắt bỏ luôn khoảng chờ `TURN_OR_TIMED`, nên sau nước đầu có ăn dây chuyền, `s2c/24` lượt quái tới sau ~1,1 s, muộn hơn `timed_move` 1 s, và nước thứ hai đi vào lượt quái. Từ 2.2.6 khoảng chờ này luôn có, trừ Bạch Hổ (`wait_for_turns`). [Đo log app 22/11]
+
 **Nhịp trong trận theo lượt** (game 1.1.1; trận tính giờ và Bạch Hổ giữ như cũ):
 
 | Gói | Game gửi |

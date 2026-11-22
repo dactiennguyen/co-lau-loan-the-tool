@@ -3979,7 +3979,7 @@ fn s2c_1187_kind_2_sets_what_is_left_in_one_slot() {
 /// rest while the bag has a free slot; a younger one waits. What came is a Vật phẩm line of its own and counts in the
 /// job, never in the drops of the mob (no Out::Pickup). An item refused as too young waits 18 s more; one gone, or of
 /// another zone, is not asked for again. The ground of a zone entered (s2c/1184) is aged from when its items expire.
-/// Off, only the own drops are picked up. Chỉ nhặt trang bị đúng hệ, off by default: gear of another element stays.
+/// Off, only the own drops are picked up. Chỉ nhặt trang bị đúng hệ, on by default: gear of another element stays.
 #[test]
 fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
     let all = v();
@@ -3990,7 +3990,7 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
             .unwrap())
     };
     let settings = FightSettings::default();
-    assert!(settings.pickup_others && !settings.pickup_own_element);
+    assert!(settings.pickup_others && settings.pickup_own_element);
     let request = |uuid: &str| tohex(&Writer::new().string(uuid).build());
     let picked = |out: &[Out]| -> Vec<String> {
         out.iter()
@@ -4158,6 +4158,15 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
     bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
         .unwrap();
     bot.snap.element = Some(1);
+    // On by default: turned off, then on again.
+    bot.set_fight(
+        FightSettings {
+            pickup_own_element: false,
+            ..FightSettings::default()
+        },
+        now,
+        &mut out,
+    );
     bot.set_fight(
         FightSettings {
             pickup_own_element: true,
@@ -4251,7 +4260,7 @@ fn gear_drop(uuid: &str, item_id: i32, element: u8, quality: u8) -> Vec<u8> {
 /// character cannot wear stays on the ground, said once; gear for it and the rest are picked up as before.
 #[test]
 fn tu_nhat_do_leaves_gear_of_the_other_gender_when_told() {
-    assert!(FightSettings::default().pickup_other_gender);
+    assert!(!FightSettings::default().pickup_other_gender);
     let all = v();
     let cases = all["decoders"].as_array().unwrap();
     let profile = hex(

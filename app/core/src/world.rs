@@ -783,12 +783,17 @@ pub(crate) fn appearance(r: &mut Reader) -> Result<usize> {
     Ok(r.offset - start)
 }
 
-/// s2c/1212, also appended to every s2c/1263 entry: effects, read past.
+/// s2c/1212, also appended to every s2c/1263 entry: effects, read past. Mode 2 is `u8 n; n × {u8; i32 effect; u8};
+/// u8 more`, and `more` 1 brings an i32 after it (game 1.1.1: 9288 for a player of Phong Nguyên, 22/11; before, the
+/// four bytes were read as the next record and the whole list was refused).
 fn player_status(r: &mut Reader) -> Result<()> {
     r.i32()?;
     if r.u8()? == 2 {
         let n = r.u8()? as usize;
-        r.take(n * 6 + 1)?;
+        r.take(n * 6)?;
+        if r.u8()? == 1 {
+            r.i32()?;
+        }
     } else {
         r.take(6)?;
     }
@@ -937,6 +942,32 @@ mod tests {
             .map(|p| (p.name, p.x))
             .collect();
         assert_eq!(names, [("Moi".to_string(), 1407), ("Cu".to_string(), 1407)]);
+    }
+
+    #[test]
+    fn a_status_of_mode_2_with_its_more_flag_brings_an_i32_after_it() {
+        // record() ends with a status of the short form (11 bytes): mode 2 instead, without effects and with the i32 of
+        // game 1.1.1 after the flag, then one with an effect and the flag 0.
+        let status = |more: bool| {
+            let w = Writer::new().i32(22).u8(2);
+            match more {
+                true => w.u8(0).u8(1).i32(9288).build(),
+                false => w.u8(1).u8(1).i32(9301).u8(1).u8(0).build(),
+            }
+        };
+        let mut p = vec![0, 2];
+        for (name, more) in [("Moi", true), ("Cu", false)] {
+            let mut r = record(name, true);
+            r.truncate(r.len() - 11);
+            r.extend(status(more));
+            p.extend(r);
+        }
+        let names: Vec<_> = players_snapshot(&p)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Moi", "Cu"]);
     }
 
     #[test]

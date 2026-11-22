@@ -271,18 +271,19 @@ pub struct FightSettings {
     /// Tự nhặt đồ, on unless turned off: the own drops of every won battle are picked up (Bot::loot).
     #[serde(default = "on")]
     pub pickup: bool,
-    /// Nhặt cả đồ khác giới tính, on unless turned off: Tự nhặt đồ also picks up gear the character cannot wear, to sell
-    /// it; off, it leaves such gear on the ground (Bot::pick).
-    #[serde(default = "on")]
+    /// Nhặt cả đồ khác giới tính, off unless turned on (the user's choice of 22/11/2026, on before): Tự nhặt đồ also
+    /// picks up gear the character cannot wear, to sell it; off, it leaves such gear on the ground (Bot::pick).
+    #[serde(default)]
     pub pickup_other_gender: bool,
     /// Nhặt cả đồ người khác, on unless turned off: after each won battle Tự nhặt đồ also picks up what others left on
     /// the ground of the zone, once the server lets anyone have it (OTHERS_AGE after it fell, 13-drops-items.md#k3), a
     /// few at a time and only while the bag has room for them (Bot::loot_others).
     #[serde(default = "on")]
     pub pickup_others: bool,
-    /// Chỉ nhặt trang bị đúng hệ, off unless turned on: gear of another element than the character's stays on the
-    /// ground, said once; items that are not gear are picked up as before (Bot::pick).
-    #[serde(default)]
+    /// Chỉ nhặt trang bị đúng hệ, on unless turned off (the user's choice of 22/11/2026, off before): gear of another
+    /// element than the character's stays on the ground, said once; items that are not gear are picked up as before
+    /// (Bot::pick).
+    #[serde(default = "on")]
     pub pickup_own_element: bool,
     /// Phẩm chất trang bị nhặt, all four ticked unless unticked: Tự nhặt đồ picks up gear of the qualities ticked,
     /// Thường, Hiếm, Quý, Sử Thi (items::QUALITY_NAMES); gear of another stays on the ground, said once. Items that are
@@ -467,9 +468,9 @@ impl Default for FightSettings {
         Self {
             repair: false,
             pickup: true,
-            pickup_other_gender: true,
+            pickup_other_gender: false,
             pickup_others: true,
-            pickup_own_element: false,
+            pickup_own_element: true,
             pickup_common: true,
             pickup_rare: true,
             pickup_precious: true,

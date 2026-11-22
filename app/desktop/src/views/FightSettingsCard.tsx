@@ -418,7 +418,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
           onChange={(pickupOtherGender) => save({ ...settings, pickupOtherGender })}
           icon={c?.gender != null && GENDER_ICON[c.gender] ? GENDER_ICON[1 - c.gender] : "swap"}
           title="Nhặt cả đồ khác giới tính"
-          hint="Nhiều trang bị có hai bản cùng tên, một cho nhân vật nam, một cho nữ; đồ rơi có thể là bản kia, nhân vật không mặc được (game báo Trang bị không phù hợp). Bật: vẫn nhặt để bán ở Chợ trời. Tắt: bỏ lại dưới đất, Nhật ký ghi Bỏ qua. Vũ khí, nhẫn và đồ không phải trang bị luôn được nhặt."
+          hint="Nhiều trang bị có hai bản cùng tên, một cho nhân vật nam, một cho nữ; đồ rơi có thể là bản kia, nhân vật không mặc được (game báo Trang bị không phù hợp). Bật: vẫn nhặt để bán ở Chợ trời. Tắt: bỏ lại dưới đất, Nhật ký ghi Bỏ qua. Vũ khí, nhẫn và đồ không phải trang bị luôn được nhặt. Mặc định tắt."
         >
           {c?.gender != null && GENDER_WORD[c.gender] && (
             <span className={SETTING_FACT}>
@@ -440,7 +440,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
           onChange={(pickupOwnElement) => save({ ...settings, pickupOwnElement })}
           icon="yinyang"
           title="Chỉ nhặt trang bị đúng hệ"
-          hint="Trang bị rơi có hệ Hỏa, Lôi hoặc Thủy, cùng một món có thể ra nhiều hệ; đúng hệ nhân vật thì thêm chỉ số. Bật: trang bị khác hệ để lại dưới đất, Nhật ký ghi Bỏ qua. Tắt: nhặt trang bị mọi hệ (để bán ở Chợ trời). Đồ không phải trang bị (Xu khóa, đá, nguyên liệu…) luôn được nhặt."
+          hint="Trang bị rơi có hệ Hỏa, Lôi hoặc Thủy, cùng một món có thể ra nhiều hệ; đúng hệ nhân vật thì thêm chỉ số. Bật: trang bị khác hệ để lại dưới đất, Nhật ký ghi Bỏ qua. Tắt: nhặt trang bị mọi hệ (để bán ở Chợ trời). Đồ không phải trang bị (Xu khóa, đá, nguyên liệu…) luôn được nhặt. Mặc định bật."
         >
           {element && (
             <span className={SETTING_FACT}>

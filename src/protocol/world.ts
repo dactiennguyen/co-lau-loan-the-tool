@@ -283,12 +283,14 @@ function shopLines(payload: Uint8Array, extended: boolean) {
   return finish(r, { kind, title, items }, 's2c/1190');
 }
 
-/** s2c/1212, also appended to every s2c/1263 entry. Mode 2 carries a list; the 11-byte form a single entry. */
+/** s2c/1212, also appended to every s2c/1263 entry. Mode 2 carries a list, then a flag that brings an i32 when 1 (game
+ * 1.1.1: 9288 for a player of Phong Nguyên, 22/11); the 11-byte form a single entry. */
 export function playerStatus(r: Reader) {
   const id = r.i32(), mode = r.u8(), effects = [];
   if (mode === 2) {
     for (let n = r.u8(); n > 0; n--) effects.push({ a: r.u8(), effect: r.i32(), b: r.u8() });
-    return { id, mode, effects, end: r.u8() };
+    const end = r.u8();
+    return end === 1 ? { id, mode, effects, end, extra: r.i32() } : { id, mode, effects, end };
   }
   effects.push({ a: r.u8(), effect: r.i32(), b: r.u8() });
   return { id, mode, effects };

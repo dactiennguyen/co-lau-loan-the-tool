@@ -280,8 +280,8 @@ mod tests {
         // Cài đặt đánh in full, also at its defaults, so that each setting can be changed in the file before Nhập.
         for key in [
             "\"pickupOthers\": true",
-            "\"pickupOwnElement\": false",
-            "\"pickupOtherGender\": true",
+            "\"pickupOwnElement\": true",
+            "\"pickupOtherGender\": false",
             "\"pickupCommon\": true",
             "\"pickupRare\": true",
             "\"pickupPrecious\": true",

@@ -37,6 +37,7 @@ impl Bot {
         if let Some(b) = &mut self.battle {
             let mut acts = vec![];
             if b.on_packet(opcode, payload, now, &mut acts)? {
+                self.battle_heard = Some(now);
                 out.extend(
                     b.take_views()
                         .into_iter()

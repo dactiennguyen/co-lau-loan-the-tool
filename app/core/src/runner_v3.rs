@@ -72,6 +72,11 @@ pub struct RunnerOptions {
     /// mob's turn while our move's cascades still fall (10–40 ms otherwise), an own move never within OWN_MOVE_MIN of its
     /// turn. Off (the default, and in Bạch Hổ): none of these.
     pub human: crate::human::Human,
+    /// Whether the second swap of a battle opened with timed 1 waits at least human::TURN_OR_TIMED for an s2c/24 that
+    /// shows a turn battle, whatever the pace: every mob battle since c2s/15 flag 1, whose s2c/24 of the mob's turn comes
+    /// up to ~1.1 s after our first move's s2c/19 when it cascades, later than timed_move, so a swap on the timer would go
+    /// in the mob's turn and the battle would hang (2.2.5). Never Bạch Hổ's: its boss is always timed.
+    pub wait_for_turns: bool,
 }
 impl Default for RunnerOptions {
     fn default() -> Self {
@@ -90,6 +95,7 @@ impl Default for RunnerOptions {
             turn_random: false,
             mob_hp_unknown: false,
             human: crate::human::Human::Off,
+            wait_for_turns: true,
         }
     }
 }
@@ -851,7 +857,7 @@ impl BattleRunner {
             self.turn_wait = Some(if self.timed {
                 let mut pause = self.options.timed_move.max(self.pause());
                 // Until an s2c/24 shows a turn battle, the second swap waits for it a little longer.
-                if self.options.human.on() && x.seq <= 1 {
+                if self.options.wait_for_turns && x.seq <= 1 {
                     pause = pause.max(crate::human::TURN_OR_TIMED);
                 }
                 (now + pause, Wake::TimedMove(x.seq))
