@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "cllt-core"
-version = "2.2.2"
+version = "2.2.3"
 dependencies = [
  "flate2",
  "indexmap 2.14.2",
@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "cllt-desktop"
-version = "2.2.2"
+version = "2.2.3"
 dependencies = [
  "chrono",
  "cllt-core",
