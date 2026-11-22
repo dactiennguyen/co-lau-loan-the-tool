@@ -100,6 +100,21 @@ Ngày 21/11 mọi manifest (android-a2, pc-a2, ios-a2, pc) đều ở **revision
 
 Khoá mới `ba6e1e7c642829f57b94acb38026be62` đọc tĩnh từ hàm `__ngen_special_clinit_810_9` (`com.e.sqa`) trong `libgdx-flashds.so` của APK 1.1.0; cách mã hoá giữ nguyên. i336–i338 giải ra PNG ([13-drops-items](events/13-drops-items.md#bảng-32)). [Đo 21/11]
 
+**Toàn bộ gói `base-137`** (android-a2, 296.502.659 byte, size và CRC32 khớp manifest; 22/11): đọc hết 2.067 file tới byte cuối. `decodeAsset` giải được mọi `.dat`: 1.592 PNG, 39 file JSON (`wfx_*`, `mapdeco_*`); `.fx` (306, bảng khung hình), `.meta` (126), `.pet` (3, JSON) và `cam-nang.json` không mã hoá. Các file đã giải nằm ở `captures/game-assets-137/` (gitignore, không lên repo), có `index.html` để xem theo nhóm. Các nhóm theo số file [Đo, xem bằng mắt]:
+
+| Số / tên | Là gì |
+|---|---|
+| `i0`…`i338` | Icon vật phẩm (đã có ở `data/icons/`) |
+| `100000`…`100780`, `101000`…`101070` | Tấm sprite quái và boss, đúng các tấm đã cắt ở `data/icons/mobs/` (vẫn thiếu tấm 59); không có tấm quái mới, nên quái mới (Tam Khê) dùng lại tấm cũ |
+| `110000`…`110381` | NPC: chân dung lớn và dáng đứng (Hương Lão, Bà Tư, các tướng, sư…) |
+| `50000`…`99000`, `m50000`… | Nhân vật ghép lớp: tóc, mắt, bộ quần áo; `m…` là mặt nạ của lớp |
+| `400000`…`401100` | Vũ khí (đao, liềm, quạt, rìu…), mỗi tấm nhiều góc vung |
+| `1000000`…`4008000` | Hiệu ứng kỹ năng Hỏa, Lôi, Thủy, cả ảnh nút kỹ năng |
+| `9000`…`9291` | Hiệu ứng trận (nổ, sao, quân cờ tim, âm dương, đào), chữ THẮNG/THUA, danh hiệu Bá Chủ/Hào Kiệt của từng map, Vô Địch, Á Quân, Hạng Ba, Lôi Đài; nút mũi tên |
+| `1`…`17`, `10000`…`10056` | Tileset và ảnh nền map |
+| `pet_9300`…`pet_9302`, cánh | Thú cưng, cánh |
+| Tên chữ (`btn_*`, `gift_*`, `hud_*`, `sq_*`…) | Giao diện |
+
 Nội dung Android dừng ở revision 64 (bản cài đầu tiên). Điện thoại có `_state.json` revision 64, `offline-a2/` không đổi từ 29/10, nên các món mới của bảng 29 không có icon trên Android. Cloudflare trả 403 cho trình tải có user agent của Python; curl tải được.
 
 JADX không tìm được BuildConfig.java; fingerprint không phát hiện Retrofit/OkHttp/Ktor/Apollo/Volley. Đây chỉ là kết quả quét, không phải bằng chứng app không có HTTP tự viết. Asset mã hoá và lớp bảo vệ socket là hai phạm vi khác nhau; không dùng AES của asset để kết luận credential hay packet TCP dùng AES.
