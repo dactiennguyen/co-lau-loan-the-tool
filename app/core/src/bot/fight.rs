@@ -164,6 +164,11 @@ impl Bot {
         if self.job_running() || self.quest_running() {
             self.timer = Some((now + Duration::from_secs(2), Wake::Next));
         }
+        // A battle of Bạch Hổ left (stuck for BATTLE_SILENT): counted as lost, then the next try as after any battle;
+        // before, nothing woke the run and the character stood in the cave.
+        if self.bach_ho_on() {
+            self.bach_ho_battle_end(false, 0, now, out);
+        }
         true
     }
 

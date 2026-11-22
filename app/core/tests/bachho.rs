@@ -970,3 +970,37 @@ fn the_wait_after_a_battle_holds_against_a_push_and_a_lost_peek() {
         "the battle is saved"
     );
 }
+
+/// A battle with the boss without a packet for 90 s is left (Đầu hàng), and the run tries again after s2c/1214.
+#[test]
+fn a_stuck_battle_with_the_boss_is_left_and_the_run_tries_again() {
+    let (mut bot, mut out, now) = in_the_cave();
+    let at = epoch_ms();
+    bot.bach_ho(
+        at - 1_000,
+        at + 3_600_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    assert!(sent(&mut out).iter().any(|(op, _)| *op == 15));
+    bot.on_packet(22, &setup(), now, &mut out).unwrap();
+    out.clear();
+    let quiet = now + Duration::from_secs(91);
+    while let Some(d) = bot.deadline().filter(|d| *d <= quiet) {
+        bot.on_timer(d, &mut out);
+    }
+    assert!(sent(&mut out).iter().any(|(op, _)| *op == 40), "left");
+    bot.on_packet(1214, &[], quiet, &mut out).unwrap();
+    assert_eq!(bot.snap.bach_ho.as_ref().unwrap().battles, 1);
+    out.clear();
+    let later = quiet + Duration::from_secs(2);
+    while let Some(d) = bot.deadline().filter(|d| *d <= later) {
+        bot.on_timer(d, &mut out);
+    }
+    assert!(
+        sent(&mut out).iter().any(|(op, _)| *op == 15),
+        "the boss challenged again"
+    );
+}
