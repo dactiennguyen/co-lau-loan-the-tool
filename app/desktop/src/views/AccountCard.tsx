@@ -127,6 +127,12 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
             </span>
           )}
           {c && <Badge className="shrink-0">LV {c.level}</Badge>}
+          {/* A mail not read yet (s2c/1220): the account to open is seen from the list. */}
+          {c?.mailbox.unread && (
+            <span className="shrink-0 inline-flex text-danger animate-blink motion-reduce:animate-none" title="Có thư chưa đọc" aria-label="có thư chưa đọc" role="img">
+              <Icon name="mail" size={12} />
+            </span>
+          )}
         </div>
         {/* The place; the share of the level done is drawn by the ring around the avatar, and said to screen readers. */}
         <div id={`${id}line`} className={cn("min-w-0 text-11 text-fg-2 truncate", a.status === 4 && "text-danger")} title={line}>

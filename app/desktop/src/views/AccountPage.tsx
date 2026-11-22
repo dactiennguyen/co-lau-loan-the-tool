@@ -14,6 +14,7 @@ import { MetricRow } from "./MetricRow";
 import { QuestCard } from "./QuestCard";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
 import { StatsCard } from "./StatsCard";
 
 // Kỹ năng is a modal of the Chỉ số card (SkillsModal), Thống kê one of the header (StatsModal); a tab kept as "skills"
@@ -117,16 +118,23 @@ export function AccountPage({ account }: { account: Account }) {
             kind="outline"
             small
             icon="grid"
-            // A line of the fighting colour along its bottom while Pháp sư works or gift codes go out.
+            // A line of the fighting colour along its bottom while Pháp sư works or gift codes go out; blinking red as the
+            // Túi đồ tab when full while a mail is not read yet (s2c/1220), until Hòm thư has them all read.
             className={cn(
               "flex-none",
               ((c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null)) && "shadow-[inset_0_-3px_0_var(--s-fighting)]",
+              c?.mailbox.unread && "animate-alarm",
             )}
+            title={c?.mailbox.unread ? "Có thư chưa đọc: mở Hòm thư trong Tiện ích" : undefined}
             onClick={() => open({ kind: "shop", id })}
           >
             Tiện ích
-            {/* A mail not read yet (s2c/1220), as the red mark of the game's Thư button. */}
-            {c?.mailbox.unread && <i className="size-1.5 bg-danger" role="img" aria-label="có thư chưa đọc" />}
+            {/* A mail not read yet, as the red mark of the game's Thư button. */}
+            {c?.mailbox.unread && (
+              <span className="inline-flex text-danger" role="img" aria-label="có thư chưa đọc">
+                <Icon name="mail" size={13} />
+              </span>
+            )}
           </Button>
         </div>
         <TabPanel id={tabs} value={task}>
