@@ -55,9 +55,10 @@ test('client: c2s/1 on the login schedule until s2c/4, the world one after it, a
   assert.ok(after.length >= 1 && after.length <= 3, `world beats: ${after}`);
   assert.ok(after[0] - auth >= 290, `first world beat ${after[0] - auth} ms after s2c/4`);
   for (let i = 1; i < after.length; i++) assert.ok(after[i] - after[i - 1] >= 190, 'then every 200 ms');
-  // The gaps of the login (02-login.md#nhịp-như-người-chơi), each at least the 30 ms the pace gave.
+  // The gaps of the login (02-login.md#nhịp-như-người-chơi), each about the 30 ms the pace gave: at least 20, as a timer
+  // of a busy runner fires a few ms off the clock of the log (27 ms seen in CI, 22/11).
   for (const [from, to] of [['s2c/1209', 'c2s/5'], ['c2s/5', 'c2s/2'], ['s2c/30', 'c2s/42'], ['s2c/29', 'c2s/11'], ['s2c/11', 'c2s/43']])
-    assert.ok(at(to) - at(from) >= 28, `${from} → ${to}: ${at(to) - at(from)} ms`);
+    assert.ok(at(to) - at(from) >= 20, `${from} → ${to}: ${at(to) - at(from)} ms`);
 });
 
 test('c2s/11: (0xff, -1) on the first load of a map, its index once loaded, the zone after a zone change; "M99" (0, -1)', () => {

@@ -316,6 +316,8 @@ export class QuestBot implements WorldSession {
         const before = this.quest && `${this.quest.id}/${this.quest.current}`;
         this.quest = questData(payload); this.awaitingReply = false; this.upgrading = undefined; this.duels = 0;
         this.log('quest', this.describe());
+        // A new quest or step from the server gets its own 6 portals, as one advanced by the bot (advance).
+        if (before !== `${this.quest.id}/${this.quest.current}`) { this.hops = 0; this.waits = 0; }
         if (this.api && !this.battle && before !== `${this.quest.id}/${this.quest.current}`) this.later(1500);
         break;
       }

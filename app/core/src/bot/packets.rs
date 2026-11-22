@@ -791,6 +791,13 @@ impl Bot {
                 let changed = before != Some((q.id, q.current));
                 self.snap.quest = Some(q);
                 (self.awaiting_reply, self.duels) = (false, 0);
+                // A new quest or step from the server gets its own 6 portals and zones to try, as one advanced by the bot
+                // (advance): the portals of a quest just reported were counted against the next one (tiheo1, 22/11:
+                // 4 portals to report quest 42, then 2 left for quest 43, short of Tam Khê by one).
+                if changed {
+                    (self.hops, self.waits) = (0, 0);
+                    (self.zone_tries, self.zone_list_asked) = (vec![], false);
+                }
                 if self.quest_running() && self.battle.is_none() && changed {
                     self.timer = Some((now + Duration::from_millis(1500), Wake::Next));
                 }
