@@ -260,7 +260,7 @@ impl Bot {
             out.push(Out::Log(
                 LogKind::Character,
                 match settings.auto_skills {
-                    true => "Bật tự cộng kỹ năng: điểm kỹ năng vào kỹ năng cấp thấp nhất nâng được, chưa học trước",
+                    true => "Bật tự cộng kỹ năng: điểm kỹ năng vào kỹ năng bot dùng nhiều nhất còn nâng được (chưởng gốc, rồi chưởng phá vùng/hàng)",
                     false => "Tắt tự cộng kỹ năng",
                 }
                 .into(),

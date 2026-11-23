@@ -77,6 +77,10 @@ pub struct RunnerOptions {
     /// up to ~1.1 s after our first move's s2c/19 when it cascades, later than timed_move, so a swap on the timer would go
     /// in the mob's turn and the battle would hang (2.2.5). Never Bạch Hổ's: its boss is always timed.
     pub wait_for_turns: bool,
+    /// The worn gear's "% sát thương kỹ năng lên quái" (stat 22) and "% sát thương đánh thường lên quái" (stat 21), summed
+    /// (Fighter::skill_mult, hit_mult); 0 without such gear.
+    pub skill_pct: i32,
+    pub hit_pct: i32,
 }
 impl Default for RunnerOptions {
     fn default() -> Self {
@@ -96,6 +100,8 @@ impl Default for RunnerOptions {
             mob_hp_unknown: false,
             human: crate::human::Human::Off,
             wait_for_turns: true,
+            skill_pct: 0,
+            hit_pct: 0,
         }
     }
 }
@@ -245,6 +251,10 @@ impl BattleRunner {
         if let Some(attack) = options.attack {
             me.sword = sword_prior(attack, options.level);
         }
+        (me.skill_mult, me.hit_mult) = (
+            1.0 + options.skill_pct.max(0) as f64 / 100.0,
+            1.0 + options.hit_pct.max(0) as f64 / 100.0,
+        );
         let mut mob = Fighter {
             skill_cost: 25.0,
             skill_damage: 4.0 * 8.0 + 11.0,
@@ -637,7 +647,9 @@ impl BattleRunner {
             .cloned()
             .collect();
         self.buffs.tick();
-        (self.me.skill_damage, self.me.skill_cost) = skill_worth(self.me.sword, &skills);
+        // A skill's swords without the gear's hit bonus, all of it with its skill bonus (Fighter::skill_mult).
+        let (damage, cost) = skill_worth(self.me.sword / self.me.hit_mult, &skills);
+        (self.me.skill_damage, self.me.skill_cost) = (damage * self.me.skill_mult, cost);
         let all = best_action(
             &self.board,
             &self.me,

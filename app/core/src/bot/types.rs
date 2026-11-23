@@ -375,8 +375,8 @@ pub struct FightSettings {
     /// Thua tối đa of the Nhiệm vụ tab, likewise.
     #[serde(default = "one")]
     pub quest_losses: u32,
-    /// Tự cộng kỹ năng, off unless turned on (the Kỹ năng modal): skill points go one level at a time to the skill of the
-    /// lowest level of those that can take one now, unlearnt ones first, between battles and with nothing running
+    /// Tự cộng kỹ năng, off unless turned on (the Kỹ năng modal): skill points go one level at a time to the skill the
+    /// battle casts most of those that can take one now (stats.rs auto_rank), between battles and with nothing running
     /// (Bot::auto_skill).
     #[serde(default)]
     pub auto_skills: bool,

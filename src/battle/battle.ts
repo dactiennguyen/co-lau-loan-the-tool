@@ -120,7 +120,14 @@ export function legalMoves(b: Board): Move[] {
  * to it: damage per sword, HP per heart, stat1 per yin-yang, stat2 per peach, plus the stat1 its skill costs and the
  * damage the skill deals (skillCost 0: no skill). Defaults are the averages of Q16–Q19 (manina level 19 against Sói Xám
  * and Cóc Xanh, docs/app/events/07-auto-battle.md#thuật-toán-của-bot); BattleRunner replaces them with what it sees. */
-export interface Fighter { hp: number; maxHp: number; s1: number; s2: number; sword: number; heart: number; yinyang: number; peach: number; skillCost: number; skillDamage: number }
+export interface Fighter { hp: number; maxHp: number; s1: number; s2: number; sword: number; heart: number; yinyang: number; peach: number; skillCost: number; skillDamage: number;
+  /** The gear's "% sát thương kỹ năng lên quái" (stat 22) and "% sát thương đánh thường lên quái" (stat 21) as 1 + it:
+   * a damage skill deals its swords (`sword` is learnt from swap hits, so without the hit bonus) and its flat damage
+   * times skillMult (Xistz, +9%: Bách Lôi Uy Vũ 815 for 752 without it, 23/11). 1 when not given. */
+  skillMult?: number; hitMult?: number }
+/** Fighter.skillMult: a skill's `swords` swords (×2 at `full` power) and flat damage `k`, with the gear's bonuses. */
+export const skillHit = (f: Fighter, swords: number, full: boolean, k: number) =>
+  (f.sword / (f.hitMult ?? 1) * swords * (full ? 2 : 1) + k) * (f.skillMult ?? 1);
 export const fighter = (hp: number, maxHp: number, f: Partial<Fighter> = {}): Fighter =>
   ({ hp, maxHp, s1: 0, s2: 0, sword: 10, heart: 5.5, yinyang: 1.2, peach: 4.4, skillCost: 25, skillDamage: 60, ...f });
 /** A mob before anything is known of it: HP unknown, Sói Xám and Cóc Xanh averaged. */

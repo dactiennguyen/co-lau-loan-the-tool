@@ -1017,8 +1017,8 @@ export interface FightSettings {
   fightCount: number;
   fightLosses: number;
   questLosses: number;
-  /** Tự cộng kỹ năng, off unless turned on (the Kỹ năng modal): points go to the skill of the lowest level that can take
-   * one, unlearnt ones first, between battles and with nothing running. */
+  /** Tự cộng kỹ năng, off unless turned on (the Kỹ năng modal): points go to the skill the battle casts most that can take
+   * one (the base skill, then the areas or rows, …), between battles and with nothing running. */
   autoSkills: boolean;
   /** Tự điểm danh và nhận quà, off unless turned on (the Phúc lợi window of the Tiền tile): Điểm danh once a day, Quà
    * online when its minutes are there, Quà thăng cấp on a level that reaches one, with or without a job running. */

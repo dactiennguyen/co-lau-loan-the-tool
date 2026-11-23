@@ -684,8 +684,9 @@ fn skill_score(
         let n = |k: i16| out.n(k);
         let (mut damage, mut kill) = (0.0, 0.0);
         if e.kind == EffectKind::Damage {
-            let least = me.sword * (3.0 + out.n(0)) * if full { 2.0 } else { 1.0 };
-            let k = e.damage.unwrap_or(0) as f64;
+            // With the gear's skill bonus (Fighter::skill_mult): 1 but for gear with stat 22.
+            let least = me.skill_hit(3.0 + out.n(0), full, 0.0);
+            let k = e.damage.unwrap_or(0) as f64 * me.skill_mult;
             damage = least + k * KEEP_K;
             kill = if least >= mob.hp {
                 1.0

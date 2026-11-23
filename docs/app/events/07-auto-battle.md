@@ -614,6 +614,19 @@ Cài đặt đánh có dòng **Dùng bình trong trận**. Bấm ▾ để mở 
 
 <a id="gợi-ý-quái"></a>
 
+### Chưởng trong trận: số liệu thật (F3, 23/11)
+
+Đọc 78.687 trận của 23 nick (02/11–23/11, `captures/f3-2026-11-23/`, không đưa lên git). [Đo]
+
+- **Sát thương chưởng = W × (3 + số kiếm bị phá) (×2 khi đầy nộ) + K của mô tả**, đúng ở mọi chưởng và mọi cấp: trung bình thực tế/dự đoán 1,00 trên hơn 70.000 lần dùng (Hỏa Cầu, Xích Lôi, Băng Tiễn cấp 1–20; Thiên Hỏa Kích, Bách Lôi Uy Vũ, Tuyết Sơn Áp Đỉnh cấp 2–10).
+- **Chỉ số % của trang bị:** "% sát thương kỹ năng lên quái" (mã 22) nhân cả chưởng; "% sát thương đánh thường lên quái" (mã 21) có trong mọi đòn đổi viên (nên đã nằm trong W bot học được) nhưng không có trong phần kiếm của chưởng. Xistz mặc đồ +9% kỹ năng, +3% đánh thường: Bách Lôi Uy Vũ cấp 10 phá 3 kiếm gây 815, công thức không tính trang bị ra 752, nhân 1,09 ra 820; Thiên Lôi Oanh Kích 1.074 so với 986 × 1,09 = 1.075. Đây là toàn bộ chỗ "Bách Lôi và Thiên Lôi bị tính thấp 10%" trong phân tích đầu: nick khác dùng hai chưởng đó thì khớp. Từ 23/11 app tính: `Fighter::skill_hit` = (W ÷ (1 + mã 21) × kiếm + K) × (1 + mã 22), `RunnerOptions::skill_pct`, `hit_pct` cộng từ trang bị đang mặc; bot TS có `Fighter.skillMult`, `hitMult` (mặc định 1, chưa lấy từ trang bị).
+- **Không lần nào server từ chối hay không trả lời chưởng** trong 48 giờ cuối.
+- **Bot dùng chủ yếu chưởng gốc** (25 nội lực, khoảng 1 lần mỗi trận), chưởng phá vùng/hàng 0,02–0,4 lần mỗi trận, Hỏa Kiếm Thuật 0,01–0,13. Chưởng sát thương 50 nội lực (Liệt Hỏa Chi Kiếm, Lôi Tiễn Công, Băng Đao Kích) gần như không bao giờ (0–22 lần trong 3.000–5.000 trận): ở cấp 10 nó gây 3W + 180 cho 50 nội lực, chưởng gốc cấp 20 gây 3W + 168 cộng các kiếm của 2–3 vùng cho 25. Kim Cang Hộ Thể: 0 lần; Hàn Lưu Thánh Thủy: 2–11 lần.
+
+<a id="tự-cộng-kỹ-năng"></a>
+
+**Tự cộng kỹ năng theo số lần dùng (23/11).** Trước đó Tự cộng nâng kỹ năng cấp thấp nhất, nên 11 nick có Liệt Hỏa Chi Kiếm, Kim Cang Hộ Thể hay Lôi Tiễn Công cấp 10 mà gần như không dùng (khoảng 20–30 điểm mỗi nick). Từ 23/11 thứ tự theo vị trí trong cây (mã % 1000): Hỏa 0, 6, 1, 7, 8, 4, 5, 3, 2; Lôi và Thủy 0, 6, 7, 8, 4, 5, 3, 1, 2 ([features](../../integration/rust/features.md#tự-cộng-kỹ-năng)). Điểm đã cộng không lấy lại được.
+
 ### Gợi ý quái (21/11)
 
 Dữ liệu: 12.657 trận của 12 nick, cấp 3–89, 02/11–21/11 (bảng `battle_data` của `cllt.db`), mọi trận phát lại khớp gói. Script ở scratchpad `sim/` (`statfit.py`, `farmfit.py`), chỉ có trên máy. [Đo]

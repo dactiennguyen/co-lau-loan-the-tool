@@ -388,6 +388,19 @@ pub struct Fighter {
     pub peach: f64,
     pub skill_cost: f64,
     pub skill_damage: f64,
+    /// The gear's "% sát thương kỹ năng lên quái" (stat 22) as 1 + it: a damage skill deals its swords and its flat
+    /// damage times this (Xistz, +9%: Bách Lôi Uy Vũ 815 for 752 without it, 23/11), 1 for the mob.
+    pub skill_mult: f64,
+    /// The gear's "% sát thương đánh thường lên quái" (stat 21) as 1 + it: in every swap hit, so in `sword` as learnt
+    /// from them, but not in a skill's swords, which take `skill_mult` instead.
+    pub hit_mult: f64,
+}
+impl Fighter {
+    /// The damage of a skill's swords and flat part: `swords` swords (×2 at full power, `full`) and `k`, with the gear's
+    /// skill bonus in place of its hit bonus.
+    pub fn skill_hit(&self, swords: f64, full: bool, k: f64) -> f64 {
+        (self.sword / self.hit_mult * swords * if full { 2.0 } else { 1.0 } + k) * self.skill_mult
+    }
 }
 pub fn fighter(hp: f64, max_hp: f64) -> Fighter {
     Fighter {
@@ -401,6 +414,8 @@ pub fn fighter(hp: f64, max_hp: f64) -> Fighter {
         peach: 4.4,
         skill_cost: 25.0,
         skill_damage: 60.0,
+        skill_mult: 1.0,
+        hit_mult: 1.0,
     }
 }
 /// A mob before anything is known of it: HP unknown, Sói Xám and Cóc Xanh averaged.

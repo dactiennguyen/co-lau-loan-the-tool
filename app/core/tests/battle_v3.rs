@@ -58,6 +58,9 @@ fn side(v: &Value) -> Fighter {
         peach: f("peach"),
         skill_cost: f("skillCost"),
         skill_damage: f("skillDamage"),
+        // Not in the TS vectors (Fighter.skillMult and hitMult default to 1 there).
+        skill_mult: v["skillMult"].as_f64().unwrap_or(1.0),
+        hit_mult: v["hitMult"].as_f64().unwrap_or(1.0),
     }
 }
 fn strategy(v: &Value) -> Strategy {
@@ -1252,4 +1255,25 @@ fn a_timed_battle_plans_hoa_kiem_else_the_cheapest_damage_skill() {
     );
     assert_eq!(plan(&[(4001, 5), (4003, 10), (4006, 10)]), Some(4003));
     assert_eq!(plan(&[(4001, 5)]), None);
+}
+
+/// A skill of Xistz (23/11): the gear's +9% skill damage on mobs (stat 22) and +3% hit damage (stat 21). Bách Lôi Uy Vũ
+/// level 10 (84) clearing 3 swords dealt 815; the swords learnt from swap hits carry the +3%.
+#[test]
+fn a_skill_takes_the_gears_skill_bonus_in_place_of_its_hit_bonus() {
+    let w = 111.3;
+    let me = cllt_core::battle::Fighter {
+        sword: w * 1.03,
+        skill_mult: 1.09,
+        hit_mult: 1.03,
+        ..cllt_core::battle::fighter(1000.0, 1000.0)
+    };
+    let hit = me.skill_hit(6.0, false, 84.0);
+    assert!((hit - 815.0).abs() / 815.0 < 0.01, "{hit}");
+    // Without such gear it is the formula of before: swords × sword + K.
+    let plain = cllt_core::battle::fighter(1000.0, 1000.0);
+    assert_eq!(
+        plain.skill_hit(6.0, true, 84.0),
+        plain.sword * 6.0 * 2.0 + 84.0
+    );
 }

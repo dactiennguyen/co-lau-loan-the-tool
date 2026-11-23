@@ -640,12 +640,27 @@ impl Bot {
             turn_random: self.fight.delay_random && !self.bach_ho_on(),
             mob_hp_unknown: self.bach_ho_on(),
             wait_for_turns: !self.bach_ho_on(),
+            skill_pct: self.gear_pct(22),
+            hit_pct: self.gear_pct(21),
             // Bạch Hổ keeps its own fast pace (BachHoPace).
             human: match self.bach_ho_on() {
                 true => crate::human::Human::Off,
                 false => self.human.fork(),
             },
         }
+    }
+
+    /// The sum of stat `stat` over the worn gear: 22 "% sát thương kỹ năng lên quái", 21 "% sát thương đánh thường lên
+    /// quái" (data/items.json stats).
+    fn gear_pct(&self, stat: i32) -> i32 {
+        self.snap
+            .gear
+            .iter()
+            .flatten()
+            .flat_map(|g| g.stats.iter())
+            .filter(|x| x.stat == stat)
+            .map(|x| x.value)
+            .sum()
     }
 
     /// The pause between own swaps of a timed battle: Chờ giữa các nước of the Bạch Hổ run (its window), else

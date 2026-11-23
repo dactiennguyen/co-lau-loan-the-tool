@@ -181,13 +181,30 @@ impl Bot {
     }
 }
 
+/// Tự cộng kỹ năng's order of a tree, by the place of a skill in it (id % 1000), most cast first: what the v3 battle
+/// casts most over 23 accounts (48 h to 23/11, 07-auto-battle.md#tự-cộng-kỹ-năng): the 25-nội-lực skill (0, about one a
+/// battle), the areas or rows of 6 (0.02–0.4 a battle), its branch 7 and 8, the flat damage of 4 and 5, then 3 (flat
+/// damage at 50, beaten by 0 at 25: 0–2 casts in 4,000 battles), and the buffs. Hỏa's 1 is Hỏa Kiếm Thuật, cast after 6
+/// (and the skill of Bạch Hổ's plan); Lôi's 1 (Kim Cang Hộ Thể) and Thủy's (Hàn Lưu Thánh Thủy) are next to never cast.
+/// Each level of a skill also waits for the character's level, so the points go to the first of these that can take one.
+fn auto_rank(id: i32) -> usize {
+    const FIRE: [i32; 9] = [0, 6, 1, 7, 8, 4, 5, 3, 2];
+    const OTHER: [i32; 9] = [0, 6, 7, 8, 4, 5, 3, 1, 2];
+    let order = if id / 1000 == 1 { &FIRE } else { &OTHER };
+    order
+        .iter()
+        .position(|&p| p == id % 1000)
+        .unwrap_or(order.len())
+}
+
 /// Skill levels: the quest step "Sử dụng điểm kỹ năng", Nâng cấp of the Kỹ năng modal and Tự cộng kỹ năng, all c2s/1191
 /// (id, 1).
 impl Bot {
-    /// Tự cộng kỹ năng (FightSettings::auto_skills): one level of the skill with the lowest level of those that can take
-    /// one now, unlearnt ones first, then the order of the tree; the next once s2c/1191 answers (skill_answered), so
-    /// levels go out between battles only. Points for the "Sử dụng điểm kỹ năng" steps still ahead in the quest are kept
-    /// for them. True when a level was asked for.
+    /// Tự cộng kỹ năng (FightSettings::auto_skills): one level of the first skill in auto_rank's order that can take one
+    /// now (character level, the skill before it learnt, points); before 23/11 the lowest level went first, which spread
+    /// the points over skills the battle never casts. The next once s2c/1191 answers (skill_answered), so levels go out
+    /// between battles only. Points for the "Sử dụng điểm kỹ năng" steps still ahead in the quest are kept for them. True
+    /// when a level was asked for.
     pub(super) fn auto_skill(&mut self, now: Instant, out: &mut Vec<Out>) -> bool {
         if !self.fight.auto_skills
             || self.skills_failed
@@ -217,7 +234,7 @@ impl Bot {
             .iter()
             .enumerate()
             .filter(|(_, n)| n.blockers.is_empty())
-            .min_by_key(|&(i, n)| (n.level, i))
+            .min_by_key(|&(i, n)| (auto_rank(n.skill.id), i))
             .map(|(_, n)| n.skill.id)
         else {
             return false;
@@ -340,5 +357,34 @@ impl Bot {
         } else {
             Self::send(out, 1191, ctx);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::auto_rank;
+
+    #[test]
+    fn tu_cong_ky_nang_xep_chuong_dung_nhieu_truoc() {
+        let order = |ids: &[i32]| {
+            let mut v = ids.to_vec();
+            v.sort_by_key(|&id| auto_rank(id));
+            v
+        };
+        let fire: Vec<i32> = (1000..1009).collect();
+        assert_eq!(
+            order(&fire),
+            [1000, 1006, 1001, 1007, 1008, 1004, 1005, 1003, 1002]
+        );
+        let thunder: Vec<i32> = (2000..2009).collect();
+        assert_eq!(
+            order(&thunder),
+            [2000, 2006, 2007, 2008, 2004, 2005, 2003, 2001, 2002]
+        );
+        let water: Vec<i32> = (4000..4009).collect();
+        assert_eq!(
+            order(&water),
+            [4000, 4006, 4007, 4008, 4004, 4005, 4003, 4001, 4002]
+        );
     }
 }

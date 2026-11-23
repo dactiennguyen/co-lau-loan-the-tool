@@ -48,17 +48,18 @@ fn manina(auto_skills: bool) -> (Bot, Vec<Out>, Instant) {
 }
 
 #[test]
-fn tu_cong_ky_nang_cong_duoc_la_cong_cap_thap_truoc() {
+fn tu_cong_ky_nang_cong_chuong_dung_nhieu_truoc() {
     let (mut bot, mut out, now) = manina(true);
     assert!(sent_1191(&out).is_empty(), "nothing before the timer");
-    // The tree is in and nothing runs: the first level in 250 ms. Hỏa Kiếm Thuật 1001 is unlearnt (level 0) and can be
-    // learnt at level 21, so it goes before Hỏa Cầu Thuật at level 1.
+    // The tree is in and nothing runs: the first level in 250 ms. Hỏa Cầu Thuật 1000 (level 1, its level 2 asks level 7)
+    // is the skill the battle casts most, so it goes before Hỏa Kiếm Thuật 1001, unlearnt (before 23/11 the lowest level
+    // went first, and Hỏa Kiếm Thuật with it).
     let soon = now + Duration::from_millis(300);
     assert!(bot.deadline().is_some_and(|d| d <= soon));
     bot.on_timer(soon, &mut out);
-    assert_eq!(sent_1191(&out), ["000003e900000001"], "{out:?}");
+    assert_eq!(sent_1191(&out), ["000003e800000001"], "{out:?}");
     assert!(out.iter().any(
-        |o| matches!(o, Out::Log(LogKind::Character, t) if t.starts_with("Nâng Hỏa Kiếm Thuật lên cấp 1"))
+        |o| matches!(o, Out::Log(LogKind::Character, t) if t.starts_with("Nâng Hỏa Cầu Thuật lên cấp 2"))
     ));
     // Nothing more before the answer.
     out.clear();
@@ -102,7 +103,8 @@ fn tu_cong_ky_nang_tat_mac_dinh_va_bat_thi_cong_ngay() {
         .iter()
         .any(|o| matches!(o, Out::Log(LogKind::Character, t)
         if t.starts_with("Bật tự cộng kỹ năng"))));
-    assert_eq!(sent_1191(&out), ["000003e900000001"]);
+    // Hỏa Cầu Thuật 1000, the skill cast most, first.
+    assert_eq!(sent_1191(&out), ["000003e800000001"]);
 }
 
 #[test]

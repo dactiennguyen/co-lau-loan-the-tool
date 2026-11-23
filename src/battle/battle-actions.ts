@@ -6,7 +6,7 @@
 // - Hàn Lưu Thánh Thủy heals ⌊pct × max HP⌋; Hoàn Linh Dược ⌊25% max HP⌋ (the item says 30%); Kim Đan Dược +25 nội lực;
 // - a skill or a potion ends the turn like a swap, unless a run ≥4 falls after it or the skill says it keeps the turn.
 // Everything is worth HP: damage to the mob, HP healed (up to the max), nội lực at what the best damage skill makes of it.
-import { N, swap, settle, legalMoves, bestMove, answerValue, moveValue, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
+import { N, swap, settle, legalMoves, bestMove, answerValue, moveValue, skillHit, type Board, type Fighter, type Move, type Outcome, type Strategy } from './battle.ts';
 
 /** One level of a skill as its description in s2c/30 states it. The 14 kinds of description of the three trees are
  * all read; `kind` 'unknown' is a description of none of them, and the bot does not cast it. */
@@ -184,7 +184,8 @@ function skillScore(b: Board, e: SkillEffect, me: Fighter, mob: Fighter, s: Stra
     const n = (k: number) => out.cleared[k] ?? 0;
     let damage = 0, kill = 0;
     if (e.kind === 'damage') {
-      const least = me.sword * (3 + (out.cleared[0] ?? 0)) * (full ? 2 : 1), k = e.damage ?? 0;
+      // With the gear's skill bonus (Fighter.skillMult): 1 but for gear with stat 22.
+      const least = skillHit(me, 3 + (out.cleared[0] ?? 0), full, 0), k = (e.damage ?? 0) * (me.skillMult ?? 1);
       damage = least + k * KEEP_K;
       kill = least >= mob.hp ? 1 : least + k >= mob.hp ? KEEP_K : 0;
     }

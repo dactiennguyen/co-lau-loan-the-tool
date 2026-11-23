@@ -691,6 +691,8 @@ fn side(v: &Value) -> Fighter {
         peach: f("peach"),
         skill_cost: f("skillCost"),
         skill_damage: f("skillDamage"),
+        skill_mult: 1.0,
+        hit_mult: 1.0,
     }
 }
 

@@ -202,7 +202,9 @@ export class BattleRunner {
   private chooseAction(seq: number) {
     const s = this.strategy(), skills = this.io.skills!.filter(e => !this.refused.has(e.id));
     for (const k of Object.keys(this.buffs) as (keyof typeof this.buffs)[]) this.buffs[k] = Math.max(0, (this.buffs[k] ?? 0) - 1);
-    Object.assign(this.me, skillWorth(this.me.sword, skills));
+    // A skill's swords without the gear's hit bonus, all of it with its skill bonus (Fighter.skillMult).
+    const worth = skillWorth(this.me.sword / (this.me.hitMult ?? 1), skills);
+    Object.assign(this.me, { ...worth, skillDamage: worth.skillDamage * (this.me.skillMult ?? 1) });
     const { best, all } = bestAction(this.board, this.me, this.mob, s, { skills, potions: this.potions, potionCost: this.io.potionCost, buffs: this.buffs });
     const swap = all.find(a => a.action.kind === 'swap'), pick = swap?.action.kind === 'swap' ? { move: swap.action.move, score: swap.score } : null;
     this.io.note?.('turn', { seq, pick: best?.label, hp: this.me.hp, stat1: this.me.s1, stat2: this.me.s2, mobHp: this.mob.hp, mobStat1: this.mob.s1,

@@ -29,7 +29,7 @@ const mana = (l: SkillLevel) => `Tiêu hao ${(l.mana / THANH).toLocaleString("vi
  * background (s2c/30), colour once learned, grey before, with the level; the picked one on the right with its current
  * and next level, what the next one needs, and Nâng cấp (c2s/1191, one level a click). The skill that can take a level
  * first is shown at the start. Over the tree, how many are learnt and Tự cộng (FightSettings.autoSkills, off unless
- * turned on): the bot spends the points itself, the lowest level first (Bot::auto_skill).
+ * turned on): the bot spends the points itself, the skill the battle casts most first (Bot::auto_skill, auto_rank).
  */
 export function SkillsModal({ account, onClose }: { account: Account; onClose: () => void }) {
   const c = account.character;
@@ -131,9 +131,12 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
           Tự cộng
         </label>
         <Hint label="Tự cộng kỹ năng là gì?" id={`${hint}-auto`}>
-          Bật thì bot tự cộng điểm kỹ năng ngay khi cộng được, mỗi lần 1 cấp, vào kỹ năng có cấp nhỏ nhất trong những kỹ năng
-          nâng được lúc đó (chưa học thì trước, bằng cấp thì theo thứ tự trong cây), cho tới khi hết điểm hay không còn kỹ năng
-          nào đủ điều kiện. Bot cộng giữa các trận và khi nick rảnh, không cộng lúc đang đánh, và chừa điểm cho bước nhiệm vụ
+          Bật thì bot tự cộng điểm kỹ năng ngay khi cộng được, mỗi lần 1 cấp, vào chưởng bot dùng nhiều nhất trong trận còn nâng
+          được lúc đó: chưởng gốc (25 nội lực), rồi chưởng phá vùng/hàng (Thiên Hỏa Kích, Bách Lôi Uy Vũ, Tuyết Sơn Áp Đỉnh),
+          Hỏa Kiếm Thuật (hệ Hỏa), nhánh sau của chưởng phá vùng, chưởng sát thương 75–100 nội lực, sau cùng là chưởng sát thương
+          50 nội lực và chưởng tăng chỉ số, hồi máu (gần như không dùng). Mỗi cấp chưởng còn cần đủ cấp nhân vật, nên chưởng
+          trước chưa nâng được thì điểm sang chưởng sau, cho tới khi hết điểm hay không còn kỹ năng nào đủ điều kiện. Bot
+          cộng giữa các trận và khi nick rảnh, không cộng lúc đang đánh, và chừa điểm cho bước nhiệm vụ
           "Sử dụng điểm kỹ năng". Mặc định tắt; lưu theo nick.
         </Hint>
         {error && <span className="text-11 text-danger">{error}</span>}
