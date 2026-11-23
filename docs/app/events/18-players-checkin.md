@@ -21,7 +21,15 @@ Phiên **PL1** (20/11, game 1.1.0): tiheo1 trên điện thoại (Frida ghi gói
 
 ## Chuyển đồ: Gửi thư
 
-Không có giao dịch trực tiếp trong menu. Đồ chuyển qua **Hòm thư → tab Gửi thư**: Tên người nhận (tên nhân vật), Chủ đề, Nội dung (không bắt buộc), **6 ô đính kèm** chọn từ túi đồ bên phải, **Phí gửi thư: 1.000 Xu**. Tab **Thư đã gửi** giữ thư đã gửi. Món khoá có dấu ổ khoá trong túi, có lẽ không gửi được [Suy luận]. Chưa bấm Gửi thư nên chưa có gói. [Đo PL1, màn hình]
+Không có giao dịch trực tiếp trong menu. Đồ chuyển qua **Hòm thư → tab Gửi thư**: Tên người nhận (tên nhân vật), Chủ đề, Nội dung (không bắt buộc), **6 ô đính kèm** chọn từ túi đồ bên phải, **Phí gửi thư: 1.000 Xu**. Tab **Thư đã gửi** giữ thư đã gửi. Món khoá có dấu ổ khoá trong túi, có lẽ không gửi được [Suy luận]. [Đo PL1, màn hình]
+
+ML1 (23/11, game 1.1.1, điện thoại có Frida): tiheo1 gửi 5 **Tăng Kinh Nghiệm** (mã 7, không khoá) cho nhân vật **mania4** (nick manina3). [Đo]
+
+- Trên máy: chạm một món trong túi → cửa sổ mô tả, nút **Chọn** → ô số lượng (−/+, tối đa cả chồng), **Đặt** → món vào ô đính kèm; bấm **Gửi thư** → "Gửi thư cho mania4 kèm 1 món, phí 1.000 Xu?" (đếm số ô, không đếm số lượng) → **OK**.
+- `c2s/1280` (75 byte) = `string người nhận; string chủ đề; string nội dung; u8 n; n × {i32 ô túi (từ 0); string uuid của món; i32 số lượng}`. Mẫu: `"mania4"`, `"Gui ẽp"`, `""`, `01`, `{35, "b9d4e060-…", 5}`. Ô 35 là ô cuối của hàng 6 (túi 6 cột, đếm từ 0).
+- Server trả trong 150 ms: `s2c/46` ("update Xu", trừ 1.000 Xu), `s2c/1187` cả túi (ô 35 trống), rồi `s2c/1280` = `u8 0; string "Đã gửi thư cho mania4"` (cùng lời hiện giữa màn hình). Chưa thấy trường hợp lỗi (sai tên, thiếu Xu, món khoá) nên chưa biết byte đầu khác 0 nghĩa là gì.
+- Người nhận đang online được thư ngay: app của manina3 ghi "Thư mới: Gui ẽp (từ tiheo1)" (`s2c/1222`) cùng giây.
+- **Thư đã gửi**: `c2s/1281` rỗng → `s2c/1281` = `i32 n; n × {i64 mã thư; string người nhận; string chủ đề; string nội dung; i64 giờ gửi (ms); u8 trạng thái; i32 k; k × bản ghi vật phẩm}`. Trạng thái 0 "chưa nhận", 2 "ĐÃ NHẬN" (như mốc Phúc lợi). Bản ghi vật phẩm như `s2c/1187`, ô `0xff`, uuid mới (khác uuid lúc còn trong túi). Đọc hết 227 byte (2 thư).
 
 ## Điểm danh
 

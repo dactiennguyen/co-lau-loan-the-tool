@@ -2,7 +2,7 @@
 //! decoders read in the packets of G1, the bytes of c2s/1216, c2s/1217 and c2s/1219, the bag slots a mail needs, and
 //! Bot::mail driven by those packets. c2s/1221 (Xóa hết) never goes out.
 use cllt_core::atlas::Atlas;
-use cllt_core::bot::{Bot, BotOptions, ItemAct, MailTask, Out};
+use cllt_core::bot::{Bot, BotOptions, ItemAct, MailDraft, MailDraftItem, MailTask, Out};
 use cllt_core::items::book;
 use cllt_core::mail;
 use cllt_core::protocol::Writer;
@@ -435,8 +435,8 @@ fn one_task_at_a_time_and_nothing_else_while_it_waits() {
         lines(&out),
         [
             "Chưa xem hòm thư: hòm thư đang đợi server trả lời việc trước",
-            "Đang nhận hay xoá thư: đợi xong rồi mới đánh quái",
-            "Đang nhận hay xoá thư: đợi xong rồi mới làm nhiệm vụ",
+            "Đang nhận, gửi hay xoá thư: đợi xong rồi mới đánh quái",
+            "Đang nhận, gửi hay xoá thư: đợi xong rồi mới làm nhiệm vụ",
             "Chưa sắp xếp túi đồ: đang nhận hay xoá thư",
             "Chưa nhập mã: đang nhận hay xoá thư, đợi server trả lời",
         ]
@@ -516,4 +516,139 @@ fn new_mail(id: i64) -> Vec<u8> {
         .i64(1_761_955_200_000)
         .i64(0)
         .build()
+}
+
+// ML1 (23/11, game 1.1.1): tiheo1 sent 5 Tăng Kinh Nghiệm from bag slot 35 to mania4; the phone's bytes (test/mail.test.ts).
+const ML1_SEND: &str = "000000066d616e6961340000000847756920e1babd700000000001000000230000002462396434653036302d363037622d343463632d616662312d39353335376137346565393500000005";
+const ML1_SENT: &str = "000000001ac490c3a32067e1bbad69207468c6b02063686f206d616e696134";
+const ML1_LIST: &str = "000000020000000000001049000000066d616e6961340000000847756920e1babd7000000000000001a20797e7bf0000000001ff000000070000002431383338653338352d313832372d346534342d396633342d64303763633536323136613400000000ffffffff0000000501ff0000000000000000000000000000000f3100000006486868686868000000014100000000000001a2062835e30200000001ff0000025e0000002464636465666231302d333335632d346266302d393063342d34366632353634643833363100000000ffffffff000001b401ff000000000000000000";
+
+#[test]
+fn gui_thu_dung_byte_cua_dien_thoai_va_doc_het_cau_tra_loi() {
+    let items = [mail::SendItem {
+        slot: 35,
+        uuid: "b9d4e060-607b-44cc-afb1-95357a74ee95".into(),
+        quantity: 5,
+    }];
+    assert_eq!(
+        tohex(&mail::send_request("mania4", "Gui ẽp", "", &items)),
+        ML1_SEND
+    );
+    let a = mail::send_result(&hex(ML1_SENT)).unwrap();
+    assert_eq!((a.code, a.text.as_str()), (0, "Đã gửi thư cho mania4"));
+    let list = mail::sent_list(&hex(ML1_LIST)).unwrap();
+    let got: Vec<_> = list
+        .iter()
+        .map(|m| {
+            (
+                m.id,
+                m.to.as_str(),
+                m.taken(),
+                m.items
+                    .iter()
+                    .map(|i| (i.item_id, i.quantity))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (4169, "mania4", false, vec![(7, 5)]),
+            (3889, "Hhhhhh", true, vec![(606, 436)])
+        ]
+    );
+}
+
+/// A bag of Tăng Kinh Nghiệm ×5 not locked (slot 0) and a locked Búa sửa chữa (slot 1), with `xu` Xu.
+fn sender(xu: i64) -> (Bot, Vec<Out>, Instant) {
+    let mut b = Bot::new(BotOptions::default(), Arc::new(Atlas::default()));
+    let now = Instant::now();
+    let mut out = vec![];
+    b.on_packet(1187, &bag(42, &[(7, 5, 1), (2, 3, 0)]), now, &mut out)
+        .unwrap();
+    b.on_packet(46, &money(xu, 0, 0), now, &mut out).unwrap();
+    (b, vec![], now)
+}
+fn draft(to: &str, items: &[(i32, i32)]) -> MailTask {
+    MailTask::Send(MailDraft {
+        to: to.into(),
+        subject: "Gui exp".into(),
+        body: String::new(),
+        items: items
+            .iter()
+            .map(|&(slot, quantity)| MailDraftItem { slot, quantity })
+            .collect(),
+    })
+}
+
+#[test]
+fn gui_thu_kem_do_khong_khoa_roi_server_tra_loi() {
+    let (mut b, mut out, now) = sender(5_000);
+    b.mail(draft("mania4", &[(0, 3)]), now, &mut out);
+    let want = tohex(&mail::send_request(
+        "mania4",
+        "Gui exp",
+        "",
+        &[mail::SendItem {
+            slot: 0,
+            uuid: "u0".into(),
+            quantity: 3,
+        }],
+    ));
+    assert_eq!(sent(&out), [(1280, want)]);
+    assert!(
+        b.snapshot().mailbox.changing,
+        "the character counts as busy"
+    );
+    out.clear();
+    b.on_packet(46, &money(4_000, 0, 0), now, &mut out).unwrap();
+    b.on_packet(1280, &hex(ML1_SENT), now, &mut out).unwrap();
+    assert_eq!(
+        lines(&out),
+        ["Xong gửi thư cho mania4: Tăng Kinh Nghiệm ×3, phí 1.000 Xu (Đã gửi thư cho mania4)"]
+    );
+    assert!(b.snapshot().mailbox.doing.is_none());
+    out.clear();
+    b.mail(MailTask::Sent, now, &mut out);
+    assert_eq!(sent(&out), [(1281, String::new())]);
+    b.on_packet(1281, &hex(ML1_LIST), now, &mut out).unwrap();
+    assert_eq!(b.snapshot().mailbox.sent.as_ref().map(|s| s.len()), Some(2));
+}
+
+#[test]
+fn gui_thu_bi_chan_khi_do_khoa_qua_so_luong_thieu_xu_hay_thieu_ten() {
+    let refused = |task: MailTask, xu: i64| {
+        let (mut b, mut out, now) = sender(xu);
+        b.mail(task, now, &mut out);
+        assert!(sent(&out).is_empty(), "{out:?}");
+        lines(&out).join(" | ")
+    };
+    assert!(refused(draft("mania4", &[(1, 1)]), 5_000).contains("đã khóa giao dịch"));
+    assert!(refused(draft("mania4", &[(0, 6)]), 5_000).contains("số lượng từ 1 tới 5"));
+    assert!(refused(draft("mania4", &[(0, 1), (0, 1)]), 5_000).contains("hai lần"));
+    assert!(refused(draft("mania4", &[(5, 1)]), 5_000).contains("túi trống"));
+    assert!(refused(draft("mania4", &[(0, 1)]), 999).contains("cần 1.000 Xu"));
+    assert!(refused(draft("  ", &[(0, 1)]), 5_000).contains("tên nhân vật nhận"));
+    let seven: Vec<(i32, i32)> = (0..7).map(|s| (s, 1)).collect();
+    assert!(refused(draft("mania4", &seven), 5_000).contains("tối đa 6"));
+}
+
+#[test]
+fn gui_thu_loi_la_khong_bao_xong_cung_khong_bao_tu_choi() {
+    let (mut b, mut out, now) = sender(5_000);
+    b.mail(draft("mania4", &[(0, 1)]), now, &mut out);
+    out.clear();
+    let odd = Writer::new().u8(0).string("Nhân vật không tồn tại").build();
+    b.on_packet(1280, &odd, now, &mut out).unwrap();
+    assert_eq!(
+        lines(&out),
+        ["Gửi thư cho mania4: server trả lời \"Nhân vật không tồn tại\"; chưa rõ đã gửi chưa, xem Thư đã gửi"]
+    );
+    out.clear();
+    b.mail(draft("mania4", &[(0, 1)]), now, &mut out);
+    out.clear();
+    let refused = Writer::new().u8(1).string("Không đủ xu").build();
+    b.on_packet(1280, &refused, now, &mut out).unwrap();
+    assert_eq!(lines(&out), ["Chưa gửi được thư cho mania4: Không đủ xu"]);
 }

@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 169 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 76 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 172 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 75 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -179,7 +179,10 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | c2s/1275 | bach_ho_result_request | world | [Bạch Hổ: kết quả](17-bach-ho.md#đọc-tĩnh-110) |
 | s2c/1275 | bach_ho_result | world | [Bạch Hổ: kết quả](17-bach-ho.md#đọc-tĩnh-110) |
 | c2s/1277 | request_1277 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
-| c2s/1281 | request_1281 | world | [APK 1.1.0](../apk-1.1.0.md#gói-mới-và-gói-bị-bỏ) |
+| c2s/1280 | mail_send | world | [Gửi thư](18-players-checkin.md#chuyển-đồ-gửi-thư) |
+| c2s/1281 | mail_sent_list | world | [Gửi thư](18-players-checkin.md#chuyển-đồ-gửi-thư) |
+| s2c/1280 | mail_send_result | world | [Gửi thư](18-players-checkin.md#chuyển-đồ-gửi-thư) |
+| s2c/1281 | mail_sent_list | world | [Gửi thư](18-players-checkin.md#chuyển-đồ-gửi-thư) |
 | s2c/46 | currency_notice | push | [Byte, bố cục, nguồn quan sát](04-push.md#s2c-46) |
 | s2c/10 | character_stats | push | [Byte, bố cục, nguồn quan sát](05-battle.md#c2s-40) |
 | s2c/1187 | inventory | push | [Túi đồ và bản ghi vật phẩm](12-skills-items.md#túi-đồ) |

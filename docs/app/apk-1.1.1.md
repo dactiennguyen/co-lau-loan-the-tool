@@ -56,8 +56,8 @@ Tin hệ thống có id 0, tên rỗng: "… đã gia nhập sứ quân", "Sứ 
 
 **Hòm thư và Tự động** (game 1.1.1, 22/11): [Đo]
 
-- `c2s/1281` (rỗng) là tab **Thư đã gửi** của Hòm thư; server trả `s2c/1281` với một `i32` là số thư đã gửi (`00000000` khi chưa gửi thư nào).
-- Hòm thư có thêm tab **Gửi thư**: người nhận, tiêu đề, nội dung, tối đa 6 vật phẩm đính kèm, phí 1.000 Xu. Gói gửi chưa bắt.
+- `c2s/1281` (rỗng) là tab **Thư đã gửi** của Hòm thư; server trả `s2c/1281` là danh sách thư đã gửi (`i32 n` rồi từng thư; `00000000` khi chưa gửi thư nào; cách đọc ở [18-players-checkin](events/18-players-checkin.md#chuyển-đồ-gửi-thư), ML1 23/11).
+- Hòm thư có thêm tab **Gửi thư**: người nhận, tiêu đề, nội dung, tối đa 6 vật phẩm đính kèm, phí 1.000 Xu. Gói gửi là `c2s/1280`, bắt ngày 23/11 ([18-players-checkin](events/18-players-checkin.md#chuyển-đồ-gửi-thư)).
 - `c2s/1276` (1 byte `00`) là lúc **mở cửa sổ Tự động**; server trả `s2c/1276`. Cửa sổ này cần giờ Bùa Tự Động.
 
 ## Chưa rõ

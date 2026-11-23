@@ -10,9 +10,9 @@ use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BachHoPace, BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailTask, MarketTask,
-    SmithTask, BREAK_EVERY_MAX, BREAK_MINUTES_MAX, MERGE_EVERY_MAX, MOB_DELAY_MAX, POTION_MAX,
-    STEP_DELAY_MAX,
+    BachHoPace, BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailDraft, MailTask,
+    MarketTask, SmithTask, BREAK_EVERY_MAX, BREAK_MINUTES_MAX, MERGE_EVERY_MAX, MOB_DELAY_MAX,
+    POTION_MAX, STEP_DELAY_MAX,
 };
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
@@ -469,6 +469,18 @@ pub fn mail_claim_all(shared: State<Shared>, id: u64) {
 #[tauri::command]
 pub fn mail_delete(shared: State<Shared>, id: u64, mails: Vec<i64>) {
     shared.with(|app| app.send(id, Command::Mail(MailTask::Delete(mails))));
+}
+
+/// Hòm thư, Gửi thư: a mail to a character with up to 6 items of the bag (slot, how many); 1.000 Xu. The UI asks first.
+#[tauri::command]
+pub fn mail_send(shared: State<Shared>, id: u64, draft: MailDraft) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::Send(draft))));
+}
+
+/// Hòm thư, Thư đã gửi: the mails sent.
+#[tauri::command]
+pub fn mail_sent(shared: State<Shared>, id: u64) {
+    shared.with(|app| app.send(id, Command::Mail(MailTask::Sent)));
 }
 
 /// Chợ trời, from wherever the character stands (Bot::market); `character.market` and the log tell how it went. Opens

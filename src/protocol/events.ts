@@ -5,7 +5,7 @@ import { mapData, mapChange, mapEntities, mapBoss, notice, characterStats, moveR
   zoneList, worldMap, itemUsed, bachHoBoard, bachHoResult, questData, questProgress, questComplete, ranking, skillTable, inventory, characterExtra, currencies, gearUpdate, gearDurability, bagSlot, npcMenu, duelInvite, shopList,
   playerSay, worldChat } from './world.ts';
 import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, putRequest, startRequest, PUT_ITEM } from './npc.ts';
-import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest } from './mail.ts';
+import { giftCodeRequest, giftCodeResult, mailList, mailBody, mailAck, newMail, mailIdRequest, dailyQuest, mailSendResult, sentMailList } from './mail.ts';
 import { checkinRequest, checkinResult, claimRequest, eventDefinition, eventKeyRequest, eventProgress } from './welfare.ts';
 import { market, marketBuyRequest, marketDone, marketListed, marketPageRequest, marketSellRequest, marketTabs, marketWithdrawRequest } from './market.ts';
 import { battleSetup, battleJoinAck, turnState, battleResult, timeoutResult, battleItemResult, type Move } from '../battle/battle.ts';
@@ -150,7 +150,10 @@ event('s2c', 1285, 'report_result', 'world', 'Trả c2s/1285', 'Không', 'u8 k�
 event('c2s', 1275, 'bach_ho_result_request', 'world', 'Kết quả Bạch Hổ: nút "Xem tất cả bậc" của bảng công trạng mở hộp sqjx, hộp gửi sqnf.Z() (APK 1.1.0)', 's2c/1275', 'Rỗng', 'Đọc tĩnh 1.1.0 (21/11); chưa đo');
 event('s2c', 1275, 'bach_ho_result', 'world', 'Trả bach_ho_result_request', 'Không', 'u8 trạng thái (0 đang diễn ra, 1 bị tiêu diệt, 2 tẩu thoát); i64 phiên; i32 máu; i32 máu tối đa; i32 id người kết liễu; string tên người kết liễu; u8 bậc của họ; i32 sát thương của họ; u8 n bậc; n × {u8 bậc; i16 cấp từ; i16 cấp tới; i32 ngưỡng; i32 số người; u8 m; m × {u8 hạng; i32 id; string tên; i16 cấp; i32 sát thương}}; u8 bậc của mình; i32 hạng; i32 sát thương; u8 đạt ngưỡng', 'Đọc tĩnh 1.1.0 (sqtm.a → sqto, chữ của sqtq); chưa đo');
 event('c2s', 1277, 'request_1277', 'world', 'sqnf.Q() (APK 1.1.0)', 'Chưa rõ', 'Rỗng', 'Đọc từ code 1.1.0; chưa đo');
-event('c2s', 1281, 'request_1281', 'world', 'Mở tab Thư đã gửi của Hòm thư (sqnf.N(), do com.mh.sqip.h14 gọi, APK 1.1.0)', 's2c/1281: i32 số thư đã gửi', 'Rỗng', 'Đo game 1.1.1 22/11: s2c/1281 00000000 (chưa gửi thư nào)');
+event('c2s', 1280, 'mail_send', 'world', 'Bấm Gửi thư ở tab Gửi thư của Hòm thư rồi OK ("Gửi thư cho X kèm N món, phí 1.000 Xu?")', 's2c/46 ("update Xu", −1.000 Xu), s2c/1187 (cả túi, món đã gửi mất khỏi ô), s2c/1280: u8 0; string "Đã gửi thư cho mania4"; người nhận được s2c/1222 (thư mới)', 'string tênNhânVậtNhận; string chủĐề; string nộiDung; u8 n (tối đa 6); n * {i32 ôTúi (từ 0); string uuid của món; i32 sốLượng}', 'Đo ML1 23/11 (tiheo1 → mania4, 5 Tăng Kinh Nghiệm ở ô 35): 75 byte, chạy được; mania4 nhận thư sau chưa tới 1 s');
+event('c2s', 1281, 'mail_sent_list', 'world', 'Mở tab Thư đã gửi của Hòm thư (sqnf.N(), do com.mh.sqip.h14 gọi, APK 1.1.0)', 's2c/1281: i32 n; n * {i64 mãThư; string ngườiNhận; string chủĐề; string nộiDung; i64 giờGửi (ms); u8 trạngThái (0 chưa nhận, 2 đã nhận); i32 k; k * bản ghi vật phẩm (ô 0xff, uuid mới)}', 'Rỗng', 'Đo game 1.1.1 22/11: s2c/1281 00000000 (chưa gửi thư nào); ML1 23/11: 2 thư, 227 byte, đọc hết');
+event('s2c', 1280, 'mail_send_result', 'world', 'Trả c2s/1280 (Gửi thư), sau s2c/46 và s2c/1187', 'Không', 'u8 0; string "Đã gửi thư cho mania4"', 'ML1 23/11: đọc hết 31 byte; byte đầu khác 0 chưa thấy');
+event('s2c', 1281, 'mail_sent_list', 'world', 'Trả c2s/1281 (tab Thư đã gửi)', 'Không', 'i32 n; n * {i64 mãThư; string ngườiNhận; string chủĐề; string nộiDung; i64 giờGửi; u8 trạngThái (0 chưa nhận, 2 đã nhận); i32 k; k * bản ghi vật phẩm}', 'Game 1.1.1 22/11: 4 byte rỗng; ML1 23/11: đọc hết 227 byte (2 thư)');
 // Phúc lợi (PL1, 20/11, docs/app/events/18-players-checkin.md): Điểm danh tháng, Quà thăng cấp, Quà online.
 event('c2s', 1236, 'welfare_definition_request', 'world', 'Mở Phúc lợi hay một tab của nó (một lần mỗi khoá mỗi lượt đăng nhập)', 's2c/1236', 'string khoá (CHECKIN_MONTHLY, ONLINE_DAILY, LEVEL_UP, RECHARGE_TOTAL, SPEND_TOTAL, FIRST_CHARGE)', 'Đo PL1 (20/11)');
 event('s2c', 1236, 'welfare_definition', 'world', 'Trả c2s/1236', 'Không', 'u8 ok; i64 ?; i64 mãSựKiện; string khoá; string tên; i32 n; n × {i64 mãMốc; i32 điềuKiện; i32 k; k × item record}; CHECKIN_MONTHLY thêm i32 n; n × {item record; i16 ?}', 'Đo PL1: đọc hết byte cho 3 khoá bot dùng; khoá khác còn đuôi chưa giải');
@@ -411,6 +414,8 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 1216: fields = mailBody(payload); r.take(payload.length); break;
       case 1217: case 1219: fields = mailAck(payload, opcode); r.take(payload.length); break;
       case 1222: fields = newMail(payload); r.take(payload.length); break;
+      case 1280: fields = mailSendResult(payload); r.take(payload.length); break;
+      case 1281: fields = sentMailList(payload); r.take(payload.length); break;
       case 1223: fields = giftCodeResult(payload); r.take(payload.length); break;
       case 2: fields = { gate: r.string() }; break;
       case 3: fields = { challenge: r.bytes().toString('hex') }; break;

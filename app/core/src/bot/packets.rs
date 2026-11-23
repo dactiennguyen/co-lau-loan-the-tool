@@ -926,6 +926,15 @@ impl Bot {
                 self.mail_deleted(a, now, out);
             }
             1220 => self.snap.mailbox.unread = payload.first().map(|&b| b == 1),
+            // Gửi thư (mailbox.rs, ML1): the answer to c2s/1280, and the mails sent.
+            1280 => {
+                let a = crate::mail::send_result(payload)?;
+                self.mail_send_answered(a, out);
+            }
+            1281 => {
+                let mails = crate::mail::sent_list(payload)?;
+                self.mail_sent_listed(mails, out);
+            }
             // Phúc lợi (bot/welfare.rs): an event's definition and progress, the answer to Điểm danh, the red dots.
             1236 => {
                 let d = crate::welfare::event_definition(payload)?;

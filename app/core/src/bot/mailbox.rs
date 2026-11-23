@@ -1,8 +1,9 @@
 //! Hòm thư (14-npc.md#hòm-thư) ← MailBot of src/bot/mail.ts: c2s/1215 for the list, c2s/1216 to open a mail, c2s/1217
 //! Nhận, c2s/1218 Nhận hết, c2s/1219 Xóa, from anywhere in the world (G1). Never c2s/1221 (Xóa hết): it deletes the
-//! gifts not taken too (mail::DELETE_ALL), so MailTask has no such task and requests::build no arm for it.
+//! gifts not taken too (mail::DELETE_ALL), so MailTask has no such task and requests::build no arm for it. Gửi thư
+//! (ML1): c2s/1280 with items of the bag, 1.000 Xu; c2s/1281 the mails sent.
 use super::*;
-use crate::mail::{self, MailAck};
+use crate::mail::{self, MailAck, SendAnswer, SendItem, SentMail};
 
 /// How long a step waits for the server (its answers took tens of ms in G1).
 const MAIL_WAIT: Duration = Duration::from_secs(8);
@@ -25,6 +26,17 @@ enum MailStep {
     },
     /// s2c/1219 of `id`, then the next of `rest`; `done` mails deleted so far.
     Delete { id: i64, rest: Vec<i64>, done: u32 },
+    /// s2c/1280 of c2s/1280 to `to`: Xu −1.000 (s2c/46) and the bag (s2c/1187) come before it. `what` is the items in
+    /// words ("Tăng Kinh Nghiệm ×5").
+    Send {
+        to: String,
+        subject: String,
+        body: String,
+        items: Vec<SendItem>,
+        what: String,
+    },
+    /// s2c/1281.
+    Sent,
 }
 
 /// The task under way: its step, until when it waits, what it is in words ("nhận thư "Quà Alpha Test""), the last
@@ -58,8 +70,10 @@ impl Bot {
             MailTask::Claim(_) => "Chưa nhận thư",
             MailTask::ClaimAll => "Chưa nhận hết",
             MailTask::Delete(_) => "Chưa xoá thư",
+            MailTask::Send(_) => "Chưa gửi thư",
+            MailTask::Sent => "Chưa xem thư đã gửi",
         };
-        let change = !matches!(task, MailTask::List | MailTask::Open(_));
+        let change = !matches!(task, MailTask::List | MailTask::Open(_) | MailTask::Sent);
         let planned = match self.mail_refusal(change, now) {
             Some(why) => Err(why),
             None => self.mail_plan(task),
@@ -92,7 +106,10 @@ impl Bot {
     /// busy then (busy()), since their answers are notices too; the list and a mail opened only to read do not.
     pub(super) fn mail_changing(&self) -> bool {
         self.mail.as_ref().is_some_and(|w| {
-            !matches!(w.step, MailStep::List | MailStep::Open { claim: false, .. })
+            !matches!(
+                w.step,
+                MailStep::List | MailStep::Open { claim: false, .. } | MailStep::Sent
+            )
         })
     }
 
@@ -207,7 +224,91 @@ impl Bot {
                 };
                 (step, words)
             }
+            MailTask::Send(d) => self.mail_send_plan(d)?,
+            MailTask::Sent => (MailStep::Sent, "xem thư đã gửi".into()),
         })
+    }
+
+    /// Gửi thư: the window's checks (a name, a subject, the lengths, at most 6 items), then by the bag and the money:
+    /// each slot holds an item not trade-locked (field1 0 is locked: bought for Xu khóa, worn or upgraded; the game marks
+    /// it with a padlock) and at least the quantity, no slot twice, 1.000 Xu for the fee; never to the character itself.
+    fn mail_send_plan(&self, d: MailDraft) -> Result<(MailStep, String), String> {
+        let (to, subject) = (d.to.trim().to_string(), d.subject.trim().to_string());
+        if to.is_empty() {
+            return Err("chưa có tên nhân vật nhận".into());
+        }
+        if to.eq_ignore_ascii_case(self.snap.name.trim()) {
+            return Err("không gửi thư cho chính mình".into());
+        }
+        if subject.is_empty() {
+            return Err("chưa có chủ đề".into());
+        }
+        if to.chars().count() > mail::TO_MAX
+            || subject.chars().count() > mail::SUBJECT_MAX
+            || d.body.chars().count() > mail::BODY_MAX
+        {
+            return Err(format!(
+                "tên tối đa {} ký tự, chủ đề {}, nội dung {}",
+                mail::TO_MAX,
+                mail::SUBJECT_MAX,
+                mail::BODY_MAX
+            ));
+        }
+        if d.items.len() > mail::SEND_ITEMS {
+            return Err(format!("một thư kèm tối đa {} món", mail::SEND_ITEMS));
+        }
+        let Some(bag) = &self.snap.bag else {
+            return Err("chưa đọc được túi đồ".into());
+        };
+        let (mut items, mut shown) = (vec![], vec![]);
+        for x in &d.items {
+            if d.items.iter().filter(|y| y.slot == x.slot).count() > 1 {
+                return Err(format!("ô {} được chọn hai lần", x.slot + 1));
+            }
+            let Some(it) = bag.items.iter().find(|i| i.slot as i32 == x.slot) else {
+                return Err(format!("ô {} của túi trống", x.slot + 1));
+            };
+            let name = book()
+                .get(it.item_id)
+                .map_or_else(|| format!("#{}", it.item_id), |b| b.name.clone());
+            if it.field1 == 0 {
+                return Err(format!("{name} đã khóa giao dịch, không gửi được"));
+            }
+            if x.quantity < 1 || x.quantity > it.quantity {
+                return Err(format!("{name}: số lượng từ 1 tới {}", it.quantity));
+            }
+            items.push(SendItem {
+                slot: x.slot,
+                uuid: it.uuid.clone(),
+                quantity: x.quantity,
+            });
+            shown.push(ItemRecord {
+                quantity: x.quantity,
+                ..it.clone()
+            });
+        }
+        if let Some(c) = &self.snap.currencies {
+            if c.xu < mail::SEND_FEE {
+                return Err(format!(
+                    "cần {} Xu phí gửi, còn {}",
+                    smith::grouped(mail::SEND_FEE),
+                    smith::grouped(c.xu)
+                ));
+            }
+        }
+        let what = match shown.is_empty() {
+            true => "không kèm vật phẩm".to_string(),
+            false => welfare::gift_list(&shown),
+        };
+        let words = format!("gửi thư cho {to} ({what})");
+        let step = MailStep::Send {
+            to,
+            subject,
+            body: d.body,
+            items,
+            what,
+        };
+        Ok((step, words))
     }
 
     /// Sends the packet of `step` and waits MAIL_WAIT for its answer.
@@ -218,6 +319,18 @@ impl Bot {
             MailStep::Claim { id } => (1217, Some(*id)),
             MailStep::ClaimAll { .. } => (1218, None),
             MailStep::Delete { id, .. } => (1219, Some(*id)),
+            MailStep::Send { .. } => (1280, None),
+            MailStep::Sent => (1281, None),
+        };
+        let payload = match &step {
+            MailStep::Send {
+                to,
+                subject,
+                body,
+                items,
+                ..
+            } => Some(mail::send_request(to, subject, body, items)),
+            _ => None,
         };
         let b = &mut self.snap.mailbox;
         (b.doing, b.busy_with) = (Some(format!("Đang {task}…")), id);
@@ -228,14 +341,66 @@ impl Bot {
             notice: None,
             stopping: false,
         });
-        Self::send(
-            out,
-            opcode,
-            Ctx {
-                mail_id: id,
-                ..Ctx::default()
-            },
-        );
+        match payload {
+            Some(p) => out.push(Out::Send(opcode, p)),
+            None => Self::send(
+                out,
+                opcode,
+                Ctx {
+                    mail_id: id,
+                    ..Ctx::default()
+                },
+            ),
+        }
+    }
+
+    /// s2c/1280: the answer to Gửi thư; the fee (s2c/46) and the bag without the items (s2c/1187) came just before. The
+    /// list of mails sent is asked again when next shown.
+    pub(super) fn mail_send_answered(&mut self, a: SendAnswer, out: &mut Vec<Out>) {
+        let Some(MailWait {
+            step: MailStep::Send { to, what, .. },
+            notice,
+            ..
+        }) = self
+            .mail
+            .take_if(|w| matches!(w.step, MailStep::Send { .. }))
+        else {
+            return;
+        };
+        // Only "Đã gửi thư cho mania4" with code 0 is measured (ML1): another text with code 0 is said as it is, neither
+        // done nor refused, so a mail that did go is not sent twice.
+        if a.code == 0 {
+            self.snap.mailbox.sent = None;
+        }
+        let line = match a.code {
+            0 if a.text.starts_with("Đã gửi") => format!(
+                "Xong gửi thư cho {to}: {what}, phí {} Xu ({})",
+                smith::grouped(mail::SEND_FEE),
+                a.text
+            ),
+            0 => format!(
+                "Gửi thư cho {to}: server trả lời \"{}\"; chưa rõ đã gửi chưa, xem Thư đã gửi",
+                a.text
+            ),
+            _ => format!(
+                "Chưa gửi được thư cho {to}: {}",
+                match a.text.is_empty() {
+                    true => notice.unwrap_or_else(|| format!("server trả mã {}", a.code)),
+                    false => a.text,
+                }
+            ),
+        };
+        self.mail_end(Some(line), out);
+    }
+
+    /// s2c/1281: the mails sent, asked for (Thư đã gửi).
+    pub(super) fn mail_sent_listed(&mut self, mails: Vec<SentMail>, out: &mut Vec<Out>) {
+        let n = mails.len();
+        self.snap.mailbox.sent = Some(mails);
+        if matches!(self.mail.as_ref().map(|w| &w.step), Some(MailStep::Sent)) {
+            self.mail_end(None, out);
+            out.push(Out::Log(LogKind::Item, format!("Thư đã gửi: {n} thư")));
+        }
     }
 
     /// The task ends, with `line` in the log and on the tab (`last`); without one it ends quietly (a mail opened).
@@ -462,6 +627,9 @@ impl Bot {
                     || mail::is_full(text)
                     || text.contains("Không có quà")
             }
+            // How the server refuses a mail (a name that is no character, too little Xu) is not measured: any notice
+            // that comes meanwhile is kept, and said if s2c/1280 does not come.
+            MailStep::Send { .. } => true,
             _ => false,
         };
         if answer {
@@ -483,18 +651,22 @@ impl Bot {
 
     /// The task waited MAIL_WAIT without its answer.
     pub(super) fn mail_timer(&mut self, now: Instant, out: &mut Vec<Out>) {
-        let Some(task) = self
-            .mail
-            .as_ref()
-            .filter(|w| w.until <= now)
-            .map(|w| w.task.clone())
-        else {
+        let Some((task, notice, send)) = self.mail.as_ref().filter(|w| w.until <= now).map(|w| {
+            (
+                w.task.clone(),
+                w.notice.clone(),
+                matches!(w.step, MailStep::Send { .. }),
+            )
+        }) else {
             return;
         };
-        let line = format!(
-            "Hòm thư không trả lời sau {} s: thôi {task}",
-            MAIL_WAIT.as_secs()
-        );
+        let line = match (send, notice) {
+            (true, Some(n)) => format!("Chưa gửi được thư: {n}"),
+            _ => format!(
+                "Hòm thư không trả lời sau {} s: thôi {task}",
+                MAIL_WAIT.as_secs()
+            ),
+        };
         self.mail_end(Some(line), out);
     }
 

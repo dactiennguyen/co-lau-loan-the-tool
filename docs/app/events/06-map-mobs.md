@@ -347,6 +347,11 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
 
 - **Hai hệ đơn vị.** Gói tin và map data dùng đơn vị server: ô 32, map 4992×736. Client vẽ bằng ô 48, nên toạ độ trong bộ nhớ = server × **1,5**. Ví dụ c2s/1169 cuối cùng là x=1315, y=640, còn trong bộ nhớ nhân vật có A=1973 (= 1315×1,5). [Đo]
 - **c2s/1169** chỉ được gửi khi đang chạy, nhảy hoặc rơi (~100–130 ms/gói): `i32 x; i32 y; i32 state; 5 byte cờ`. State thấy được: 0 đứng, 1 chạy, 5 lên, 6 rơi. [Đo] Server không trả lời gói nào. Vị trí của người chơi khác đến qua s2c/1262.
+- **MV1 (23/11, game 1.1.1, tiheo1 ở M1 khu 0, điện thoại có Frida, `captures/ml1-2026-11-23/move.jsonl` không đưa lên git)**: chạy phải 1,2 s, chạy trái 1,2 s, nhảy tại chỗ một lần bằng joystick và nút ⇑. [Đo]
+  - Gói vẫn 17 byte như bản cũ. Cờ: `00 00 00 01 00` khi quay phải, `00 00 01 00 00` khi quay trái (byte 2 trái, byte 3 phải), `00 00 00 00 00` lúc nhảy không bấm hướng; gói chạm đất giữ hướng cũ. Đứng yên thì không gửi gì; lúc dừng gửi hai gói state 0 liền nhau (cách 1 ms).
+  - **Chạy**: một gói mỗi 105–145 ms, mỗi gói đi 17–30 đơn vị x (thường 26), khoảng **230 đơn vị/giây** (hơn 7 ô 32). Lên dốc 45°: x và y cùng đổi 26 mỗi gói (704,398 → 730,372). Bước xuống mép nhỏ: state 6 rồi 7 (chạm đất) rồi 0.
+  - **Nhảy**: y 416 → 400, 358, 325, 301, 286, 280 (state 5, mỗi gói chậm lại khoảng 9: trọng lực đều), rồi 288, 314, 357, 405 (state 6), 416 (state 0). Cao **136 đơn vị** (hơn 4 ô), cả cú nhảy khoảng **1,16 s**.
+  - **Chân nằm đúng mép trên của ô**: đứng trên bục ở y 416 = hàng 13, bục y 352 = hàng 11. Trong 780 bản ghi `s2c/1262` của người chơi khác (314 gói, 3 phút), 118 bản ghi đứng yên có `y % 32 = 0`.
 - **Lưới s2c/11.** Sau prefix là 3 lớp, mỗi lớp gồm `i32 n` và `n` byte. Số byte là `dimension1 × dimension2` (M1: 23 × 156 = 3588; M2: 35 × 90 = 3150).
   - `dimension1` là số hàng, `dimension2` là số cột. Lưới lưu theo từng hàng, từ hàng trên cùng xuống, mỗi byte là một ô 32 đơn vị server.
   - Vì vậy `x / 32` và `y / 32` của nhân vật (`s2c/11`), NPC và cổng chỉ thẳng vào ô của lưới. Ở M2 (2880 × 1120 đơn vị), cổng nằm ở x = 32 và x = 2848, đúng mép trái và mép phải. [Đo, `mapGrid` trong [world.ts](../../../src/protocol/world.ts)]
@@ -355,7 +360,9 @@ Object quái là `com.mh.sqiz`, kế thừa `com.mh.sqfb`:
   |---|---|---|
   | 1 | Nhiều mã (M2: 126 mã), 0 là ô trống | Hình vẽ của ô. Ở M2, bốn hàng cuối (31–34) có hình ở mọi cột: đó là mặt đất. [Đo] |
   | 2 | M1: 15/27/47/89/…; M2: 6 mã | Trang trí [Chưa rõ] |
-  | 3 | M1: `1` 3391 ô, `0` 164 ô, `2` 33 ô. M2: `1` 2937, `0` 182, `2` 31 | Ô `0`/`2` nằm thành từng đoạn ngang trùng với các bục vẽ ở lớp 1 (M2 hàng 30, cột 4–17), mỗi đoạn có một ô `2` (có thể là thang). Mặt đất ở hàng 31–34 lại có giá trị `1`, nên `1` không phải "ô trống" như từng suy luận. Nghĩa đúng của `1`/`0`/`2` [Chưa rõ] |
+  | 3 | M1: `1` 3391 ô, `0` 164 ô, `2` 33 ô. M2: `1` 2937, `0` 182, `2` 31 | Ô `0`/`2` nằm thành từng đoạn ngang trùng với các bục vẽ ở lớp 1 (M2 hàng 30, cột 4–17), mỗi đoạn có một ô `2` (có thể là thang). Mặt đất ở hàng 31–34 lại có giá trị `1`, nên `1` không phải "ô trống" như từng suy luận. Nghĩa đúng của `1`/`0`/`2` [Chưa rõ]. MV1 (23/11): quanh chỗ tiheo1 chạy ở M1 (hàng 6–17, cột 12–30) lớp này toàn `1`, kể cả bục và dốc nhân vật đứng, nên **đây không phải lớp va chạm**. |
+
+  **Đứng được ở đâu (MV1, 23/11):** do **mã hình ô của lớp 1** quyết định. Bục nổi ở M1 là dãy 35, 36, 39 (trái, giữa, phải; hàng 13, cột 17–19) và 35, 37, 37, 37 (hàng 11, cột 23–26), ô ngay trên đều là 0. Dốc là 126, 123, 132 (hàng 12) và 127 (hàng 13). Người chơi khác đứng yên chủ yếu trên ô 36, 35, 39, 33, 37, 34, 11, 126, và ô trên đầu gần như luôn là 0. Bảng "mã ô → đặc, bục, dốc" không có trong `s2c/11`. Logic va chạm nằm trong code native (`libgdx-flashds.so`), file map game lưu trên máy (`files/dyncache2/rs_mapM1.bin`, 35.760 byte) bị mã hoá. Muốn có bảng này: học từ chỗ đứng của người chơi trong `s2c/1262` ở từng map, hoặc gỡ code native. [Đo, Suy luận]
 
   App Rust vẽ bản đồ thu nhỏ từ lớp 1 (ô có hình) và lớp 3 (bục), rồi đặt nhân vật, NPC, cổng và boss vào theo cách quy đổi trên ([App Rust](../../integration/rust/features.md#giao-diện)).
 

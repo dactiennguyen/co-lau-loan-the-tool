@@ -370,6 +370,8 @@ pub struct MailboxView<'a> {
     /// The task under way is Nhận, Nhận hết or Xóa: the character counts as busy.
     pub changing: bool,
     pub last: Option<&'a str>,
+    /// Thư đã gửi (s2c/1281), null until asked.
+    pub sent: Option<Vec<SentMailView<'a>>>,
 }
 impl<'a> MailboxView<'a> {
     pub fn of(m: &'a Mailbox, bag: Option<&Bag>) -> Self {
@@ -381,6 +383,36 @@ impl<'a> MailboxView<'a> {
             busy_with: m.busy_with,
             changing: m.changing,
             last: m.last.as_deref(),
+            sent: m
+                .sent
+                .as_ref()
+                .map(|s| s.iter().map(SentMailView::of).collect()),
+        }
+    }
+}
+
+/// A mail sent (s2c/1281): to whom, its words, when, whether it was taken, its items drawn as the bag draws them.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SentMailView<'a> {
+    pub id: i64,
+    pub to: &'a str,
+    pub subject: &'a str,
+    pub body: &'a str,
+    pub sent_at: i64,
+    pub taken: bool,
+    pub items: Vec<ItemView>,
+}
+impl<'a> SentMailView<'a> {
+    fn of(m: &'a mail::SentMail) -> Self {
+        Self {
+            id: m.id,
+            to: &m.to,
+            subject: &m.subject,
+            body: &m.body,
+            sent_at: m.sent_at,
+            taken: m.taken(),
+            items: m.items.iter().map(ItemView::of).collect(),
         }
     }
 }

@@ -5,7 +5,7 @@
 //! hết, c2s/1219 Xóa. All of them work from anywhere once in the world: no NPC, no window. c2s/1221 (Xóa hết) deletes
 //! every mail, gifts not taken too: requests::build has no arm for it, on purpose (DELETE_ALL).
 use crate::items::{book, item_record, ItemRecord};
-use crate::protocol::{err, Reader, Result};
+use crate::protocol::{err, Reader, Result, Writer};
 use serde::Serialize;
 use std::time::Duration;
 
@@ -213,6 +213,95 @@ pub fn slots_for(items: &[ItemRecord], bag: &[ItemRecord]) -> u32 {
     let bag: Vec<(i32, u8)> = bag.iter().map(|i| (i.item_id, i.field1)).collect();
     slots_needed(items.iter().map(|i| (i.item_id, i.field1)), &bag, |id| {
         book().get(id).map_or(1, |d| d.stack)
+    })
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Gửi thư (ML1, 23/11, game 1.1.1; 18-players-checkin.md#chuyển-đồ-gửi-thư) ← the Gửi thư part of src/protocol/mail.ts.
+// c2s/1280 → s2c/46 (Xu −1.000), s2c/1187 (the whole bag), s2c/1280 (u8 0; "Đã gửi thư cho mania4"); the receiver gets
+// s2c/1222. c2s/1281 (empty) → s2c/1281, the mails sent.
+
+/// The fee of one mail, whatever it holds (the window says "Phí gửi thư: 1.000 Xu").
+pub const SEND_FEE: i64 = 1000;
+/// The client's limits (setMaxLength of com.g.g.squ, its 6 slots): MAIL_SEND of mail.ts.
+pub const SEND_ITEMS: usize = 6;
+pub const TO_MAX: usize = 32;
+pub const SUBJECT_MAX: usize = 64;
+pub const BODY_MAX: usize = 512;
+
+/// One attachment of c2s/1280: a bag slot (from 0), the uuid of the item in it, how many of the stack.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SendItem {
+    pub slot: i32,
+    pub uuid: String,
+    pub quantity: i32,
+}
+/// c2s/1280 (mailSendRequest): `string to; string subject; string body; u8 n; n × {i32 slot; string uuid; i32 quantity}`.
+/// The checks of the window are the caller's (Bot::mail); this only writes.
+pub fn send_request(to: &str, subject: &str, body: &str, items: &[SendItem]) -> Vec<u8> {
+    let mut w = Writer::new()
+        .string(to)
+        .string(subject)
+        .string(body)
+        .u8(items.len() as u8);
+    for i in items {
+        w = w.i32(i.slot).string(&i.uuid).i32(i.quantity);
+    }
+    w.build()
+}
+/// s2c/1280 (mailSendResult): `code` 0 with "Đã gửi thư cho mania4" (ML1); what else it can be is not measured.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SendAnswer {
+    pub code: u8,
+    pub text: String,
+}
+pub fn send_result(p: &[u8]) -> Result<SendAnswer> {
+    let mut r = Reader::new(p);
+    let (code, text) = (r.u8()?, r.string()?);
+    r.finish(SendAnswer { code, text }, "s2c/1280")
+}
+/// One mail of s2c/1281 (sentMail): `state` 0 "chưa nhận", 2 "ĐÃ NHẬN" (ML1); items as in the bag, slot 0xff, uuids
+/// new.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SentMail {
+    pub id: i64,
+    pub to: String,
+    pub subject: String,
+    pub body: String,
+    pub sent_at: i64,
+    pub state: u8,
+    pub items: Vec<ItemRecord>,
+}
+impl SentMail {
+    pub fn taken(&self) -> bool {
+        self.state == 2
+    }
+}
+/// s2c/1281 (sentMailList): the mails sent, newest first.
+pub fn sent_list(p: &[u8]) -> Result<Vec<SentMail>> {
+    crate::items::item_layouts(|| {
+        let mut r = Reader::new(p);
+        let n = r.i32()?.max(0);
+        let mut mails = vec![];
+        for _ in 0..n {
+            let (id, to, subject, body) = (r.i64()?, r.string()?, r.string()?, r.string()?);
+            let (sent_at, state) = (r.i64()?, r.u8()?);
+            let k = r.i32()?.max(0);
+            let items = (0..k)
+                .map(|_| item_record(&mut r))
+                .collect::<Result<Vec<_>>>()?;
+            mails.push(SentMail {
+                id,
+                to,
+                subject,
+                body,
+                sent_at,
+                state,
+                items,
+            });
+        }
+        r.finish(mails, "s2c/1281")
     })
 }
 

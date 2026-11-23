@@ -5,6 +5,7 @@ import { buildRequest, decodeEvent } from '../src/protocol/events.ts';
 import { Items } from '../src/protocol/items.ts';
 import {
   normalizeCode, giftCodeRequest, mailList, mailBody, mailIdRequest, slotsNeeded, claimedCount, dailyAfter, dailyQuest, dailyTaken, dailyText,
+  mailSendRequest, mailSendResult, sentMailList,
 } from '../src/protocol/mail.ts';
 import { npcMenu } from '../src/protocol/world.ts';
 import { GiftBot, MailBot, type MailTask } from '../src/bot/mail.ts';
@@ -247,4 +248,24 @@ test('Hoàn thành is refused before any pick when the quest is not done or the 
   const early = await dailyBot('complete', [talk(), choose(2, [57, n]), talk()], { quest: 's2c/1195 113 Nhặt xu', confirm: true });
   assert.match(early.stop!, /mới 0\/2050: chưa xong/);
   assert.ok(![notDone, early].some(x => x.sent.some(s => s === `c2s/57 ${buildRequest(57, { option: 0, ...ELDER }).toString('hex')}`)));
+});
+
+// ML1 (23/11, game 1.1.1): tiheo1 sent 5 Tăng Kinh Nghiệm from bag slot 35 to mania4; the phone's bytes.
+const ML1 = {
+  send: '000000066d616e6961340000000847756920e1babd700000000001000000230000002462396434653036302d363037622d343463632d616662312d39353335376137346565393500000005',
+  sent: '000000001ac490c3a32067e1bbad69207468c6b02063686f206d616e696134',
+  list: '000000020000000000001049000000066d616e6961340000000847756920e1babd7000000000000001a20797e7bf0000000001ff000000070000002431383338653338352d313832372d346534342d396633342d64303763633536323136613400000000ffffffff0000000501ff0000000000000000000000000000000f3100000006486868686868000000014100000000000001a2062835e30200000001ff0000025e0000002464636465666231302d333335632d346266302d393063342d34366632353634643833363100000000ffffffff000001b401ff000000000000000000',
+};
+
+test('Gửi thư: c2s/1280 is the bytes the phone sent; s2c/1280 and s2c/1281 read to their last byte', () => {
+  const bytes = mailSendRequest({ to: 'mania4', subject: 'Gui ẽp', body: '', items: [{ slot: 35, uuid: 'b9d4e060-607b-44cc-afb1-95357a74ee95', quantity: 5 }] });
+  assert.equal(Buffer.from(bytes).toString('hex'), ML1.send);
+  assert.deepEqual(mailSendResult(Buffer.from(ML1.sent, 'hex')), { code: 0, text: 'Đã gửi thư cho mania4' });
+  const { mails } = sentMailList(Buffer.from(ML1.list, 'hex'));
+  assert.deepEqual(mails.map(m => [m.id, m.to, m.subject, m.state, m.taken, m.items.map(i => [i.itemId, i.quantity])]), [
+    [4169, 'mania4', 'Gui ẽp', 0, false, [[7, 5]]],
+    [3889, 'Hhhhhh', 'A', 2, true, [[606, 436]]],
+  ]);
+  assert.throws(() => mailSendRequest({ to: ' ', subject: 'x', body: '', items: [] }), /người nhận/);
+  assert.throws(() => mailSendRequest({ to: 'a', subject: 'x', body: '', items: Array.from({ length: 7 }, (_, slot) => ({ slot, uuid: 'u', quantity: 1 })) }), /tối đa 6/);
 });

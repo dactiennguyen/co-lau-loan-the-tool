@@ -16,6 +16,7 @@ import type {
   FightSettings,
   ItemAction,
   LogKind,
+  MailDraft,
   LogLine,
   MergeForecast,
   MergeOptions,
@@ -156,6 +157,10 @@ export interface Api {
   mailClaimAll(id: number): Promise<void>;
   /** Hòm thư, Xóa: these mails, only those whose gift is taken or that had none. There is no Xóa hết. */
   mailDelete(id: number, mails: number[]): Promise<void>;
+  /** Hòm thư, Gửi thư: a mail to a character with up to 6 items of the bag; 1.000 Xu. */
+  mailSend(id: number, draft: MailDraft): Promise<void>;
+  /** Hòm thư, Thư đã gửi: the mails sent. */
+  mailSent(id: number): Promise<void>;
   /** Chợ trời, from wherever the character stands: the tabs, then page `page` of tab `tab` (-1 for Đang bán). */
   marketOpen(id: number, tab: number, page: number): Promise<void>;
   /** Chợ trời: page `page` of tab `tab` (-1 for Đang bán); also Làm mới. */
@@ -309,6 +314,8 @@ const tauri: Api = {
   mailClaim: (id, mail) => invoke("mail_claim", { id, mail }),
   mailClaimAll: (id) => invoke("mail_claim_all", { id }),
   mailDelete: (id, mails) => invoke("mail_delete", { id, mails }),
+  mailSend: (id, draft) => invoke("mail_send", { id, draft }),
+  mailSent: (id) => invoke("mail_sent", { id }),
   marketOpen: (id, tab, page) => invoke("market_open", { id, tab, page }),
   marketPage: (id, tab, page) => invoke("market_page", { id, tab, page }),
   marketBuy: (id, uuid, price) => invoke("market_buy", { id, uuid, price }),
@@ -450,6 +457,8 @@ const preview: Api = {
   mailClaim: nothing,
   mailClaimAll: nothing,
   mailDelete: nothing,
+  mailSend: nothing,
+  mailSent: nothing,
   marketOpen: nothing,
   marketPage: nothing,
   marketBuy: nothing,

@@ -1043,6 +1043,28 @@ pub enum MailTask {
     ClaimAll,
     /// c2s/1219 for each of these mails, one by one: only mails whose gift is taken, or that had none.
     Delete(Vec<i64>),
+    /// c2s/1280, Gửi thư (ML1): a mail to a character with up to 6 items of the bag; 1.000 Xu.
+    Send(MailDraft),
+    /// c2s/1281: the mails sent (Thư đã gửi).
+    Sent,
+}
+
+/// A mail to send (MailTask::Send): the character it goes to, its subject and words, and the items as (bag slot, how
+/// many); the uuid of each comes from the bag (mail::SendItem). The UI asks before it goes out: it costs 1.000 Xu.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailDraft {
+    pub to: String,
+    pub subject: String,
+    #[serde(default)]
+    pub body: String,
+    #[serde(default)]
+    pub items: Vec<MailDraftItem>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+pub struct MailDraftItem {
+    pub slot: i32,
+    pub quantity: i32,
 }
 
 /// What the Chợ trời tab asks (Bot::market). Mua, Đăng bán, Thu hồi and Gia hạn cost money or move an item; the UI asks
@@ -1138,6 +1160,9 @@ pub struct Mailbox {
     pub changing: bool,
     /// The line the last task ended with, as in the log ("Xong nhận thư …", "Chưa nhận thư …").
     pub last: Option<String>,
+    /// s2c/1281, the mails sent (Thư đã gửi), newest first; None until asked in this session, and again after a mail
+    /// goes out.
+    pub sent: Option<Vec<crate::mail::SentMail>>,
 }
 
 /// A map of the atlas for "Đổi map": the level the world map asks for, and how many portals away it is.

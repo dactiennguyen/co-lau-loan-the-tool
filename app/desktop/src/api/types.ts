@@ -500,6 +500,27 @@ export interface Mailbox {
   changing: boolean;
   /** The line the last task ended with, as in the log ("Xong nhận thư …", "Chưa nhận thư …"). */
   last: string | null;
+  /** Thư đã gửi (s2c/1281), newest first; null until asked, and again after a mail goes out. */
+  sent: SentMail[] | null;
+}
+
+/** A mail sent (s2c/1281): to whom, its words, when (ms since 1970), whether it was taken, its items. */
+export interface SentMail {
+  id: number;
+  to: string;
+  subject: string;
+  body: string;
+  sentAt: number;
+  taken: boolean;
+  items: Item[];
+}
+
+/** A mail to send (Gửi thư, c2s/1280): the character's name, the subject and words, up to 6 bag slots with how many. */
+export interface MailDraft {
+  to: string;
+  subject: string;
+  body: string;
+  items: { slot: number; quantity: number }[];
 }
 
 /** One mail of the list (s2c/1215, s2c/1222). */

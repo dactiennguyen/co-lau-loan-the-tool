@@ -91,6 +91,50 @@ export function slotsNeeded(mailItems: { itemId: number; field1: number }[], bag
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Gửi thư (ML1, 23/11, game 1.1.1; 18-players-checkin.md#chuyển-đồ-gửi-thư): the Gửi thư tab of Hòm thư, from anywhere.
+// c2s/1280 → s2c/46 (Xu −1.000), s2c/1187 (the whole bag), s2c/1280 (u8 0; "Đã gửi thư cho mania4"); the receiver gets
+// s2c/1222. c2s/1281 (empty) → s2c/1281, the mails sent.
+
+/** The client's limits (setMaxLength of com.g.g.squ: 32, 64, 512; 6 slots) and the fee its window shows. */
+export const MAIL_SEND = { fee: 1000, maxItems: 6, toMax: 32, subjectMax: 64, bodyMax: 512 } as const;
+/** One attachment: a bag slot (from 0), the uuid of the item in it, and how many of the stack. */
+export interface MailItem { slot: number; uuid: string; quantity: number }
+export interface MailDraft { to: string; subject: string; body: string; items: MailItem[] }
+/** c2s/1280: `string to; string subject; string body; u8 n; n × {i32 slot; string uuid; i32 quantity}`. */
+export function mailSendRequest(d: MailDraft) {
+  const to = d.to.trim(), subject = d.subject.trim();
+  if (!to) throw new Error('chưa có tên người nhận');
+  if (!subject) throw new Error('chưa có chủ đề');
+  if (to.length > MAIL_SEND.toMax || subject.length > MAIL_SEND.subjectMax || d.body.length > MAIL_SEND.bodyMax) throw new Error('tên, chủ đề hay nội dung dài quá');
+  if (d.items.length > MAIL_SEND.maxItems) throw new Error(`tối đa ${MAIL_SEND.maxItems} món`);
+  const w = new Writer().string(to).string(subject).string(d.body).u8(d.items.length);
+  for (const i of d.items) {
+    if (!(i.quantity > 0)) throw new Error(`số lượng ở ô ${i.slot} phải lớn hơn 0`);
+    w.i32(i.slot).string(i.uuid).i32(i.quantity);
+  }
+  return w.build();
+}
+/** s2c/1280: the answer. `code` 0 with "Đã gửi thư cho mania4" (ML1); what else it can be is not measured. */
+export function mailSendResult(payload: Uint8Array) {
+  const r = new Reader(payload);
+  return finish(r, { code: r.u8(), text: r.string() }, 's2c/1280');
+}
+/** One mail of s2c/1281. `state` 0 "chưa nhận", 2 "ĐÃ NHẬN" (ML1); items as in the bag, slot 0xff, uuids new. */
+export function sentMail(r: Reader) {
+  const id = i64(r), to = r.string(), subject = r.string(), body = r.string(), sentAt = i64(r), state = r.u8(), items = [];
+  for (let n = r.i32(); n > 0; n--) items.push(itemRecord(r));
+  return { id, to, subject, body, sentAt, state, taken: state === 2, items };
+}
+/** s2c/1281: the mails sent, newest first. */
+export function sentMailList(payload: Uint8Array) {
+  return itemLayouts(() => {
+    const r = new Reader(payload), mails = [];
+    for (let n = r.i32(); n > 0; n--) mails.push(sentMail(r));
+    return finish(r, { mails }, 's2c/1281');
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Nhiệm vụ hàng ngày at Hương Lão (NPC 102 of M1): line 2 of his menu says "Hôm nay con đã nhận N/3 nhiệm vụ hàng ngày."
 // with one line 0, Nhận nhiệm vụ, or Hủy nhiệm vụ hiện tại while one is held. Either is done at once, without asking.
 

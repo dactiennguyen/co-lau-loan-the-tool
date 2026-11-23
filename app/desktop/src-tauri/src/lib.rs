@@ -169,6 +169,8 @@ pub fn run() {
             commands::mail_claim,
             commands::mail_claim_all,
             commands::mail_delete,
+            commands::mail_send,
+            commands::mail_sent,
             commands::market_open,
             commands::market_page,
             commands::market_buy,

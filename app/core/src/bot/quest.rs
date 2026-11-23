@@ -46,7 +46,7 @@ impl Bot {
         if self.mail_changing() {
             return out.push(Out::Log(
                 LogKind::Quest,
-                "Đang nhận hay xoá thư: đợi xong rồi mới làm nhiệm vụ".into(),
+                "Đang nhận, gửi hay xoá thư: đợi xong rồi mới làm nhiệm vụ".into(),
             ));
         }
         if self.market_changing() {

@@ -153,6 +153,27 @@ fn g1_mailbox() -> Mailbox {
             "Xong nhận thư \"Quà Đền bù AlphaTest\": 5.000.000 Xu, 10.000 Lượng, 5.000.000 Xu khóa"
                 .into(),
         ),
+        // ML1 (23/11): the two mails tiheo1 had sent, the receivers renamed.
+        sent: Some(vec![
+            cllt_core::mail::SentMail {
+                id: 4169,
+                to: "Ban1".into(),
+                subject: "Gửi exp".into(),
+                body: String::new(),
+                sent_at: ago(60) as i64,
+                state: 0,
+                items: goods(&[(7, 5, 1)]),
+            },
+            cllt_core::mail::SentMail {
+                id: 3889,
+                to: "Ban2".into(),
+                subject: "Gỗ".into(),
+                body: String::new(),
+                sent_at: ago(6 * 3600) as i64,
+                state: 2,
+                items: goods(&[(606, 436, 1)]),
+            },
+        ]),
     }
 }
 
