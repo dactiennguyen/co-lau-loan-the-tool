@@ -367,7 +367,20 @@ Mỗi lần thành công: mọi viên đặt vào đều mất, viên mới vào
 - 11 Đá cấp 5 khoá: "Luyện thành Đá cấp 7 Khóa / Cần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu) / Tỉ lệ thành công: 68%", đúng quy luật trên (2.816 ÷ 4.096).
 - Chạm một viên trong lưới mở hộp cùng kiểu với nút **Bỏ ra**. Bỏ ra một viên thì còn 10 ô và chữ đổi thành 62% (2.560 ÷ 4.096). Vậy server nhận được việc rút đá ra; gói đó chưa bắt (cần Frida).
 
-**Trong app (23/11):** tab Gộp đá có chip **Luyện tự chọn**: chọn đá mỗi cấp, app tính tỉ lệ theo quy luật trên (`fuseQuote` trong `src/protocol/npc.ts`, `npc::fuse_quote`), chặn từ 40% trở xuống, bot so cấp đá và tỉ lệ `s2c/92` báo trước khi bấm. Lần thất bại đầu tiên sẽ ghi số đá mỗi cấp đã mất vào nhật ký. Chưa bấm thật lần nào.
+**Trộn nhiều cấp, có Frida (LD2, 23/11, cùng nhân vật, game 1.1.1, không bấm Kết hợp)** [Đo]:
+
+| Client gửi `c2s/97` | Server trả |
+|---|---|
+| `"", 0, 0, ô 19, 5` (Chọn nhiều 5 Đá cấp 5) | **5 gói `s2c/92` giống hệt nhau**, cùng chữ "Luyện thành Đá cấp 7 Khóa … 31%" (1.280 ÷ 4.096) |
+| `"", 0, 0, ô 20, 1` (Chọn 1 Đá cấp 8) | 1 `s2c/92` "Đá cấp 9 Khóa / Cần: 26.215 Xu khóa / 26%" (17.664 ÷ 65.536) |
+| `"", 1, 1, 5, 1` (Bỏ ra viên Đá cấp 8) | 1 `s2c/92` về lại 31% |
+| `"", 0, 0, ô 24, 1` (Chọn 1 Đá cấp 6) | 1 `s2c/92` 56% (2.304 ÷ 4.096) |
+
+- Trộn nhiều cấp đá là được: server cộng giá trị mọi chồng đã đặt.
+- **Đặt N viên một lần thì server trả N gói `s2c/92`**, gói nào cũng mang tỉ lệ sau khi đã đặt đủ N viên. Bot 2.2.11 coi mỗi `s2c/92` là lời đáp cho lần đặt gần nhất. Nó gửi chồng thứ hai ngay khi nhận gói đầu, rồi nhận các gói còn lại của chồng thứ nhất và tưởng đã đặt xong, nên thấy tỉ lệ chỉ của chồng thứ nhất. Trên app: "Pháp sư báo khác kế hoạch … 31%" với 1–2 Đá cấp 6 + 5 Đá cấp 5 (một nick của người dùng, 23/11), và không bấm. Đã sửa sau 2.2.11: đặt N viên loại 0 thì bot đợi đủ N gói rồi mới đặt món tiếp hay xét tỉ lệ; loại 1 (cả chồng) vẫn 1 gói như O1 (`luyen_tu_chon_of_two_stacks_waits_for_every_answer_of_the_first` trong `app/core/tests/npc.rs`).
+- Bỏ ra cũng là `c2s/97`, với byte thứ hai = 1 rồi `1, 5, 1`. Số 5 khớp vị trí đếm từ 0 của viên Đá cấp 8 trong lưới (viên thứ 6), chứ không khớp ô túi của nó (20). Hai số 1 chưa rõ. [Đo; Suy luận: số 5]
+
+**Trong app (23/11):** tab Gộp đá có chip **Luyện tự chọn**: chọn đá mỗi cấp, app tính tỉ lệ theo quy luật trên (`fuseQuote` trong `src/protocol/npc.ts`, `npc::fuse_quote`), chặn từ 40% trở xuống, bot so cấp đá và tỉ lệ `s2c/92` báo trước khi bấm. Lần thất bại đầu tiên sẽ ghi số đá mỗi cấp đã mất vào nhật ký. Bấm thật lần đầu 23/11 (một nick của người dùng, 2.2.11): 2 Đá cấp 6 khoá → Đá cấp 7 ở 50%, **thành công**, tốn 1.639 Xu khóa. Chưa thấy lần thất bại nào.
 
 <a id="tách-đá"></a>
 

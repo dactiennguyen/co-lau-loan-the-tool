@@ -2535,7 +2535,13 @@ fn gop_da_puts_four_of_one_stack_with_one_put_of_quantity_4() {
         "one c2s/97 of quantity 4"
     );
     out.clear();
+    // Four answers, one per stone, the same each time (LD2): Bắt đầu after the fourth only.
     let text = "Luyện thành Đá cấp 3 Khóa\nCần: 7 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 100%";
+    for _ in 0..3 {
+        bot.on_packet(92, &slot92(2, text, true), now, &mut out)
+            .unwrap();
+    }
+    assert!(sent(&out, 91).is_empty(), "three answers of four: {out:?}");
     bot.on_packet(92, &slot92(2, text, true), now, &mut out)
         .unwrap();
     assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
@@ -2750,7 +2756,14 @@ fn luyen_tu_chon_puts_the_stones_picked_and_presses_once_at_the_odds_planned() {
         [tohex(&npc::put_request(20, 11, npc::PUT_ITEM))]
     );
     out.clear();
+    // One answer per stone of the 11, all the same (LD2): the Đá cấp 7 goes in after the 11th only.
     let at_5 = "Luyện thành Đá cấp 7 Khóa\nCần: 1639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 68%";
+    for _ in 0..10 {
+        bot.on_packet(92, &slot92(20, at_5, true), now, &mut out)
+            .unwrap();
+    }
+    assert!(sent(&out, 97).is_empty(), "10 answers of 11: {out:?}");
+    assert!(sent(&out, 91).is_empty());
     bot.on_packet(92, &slot92(20, at_5, true), now, &mut out)
         .unwrap();
     assert_eq!(
@@ -2774,6 +2787,67 @@ fn luyen_tu_chon_puts_the_stones_picked_and_presses_once_at_the_odds_planned() {
         logged(&out, "Luyện 12 viên đá thành Đá cấp 8 (42%): thất bại, mất 11 Đá cấp 5, 1 Đá cấp 7 (1 lần, tốn 6.554 Xu khóa)"),
         "{out:?}"
     );
+}
+
+#[test]
+fn luyen_tu_chon_of_two_stacks_waits_for_every_answer_of_the_first() {
+    // A user's character (23/11, 2.2.11): 1 Đá cấp 6 + 5 Đá cấp 5 planned at 56%, the window "said 31%" and nothing was pressed: the
+    // second stack went in on the first of the five answers to the first, and the second answer was taken for its own.
+    // The answers as the game gives them (LD2): five times 31% for the 5 Đá cấp 5, then 56% for the Đá cấp 6.
+    let (mut bot, mut out, now) = symap(&[]);
+    bot.on_packet(
+        42,
+        &bag_q(&[(20, 415, 0, 0, 22), (24, 416, 0, 0, 3)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    let mut stones = vec![24];
+    stones.extend([20; 5]);
+    bot.smith(SmithTask::Fuse { stones }, now, &mut out);
+    assert!(
+        logged(&out, "Luyện 6 viên đá thành Đá cấp 7 (56%)"),
+        "{out:?}"
+    );
+    out.clear();
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1002".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(20, 5, npc::PUT_ITEM))]
+    );
+    out.clear();
+    let at_31 = "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 31%";
+    for k in 1..=5 {
+        bot.on_packet(92, &slot92(20, at_31, true), now, &mut out)
+            .unwrap();
+        let puts = sent(&out, 97);
+        match k {
+            5 => assert_eq!(puts, [tohex(&npc::put_request(24, 1, npc::PUT_ITEM))]),
+            _ => assert!(puts.is_empty(), "answer {k} of 5: {out:?}"),
+        }
+        assert!(sent(&out, 91).is_empty(), "answer {k}: {out:?}");
+        assert!(!logged(&out, "khác kế hoạch"), "answer {k}: {out:?}");
+    }
+    out.clear();
+    let at_56 = "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 56%";
+    bot.on_packet(92, &slot92(24, at_56, true), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
 }
 
 #[test]

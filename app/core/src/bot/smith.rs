@@ -209,6 +209,9 @@ pub(super) struct Smith {
     /// Items still to put in the window, in order, and the bag slot put last.
     puts: VecDeque<Put>,
     putting: i32,
+    /// The answers the window still owes for the item put last: one s2c/92 per stone of a c2s/97 PUT_ITEM of quantity N,
+    /// all with the odds after the N (LD2), one for PUT_STACK however many (O1). The next item waits for the last.
+    owed: i32,
     /// Nâng cấp: the bag slot of the Bùa bảo vệ put in this window, and the level of the item when Bắt đầu was pressed.
     charm: Option<i32>,
     pressed_at: Option<i32>,
@@ -639,6 +642,7 @@ impl Bot {
             window: WindowKind::Upgrade,
             puts: VecDeque::new(),
             putting: -1,
+            owed: 0,
             charm: None,
             pressed_at: None,
             before: vec![],
@@ -1410,6 +1414,10 @@ impl Bot {
         match next {
             Some((slot, quantity, kind)) => {
                 (sm.stage, sm.until, sm.putting) = (Stage::Put, now + SMITH_WAIT, slot);
+                sm.owed = match kind {
+                    npc::PUT_ITEM => quantity.max(1),
+                    _ => 1,
+                };
                 Self::send(
                     out,
                     97,
@@ -1439,6 +1447,15 @@ impl Bot {
         let Some(sm) = self.smith.as_mut().filter(|s| s.stage == Stage::Put) else {
             return;
         };
+        // Four stones of a stack in one c2s/97 are answered four times, the same each time (LD2): the next item, or the
+        // check of the odds, waits for the last, or it would take the first stack's odds for all (2.2.11: "Pháp sư báo
+        // khác kế hoạch … 31%" for 1–2 Đá cấp 6 + 5 Đá cấp 5).
+        if sm.owed > 1 {
+            sm.owed -= 1;
+            sm.until = now + SMITH_WAIT;
+            return;
+        }
+        sm.owed = 0;
         let mut q = quote(text);
         // Chế tạo trang bị says its fee in a field of s2c/92 (Xu), not in the text.
         if let Some(amount) = fee.filter(|f| *f > 0) {
