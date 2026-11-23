@@ -261,6 +261,11 @@ impl Bot {
         if targets.is_empty() {
             return self.finish(&format!("Không thấy {} ở khu này", job.target), out);
         }
+        // Vào khu ít người: the quietest of the zones chosen, once per map and job, before its first battle there; not
+        // for a boss, which stands in a zone of its own.
+        if !boss && self.job_zone(now, out) {
+            return;
+        }
         if self.walking(now) {
             return;
         }
@@ -284,6 +289,84 @@ impl Bot {
             },
         );
         self.challenged(mob, now);
+    }
+
+    /// Vào khu ít người (FightSettings::quiet_zone): once per map and job, the zone list is asked (c2s/1172, waited 2 s)
+    /// and the character goes to the zone of quiet_zone_from to quiet_zone_to with the fewest players and room left, a
+    /// tie drawn at random; it stays when it already stands in one of the quietest, when none of them is listed or has
+    /// room, and when the list does not come. True while the list or the zone change is awaited: the job goes on when
+    /// the new zone's mobs are in (packets.rs, s2c/43).
+    pub(super) fn job_zone(&mut self, now: Instant, out: &mut Vec<Out>) -> bool {
+        if !self.fight.quiet_zone || self.snap.map_id.is_empty() {
+            return false;
+        }
+        let key = (self.snap.map_id.clone(), self.job_seq);
+        if self.zone_picked.as_ref() == Some(&key) {
+            return false;
+        }
+        // A fresh list for each map and job: one kept from before (the Khu panel, a job before) has old counts.
+        if self.zone_asking.as_ref() != Some(&key) {
+            self.zone_asking = Some(key);
+            self.snap.zones = None;
+            self.list_zones(out);
+            self.timer = Some((now + Duration::from_secs(2), Wake::Next));
+            return true;
+        }
+        self.zone_picked = Some(key);
+        let Some(zones) = self.snap.zones.clone() else {
+            out.push(Out::Log(
+                LogKind::Travel,
+                format!(
+                    "Vào khu ít người: server không gửi danh sách khu, đánh ở khu {}",
+                    self.snap.zone
+                ),
+            ));
+            return false;
+        };
+        let (a, b) = (
+            self.fight.quiet_zone_from as i32,
+            self.fight.quiet_zone_to as i32,
+        );
+        let (lo, hi) = (a.min(b), a.max(b));
+        let open: Vec<&crate::world::Zone> = zones
+            .iter()
+            .filter(|z| (lo..=hi).contains(&z.zone) && z.players < z.capacity)
+            .collect();
+        // The character is one of its own zone's players: counted without it there, a move goes only to a zone with
+        // fewer others (alone in 11, it stays rather than going to an empty 12).
+        let here = self.snap.zone;
+        let others = |z: &crate::world::Zone| {
+            if z.zone == here {
+                (z.players - 1).max(0)
+            } else {
+                z.players
+            }
+        };
+        let Some(least) = open.iter().map(|z| others(z)).min() else {
+            out.push(Out::Log(
+                LogKind::Travel,
+                format!(
+                    "Vào khu ít người: không có khu {lo}–{hi} còn chỗ, đánh ở khu {}",
+                    self.snap.zone
+                ),
+            ));
+            return false;
+        };
+        let quietest: Vec<&crate::world::Zone> =
+            open.into_iter().filter(|z| others(z) == least).collect();
+        if quietest.iter().any(|z| z.zone == here) {
+            return false;
+        }
+        let z = quietest[self.jitter.pick(0, quietest.len() as i32 - 1) as usize];
+        out.push(Out::Log(
+            LogKind::Travel,
+            format!(
+                "Vào khu ít người: khu {} có {}/{} người, ít nhất trong khu {lo}–{hi}",
+                z.zone, z.players, z.capacity
+            ),
+        ));
+        let zone = z.zone;
+        self.zone_to(zone, true, now, out)
     }
 
     /// Keeps the challenge until its s2c/22 and waits 8 s for it.

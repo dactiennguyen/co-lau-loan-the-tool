@@ -65,3 +65,32 @@ export function runWindow(from: string, until: string, now: number) {
     text: `${pad(Math.floor(a / 60))}:${pad(a % 60)}–${pad(Math.floor(b / 60))}:${pad(b % 60)}`,
   };
 }
+
+/** The level tabs of the Bạch Hổ window's list of accounts: 1–50, 51–100, 101–150 (and above, in the last). */
+export type LevelTab = "low" | "mid" | "high";
+export const LEVEL_TABS: { key: LevelTab; label: string }[] = [
+  { key: "low", label: "Cấp 1–50" },
+  { key: "mid", label: "Cấp 51–100" },
+  { key: "high", label: "Cấp 101–150" },
+];
+export const levelTab = (level: number): LevelTab => (level <= 50 ? "low" : level <= 100 ? "mid" : "high");
+
+/** The two waits of a run in seconds: between two moves in a battle, and from a battle's end to the next try. */
+export interface BachHoWaits {
+  move: number;
+  rejoin: number;
+}
+
+/** The accounts to start, grouped by their waits (each one's own, else `shared`), one Bắt đầu each, in ms. */
+export function waitGroups(ids: number[], own: Record<number, BachHoWaits>, shared: BachHoWaits) {
+  const groups = new Map<string, { ids: number[]; moveMs: number; rejoinMs: number }>();
+  for (const id of ids) {
+    const w = own[id] ?? shared;
+    const moveMs = Math.round(w.move * 1000), rejoinMs = Math.round(w.rejoin * 1000);
+    const key = `${moveMs}/${rejoinMs}`;
+    const g = groups.get(key) ?? { ids: [], moveMs, rejoinMs };
+    g.ids.push(id);
+    groups.set(key, g);
+  }
+  return [...groups.values()];
+}

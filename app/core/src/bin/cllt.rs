@@ -634,6 +634,8 @@ fn main() {
         let mut a = a.clone();
         a.fight.repair |= auto_repair && fight;
         a.fight.pickup &= !no_pickup;
+        // cllt fights where it stands: no Vào khu ít người, which an account of the desktop app has on.
+        a.fight.quiet_zone = false;
         a.algorithm = algorithm;
         manager.login(*id, a);
     }

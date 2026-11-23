@@ -178,6 +178,9 @@ const KEYS = [
   "delayRandom",
   "humanPace",
   "wander",
+  "quietZone",
+  "quietZoneFrom",
+  "quietZoneTo",
 ] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -547,6 +550,35 @@ export function FightSettingsCard({ account }: { account: Account }) {
           {settings.wander ? "Đi vài bước trước khi thách đấu" : "Đứng yên như trước"}
         </span>
       </SettingRow>
+      <SettingRow
+        id={`${id}quiet-zone`}
+        on={settings.quietZone}
+        onChange={(quietZone) => save({ ...settings, quietZone })}
+        icon="pin"
+        title="Vào khu ít người"
+        hint="Khi bấm Bắt đầu đánh quái (và mỗi lần job sang map khác), bot xem số người của từng khu rồi sang khu ít người nhất trong khoảng khu đã chọn (mặc định khu 10 tới 12); nhiều khu bằng nhau thì chọn ngẫu nhiên một khu. Đang ở một trong các khu ít người nhất thì đứng yên. Khu đầy hay không có trong khoảng thì đánh ở khu đang đứng. Không đổi khu khi đánh boss (boss chỉ ở một khu). Mặc định bật."
+      >
+        <span className={SETTING_FACT}>
+          <Icon name="pin" size={12} />
+          {settings.quietZone ? (
+            <>
+              Khu <b className="px">{Math.min(settings.quietZoneFrom, settings.quietZoneTo)}</b>–
+              <b className="px">{Math.max(settings.quietZoneFrom, settings.quietZoneTo)}</b>, ít người nhất
+            </>
+          ) : (
+            "Đánh ở khu đang đứng"
+          )}
+        </span>
+      </SettingRow>
+      {/* Its two numbers, indented under it; they can be set while it is off. */}
+      <div className="ml-6">
+        <div className={cn("grid grid-cols-[auto_auto_auto_auto] justify-start items-center gap-x-2 gap-y-1.5 px-3 py-2 bg-ink text-12 text-fg-2", settings.quietZone && "shadow-[inset_3px_0_0_var(--good)]")}>
+          <span>Từ khu</span>
+          <Stepper value={settings.quietZoneFrom} min={0} max={99} label="khu đầu của khoảng khu ít người" onChange={(v) => save({ ...settings, quietZoneFrom: v }, true)} />
+          <span>tới khu</span>
+          <Stepper value={settings.quietZoneTo} min={0} max={99} label="khu cuối của khoảng khu ít người" onChange={(v) => save({ ...settings, quietZoneTo: v }, true)} />
+        </div>
+      </div>
       {/* The waits under one row without a box of its own, lit while any wait is on; folded, what is on. */}
       <SettingRow
         id={`${id}pace`}

@@ -180,6 +180,9 @@ mod tests {
                 quest_losses: 2,
                 auto_skills: true,
                 auto_welfare: true,
+                quiet_zone: false,
+                quiet_zone_from: 3,
+                quiet_zone_to: 7,
             },
             fight_targets: BTreeMap::from([("M2".into(), "Kẻ Quấy Phá".into())]),
             proxy: Some(crate::proxy::Proxy {

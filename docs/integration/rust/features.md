@@ -333,6 +333,17 @@ Core: `world::ranking` đọc `s2c/1254` (danh sách tab hay một tab, cả b�
 - Chưa có: đi sang bục khác, tới gần quái, đi lúc nick rảnh không chạy việc gì. Dốc chưa phân biệt được (mã ô dốc chưa có bảng).
 - Test: `core/src/walk.rs`, `core/tests/wander.rs`, `test/walk.test.ts`. **Chưa chạy thật.**
 
+### Vào khu ít người (23/11)
+
+Ô **Vào khu ít người** của Cài đặt đánh (`FightSettings::quiet_zone`, khoảng khu `quiet_zone_from`–`quiet_zone_to`, mặc định **bật**, khu **10–12**, lưu theo nick; nick có từ trước cũng được bật). Trước trận đầu tiên của việc Đánh quái trên mỗi map (`Bot::job_zone`, một lần cho mỗi map và mỗi lần bấm Bắt đầu):
+
+- Bot xin danh sách khu **mới** (`c2s/1172`, đợi 2 s; danh sách có sẵn từ trước, như của bảng Khu, không dùng vì số người đã cũ), lấy các khu trong khoảng còn chỗ, chọn khu **ít người nhất** (khu đang đứng tính trừ chính nhân vật: đứng một mình ở khu 11 thì không sang khu 12 trống); nhiều khu bằng nhau thì chọn **ngẫu nhiên** một khu, rồi sang khu đó (`c2s/1173`) và đánh ở đó khi danh sách quái của khu mới về. Nhật ký (loại Di chuyển): "Vào khu ít người: khu 11 có 3/20 người, ít nhất trong khu 10–12", rồi "Sang khu 11", "Đã sang khu 11 của …".
+- **Đứng yên** khi đang ở một trong các khu ít người nhất; khi không có khu nào trong khoảng còn chỗ ("…không có khu 10–12 còn chỗ, đánh ở khu 0"); khi server không gửi danh sách.
+- Server không trả lời khi sang khu sau 8 s, hay từ chối, thì đánh ở khu đang đứng. Không có quái cần đánh ở map này thì dừng ngay như trước, không đổi khu.
+- `cllt fight` luôn đánh ở khu đang đứng (tắt ô này cho lần chạy).
+- **Không đổi khu khi đánh boss** (boss chỉ ở một khu). Tự gộp đá khi túi đầy đi rồi về vẫn quay lại đúng khu cũ, không chọn lại.
+- Test: `core/tests/quiet_zone.rs`. **Chưa chạy thật.**
+
 ## Tự nhặt đồ
 
 Port `pick()` của bot TS ([G2](../../app/events/13-drops-items.md#g2), chạy thật 6 trận, nhặt 4/4 món). Mặc định **bật** cho mọi nick, cả nick lưu trong `accounts.json` từ trước khi có cài đặt này (`"fight": {"pickup": false}` khi tắt); tắt ở tab Cài đặt đánh hoặc `--no-pickup` của `cllt fight`, `cllt quest`.

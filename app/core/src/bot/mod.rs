@@ -262,6 +262,10 @@ pub struct Bot {
     /// whether the zone list was asked in this zone.
     zone_tries: Vec<i32>,
     zone_list_asked: bool,
+    /// Vào khu ít người (job_zone): the map and job the zone list was asked for (a fresh one each time), and the map
+    /// and job a zone was picked for, so it is picked once per map and job.
+    zone_asking: Option<(String, u32)>,
+    zone_picked: Option<(String, u32)>,
     /// A talk or stat-point step is answered by s2c/34 alone.
     awaiting_reply: bool,
     /// Duels taken for the current talk step (Đồng ý in its s2c/57, npc_dialog); a fourth ends the run.
@@ -431,6 +435,8 @@ impl Bot {
             hops: 0,
             zone_tries: vec![],
             zone_list_asked: false,
+            zone_asking: None,
+            zone_picked: None,
             refused: HashSet::new(),
             awaiting_reply: false,
             duels: 0,
@@ -800,7 +806,8 @@ impl Bot {
                     LogKind::Travel,
                     format!("Server không trả lời khi sang khu {z} sau 8 s"),
                 ));
-                if self.quest_running() {
+                // A quest step's zone change (quest_zone) or a fight job's (job_zone) goes on without it.
+                if self.quest_running() || self.job_running() {
                     self.timer = Some((now + Duration::from_secs(1), Wake::Next));
                 }
             }

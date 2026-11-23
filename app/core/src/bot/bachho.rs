@@ -1,5 +1,6 @@
-//! Bạch Hổ (17-bach-ho.md) for the Bạch Hổ window of the app: from the time the user chose until the end time, the
-//! character goes to Hang Bạch Hổ and keeps trying to get into a battle with the boss; once in, it fights, then tries
+//! Bạch Hổ (17-bach-ho.md) for the Bạch Hổ window of the app: the character goes to Hang Bạch Hổ as soon as the run
+//! starts, waits there for the time the user chose, and until the end time keeps trying to get into a battle with the
+//! boss; once in, it fights, then tries
 //! again, as the game does (BH2, 21/11, measured with the game on the phone):
 //! - At 21:00 the boss comes in s2c/43 of the cave (mob800 "Bạch Hổ Thống Lĩnh", level 155), with the s2c/45 "… đã phá
 //!   vỡ Phong Ấn …"; no s2c/1177.
@@ -188,7 +189,8 @@ fn hp_percent(b: &BachHoResult) -> i64 {
 
 impl Bot {
     /// Bạch Hổ from `from_ms` until `until_ms` (ms since 1970): a fight job or quest run on is stopped, where the
-    /// character stands is kept for Quay về chỗ cũ, and until the start time it waits. Refused while it is busy with
+    /// character stands is kept for Quay về chỗ cũ, and it goes to Hang Bạch Hổ at once, to wait there until the start
+    /// time (23/11/2026; before, it waited where it stood and set off at the start time). Refused while it is busy with
     /// something else than a job, a quest run or a battle (which it plays out first), and for an end already past.
     pub fn bach_ho(
         &mut self,
@@ -387,10 +389,12 @@ impl Bot {
         {
             return;
         }
-        if at < r.from_ms {
+        // Before the start time it waits in the cave: Start goes in at once (the user's ask of 23/11/2026), not at the
+        // start time.
+        if at < r.from_ms && self.snap.map_id == CAVE {
             let left = Duration::from_millis(r.from_ms - at);
             self.bach_ho_doing(format!(
-                "Đợi tới {}, còn {}",
+                "Đã vào hang, đợi tới {}, còn {}",
                 clock(r.from_ms),
                 duration_text(left)
             ));

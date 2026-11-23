@@ -539,8 +539,8 @@ impl Bot {
                         ),
                     ));
                     // A quest step that changed zone for its mob (quest_zone) looks again once the zone's pushes
-                    // (a boss's s2c/1177) are in.
-                    if self.quest_running() {
+                    // (a boss's s2c/1177) are in; a fight job that went to a quiet zone (job_zone) fights on there.
+                    if self.quest_running() || self.job_running() {
                         self.timer = Some((now + Duration::from_secs(2), Wake::Next));
                     }
                 }
@@ -769,7 +769,7 @@ impl Bot {
                 if let Some(z) = self.zoning.take() {
                     (self.move_until, self.snap.moving) = (None, None);
                     out.push(Out::Log(LogKind::Travel, format!("Chưa sang khu {z}")));
-                    if self.quest_running() {
+                    if self.quest_running() || self.job_running() {
                         self.timer = Some((now + Duration::from_secs(1), Wake::Next));
                     }
                 }

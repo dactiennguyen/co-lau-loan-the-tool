@@ -1049,6 +1049,11 @@ export interface FightSettings {
   /** Tự điểm danh và nhận quà, off unless turned on (the Phúc lợi window of the Tiền tile): Điểm danh once a day, Quà
    * online when its minutes are there, Quà thăng cấp on a level that reaches one, with or without a job running. */
   autoWelfare: boolean;
+  /** Vào khu ít người (FightSettings::quiet_zone, Bot::job_zone): before the first battle of a fight job on a map, the
+   * zone of quietZoneFrom to quietZoneTo with the fewest players, a tie at random; not for a boss. On by default. */
+  quietZone: boolean;
+  quietZoneFrom: number;
+  quietZoneTo: number;
 }
 
 /** Settings of settings.rs: the Cài đặt of the app, the same for every account. */

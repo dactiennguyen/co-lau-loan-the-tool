@@ -13,7 +13,8 @@ import { Hint } from "@/components/Hint";
 import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
 import { Stepper } from "@/components/Stepper";
-import { BACH_HO_HOUR, BACH_HO_LEVEL, minutesText, runWindow } from "@/game/bachHo";
+import { Tabs } from "@/components/Tabs";
+import { BACH_HO_HOUR, BACH_HO_LEVEL, LEVEL_TABS, type BachHoWaits, type LevelTab, levelTab, minutesText, runWindow, waitGroups } from "@/game/bachHo";
 import { useStore } from "@/store";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
@@ -28,13 +29,34 @@ const DEFAULT_UNTIL = `${BACH_HO_HOUR + 1}:00`;
 /** The run's own waits in seconds (not Cài đặt đánh's): between two swaps, and between a battle and the next try. */
 const MOVE_KEY = "bachHo.moveSecs";
 const REJOIN_KEY = "bachHo.rejoinSecs";
+/** The waits of the accounts set on their own (id → waits), which they start with instead of the shared ones. */
+const OWN_KEY = "bachHo.ownWaits";
+/** The level tab last shown. */
+const TAB_KEY = "bachHo.tab";
 /** The longest of them, as cllt-core's BACH_HO_WAIT_MAX_MS. */
 const WAIT_MAX = 10;
+const isWait = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= WAIT_MAX;
 /** A wait kept, 0 by default (and for anything not a number from 0 to WAIT_MAX). */
 const recalledWait = (key: string) => {
   const n = Number(recalled(key) ?? 0);
-  return Number.isFinite(n) && n >= 0 && n <= WAIT_MAX ? n : 0;
+  return isWait(n) ? n : 0;
 };
+/** The waits set on their own, those that are not two waits left out. */
+function readOwnWaits(): Record<number, BachHoWaits> {
+  try {
+    const kept = JSON.parse(recalled(OWN_KEY) ?? "{}") as Record<string, unknown>;
+    const own: Record<number, BachHoWaits> = {};
+    for (const [id, w] of Object.entries(kept ?? {})) {
+      const { move, rejoin } = (w ?? {}) as Partial<BachHoWaits>;
+      if (isWait(move) && isWait(rejoin) && Number.isInteger(Number(id))) own[Number(id)] = { move, rejoin };
+    }
+    return own;
+  } catch {
+    return {};
+  }
+}
+/** "0,5 s · 2 s": the two waits of an account set on its own. */
+const waitsText = (w: BachHoWaits) => `${String(w.move).replace(".", ",")} s · ${String(w.rejoin).replace(".", ",")} s`;
 
 const HEAD = "flex flex-wrap items-center gap-x-2 gap-y-1";
 const TITLE = "text-[12.5px] font-bold text-fg";
@@ -106,6 +128,14 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
   const [until, setUntil] = useState(() => recalled(UNTIL_KEY) ?? DEFAULT_UNTIL);
   const [moveSecs, setMoveSecs] = useState(() => recalledWait(MOVE_KEY));
   const [rejoinSecs, setRejoinSecs] = useState(() => recalledWait(REJOIN_KEY));
+  const [ownWaits, setOwnWaits] = useState(readOwnWaits);
+  const setOwn = (id: number, w: BachHoWaits | null) => {
+    const next = { ...ownWaits };
+    if (w) next[id] = w;
+    else delete next[id];
+    setOwnWaits(next);
+    remember(OWN_KEY, JSON.stringify(next));
+  };
   const setWait = (which: "move" | "rejoin", v: number) => {
     if (which === "move") setMoveSecs(v);
     else setRejoinSecs(v);
@@ -127,24 +157,43 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
   const notIn = accounts.filter((a) => !inGame(a));
   const busy = accounts.filter(running);
   const chosen = ready.filter((a) => picked.has(a.id) && !running(a));
-  const all = ready.length > 0 && ready.every((a) => picked.has(a.id));
+  // The level tabs: the one last shown, else the one with the most accounts in the game. One still loading (no
+  // character yet) is listed in every tab.
+  const tabOf = (a: Account) => (a.character ? levelTab(a.character.level) : null);
+  const [tab, setTab] = useState<LevelTab>(() => {
+    const kept = recalled(TAB_KEY);
+    if (LEVEL_TABS.some((t) => t.key === kept)) return kept as LevelTab;
+    const most = (k: LevelTab) => shown.filter((a) => tabOf(a) === k).length;
+    return LEVEL_TABS.reduce((best, t) => (most(t.key) > most(best) ? t.key : best), LEVEL_TABS[0].key);
+  });
+  const pickTab = (k: LevelTab) => {
+    setTab(k);
+    remember(TAB_KEY, k);
+  };
+  const inTab = (a: Account) => tabOf(a) == null || tabOf(a) === tab;
+  const shownHere = shown.filter(inTab);
+  const readyHere = ready.filter(inTab);
+  const all = readyHere.length > 0 && readyHere.every((a) => picked.has(a.id));
+  // Ticked on the other tabs: Bắt đầu sends them too, so the head says so.
+  const elsewhere = chosen.filter((a) => !inTab(a)).length;
   const toggle = (id: number, on: boolean) => {
     const next = new Set(picked);
     if (on) next.add(id);
     else next.delete(id);
     keep(next);
   };
-  const toggleAll = () => keep(all ? new Set([...picked].filter((id) => !ready.some((a) => a.id === id))) : new Set([...picked, ...ready.map((a) => a.id)]));
+  const toggleAll = () =>
+    keep(all ? new Set([...picked].filter((id) => !readyHere.some((a) => a.id === id))) : new Set([...picked, ...readyHere.map((a) => a.id)]));
   const startWhy = !span ? "Giờ không hợp lệ" : chosen.length === 0 ? "Chọn ít nhất một nick chưa chạy" : null;
   const start = () => {
     if (!span || chosen.length === 0) return;
-    void api.bachHoStart(
+    // One Bắt đầu for each pair of waits: the accounts set on their own with theirs, the rest with the shared ones.
+    for (const g of waitGroups(
       chosen.map((a) => a.id),
-      span.fromMs,
-      span.untilMs,
-      Math.round(moveSecs * 1000),
-      Math.round(rejoinSecs * 1000),
-    );
+      ownWaits,
+      { move: moveSecs, rejoin: rejoinSecs },
+    ))
+      void api.bachHoStart(g.ids, span.fromMs, span.untilMs, g.moveMs, g.rejoinMs);
   };
 
   return (
@@ -208,51 +257,85 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
           <span>giây</span>
           <Hint label="Thời gian chờ của Bạch Hổ là gì?" id={`${hint}-wait`}>
             Riêng cho Bạch Hổ, không dùng Thời gian chờ của Cài đặt đánh. Mặc định 0: mỗi nước vẫn đợi server trả lời nước trước rồi mới đi. Boss đánh mỗi 30 giây dù mình làm gì, nên đi
-            càng nhanh càng nhiều sát thương. Áp dụng cho lần Bắt đầu sau.
+            càng nhanh càng nhiều sát thương. Đây là số chung; bấm nút đồng hồ ở dòng một nick để đặt riêng cho nick đó. Áp dụng cho lần Bắt đầu sau.
           </Hint>
         </div>
       </section>
 
       <BossPanel accounts={accounts} now={now} />
 
-      <div className={HEAD}>
-        <Icon name="users" size={13} className="text-primary" />
-        <b className={TITLE}>Chọn nick đánh</b>
-        <span className="text-12 text-fg-2">
-          <b className="px text-fg">{chosen.length}</b>/{ready.length} nick đủ điều kiện{busy.length > 0 && ` · ${busy.length} đang chạy`}
-        </span>
-        <Hint label="Bạch Hổ chạy thế nào?" id={`${hint}-how`}>
-          Bấm Bắt đầu thì mỗi nick đã chọn dừng việc đang làm, nhớ chỗ đang đứng, rồi đợi tới giờ bắt đầu. Tới giờ, nick tự đi
-          tới Hang Bạch Hổ qua Bản đồ thế giới (Cổng Luyện Ngục, cổng 1006) và đợi boss (21:00); boss vào hang là thách đấu
-          ngay, như game. Mỗi trận là một mình nick đấu boss; thua thì hồi đầy máu, không mất phí, không có kinh nghiệm hay đồ
-          rơi, rồi vào lại ngay. Mỗi trận trừ khoảng 1 độ bền mỗi món: món nào hỏng thì nick tự sửa bằng Búa Sửa Chữa trong túi
-          trước trận sau, kể cả khi Tự sửa đồ tắt. Boss bị tiêu diệt thì phiên tự dừng; nick đủ ngưỡng sát thương của bậc mình
-          nhận "Quà tham gia Bạch Hổ" trong Hòm thư (bot không tự nhận). Xong thì bấm Quay về để về đúng map và khu cũ.
-        </Hint>
-        <button
-          type="button"
-          className="ml-auto inline-flex items-center gap-1.5 p-0 border-0 bg-transparent text-12 text-fg-2 cursor-pointer hover:text-fg disabled:opacity-50 disabled:cursor-default"
-          disabled={ready.length === 0}
-          aria-pressed={all}
-          onClick={toggleAll}
-        >
-          <span className={cn(CHECK_BOX, all && "text-ink bg-good shadow-[inset_-2px_-2px_0_var(--good-shade)]")} aria-hidden>
-            <Icon name="check" size={11} />
+      <div className="grid gap-2">
+        <div className={HEAD}>
+          <Icon name="users" size={13} className="text-primary" />
+          <b className={TITLE}>Chọn nick đánh</b>
+          <span className="text-12 text-fg-2">
+            <b className="px text-fg">{chosen.length}</b>/{ready.length} nick đủ điều kiện{elsewhere > 0 && ` · ${elsewhere} đã chọn ở tab khác`}{busy.length > 0 && ` · ${busy.length} đang chạy`}
           </span>
-          Chọn tất cả
-        </button>
+          <Hint label="Bạch Hổ chạy thế nào?" id={`${hint}-how`}>
+            Bấm Bắt đầu thì mỗi nick đã chọn dừng việc đang làm, nhớ chỗ đang đứng, rồi vào Hang Bạch Hổ ngay qua Bản đồ thế
+            giới (Cổng Luyện Ngục, cổng 1006) và đứng trong hang đợi tới giờ bắt đầu và boss (21:00); boss vào hang là thách
+            đấu ngay, như game. Mỗi trận là một mình nick đấu boss; thua thì hồi đầy máu, không mất phí, không có kinh nghiệm hay đồ
+            rơi, rồi vào lại ngay. Mỗi trận trừ khoảng 1 độ bền mỗi món: món nào hỏng thì nick tự sửa bằng Búa Sửa Chữa trong túi
+            trước trận sau, kể cả khi Tự sửa đồ tắt. Boss bị tiêu diệt thì phiên tự dừng; nick đủ ngưỡng sát thương của bậc mình
+            nhận "Quà tham gia Bạch Hổ" trong Hòm thư (bot không tự nhận). Xong thì bấm Quay về để về đúng map và khu cũ.
+          </Hint>
+          <button
+            type="button"
+            className="ml-auto inline-flex items-center gap-1.5 p-0 border-0 bg-transparent text-12 text-fg-2 cursor-pointer hover:text-fg disabled:opacity-50 disabled:cursor-default"
+            disabled={readyHere.length === 0}
+            aria-pressed={all}
+            title="Chọn hoặc bỏ mọi nick đủ điều kiện ở tab này"
+            onClick={toggleAll}
+          >
+            <span className={cn(CHECK_BOX, all && "text-ink bg-good shadow-[inset_-2px_-2px_0_var(--good-shade)]")} aria-hidden>
+              <Icon name="check" size={11} />
+            </span>
+            Chọn tất cả
+          </button>
+        </div>
+        <Tabs<LevelTab>
+          id={`${hint}-levels`}
+          label="Nhóm cấp"
+          value={tab}
+          onChange={pickTab}
+          tabs={LEVEL_TABS.map((t) => {
+            const here = shown.filter((a) => tabOf(a) === t.key);
+            return {
+              key: t.key,
+              label: `${t.label} (${here.length})`,
+              icon: t.key === "low" ? "user" : t.key === "mid" ? "star" : "crown",
+              busy: here.some(running),
+              count: chosen.filter((a) => tabOf(a) === t.key).length,
+              countLabel: "nick đã chọn",
+            };
+          })}
+        />
       </div>
 
       <div className="min-h-0 overflow-y-auto pr-1 scroll grid [align-content:start] gap-2.5">
-        {shown.length === 0 ? (
-          <p className="text-12 text-fg-3">Chưa nick nào trong game: đăng nhập nick cấp {BACH_HO_LEVEL} trở lên để chọn.</p>
-        ) : (
-          <ul className="grid gap-1 m-0 p-0 list-none" aria-label="Nick đang trong game">
-            {shown.map((a) => (
-              <AccountRow key={a.id} account={a} why={whyNot(a)} on={picked.has(a.id)} onToggle={(on) => toggle(a.id, on)} />
-            ))}
-          </ul>
-        )}
+        {/* The panel of the level tabs (Tabs' ids); not TabPanel, whose row shrinks within this list. */}
+        <div role="tabpanel" id={`${hint}-levels-panel`} aria-labelledby={`${hint}-levels-tab-${tab}`}>
+          {shown.length === 0 ? (
+            <p className="text-12 text-fg-3">Chưa nick nào trong game: đăng nhập nick cấp {BACH_HO_LEVEL} trở lên để chọn.</p>
+          ) : shownHere.length === 0 ? (
+            <p className="text-12 text-fg-3">Không có nick nào trong game ở nhóm cấp này.</p>
+          ) : (
+            <ul className="grid gap-1 m-0 p-0 list-none" aria-label="Nick đang trong game">
+              {shownHere.map((a) => (
+                <AccountRow
+                  key={a.id}
+                  account={a}
+                  why={whyNot(a)}
+                  on={picked.has(a.id)}
+                  onToggle={(on) => toggle(a.id, on)}
+                  own={ownWaits[a.id] ?? null}
+                  shared={{ move: moveSecs, rejoin: rejoinSecs }}
+                  onOwn={(w) => setOwn(a.id, w)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
         {notIn.length > 0 && (
           <details className="group">
             <summary className="flex items-center gap-1.5 text-12 text-fg-3 cursor-pointer select-none hover:text-fg-2 list-none">
@@ -278,7 +361,7 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
         <p className="mr-auto basis-[280px] grow text-11 text-fg-3">
           {span?.open
             ? "Đang trong giờ: các nick đã chọn đi vào hang và thử vào trận ngay."
-            : `Các nick đã chọn đợi tới ${from}, rồi tự đi vào hang và thử vào trận tới ${until}.`}
+            : `Các nick đã chọn vào hang ngay, đợi trong hang tới ${from}, rồi thử vào trận tới ${until}.`}
         </p>
         {busy.length > 0 && (
           <Button kind="danger" icon="stop" onClick={() => api.bachHoStop(busy.map((a) => a.id))}>
@@ -295,8 +378,29 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
 }
 
 /** One account in the game: its tick (off with why when it may not go), picture, name and level, element, where it is,
- * its status; under them, what its Bạch Hổ run does (tries, battles, damage) with Dừng, or Quay về chỗ cũ. */
-function AccountRow({ account: a, why, on, onToggle }: { account: Account; why: string | null; on: boolean; onToggle: (on: boolean) => void }) {
+ * its status, the clock that opens its own waits; under them, its own waits when open, what its Bạch Hổ run does
+ * (tries, battles, damage) with Dừng, or Quay về chỗ cũ. */
+function AccountRow({
+  account: a,
+  why,
+  on,
+  onToggle,
+  own,
+  shared,
+  onOwn,
+}: {
+  account: Account;
+  why: string | null;
+  on: boolean;
+  onToggle: (on: boolean) => void;
+  /** Its own waits, null when it starts with the shared ones. */
+  own: BachHoWaits | null;
+  shared: BachHoWaits;
+  onOwn: (w: BachHoWaits | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const panel = useId();
+  const waits = own ?? shared;
   const c = a.character;
   const run = c?.bachHo ?? null;
   const live = running(a);
@@ -332,6 +436,12 @@ function AccountRow({ account: a, why, on, onToggle }: { account: Account; why: 
               </span>
             )}
             {c && <Badge className="shrink-0">LV {c.level}</Badge>}
+            {own && (
+              <span className="shrink-0 inline-flex items-center gap-1 text-11 text-accent" title="Thời gian chờ riêng: giữa các nước · vào trận lại">
+                <Icon name="clock" size={11} />
+                <span className="px">{waitsText(own)}</span>
+              </span>
+            )}
           </span>
           <span className={cn("truncate text-11", why ? "text-danger" : "text-fg-3")}>
             {why ?? (c ? `${c.mapName} · Khu ${c.zone}${c.currencies ? ` · ${num(c.currencies.xu)} Xu` : ""}` : "")}
@@ -339,6 +449,15 @@ function AccountRow({ account: a, why, on, onToggle }: { account: Account; why: 
         </span>
         <span className="flex items-center gap-1.5">
           <Pill status={a.status} text={a.statusText} />
+          <Button
+            small
+            icon="clock"
+            aria-label={`Thời gian chờ riêng của ${c?.name ?? a.label}`}
+            title="Thời gian chờ riêng của nick này"
+            aria-expanded={open}
+            aria-controls={panel}
+            onClick={() => setOpen(!open)}
+          />
           {live ? (
             <Button small kind="danger" icon="stop" onClick={() => api.bachHoStop([a.id])}>
               Dừng
@@ -352,6 +471,21 @@ function AccountRow({ account: a, why, on, onToggle }: { account: Account; why: 
           )}
         </span>
       </div>
+      {open && (
+        <div id={panel} className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pl-[58px] text-12 text-fg-2">
+          <span>{own ? "Riêng nick này:" : "Đang dùng số chung:"} chờ giữa các nước</span>
+          <Stepper value={waits.move} min={0} max={WAIT_MAX} step={0.1} label={`số giây chờ giữa hai nước của ${c?.name ?? a.label}`} onChange={(v) => onOwn({ ...waits, move: v })} />
+          <span>giây · vào trận lại</span>
+          <Stepper value={waits.rejoin} min={0} max={WAIT_MAX} step={0.1} label={`số giây chờ vào trận lại của ${c?.name ?? a.label}`} onChange={(v) => onOwn({ ...waits, rejoin: v })} />
+          <span>giây</span>
+          {own && (
+            <Button small icon="refresh" onClick={() => onOwn(null)}>
+              Dùng số chung
+            </Button>
+          )}
+          {running(a) && <span className="basis-full text-11 text-fg-3">Đang chạy: số mới dùng từ lần Bắt đầu sau.</span>}
+        </div>
+      )}
       {run && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[58px] text-11">
           <span className={cn("min-w-0 truncate", live ? "text-fg" : "text-fg-3")}>

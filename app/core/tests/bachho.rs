@@ -1004,3 +1004,60 @@ fn a_stuck_battle_with_the_boss_is_left_and_the_run_tries_again() {
         "the boss challenged again"
     );
 }
+
+/// Start goes into the cave at once and waits there for the start time (23/11/2026): from Làng Thanh Khê an hour early,
+/// the jump through Bản đồ thế giới is the first thing sent; in the cave before the start time, no challenge.
+#[test]
+fn start_goes_to_the_cave_at_once_and_waits_there_for_the_start_time() {
+    let (mut bot, mut out, now) = (
+        Bot::new(BotOptions::default(), Arc::new(Atlas::default())),
+        vec![],
+        Instant::now(),
+    );
+    bot.on_packet(
+        29,
+        &Writer::new().string("manina").string("M1").i32(0).build(),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    let at = epoch_ms();
+    bot.bach_ho(
+        at + 3_600_000,
+        at + 7_200_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    let first = sent(&mut out);
+    // c2s/11 "M99": Bản đồ thế giới opened, an hour before the start.
+    assert!(
+        first
+            .iter()
+            .any(|(op, p)| *op == 11 && p.contains(&hex_of("M99"))),
+        "{first:?}"
+    );
+
+    let (mut bot, mut out, now) = in_the_cave();
+    bot.bach_ho(
+        at + 3_600_000,
+        at + 7_200_000,
+        BachHoPace::default(),
+        now,
+        &mut out,
+    );
+    bot.on_timer(now, &mut out);
+    let waiting = sent(&mut out);
+    assert!(
+        !waiting.iter().any(|(op, _)| *op == 15 || *op == 11),
+        "{waiting:?}"
+    );
+    let doing = bot.snap.bach_ho.as_ref().unwrap().doing.clone();
+    assert!(doing.starts_with("Đã vào hang, đợi tới"), "{doing}");
+}
+
+fn hex_of(s: &str) -> String {
+    s.bytes().map(|b| format!("{b:02x}")).collect()
+}

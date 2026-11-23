@@ -390,6 +390,17 @@ pub struct FightSettings {
     /// desktop app (with_waits, App::set_fight; no box to tick), off in Default: the tests and cllt send no Phúc lợi.
     #[serde(default)]
     pub auto_welfare: bool,
+    /// Vào khu ít người (23/11/2026, the user's ask): before the first battle of a fight job on a map, the zones are
+    /// asked (c2s/1172) and the character goes to the one of zones `quiet_zone_from` to `quiet_zone_to` with the fewest
+    /// players, a tie drawn at random, unless it already stands in one of those (Bot::job_zone). On for the accounts of
+    /// the desktop app (an account saved before has it on, a new one gets it from with_waits); off in Default, so the
+    /// tests and cllt fight where they stand.
+    #[serde(default = "on")]
+    pub quiet_zone: bool,
+    #[serde(default = "ten")]
+    pub quiet_zone_from: u32,
+    #[serde(default = "twelve")]
+    pub quiet_zone_to: u32,
 }
 fn on() -> bool {
     true
@@ -402,6 +413,9 @@ fn two() -> u32 {
 }
 /// The most potions of a kind Dùng bình máu or Dùng bình mana lets a battle drink (the Tối đa mỗi trận of the UI).
 pub const POTION_MAX: u32 = 10;
+fn ten() -> u32 {
+    10
+}
 fn twelve() -> u32 {
     12
 }
@@ -507,6 +521,9 @@ impl Default for FightSettings {
             quest_losses: one(),
             auto_skills: false,
             auto_welfare: false,
+            quiet_zone: false,
+            quiet_zone_from: ten(),
+            quiet_zone_to: twelve(),
         }
     }
 }
@@ -522,6 +539,8 @@ impl FightSettings {
             self.step_delay = true;
             self.rest_break = true;
             self.delay_random = true;
+            // A new account (an account saved before has it from serde's default).
+            self.quiet_zone = true;
             self.waits_set = true;
         }
         self

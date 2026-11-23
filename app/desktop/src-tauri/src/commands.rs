@@ -141,6 +141,9 @@ fn bounded_fight(mut settings: FightSettings) -> FightSettings {
     settings.step_delay_secs = settings.step_delay_secs.clamp(1, STEP_DELAY_MAX);
     settings.break_every = settings.break_every.clamp(1, BREAK_EVERY_MAX);
     settings.break_minutes = settings.break_minutes.clamp(1, BREAK_MINUTES_MAX);
+    // Vào khu ít người: zones are numbered 0–255 (c2s/1173 u8); the UI goes up to 99.
+    settings.quiet_zone_from = settings.quiet_zone_from.min(255);
+    settings.quiet_zone_to = settings.quiet_zone_to.min(255);
     settings
 }
 
