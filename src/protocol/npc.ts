@@ -269,6 +269,47 @@ export function mergeForecast(bag: BagItem[], options: MergeOptions = {}) {
   };
 }
 
+// Luyện tự chọn (16-upgrade.md#luyện-đá): any 2–24 stones of any levels in Luyện đá. Their value V is Σ4^(k−1); the server
+// aims at the lowest level T with 4^(T−1) ≥ V, at ⌊100 × V / 4^(T−1)⌋ % (J2, every line of its table), and lets Bắt đầu
+// be pressed above 40% only (J3). The fee goes by T alone. What a failure takes is not measured.
+
+/** Stones Luyện đá takes at least and at most, and the lowest odds it lets be pressed. */
+export const FUSE = { min: 2, max: 24, rate: 41 } as const;
+export interface FuseQuote { count: number; value: number; target: number; rate: number; fee: number }
+/** What Luyện đá makes of stones of these levels, one entry per stone: the stone it aims at, the odds and the fee. */
+export function fuseQuote(levels: number[]): FuseQuote {
+  const value = levels.reduce((n, l) => n + stoneValue(l), 0);
+  let target = 1;
+  while (stoneValue(target) < value) target++;
+  return { count: levels.length, value, target, rate: Math.floor((100 * value) / stoneValue(target)), fee: mergeFee(target) };
+}
+/** Why Luyện đá would not press for this quote; null when it would. */
+export function fuseWhy(q: FuseQuote): string | null {
+  if (q.count < FUSE.min) return `Cần ít nhất ${FUSE.min} viên đá`;
+  if (q.count > FUSE.max) return `Lò chỉ nhận ${FUSE.max} viên, đang chọn ${q.count}`;
+  if (q.target > 12) return 'Tổng vượt quá Đá cấp 12';
+  if (q.rate < FUSE.rate) return `Tỉ lệ ${q.rate}%: game chỉ cho luyện khi trên 40%`;
+  return null;
+}
+/** Few stones of `held` (stones by level, index 1–12) that make Đá cấp `target` at `rate` % at least: from the level
+ * under the target down, the stones of a level that reach the odds when it has enough (without passing the target, so
+ * the server aims at it), else all of that level and on to the next one down. How many of each level (index 0–12); null
+ * when the stones held cannot, or need more than FUSE.max. */
+export function fuseSuggest(held: number[], target: number, rate: number): number[] | null {
+  if (target < 2 || target > 12) return null;
+  const top = stoneValue(target), take = Array<number>(13).fill(0);
+  const need = Math.ceil((Math.min(100, Math.max(FUSE.rate, rate)) * top) / 100);
+  let got = 0;
+  for (let l = target - 1; l >= 1 && got < need; l--) {
+    const has = held[l] ?? 0, v = stoneValue(l), up = Math.ceil((need - got) / v);
+    take[l] = up <= has && got + up * v <= top ? up : Math.min(has, Math.floor((need - got) / v));
+    got += take[l] * v;
+  }
+  if (got < need) return null;
+  const q = fuseQuote(take.flatMap((n, l) => Array<number>(n).fill(l)));
+  return q.target === target && !fuseWhy(q) ? take : null;
+}
+
 /** The stones Nâng cấp may use, in the order to put them: lowest value first, and within a level the locked ones before
  * the unlocked ones, which stay tradeable longer. `unlocked` false leaves unlocked stones out. The server takes every
  * stone put in (J3), so the bot puts them one by one and stops as soon as the odds are reached. A stack stands once per

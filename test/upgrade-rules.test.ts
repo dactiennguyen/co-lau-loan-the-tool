@@ -39,3 +39,15 @@ test('daily quests: the progress line agrees', () => {
   assert.equal(uiDaily(q as never), protoDaily(q as never));
   assert.equal(uiDaily(q as never), 'Thu thập 218/2100 xu khóa từ đánh quái');
 });
+
+test('upgrade rules: Luyện tự chọn quotes and suggests alike', () => {
+  const sets = [[], [1], [1, 1], [1, 1, 1], [4, 4], [4, 5], [5, 5, 5, 5], [5, 5, 5, 5, 5], [2, 3], [12, 12], [7, ...Array(11).fill(5)], Array(25).fill(1)];
+  for (const s of sets) {
+    assert.deepEqual(ui.fuseQuote(s), proto.fuseQuote(s), `fuseQuote(${s})`);
+    assert.equal(ui.fuseWhy(ui.fuseQuote(s)), proto.fuseWhy(proto.fuseQuote(s)), `fuseWhy(${s})`);
+  }
+  const helds = [[0, 0, 0, 0, 0, 40, 0, 3], [0, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99], [0, 3], [], [0, 2, 1, 0, 4, 45, 0, 1], [0, 0, 0, 0, 3, 5]];
+  for (const held of helds) for (const target of range(1, 13)) for (const rate of [30, 41, 42, 50, 75, 100]) {
+    assert.deepEqual(ui.fuseSuggest(held, target, rate), proto.fuseSuggest(held, target, rate), `fuseSuggest(${held}, ${target}, ${rate})`);
+  }
+});

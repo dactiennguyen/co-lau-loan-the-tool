@@ -938,6 +938,8 @@ impl Bot {
                 let mails = crate::mail::sent_list(payload)?;
                 self.mail_sent_listed(mails, out);
             }
+            // Bảng xếp hạng (bot/ranking.rs, RK1).
+            1254 => self.ranking_read(crate::world::ranking(payload)?),
             // Phúc lợi (bot/welfare.rs): an event's definition and progress, the answer to Điểm danh, the red dots.
             1236 => {
                 let d = crate::welfare::event_definition(payload)?;

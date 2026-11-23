@@ -7,8 +7,8 @@ use cllt_core::accounts::Account;
 use cllt_core::bot::{
     BattleRecord, BattleResult, BattleSource, BattleView, Boost, BossTile, CraftRecipes,
     DailyState, EggGain, EggRun, GiftCode, GiftLimits, GiftRun, Job, LogKind, Mailbox, MapChoice,
-    MapMob, MarketState, Picked, PickupRecord, PointsRead, QuestRun, SmithRun, Snapshot, Target,
-    WelfareEvent, WelfareMilestone, WelfareState,
+    MapMob, MarketState, Picked, PickupRecord, PointsRead, QuestRun, RankList, RankingState,
+    SmithRun, Snapshot, Target, WelfareEvent, WelfareMilestone, WelfareState,
 };
 use cllt_core::items::{Bag, Currencies, ItemRecord, ItemStat};
 use cllt_core::mail::{DailyQuest, MailBody, MailHeader};
@@ -20,6 +20,7 @@ use cllt_core::proxy::{Proxy, ProxyKind};
 use cllt_core::runner::Turn;
 use cllt_core::skills::SkillDef;
 use cllt_core::world::{Nearby, Quest, QuestStep, Zone};
+use cllt_core::world::{RankOwn, RankRow, RankTab};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -372,6 +373,9 @@ fn kiemkhach_bag() -> Vec<ItemRecord> {
     {
         bag.push(with(item(4 + k as u8, id, -1, 1, 0xff, &[]), 0, locked));
     }
+    // For Luyện tự chọn: a stack of Đá cấp 5 (ST1) and a Đá cấp 7, the 11 + 1 of the example of 23/11.
+    bag.push(with(item(16, 415, -1, 40, 0xff, &[]), 0, true));
+    bag.push(with(item(17, 417, -1, 1, 0xff, &[]), 0, true));
     bag
 }
 
@@ -447,6 +451,109 @@ fn map(id: &str, name: &str, level: i32, hops: Option<u32>) -> MapChoice {
     }
 }
 
+/// Bảng xếp hạng for the button beside Vị trí: the seven tabs of RK1, Cao thủ read (100 made-up rows, manina 87th and
+/// kiemkhach, another account of the app, 62nd), 12 châu without times, and Lôi asked and not answered yet.
+fn sample_ranking() -> RankingState {
+    let tab = |tab, title: &str, column: &str| RankTab {
+        tab,
+        title: title.into(),
+        column: column.into(),
+    };
+    let names = [
+        "Hoàng Long",
+        "Tiểu Yến",
+        "Bách Lý",
+        "Thiên Vũ",
+        "Lam Phong",
+        "Hắc Hổ",
+        "Mộc Lan",
+        "Vân Anh",
+        "Kiếm Tâm",
+        "Đông Phương",
+    ];
+    let at = |minutes: u64| ago(minutes * 60) as i64;
+    let rows: Vec<RankRow> = (1..=100)
+        .map(|rank| {
+            let name = match rank {
+                62 => "kiemkhach".to_string(),
+                87 => "manina".to_string(),
+                _ => format!(
+                    "{}{}",
+                    names[(rank as usize) % names.len()],
+                    if rank > 10 {
+                        rank.to_string()
+                    } else {
+                        String::new()
+                    }
+                ),
+            };
+            RankRow {
+                rank,
+                id: 1000 + rank,
+                name,
+                field: 0,
+                level: 112 - rank / 5,
+                reached_at: Some(at(30 + rank as u64 * 7)),
+            }
+        })
+        .collect();
+    let chau = [
+        "Hồng Giang",
+        "Cửu Phong",
+        "Lạc Cốc",
+        "Bạch Nham",
+        "Phong Nguyên",
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, c)| RankRow {
+        rank: i as i32 + 1,
+        id: 0,
+        name: format!("{c}: chưa có chủ"),
+        field: 0,
+        level: 0,
+        reached_at: None,
+    })
+    .collect();
+    RankingState {
+        tabs: vec![
+            tab(0, "Cao thủ", "Cấp độ"),
+            tab(1, "Sứ quân", "Cấp"),
+            tab(2, "12 châu", "Cấp"),
+            tab(3, "Cường hoá", "Tổng cấp"),
+            tab(4, "Hỏa", "Cấp độ"),
+            tab(5, "Lôi", "Cấp độ"),
+            tab(6, "Thủy", "Cấp độ"),
+        ],
+        lists: vec![
+            RankList {
+                tab: 0,
+                rows,
+                own: RankOwn {
+                    rank: 87,
+                    field: 0,
+                    level: 95,
+                    reached_at: Some(at(600)),
+                },
+                read_at: ago(40),
+            },
+            RankList {
+                tab: 2,
+                rows: chau,
+                own: RankOwn {
+                    rank: -1,
+                    field: 0,
+                    level: 0,
+                    reached_at: None,
+                },
+                read_at: ago(300),
+            },
+        ],
+        asked: None,
+        asked_at: None,
+    }
+}
+
 fn main_character() -> Snapshot {
     // Hỏa Cầu Thuật level 1, as at that login.
     let (skills, skill_levels) = skills("1", &[(1000, 1)]);
@@ -473,6 +580,7 @@ fn main_character() -> Snapshot {
         level,
     };
     Snapshot {
+        ranking: sample_ranking(),
         name: "manina".into(),
         level: 21,
         hp: 132,

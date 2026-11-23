@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { api } from "@/api";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
+import { FilterChip } from "@/components/FilterChip";
 import { Hint } from "@/components/Hint";
 import { Icon } from "@/components/Icon";
 import { Stepper } from "@/components/Stepper";
@@ -10,10 +11,17 @@ import { recalled, remember } from "@/utils/remember";
 import { stoneCounts } from "@/game/shops";
 import type { MergeForecast, MergeOptions } from "@/api/types";
 import { SHOP, type ShopContext } from "./ShopModal";
+import { ShopFuse } from "./ShopFuse";
 import { Stone, STONES } from "./Stone";
 
 const UP_TO = "shop.mergeUpTo";
 const UNLOCKED = "shop.mergeUnlocked";
+const MODE = "shop.mergeMode";
+/** The two ways of Luyện đá: sets of 4 at 100% (this tab as it was), or any stones picked with their odds (ShopFuse). */
+const MODES = [
+  { key: "sets", label: "Gộp chắc chắn" },
+  { key: "fuse", label: "Luyện tự chọn" },
+] as const;
 /** A cell of the stones' table: a heading of the head row, a heading of a level, a count. */
 const CELL = "px-2 py-1 text-left border-b border-b-line";
 const COL = cn(CELL, "text-11 font-semibold text-fg-3");
@@ -36,7 +44,31 @@ function rowSets(r: { level: number; locked: number; unlocked: number }, unlocke
  * number says, into stones of the next level, nothing further up, so the small stones a low upgrade needs stay. Fewer
  * than all take the locked stones first.
  */
-export function ShopMerge({ account, why, ask }: ShopContext) {
+export function ShopMerge(ctx: ShopContext) {
+  const [mode, setMode] = useState(() => (recalled(MODE) === "fuse" ? "fuse" : "sets"));
+  return (
+    <div className={SHOP.tab}>
+      <div className={SHOP.chips}>
+        {MODES.map((m) => (
+          <FilterChip
+            key={m.key}
+            on={mode === m.key}
+            onClick={() => {
+              setMode(m.key);
+              remember(MODE, m.key);
+            }}
+          >
+            {m.label}
+          </FilterChip>
+        ))}
+      </div>
+      {mode === "fuse" ? <ShopFuse {...ctx} /> : <MergeSets {...ctx} />}
+    </div>
+  );
+}
+
+/** Gộp chắc chắn: sets of 4 stones of a level, as described above. */
+function MergeSets({ account, why, ask }: ShopContext) {
   const c = account.character!;
   const [upTo, setUpTo] = useState(() => Number(recalled(UP_TO)) || 12);
   const [unlocked, setUnlocked] = useState(() => recalled(UNLOCKED) !== "0");
@@ -209,7 +241,7 @@ export function ShopMerge({ account, why, ask }: ShopContext) {
         )}
       </div>
       <p className={SHOP.note}>
-        Chỉ gộp bộ 4 viên cùng cấp: tỉ lệ 100%, không mất đá. 4 viên cấp k thành 1 viên cấp k+1; phí theo cấp đá ra (Đá cấp 6:
+        Chỉ gộp bộ 4 viên cùng cấp: tỉ lệ 100%, không mất đá (trộn cấp, tỉ lệ dưới 100%: Luyện tự chọn). 4 viên cấp k thành 1 viên cấp k+1; phí theo cấp đá ra (Đá cấp 6:
         410, Đá cấp 7: 1.639 Xu khóa). Server không cho luyện khi tỉ lệ từ 40% trở xuống.
       </p>
       {short && <p className={SHOP.why}>Không đủ tiền cho cả lượt gộp; bot dừng ở lần thiếu tiền.</p>}

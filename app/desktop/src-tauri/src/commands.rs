@@ -178,6 +178,13 @@ pub fn break_all(shared: State<Shared>, id: u64, slot: u8, uuid: String) {
     shared.with(|app| app.send(id, Command::BreakAll(slot, uuid)));
 }
 
+/// Bảng xếp hạng: read tab `tab` (0 Cao thủ, 1 Sứ quân, 2 12 châu, 3 Cường hoá, 4 Hỏa, 5 Lôi, 6 Thủy) for this account
+/// (Bot::ranking); the answer comes in the account's `ranking`.
+#[tauri::command]
+pub fn ranking(shared: State<Shared>, id: u64, tab: u8) {
+    shared.with(|app| app.send(id, Command::Ranking(tab.min(6))));
+}
+
 /// Nhận ngay of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now, Tự điểm danh và nhận quà on or not
 /// (Bot::welfare).
 #[tauri::command]
@@ -311,6 +318,13 @@ pub fn open_shop_kind(shared: State<Shared>, id: u64, kind: u8) {
 #[tauri::command]
 pub fn smith_merge(shared: State<Shared>, id: u64, options: MergeOptions) {
     shared.with(|app| app.send(id, Command::Smith(SmithTask::Merge(options))));
+}
+
+/// Luyện tự chọn: the stones picked (a bag slot per stone, a stack's slot once per stone of it), of any levels, in Luyện
+/// đá with one press at the odds npc::fuse_quote says, above 40% only (SmithTask::Fuse).
+#[tauri::command]
+pub fn smith_fuse(shared: State<Shared>, id: u64, stones: Vec<i32>) {
+    shared.with(|app| app.send(id, Command::Smith(SmithTask::Fuse { stones })));
 }
 
 /// What Gộp đá would do with these options on the bag as it is now; None without a bag.

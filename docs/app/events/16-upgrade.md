@@ -161,7 +161,7 @@ Thứ tự gói server trả khi bấm Bắt đầu (J3, mỗi dòng đo 1–4 l
 | `s2c/91` | `string tên; u8 kếtQuả; bản ghi món; i32 n; n × bản ghi món nhận được`; Chuyển hoá thêm `bản ghi món đích` | kếtQuả 1 thành công, 0 thất bại. Nâng cấp: bản ghi là món sau lần nâng (thất bại thì như cũ), n = 0, dài 96 byte. Tách đá: món đã về +0, n = 2 bản ghi Đá cấp 1, dài 228 byte. Chuyển hoá: món nguồn đã về +0, n = 0, rồi bản ghi món đích đã lên cấp, dài 178 byte. Có bùa thì n = 1: bản ghi **chồng bùa còn lại** (Bùa ×2 sau lần thành công, ×1 sau lần thất bại), dài 165 byte. Đọc hết byte [Đo J1, J3, O1] |
 | `s2c/93` | `string tên; u8 kếtQuả; i32 n; n × bản ghi vật phẩm` | Kết quả Luyện đá: viên đá mới (ô túi, mã, cờ khoá). 80 byte. 6 lần đều kếtQuả 1; gói khi luyện thất bại chưa thấy. Chế tạo trang bị cũng trả `s2c/93`, với n bản ghi là **nguyên liệu còn lại** (Quặng Bậc 1 86 → 62, Linh Thạch Bậc 1 43 → 19); món mới đến riêng bằng `s2c/1187` loại 4 [Đo J3, O1] |
 
-**Không có gói bỏ món ra.** Đặt lại món đã có trong cửa sổ thì server trả "Vật phẩm này đã được chọn rồi". Đóng cửa sổ cũng không gửi gì. Muốn làm lại từ đầu thì chọn lại menu: mỗi `s2c/96`/`s2c/99` mới là một cửa sổ rỗng (J2 mở lại Nâng cấp 24 lần, lần nào đặt lại cùng món cũng được). [Đo]
+**Bỏ món ra:** bot chưa biết gói nào làm việc này. Nhưng cửa sổ Luyện đá của game **có nút Bỏ ra** (LD1, 23/11, xem [Luyện đá](#luyện-đá)), nên có một gói chưa bắt được. Đặt lại món đã có trong cửa sổ thì server trả "Vật phẩm này đã được chọn rồi". Đóng cửa sổ cũng không gửi gì. Muốn làm lại từ đầu thì chọn lại menu: mỗi `s2c/96`/`s2c/99` mới là một cửa sổ rỗng (J2 mở lại Nâng cấp 24 lần, lần nào đặt lại cùng món cũng được). [Đo]
 
 Thứ tự không bắt buộc: đặt đá trước trang bị thì `s2c/90` báo ô đá với lời nhắc và sẵnSàng 0; giá và tỉ lệ hiện khi có cả hai. [Đo J2]
 
@@ -358,7 +358,16 @@ So với cửa hàng: Đá cấp 6 bán 2 Lượng ở Cửa hàng [Lượng]; l
 
 Mỗi lần thành công: mọi viên đặt vào đều mất, viên mới vào ô trống đầu tiên của túi (thường là ô của viên đầu tiên đã đặt). Bốn lần ở 50% đều thành công; nếu tỉ lệ đúng là 50% thì khả năng đó chỉ 6%, nên có thể tỉ lệ thật cao hơn số báo. Chưa thấy lần thất bại nào. [Đo; tỉ lệ thật Chưa rõ]
 
-**Chưa đo:** gói và đá còn lại khi luyện thất bại; 24 viên một lần.
+**Chưa đo:** gói và đá còn lại khi luyện thất bại; 24 viên một lần; gói của nút Bỏ ra.
+
+**Cửa sổ trên máy (LD1, 23/11, một nhân vật cấp 99 người dùng cho mượn, game 1.1.1, không có Frida, không bấm Kết hợp)** [Đo]:
+
+- Tiêu đề "Luyện đá [Xu khóa]" (hay [Xu]), hai tab **Kết hợp** và **Hành trang**. Tab Kết hợp: lưới **24 ô** (6 × 4), mỗi viên một ô với số 1; bên phải là chữ server báo; dưới cùng là Xu, Xu khóa, Lượng và nút **Kết hợp** (mờ khi chưa đủ 2 viên). Lúc chưa đặt gì, chữ là "Cần chọn đá số lượng 2 đến 24".
+- Tab Hành trang: cả túi (12 cột), món khoá có ổ khoá nhỏ ở góc trên trái, số lượng ở góc dưới phải. Chạm một viên đá mở hộp: ảnh, "Đá cấp 5", "Yêu cầu cấp: 1", "Nguyên liệu nâng cấp vật phẩm", hai nút **Chọn** (1 viên) và **Chọn nhiều**: hộp "Đặt Đá cấp 5 vào lưới" với − số + và **Đặt** / Hủy. Chồng đã lấy bớt thì số giảm (21 → 10) và ô có góc viền vàng.
+- 11 Đá cấp 5 khoá: "Luyện thành Đá cấp 7 Khóa / Cần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu) / Tỉ lệ thành công: 68%", đúng quy luật trên (2.816 ÷ 4.096).
+- Chạm một viên trong lưới mở hộp cùng kiểu với nút **Bỏ ra**. Bỏ ra một viên thì còn 10 ô và chữ đổi thành 62% (2.560 ÷ 4.096). Vậy server nhận được việc rút đá ra; gói đó chưa bắt (cần Frida).
+
+**Trong app (23/11):** tab Gộp đá có chip **Luyện tự chọn**: chọn đá mỗi cấp, app tính tỉ lệ theo quy luật trên (`fuseQuote` trong `src/protocol/npc.ts`, `npc::fuse_quote`), chặn từ 40% trở xuống, bot so cấp đá và tỉ lệ `s2c/92` báo trước khi bấm. Lần thất bại đầu tiên sẽ ghi số đá mỗi cấp đã mất vào nhật ký. Chưa bấm thật lần nào.
 
 <a id="tách-đá"></a>
 

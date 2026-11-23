@@ -91,12 +91,24 @@ fn put_stones(slots: &[i32]) -> Vec<Put> {
     puts
 }
 
-/// Why stones the player picked for Nâng cấp (one bag slot per stone) cannot go in: a slot that holds no stone, more
-/// stones of a slot than it holds, more than the window's 18 slots.
-fn picked_why(bag: &[BagItem], stones: &[i32]) -> Option<String> {
-    if stones.len() > STONE_SLOTS {
+/// The level of each stone picked (one bag slot per stone); 0 for a slot that holds no stone.
+fn fuse_levels(bag: &[BagItem], stones: &[i32]) -> Vec<i32> {
+    stones
+        .iter()
+        .map(|&slot| {
+            bag.iter()
+                .find(|i| i.slot == slot)
+                .map_or(0, |i| npc::stone_level(i.item_id))
+        })
+        .collect()
+}
+
+/// Why stones the player picked (one bag slot per stone) cannot go in: a slot that holds no stone, more stones of a slot
+/// than it holds, more than the window's `most` (18 for Nâng cấp, 24 for Luyện đá).
+fn picked_why(bag: &[BagItem], stones: &[i32], most: usize) -> Option<String> {
+    if stones.len() > most {
         return Some(format!(
-            "cửa sổ chỉ nhận {STONE_SLOTS} viên đá, đã chọn {}",
+            "cửa sổ chỉ nhận {most} viên đá, đã chọn {}",
             stones.len()
         ));
     }
@@ -218,8 +230,10 @@ pub(super) struct Smith {
     text: String,
     ready: bool,
     quote: Quote,
-    /// Gộp đá: the level the set must make, checked before Bắt đầu.
-    makes: Option<i32>,
+    /// Gộp đá, Luyện tự chọn: the level the stones must make and the odds the window must say, checked before Bắt đầu.
+    makes: Option<(i32, i32)>,
+    /// Luyện tự chọn: the stones of the bag by level (index 1–12) before the press, to say what a failure took.
+    held: Vec<i64>,
     /// Đổi lượng: exchanges still to do. Chế tạo trang bị: the items asked for.
     times: u32,
     /// Stop was pressed during a press: the task ends once its result is in.
@@ -320,6 +334,16 @@ impl Bot {
         };
         match task {
             SmithTask::Merge(o) => ("merge", merge_title(o)),
+            SmithTask::Fuse { stones } => {
+                let q = npc::fuse_quote(&fuse_levels(&self.bag_items(), stones));
+                (
+                    "fuse",
+                    format!(
+                        "Luyện {} viên đá thành Đá cấp {} ({}%)",
+                        q.count, q.target, q.rate
+                    ),
+                )
+            }
             SmithTask::Upgrade {
                 slot,
                 quote: true,
@@ -459,7 +483,14 @@ impl Bot {
             })
             .or_else(|| match &task {
                 SmithTask::Upgrade { stones, .. } if !stones.is_empty() => {
-                    picked_why(&self.bag_items(), stones)
+                    picked_why(&self.bag_items(), stones, STONE_SLOTS)
+                }
+                SmithTask::Fuse { stones } => {
+                    let bag = self.bag_items();
+                    picked_why(&bag, stones, npc::FUSE_MAX).or_else(|| {
+                        let q = npc::fuse_quote(&fuse_levels(&bag, stones));
+                        npc::fuse_why(&q).map(|why| why.to_lowercase())
+                    })
                 }
                 _ => None,
             })
@@ -537,7 +568,7 @@ impl Bot {
                         None
                     }
                 }
-                SmithTask::Merge(_) | SmithTask::Points { .. } => None,
+                SmithTask::Merge(_) | SmithTask::Fuse { .. } | SmithTask::Points { .. } => None,
                 SmithTask::Recipes { kind } | SmithTask::Craft { kind, .. } if *kind > 3 => {
                     Some("chọn Nón, Áo, Vũ khí hay Nhẫn".into())
                 }
@@ -622,6 +653,7 @@ impl Bot {
             ready: false,
             quote: Quote::default(),
             makes: None,
+            held: vec![],
             times,
             stopping: false,
             wear: None,
@@ -864,7 +896,7 @@ impl Bot {
                         return self.smith_finish(why, now, out);
                     }
                 }
-                self.smith.as_mut().unwrap().makes = Some(set.level + 1);
+                self.smith.as_mut().unwrap().makes = Some((set.level + 1, 100));
                 let doing = format!(
                     "Luyện 4 Đá cấp {} thành Đá cấp {}",
                     set.level,
@@ -980,6 +1012,51 @@ impl Bot {
                 let mut puts = vec![put_one(slot as i32)];
                 puts.extend(held.map(|c| (c.slot, 1, npc::PUT_STACK)));
                 open(self, window, puts, doing, now, out);
+            }
+            SmithTask::Fuse { stones } => {
+                if steps > 0 {
+                    let why = match self.snap.smith.as_ref().is_some_and(|r| r.failed > 0) {
+                        true => self.fuse_lost(),
+                        false => "đã luyện xong".into(),
+                    };
+                    return self.smith_finish(why, now, out);
+                }
+                if let Some(why) = picked_why(&bag, &stones, npc::FUSE_MAX) {
+                    return self.smith_finish(why, now, out);
+                }
+                let q = npc::fuse_quote(&fuse_levels(&bag, &stones));
+                if let Some(why) = npc::fuse_why(&q) {
+                    return self.smith_finish(why.to_lowercase(), now, out);
+                }
+                let free = stones.iter().all(|&slot| {
+                    bag.iter()
+                        .find(|i| i.slot == slot)
+                        .is_some_and(|i| !i.locked())
+                });
+                let (window, pay, money) = match free {
+                    true => (WindowKind::MergeXu, xu, "Xu"),
+                    false => (WindowKind::MergeXuKhoa, xu_khoa + xu, "Xu khóa"),
+                };
+                if q.fee > pay {
+                    let why = format!("không đủ {money} để luyện (cần {})", grouped(q.fee));
+                    return self.smith_finish(why, now, out);
+                }
+                let mut held = vec![0i64; 13];
+                for i in &bag {
+                    let l = npc::stone_level(i.item_id);
+                    if l > 0 {
+                        held[l as usize] += i.count() as i64;
+                    }
+                }
+                let sm = self.smith.as_mut().unwrap();
+                (sm.makes, sm.held) = (Some((q.target, q.rate)), held);
+                let doing = format!(
+                    "Luyện {} viên đá thành Đá cấp {}, tỉ lệ {}%",
+                    q.count, q.target, q.rate
+                );
+                let mut sorted = stones.clone();
+                sorted.sort_unstable();
+                open(self, window, put_stones(&sorted), doing, now, out);
             }
             SmithTask::Separate { slot } => {
                 if steps > 0 {
@@ -1417,7 +1494,7 @@ impl Bot {
             Some(low)
         } else if sm
             .makes
-            .is_some_and(|l| q.stone.map(|s| s.level) != Some(l) || q.rate != Some(100))
+            .is_some_and(|(l, r)| q.stone.map(|s| s.level) != Some(l) || q.rate != Some(r))
         {
             Some(format!(
                 "Pháp sư báo khác kế hoạch: {}",
@@ -1507,6 +1584,15 @@ impl Bot {
                 format!("Luyện thành công: {made}")
             }
             (SmithTask::Merge(_), false) => "Luyện đá thất bại".into(),
+            (SmithTask::Fuse { .. }, true) => {
+                let made = received
+                    .first()
+                    .map_or_else(|| "đá".into(), |i| item_name(i.item_id));
+                format!("Luyện thành công: {made}")
+            }
+            (SmithTask::Fuse { .. }, false) => {
+                format!("Luyện đá thất bại ở tỉ lệ {}%", q.rate.unwrap_or(0))
+            }
             (SmithTask::Upgrade { .. }, true) => {
                 let i = item.as_ref();
                 format!(
@@ -2028,6 +2114,29 @@ impl Bot {
             .map(|i| format!("{} (ô túi {})", item_name(i.item_id), i.slot as u32 + 1))
             .collect();
         (!made.is_empty()).then(|| format!("đã chế tạo {}", made.join(", ")))
+    }
+
+    /// Luyện tự chọn after a failure (never seen before 23/11): the stones of each level gone from the bag since the
+    /// press, "thất bại, mất 11 Đá cấp 5, 1 Đá cấp 7", for the log and 16-upgrade.md.
+    fn fuse_lost(&self) -> String {
+        let Some(sm) = self.smith.as_ref().filter(|s| s.held.len() == 13) else {
+            return "thất bại".into();
+        };
+        let mut now = [0i64; 13];
+        for i in self.bag_items() {
+            let l = npc::stone_level(i.item_id);
+            if l > 0 {
+                now[l as usize] += i.count() as i64;
+            }
+        }
+        let lost: Vec<String> = (1..13)
+            .filter(|&l| sm.held[l] > now[l])
+            .map(|l| format!("{} Đá cấp {l}", sm.held[l] - now[l]))
+            .collect();
+        match lost.is_empty() {
+            true => "thất bại, túi không mất viên đá nào".into(),
+            false => format!("thất bại, mất {}", lost.join(", ")),
+        }
     }
 }
 

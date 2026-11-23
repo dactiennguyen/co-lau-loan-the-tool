@@ -289,3 +289,24 @@ test('s2c/1180 of protocol 0.0.7: the duel of 0.0.2 with one more u8 at the end 
   const d = duelInvite(Buffer.from(v007Packets['s2c/1180 Võ Quan'], 'hex'));
   assert.deepEqual(d, { mapId: 'M2', npcId: 141, mob: { id: 'mob880', name: 'Võ Quan Đinh Mộc', level: 20, a: 0, b: 6, c: 1, d: 0 }, a: 2, b: 1, c: 105 });
 });
+
+test('RK1: the seven tabs of Bảng xếp hạng, 12 châu without times, and c2s/1254 as the client sends it', async () => {
+  const { rk1, rk1Requests } = await import('./fixtures-rk1.ts');
+  const { rankingRequest } = await import('../src/protocol/world.ts');
+  const h = (k: keyof typeof rk1) => Buffer.from(rk1[k], 'hex');
+  const tabs = ranking(h('s2c/1254 tabs 7')) as { kind: number; tabs: { tab: number; title: string; column: string }[] };
+  assert.ok(tabs.kind === 0);
+  assert.deepEqual(tabs.tabs.map(t => `${t.tab} ${t.title}/${t.column}`),
+    ['0 Cao thủ/Cấp độ', '1 Sứ quân/Cấp', '2 12 châu/Cấp', '3 Cường hoá/Tổng cấp', '4 Hỏa/Cấp độ', '5 Lôi/Cấp độ', '6 Thủy/Cấp độ']);
+  type List = { kind: number; rows: { rank: number; reachedAt?: number }[]; own: unknown };
+  const chau = ranking(h('s2c/1254 tab 2 12 châu')) as List;
+  assert.ok(chau.kind === 1);
+  assert.equal(chau.rows.length, 12);
+  assert.deepEqual(chau.rows[0], { rank: 1, id: 0, name: 'Hồng Giang: chưa có chủ', field: 0, level: 0 });
+  assert.deepEqual(chau.own, { rank: -1, field: 0, level: 0 });
+  const su = ranking(h('s2c/1254 tab 1 Sứ quân')) as List;
+  assert.ok(su.kind === 1 && su.rows.length === 4 && su.rows.every(r => r.reachedAt! > 0));
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(t => Buffer.from(rankingRequest(t)).toString('hex')), rk1Requests);
+  assert.equal(Buffer.from(rankingRequest()).toString('hex'), '00');
+  assert.deepEqual(decodeEvent('c2s', 1254, rankingRequest(3)).fields, { kind: 1, tab: 3 });
+});

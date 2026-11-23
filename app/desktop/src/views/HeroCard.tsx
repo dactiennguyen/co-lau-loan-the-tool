@@ -11,6 +11,7 @@ import { AppStatus } from "./AppStatus";
 import { BoostTag } from "./BoostTag";
 import { NearbyButton } from "./NearbyButton";
 import { ProxyButton } from "./ProxyButton";
+import { RankingButton } from "./RankingButton";
 
 /** The block of where the character is (Vị trí), a line on its left; its label, and the line under the map name. */
 const BLOCK = "grid gap-0.5 min-w-0 pl-4 border-l-2 border-l-line";
@@ -84,6 +85,8 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
               <Button kind="outline" small icon="swap" className="flex-none w-[22px] h-[22px]" aria-label="Đổi khu / map" disabled={!!c.moving} onClick={onPlace} />
               {/* Xung quanh: the others of the zone, a list that opens under the button. */}
               <NearbyButton character={c} />
+              {/* Bảng xếp hạng: the game's ranking, in a panel under the button. */}
+              <RankingButton account={a} />
             </div>
             <span className={SUB}>
               {c.moving ? (

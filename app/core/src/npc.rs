@@ -474,6 +474,94 @@ pub fn stone_value(level: i32) -> i64 {
 pub fn merge_fee(target: i32) -> i64 {
     (2 * stone_value(target) + 4) / 5
 }
+
+// Luyện tự chọn ← fuseQuote of src/protocol/npc.ts (16-upgrade.md#luyện-đá): any 2–24 stones of any levels in Luyện đá.
+// Their value V is Σ4^(k−1); the server aims at the lowest level T with 4^(T−1) ≥ V, at ⌊100 × V / 4^(T−1)⌋ % (J2), and
+// lets Bắt đầu be pressed above 40% only (J3). The fee goes by T alone. What a failure takes is not measured.
+
+/// Stones Luyện đá takes at least and at most, and the lowest odds it lets be pressed.
+pub const FUSE_MIN: usize = 2;
+pub const FUSE_MAX: usize = 24;
+pub const FUSE_RATE: i32 = 41;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct FuseQuote {
+    pub count: usize,
+    pub value: i64,
+    pub target: i32,
+    pub rate: i32,
+    pub fee: i64,
+}
+/// What Luyện đá makes of stones of these levels, one entry per stone: the stone it aims at, the odds and the fee.
+pub fn fuse_quote(levels: &[i32]) -> FuseQuote {
+    let value: i64 = levels.iter().map(|&l| stone_value(l)).sum();
+    let mut target = 1;
+    while stone_value(target) < value {
+        target += 1;
+    }
+    FuseQuote {
+        count: levels.len(),
+        value,
+        target,
+        rate: (100 * value / stone_value(target)) as i32,
+        fee: merge_fee(target),
+    }
+}
+/// Why Luyện đá would not press for this quote; None when it would.
+pub fn fuse_why(q: &FuseQuote) -> Option<String> {
+    if q.count < FUSE_MIN {
+        Some(format!("Cần ít nhất {FUSE_MIN} viên đá"))
+    } else if q.count > FUSE_MAX {
+        Some(format!(
+            "Lò chỉ nhận {FUSE_MAX} viên, đang chọn {}",
+            q.count
+        ))
+    } else if q.target > 12 {
+        Some("Tổng vượt quá Đá cấp 12".into())
+    } else if q.rate < FUSE_RATE {
+        Some(format!(
+            "Tỉ lệ {}%: game chỉ cho luyện khi trên 40%",
+            q.rate
+        ))
+    } else {
+        None
+    }
+}
+/// Few stones of `held` (stones by level, index 1–12) that make Đá cấp `target` at `rate` % at least: from the level
+/// under the target down, the stones of a level that reach the odds when it has enough (without passing the target, so
+/// the server aims at it), else all of that level and on to the next one down. How many of each level (index 0–12); None
+/// when the stones held cannot, or need more than FUSE_MAX.
+pub fn fuse_suggest(held: &[i64], target: i32, rate: i32) -> Option<Vec<i64>> {
+    if !(2..=12).contains(&target) {
+        return None;
+    }
+    let top = stone_value(target);
+    let mut take = vec![0i64; 13];
+    let need = (rate.clamp(FUSE_RATE, 100) as i64 * top + 99) / 100;
+    let mut got = 0;
+    for l in (1..target).rev() {
+        if got >= need {
+            break;
+        }
+        let has = held.get(l as usize).copied().unwrap_or(0);
+        let v = stone_value(l);
+        let up = (need - got + v - 1) / v;
+        take[l as usize] = match up <= has && got + up * v <= top {
+            true => up,
+            false => has.min((need - got) / v),
+        };
+        got += take[l as usize] * v;
+    }
+    if got < need {
+        return None;
+    }
+    let levels: Vec<i32> = (0..13)
+        .flat_map(|l| std::iter::repeat_n(l as i32, take[l] as usize))
+        .collect();
+    let q = fuse_quote(&levels);
+    (q.target == target && fuse_why(&q).is_none()).then_some(take)
+}
+
 /// Trần cường hoá of the Cẩm nang by wear level: tier 1 to +4, 21 to +8, 51 to +12, 101 and up to +16.
 pub fn upgrade_cap(wear_level: i32) -> i32 {
     match wear_level {

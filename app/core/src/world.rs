@@ -880,6 +880,116 @@ impl ZonePlayers {
     }
 }
 
+// Bảng xếp hạng (11-panels.md#s2c-1254, RK1 23/11): c2s/1254 00 opens it (the tab list, then tab 0); 01 and a tab shows
+// that tab alone, as the client sends it. Tab 0 Cao thủ (Cấp độ), 1 Sứ quân, 2 12 châu, 3 Cường hoá (Tổng cấp), 4 Hỏa, 5
+// Lôi, 6 Thủy (Cấp độ). ← ranking and rankingRequest of src/protocol/world.ts.
+
+/// A tab of Bảng xếp hạng: its number, its title and the name of its figure column.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RankTab {
+    pub tab: u8,
+    pub title: String,
+    pub column: String,
+}
+/// A row: rank, character id (0 for a 12 châu without a lord), name, a field always 0, the figure (level, total upgrade
+/// levels), and since protocol 0.0.7 when it was reached (ms since 1970; none in 12 châu).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankRow {
+    pub rank: i32,
+    pub id: i32,
+    pub name: String,
+    pub field: i32,
+    pub level: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reached_at: Option<i64>,
+}
+/// The character's own row: rank -1 when not in the tab.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankOwn {
+    pub rank: i32,
+    pub field: i32,
+    pub level: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reached_at: Option<i64>,
+}
+/// s2c/1254: kind 0 the tabs, kind 1 one tab.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum Ranking {
+    Tabs {
+        kind: u8,
+        tabs: Vec<RankTab>,
+    },
+    List {
+        kind: u8,
+        tab: u8,
+        rows: Vec<RankRow>,
+        own: RankOwn,
+    },
+}
+/// s2c/1254 (either layout: 0.0.7 has an i64 per row after the own row, then the own one).
+pub fn ranking(p: &[u8]) -> Result<Ranking> {
+    let mut r = Reader::new(p);
+    if r.u8()? == 0 {
+        let mut tabs = vec![];
+        for _ in 0..r.u8()? {
+            tabs.push(RankTab {
+                tab: r.u8()?,
+                title: r.string()?,
+                column: r.string()?,
+            });
+        }
+        r.u8()?;
+        return r.finish(Ranking::Tabs { kind: 0, tabs }, "s2c/1254");
+    }
+    either_layout(|extended| {
+        let mut r = Reader::new(p);
+        r.u8()?;
+        let tab = r.u8()?;
+        let mut rows = vec![];
+        for _ in 0..r.i32()?.max(0) {
+            rows.push(RankRow {
+                rank: r.i32()?,
+                id: r.i32()?,
+                name: r.string()?,
+                field: r.i32()?,
+                level: r.i32()?,
+                reached_at: None,
+            });
+        }
+        let mut own = RankOwn {
+            rank: r.i32()?,
+            field: r.i32()?,
+            level: r.i32()?,
+            reached_at: None,
+        };
+        if extended {
+            for row in rows.iter_mut() {
+                row.reached_at = Some(r.i64()?);
+            }
+            own.reached_at = Some(r.i64()?);
+        }
+        r.finish(
+            Ranking::List {
+                kind: 1,
+                tab,
+                rows,
+                own,
+            },
+            "s2c/1254",
+        )
+    })
+}
+/// c2s/1254: None opens Bảng xếp hạng (00), a tab shows that tab (01 tab).
+pub fn ranking_request(tab: Option<u8>) -> Vec<u8> {
+    match tab {
+        None => vec![0],
+        Some(t) => vec![1, t],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{map_boss, map_entities, players_snapshot, quest_data, Nearby, ZonePlayers};

@@ -252,6 +252,8 @@ pub struct CharacterView<'a> {
     pub mailbox: MailboxView<'a>,
     /// Chợ trời (Tiện ích): the tabs, the page read last, Đang bán, the task under way.
     pub market: MarketView<'a>,
+    /// Bảng xếp hạng (the button beside Vị trí): the tabs, each tab read, the tab asked.
+    pub ranking: &'a cllt_core::bot::RankingState,
 }
 
 /// Chợ trời for its tab: s2c/116 (tabs, fee, hours, highest price), the page of a tab last read, Đang bán, the task
@@ -849,6 +851,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             gift_limits: &s.gift_limits,
             mailbox: MailboxView::of(&s.mailbox, s.bag.as_ref()),
             market: MarketView::of(&s.market),
+            ranking: &s.ranking,
             moving: s.moving.as_deref(),
             back_to: s.back_to.as_deref(),
             maps: &s.maps,

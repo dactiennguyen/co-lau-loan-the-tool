@@ -379,6 +379,7 @@ pub(super) async fn session(
                     Some(Command::Mail(task)) => bot.mail(task, now, out),
                     Some(Command::Market(task)) => bot.market(task, now, out),
                     Some(Command::Welfare) => bot.welfare(now, out),
+                    Some(Command::Ranking(tab)) => bot.ranking(tab, out),
                     Some(Command::BachHo {
                         from_ms,
                         until_ms,

@@ -698,6 +698,11 @@ pub enum SmithTask {
         charm: bool,
         stones: Vec<i32>,
     },
+    /// Luyện tự chọn: the stones the player picked, of any levels, one bag slot per stone (a stack's slot once per stone of
+    /// it), in Luyện đá with one press, whatever the server aims at as long as it is what npc::fuse_quote says (the level
+    /// and the odds, checked before Bắt đầu) and above 40%. All unlocked: [Xu] (paid in Xu, the stone made unlocked);
+    /// else [Xu khóa]. A failure is not measured: the stones left after it are said in the log.
+    Fuse { stones: Vec<i32> },
     /// Tách đá of the item of bag slot `slot`.
     Separate { slot: u8 },
     /// Chuyển hoá from bag slot `source` to bag slot `target`, with the cheapest Chuyển hoá item of the bag.
@@ -786,7 +791,8 @@ pub struct PointsRead {
 pub struct SmithRun {
     /// Number of the run in this session, so the UI tells a new one from the one before.
     pub id: u32,
-    /// "merge", "upgrade", "quote", "separate", "transmute", "exchange", "recipes", "craft", "ice", "points" or "daily".
+    /// "merge", "fuse", "upgrade", "quote", "separate", "transmute", "exchange", "recipes", "craft", "ice", "points" or
+    /// "daily".
     pub kind: &'static str,
     /// "Gộp đá tới Đá cấp 6", "Nâng cấp Nhẫn Trơn tới +4".
     pub title: String,
@@ -1246,6 +1252,26 @@ impl Boost {
     }
 }
 
+/// Bảng xếp hạng as the server sent it last (Bot::ranking, world::ranking): the tabs, each tab read, and the tab asked
+/// and not answered yet with when (ms since 1970; the server answers a tab it refuses with s2c/1256 only).
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankingState {
+    pub tabs: Vec<crate::world::RankTab>,
+    pub lists: Vec<RankList>,
+    pub asked: Option<u8>,
+    pub asked_at: Option<u64>,
+}
+/// One tab of Bảng xếp hạng: up to 100 rows, the character's own row, when it was read (ms since 1970).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankList {
+    pub tab: u8,
+    pub rows: Vec<crate::world::RankRow>,
+    pub own: crate::world::RankOwn,
+    pub read_at: u64,
+}
+
 /// Everything the UI shows for one account.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Snapshot {
@@ -1340,6 +1366,8 @@ pub struct Snapshot {
     pub mailbox: Mailbox,
     /// Chợ trời (Bot::market).
     pub market: MarketState,
+    /// Bảng xếp hạng (Bot::ranking).
+    pub ranking: RankingState,
     /// Timed effects at login (the s2c/9 tail), such as x2 EXP, and those an item just used brings (s2c/84).
     pub boosts: Vec<Boost>,
 }

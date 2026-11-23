@@ -145,3 +145,35 @@ test('Nâng cấp takes the cheapest stones first, locked before unlocked; Chuy�
   assert.equal(transmuteItem([...bag, { slot: 26, itemId: 616, field0: 0, field1: 1 }], 11), undefined);
   assert.deepEqual([1, 21, 51, 101, 201].map(upgradeCap), [4, 8, 12, 16, 16]);
 });
+
+test('Luyện tự chọn: the quotes of the J2 table, the 40% floor and a suggestion', async () => {
+  const { fuseQuote, fuseWhy, fuseSuggest } = await import('../src/protocol/npc.ts');
+  const q = (s: number[]) => { const r = fuseQuote(s); return [r.target, r.rate, r.fee]; };
+  assert.deepEqual(q([1, 1]), [2, 50, 2]);
+  assert.deepEqual(q([4, 4]), [5, 50, 103]);
+  assert.deepEqual(q([4, 4, 4]), [5, 75, 103]);
+  assert.deepEqual(q([5, 5, 5, 5]), [6, 100, 410]);
+  assert.deepEqual(q([5, 5, 5, 5, 5]), [7, 31, 1639]);
+  assert.deepEqual(q([5, 5, 5, 5, 5, 5, 5]), [7, 43, 1639]);
+  assert.deepEqual(q([4, 5]), [6, 31, 410]);
+  assert.deepEqual(q([2, 3]), [4, 31, 26]);
+  // The user's example (23/11): 11 Đá cấp 5 and 1 Đá cấp 7 aim at Đá cấp 8, 6.912 of 16.384.
+  assert.deepEqual(q([7, ...Array(11).fill(5)]), [8, 42, 6554]);
+  assert.equal(fuseWhy(fuseQuote([7, ...Array(11).fill(5)])), null);
+  assert.match(fuseWhy(fuseQuote([2, 3]))!, /trên 40%/);
+  assert.match(fuseWhy(fuseQuote([1]))!, /ít nhất 2/);
+  assert.match(fuseWhy(fuseQuote(Array(25).fill(5)))!, /24 viên/);
+  assert.match(fuseWhy(fuseQuote([12, 12]))!, /Đá cấp 12/);
+  const held = [0, 0, 0, 0, 0, 40, 0, 3];
+  // Two Đá cấp 7 reach 50% alone; with only one, the 11 Đá cấp 5 of the example.
+  assert.deepEqual(fuseSuggest(held, 8, 42)?.slice(1, 8), [0, 0, 0, 0, 0, 0, 2]);
+  assert.deepEqual(fuseSuggest([0, 0, 0, 0, 0, 40, 0, 1], 8, 42)?.slice(1, 8), [0, 0, 0, 0, 11, 0, 1]);
+  assert.deepEqual(fuseSuggest(held, 7, 100)?.slice(1, 7), [0, 0, 0, 0, 16, 0]);
+  assert.equal(fuseSuggest(held, 9, 50), null);
+  // A level that reaches the odds takes them rounded up and ends there: no Đá cấp 1 and 2 to fill the last units.
+  const mixed = [0, 2, 1, 0, 4, 45, 0, 1];
+  assert.deepEqual(fuseSuggest(mixed, 8, 49)?.slice(1, 8), [0, 0, 0, 0, 16, 0, 1]);
+  assert.deepEqual(fuseSuggest([0, 0, 0, 0, 0, 0, 0, 2], 8, 42)?.slice(1, 8), [0, 0, 0, 0, 0, 0, 2]);
+  // Rounding up would pass the target (100% wants exactly its value): the level's floor, then the next one down.
+  assert.deepEqual(fuseSuggest([0, 0, 0, 0, 3, 5], 6, 100)?.slice(1, 6), [0, 0, 0, 0, 4]);
+});

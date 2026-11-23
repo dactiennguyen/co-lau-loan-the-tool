@@ -413,6 +413,8 @@ export interface Character {
   mailbox: Mailbox;
   /** Chợ trời (Tiện ích): the tabs, the page read last, Đang bán, the task under way. */
   market: Market;
+  /** Bảng xếp hạng (the button beside Vị trí): the tabs, each tab read, the tab asked and not answered yet. */
+  ranking: RankingState;
 }
 
 /** Chợ trời as the app knows it (MarketView of view.rs). */
@@ -787,7 +789,7 @@ export type DailyAction = "show" | "accept" | "cancel" | "complete";
 /** The work of Pháp sư or Hương Lão under way or last done (SmithView of view.rs). */
 export interface SmithRun {
   id: number;
-  kind: "merge" | "upgrade" | "quote" | "separate" | "transmute" | "exchange" | "recipes" | "craft" | "ice" | "points" | "daily";
+  kind: "merge" | "fuse" | "upgrade" | "quote" | "separate" | "transmute" | "exchange" | "recipes" | "craft" | "ice" | "points" | "daily";
   title: string;
   doing: string;
   steps: number;
@@ -1269,4 +1271,41 @@ export interface BattleState {
   picked: Picked[];
   /** The number of the last message that changed it: a window that loaded it drops the messages up to it. */
   rev: number;
+}
+
+/** A tab of Bảng xếp hạng (RK1): 0 Cao thủ, 1 Sứ quân, 2 12 châu, 3 Cường hoá, 4 Hỏa, 5 Lôi, 6 Thủy; `column` names its
+ * figure ("Cấp độ", "Tổng cấp"). */
+export interface RankTab {
+  tab: number;
+  title: string;
+  column: string;
+}
+/** A row: rank, character id (0 for a 12 châu without a lord), name, the figure, when it was reached (ms since 1970). */
+export interface RankRow {
+  rank: number;
+  id: number;
+  name: string;
+  field: number;
+  level: number;
+  reachedAt?: number;
+}
+/** The character's own row: rank -1 when not in the tab. */
+export interface RankOwn {
+  rank: number;
+  field: number;
+  level: number;
+  reachedAt?: number;
+}
+export interface RankList {
+  tab: number;
+  rows: RankRow[];
+  own: RankOwn;
+  /** When it was read, ms since 1970. */
+  readAt: number;
+}
+export interface RankingState {
+  tabs: RankTab[];
+  lists: RankList[];
+  asked: number | null;
+  askedAt: number | null;
 }

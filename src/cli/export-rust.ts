@@ -19,8 +19,9 @@ import { UNKNOWN, mobMoveOdds, answerValue, castSkill, mobBlock, battleItemResul
 import { skillEffect, learntSkills, destroyPatterns, bestAction, skillWorth, swordPrior, type Potion, type SkillEffect } from '../battle/battle-actions.ts';
 import { fixtures } from '../../test/fixtures.ts';
 import { npcPackets, STACKED, symapBag } from '../../test/fixtures-npc.ts';
-import { shopList } from '../protocol/world.ts';
-import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, quote, mergePlan,
+import { shopList, ranking, rankingRequest } from '../protocol/world.ts';
+import { rk1 } from '../../test/fixtures-rk1.ts';
+import { serviceWindow, craftWindow, serviceSlot, stoneSlot, servicePreview, transmuteTarget, serviceResult, stoneResult, quote, mergePlan, fuseQuote, fuseWhy, fuseSuggest,
   mergeForecast, upgradeStones, putRequest, startRequest, craftSlot, recipes, craftMaterials, iceHeld, failLevel, charmUseful, charmFor, itemCap,
   PUT_ITEM, PUT_STACK } from '../protocol/npc.ts';
 import { o1Packets } from '../../test/fixtures-o1.ts';
@@ -173,6 +174,29 @@ function npcCases() {
     upgradeStacked: { bag: STACKED, slots: upgradeStones(STACKED).map(i => i.slot) },
     requests: { put45: hex(putRequest(45)), start: hex(startRequest()) },
     o1: o1Cases(),
+    fuse: fuseCases(),
+  };
+}
+
+/** Bảng xếp hạng: every s2c/1254 of the fixtures (0.0.2 of U1, 0.0.7, RK1) as the TS reads it, and c2s/1254. */
+function rankingCases() {
+  const all: Record<string, string> = {
+    ...Object.fromEntries(Object.entries(fixtures.quest as Record<string, string>).filter(([k]) => k.startsWith('s2c/1254'))),
+    ...Object.fromEntries(Object.entries(v007Packets).filter(([k]) => k.startsWith('s2c/1254'))), ...rk1,
+  };
+  return {
+    packets: Object.entries(all).map(([name, h]) => ({ name, hex: h, expected: ranking(Buffer.from(h, 'hex')) })),
+    requests: [undefined, 0, 1, 6].map(tab => ({ tab: tab ?? null, hex: hex(rankingRequest(tab)) })),
+  };
+}
+
+/** Luyện tự chọn: the quote and refusal of stones of mixed levels, and the stones suggested for a level and odds. */
+function fuseCases() {
+  const sets = [[], [1], [1, 1], [4, 4, 4], [4, 5], [5, 5, 5, 5], [5, 5, 5, 5, 5], [2, 3], [12, 12], [7, ...Array(11).fill(5)], Array(25).fill(1)];
+  const helds = [[0, 0, 0, 0, 0, 40, 0, 3], [0, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99], [0, 3], [0, 2, 1, 0, 4, 45, 0, 1], [0, 0, 0, 0, 3, 5], [0, 0, 0, 0, 0, 0, 0, 2]];
+  return {
+    quotes: sets.map(levels => ({ levels, quote: fuseQuote(levels), why: fuseWhy(fuseQuote(levels)) })),
+    suggests: helds.flatMap(held => [2, 6, 7, 8, 9, 12].flatMap(target => [41, 42, 49, 75, 100].map(rate => ({ held, target, rate, take: fuseSuggest(held, target, rate) })))),
   };
 }
 
@@ -716,7 +740,7 @@ pub const OPCODES: &[(i32, i32)] = &[\n${OPCODE_ENTRIES.map(([o, e]) => `    (${
     prelogin: pick(fixtures.prelogin, ['seed', 'handshake', 'key', 'received_chunks', 'sent_frames', 'decoded_receive', 'decoded_send']),
     password: fixtures['password-vectors'].vectors, // Cut with protocol 0.0.2 (APK 1.0.3); written with the version the bot declares, as test/protocol.test.ts checks them.
     login: fixtures['login-vectors'].vectors.map((v: { data: string }) => ({ ...v, data: v.data.replace('00000005302e302e32', hex(new Writer().string(PROTOCOL_VERSION).build())) })),
-    decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
+    ranking: rankingCases(), decoders: decoders(), zone: zone(), requests: requests(), battles: battles(), bestMoves: bestMoves(),
     stepActions: stepActions(), atlas: atlasCases(), questReplays: questReplays(),
     battleV3: battleV3(), npc: npcCases(), gift: giftCases(), mail: mailCases(), daily: dailyCases(), market: marketCases(), welfare: welfareCases(),
   };

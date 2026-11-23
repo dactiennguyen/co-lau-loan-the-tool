@@ -4,7 +4,24 @@ import { isGear, stoneLevel } from "./upgrade";
 import type { Character, Item, Recipe } from "@/api/types";
 
 // The rules of Nâng cấp live in upgrade.ts (the root tests import them); exported here too, as the views take them.
-export { CHARMS, SAFE_LEVEL, TRANSMUTE_ITEMS, charmUseful, failLevel, isGear, itemCap, stoneLevel, upgradeCap } from "./upgrade";
+export {
+  CHARMS,
+  FUSE,
+  SAFE_LEVEL,
+  TRANSMUTE_ITEMS,
+  charmUseful,
+  failLevel,
+  fuseQuote,
+  fuseSuggest,
+  fuseWhy,
+  isGear,
+  itemCap,
+  mergeFee,
+  stoneLevel,
+  stoneValue,
+  upgradeCap,
+} from "./upgrade";
+export type { FuseQuote } from "./upgrade";
 
 /** Lái Buôn, Bà Tư Hạnh, Hương Lão and Pháp sư stand in Làng Thanh Khê; the server serves them only on that map (B1). */
 export const NPC_MAP = "M1";

@@ -587,3 +587,7 @@ export function ranking(payload: Uint8Array) {
   });
 }
 const i64 = (r: Reader) => Number(r.take(8).readBigInt64BE());
+/** c2s/1254 (RK1, as the client sends it): with no tab, 00, the first open, answered by the tab list and then tab 0; with a
+ * tab, 01 and the tab, answered by that tab alone (a bot that sent the tab first got tab 1 by luck and "Không thể thực
+ * hiện" for 2 to 6). */
+export const rankingRequest = (tab?: number) => Uint8Array.from(tab === undefined ? [0] : [1, tab]);

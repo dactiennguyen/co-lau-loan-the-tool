@@ -2662,3 +2662,270 @@ fn nang_cap_thuong_stalled_under_75_says_it_is_the_cap_not_more_stones() {
     );
     assert!(sent(&out, 91).is_empty());
 }
+
+#[test]
+fn luyen_tu_chon_quotes_and_suggests_what_the_ts_side_does() {
+    let all = v();
+    let fuse = &all["npc"]["fuse"];
+    for case in fuse["quotes"].as_array().unwrap() {
+        let levels: Vec<i32> = serde_json::from_value(case["levels"].clone()).unwrap();
+        let q = npc::fuse_quote(&levels);
+        assert_eq!(
+            serde_json::to_value(q).unwrap(),
+            case["quote"],
+            "{levels:?}"
+        );
+        assert_eq!(
+            serde_json::to_value(npc::fuse_why(&q)).unwrap(),
+            case["why"],
+            "{levels:?}"
+        );
+    }
+    for case in fuse["suggests"].as_array().unwrap() {
+        let held: Vec<i64> = serde_json::from_value(case["held"].clone()).unwrap();
+        let (target, rate) = (
+            case["target"].as_i64().unwrap() as i32,
+            case["rate"].as_i64().unwrap() as i32,
+        );
+        assert_eq!(
+            serde_json::to_value(npc::fuse_suggest(&held, target, rate)).unwrap(),
+            case["take"],
+            "{held:?} {target} {rate}"
+        );
+    }
+}
+
+/// Luyện tự chọn: a stack of 40 locked Đá cấp 5 (slot 20), a locked Đá cấp 7 (slot 30) and two unlocked Đá cấp 1.
+fn fuse_bot() -> (Bot, Vec<Out>, Instant) {
+    let (mut bot, mut out, now) = symap(&[]);
+    let items = [
+        (20, 415, 0, 0, 40),
+        (30, 417, 0, 0, 1),
+        (16, 411, 0, 1, 1),
+        (17, 411, 0, 1, 1),
+    ];
+    bot.on_packet(42, &bag_q(&items), now, &mut out).unwrap();
+    out.clear();
+    (bot, out, now)
+}
+const FUSE_8: &str = "Luyện thành Đá cấp 8 Khóa\nCần: 6554 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 42%";
+
+#[test]
+fn luyen_tu_chon_puts_the_stones_picked_and_presses_once_at_the_odds_planned() {
+    let (mut bot, mut out, now) = fuse_bot();
+    // 11 Đá cấp 5 and 1 Đá cấp 7: 6.912 of the 16.384 of a Đá cấp 8, 42%.
+    let mut stones = vec![30];
+    stones.extend([20; 11]);
+    bot.smith(SmithTask::Fuse { stones }, now, &mut out);
+    assert!(
+        logged(&out, "Luyện 12 viên đá thành Đá cấp 8 (42%)"),
+        "{out:?}"
+    );
+    assert_eq!(sent(&out, 13), [PHAP_SU]);
+    out.clear();
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 57),
+        ["01000000024d31000000a1", "00000000024d31000000a1"],
+        "locked stones: Luyện đá [Xu khóa]"
+    );
+    out.clear();
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1002".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    // The 11 of the stack with one c2s/97 (ST1), then the Đá cấp 7.
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(20, 11, npc::PUT_ITEM))]
+    );
+    out.clear();
+    let at_5 = "Luyện thành Đá cấp 7 Khóa\nCần: 1639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 68%";
+    bot.on_packet(92, &slot92(20, at_5, true), now, &mut out)
+        .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(30, 1, npc::PUT_ITEM))]
+    );
+    out.clear();
+    bot.on_packet(92, &slot92(30, FUSE_8, true), now, &mut out)
+        .unwrap();
+    assert_eq!(sent(&out, 91), ["00000000"], "{out:?}");
+    // A failure (never seen yet): the stones gone are said once the bag is in.
+    out.clear();
+    let failed = Writer::new().string("symap").u8(0).i32(0).build();
+    bot.on_packet(93, &failed, now, &mut out).unwrap();
+    assert!(logged(&out, "Luyện đá thất bại ở tỉ lệ 42%"), "{out:?}");
+    out.clear();
+    let after = [(20, 415, 0, 0, 29), (16, 411, 0, 1, 1), (17, 411, 0, 1, 1)];
+    bot.on_packet(42, &bag_q(&after), now, &mut out).unwrap();
+    assert!(sent(&out, 13).is_empty(), "one press only: {out:?}");
+    assert!(
+        logged(&out, "Luyện 12 viên đá thành Đá cấp 8 (42%): thất bại, mất 11 Đá cấp 5, 1 Đá cấp 7 (1 lần, tốn 6.554 Xu khóa)"),
+        "{out:?}"
+    );
+}
+
+#[test]
+fn luyen_tu_chon_refuses_odds_of_40_or_less_and_stops_when_the_window_says_other_odds() {
+    let (mut bot, mut out, now) = fuse_bot();
+    // 2 Đá cấp 5 and 1 Đá cấp 7 → Đá cấp 8 at 28%: refused, nothing sent.
+    bot.smith(
+        SmithTask::Fuse {
+            stones: vec![20, 20, 30],
+        },
+        now,
+        &mut out,
+    );
+    assert!(
+        said(
+            &out,
+            "Chưa Luyện 3 viên đá thành Đá cấp 8 (28%): tỉ lệ 28%: game chỉ cho luyện khi trên 40%"
+        ),
+        "{out:?}"
+    );
+    assert!(sent(&out, 13).is_empty());
+    out.clear();
+    // One stone, more than the slot holds, a slot without a stone.
+    for (stones, why) in [
+        (vec![30], "cần ít nhất 2 viên đá"),
+        (vec![30, 30], "ô túi 31 chỉ có 1 viên, đã chọn 2"),
+        (vec![20, 5], "ô túi 6 không còn đá"),
+    ] {
+        bot.smith(SmithTask::Fuse { stones }, now, &mut out);
+        assert!(said(&out, why), "{why}: {out:?}");
+        assert!(sent(&out, 13).is_empty());
+        out.clear();
+    }
+    // Two unlocked Đá cấp 1: [Xu], 50%; the window says 40%: no press.
+    bot.smith(
+        SmithTask::Fuse {
+            stones: vec![16, 17],
+        },
+        now,
+        &mut out,
+    );
+    out.clear();
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 57)[1],
+        "01000000024d31000000a1",
+        "all unlocked: Luyện đá [Xu]"
+    );
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1003".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.on_packet(
+        92,
+        &slot92(16, "Cần chọn đá số lượng 2 đến 24", false),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    bot.on_packet(
+        92,
+        &slot92(
+            17,
+            "Luyện thành Đá cấp 2\nCần: 2 Xu\nTỉ lệ thành công: 40%",
+            true,
+        ),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(sent(&out, 91).is_empty(), "{out:?}");
+    assert!(said(&out, "Pháp sư báo khác kế hoạch"), "{out:?}");
+}
+/// A log line holding `text` anywhere.
+fn said(out: &[Out], text: &str) -> bool {
+    out.iter()
+        .any(|o| matches!(o, Out::Log(_, t) if t.contains(text)))
+}
+
+#[test]
+fn bang_xep_hang_reads_as_the_ts_side_and_asks_as_the_client() {
+    let all = v();
+    for case in all["ranking"]["packets"].as_array().unwrap() {
+        let p = hex(case["hex"].as_str().unwrap());
+        assert_eq!(
+            serde_json::to_value(world::ranking(&p).unwrap()).unwrap(),
+            case["expected"],
+            "{}",
+            case["name"]
+        );
+    }
+    for case in all["ranking"]["requests"].as_array().unwrap() {
+        let tab = case["tab"].as_u64().map(|t| t as u8);
+        assert_eq!(
+            tohex(&world::ranking_request(tab)),
+            case["hex"].as_str().unwrap()
+        );
+    }
+}
+
+#[test]
+fn bang_xep_hang_opens_with_00_then_asks_a_tab_with_01_and_keeps_each_tab() {
+    let (mut bot, mut out, now) = symap(&[]);
+    let all = v();
+    let packet = |name: &str| {
+        let case = all["ranking"]["packets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap()
+            .clone();
+        hex(case["hex"].as_str().unwrap())
+    };
+    // The first time, a tab other than 0: 00 (the tabs and tab 0), then 01 02.
+    bot.ranking(2, &mut out);
+    assert_eq!(sent(&out, 1254), ["00", "0102"]);
+    assert_eq!(bot.snap.ranking.asked, Some(2));
+    bot.on_packet(1254, &packet("s2c/1254 tabs 7"), now, &mut out)
+        .unwrap();
+    bot.on_packet(1254, &packet("s2c/1254 tab 2 12 châu"), now, &mut out)
+        .unwrap();
+    let r = &bot.snap.ranking;
+    assert_eq!(r.tabs.len(), 7);
+    assert_eq!(
+        (
+            r.asked,
+            r.lists.len(),
+            r.lists[0].tab,
+            r.lists[0].rows.len()
+        ),
+        (None, 1, 2, 12)
+    );
+    // The tabs known: 01 and the tab only; a tab read again replaces the one kept.
+    out.clear();
+    bot.ranking(1, &mut out);
+    assert_eq!(sent(&out, 1254), ["0101"]);
+    bot.on_packet(1254, &packet("s2c/1254 tab 1 Sứ quân"), now, &mut out)
+        .unwrap();
+    bot.on_packet(1254, &packet("s2c/1254 tab 1 Sứ quân"), now, &mut out)
+        .unwrap();
+    assert_eq!(bot.snap.ranking.lists.len(), 2);
+    assert_eq!(bot.snap.ranking.lists[1].rows.len(), 4);
+}

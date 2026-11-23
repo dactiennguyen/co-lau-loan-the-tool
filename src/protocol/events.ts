@@ -118,7 +118,7 @@ event('c2s', 1223, 'gift_code', 'world', 'Bấm Nhập quà ở Phúc lợi → 
 event('s2c', 1223, 'gift_code_result', 'world', 'Trả gift_code', 'Không', 'u8 ok; string lời ("Nhập mã thành công…", "Mã không tồn tại", "Nhân vật này đã dùng mã rồi", "Bạn nhập mã quá nhanh, vui lòng thử lại sau")', 'G1 (01/11) trên máy có Frida: không có số lần sai còn lại');
 event('c2s', 1196, 'friends_request', 'world', 'Mở Bạn bè', 's2c/1196', 'Rỗng');
 event('s2c', 1196, 'friend_list', 'world', 'Trả friends_request', 'Không', 'i32 n; bản ghi bạn chưa thấy (n = 0)', 'Đo 1 lần, chưa có bạn');
-event('c2s', 1254, 'ranking_request', 'world', 'Mở BXH hoặc đổi tab', 's2c/1254 kiểu 0 (tab) rồi kiểu 1 (danh sách)', 'u8 tab; mở lần đầu chỉ có u8 0, đổi tab gửi u8 tab; u8 1');
+event('c2s', 1254, 'ranking_request', 'world', 'Mở BXH hoặc đổi tab', 's2c/1254 kiểu 0 (tab) rồi kiểu 1 (danh sách)', 'u8 0 khi mở lần đầu (trả danh sách tab rồi tab 0); u8 1; u8 tab để xem một tab (RK1, client gửi 01 tab)');
 event('s2c', 1254, 'ranking', 'world', 'Trả ranking_request', 'Không', 'u8 kind; 0: u8 n; n * {u8 tab; string title; string column}; u8. 1: u8 tab; i32 n; n * {i32 rank; i32 id; string name; i32; i32 level}; i32 ownRank; i32; i32 ownLevel; [0.0.7: n × i64 reachedAt; i64 ownReachedAt]', 'Đọc hết byte; manina hạng 1094 khớp màn hình. 0.0.7 (20/11): 7 tab, Cao thủ 100 dòng 3562 byte');
 event('c2s', 1252, 'bach_ho_board_request', 'world', 'Bảng công trạng Bạch Hổ: mở hay Làm mới (sqid.c → sqlq.Y, đọc tĩnh)', 's2c/1252', 'Rỗng', 'BH2 (tiheo2, 20/11 15:08, ngoài giờ): server trả s2c/1252 ngay, không cần ở trong hang');
 event('s2c', 1252, 'bach_ho_board', 'world', 'Trả bach_ho_board_request', 'Không', 'u8 trạng thái; i32 máu; i32 máu tối đa; i32 số người; i32 n (≤ 64); n × {i32; i32; string tên; i32}; i32 hạng của mình; i32', 'BH2: 25 byte `02 000003e8 000003e8 0 0 0 0` (trạng thái 2, máu 1000/1000, chưa ai đánh); bố cục khớp hàm đọc sqrj.a');
@@ -377,7 +377,7 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
       case 91: fields = { key: r.string() }; break;
       case 44: fields = { battleUuid: r.string(), a: r.i32(), slot: r.i32() }; break;
       case 48: fields = { where: r.u8(), slot: r.i32() }; break;
-      case 1254: fields = payload.length > 1 ? { tab: r.u8(), field: r.u8() } : { tab: r.u8() }; break;
+      case 1254: fields = payload.length > 1 ? { kind: r.u8(), tab: r.u8() } : { kind: r.u8() }; break;
       case 1265: fields = { command: r.u8() }; break;
       case 1169: fields = moveRequest(payload); r.take(payload.length); break;
       case 1206: fields = { platform: r.string(), protocolVersion: r.string(), field0: r.i32() }; break;

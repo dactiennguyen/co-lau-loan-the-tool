@@ -83,6 +83,8 @@ export interface Api {
   breakAll(id: number, slot: number, uuid: string): Promise<void>;
   /** Nhận ngay of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now, the switch on or not. */
   welfare(id: number): Promise<void>;
+  /** Bảng xếp hạng: read tab `tab` (0–6); the answer comes in the character's `ranking`. */
+  ranking(id: number, tab: number): Promise<void>;
   /** Bắt đầu of the Bạch Hổ window: these accounts try to get into the boss's battle from `fromMs` until `untilMs`. */
   /** `moveMs`: Chờ giữa các nước; `rejoinMs`: Chờ vào trận lại (the window's own waits, 0 by default). */
   bachHoStart(ids: number[], fromMs: number, untilMs: number, moveMs: number, rejoinMs: number): Promise<void>;
@@ -109,6 +111,9 @@ export interface Api {
   /** Gộp đá: sets of 4 stones of a level at 100%, up to Đá cấp `upTo` (unlocked stones too with `unlocked`); or only `level`
    * and `locked`, at most `sets` merges (the Gộp button of a row). */
   smithMerge(id: number, options: MergeOptions): Promise<void>;
+  /** Luyện tự chọn: the stones picked, a bag slot per stone (a stack's slot once per stone of it), of any levels, in Luyện
+   * đá with one press at the odds fuseQuote says, above 40% only. */
+  smithFuse(id: number, stones: number[]): Promise<void>;
   /** What Gộp đá would do with these options on the bag as it is now; null without a bag. */
   mergeForecast(id: number, options: MergeOptions): Promise<MergeForecast | null>;
   /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
@@ -284,6 +289,7 @@ const tauri: Api = {
   discardMany: (id, items) => invoke("discard_many", { id, items: items.map((i) => [i.slot, i.uuid]) }),
   breakAll: (id, slot, uuid) => invoke("break_all", { id, slot, uuid }),
   welfare: (id) => invoke("welfare", { id }),
+  ranking: (id, tab) => invoke("ranking", { id, tab }),
   bachHoStart: (ids, fromMs, untilMs, moveMs, rejoinMs) => invoke("bach_ho_start", { ids, fromMs, untilMs, moveMs, rejoinMs }),
   bachHoStop: (ids) => invoke("bach_ho_stop", { ids }),
   goBack: (id) => invoke("go_back", { id }),
@@ -296,6 +302,7 @@ const tauri: Api = {
   buy: (id, shopId, quantity) => invoke("buy", { id, shopId, quantity }),
   openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
   smithMerge: (id, options) => invoke("smith_merge", { id, options }),
+  smithFuse: (id, stones) => invoke("smith_fuse", { id, stones }),
   mergeForecast: (id, options) => invoke("merge_forecast", { id, options }),
   smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn, charm, stones) =>
     invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn, charm, stones }),
@@ -428,6 +435,7 @@ const preview: Api = {
   discardMany: nothing,
   breakAll: nothing,
   welfare: nothing,
+  ranking: nothing,
   bachHoStart: nothing,
   bachHoStop: nothing,
   goBack: nothing,
@@ -440,6 +448,7 @@ const preview: Api = {
   buy: nothing,
   openShopKind: nothing,
   smithMerge: nothing,
+  smithFuse: nothing,
   mergeForecast: async () => null,
   smithUpgrade: nothing,
   smithCraft: nothing,

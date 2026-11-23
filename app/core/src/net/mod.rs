@@ -65,6 +65,8 @@ pub enum Command {
     BreakAll(u8, String),
     /// "Nhận ngay" of the Phúc lợi window: Điểm danh, Quà online and Quà thăng cấp now (Bot::welfare).
     Welfare,
+    /// Bảng xếp hạng: read tab `0`–6 (Bot::ranking).
+    Ranking(u8),
     /// The zones of the map and their players (Bot::list_zones).
     ListZones,
     /// Another zone of the map (Bot::change_zone).

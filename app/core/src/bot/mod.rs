@@ -52,6 +52,7 @@ mod merge;
 mod pace;
 mod packets;
 mod quest;
+mod ranking;
 mod record;
 mod reload;
 mod shop;
