@@ -177,6 +177,7 @@ const KEYS = [
   "breakMinutes",
   "delayRandom",
   "humanPace",
+  "wander",
 ] as const;
 export function FightSettingsCard({ account }: { account: Account }) {
   const c = account.character;
@@ -531,6 +532,19 @@ export function FightSettingsCard({ account }: { account: Account }) {
         <span className={SETTING_FACT}>
           <Icon name="clock" size={12} />
           {settings.humanPace ? "Chậm hơn khoảng 5–8 giây mỗi trận" : "Đánh nhanh như trước"}
+        </span>
+      </SettingRow>
+      <SettingRow
+        id={`${id}wander`}
+        on={settings.wander}
+        onChange={(wander) => save({ ...settings, wander })}
+        icon="boot"
+        title="Đi lại như người chơi"
+        hint="Nhân vật gửi gói di chuyển như game thật (đo trên game 1.1.1): vào map thì rơi xuống mặt đất như game, thay vì đứng lơ lửng ở chỗ server lưu; giữa các trận, trước phần lớn các lần thách đấu (7 trên 10), thì chạy vài bước qua lại trên cái bục đang đứng, đúng tốc độ chạy của game, không ra khỏi mép bục, rồi mới thách đấu. Bục hẹp dưới 3 ô hay chỗ dốc thì đứng yên. Không đi lúc đang đánh, lúc qua cổng hay đổi khu, và không bao giờ ở Bạch Hổ. Mỗi trận chậm thêm khoảng 1–2 giây khi có đi. Chưa đi sang bục khác hay tới gần quái. Mặc định tắt."
+      >
+        <span className={SETTING_FACT}>
+          <Icon name="boot" size={12} />
+          {settings.wander ? "Đi vài bước trước khi thách đấu" : "Đứng yên như trước"}
         </span>
       </SettingRow>
       {/* The waits under one row without a box of its own, lit while any wait is on; folded, what is on. */}

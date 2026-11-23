@@ -25,5 +25,6 @@ pub mod requests;
 pub mod runner;
 pub mod runner_v3;
 pub mod skills;
+pub mod walk;
 pub mod welfare;
 pub mod world;

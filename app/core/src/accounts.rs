@@ -173,6 +173,7 @@ mod tests {
                 break_minutes: 3,
                 delay_random: true,
                 human_pace: true,
+                wander: true,
                 waits_set: true,
                 fight_count: 30,
                 fight_losses: 4,

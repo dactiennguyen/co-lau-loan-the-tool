@@ -32,6 +32,12 @@ impl Jitter {
         Duration::from_millis(lo + self.next() % (span + 1))
     }
 
+    /// A whole number from `lo` to `hi` (walk.rs).
+    pub fn pick(&mut self, lo: i32, hi: i32) -> i32 {
+        let span = (hi - lo).max(0) as u64;
+        lo + (self.next() % (span + 1)) as i32
+    }
+
     /// `base`, or with `random` a time from `base` to twice it, to the millisecond.
     pub fn wait(&mut self, base: Duration, random: bool) -> Duration {
         if !random || base.is_zero() {

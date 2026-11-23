@@ -300,6 +300,7 @@ impl Bot {
     }
 
     pub(super) fn challenged(&mut self, mob: Mob, now: Instant) {
+        self.wander_stop();
         self.challenges
             .retain(|c| now.duration_since(c.at) < CHALLENGE_KEPT);
         self.challenges.push(Challenge {

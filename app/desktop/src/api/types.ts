@@ -1032,6 +1032,9 @@ export interface FightSettings {
   /** Nhịp như người chơi, off unless turned on: the gaps of the game 1.1.1 (login, the walk to the mob, joining, each
    * own move, the map asked again after each battle, NPCs); off, the old pace. Bạch Hổ never takes it. */
   humanPace: boolean;
+  /** Đi lại như người chơi (FightSettings::wander, bot/wander.rs): the fall to the ground after a map load and a few steps
+   * on the platform stood on before most challenges, as c2s/1169. Off unless turned on; never in Bạch Hổ. */
+  wander: boolean;
   /** Thời gian chờ got its defaults (every wait on, from 1.1.14): src-tauri gives them once to an account without it. */
   waitsSet: boolean;
   /** Số trận and Thua tối đa last chosen in the Đánh quái tab, and Thua tối đa of the Nhiệm vụ tab (useFightSetting). */

@@ -60,6 +60,7 @@ mod stats;
 mod travel;
 mod types;
 mod waits;
+mod wander;
 mod welfare;
 pub use fight::{HP_POTION_SHARE, MP_POTION_SHARE};
 pub use types::*;
@@ -399,6 +400,11 @@ pub struct Bot {
     walk_until: Option<Instant>,
     /// When the battle under way last had a packet of its own (or opened): BATTLE_SILENT after it, it is left.
     battle_heard: Option<Instant>,
+    /// Đi lại như người chơi (wander.rs): the drawn layer of the map stood on (s2c/11), the c2s/1169 still to go with
+    /// their time, and the way the character faces.
+    grid: Option<crate::walk::Grid>,
+    moves: VecDeque<(Instant, crate::walk::Step)>,
+    facing_right: bool,
 }
 
 impl Bot {
@@ -502,6 +508,9 @@ impl Bot {
             reload: None,
             walk_until: None,
             battle_heard: None,
+            grid: None,
+            moves: VecDeque::new(),
+            facing_right: true,
         }
     }
 
@@ -693,6 +702,7 @@ impl Bot {
             self.egg_deadline(),
             self.welfare_deadline(),
             self.human_deadline(),
+            self.wander_deadline(),
             self.battle
                 .as_ref()
                 .filter(|b| !b.leaving())
@@ -778,6 +788,7 @@ impl Bot {
         self.egg_timer(now, out);
         self.gift_timer(now, out);
         self.mail_timer(now, out);
+        self.wander_timer(now, out);
         self.market_timer(now, out);
         self.welfare_timer(now, out);
         if self.move_until.is_some_and(|t| t <= now) {

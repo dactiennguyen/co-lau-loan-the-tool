@@ -403,6 +403,8 @@ impl Bot {
                 s.bosses.clear();
                 self.zone.clear();
                 self.ground.clear();
+                // Đi lại như người chơi (wander.rs): the grid kept, the fall to the ground queued.
+                self.wander_map_loaded(crate::world::map_grid(payload).ok(), now);
                 // NPCs and portals. A map this decoder cannot read leaves them unknown, not an empty map in the atlas;
                 // the quest run, which talks to NPCs and takes portals, stops there. A fight job needs only the mobs.
                 match map_data(payload) {
@@ -514,6 +516,7 @@ impl Bot {
                     let walk = self.human.pick(crate::human::CHALLENGE_AFTER_ENTITIES);
                     self.walk_until = Some(now + walk);
                 }
+                self.wander_step(now);
                 self.bach_ho_mobs(&d.map_id, now, out);
                 if let Some((_, via)) = self.travelling.take() {
                     out.push(Out::Log(

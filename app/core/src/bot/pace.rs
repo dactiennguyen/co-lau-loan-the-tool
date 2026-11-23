@@ -16,6 +16,11 @@ impl Bot {
         if counted {
             self.since_break = self.since_break.saturating_add(1);
         }
+        // Đi lại như người chơi: without the human pace no map reload (and no s2c/43) follows a battle, so the walk
+        // between two battles starts here; with it, the s2c/43 of the reload starts it.
+        if !self.human.on() {
+            self.wander_step(now);
+        }
     }
 
     /// Chờ giữa các trận: from the end of a battle of the fight job or quest run to the next challenge, its own time
@@ -190,6 +195,19 @@ impl Bot {
                 .into(),
             ));
             self.set_human(new.human_pace);
+        }
+        if new.wander != old.wander {
+            out.push(Out::Log(
+                LogKind::Battle,
+                match new.wander {
+                    true => "Bật đi lại như người chơi: rơi xuống đất sau khi vào map, đi vài bước trên bục đang đứng trước khi thách đấu",
+                    false => "Tắt đi lại như người chơi: đứng yên như trước",
+                }
+                .into(),
+            ));
+            if !new.wander {
+                self.wander_stop();
+            }
         }
         if (new.turn_pause(), new.delay_random) != (old.turn_pause(), old.delay_random) {
             // `self.fight` is still the old one here: the new wait is `new`'s (none in Bạch Hổ, its waits are its own).

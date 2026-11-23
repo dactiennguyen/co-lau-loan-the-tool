@@ -360,6 +360,11 @@ pub struct FightSettings {
     /// c2s/11 stay as the game's either way. Bạch Hổ never takes it.
     #[serde(default)]
     pub human_pace: bool,
+    /// Đi lại như người chơi, off unless turned on (23/11/2026, bot/wander.rs): the fall to the ground after each map
+    /// load as the game makes it, and a few steps on the platform stood on before most challenges, as c2s/1169. Never
+    /// in Bạch Hổ.
+    #[serde(default)]
+    pub wander: bool,
     /// Whether Thời gian chờ got its defaults: every wait on, from 1.1.14 (the user's choice of 20/11/2026). An account
     /// without it (saved before 1.1.14, or made in code) gets them once when the desktop app takes it in (with_waits,
     /// App::add), then keeps whatever is set. Default leaves every wait off and this false: the tests and cllt play
@@ -495,6 +500,7 @@ impl Default for FightSettings {
             break_minutes: two(),
             delay_random: false,
             human_pace: false,
+            wander: false,
             waits_set: false,
             fight_count: five(),
             fight_losses: one(),
