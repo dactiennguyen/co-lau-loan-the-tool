@@ -96,6 +96,10 @@ Toạ độ đổi về đơn vị server (= bộ nhớ ÷ 1,5). Đây là một
   - **M14 Huyền Hồ** (cổng 1023 ở Phong Nguyên; cổng 13 Bản đồ, 1012 Phong Nguyên): Quái Nhân Đầu Trọc 89, Độc Hoa 95, Hổ Nanh Kiếm 101, Huyết Độc Hoa 105, Thủy Xà 108, Hồng Xà 114; boss Đàm Xuyên 105 (`mob113100011`, ô 139, 3); NPC Lính Huyền Hồ, Lính thành Vọng Nguyệt, Hà Văn Dực, Tướng Hoàng Nghị, Thống Lĩnh Thiết Kích.
   - Nguyệt Đàm (cấp 100) không thử vì tiheo1 mới cấp 98.
   - Ảnh: trận của app (tiheo1) cho Quái Nhân `100630`, Quái Nhân Đầu Trọc `100640` (lệch +1 so với loại, như Báo Đen), Độc Điểu, Độc Hoa, Lão Yêu Dê, Hổ Nanh Kiếm, Huyết Độc Hoa đúng tấm theo loại, Tướng Nham Hổ `101050` (vị tướng tóc đỏ). Thủy Xà (53), Hồng Xà (54) và quái Luyện Ngục (Ma Binh, Ma Tướng 67–72, Ác Ma 74–77, Hỏa Hồng Trư 47, Đại Địa Cự Hùng 29, Ngưu Ma Thống Lĩnh 22) lấy tấm theo loại, chưa có trận để kiểm; rắn, heo, gấu, bò ma khớp hình. Đàm Xuyên chưa có ảnh.
+- **MP4 (24/11 18:00, minika cấp khoảng 120, server 24, `npm run scan`)**: 13 map, thêm **M6 Tân Trạch** vào atlas; cổng 1017 hết khoá (cấp 110 trên bản đồ thế giới) [Đo]:
+  - Cổng: 5 Bản đồ (32, 1040), 1013 Lạc Cốc (32, 208), 1015 Vân Sơn (32, 592), 1016 Hồng Giang (3168, 944), 1018 Nguyệt Đàm (3168, 272). NPC: 157 Đội Trưởng Hà Bá, 128 Thống Lĩnh Thiết Phong, 139 Lính Tân Trạch.
+  - Quái: Gà Lửa 61, Báo Đen 62, Mãnh Hổ 73, Quái Điểu 80, Thanh Xà 89, Thủy Xà 108, Hồng Xà 114, Mầm Yêu 120, Cam Xà 125, Tiểu Mã Diện 125, Báo Nâu 132; boss Lôi Tướng 130 (`mob120100013`, ô 74, 27).
+  - Ảnh (`npm run mobs -- --battles`, trận của minika trong app): Mầm Yêu `100130`; Cam Xà, Tiểu Mã Diện, Báo Nâu lấy tấm theo loại (55, 43, 61). Lôi Tướng chưa có ảnh (chưa trận nào đánh nó). Ảnh `.webp` giữ bản cũ từ `pc-a2`, chỉ `names.json` đổi.
 
 **Cấp trên bản đồ thế giới và cấp cổng đòi.** Ở S1 (cấp 19), `s2c/11 "M99"` ghi M25 cấp 20 mà không khoá, và cổng Rìa Hồng Giang vẫn cho vào; M4 (cấp 20) thì khoá vì nhiệm vụ. Ở S2 (cấp 42), M10 (30) và M4 hết khoá, M8 (50) còn khoá. Lạc Cốc (40), Tam Khê (80), Nguyệt Đàm (100), Tân Trạch (110), Cổ Phong (130): cấp trong lời từ chối của cổng bằng đúng cấp trên bản đồ thế giới. Vì vậy bot TS và app Rust không đi qua map mà bản đồ thế giới ghi cấp cao hơn cấp nhân vật quá 1. Cổng cũng giữ cấp nó từng đòi, cả khi nhân vật cấp cao hơn đã đi qua: atlas dùng chung cho mọi tài khoản, mà S2 đã xoá mất cấp 40 của Lạc Cốc (đã ghi lại vào [data/maps.json](../../../data/maps.json)). Hộp Đổi map hiện "Cần cấp N" cho những map đó ([features](../../integration/rust/features.md)). [Đo S1, S2; giới hạn "quá 1" chỉ dựa vào M25]
 
@@ -121,7 +125,7 @@ Id cổng là id của **map đích**, giống nhau ở mọi map: 1013 là Lạ
 | 1014 | Làng Thanh Khê | → M1 | → M1 |
 | 1015 | Vân Sơn | → M2 | → M2 |
 | 1016 | Hồng Giang | Cần xong nhiệm vụ; ở nhiệm vụ 14 thì → M4 ([N5](10-quests.md#trinh-sát)) | → M4 |
-| 1017 | Tân Trạch | Cần cấp 110 | Không thử lại (cần cấp 110) |
+| 1017 | Tân Trạch | Cần cấp 110 | Không thử lại (cần cấp 110); MP4 (24/11) vào được, M6 có trong atlas |
 | 1018 | Nguyệt Đàm | Chưa thấy | Cần cấp 100 (cổng ở M4) |
 | 1020 | Cửu Phong | Chưa thấy | → M10 |
 | 1021 | Tiên Cốc | Chưa thấy | Cần xong nhiệm vụ (cổng ở M10) |
