@@ -16,6 +16,14 @@
    as max-width (Tailwind's max-[1120px] is width < 1120px, a pixel off). */
 @custom-variant narrow (@media (max-width: 1120px));
 
+/* A phone or a tablet upright (up to 899 px wide): the app is two screens, the accounts then one account (App.tsx), its tabs at the bottom,
+   and a dialog takes the whole screen (Dialog.tsx). Only the shell asks this; the cards follow their own width
+   (@container). */
+@custom-variant phone (@media (max-width: 899px));
+
+/* A finger, not a mouse (a phone or a tablet, whatever its width): the controls are 44 px to tap (--hit, tokens.css). */
+@custom-variant touch (@media (pointer: coarse));
+
 /* The faces: Silkscreen (pixel, no Vietnamese marks) only for numbers and ASCII labels, Be Vietnam Pro for the rest.
    Static: the body and px below read them as var(--font-ui)… too. */
 @theme static {
@@ -187,6 +195,19 @@
    and img blocks, buttons and inputs inheriting the font). */
 @layer base {
   html, body, #root { height: 100%; }
+  /* The visible height on a phone, whose browser bars come and go (100% of a WebView may be taller). */
+  @supports (height: 100dvh) {
+    html, body, #root { height: 100dvh; }
+  }
+  /* No pull to refresh nor bounce of the page, no grey flash on a tap. */
+  html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  /* Android's status and navigation bars, and a notch: the app keeps out of them (viewport-fit=cover, index.html). */
+  @media (max-width: 899px) {
+    #root {
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      box-sizing: border-box;
+    }
+  }
   /* Nền xanh of the battle window: the green of a chroma key around its panels, for OBS to take out. */
   html[data-chroma] body { background: #00ff00; }
 

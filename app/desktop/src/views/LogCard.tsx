@@ -15,7 +15,9 @@ const PAGE = 200;
 const BAD = 2;
 
 /** A line: the time ("12:30:05", or "30/10 12:30" for another day), the kind, the line. */
-const ROW = "grid grid-cols-[78px_58px_1fr] gap-1.5 px-1.5 py-px text-[11.5px] leading-[1.5] hover:bg-bg-2";
+/** A line: its time, its kind, its text side by side; on a phone the time and kind over the text, which has the width. */
+const ROW =
+  "grid grid-cols-[78px_58px_1fr] gap-1.5 px-1.5 py-px text-[11.5px] leading-[1.5] hover:bg-bg-2 phone:grid-cols-[auto_minmax(0,1fr)] phone:gap-x-2 phone:gap-y-0 phone:py-1";
 /** The row of "Xem dòng cũ hơn" / "Hiện lại", and the one saying the log is empty. */
 const ROW_NOTE = cn(ROW, "block text-fg-3");
 /** The colour of a line's words by its tone. */
@@ -159,7 +161,12 @@ export function LogCard({ id, lines, fighting }: Props) {
       className="log-card"
     >
       {/* The kinds, then "Chỉ lỗi" after a rule; they wrap on a narrow card. */}
-      <div className="flex flex-wrap items-center gap-1 mb-1.5" role="group" aria-label="Lọc nhật ký">
+      {/* On a phone one line that scrolls sideways, so the lines below keep the screen. */}
+      <div
+        className="flex flex-wrap items-center gap-1 mb-1.5 phone:flex-nowrap phone:overflow-x-auto phone:[scrollbar-width:none] phone:pb-0.5"
+        role="group"
+        aria-label="Lọc nhật ký"
+      >
         <FilterChip
           on={!kinds.length && !bad}
           onClick={() => {
@@ -224,7 +231,7 @@ export function LogCard({ id, lines, fighting }: Props) {
               >
                 {k.label}
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 phone:col-span-2">
                 <span className={TONE_TEXT[l.tone]}>{l.text}</span>
                 {l.turn && <TurnStatus turn={l.turn} live={i === live} />}
                 {l.picked && <LootRow items={l.picked} className="mt-[3px]" itemClassName={LOOT_ITEM} />}

@@ -9,7 +9,9 @@ use cllt_core::bot::{add_picked, Picked};
 use cllt_core::runner::Turn;
 use serde::Serialize;
 use serde_json::{json, Value};
-use tauri::{AppHandle, Manager as _, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, State};
+#[cfg(desktop)]
+use tauri::{Manager as _, WebviewUrl, WebviewWindowBuilder};
 
 /// The label of the battle window of account `id`; capabilities/default.json lets "battle-*" listen to events.
 pub fn label(id: u64) -> String {
@@ -97,6 +99,24 @@ pub fn battle_state(shared: State<Shared>, id: u64) -> Option<BattleState> {
 /// Async: a window built in a synchronous command deadlocks on Windows (WebviewWindowBuilder::new, "Known issues").
 #[tauri::command]
 pub async fn open_battle_window(
+    app: AppHandle,
+    shared: State<'_, Shared>,
+    id: u64,
+    on_top: bool,
+    chroma: bool,
+) -> Result<(), String> {
+    // Android has one window only.
+    #[cfg(mobile)]
+    {
+        let _ = (app, shared, id, on_top, chroma);
+        Err("Cửa sổ trận chỉ có trên máy tính".into())
+    }
+    #[cfg(desktop)]
+    open_desktop(app, shared, id, on_top, chroma)
+}
+
+#[cfg(desktop)]
+fn open_desktop(
     app: AppHandle,
     shared: State<'_, Shared>,
     id: u64,

@@ -1,0 +1,16 @@
+[package]
+name = "tauri-plugin-keepalive"
+description = "Keeps the sessions of the Android app running with the screen off: a foreground service with a wake lock and a Wi-Fi lock (src/lib.rs); nothing on the desktop"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+links = "tauri-plugin-keepalive"
+
+[dependencies]
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+tauri-plugin = { version = "2.7", features = ["build"] }

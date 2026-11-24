@@ -51,6 +51,8 @@ export interface Store extends Accounts {
   ready: boolean;
   /** The account the user picked (selectedId falls back to the first while it does not exist). */
   chosen: number | null;
+  /** On a phone (App.tsx): the list of accounts, or the screen of the one chosen. */
+  phoneView: "list" | "account";
   dialog: Dialog | null;
   /** The log of one account, tagged with it, so another account's lines never show while the new ones load. */
   log: { id: number | null; lines: LogLine[] };
@@ -74,6 +76,8 @@ export interface Store extends Accounts {
   /** Hides the lines of account `id` up to seq `upTo` from the Nhật ký; null shows them again. */
   clearLog: (id: number, upTo: number | null) => void;
   select: (id: number) => void;
+  /** On a phone: back to the list of accounts. */
+  showList: () => void;
   open: (dialog: Dialog) => void;
   close: () => void;
   dismiss: (toast: number) => void;
@@ -94,6 +98,7 @@ export const useStore = create<Store>()((set) => ({
   accountsError: null,
   ready: false,
   chosen: null,
+  phoneView: "list",
   dialog: null,
   log: { id: null, lines: [] },
   logCleared: {},
@@ -116,7 +121,8 @@ export const useStore = create<Store>()((set) => ({
       const { [id]: _, ...rest } = s.logCleared;
       return { logCleared: upTo == null ? rest : { ...rest, [id]: upTo } };
     }),
-  select: (id) => set({ chosen: id }),
+  select: (id) => set({ chosen: id, phoneView: "account" }),
+  showList: () => set({ phoneView: "list" }),
   open: (dialog) => set({ dialog }),
   close: () => set({ dialog: null }),
   dismiss: (toast) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== toast) })),

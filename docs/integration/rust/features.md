@@ -57,6 +57,18 @@ Style **Pixel RPG** (kiểu "Pixel Art" của skill `ui-ux-pro-max`), chọn t�
   - Chỗ của từng thứ trong `src/`: `api/` (gọi src-tauri, kiểu dữ liệu), `store/` (store zustand và hàm thuần của nó), `hooks/`, `utils/` (hàm thuần không biết gì về game: `cn`, định dạng số, localStorage, đọc proxy), `game/` (hằng số đi cùng luật của game: cửa hàng, tiềm năng, loại nhật ký, icon), `components/` (thành phần dùng chung), `views/` (các phần của app; modal Tiện ích ở `views/shop/`, hộp thoại ở `views/dialogs/`). Import file khác thư mục bằng alias `@/` (`@/store`, `@/components/Button`, `@/game/shops`), file cùng thư mục bằng `./X`, không viết `../`; alias khai báo một lần ở `paths` của `tsconfig.json`, Vite đọc theo (`resolve.tsconfigPaths`).
   - Mỗi component một file `.tsx`, có một dòng chú thích nói nó làm gì. Style viết bằng class Tailwind ngay trong `.tsx`, không còn file `.css` riêng; class dùng lại trong một file thì gom vào hằng số đầu file (`ROW`, `TD`…), dùng lại giữa các file thì file gốc xuất ra (`SHOP` của ShopModal cho các trang Tiện ích). Cửa sổ hẹp (tới 1120 px) dùng biến thể `narrow:` của `tailwind.css`; truy vấn theo khung chứa viết `[@container(max-width:560px)]:` chứ không viết `@max-[560px]:`, vì cái sau là `width < 560px`, lệch đúng 1 px. Các thành phần dùng chung (`src/components`): mỗi cái nhận `className` (Card thêm `bodyClassName`, Dialog thêm `formClassName`, TextField thêm `inputClassName`, Avatar `dotClassName`), gộp bằng `cn()` của `src/utils/cn.ts` (tailwind-merge: class màn hình truyền vào thắng class cùng loại của component). Phần màn hình tự vẽ mà cần giống component thì dùng hằng số component xuất ra: `DIALOG.text/note/error/footer`, `FIELD`, `STAT`, `SETTING_FACT`, `elementText()`/`elementVar()` (màu theo hệ). Không đặt class Tailwind ngay trước `${` trong template literal (Tailwind không đọc ra), dùng `cn()`.
 
+### Trên điện thoại và tablet dọc (24/11)
+
+Cửa sổ hẹp dưới 900 px (điện thoại, tablet dọc, bản Android) dùng khung riêng; từ 900 px trở lên như trên, không đổi. Code chung một bộ: chỉ khung (`App.tsx`, `Sidebar.tsx`, `Dialog.tsx`, `AccountPage.tsx`) xét độ rộng (biến thể `phone:` của `tailwind.css`, `usePhone`), các thẻ co theo chỗ của chúng.
+
+- **Hai màn:** danh sách nick (thanh bên, cả bề ngang) → bấm một nick → màn của nick. Nhấn giữ thẻ nick mở menu của nó mà không rời danh sách.
+- **Màn nick:** thanh trên (← danh sách, ảnh, tên, cấp, trạng thái · map · khu, Đăng nhập/Đăng xuất, Tiện ích) và **thanh tab dưới đáy**: Nhân vật (thẻ nhân vật, HP/EXP, Tiền, Chỉ số), Nhiệm vụ, Đánh quái, Cài đặt, Túi đồ, Nhật ký; tab đang chạy có chấm nháy, Túi đồ đầy nháy đỏ; tab mở được nhớ.
+- **Cửa sổ** (Bạch Hổ, Tiện ích, Thêm nick, Thống kê…) chiếm cả màn hình, có ✕ ở góc trên, cả form cuộn, hàng nút dính đáy.
+- **Nút Back của Android** (`useBack`): đóng cửa sổ trên cùng, rồi về danh sách nick; không bao giờ lùi ra khỏi app.
+- **Màn cảm ứng** (`touch:`, mọi độ rộng): nút nhỏ, ô số (+/−), tab cao 44 px (`--hit` của `tokens.css`), ô tích và dấu ? to hơn; dấu ? mở khi bấm.
+- Các thẻ: thẻ nhân vật một cột, HP/EXP và Tiền chồng nhau, tiềm năng hai cột, ô số của Đánh quái một cột, Cài đặt đánh không giới hạn chiều cao, mỗi dòng nhật ký có giờ và loại ở trên, nội dung ở dưới, các nút lọc nhật ký vuốt ngang.
+- Vùng an toàn của Android (tai thỏ, thanh điều hướng): `viewport-fit=cover` và `env(safe-area-inset-*)`. Bản Android không có Cửa sổ trận (`isAndroid`).
+
 ## Túi đồ và trang bị
 
 Dữ liệu đến tự nhiên lúc đăng nhập và khi túi đổi ([12-skills-items](../../app/events/12-skills-items.md#cách-lấy-túi-đồ)):

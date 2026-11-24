@@ -28,7 +28,7 @@ export function MetricRow({ character: c, onWelfare }: { character: Character | 
   const gold = c?.coin;
   const due = !!c?.welfare.due;
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 phone:grid-cols-1 phone:gap-2.5">
       <StatTile>
         <Stat
           label="HP"

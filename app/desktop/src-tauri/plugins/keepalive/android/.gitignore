@@ -1,0 +1,3 @@
+# Written by tauri-plugin's build script (the Tauri Android API it builds against) and by Gradle.
+/.tauri
+/build

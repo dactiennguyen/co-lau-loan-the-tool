@@ -34,8 +34,10 @@ export function Button({ kind = "tonal", icon, small, block, className, children
     "enabled:active:[transform:translateY(1px)] enabled:active:[box-shadow:none]",
     "focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-5",
     KIND[kind],
-    small && "h-[26px] px-2.5 text-11",
-    !children && (small ? "w-[26px] px-0" : "w-8 px-0"),
+    // --hit (tokens.css): 26 px for a mouse, 44 px for a finger; a normal button grows to 40 px for a finger.
+    "touch:h-10",
+    small && "h-(--hit) px-2.5 text-11",
+    !children && (small ? "w-(--hit) px-0" : "w-8 px-0 touch:w-10"),
     block && "w-full",
     className,
   );

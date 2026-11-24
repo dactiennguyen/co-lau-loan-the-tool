@@ -15,7 +15,9 @@
 // UI is sent (../src/api/types.ts mirrors it); paths.rs finds accounts.json and data/maps.json; sample.rs serves --sample;
 // update.rs updates the installed app from the GitHub releases; license.rs checks the key with CLLT Server (machine.rs is
 // this machine, sync.rs sends its accounts); settings.rs is the Cài đặt of the app (settings.json);
-// tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay).
+// tray.rs is the tray icon and what the close button of the window does (Thu nhỏ vào khay). On Android there is no tray,
+// updater or second window; plugins/keepalive keeps the sessions running with the screen off (docs/integration/rust/
+// android.md).
 mod app;
 mod backup;
 mod battle_window;
@@ -29,6 +31,7 @@ mod sample;
 mod settings;
 mod store;
 mod sync;
+#[cfg(desktop)]
 mod tray;
 mod update;
 mod view;
@@ -58,9 +61,14 @@ pub fn run() {
     }
     let (sample, login_all) = (flag("--sample"), flag("--login-all"));
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_window_event(tray::on_window_event);
+    builder
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_keepalive::init())
         .manage(update::Updates::default())
         .setup(move |tauri_app| {
             // Session events come from tokio threads and update the accounts; the flusher thread tells the UI.
@@ -79,6 +87,12 @@ pub fn run() {
                 true => paths::sample_accounts(),
                 false => paths::accounts(tauri_app.path())?,
             };
+            // Android has no machine id for apps: the app keeps one of its own beside accounts.json (machine.rs).
+            #[cfg(mobile)]
+            if let Some(dir) = accounts.parent() {
+                let _ = std::fs::create_dir_all(dir);
+                machine::set_dir(dir);
+            }
             let mut app = App::new(manager, accounts.clone(), wake);
             app.apply_settings(settings::first_load(&app.settings_path(), &accounts));
             if sample {
@@ -102,7 +116,22 @@ pub fn run() {
             // --login-all waits for the first yes of the key (license.rs).
             license::start(tauri_app.handle(), &accounts, sample, login_all);
             update::start(tauri_app.handle(), sample);
+            #[cfg(desktop)]
             tray::create(tauri_app.handle())?;
+            // Dừng tất cả of the notification of the Android service logs every account out. Off the main thread: the
+            // call waits for the Kotlin side, which answers on it.
+            let stop = tauri_app.handle().clone();
+            std::thread::spawn(move || {
+                let handle = stop.clone();
+                let done = tauri_plugin_keepalive::on_stop_all(&stop, move || {
+                    if let Some(shared) = handle.try_state::<Shared>() {
+                        shared.with(|a| a.send_all(cllt_core::net::Command::Logout));
+                    }
+                });
+                if let Err(e) = done {
+                    eprintln!("Chạy nền: {e}");
+                }
+            });
             // The title of tauri.conf.json is the installed app's; the dev app says so (tauri.dev.conf.json cannot, as it
             // would have to repeat the whole window).
             if tauri::is_dev() {
@@ -110,10 +139,10 @@ pub fn run() {
                     window.set_title(app_name())?;
                 }
             }
+            #[cfg(desktop)]
             tray::keep_awake();
             Ok(())
         })
-        .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             battle_window::battle_state,
             battle_window::open_battle_window,

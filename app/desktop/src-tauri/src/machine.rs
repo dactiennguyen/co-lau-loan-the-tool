@@ -18,6 +18,51 @@ pub fn id() -> String {
     ID.get_or_init(read_id).clone()
 }
 
+/// Android gives apps no machine id: the app keeps a random one of its own in `device-id` beside accounts.json (lib.rs
+/// says where, before anything asks for the id). Removing the app removes it, and the key then needs Gỡ thiết bị.
+#[cfg(mobile)]
+static DIR: OnceLock<std::path::PathBuf> = OnceLock::new();
+
+#[cfg(mobile)]
+pub fn set_dir(dir: &std::path::Path) {
+    let _ = DIR.set(dir.to_path_buf());
+}
+
+#[cfg(mobile)]
+fn read_id() -> String {
+    let file = DIR
+        .get()
+        .map(|d| d.join("device-id"))
+        .unwrap_or_else(|| std::env::temp_dir().join("device-id"));
+    let kept = std::fs::read_to_string(&file)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit()));
+    let raw = kept.unwrap_or_else(|| {
+        let made = random_hex();
+        if let Err(e) = cllt_core::accounts::write_private(&file, made.as_bytes()) {
+            eprintln!("Key: không lưu được mã máy ({e})");
+        }
+        made
+    });
+    hash(&format!("android:{raw}"))
+}
+
+/// 32 random bytes in hex, from the system's random source (/dev/urandom).
+#[cfg(mobile)]
+fn random_hex() -> String {
+    use std::io::Read;
+    let mut bytes = [0u8; 32];
+    let read = std::fs::File::open("/dev/urandom").and_then(|mut f| f.read_exact(&mut bytes));
+    if read.is_err() {
+        // Never seen on Android; a clock and an address are unique enough for one device.
+        let seed = format!("{:?}{:p}", std::time::SystemTime::now(), &bytes);
+        bytes.copy_from_slice(&Sha256::digest(seed.as_bytes()));
+    }
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[cfg(desktop)]
 fn read_id() -> String {
     let raw = machine_uid::get().unwrap_or_else(|e| {
         eprintln!("Key: không đọc được machine id ({e}), dùng tên máy");
@@ -37,15 +82,54 @@ fn hash(raw: &str) -> String {
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// The name of this machine as the Key page shows it; on Android the maker and model ("Xiaomi M2101K7BG"), as its host
+/// name is "localhost".
 pub fn hostname() -> String {
+    #[cfg(target_os = "android")]
+    {
+        static NAME: OnceLock<String> = OnceLock::new();
+        let name = NAME.get_or_init(|| {
+            let prop = |key: &str| {
+                std::process::Command::new("getprop")
+                    .arg(key)
+                    .output()
+                    .ok()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                    .unwrap_or_default()
+            };
+            format!(
+                "{} {}",
+                prop("ro.product.manufacturer"),
+                prop("ro.product.model")
+            )
+            .trim()
+            .to_string()
+        });
+        if !name.is_empty() {
+            return name.clone();
+        }
+    }
     gethostname::gethostname().to_string_lossy().into_owned()
 }
 
 /// The HTTP client of the key and the sync. As tauri-plugin-updater does: reqwest is built without a TLS crypto provider
-/// of its own.
+/// of its own. On Android the roots are Mozilla's, built into the app (webpki-roots): reqwest's verifier of the system
+/// (rustls-platform-verifier) panics there until set up from Java, which the app does not do.
 pub fn client(timeout: Duration) -> reqwest::Result<reqwest::Client> {
     let _ = rustls::crypto::ring::default_provider().install_default();
-    reqwest::Client::builder().timeout(timeout).build()
+    let builder = reqwest::Client::builder().timeout(timeout);
+    #[cfg(target_os = "android")]
+    let builder = {
+        let roots = rustls::RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+        };
+        let mut tls = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        tls.alpn_protocols = vec![b"http/1.1".to_vec()];
+        builder.tls_backend_preconfigured(tls)
+    };
+    builder.build()
 }
 
 /// The server of CLLT_SERVER (`var`): in a debug build, when it is "off", https, or http on this machine; else (and

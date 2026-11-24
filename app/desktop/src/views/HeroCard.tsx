@@ -37,12 +37,13 @@ export function HeroCard({ account: a, onLogin, onLogout, onRemove, onPlace, onS
   const c = a.character;
   const connected = isConnected(a.status);
   return (
-    <section className="relative grid grid-cols-[minmax(200px,1.6fr)_minmax(0,1.4fr)_auto] items-center gap-4 py-2.5 px-4 bg-card border-[length:var(--px)] border-line-strong notch bevel">
+    <section className="relative grid grid-cols-[minmax(200px,1.6fr)_minmax(0,1.4fr)_auto] items-center gap-4 phone:grid-cols-1 phone:gap-2.5 phone:px-3 py-2.5 px-4 bg-card border-[length:var(--px)] border-line-strong notch bevel">
       <div className="flex items-center gap-3 min-w-0">
         <Avatar name={a.username} status={a.status} size={46} dotClassName="border-card" />
         <div className="flex-1 min-w-0 grid gap-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="font-display font-extrabold text-20 leading-[1.1] text-fg truncate">{c?.name ?? a.label}</h1>
+          {/* The name and its tags; on a phone the tags wrap under the name rather than squeeze it. */}
+          <div className="flex items-center gap-2 min-w-0 phone:flex-wrap phone:gap-y-1">
+            <h1 className="font-display font-extrabold text-20 leading-[1.1] text-fg truncate phone:basis-full">{c?.name ?? a.label}</h1>
             {c && <Badge className="h-5 text-12 px-1.5">LV {c.level}</Badge>}
             {c && <ElementTag element={c.element} iconOnly className="h-5 px-1 border border-current" />}
             {c && <GenderTag gender={c.gender} iconOnly className="h-5 px-1 border border-current" />}

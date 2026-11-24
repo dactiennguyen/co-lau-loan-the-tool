@@ -173,7 +173,7 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
         </div>
       }
       className="p-2.5 gap-2"
-      bodyClassName={open ? "grid grid-cols-[minmax(190px,1fr)_minmax(220px,1.1fr)] items-start gap-3" : "grid gap-1.5"}
+      bodyClassName={open ? "grid grid-cols-[minmax(190px,1fr)_minmax(220px,1.1fr)] phone:grid-cols-1 items-start gap-3" : "grid gap-1.5"}
     >
       <div id={details} className="contents">
         {open ? (
@@ -238,8 +238,8 @@ export function StatsCard({ account, onAdd, onPlan, onSkills }: Props) {
                 </li>
               ))}
             </ul>
-            {/* The four potentials: name, number and their +. */}
-            <div className="grid grid-cols-4 gap-1">
+            {/* The four potentials: name, number and their +; two by two on a phone. */}
+            <div className="grid grid-cols-4 gap-1 phone:grid-cols-2">
               {POTENTIALS.map((p, i) => {
                 const isMain = main != null && p.index === main;
                 return (

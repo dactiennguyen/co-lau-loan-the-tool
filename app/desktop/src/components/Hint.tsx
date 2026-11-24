@@ -14,7 +14,8 @@ interface Props {
 const ROOM = 140;
 
 /**
- * A small "?" that shows `children` in a bubble while the pointer is over it or the bubble, or while it has the focus;
+ * A small "?" that shows `children` in a bubble while the pointer is over it or the bubble, or while it has the focus (a
+ * tap on a touch screen, where it is bigger; a tap elsewhere hides it);
  * Escape, a scroll or leaving hides it. The bubble lives in <body> at a fixed place by the "?", so the clip-path and
  * scrolling of a card cannot cut it; inside a modal <dialog> it lives in that dialog, as the top layer would cover
  * <body>. Placed outside any <label>, so a click on it toggles nothing.
@@ -56,7 +57,7 @@ export function Hint({ label, id, children }: Props) {
         type="button"
         className={cn(
           // A square "?" in the pixel frame, quieter than the text beside it until pointed at.
-          "flex-none grid place-items-center size-[18px] p-0 border-0 notch-sm bg-card-2 text-fg-3 font-pixel font-normal text-11 leading-none cursor-help bevel-sm",
+          "flex-none grid place-items-center size-[18px] touch:size-7 p-0 border-0 notch-sm bg-card-2 text-fg-3 font-pixel font-normal text-11 leading-none cursor-help bevel-sm",
           "hover:bg-line hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
           at && "bg-line text-fg",
         )}

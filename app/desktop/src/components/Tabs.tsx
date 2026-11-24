@@ -24,7 +24,7 @@ const panelId = (id: string) => `${id}-panel`;
  * narrower than 600 px drops some padding, one narrower than 440 px the icons too, and it scrolls sideways when still
  * too narrow. */
 const TAB =
-  "relative inline-flex flex-none items-center gap-1.5 h-[30px] px-3 py-0 border-2 border-ink notch-sm bg-bg-2 text-fg-3 font-extrabold text-12 tracking-[0.04em] uppercase whitespace-nowrap cursor-pointer bevel-sm " +
+  "relative inline-flex flex-none items-center gap-1.5 h-[30px] touch:h-10 px-3 py-0 border-2 border-ink notch-sm bg-bg-2 text-fg-3 font-extrabold text-12 tracking-[0.04em] uppercase whitespace-nowrap cursor-pointer bevel-sm " +
   "[@container(max-width:600px)]:gap-1 [@container(max-width:600px)]:px-[7px] [@container(max-width:600px)]:tracking-[0.02em] hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-5 " +
   "aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[inset_0_-3px_0_var(--primary)]";
 

@@ -8,18 +8,21 @@ import { SETTING_FACT, SettingRow } from "@/components/SettingRow";
 import { TabPanel, Tabs, type Tab } from "@/components/Tabs";
 import { TextField } from "@/components/TextField";
 import { num, size } from "@/utils/format";
+import { isAndroid } from "@/utils/platform";
 import { inGame, useStore } from "@/store";
 import type { Exported, OnClose, Settings, SettingsView } from "@/api/types";
 import { FaultsPage } from "./FaultsPage";
 
 type Page = "server" | "data" | "notify" | "faults" | "window";
-const PAGES: Tab<Page>[] = [
+const ALL_PAGES: Tab<Page>[] = [
   { key: "server", label: "Server game", icon: "server" },
   { key: "data", label: "Dữ liệu trận", icon: "chart" },
   { key: "notify", label: "Thông báo", icon: "bell" },
   { key: "faults", label: "Log lỗi", icon: "bug" },
   { key: "window", label: "Cửa sổ", icon: "tray" },
 ];
+// Android has no close button nor tray: no Cửa sổ there.
+const PAGES = ALL_PAGES.filter((t) => !(t.key === "window" && isAndroid()));
 
 /** What the close button of the window can do (tray.rs), as the radio rows of the Cửa sổ tab. */
 const ON_CLOSE: { value: OnClose; title: string; text: string }[] = [

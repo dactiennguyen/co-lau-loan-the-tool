@@ -138,9 +138,9 @@ const LIST = "p-[3px] h-[150px] bg-ink flex flex-col gap-1 narrow:h-[120px] scro
 const TARGET = "flex-none flex items-center gap-2 h-[30px] py-0 pr-2 pl-[5px] border-2 border-transparent";
 /** Số trận, Thua tối đa, the buttons. */
 const CONTROLS =
-  "grid [align-content:start] gap-2.5 narrow:grid-cols-[auto_minmax(0,1fr)] narrow:items-center narrow:gap-y-1.5 narrow:gap-x-3";
+  "grid [align-content:start] gap-2.5 narrow:grid-cols-[auto_minmax(0,1fr)] narrow:items-center narrow:gap-y-1.5 narrow:gap-x-3 phone:grid-cols-1";
 /** A row of the controls: its name and its field. */
-const ROW = "flex items-center justify-between gap-1.5 narrow:justify-start";
+const ROW = "flex items-center justify-between gap-1.5 narrow:justify-start phone:justify-between";
 const LABEL = "text-11 font-bold text-fg-2 whitespace-nowrap narrow:min-w-18";
 /** The fight job, or the battle on without one. */
 const JOB = "grid gap-2 p-2.5 bg-ink";

@@ -4,18 +4,31 @@
 // downloaded at once, its minisign signature checked against the public key of tauri.conf.json, then installed at once
 // (every account logged out first) and the app opened again; the UI covers the whole window meanwhile (UpdateGate.tsx).
 // A check that fails (no network, GitHub down) blocks nothing. The UI hears of each change with the "update" event.
-// Only an installed app updates itself: `tauri dev` and the portable Windows exe carry no bundle type.
+// Only an installed app updates itself: `tauri dev` and the portable Windows exe carry no bundle type. The Android app
+// has no updater: a new version is a new APK to install (MOBILE_OFF); the commands answer as for a copy that is off.
+#[cfg(desktop)]
 use crate::app::Shared;
+#[cfg(desktop)]
 use cllt_core::net::Command;
 use serde::Serialize;
 use std::sync::Mutex;
+#[cfg(desktop)]
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+#[cfg(desktop)]
+use tauri::Emitter;
+use tauri::{AppHandle, Manager, Runtime};
+#[cfg(desktop)]
 use tauri_plugin_updater::{Update, UpdaterExt};
 
+/// Why the Android app does not update itself.
+#[cfg(mobile)]
+const MOBILE_OFF: &str = "bản Android: cài file APK mới để cập nhật";
+
 /// Least time between two "update" events while downloading.
+#[cfg(desktop)]
 const PROGRESS: Duration = Duration::from_millis(250);
 /// Longest the app waits, once its window is gone, for the update to install on quit.
+#[cfg(desktop)]
 const ON_QUIT: Duration = Duration::from_secs(30);
 
 /// Where the update stands, as the UI shows it (UpdateView in ../src/api/types.ts).
@@ -25,6 +38,8 @@ const ON_QUIT: Duration = Duration::from_secs(30);
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
+// Android is always Off (no updater): the other states are the desktop's.
+#[cfg_attr(mobile, allow(dead_code))]
 pub enum UpdateState {
     /// This copy does not update itself, and why.
     Off {
@@ -70,6 +85,7 @@ pub struct UpdateView {
 struct Inner {
     state: Option<UpdateState>,
     /// The update downloaded and verified, with its bytes.
+    #[cfg(desktop)]
     ready: Option<(Update, Vec<u8>)>,
 }
 
@@ -93,6 +109,7 @@ pub fn view<R: Runtime>(app: &AppHandle<R>) -> UpdateView {
     }
 }
 
+#[cfg(desktop)]
 fn set<R: Runtime>(app: &AppHandle<R>, state: UpdateState) {
     app.state::<Updates>().lock().state = Some(state);
     let _ = app.emit("update", view(app));
@@ -100,6 +117,19 @@ fn set<R: Runtime>(app: &AppHandle<R>, state: UpdateState) {
 
 /// Turns updates off for a copy that cannot update itself, else checks once, at once (a newer version is mandatory).
 pub fn start<R: Runtime>(app: &AppHandle<R>, sample: bool) {
+    #[cfg(mobile)]
+    {
+        let _ = sample;
+        app.state::<Updates>().lock().state = Some(UpdateState::Off {
+            reason: MOBILE_OFF.into(),
+        });
+    }
+    #[cfg(desktop)]
+    start_desktop(app, sample);
+}
+
+#[cfg(desktop)]
+fn start_desktop<R: Runtime>(app: &AppHandle<R>, sample: bool) {
     let off = if sample {
         Some("dữ liệu mẫu (--sample)")
     } else if tauri::utils::platform::bundle_type().is_none() {
@@ -118,6 +148,11 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, sample: bool) {
 }
 
 /// Checks for a newer version and downloads it. Does nothing while off, checking, downloading, or once one is ready.
+#[cfg(mobile)]
+pub async fn check<R: Runtime>(_app: &AppHandle<R>) {}
+
+/// Checks for a newer version and downloads it. Does nothing while off, checking, downloading, or once one is ready.
+#[cfg(desktop)]
 pub async fn check<R: Runtime>(app: &AppHandle<R>) {
     {
         let updates = app.state::<Updates>();
@@ -147,6 +182,7 @@ pub async fn check<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+#[cfg(desktop)]
 async fn download<R: Runtime>(app: &AppHandle<R>, update: Update) {
     let (version, notes) = (
         update.version.clone(),
@@ -186,6 +222,7 @@ async fn download<R: Runtime>(app: &AppHandle<R>, update: Update) {
     }
 }
 
+#[cfg(desktop)]
 fn fail<R: Runtime>(app: &AppHandle<R>, e: &tauri_plugin_updater::Error) {
     eprintln!("Tự cập nhật: {e}");
     set(
@@ -198,6 +235,7 @@ fn fail<R: Runtime>(app: &AppHandle<R>, e: &tauri_plugin_updater::Error) {
 }
 
 /// What the UI says of an error of the updater.
+#[cfg(desktop)]
 fn message(e: &tauri_plugin_updater::Error) -> String {
     use tauri_plugin_updater::Error as E;
     match e {
@@ -219,6 +257,12 @@ fn message(e: &tauri_plugin_updater::Error) -> String {
 
 /// Khởi động lại: logs every account out, installs the update and opens the new version. On Windows the installer
 /// takes over (the app exits and the installer opens it again).
+#[cfg(mobile)]
+pub fn install_now<R: Runtime>(_app: &AppHandle<R>) -> Result<(), String> {
+    Err(MOBILE_OFF.into())
+}
+
+#[cfg(desktop)]
 pub fn install_now<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let Some((update, bytes)) = app.state::<Updates>().lock().ready.take() else {
         return Err("Chưa có bản cập nhật nào tải xong".into());
@@ -253,6 +297,10 @@ pub fn install_now<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
 /// When the app quits with an update downloaded, installs it, for the next start. In a thread with a time limit: on
 /// macOS an app in a folder the user cannot write asks for an admin password on the main thread, which is gone by
 /// then; that update is then left for the next time.
+#[cfg(mobile)]
+pub fn install_on_quit<R: Runtime>(_app: &AppHandle<R>) {}
+
+#[cfg(desktop)]
 pub fn install_on_quit<R: Runtime>(app: &AppHandle<R>) {
     let Some((update, bytes)) = app.state::<Updates>().lock().ready.take() else {
         return;

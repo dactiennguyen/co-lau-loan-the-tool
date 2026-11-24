@@ -374,7 +374,8 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
       </div>
 
       <footer className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-        <p className="mr-auto basis-[280px] grow text-11 text-fg-3">
+        {/* The note is in the "?" of the list too: a phone keeps the buttons on one line at the bottom. */}
+        <p className="mr-auto basis-[280px] grow text-11 text-fg-3 phone:hidden">
           {span?.open
             ? "Đang trong giờ: các nick đã chọn đi vào hang và thử vào trận ngay."
             : `Các nick đã chọn vào hang ngay, đợi trong hang tới ${from}, rồi thử vào trận tới ${until}.`}

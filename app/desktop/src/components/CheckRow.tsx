@@ -4,7 +4,7 @@ import { Icon } from "./Icon";
 
 /** A pixel check box like the setting rows: the input hidden, the box after it green when on. */
 export const CHECK_BOX =
-  "grid place-items-center flex-none size-4 text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +
+  "grid place-items-center flex-none size-4 touch:size-6 text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +
   "peer-checked:text-ink peer-checked:bg-good peer-checked:shadow-[inset_-2px_-2px_0_var(--good-shade)] " +
   "peer-focus-visible:outline-2 peer-focus-visible:outline-ring peer-focus-visible:outline-offset-2";
 

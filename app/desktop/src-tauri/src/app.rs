@@ -533,6 +533,8 @@ async fn write(path: PathBuf, list: Vec<Account>) -> Result<(), String> {
 /// Sends the UI what changed, woken by `App::touch` and `App::log`.
 pub fn spawn_flusher(handle: AppHandle, wake: Receiver<()>) {
     std::thread::spawn(move || {
+        // The accounts running as last told to the foreground service of the Android app (plugins/keepalive).
+        let mut told = 0;
         while wake.recv().is_ok() {
             std::thread::sleep(FLUSH);
             while wake.try_recv().is_ok() {}
@@ -553,6 +555,14 @@ pub fn spawn_flusher(handle: AppHandle, wake: Receiver<()>) {
             }
             if let Some(update) = update {
                 let _ = handle.emit("accounts", update);
+            }
+            // Android: the service runs while accounts do, its notification says how many (nothing on the desktop).
+            let running = shared.with(|app| app.running_count());
+            if running != told {
+                match tauri_plugin_keepalive::set_running(&handle, running) {
+                    Ok(()) => told = running,
+                    Err(e) => eprintln!("Chạy nền: {e}"),
+                }
             }
         }
     });
@@ -743,7 +753,9 @@ impl App {
     pub fn battle_state(&self, id: u64) -> Option<BattleState> {
         self.entry(id).map(|e| e.battle.clone())
     }
-    /// The name of account `id` as the list shows it: its label, else its username.
+    /// The name of account `id` as the list shows it: its label, else its username. The title of its battle window,
+    /// which Android does not have.
+    #[cfg_attr(mobile, allow(dead_code))]
     pub fn account_label(&self, id: u64) -> Option<String> {
         self.entry(id).map(|e| match e.account.label.trim() {
             "" => e.account.username.clone(),
@@ -921,6 +933,15 @@ impl App {
         if !sent && !logout {
             self.log(id, LogKind::Connection, "Nick chưa đăng nhập");
         }
+    }
+
+    /// Accounts logged in or logging in: the Android app keeps its foreground service while there are some
+    /// (spawn_flusher).
+    pub fn running_count(&self) -> usize {
+        self.entries
+            .iter()
+            .filter(|e| matches!(e.state, ConnState::Connecting | ConnState::Online))
+            .count()
     }
 
     pub fn send_all(&mut self, command: Command) {

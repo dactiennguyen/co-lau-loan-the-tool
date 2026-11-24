@@ -27,15 +27,27 @@ serde.workspace = true
 serde_json.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
-tauri-plugin-updater = "2.14"
 # license.rs, sync.rs, machine.rs: the key and the sync with CLLT Server, with the reqwest and rustls (ring) the updater already brings; the machine id of
 # the system, hashed with sha2; the host name.
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 sha2 = "0.10"
-machine-uid = "0.5"
 gethostname = "1"
 tauri-plugin-notification = "2"
+# plugins/keepalive: the foreground service of the Android app, which keeps the sessions running with the screen off;
+# nothing on the desktop.
+tauri-plugin-keepalive = { path = "plugins/keepalive" }
+
+# The desktop only: Tự cập nhật (update.rs), and the machine id of the system (machine.rs; Android has none for apps, it
+# keeps an id of its own there).
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2.14"
+machine-uid = "0.5"
+
+# Android: the roots of the TLS of the key and the sync come with the app (machine.rs client), reqwest's verifier of the
+# system needs a JNI setup there.
+[target.'cfg(target_os = "android")'.dependencies]
+webpki-roots = "1"
 
 # tray.rs: keeps the app out of App Nap while its window is in the tray (already in the tree through tauri).
 [target.'cfg(target_os = "macos")'.dependencies]

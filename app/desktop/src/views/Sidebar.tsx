@@ -136,17 +136,15 @@ export function Sidebar() {
   const order = useStore((s) => s.order);
   const error = useStore((s) => s.accountsError);
   const playing = useStore(inGame);
-  const { select, open } = useStore.getState();
+  const { open } = useStore.getState();
   const [menu, setMenu] = useState<{ id: number; x: number; y: number } | null>(null);
   const menuAccount = useStore((s) => (menu ? s.byId[menu.id] : undefined));
   // Stable, so the memoised cards do not render again for it; the account of the menu is selected too.
-  const openMenu = useCallback(
-    (id: number, x: number, y: number) => {
-      select(id);
-      setMenu({ id, x, y });
-    },
-    [select],
-  );
+  const openMenu = useCallback((id: number, x: number, y: number) => {
+    // Chosen, without leaving the list on a phone (select opens the account's screen there).
+    useStore.setState({ chosen: id });
+    setMenu({ id, x, y });
+  }, []);
   const closeMenu = useCallback(() => setMenu(null), []);
   // Drag and drop of the accounts: the mouse only (Chuyển lên / Chuyển xuống in the menu for the keyboard), so Space and
   // Enter keep selecting and logging in.
@@ -164,7 +162,7 @@ export function Sidebar() {
   };
   return (
     // The 40 px top leaves room for the macOS window buttons.
-    <aside className="relative flex flex-col gap-3 min-h-0 pt-10 px-3 pb-3 bg-bg-2 border-r-[length:var(--px)] border-r-ink not-mac:pt-3">
+    <aside className="relative flex flex-col gap-3 min-h-0 pt-10 px-3 pb-3 bg-bg-2 border-r-[length:var(--px)] border-r-ink not-mac:pt-3 phone:pt-3 phone:border-r-0">
       {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
       <div className="absolute inset-x-0 top-0 h-9" data-tauri-drag-region />
       <div className="flex items-center gap-2.5">

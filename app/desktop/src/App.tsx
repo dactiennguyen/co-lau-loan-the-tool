@@ -10,6 +10,8 @@ import { ReportDialog } from "@/views/dialogs/ReportDialog";
 import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
 import { AccountsJsonDialog } from "@/views/dialogs/AccountsJsonDialog";
 import { BachHoModal } from "@/views/BachHoModal";
+import { useBack } from "@/hooks/useBack";
+import { usePhone } from "@/hooks/usePhone";
 import { SkillsModal } from "@/views/SkillsModal";
 import { StatsModal } from "@/views/StatsModal";
 import { ShopModal } from "@/views/shop/ShopModal";
@@ -30,14 +32,21 @@ export default function App() {
   const ready = useStore((s) => s.ready);
   const account = useStore(selectedAccount);
   const open = useStore((s) => s.open);
+  // A phone: two screens, the accounts (the sidebar, the whole width) then the account chosen; Back goes to the list.
+  const phone = usePhone();
+  const onAccount = useStore((s) => s.phoneView === "account") && !!account;
+  useBack(phone && onAccount, useStore.getState().showList);
+  const page = account ? <AccountPage key={account.id} account={account} /> : ready && <EmptyState onAdd={() => open({ kind: "add" })} />;
   return (
-    <div className="grid grid-cols-[252px_minmax(0,1fr)] h-screen">
-      <Sidebar />
-      <main className="relative min-w-0 min-h-0 overflow-auto pt-[30px] px-4 pb-4 not-mac:pt-4">
-        {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
-        <div className="absolute inset-x-0 top-0 h-7" data-tauri-drag-region />
-        {account ? <AccountPage key={account.id} account={account} /> : ready && <EmptyState onAdd={() => open({ kind: "add" })} />}
-      </main>
+    <div className="grid grid-cols-[252px_minmax(0,1fr)] h-screen phone:grid-cols-1 phone:h-full">
+      {(!phone || !onAccount) && <Sidebar />}
+      {(!phone || onAccount) && (
+        <main className="relative min-w-0 min-h-0 overflow-auto pt-[30px] px-4 pb-4 not-mac:pt-4 phone:p-0 phone:pt-0 phone:overflow-hidden">
+          {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
+          <div className="absolute inset-x-0 top-0 h-7 phone:hidden" data-tauri-drag-region />
+          {page}
+        </main>
+      )}
       <Dialogs />
       <Toaster />
       {/* Until a key holds (license.rs) no account logs in; under UpdateGate, as an update needs no key. */}

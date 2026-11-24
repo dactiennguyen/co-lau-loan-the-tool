@@ -2,6 +2,7 @@ import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { useStore } from "@/store";
 import { recalled } from "@/utils/remember";
+import { isAndroid } from "@/utils/platform";
 
 /** localStorage keys of the battle window's Luôn trên cùng and Nền xanh (BattleWindow.tsx), shared by every window. */
 export const ON_TOP = "battleWindow.onTop";
@@ -17,6 +18,8 @@ export function OpenBattleWindow({ id, label }: { id: number; label: string }) {
     api.openBattleWindow(id, recalled(ON_TOP) === "1", recalled(CHROMA) === "1").catch((e: unknown) =>
       toast({ tone: "warn", title: label, text: `Không mở được cửa sổ trận: ${e instanceof Error ? e.message : String(e)}` }),
     );
+  // The Android app has one window only: no Cửa sổ trận for OBS there.
+  if (isAndroid()) return null;
   return (
     <Button kind="tonal" small icon="popout" onClick={open} title="Mở cửa sổ nhỏ vẽ trận của nick này, để OBS bắt hình">
       Cửa sổ trận

@@ -24,6 +24,7 @@ Code TypeScript trong `src/` vẫn được giữ song song: đó là nơi thử
 | Quy trình Android → docs → TypeScript → Rust, cấu trúc thư mục `app/` (module `core`, giao diện, `src-tauri`) | [Kiến trúc app Rust](architecture.md) |
 | Từng phần của app và việc bot làm: giao diện, túi đồ, kỹ năng, đổi khu, cửa hàng, Tự sửa đồ, Tự nhặt đồ, nhật ký, proxy, đánh quái, nhiệm vụ | [Hướng dẫn dùng app](features.md) |
 | CI/CD, phát hành một bản, tự cập nhật | [Phát hành và tự cập nhật](release.md) |
+| Bản Android: build APK, ký, cài qua adb, chạy nền (foreground service), MIUI | [Bản Android](android.md) |
 | Đã kiểm bằng test nào, đã chạy thật ra sao; giới hạn | [Đã kiểm chứng và giới hạn](status.md) |
 | Tổng quan kiến trúc cả repo | [Kiến trúc](../../architecture.md) |
 

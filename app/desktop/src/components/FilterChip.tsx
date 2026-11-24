@@ -20,7 +20,7 @@ export function FilterChip({
     <button
       type="button"
       className={cn(
-        "h-[22px] px-2 py-0 bg-bg-2 border border-line font-ui font-bold text-11 leading-none text-fg-2 whitespace-nowrap cursor-pointer",
+        "h-[22px] touch:h-9 touch:px-3 px-2 py-0 bg-bg-2 border border-line font-ui font-bold text-11 leading-none text-fg-2 whitespace-nowrap cursor-pointer",
         "hover:border-(--fchip) hover:text-fg focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1",
         on && "bg-(--fchip) border-(--fchip) text-ink",
       )}

@@ -900,7 +900,11 @@ pub async fn close_window(
         };
         shared.set_settings(settings).await?;
     }
+    // No tray on Android: the choice is kept, nothing else happens.
+    #[cfg(desktop)]
     crate::tray::close(&app, action);
+    #[cfg(mobile)]
+    let _ = (app, action);
     Ok(())
 }
 

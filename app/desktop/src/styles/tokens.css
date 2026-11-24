@@ -73,6 +73,8 @@
 
   /* Pixel frame: a border whose corner pixels are cut by this clip, and a bevel shading the lower right inside. */
   --px: 3px;
+  /* The height of the small controls (Stepper, a small Button, a tab): 26 px for a mouse, 44 px for a finger. */
+  --hit: 26px;
   --notch: polygon(0 var(--px), var(--px) var(--px), var(--px) 0, calc(100% - var(--px)) 0, calc(100% - var(--px)) var(--px),
     100% var(--px), 100% calc(100% - var(--px)), calc(100% - var(--px)) calc(100% - var(--px)), calc(100% - var(--px)) 100%,
     var(--px) 100%, var(--px) calc(100% - var(--px)), 0 calc(100% - var(--px)));
@@ -87,4 +89,8 @@
   --step: steps(3, end);
   --fast: 120ms;
   --slow: 300ms;
+}
+
+@media (pointer: coarse) {
+  :root { --hit: 44px; }
 }

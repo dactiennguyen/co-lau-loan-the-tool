@@ -1,0 +1,8 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme: dark, as the page (the bg colour of tokens.css) shows behind the system bars. -->
+    <style name="Theme.cllt_desktop" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/page</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
+    </style>
+</resources>

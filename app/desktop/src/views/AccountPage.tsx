@@ -16,6 +16,11 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { StatsCard } from "./StatsCard";
+import { Avatar } from "@/components/Avatar";
+import { Badge } from "@/components/Badge";
+import { usePhone } from "@/hooks/usePhone";
+import { isConnected } from "@/utils/format";
+import type { IconName } from "@/components/Icon";
 
 // Kỹ năng is a modal of the Chỉ số card (SkillsModal), Thống kê one of the header (StatsModal); a tab kept as "skills"
 // or "stats" opens Nhiệm vụ.
@@ -24,6 +29,11 @@ const TASKS: Task[] = ["quest", "fight", "settings", "bag"];
 /** localStorage keys (utils/remember.ts): the open tab of an account, and the tab last opened on any account. */
 const tabKey = (id: number) => `tab.${id}`;
 const LAST_TAB = "tab.last";
+/** A phone's tabs at the bottom (PhoneAccount): Nhân vật (the hero, HP, EXP, money, Chỉ số) and Nhật ký besides the four
+ * tasks, as one screen each; the one last opened is kept, for every account. */
+type PhoneTab = Task | "char" | "log";
+const PHONE_TABS: PhoneTab[] = ["char", "quest", "fight", "settings", "bag", "log"];
+const PHONE_TAB = "tab.phone";
 
 /** The tab the account had open, else the one last opened on any account, else Nhiệm vụ. */
 function keptTask(id: number): Task {
@@ -41,7 +51,7 @@ export function AccountPage({ account }: { account: Account }) {
   const c = account.character;
   const bagFull = !!c?.bag && c.bag.capacity > 0 && c.bag.items.length >= c.bag.capacity;
   const id = account.id;
-  const log = useStore(selectedLog);
+  const logLines = useStore(selectedLog);
   const open = useStore((s) => s.open);
   // During a battle Dừng asks whether to play it out or surrender; otherwise it stops at once.
   const onStop = () => (c?.battle ? open({ kind: "stop", id }) : api.stop(id));
@@ -67,33 +77,128 @@ export function AccountPage({ account }: { account: Account }) {
     remember(LAST_TAB, t);
   };
   const tabs = useId();
+  const phone = usePhone();
+  const [phoneTab, setPhoneTabState] = useState<PhoneTab>(() => PHONE_TABS.find((t) => t === recalled(PHONE_TAB)) ?? "quest");
+  const setPhoneTab = (t: PhoneTab) => {
+    setPhoneTabState(t);
+    remember(PHONE_TAB, t);
+  };
   const targets = c?.targets ?? [];
   // The chosen target, else the one Gợi ý quái says to farm, else the strongest mob, else the first (a boss).
   const target = targets.some((t) => t.name === choice.target)
     ? choice.target
     : (targets.find((t) => t.farm?.best) ?? targets.find((t) => !t.boss) ?? targets[0])?.name ?? "";
+  const hero = (
+    <HeroCard
+      account={account}
+      onLogin={() => api.login(id)}
+      onLogout={() => api.logout(id)}
+      onRemove={() => open({ kind: "remove", id })}
+      onPlace={() => open({ kind: "place", id })}
+      onStats={() => open({ kind: "battles", id })}
+    />
+  );
+  const metrics = <MetricRow character={c} onWelfare={() => open({ kind: "welfare", id })} />;
+  const stats = (
+    <StatsCard
+      account={account}
+      onAdd={(stat) => api.addStat(id, stat)}
+      onPlan={() => open({ kind: "stats", id })}
+      onSkills={() => open({ kind: "skills", id })}
+    />
+  );
+  const taskCard = (t: Task) =>
+    t === "quest" ? (
+      <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
+    ) : t === "bag" ? (
+      <InventoryCard
+        account={account}
+        onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)}
+        onDiscardMany={(items) => api.discardMany(id, items)}
+        onBreakAll={(slot, uuid) => api.breakAll(id, slot, uuid)}
+        onStop={onStop}
+      />
+    ) : t === "settings" ? (
+      <FightSettingsCard account={account} />
+    ) : (
+      <FightCard
+        account={account}
+        choice={{ ...choice, target }}
+        onChoice={setChoice}
+        onStart={() => api.fight(id, target, choice.count, choice.losses)}
+        onStop={onStop}
+      />
+    );
+  const log = <LogCard id={id} lines={logLines} fighting={!!c?.battle} />;
+  const shopBusy = (c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null);
+
+  if (phone) {
+    const busy: Partial<Record<PhoneTab, boolean>> = {
+      quest: !!c?.questRun && c.questRun.done == null,
+      fight: !!c?.job && c.job.done == null,
+    };
+    const items: { key: PhoneTab; label: string; icon: IconName; alert?: boolean }[] = [
+      { key: "char", label: "Nhân vật", icon: "user" },
+      { key: "quest", label: "Nhiệm vụ", icon: "scroll" },
+      { key: "fight", label: "Đánh quái", icon: "sword" },
+      { key: "settings", label: "Cài đặt", icon: "settings" },
+      { key: "bag", label: "Túi đồ", icon: "gem", alert: bagFull },
+      { key: "log", label: "Nhật ký", icon: "list" },
+    ];
+    return (
+      <div className="grid grid-rows-[auto_minmax(0,1fr)_auto] h-full">
+        <PhoneBar account={account} shopBusy={!!shopBusy} onShop={() => open({ kind: "shop", id })} />
+        {/* The screen of the tab. */}
+        {phoneTab === "log" ? (
+          <div className="grid grid-rows-[minmax(0,1fr)] grid-cols-[minmax(0,1fr)] min-h-0 p-2.5">{log}</div>
+        ) : (
+          // One column as wide as the screen: an auto column would grow to a card's longest line and push it off the screen.
+          <div className="min-h-0 overflow-y-auto scroll grid grid-cols-[minmax(0,1fr)] [align-content:start] gap-2.5 p-2.5">
+            {phoneTab === "char" ? (
+              <>
+                {hero}
+                {metrics}
+                {stats}
+              </>
+            ) : (
+              taskCard(phoneTab)
+            )}
+          </div>
+        )}
+        {/* The tabs at the bottom, within reach of a thumb. */}
+        <nav className="grid grid-cols-6 bg-bg-2 border-t-[length:var(--px)] border-t-ink" aria-label="Việc của nick">
+          {items.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className={cn(
+                "relative grid justify-items-center content-center gap-0.5 h-14 px-0.5 border-0 bg-transparent text-fg-3 cursor-pointer",
+                "aria-[current=page]:text-fg aria-[current=page]:bg-card aria-[current=page]:shadow-[inset_0_3px_0_var(--primary)]",
+                t.alert && "text-danger animate-alarm",
+              )}
+              aria-current={phoneTab === t.key ? "page" : undefined}
+              onClick={() => setPhoneTab(t.key)}
+            >
+              <Icon name={t.icon} size={18} />
+              <span className="text-10 font-bold leading-none whitespace-nowrap">{t.label}</span>
+              {busy[t.key] && <i className="absolute top-1.5 right-[calc(50%-16px)] size-1.5 bg-s-fighting animate-blink" role="img" aria-label="đang chạy" />}
+            </button>
+          ))}
+        </nav>
+      </div>
+    );
+  }
+
   // As tall as the window, so the bottom cards take what is left (and scroll inside); below 800 px the page scrolls.
   // Narrow windows (up to 1120 px): the page grows with its cards and scrolls.
   return (
     <div className="grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3 h-full min-h-[700px] narrow:h-auto narrow:min-h-full">
-      <HeroCard
-        account={account}
-        onLogin={() => api.login(id)}
-        onLogout={() => api.logout(id)}
-        onRemove={() => open({ kind: "remove", id })}
-        onPlace={() => open({ kind: "place", id })}
-        onStats={() => open({ kind: "battles", id })}
-      />
+      {hero}
       {/* Row 2: HP and EXP, the money, and Chỉ số beside them (under them in a narrow window), so the tabs and the log
           below take the whole width. */}
       <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(450px,1fr)] gap-3 narrow:grid-cols-1">
-        <MetricRow character={c} onWelfare={() => open({ kind: "welfare", id })} />
-        <StatsCard
-          account={account}
-          onAdd={(stat) => api.addStat(id, stat)}
-          onPlan={() => open({ kind: "stats", id })}
-          onSkills={() => open({ kind: "skills", id })}
-        />
+        {metrics}
+        {stats}
       </div>
       {/* Tabs, the quest or fight card (up to its full height, less when the window is short), the log. */}
       <div className="grid grid-rows-[max-content_minmax(0,max-content)_minmax(150px,1fr)] gap-2.5 min-h-0 narrow:grid-rows-[max-content_max-content_210px]">
@@ -122,7 +227,7 @@ export function AccountPage({ account }: { account: Account }) {
             // Túi đồ tab when full while a mail is not read yet (s2c/1220), until Hòm thư has them all read.
             className={cn(
               "flex-none",
-              ((c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null)) && "shadow-[inset_0_-3px_0_var(--s-fighting)]",
+              shopBusy && "shadow-[inset_0_-3px_0_var(--s-fighting)]",
               c?.mailbox.unread && "animate-alarm",
             )}
             title={c?.mailbox.unread ? "Có thư chưa đọc: mở Hòm thư trong Tiện ích" : undefined}
@@ -138,30 +243,47 @@ export function AccountPage({ account }: { account: Account }) {
           </Button>
         </div>
         <TabPanel id={tabs} value={task}>
-          {task === "quest" ? (
-            <QuestCard account={account} onStart={(losses, step) => api.quest(id, losses, step)} onStop={onStop} />
-          ) : task === "bag" ? (
-            <InventoryCard
-              account={account}
-              onAction={(action, slot, uuid) => api.itemAction(id, action, slot, uuid)}
-              onDiscardMany={(items) => api.discardMany(id, items)}
-              onBreakAll={(slot, uuid) => api.breakAll(id, slot, uuid)}
-              onStop={onStop}
-            />
-          ) : task === "settings" ? (
-            <FightSettingsCard account={account} />
-          ) : (
-            <FightCard
-              account={account}
-              choice={{ ...choice, target }}
-              onChoice={setChoice}
-              onStart={() => api.fight(id, target, choice.count, choice.losses)}
-              onStop={onStop}
-            />
-          )}
+          {taskCard(task)}
         </TabPanel>
-        <LogCard id={id} lines={log} fighting={!!c?.battle} />
+        {log}
       </div>
     </div>
+  );
+}
+
+/** The top of an account's screen on a phone: back to the list, the picture, name, level and status, Đăng nhập or
+ * Đăng xuất, and Tiện ích (its line along the bottom while Pháp sư works, red while a mail is not read). */
+function PhoneBar({ account: a, shopBusy, onShop }: { account: Account; shopBusy: boolean; onShop: () => void }) {
+  const c = a.character;
+  const connected = isConnected(a.status);
+  return (
+    <header className="flex items-center gap-2 px-1.5 py-1.5 bg-bg-2 border-b-[length:var(--px)] border-b-ink">
+      <Button kind="ghost" icon="chevron" aria-label="Danh sách nick" className="[&_svg]:rotate-90" onClick={useStore.getState().showList} />
+      <Avatar name={a.username} status={a.status} size={30} />
+      <div className="flex-1 min-w-0 grid">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <b className="truncate text-14 text-fg">{c?.name ?? a.label}</b>
+          {c && <Badge className="shrink-0">LV {c.level}</Badge>}
+        </span>
+        <span className="truncate text-11 text-fg-3">
+          {a.statusText}
+          {c ? ` · ${c.mapName} · Khu ${c.zone}` : ""}
+        </span>
+      </div>
+      <Button
+        kind={connected ? "ghost" : "primary"}
+        icon={connected ? "logout" : "login"}
+        aria-label={connected ? "Đăng xuất" : "Đăng nhập"}
+        disabled={a.status === 1}
+        onClick={() => (connected ? api.logout(a.id) : api.login(a.id))}
+      />
+      <Button
+        kind="outline"
+        icon="grid"
+        aria-label={c?.mailbox.unread ? "Tiện ích (có thư chưa đọc)" : "Tiện ích"}
+        className={cn(shopBusy && "shadow-[inset_0_-3px_0_var(--s-fighting)]", c?.mailbox.unread && "animate-alarm")}
+        onClick={onShop}
+      />
+    </header>
   );
 }

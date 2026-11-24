@@ -283,7 +283,8 @@ export function FightSettingsCard({ account }: { account: Account }) {
       icon="settings"
       tone="var(--primary)"
       subtitle="Bot làm theo khi tự đánh quái và tự làm nhiệm vụ"
-      className="max-h-[min(340px,42vh)]"
+      // A phone shows the card as a screen of its own (AccountPage): no cap, the screen scrolls.
+      className="max-h-[min(340px,42vh)] phone:max-h-none"
       bodyClassName="scroll pr-1 gap-1.5"
     >
       <SettingRow

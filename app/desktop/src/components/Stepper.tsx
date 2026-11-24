@@ -13,7 +13,7 @@ interface Props {
 
 /** The − and + of the plate. */
 const STEP =
-  "h-[26px] border-0 bg-card-2 text-fg font-pixel font-normal text-13 leading-none cursor-pointer bevel-sm enabled:hover:bg-line " +
+  "h-(--hit) border-0 bg-card-2 text-fg font-pixel font-normal text-13 leading-none cursor-pointer bevel-sm enabled:hover:bg-line " +
   "disabled:opacity-35 disabled:cursor-default focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2";
 
 /** Digits typed at most without a max: well within the u32 of cllt-core. */
@@ -48,7 +48,7 @@ export function Stepper({ value, onChange, min = 1, max = Infinity, step = 1, la
   const shown = draft ?? shownNumber(value);
   return (
     <div
-      className="inline-grid grid-cols-[26px_auto_26px] items-center h-[30px] p-0 bg-ink border-2 border-ink notch-sm"
+      className="inline-grid grid-cols-[var(--hit)_auto_var(--hit)] items-center h-[calc(var(--hit)+4px)] p-0 bg-ink border-2 border-ink notch-sm"
       role="group"
       aria-label={label}
     >
@@ -62,7 +62,7 @@ export function Stepper({ value, onChange, min = 1, max = Infinity, step = 1, la
         value={shown}
         // A well in the plate that lights up while it has the focus.
         className={
-          "h-[26px] p-0 border-0 bg-transparent text-center font-pixel font-normal text-13 leading-none text-primary cursor-text hover:bg-bg-2 " +
+          "h-(--hit) p-0 border-0 bg-transparent text-center font-pixel font-normal text-13 leading-none text-primary cursor-text hover:bg-bg-2 " +
           "focus:outline-none focus:bg-bg-2 focus:shadow-[inset_0_0_0_2px_var(--ring)] selection:bg-primary selection:text-ink"
         }
         // Wider with a longer number, so every digit stays in sight.

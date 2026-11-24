@@ -230,3 +230,105 @@ jobs:
           path: staged/*
           if-no-files-found: error
           retention-days: 1
+
+  # The Android app (docs/integration/rust/android.md): one APK for arm64 phones, signed with the release key of the
+  # secrets ANDROID_KEYSTORE_B64 (the .jks in base64), ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS, the same key
+  # every time so that a new APK installs over the old one. Without them the APK is left unsigned and not uploaded. It
+  # has no updater: latest.json does not name it, users install the new APK.
+  android:
+    name: "Build: Android arm64"
+    needs: [preflight-ts, preflight-rust]
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: "28.2.13676358"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # The SDK is on the runner; the NDK of the local builds is added. compileSdk's platform and the build tools are
+      # fetched by the Android Gradle plugin when missing.
+      - name: Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-linux-android
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app -> target
+          key: aarch64-linux-android
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/desktop/package-lock.json
+
+      - name: Frontend packages
+        working-directory: app/desktop
+        run: npm ci
+
+      # The key goes to the runner's temp folder, named by COLAUTOOL_KEYSTORE for gen/android/app/build.gradle.kts.
+      - name: Release key
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::No ANDROID_KEYSTORE_B64 secret: the APK is left unsigned and not uploaded."
+            exit 0
+          fi
+          dir="$RUNNER_TEMP/android-key"
+          mkdir -p "$dir"
+          echo "$KEYSTORE_B64" | base64 -d > "$dir/release.jks"
+          printf 'storeFile=%s\npassword=%s\nkeyAlias=%s\n' "$dir/release.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" > "$dir/release.properties"
+          echo "COLAUTOOL_KEYSTORE=$dir/release.properties" >> "$GITHUB_ENV"
+
+      - name: tauri android build
+        working-directory: app/desktop
+        run: npx tauri android build --ci --apk --target aarch64
+
+      - name: Stage APK
+        if: ${{ env.COLAUTOOL_KEYSTORE != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./app/desktop/src-tauri/tauri.conf.json').version")
+          mkdir staged
+          cp app/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "staged/colautool_${version}_android_arm64.apk"
+          (cd staged && sha256sum *.apk) > SHA256SUMS-android.txt
+          cat SHA256SUMS-android.txt
+
+      - name: Upload to the draft release
+        if: ${{ inputs.release_tag != '' && env.COLAUTOOL_KEYSTORE != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ inputs.release_repo }}
+          TAG: ${{ inputs.release_tag }}
+        run: gh release upload "$TAG" staged/* SHA256SUMS-android.txt --clobber
+
+      - name: Upload APK
+        if: ${{ inputs.release_tag == '' && env.COLAUTOOL_KEYSTORE != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-android-arm64
+          path: staged/*
+          if-no-files-found: error
+          retention-days: 1
