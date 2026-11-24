@@ -37,6 +37,8 @@ export type Dialog =
   /** Nhập / Xuất JSON of the Tài khoản list (backup.rs), in two tabs: accounts pasted or read from a file, shown before
    * they are added; the accounts with their passwords, copied or saved to a file. */
   | { kind: "accountsJson" }
+  /** QR nick: the accounts and their settings in a QR, or one scanned (QrAccountsDialog). */
+  | { kind: "qr" }
   /** Báo lỗi of the Nhật ký card. */
   | { kind: "report"; id: number }
   /** Bạch Hổ (BachHoModal) of the sidebar: the world boss for the accounts in the game, picked with a tick. */

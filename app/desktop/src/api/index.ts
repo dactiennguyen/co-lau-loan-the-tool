@@ -239,6 +239,8 @@ export interface Api {
   exportAccounts(ids: number[], settings: boolean): Promise<string>;
   /** Lưu file of Xuất JSON: the same JSON into a new cllt-accounts-<time>.json in Downloads, readable by its owner only. */
   saveAccounts(ids: number[], settings: boolean): Promise<SavedAccounts>;
+  /** QR nick: the PNG of the QR into a cllt-qr-<time>.png of Downloads (its path back), or on Android the share sheet (""). */
+  saveQr(png: number[]): Promise<string>;
   /** Nhập JSON before anything is saved: each account, whether the list has it, whether it has a password; rejects
    * with what is wrong with the JSON. */
   previewImport(text: string): Promise<ImportPreview>;
@@ -352,6 +354,7 @@ const tauri: Api = {
   revealExport: (path) => invoke("reveal_export", { path }),
   exportAccounts: (ids, settings) => invoke("export_accounts", { ids, settings }),
   saveAccounts: (ids, settings) => invoke("save_accounts", { ids, settings }),
+  saveQr: (png) => invoke("save_qr", { png }),
   previewImport: (text) => invoke("preview_import", { text }),
   importAccounts: (text, replace, settings) => invoke("import_accounts", { text, replace, settings }),
   reportFault: (id, note) => invoke("report_fault", { id, note }),
@@ -514,6 +517,7 @@ const preview: Api = {
     return JSON.stringify({ app: "Co Lau Tool", format: 1, exportedAt: new Date().toISOString(), accounts, ...(settings && { settings: {} }) }, null, 2);
   },
   saveAccounts: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu file")),
+  saveQr: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu ảnh")),
   previewImport: async (text) => {
     let json: unknown;
     try {

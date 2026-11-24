@@ -1130,6 +1130,50 @@ pub async fn save_accounts(
     .map_err(|e| e.to_string())?
 }
 
+/// QR nick: the picture of its QR (the PNG the UI drew; it holds passwords). On the desktop it goes into a new
+/// cllt-qr-<time>.png in Downloads only its owner can read, whose path comes back for Mở thư mục (reveal_export); on
+/// Android into the app's cache, and the share sheet opens on it (Zalo, Messenger, Lưu vào ảnh…), "" back.
+#[tauri::command]
+pub async fn save_qr(app: AppHandle, png: Vec<u8>) -> Result<String, String> {
+    if png.is_empty() {
+        return Err("Chưa có ảnh QR".into());
+    }
+    #[cfg(mobile)]
+    {
+        let dir = app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| format!("Không thấy thư mục tạm: {e}"))?
+            .join("qr");
+        tauri::async_runtime::spawn_blocking(move || {
+            let path = dir.join("colautool-qr.png");
+            cllt_core::accounts::write_private(&path, &png)?;
+            tauri_plugin_keepalive::share_image(&app, &path.display().to_string(), "Gửi QR nick")
+                .map_err(|e| format!("Không mở được chia sẻ: {e}"))?;
+            Ok(String::new())
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+    #[cfg(desktop)]
+    {
+        let dir = app
+            .path()
+            .download_dir()
+            .map_err(|e| format!("Không thấy thư mục Downloads: {e}"))?;
+        let time = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+            let path = settings::export_path(&dir, settings::Export::Qr, &time);
+            cllt_core::accounts::write_private(&path, &png)
+                .map_err(|e| format!("Chưa lưu được: {e}"))?;
+            Ok(path.display().to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+}
+
 /// Nhập JSON, before anything is saved: each account of the JSON, whether the list has it and whether it has a
 /// password (never the password). The error says what is wrong with the JSON.
 #[tauri::command]

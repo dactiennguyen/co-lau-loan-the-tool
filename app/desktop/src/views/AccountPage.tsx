@@ -1,7 +1,8 @@
 import { useId, useState } from "react";
 import { api } from "@/api";
 import { TabPanel, Tabs } from "@/components/Tabs";
-import { recalled, remember } from "@/utils/remember";
+import { forget, recalled, remember } from "@/utils/remember";
+import { QR_TAB, tabOwner } from "@/utils/qrPayload";
 import { selectedLog, useStore } from "@/store";
 import type { Account } from "@/api/types";
 import { useFightSetting } from "@/hooks/useFightSetting";
@@ -35,8 +36,18 @@ type PhoneTab = Task | "char" | "log";
 const PHONE_TABS: PhoneTab[] = ["char", "quest", "fight", "settings", "bag", "log"];
 const PHONE_TAB = "tab.phone";
 
-/** The tab the account had open, else the one last opened on any account, else Nhiệm vụ. */
-function keptTask(id: number): Task {
+/** The tab kept for the account (QR nick shares it): its own, else the one last opened on any account; null when none. */
+export const keptTabOf = (id: number) => recalled(tabKey(id)) ?? recalled(LAST_TAB);
+
+/** The tab a QR nick brought for the account (QR_TAB, kept from then on as its own), else the tab it had open, else the
+ * one last opened on any account, else Nhiệm vụ. */
+function keptTask(id: number, owner: string): Task {
+  const shared = TASKS.find((t) => t === recalled(QR_TAB + owner));
+  if (shared) {
+    forget(QR_TAB + owner);
+    remember(tabKey(id), shared);
+    return shared;
+  }
   const kept = recalled(tabKey(id)) ?? recalled(LAST_TAB);
   return TASKS.find((t) => t === kept) ?? "quest";
 }
@@ -70,7 +81,7 @@ export function AccountPage({ account }: { account: Account }) {
     if (next.count !== count) setCount(next.count);
     if (next.losses !== losses) setLosses(next.losses);
   };
-  const [task, setTaskState] = useState(() => keptTask(id));
+  const [task, setTaskState] = useState(() => keptTask(id, tabOwner(account.username, account.serverId)));
   const setTask = (t: Task) => {
     setTaskState(t);
     remember(tabKey(id), t);

@@ -6,6 +6,13 @@ const filled = { fill: "currentColor", stroke: "none" } as const;
 
 const paths = {
   plus: <path d="M12 5v14M5 12h14" />,
+  // Three finder squares and a few modules: QR nick.
+  qr: (
+    <>
+      <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
+      <path d="M14 14h2v2h-2zM18 14h2M14 18v2h2M18 18h2v2" />
+    </>
+  ),
   close: <path d="M18 6 6 18M6 6l12 12" />,
   login: (
     <>

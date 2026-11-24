@@ -2,6 +2,7 @@
 //! partial wake lock and a Wi-Fi lock, and a lasting notification "Co Lau Tool: N nick đang chạy" with Dừng tất cả
 //! (android/, KeepalivePlugin.kt and KeepaliveService.kt). The app says how many accounts run ([`set_running`]); the
 //! service runs while that is above 0. On the desktop every call does nothing: the app there runs in the tray.
+//! [`share_image`] opens the share sheet on a picture (QR nick).
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{AppHandle, Runtime};
 
@@ -29,6 +30,18 @@ pub fn set_running<R: Runtime>(app: &AppHandle<R>, count: usize) -> Result<(), S
     {
         let _ = (app, count);
         Ok(())
+    }
+}
+
+/// The share sheet of Android on the picture at `path` (in the app's cache), titled `title`. Blocks until the Kotlin side
+/// answered. Not on the desktop, where the picture is saved to Downloads instead.
+pub fn share_image<R: Runtime>(app: &AppHandle<R>, path: &str, title: &str) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    return android::share_image(app, path, title);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, path, title);
+        Err("Chỉ bản Android chia sẻ ảnh được".into())
     }
 }
 

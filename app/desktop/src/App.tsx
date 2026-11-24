@@ -9,6 +9,7 @@ import { PlaceDialog } from "@/views/dialogs/PlaceDialog";
 import { ReportDialog } from "@/views/dialogs/ReportDialog";
 import { SettingsDialog } from "@/views/dialogs/SettingsDialog";
 import { AccountsJsonDialog } from "@/views/dialogs/AccountsJsonDialog";
+import { QrAccountsDialog } from "@/views/dialogs/QrAccountsDialog";
 import { BachHoModal } from "@/views/BachHoModal";
 import { useBack } from "@/hooks/useBack";
 import { usePhone } from "@/hooks/usePhone";
@@ -85,6 +86,9 @@ function Dialogs() {
   }
   if (dialog?.kind === "accountsJson") {
     return <AccountsJsonDialog onClose={close} />;
+  }
+  if (dialog?.kind === "qr") {
+    return <QrAccountsDialog onClose={close} />;
   }
   if (dialog?.kind === "bachHo") {
     return <BachHoModal onClose={close} />;

@@ -189,9 +189,13 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <Button kind="primary" icon="plus" block onClick={() => open({ kind: "add" })}>
-        Thêm nick
-      </Button>
+      {/* QR nick at the left of Thêm nick: the accounts and their settings in a QR, or one scanned (QrAccountsDialog). */}
+      <div className="flex gap-2">
+        <Button kind="outline" icon="qr" aria-label="QR nick: chia sẻ hoặc quét" title="QR nick: chia sẻ nick và cài đặt, hoặc quét QR" className="flex-none" onClick={() => open({ kind: "qr" })} />
+        <Button kind="primary" icon="plus" block className="flex-1 min-w-0" onClick={() => open({ kind: "add" })}>
+          Thêm nick
+        </Button>
+      </div>
       {error && (
         <p className="px-2.5 py-2 border-2 border-accent-deep bg-ink text-danger text-11 wrap-anywhere select-text" role="alert">
           Không đọc được accounts.json, app sẽ không ghi đè file này. Sửa file rồi mở lại app. ({error})

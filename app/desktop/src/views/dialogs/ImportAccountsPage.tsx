@@ -22,13 +22,17 @@ function fate(a: PreviewAccount, replace: boolean): { text: string; tone: string
  * and each account shows what Nhập will do with it: Thêm mới, or for an account the list has (same username on the same
  * server) skipped unless Ghi đè is ticked; one the JSON repeats counts once. The Cài đặt of the JSON are applied only when
  * ticked. Proxies are not tested. What Nhập did takes the place of the box, until Nhập JSON khác.
+ * QR nick gives the JSON of a QR scanned (`scanned`): the box is not shown (it holds passwords), `onImported` follows a
+ * Nhập done and `onAgain` takes the place of Nhập JSON khác (Quét QR khác).
  */
-export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
-  const [text, setText] = useState("");
+export function ImportAccountsPage({ onClose, scanned, onImported, onAgain }: { onClose: () => void; scanned?: string; onImported?: () => void; onAgain?: () => void }) {
+  const [text, setText] = useState(scanned ?? "");
+  useEffect(() => setText(scanned ?? ""), [scanned]);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [error, setError] = useState("");
-  const [replace, setReplace] = useState(false);
-  const [withSettings, setWithSettings] = useState(false);
+  // A QR nick is shared to be taken whole: its accounts and its Cài đặt ticked at first.
+  const [replace, setReplace] = useState(scanned !== undefined);
+  const [withSettings, setWithSettings] = useState(scanned !== undefined);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Imported | null>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -62,6 +66,7 @@ export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
       (result) => {
         setDone(result);
         setBusy(false);
+        onImported?.();
       },
       (err) => {
         setError(message(err));
@@ -70,6 +75,7 @@ export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
     );
   };
   const again = () => {
+    if (onAgain) return onAgain();
     setDone(null);
     setText("");
     setReplace(false);
@@ -85,7 +91,7 @@ export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
         </p>
         <footer className={`${DIALOG.footer} mt-auto`}>
           <Button kind="ghost" onClick={again}>
-            Nhập JSON khác
+            {onAgain ? "Quét QR khác" : "Nhập JSON khác"}
           </Button>
           <Button kind="primary" onClick={onClose}>
             Xong
@@ -102,7 +108,7 @@ export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div className={FIELD.root}>
+      {scanned === undefined && <div className={FIELD.root}>
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="import-json" className={FIELD.label}>
             JSON
@@ -121,7 +127,7 @@ export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
           placeholder='{"accounts": [{"username": "…", "password": "…"}]}'
           className={cn(FIELD.input, "h-auto min-h-[120px] max-h-[220px] py-2 font-mono text-11 leading-normal resize-y select-text")}
         />
-      </div>
+      </div>}
       {error && (
         <p className={DIALOG.error} role="alert">
           {error}
@@ -130,7 +136,7 @@ export function ImportAccountsPage({ onClose }: { onClose: () => void }) {
       {preview && (
         <div className="grid gap-1.5">
           <span className="text-11 font-bold text-fg-2">
-            {rows.length} nick trong JSON
+            {rows.length} nick trong {scanned === undefined ? "JSON" : "QR"}
           </span>
           <ul className="m-0 p-0 list-none grid gap-1 max-h-[200px] px-2.5 py-2 bg-ink scroll">
             {rows.map((a, i) => {

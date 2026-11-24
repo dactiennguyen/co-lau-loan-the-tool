@@ -179,22 +179,29 @@ pub struct ExportedFaults {
     pub bytes: u64,
 }
 
-/// What an export writes: the battles of Lưu dữ liệu trận (a SQLite file), Log lỗi (a JSON file), or the accounts of
-/// Xuất JSON (a JSON file only its owner reads, write_private).
+/// What an export writes: the battles of Lưu dữ liệu trận (a SQLite file), Log lỗi (a JSON file), the accounts of
+/// Xuất JSON (a JSON file only its owner reads, write_private), or the picture of QR nick (a PNG, owner only too).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Export {
     Battles,
     Faults,
     Accounts,
+    Qr,
 }
 impl Export {
-    const ALL: [Export; 3] = [Export::Battles, Export::Faults, Export::Accounts];
+    const ALL: [Export; 4] = [
+        Export::Battles,
+        Export::Faults,
+        Export::Accounts,
+        Export::Qr,
+    ];
     /// The start and the end of its file names.
     fn name(self) -> (&'static str, &'static str) {
         match self {
             Export::Battles => ("cllt-battles-", ".db"),
             Export::Faults => ("cllt-errors-", ".json"),
             Export::Accounts => ("cllt-accounts-", ".json"),
+            Export::Qr => ("cllt-qr-", ".png"),
         }
     }
 }

@@ -32,6 +32,18 @@ pub fn set_running<R: Runtime>(app: &AppHandle<R>, count: usize) -> Result<(), S
         .map_err(|e| e.to_string())
 }
 
+pub fn share_image<R: Runtime>(app: &AppHandle<R>, path: &str, title: &str) -> Result<(), String> {
+    #[derive(Serialize)]
+    struct Args<'a> {
+        path: &'a str,
+        title: &'a str,
+    }
+    handle(app)?
+        .run_mobile_plugin::<serde_json::Value>("shareImage", Args { path, title })
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 pub fn on_stop_all<R: Runtime, F: Fn() + Send + Sync + 'static>(
     app: &AppHandle<R>,
     handler: F,

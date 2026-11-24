@@ -11,6 +11,15 @@ export function recalled(key: string): string | null {
   }
 }
 
+/** Drops what is kept under `key`; does nothing when the storage refuses. */
+export function forget(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Kept.
+  }
+}
+
 /** Keeps `value` under `key`; does nothing when the storage refuses. */
 export function remember(key: string, value: string) {
   try {

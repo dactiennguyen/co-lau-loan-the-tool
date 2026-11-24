@@ -66,6 +66,9 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(tray::on_window_event);
+    // QR nick: the camera scans a QR on the phone (Quét bằng camera).
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     builder
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_keepalive::init())
@@ -226,6 +229,7 @@ pub fn run() {
             commands::reveal_export,
             commands::export_accounts,
             commands::save_accounts,
+            commands::save_qr,
             commands::preview_import,
             commands::import_accounts,
             commands::report_fault,

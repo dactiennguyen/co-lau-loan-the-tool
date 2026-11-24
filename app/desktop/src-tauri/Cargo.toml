@@ -48,6 +48,8 @@ machine-uid = "0.5"
 # system needs a JNI setup there.
 [target.'cfg(target_os = "android")'.dependencies]
 webpki-roots = "1"
+# QR nick: Quét bằng camera (Google's code scanner on Android).
+tauri-plugin-barcode-scanner = "2.5"
 
 # tray.rs: keeps the app out of App Nap while its window is in the tray (already in the tree through tauri).
 [target.'cfg(target_os = "macos")'.dependencies]

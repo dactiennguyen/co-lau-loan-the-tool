@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { CheckRow } from "@/components/CheckRow";
+import { AccountTicks } from "./AccountTicks";
 import { DIALOG } from "@/components/Dialog";
 import { Icon } from "@/components/Icon";
 import { useStore } from "@/store";
@@ -22,7 +23,6 @@ const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
  */
 export function ExportAccountsPage({ active, onClose }: { active: boolean; onClose: () => void }) {
   const order = useStore((s) => s.order);
-  const byId = useStore((s) => s.byId);
   const [unticked, setUnticked] = useState<number[]>([]);
   const [withSettings, setWithSettings] = useState(true);
   const [json, setJson] = useState<string | null>(null);
@@ -43,10 +43,6 @@ export function ExportAccountsPage({ active, onClose }: { active: boolean; onClo
     // ids is a new array on every render: its contents are what count.
   }, [active, ids.join(","), withSettings]);
 
-  const toggle = (id: number, on: boolean) => {
-    setDone({ state: "idle" });
-    setUnticked((u) => (on ? u.filter((x) => x !== id) : [...u, id]));
-  };
   const copy = () => {
     if (!json) return;
     navigator.clipboard.writeText(json).then(
@@ -61,34 +57,10 @@ export function ExportAccountsPage({ active, onClose }: { active: boolean; onClo
       (err) => setDone({ state: "fail", text: message(err) }),
     );
   };
-  const all = ids.length === order.length;
 
   return (
     <>
-      <div className="grid gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-11 font-bold text-fg-2">
-            Nick ({ids.length}/{order.length})
-          </span>
-          {order.length > 0 && (
-            <Button kind="ghost" small onClick={() => { setUnticked(all ? order : []); setDone({ state: "idle" }); }}>
-              {all ? "Bỏ chọn hết" : "Chọn hết"}
-            </Button>
-          )}
-        </div>
-        <div className="grid gap-1 max-h-[220px] px-2.5 py-2 bg-ink scroll">
-          {order.length === 0 && <p className="m-0 text-12 text-fg-3">Chưa có nick nào để xuất.</p>}
-          {order.map((id) => {
-            const a = byId[id];
-            return (
-              <CheckRow key={id} checked={!unticked.includes(id)} onChange={(on) => toggle(id, on)} className="min-w-0">
-                <b className="text-fg truncate">{a?.label}</b>
-                {a && a.label !== a.username && <span className="text-fg-3 truncate">{a.username}</span>}
-              </CheckRow>
-            );
-          })}
-        </div>
-      </div>
+      <AccountTicks unticked={unticked} onChange={(u) => { setUnticked(u); setDone({ state: "idle" }); }} what="xuất" />
       <CheckRow checked={withSettings} onChange={(on) => { setWithSettings(on); setDone({ state: "idle" }); }}>
         Kèm cài đặt của app (server game, lưu dữ liệu trận, đóng cửa sổ)
       </CheckRow>
