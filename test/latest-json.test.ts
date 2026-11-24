@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { latestJson, releaseNotes } from '../.github/scripts/latest-json.mjs';
+import { latestJson, parseSums, releaseNotes } from '../.github/scripts/latest-json.mjs';
 
 // The assets of a release as stage-bundles.mjs names them, with the .sig a build with the updater key leaves.
 const bundles = [
@@ -40,6 +40,20 @@ test('latest.json: every bundle the updater installs, by {os}-{arch}-{installer}
   assert.equal(m.platforms['linux-x86_64'], m.platforms['linux-x86_64-appimage']);
 });
 
+test('latest.json: the APK and its SHA-256 for the Android app, only when SHA256SUMS.txt has it', () => {
+  const apk = 'colautool_0.3.0_android_arm64.apk';
+  const hash = 'a'.repeat(64);
+  const sums = parseSums(`${'b'.repeat(64)}  colautool_0.3.0_macos_aarch64.dmg\n${hash.toUpperCase()} *${apk}\nnot a line\n`);
+  assert.equal(sums[apk], hash);
+  const files = [...bundles, ...signed.map(f => `${f}.sig`), apk];
+  assert.deepEqual(latestJson({ ...release(files), sums }).android, {
+    url: `https://github.com/dactiennguyen/co-lau-loan-the-tool/releases/download/v0.3.0/${apk}`,
+    sha256: hash,
+  });
+  assert.equal(latestJson(release(files)).android, undefined, 'no SHA-256, no update for Android');
+  assert.equal(latestJson({ ...release(files.filter(f => f !== apk)), sums }).android, undefined, 'built without the APK key');
+});
+
 test('latest.json: the notes are the body of the release commit, without its trailers', () => {
   const body = 'Since 0.2.0: nhật ký theo loại,\ntab Thống kê.\n\n- Tự cập nhật\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n';
   assert.equal(releaseNotes(body), 'Since 0.2.0: nhật ký theo loại,\ntab Thống kê.\n\n- Tự cập nhật');
@@ -58,7 +72,9 @@ test('latest.json: a release built without the signing key fails, naming what ha
 
 test('latest.json: the release workflow writes it before the release, and the app reads it from the latest release', () => {
   const workflow = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /latest-json\.mjs assets "\$VERSION" "\$GH_REPO" "\$TAG" commit-body\.txt > latest\.json/);
+  assert.match(workflow, /latest-json\.mjs assets "\$VERSION" "\$GH_REPO" "\$TAG" commit-body\.txt SHA256SUMS\.txt > latest\.json/);
+  // SHA256SUMS.txt, which gives the APK its SHA-256, is written first.
+  assert.ok(workflow.indexOf('> SHA256SUMS.txt') < workflow.indexOf('latest-json.mjs assets'));
   assert.match(workflow, /secrets: inherit/);
   // The draft gets latest.json before it is published, so the updater never sees a release without it.
   const upload = workflow.indexOf('gh release upload "$TAG" SHA256SUMS.txt latest.json');

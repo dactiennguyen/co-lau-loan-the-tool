@@ -556,7 +556,11 @@ const preview: Api = {
   onCloseAsked: async () => () => {},
   onAccounts: async () => () => {},
   onLog: async () => () => {},
-  updateStatus: async () => ({ current: "0.2.0", state: "off", reason: "bản xem thử trong trình duyệt" }),
+  // ?update=ready: a newer version downloaded (UpdateGate, AppStatus).
+  updateStatus: async () =>
+    new URLSearchParams(location.search).get("update") === "ready"
+      ? { current: "0.2.0", state: "ready", version: "0.3.0", notes: "- QR nick\n- Tự cập nhật trên Android" }
+      : { current: "0.2.0", state: "off", reason: "bản xem thử trong trình duyệt" },
   checkUpdate: nothing,
   installUpdate: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không cập nhật")),
   onUpdate: async () => () => {},

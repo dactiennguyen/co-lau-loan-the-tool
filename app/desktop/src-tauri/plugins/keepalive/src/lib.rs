@@ -2,7 +2,7 @@
 //! partial wake lock and a Wi-Fi lock, and a lasting notification "Co Lau Tool: N nick đang chạy" with Dừng tất cả
 //! (android/, KeepalivePlugin.kt and KeepaliveService.kt). The app says how many accounts run ([`set_running`]); the
 //! service runs while that is above 0. On the desktop every call does nothing: the app there runs in the tray.
-//! [`share_image`] opens the share sheet on a picture (QR nick).
+//! [`share_image`] opens the share sheet on a picture (QR nick); [`install_apk`] the installer on a newer APK (Tự cập nhật).
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{AppHandle, Runtime};
 
@@ -42,6 +42,18 @@ pub fn share_image<R: Runtime>(app: &AppHandle<R>, path: &str, title: &str) -> R
     {
         let _ = (app, path, title);
         Err("Chỉ bản Android chia sẻ ảnh được".into())
+    }
+}
+
+/// The installer of Android on the APK at `path` (in the app's cache). Err "allow" when the user has not let the app
+/// install apps yet: the screen of that setting opened instead. Not on the desktop, which has its updater.
+pub fn install_apk<R: Runtime>(app: &AppHandle<R>, path: &str) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    return android::install_apk(app, path);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, path);
+        Err("Chỉ bản Android cài APK".into())
     }
 }
 

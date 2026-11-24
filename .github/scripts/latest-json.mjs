@@ -1,14 +1,31 @@
 // Writes latest.json, what the updater of the installed apps reads from the latest release
 // (docs/integration/rust/release.md#tự-cập-nhật): for each platform, the bundle that installs it and the signature of its
 // .sig, which stage-bundles.mjs staged beside it. Fails when a platform has no signed bundle, which happens when the
-// signing key is not in the repository secrets. Used by .github/workflows/release.yml.
-//   node .github/scripts/latest-json.mjs <assets dir> <version> <owner/repo> <tag> <notes file> > latest.json
-import { readdirSync, readFileSync } from 'node:fs';
+// signing key is not in the repository secrets. The Android app, which has no tauri-plugin-updater, reads `android`: the
+// URL of the APK and its SHA-256 (update.rs of the app), from SHA256SUMS.txt, which the job writes first; a release
+// built without the signing key of the APK has none, and the Android app sees no update. Used by
+// .github/workflows/release.yml.
+//   node .github/scripts/latest-json.mjs <assets dir> <version> <owner/repo> <tag> <notes file> [SHA256SUMS.txt] > latest.json
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Asset name suffix (stage-bundles.mjs) → the updater targets it serves: `{os}-{arch}-{installer}` first, which the
  * updater looks for by the bundle the app was installed from, then `{os}-{arch}` for the main bundle of that machine. */
+/** The asset name suffix of the APK (build-matrix.yml, Stage APK). */
+export const APK = '_android_arm64.apk';
+
+/** The SHA-256 of each file of a SHA256SUMS.txt (`sha256sum` lines: hash, two spaces or " *", name). */
+export function parseSums(text) {
+  /** @type {Record<string, string>} */
+  const sums = {};
+  for (const line of text.split('\n')) {
+    const m = /^([0-9a-f]{64}) [ *](.+)$/i.exec(line.trim());
+    if (m) sums[m[2]] = m[1].toLowerCase();
+  }
+  return sums;
+}
+
 export const PLATFORMS = [
   ['_macos_aarch64.app.tar.gz', ['darwin-aarch64-app', 'darwin-aarch64']],
   ['_macos_x64.app.tar.gz', ['darwin-x86_64-app', 'darwin-x86_64']],
@@ -28,11 +45,14 @@ export function releaseNotes(body) {
 }
 
 /**
- * The manifest of a release. `files` are the asset names; `signature(name)` reads the .sig asset `name`.
+ * The manifest of a release. `files` are the asset names; `signature(name)` reads the .sig asset `name`; `sums` the
+ * SHA-256 of the assets by name (the APK needs one to be named).
  * @param {{ files: string[], signature: (name: string) => string, version: string, repo: string, tag: string,
- *   notes: string, date: string }} release
+ *   notes: string, date: string, sums?: Record<string, string> }} release
  */
-export function latestJson({ files, signature, version, repo, tag, notes, date }) {
+export function latestJson({ files, signature, version, repo, tag, notes, date, sums = {} }) {
+  const download = (/** @type {string} */ asset) =>
+    `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(asset)}`;
   /** @type {Record<string, { signature: string, url: string }>} */
   const platforms = {};
   const missing = [];
@@ -44,7 +64,7 @@ export function latestJson({ files, signature, version, repo, tag, notes, date }
     }
     const entry = {
       signature: signature(`${asset}.sig`).trim(),
-      url: `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(asset)}`,
+      url: download(asset),
     };
     for (const target of targets) platforms[target] = entry;
   }
@@ -53,13 +73,18 @@ export function latestJson({ files, signature, version, repo, tag, notes, date }
       `no signed bundle for ${missing.join(', ')}: are TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD in the repository secrets?`,
     );
   }
-  return { version: version.replace(/^v/, ''), notes: releaseNotes(notes), pub_date: date, platforms };
+  /** @type {{ version: string, notes: string, pub_date: string, platforms: typeof platforms,
+   *   android?: { url: string, sha256: string } }} */
+  const manifest = { version: version.replace(/^v/, ''), notes: releaseNotes(notes), pub_date: date, platforms };
+  const apk = files.find(f => f.endsWith(APK));
+  if (apk && sums[apk]) manifest.android = { url: download(apk), sha256: sums[apk] };
+  return manifest;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [dir, version, repo, tag, notesFile] = process.argv.slice(2);
+  const [dir, version, repo, tag, notesFile, sumsFile] = process.argv.slice(2);
   if (!dir || !version || !repo || !tag || !notesFile) {
-    console.error('usage: node .github/scripts/latest-json.mjs <assets dir> <version> <owner/repo> <tag> <notes file>');
+    console.error('usage: node .github/scripts/latest-json.mjs <assets dir> <version> <owner/repo> <tag> <notes file> [SHA256SUMS.txt]');
     process.exit(2);
   }
   const manifest = latestJson({
@@ -70,6 +95,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     tag,
     notes: readFileSync(notesFile, 'utf8'),
     date: new Date().toISOString(),
+    sums: sumsFile && existsSync(sumsFile) ? parseSums(readFileSync(sumsFile, 'utf8')) : {},
   });
   process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
 }

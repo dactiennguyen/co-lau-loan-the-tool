@@ -1,5 +1,6 @@
 import { api } from "@/api";
 import { inGame, useStore } from "@/store";
+import { isAndroid } from "@/utils/platform";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 /** Khởi động lại để cập nhật while accounts are in the game: they are logged out and their battles cut short. */
@@ -13,7 +14,8 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
       message={
         <>
           <b>{playing} nick</b> đang trong game sẽ bị thoát, trận đang đánh bị bỏ dở. Sau khi mở lại bản {version}, đăng nhập
-          lại các nick. Không vội thì cứ để đó: bản mới tự cài khi bạn tắt app.
+          lại các nick.{" "}
+          {isAndroid() ? "Android mở trình cài, bấm Cài đặt ở đó." : "Không vội thì cứ để đó: bản mới tự cài khi bạn tắt app."}
         </>
       }
       confirm="Khởi động lại"

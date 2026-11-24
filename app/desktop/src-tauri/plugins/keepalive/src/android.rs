@@ -44,6 +44,17 @@ pub fn share_image<R: Runtime>(app: &AppHandle<R>, path: &str, title: &str) -> R
         .map_err(|e| e.to_string())
 }
 
+pub fn install_apk<R: Runtime>(app: &AppHandle<R>, path: &str) -> Result<(), String> {
+    #[derive(Serialize)]
+    struct Args<'a> {
+        path: &'a str,
+    }
+    handle(app)?
+        .run_mobile_plugin::<serde_json::Value>("installApk", Args { path })
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 pub fn on_stop_all<R: Runtime, F: Fn() + Send + Sync + 'static>(
     app: &AppHandle<R>,
     handler: F,

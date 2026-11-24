@@ -1,6 +1,7 @@
 // The Tauri plugin of the Android app (../../../../../../src/android.rs calls it): setRunning starts, updates or stops
 // KeepaliveService; Dừng tất cả of its notification comes back to Rust as the "stopAll" event (registerListener).
-// shareImage opens the share sheet on a picture of the app's cache (the QR of QR nick).
+// shareImage opens the share sheet on a picture of the app's cache (the QR of QR nick). installApk opens the installer
+// of Android on the APK of a newer version the app downloaded (update.rs of the app).
 package vn.colauloanthe.keepalive
 
 import android.Manifest
@@ -33,6 +34,11 @@ class RunningArgs {
 class ShareArgs {
     var path: String = ""
     var title: String = ""
+}
+
+@InvokeArg
+class ApkArgs {
+    var path: String = ""
 }
 
 @TauriPlugin
@@ -84,6 +90,36 @@ class KeepalivePlugin(private val activity: Activity) : Plugin(activity) {
             invoke.resolve()
         } catch (e: Exception) {
             Log.w(TAG, "shareImage(${args.path}): $e")
+            invoke.reject(e.message ?: e.toString())
+        }
+    }
+
+    /** The installer of Android on the APK at `path`, in the app's cache (FileProvider, as shareImage). Android asks the
+     * user to allow the app to install apps once (Cài ứng dụng không rõ nguồn gốc): without that the screen of that
+     * setting opens instead and the call fails with "allow", for the user to press Cập nhật again once allowed. The
+     * installer replaces this app, keeping its data (same package, same signing key). */
+    @Command
+    fun installApk(invoke: Invoke) {
+        val args = invoke.parseArgs(ApkArgs::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= 26 && !activity.packageManager.canRequestPackageInstalls()) {
+                activity.runOnUiThread {
+                    activity.startActivity(
+                        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+                    )
+                }
+                invoke.reject("allow")
+                return
+            }
+            val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", File(args.path))
+            val install = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            activity.runOnUiThread { activity.startActivity(install) }
+            invoke.resolve()
+        } catch (e: Exception) {
+            Log.w(TAG, "installApk(${args.path}): $e")
             invoke.reject(e.message ?: e.toString())
         }
     }

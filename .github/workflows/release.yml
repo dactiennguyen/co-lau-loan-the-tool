@@ -138,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           git log -1 --format=%b HEAD > commit-body.txt
-          node .github/scripts/latest-json.mjs assets "$VERSION" "$GH_REPO" "$TAG" commit-body.txt > latest.json
+          node .github/scripts/latest-json.mjs assets "$VERSION" "$GH_REPO" "$TAG" commit-body.txt SHA256SUMS.txt > latest.json
           cat latest.json
 
       # SHA256SUMS.txt and latest.json come, then the SHA-256 of each build go (in this order, so the job can run again

@@ -234,7 +234,7 @@ jobs:
   # The Android app (docs/integration/rust/android.md): one APK for arm64 phones, signed with the release key of the
   # secrets ANDROID_KEYSTORE_B64 (the .jks in base64), ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS, the same key
   # every time so that a new APK installs over the old one. Without them the APK is left unsigned and not uploaded. It
-  # has no updater: latest.json does not name it, users install the new APK.
+  # updates itself from `android` of latest.json (its URL and SHA-256), which latest-json.mjs writes from SHA256SUMS-android.txt.
   android:
     name: "Build: Android arm64"
     needs: [preflight-ts, preflight-rust]

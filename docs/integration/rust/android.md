@@ -7,7 +7,7 @@ App máy tính (Tauri 2) build được thành file APK cho Android (arm64). Cù
 | Phần | Máy tính | Android |
 |---|---|---|
 | Khay hệ thống, nút đóng cửa sổ (`tray.rs`) | có | không có (`#[cfg(desktop)]`); `close_window` chỉ lưu lựa chọn |
-| Tự cập nhật (`update.rs`, `tauri-plugin-updater`) | có | tắt: trạng thái `off`, lý do "bản Android: cài file APK mới để cập nhật"; `install_update` báo lỗi đó |
+| Tự cập nhật (`update.rs`) | `tauri-plugin-updater`, cài xong tự mở lại | không có plugin đó: app đọc mục `android` của cùng `latest.json`, tải APK, kiểm SHA-256 rồi mở trình cài của Android; người dùng bấm Cài đặt ([release.md](release.md#trên-android)) |
 | Cửa sổ trận cho OBS (`battle_window.rs`) | có | `open_battle_window` báo "Cửa sổ trận chỉ có trên máy tính" |
 | Mã máy cho key (`machine.rs`) | mã của hệ điều hành (`machine-uid`) | Android không cho app đọc mã máy: app tạo 32 byte ngẫu nhiên một lần, lưu ở `device-id` cạnh `accounts.json`, rồi băm như bản máy tính. Gỡ app là mất mã: key cần **Gỡ thiết bị** trên trang Key |
 | Tên máy trên trang Key | tên máy | hãng và model (`getprop`, ví dụ "Xiaomi M2101K7BG") |

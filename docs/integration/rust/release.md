@@ -83,6 +83,17 @@ Bản cài của app tự tìm, tải và cài bản mới từ [GitHub Releases
 ```
 Updater tìm `{hệ}-{kiến trúc}-{bộ cài}` trước (cài từ `.msi` thì lấy bản `.msi`, cài từ `.deb` thì lấy `.deb`), rồi mới tới `{hệ}-{kiến trúc}`. Có 7 file: `darwin-aarch64-app`, `darwin-x86_64-app`, `windows-x86_64-nsis`, `windows-x86_64-msi`, `linux-x86_64-appimage`, `linux-x86_64-deb`, `linux-x86_64-rpm`. Thêm vào đó là `darwin-aarch64`, `darwin-x86_64`, `windows-x86_64` (NSIS) và `linux-x86_64` (AppImage).
 
+Từ 2.2.22 còn có thêm `"android": { "url": "…/colautool_2.2.22_android_arm64.apk", "sha256": "…" }`, lấy SHA-256 từ `SHA256SUMS.txt` (bước ngay trước). Updater của máy tính bỏ qua trường lạ này. Bản phát hành build không có khoá ký APK thì không có mục `android`, và app Android coi như chưa có bản mới.
+
+### Trên Android
+
+App Android không có `tauri-plugin-updater` (plugin đó không chạy trên Android), nên `update.rs` tự làm, cùng các trạng thái và cùng giao diện:
+1. Một lần khi mở app, hoặc khi bấm ⟳: tải `latest.json` (cùng địa chỉ `plugins.updater.endpoints`). Có `version` mới hơn và có mục `android` thì tải APK vào thư mục cache của app (`update/colautool-<version>.apk`), có thanh tiến độ.
+2. SHA-256 của file phải khớp `android.sha256`; sai thì không cài, báo "không khớp SHA-256". Lớp bảo vệ thứ hai là Android: chỉ cho APK ký cùng khoá (`~/.android-keys`, [android.md](android.md#ký-apk)) cài đè, nên dữ liệu (nick, cài đặt, key) được giữ.
+3. Tải xong, app mở ngay trình cài của Android (`installApk` của plugin keepalive, qua FileProvider), và người dùng bấm **Cài đặt** ở đó. Android không cho app ngoài CH Play tự cài lặng lẽ. Lần đầu, Android chưa cho Co Lau Tool cài ứng dụng: app mở màn hình "Cài ứng dụng không rõ nguồn gốc" và hộp cập nhật nhắc bật "Cho phép từ nguồn này" rồi bấm Cài đặt lại. Quyền `REQUEST_INSTALL_PACKAGES` nằm trong manifest của plugin.
+4. Hộp "Cập nhật bắt buộc" lúc này có **Cài đặt** (mở lại trình cài, khi người dùng đã huỷ) và **Để sau** (đóng tới lần mở app sau; nút Cập nhật ở dòng phiên bản vẫn cài được). Lần mở app sau, thư mục `update` bị xoá.
+5. Bản đầu tiên có tính năng này (2.2.22) phải cài tay.
+
 **Khoá ký:**
 - Tạo ngày 31/10/2026 bằng `npm run tauri signer generate`. Khoá riêng nằm ở `~/.tauri/colautool.key` trên máy phát triển, mật khẩu ở `~/.tauri/colautool.key.password` (cả hai quyền 600, không bao giờ đưa vào repo). Khoá công khai nằm trong `tauri.conf.json`.
 - CI cần hai secret của repo (GitHub → Settings → Secrets and variables → Actions → New repository secret):
