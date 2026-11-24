@@ -130,4 +130,5 @@ export const LOG = {
   note: (from: string, to: string) => `ghi chú "${from}" → "${to}"`,
   maxAccounts: (from: number, to: number) => `số nick ${from} → ${to}`,
   ends: (from: string, to: string) => `hạn ${from} → ${to}`,
+  bachHo: (on: boolean) => (on ? 'bật Bạch Hổ' : 'tắt Bạch Hổ'),
 };

@@ -79,7 +79,7 @@ export async function create(db: Db, note: string, maxAccounts: number, term: Te
 
 /** Tạo key with Số lượng: `count` keys alike (note, accounts, end), in one batch of writes; a key that happens to be
  * taken already (never seen: 80 random bits) is made again. Their ids, in the order made. */
-export async function createMany(db: Db, note: string, maxAccounts: number, term: Term, count: number, now = Date.now()): Promise<number[]> {
+export async function createMany(db: Db, note: string, maxAccounts: number, term: Term, count: number, now = Date.now(), bachHo = true): Promise<number[]> {
   const ends =
     term.mode === 'activation'
       ? { mode: 'activation' as const, duration: term.duration, durationUnit: term.unit, expiresAt: null }
@@ -89,7 +89,7 @@ export async function createMany(db: Db, note: string, maxAccounts: number, term
     const keys = new Set<string>();
     while (keys.size < count - ids.length) keys.add(newKey());
     const inserts = [...keys].map((key) =>
-      db.insert(table).values({ key, note, maxAccounts, ...ends, createdAt: now }).onConflictDoNothing().returning({ id: table.id }),
+      db.insert(table).values({ key, note, maxAccounts, ...ends, bachHo: bachHo ? 1 : 0, createdAt: now }).onConflictDoNothing().returning({ id: table.id }),
     );
     const made = await db.batch(inserts as [(typeof inserts)[0], ...typeof inserts]);
     for (const [row] of made) if (row) ids.push(row.id);
@@ -282,11 +282,16 @@ export async function synced(db: Db, l: License, settings: string | null, events
 export const get = (db: Db, id: number) => db.select().from(table).where(eq(table.id, id)).get();
 
 /** What Sửa changes of the key `l`, as the Log page says it: the note, the most accounts, the end. */
+/** What Sửa asks: the note, the most accounts, a new end (a date, or the duration of a key never activated), and Bạch Hổ
+ * (null: as it is). */
+type Edit = { note: string; maxAccounts: number; expiresAt: number | null; duration: { n: number; unit: DurationUnit } | null; bachHo?: boolean | null };
+
 export function changes(
   l: License,
-  e: { note: string; maxAccounts: number; expiresAt: number | null; duration: { n: number; unit: DurationUnit } | null },
+  e: Edit,
 ): string[] {
   const out: string[] = [];
+  if (e.bachHo != null && e.bachHo !== (l.bachHo !== 0)) out.push(LOG.bachHo(e.bachHo));
   if (e.note !== l.note) out.push(LOG.note(l.note, e.note));
   if (e.maxAccounts !== l.maxAccounts) out.push(LOG.maxAccounts(l.maxAccounts, e.maxAccounts));
   if (e.duration && (e.duration.n !== l.duration || e.duration.unit !== l.durationUnit)) {
@@ -347,9 +352,9 @@ export type Edited = 'saved' | 'activated' | 'gone';
 export async function edit(
   db: Db,
   id: number,
-  e: { note: string; maxAccounts: number; expiresAt: number | null; duration: { n: number; unit: DurationUnit } | null },
+  e: Edit,
 ): Promise<Edited> {
-  const fields = { note: e.note, maxAccounts: e.maxAccounts };
+  const fields = { note: e.note, maxAccounts: e.maxAccounts, ...(e.bachHo == null ? {} : { bachHo: e.bachHo ? 1 : 0 }) };
   // The form of a key with an end sends a date; that of a key never activated, a duration.
   const [done] = e.duration
     ? await db

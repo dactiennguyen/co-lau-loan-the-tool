@@ -1304,3 +1304,22 @@ test('key: Bạch Hổ is on for every key, Tắt Bạch Hổ turns it off for t
     ['Tắt Bạch Hổ cho key K', 'Bật Bạch Hổ cho key K'],
   );
 });
+
+test('key: Bạch Hổ of Tạo key (Tắt makes it off) and of Sửa (turns it back on, logged with the edit; no field leaves it)', async () => {
+  const c = await ready();
+  const key = await newKey(c, { bachHo: '0' });
+  assert.equal((await verify(c.call, key)).json.bachHo, false);
+  const page = (await c.call('/admin/licenses')).text;
+  assert.match(page, /name="bachHo" value="1"/, 'Tạo key and Sửa have the choice');
+  const id = await keyId(c, key);
+  const form = { note: 'Anh A', maxAccounts: '100' };
+  await c.call(`/admin/licenses/${id}/edit`, { form: { ...form, bachHo: '1' } });
+  assert.equal((await verify(c.call, key)).json.bachHo, true);
+  await c.call(`/admin/licenses/${id}/edit`, { form: { ...form, note: 'Anh B' } });
+  assert.equal((await verify(c.call, key)).json.bachHo, true, 'a form without Bạch Hổ leaves it');
+  const lines = await c.env.DB.prepare("SELECT message FROM logs WHERE kind = 'admin.edit' ORDER BY id").all<{ message: string }>();
+  assert.deepEqual(
+    lines.results.map((r) => r.message.replace(/key .*?:/, 'key K:')),
+    ['Sửa key K: bật Bạch Hổ', 'Sửa key K: ghi chú "Anh A" → "Anh B"'],
+  );
+});

@@ -70,6 +70,27 @@ function DaysAndDate({ today: day, date, error }: { today: string; date: string;
   );
 }
 
+/** Bạch Hổ of Tạo key and Sửa: whether the app of the key may run it, as the two choices of Hạn dùng are drawn. Sửa's
+ * is set by client/admin.ts from the key. */
+function BachHoField({ on }: { on: boolean }) {
+  return (
+    <div class="field">
+      <span class="label">Bạch Hổ</span>
+      <div class="seg full" role="radiogroup" aria-label="Bạch Hổ">
+        <label>
+          <input type="radio" name="bachHo" value="1" checked={on ? true : undefined} />
+          <Icon name="crown" />
+          Cho chạy
+        </label>
+        <label>
+          <input type="radio" name="bachHo" value="0" checked={on ? undefined : true} />
+          Tắt
+        </label>
+      </div>
+    </div>
+  );
+}
+
 /** Tạo key: a note, how many accounts, and how it ends, from its activation or on a date (10 days from today unless
  * changed). Opens again with what was wrong under its field. */
 function CreateDialog({ now, errors, values }: { now: number; errors: Record<string, string>; values: Record<string, string> }) {
@@ -139,6 +160,7 @@ function CreateDialog({ now, errors, values }: { now: number; errors: Record<str
         <div data-mode="fixed" hidden={mode !== 'fixed' ? true : undefined}>
           <DaysAndDate today={day} date={values.date ?? addDays(day, 10)} error={errors.date} />
         </div>
+        <BachHoField on={values.bachHo !== '0'} />
       </form>
     </Dialog>
   );
@@ -174,6 +196,7 @@ function EditDialog({ now }: { now: number }) {
           <Field name="duration" type="number" label="Hạn sau khi kích hoạt" min="1" />
           <Select name="unit" label="Đơn vị" options={UNIT_OPTIONS} value={DEFAULT_DURATION_UNIT} />
         </div>
+        <BachHoField on />
       </form>
     </Dialog>
   );
@@ -316,6 +339,7 @@ function Menu({ l }: { l: LicenseRow }) {
     date: l.expiresAt === null ? null : lastDayInput(l.expiresAt),
     duration: l.duration,
     unit: l.durationUnit,
+    bachHo: l.bachHo !== 0,
   };
   const item = (icon: IconName, text: string, data: Record<string, string>, danger?: boolean) => (
     <button type="button" role="menuitem" class={danger ? 'danger' : undefined} {...data}>

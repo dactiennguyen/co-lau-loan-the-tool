@@ -123,7 +123,7 @@ document.querySelectorAll<HTMLFormElement>('form[data-modes]').forEach(modes);
 // ---- Dialogs ---------------------------------------------------------------------------------------------------------
 
 type Act = { action: string; title: string; text: string; ok?: string; danger?: boolean };
-type License = { action: string; title: string; note: string; maxAccounts: number; date: string | null; duration: number | null; unit: string | null };
+type License = { action: string; title: string; note: string; maxAccounts: number; date: string | null; duration: number | null; unit: string | null; bachHo: boolean };
 
 /** The action dialog (and Khoá): its title, text, button and the action of its form, from the button that opened it. */
 function fillAct(dialog: HTMLDialogElement, act: Act) {
@@ -148,6 +148,7 @@ function fillEdit(dialog: HTMLDialogElement, l: License) {
   dialog.querySelector('[data-title]')!.textContent = l.title;
   field(form, 'note')!.value = l.note;
   field(form, 'maxAccounts')!.value = String(l.maxAccounts);
+  form.querySelector<HTMLInputElement>(`input[name="bachHo"][value="${l.bachHo ? '1' : '0'}"]`)!.checked = true;
   const date = form.querySelector<HTMLElement>('[data-end="date"]');
   const duration = form.querySelector<HTMLElement>('[data-end="duration"]');
   if (l.date !== null) {

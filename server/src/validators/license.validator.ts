@@ -168,6 +168,13 @@ const isDate = (s: string) => /^\d{4}-\d\d-\d\d$/.test(s) && !Number.isNaN(Date.
 
 /** Tạo key: a note, the most accounts, and how it ends, `duration` `unit` from its activation or the end of `date`
  * (Vietnam time), today or later. */
+/** Bạch Hổ of Tạo key and Sửa: "1" Cho chạy, "0" Tắt; anything else (no such field) undefined. */
+const bachHo = z
+  .enum(['0', '1'])
+  .optional()
+  .catch(undefined)
+  .transform((v) => (v === undefined ? undefined : v === '1'));
+
 export const createForm = z
   .object({
     note: clipped(MAX_LICENSE_NOTE),
@@ -181,6 +188,7 @@ export const createForm = z
     duration: z.string().trim().catch(''),
     unit,
     date: z.string().trim().catch(''),
+    bachHo,
   })
   .superRefine((v, ctx) => {
     if (v.mode === 'activation') {
@@ -196,6 +204,8 @@ export const createForm = z
     note: v.note,
     maxAccounts: v.maxAccounts,
     count: v.count,
+    // On unless the form says Tắt.
+    bachHo: v.bachHo !== false,
     term: (v.mode === 'activation'
       ? { mode: 'activation', duration: Number(v.duration), unit: v.unit }
       : { mode: 'fixed', expiresAt: endOfDay(v.date) }) satisfies Term as Term,
@@ -210,6 +220,7 @@ export const editForm = z
     duration: z.string().trim().catch(''),
     unit,
     date: z.string().trim().catch(''),
+    bachHo,
   })
   .superRefine((v, ctx) => {
     if (v.date && !isDate(v.date)) ctx.addIssue({ code: 'custom', message: LICENSE.date, path: ['date'] });
@@ -223,6 +234,8 @@ export const editForm = z
     maxAccounts: v.maxAccounts,
     expiresAt: v.date ? endOfDay(v.date) : null,
     duration: v.duration ? { n: Number(v.duration), unit: v.unit } : null,
+    // Left as it is when the form has no such field.
+    bachHo: v.bachHo ?? null,
   }));
 
 /** Khoá: the reason the app shows. */

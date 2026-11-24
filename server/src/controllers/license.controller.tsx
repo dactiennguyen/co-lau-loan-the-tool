@@ -78,15 +78,15 @@ export async function page(c: Ctx) {
 export async function create(c: Ctx) {
   const form = check(createForm, formObject(c.var.form));
   if (!form.ok) return show(c, { errors: form.fields, values: formObject(c.var.form) }, 400);
-  const { note, maxAccounts, term, count } = form.data;
-  const ids = await licenses.createMany(c.var.db, note, maxAccounts, term, count);
+  const { note, maxAccounts, term, count, bachHo } = form.data;
+  const ids = await licenses.createMany(c.var.db, note, maxAccounts, term, count, Date.now(), bachHo);
   const first = count === 1 ? await licenses.get(c.var.db, ids[0]!) : undefined;
   await logs.add(c.var.db, {
     ...logs.byAdmin(clientIp(c)),
     kind: 'admin.create',
     licenseId: first?.id ?? null,
     message: LOG.created(count, first ? keyName(first) : note),
-    detail: { ids, maxAccounts, term },
+    detail: { ids, maxAccounts, term, bachHo },
   });
   return c.redirect(`/admin/licenses?created=${ids.join(',')}`, 303);
 }

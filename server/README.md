@@ -131,7 +131,7 @@ Tạo xong, trang quay về danh sách và hiện key mới để chép (tải l
 
 **Thao tác khác trên trang Key:**
 - **Khoá** kèm lý do (app hiện lý do), **Mở khoá**.
-- **Tắt Bạch Hổ** / **Bật Bạch Hổ** (24/11): app dùng key đó có được chạy Bạch Hổ hay không. Mọi key mặc định **bật**, cả key tạo trước (migration `0010_license_bach_ho.sql`); key đã tắt có dòng "Tắt Bạch Hổ" dưới trạng thái. App biết ở lần kiểm tra tới: khi mở app, khi mở cửa sổ Bạch Hổ, hoặc tối đa 1 giờ; nick đang đánh Bạch Hổ thì dừng. Mỗi lần đổi là một dòng log.
+- **Tắt Bạch Hổ** / **Bật Bạch Hổ** (24/11): app dùng key đó có được chạy Bạch Hổ hay không. Mọi key mặc định **bật**, cả key tạo trước (migration `0010_license_bach_ho.sql`); key đã tắt có dòng "Tắt Bạch Hổ" dưới trạng thái. App biết ở lần kiểm tra tới: khi mở app, khi mở cửa sổ Bạch Hổ, hoặc tối đa 1 giờ; nick đang đánh Bạch Hổ thì dừng. Mỗi lần đổi là một dòng log. Chọn được ngay trong form **Tạo key** và **Sửa** (ô **Bạch Hổ**: Cho chạy / Tắt, mặc định Cho chạy); Sửa đổi Bạch Hổ thì dòng log "Sửa key …: bật Bạch Hổ".
 - **Sửa** ghi chú, số nick tối đa, và ngày hết hạn (key chưa kích hoạt thì sửa thời hạn). Chọn một ngày đã qua là cho key hết hạn ngay. Key được kích hoạt trong lúc đang sửa thời hạn thì không lưu gì, và trang báo lý do.
 - **Xoá** key: app dùng key đó bị khoá; các nick key đó đã đồng bộ vẫn giữ.
 
