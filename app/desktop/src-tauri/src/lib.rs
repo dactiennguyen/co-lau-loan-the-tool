@@ -154,6 +154,7 @@ pub fn run() {
             commands::open_shop_kind,
             commands::smith_merge,
             commands::smith_fuse,
+            commands::smith_fuse_loop,
             commands::merge_forecast,
             commands::smith_upgrade,
             commands::smith_craft,

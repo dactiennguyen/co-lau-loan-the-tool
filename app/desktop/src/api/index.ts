@@ -114,6 +114,10 @@ export interface Api {
   /** Luyện tự chọn: the stones picked, a bag slot per stone (a stack's slot once per stone of it), of any levels, in Luyện
    * đá with one press at the odds fuseQuote says, above 40% only. */
   smithFuse(id: number, stones: number[]): Promise<void>;
+  /** Luyện liên tục: Theo mục tiêu (Đá cấp `level` from `rate` %, stones picked as Gợi ý each press) when `counts` is null,
+   * else Công thức cố định (`counts[l]` stones of level l every press); up to `times` presses and `wins` successes (0 for
+   * no such end); unlocked stones only with `unlockedOnly`. */
+  smithFuseLoop(id: number, level: number, rate: number, counts: number[] | null, times: number, wins: number, unlockedOnly: boolean): Promise<void>;
   /** What Gộp đá would do with these options on the bag as it is now; null without a bag. */
   mergeForecast(id: number, options: MergeOptions): Promise<MergeForecast | null>;
   /** Nâng cấp the item of bag slot `slot` up to +`toLevel`, stones up to `rate` % each level; `quote` only asks the price. */
@@ -303,6 +307,7 @@ const tauri: Api = {
   openShopKind: (id, kind) => invoke("open_shop_kind", { id, kind }),
   smithMerge: (id, options) => invoke("smith_merge", { id, options }),
   smithFuse: (id, stones) => invoke("smith_fuse", { id, stones }),
+  smithFuseLoop: (id, level, rate, counts, times, wins, unlockedOnly) => invoke("smith_fuse_loop", { id, level, rate, counts, times, wins, unlockedOnly }),
   mergeForecast: (id, options) => invoke("merge_forecast", { id, options }),
   smithUpgrade: (id, slot, careful, rate, toLevel, unlocked, quote, worn, charm, stones) =>
     invoke("smith_upgrade", { id, slot, careful, rate, toLevel, unlocked, quote, worn, charm, stones }),
@@ -449,6 +454,7 @@ const preview: Api = {
   openShopKind: nothing,
   smithMerge: nothing,
   smithFuse: nothing,
+  smithFuseLoop: nothing,
   mergeForecast: async () => null,
   smithUpgrade: nothing,
   smithCraft: nothing,

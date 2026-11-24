@@ -51,3 +51,25 @@ test('upgrade rules: Luyện tự chọn quotes and suggests alike', () => {
     assert.deepEqual(ui.fuseSuggest(held, target, rate), proto.fuseSuggest(held, target, rate), `fuseSuggest(${held}, ${target}, ${rate})`);
   }
 });
+
+test('Luyện liên tục: how many presses the stones held last for', () => {
+  // 3 Đá cấp 6, 23 Đá cấp 5: 2 Đá 6 → Đá 7 at 50% once (one Đá 6 left), then Gợi ý takes Đá 6 + 5s, then 5s alone.
+  const held = [0, 0, 0, 0, 0, 23, 3, 0, 0, 0, 0, 0, 0];
+  const target = (left: number[]) => ui.fuseSuggest(left, 7, 42);
+  const rounds = ui.fuseRounds(held, target);
+  assert.ok(rounds >= 2, `rounds ${rounds}`);
+  // Each press as Gợi ý would pick on what is left; none needs more than is held.
+  const left = [...held];
+  for (let i = 0; i < rounds; i++) {
+    const take = target(left)!;
+    take.forEach((k, l) => (left[l] -= k));
+    assert.ok(left.every((k) => k >= 0));
+  }
+  assert.equal(target(left), null, 'nothing left for one more');
+  // Công thức cố định: 2 Đá 6 + 6 Đá 5 fits once in 3 Đá 6 and 23 Đá 5; "at most" caps it.
+  const fixed = ui.fixedPick([0, 0, 0, 0, 0, 6, 2, 0, 0, 0, 0, 0, 0]);
+  assert.equal(ui.fuseRounds(held, fixed), 1);
+  assert.equal(ui.fuseRounds([0, 0, 0, 0, 0, 30, 9, 0, 0, 0, 0, 0, 0], fixed), 4);
+  assert.equal(ui.fuseRounds([0, 0, 0, 0, 0, 30, 9, 0, 0, 0, 0, 0, 0], fixed, 2), 2);
+  assert.equal(ui.fuseRounds(held, () => null), 0);
+});

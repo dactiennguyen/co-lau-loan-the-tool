@@ -86,3 +86,20 @@ export function fuseSuggest(held: number[], target: number, rate: number): numbe
   const q = fuseQuote(take.flatMap((n, l) => Array<number>(n).fill(l)));
   return q.target === target && !fuseWhy(q) ? take : null;
 }
+
+/** Luyện liên tục: the presses the stones of `held` (by level, index 1–12) last for, each taking the stones `pick`
+ * chooses from what is left (fuseSuggest for Theo mục tiêu, the same counts for Công thức cố định), as if every press
+ * used up its stones (what a failure takes is not measured); at most `most`. */
+export function fuseRounds(held: number[], pick: (left: number[]) => number[] | null, most = 999): number {
+  const left = [...held];
+  let n = 0;
+  for (; n < most; n++) {
+    const take = pick(left);
+    if (!take || take.every((k) => k <= 0) || take.some((k, l) => k > (left[l] ?? 0))) break;
+    take.forEach((k, l) => (left[l] -= k));
+  }
+  return n;
+}
+
+/** Công thức cố định: `counts` when `held` has them all, else null (the pick of fuseRounds). */
+export const fixedPick = (counts: number[]) => (left: number[]) => (counts.every((k, l) => k <= (left[l] ?? 0)) ? counts : null);

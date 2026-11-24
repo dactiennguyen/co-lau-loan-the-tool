@@ -722,6 +722,10 @@ pub enum SmithTask {
     /// and the odds, checked before Bắt đầu) and above 40%. All unlocked: [Xu] (paid in Xu, the stone made unlocked);
     /// else [Xu khóa]. A failure is not measured: the stones left after it are said in the log.
     Fuse { stones: Vec<i32> },
+    /// Luyện liên tục (24/11/2026, the user's ask): Luyện tự chọn again and again, the stones of each press picked from
+    /// the bag as it is then (FuseLoop), until `times` presses, `wins` successes, the stones or the money run out, or
+    /// Dừng. Each press is checked and pressed as Fuse is; a failure is said in the log (what it took) and the loop goes on.
+    FuseLoop(FuseLoop),
     /// Tách đá of the item of bag slot `slot`.
     Separate { slot: u8 },
     /// Chuyển hoá from bag slot `source` to bag slot `target`, with the cheapest Chuyển hoá item of the bag.
@@ -743,6 +747,29 @@ pub enum SmithTask {
     /// Nhiệm vụ hàng ngày of Hương Lão (line 2 of his menu): read how many were taken today, or Nhận, Hủy or Hoàn thành,
     /// each checked against the menu and the quest held first (Snapshot.daily).
     Daily { action: DailyAction },
+}
+
+/// Luyện liên tục: the recipe of every press and when the loop ends.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FuseLoop {
+    pub recipe: FuseRecipe,
+    /// Presses at most; 0 for no such end.
+    pub times: u32,
+    /// Ends once this many presses made their stone; 0 for no such end.
+    pub wins: u32,
+    /// Unlocked stones only: Luyện đá [Xu], paid in Xu, the stone made unlocked. Else locked stones first (they can never
+    /// be traded), in [Xu khóa].
+    pub unlocked_only: bool,
+}
+
+/// How Luyện liên tục picks the stones of a press.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FuseRecipe {
+    /// Theo mục tiêu: few stones held that make Đá cấp `level` at `rate` % at least, as Gợi ý picks (npc::fuse_suggest);
+    /// the stones made, of that level, are never put back in.
+    Target { level: i32, rate: i32 },
+    /// Công thức cố định: `counts[l]` stones of level l (index 1–12) every press, as long as the bag has them.
+    Fixed { counts: Vec<i64> },
 }
 
 /// What SmithTask::Daily does at Hương Lão's menu of daily quests.

@@ -382,6 +382,8 @@ Mỗi lần thành công: mọi viên đặt vào đều mất, viên mới vào
 
 **Trong app (23/11):** tab Gộp đá có chip **Luyện tự chọn**: chọn đá mỗi cấp, app tính tỉ lệ theo quy luật trên (`fuseQuote` trong `src/protocol/npc.ts`, `npc::fuse_quote`), chặn từ 40% trở xuống, bot so cấp đá và tỉ lệ `s2c/92` báo trước khi bấm. Lần thất bại đầu tiên sẽ ghi số đá mỗi cấp đã mất vào nhật ký. Bấm thật lần đầu 23/11 (một nick của người dùng, 2.2.11): 2 Đá cấp 6 khoá → Đá cấp 7 ở 50%, **thành công**, tốn 1.639 Xu khóa. Chưa thấy lần thất bại nào.
 
+**Luyện liên tục (24/11):** dưới cửa sổ Luyện tự chọn, bot luyện nhiều lần liền theo **Theo mục tiêu** (mỗi lần chọn đá như Gợi ý cho Đá cấp và tỉ lệ ít nhất) hay **Công thức cố định** (đúng số đá mỗi cấp đang đặt trong lò, mỗi lần), tới Tối đa N lần, đủ N lần thành công, hết đá, hết tiền, hay Dừng (`SmithTask::FuseLoop`). Mỗi lần thất bại ghi "Lần N: thất bại, mất …" (so túi trước và sau): đây là chỗ đo được luyện thất bại mất gì. Chưa chạy thật.
+
 <a id="tách-đá"></a>
 
 ## Tách đá

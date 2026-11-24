@@ -6,7 +6,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { Hint } from "@/components/Hint";
 import { Icon } from "@/components/Icon";
 import { Stepper } from "@/components/Stepper";
-import { FUSE, fuseQuote, fuseSuggest, fuseWhy, stoneIcon, stoneLevel, stoneValue, type FuseQuote } from "@/game/shops";
+import { FUSE, fixedPick, fuseQuote, fuseRounds, fuseSuggest, fuseWhy, stoneIcon, stoneLevel, stoneValue, type FuseQuote } from "@/game/shops";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
 import { recalled, remember } from "@/utils/remember";
@@ -17,6 +17,11 @@ const ONLY_UNLOCKED = "shop.fuseUnlocked";
 const TARGET = "shop.fuseTarget";
 const RATE = "shop.fuseRate";
 const LOOK = "shop.fuseLook";
+const LOOP_MODE = "shop.fuseLoopMode";
+const LOOP_TIMES = "shop.fuseLoopTimes";
+const LOOP_WINS = "shop.fuseLoopWins";
+/** The most presses and successes Luyện liên tục is asked for. */
+const LOOP_MOST = 999;
 const CELL = "px-2 py-1 text-left border-b border-b-line";
 const COL = cn(CELL, "text-11 font-semibold text-fg-3");
 const NUM = cn("px", CELL, "text-11 text-fg-2");
@@ -125,7 +130,8 @@ export function ShopFuse({ account, why, ask }: ShopContext) {
   const [look, setLook] = useState(() => (recalled(LOOK) === "table" ? "table" : "game"));
   const [onlyUnlocked, setOnlyUnlocked] = useState(() => recalled(ONLY_UNLOCKED) === "1");
   const [target, setTarget] = useState(() => Number(recalled(TARGET)) || 8);
-  const [rate, setRate] = useState(() => Number(recalled(RATE)) || 50);
+  // A rate kept from before is brought within what the Stepper and the bot take (41–100).
+  const [rate, setRate] = useState(() => Math.min(100, Math.max(FUSE.rate, Number(recalled(RATE)) || 50)));
   // The stones put in, in order, by key.
   const [keys, setKeys] = useState<string[]>([]);
   const [suggested, setSuggested] = useState<string | null>(null);
@@ -507,10 +513,193 @@ export function ShopFuse({ account, why, ask }: ShopContext) {
           {button}
         </>
       )}
+      <FuseLoopPanel
+        account={account}
+        why={why}
+        ask={ask}
+        locked={by.map((st) => st.filter((x) => x.locked).length)}
+        free={by.map((st) => st.filter((x) => !x.locked).length)}
+        counts={counts}
+        target={target}
+        rate={rate}
+        onlyUnlocked={onlyUnlocked}
+      />
       <p className={SHOP.note}>
         App chỉ đặt đá vào lò của game lúc bấm Kết hợp, rồi so cấp đá và tỉ lệ game báo với số ở trên: lệch thì dừng, không bấm.
         Chưa từng thấy luyện thất bại: có thể mất hết đá đã bỏ vào.
       </p>
     </div>
+  );
+}
+
+/** "2 Đá cấp 6 + 6 Đá cấp 5": stones by level (index 1–12), the highest first. */
+const countsText = (counts: number[]) =>
+  counts
+    .map((n, l) => (n > 0 ? `${n} Đá cấp ${l}` : null))
+    .filter(Boolean)
+    .reverse()
+    .join(" + ");
+const levelsOf = (counts: number[]) => counts.flatMap((n, l) => Array<number>(Math.max(0, n)).fill(l));
+
+/**
+ * Luyện liên tục (SmithTask::FuseLoop): Luyện tự chọn again and again, the bot picking the stones of each press from the
+ * bag as it is then. **Theo mục tiêu**: the stones Gợi ý would pick for Đá cấp `target` from `rate` % (the boxes above).
+ * **Công thức cố định**: the stones put in the window above, by level, every press. It ends after Tối đa presses, after
+ * Dừng khi thành công successes, when the stones or the money run out, or on Dừng; how many presses the stones last for
+ * is shown, as if every press used up its stones.
+ */
+function FuseLoopPanel({
+  account,
+  why,
+  ask,
+  locked,
+  free: freeHeld,
+  counts,
+  target,
+  rate,
+  onlyUnlocked,
+}: Pick<ShopContext, "account" | "why" | "ask"> & {
+  /** The stones of the bag by level: locked, and not locked (the unlocked ones only with `onlyUnlocked`). */
+  locked: number[];
+  free: number[];
+  counts: number[];
+  target: number;
+  rate: number;
+  onlyUnlocked: boolean;
+}) {
+  const hint = useId();
+  const [mode, setMode] = useState<"target" | "fixed">(() => (recalled(LOOP_MODE) === "fixed" ? "fixed" : "target"));
+  const kept = (key: string, fallback: number) => {
+    const n = Number(recalled(key) ?? fallback);
+    return Number.isInteger(n) && n >= 0 && n <= LOOP_MOST ? n : fallback;
+  };
+  const [times, setTimes] = useState(() => kept(LOOP_TIMES, 10));
+  const [wins, setWins] = useState(() => kept(LOOP_WINS, 0));
+  const pick = mode === "target" ? (left: number[]) => fuseSuggest(left, target, rate) : fixedPick(counts);
+  // A press takes locked stones only or unlocked ones only, as the bot does (fuse_round): locked first, then unlocked.
+  const pools = onlyUnlocked ? [freeHeld] : [locked, freeHeld];
+  const first = mode === "target" ? (pools.map(pick).find((c) => c) ?? null) : counts.some((n) => n > 0) ? counts : null;
+  const q = first ? fuseQuote(levelsOf(first)) : null;
+  const refused = mode === "fixed" ? (!first ? "Đặt đá vào lò ở trên để làm công thức, ví dụ 2 Đá cấp 6 + 6 Đá cấp 5." : fuseWhy(q!)) : null;
+  const rounds = first && !refused ? pools.reduce((n, pool) => n + fuseRounds(pool, pick), 0) : 0;
+  const presses = times > 0 ? Math.min(times, rounds) : rounds;
+  const free = onlyUnlocked ? " chưa khoá" : "";
+  const blocked =
+    why ??
+    refused ??
+    (rounds === 0
+      ? mode === "target"
+        ? `Đá${free} trong túi không đủ để ra Đá cấp ${target} với ${rate}%.`
+        : `Túi không đủ ${countsText(counts)}${free}.`
+      : null);
+  const what = mode === "target" ? `ra Đá cấp ${target} với tỉ lệ từ ${rate}%` : `${countsText(counts)} mỗi lần`;
+  const start = () =>
+    ask({
+      title: "Luyện liên tục",
+      message:
+        `Luyện liên tục: ${what}, ${times > 0 ? `tối đa ${times} lần` : "tới khi hết đá"}${wins > 0 ? `, dừng khi thành công ${wins} lần` : ""}. ` +
+        `Đá${free} hiện có đủ cho khoảng ${rounds} lần; phí khoảng ${num(q!.fee)} mỗi lần (đá khoá trả Xu khóa, hết Xu khóa thì dừng; đá chưa khoá trả Xu), ` +
+        `tổng khoảng ${num(q!.fee * presses)}. Chưa biết luyện thất bại mất gì: có thể mất hết đá của lần đó. Bấm Dừng ở trên để dừng bất cứ lúc nào.`,
+      confirm: "Luyện liên tục",
+      icon: "gem",
+      run: () =>
+        api.smithFuseLoop(account.id, target, rate, mode === "fixed" ? counts : null, times, wins, onlyUnlocked),
+    });
+
+  return (
+    <section className="grid gap-2 max-w-[640px] p-2.5 bg-bg-2 border-2 border-line" aria-labelledby={`${hint}-head`}>
+      <div className={SHOP.lead}>
+        <Icon name="refresh" size={13} className="text-primary" />
+        <b id={`${hint}-head`} className={SHOP.leadTitle}>
+          Luyện liên tục
+        </b>
+        <Hint label="Luyện liên tục là gì?" id={`${hint}-what`}>
+          Bot luyện hết lần này tới lần khác, mỗi lần tự chọn đá trong túi rồi bấm Kết hợp, kiểm tra tỉ lệ game báo trước khi bấm như
+          Kết hợp. Theo mục tiêu: mỗi lần chọn đá như nút Gợi ý theo hai ô Muốn ra Đá cấp và tỉ lệ ít nhất ở trên; đá vừa luyện ra
+          không bị bỏ vào lại. Công thức cố định: đúng số đá mỗi cấp đang đặt trong lò ở trên, mỗi lần. Mỗi lần chỉ dùng toàn đá khoá
+          hoặc toàn đá chưa khoá, không trộn (trộn thì đá ra bị khoá): đá khoá trước, trả Xu khóa và dừng khi hết Xu khóa, không
+          trả sang Xu; hết đá khoá thì sang đá chưa khoá, trả Xu. Tích Chỉ dùng đá chưa khoá để chỉ dùng đá chưa khoá. Dừng khi đủ
+          số lần, đủ số lần thành công, hết đá, hết tiền, hoặc bấm Dừng.
+        </Hint>
+        <span className="ml-auto flex gap-1.5">
+          {(
+            [
+              ["target", "Theo mục tiêu"],
+              ["fixed", "Công thức cố định"],
+            ] as const
+          ).map(([k, label]) => (
+            <FilterChip
+              key={k}
+              on={mode === k}
+              onClick={() => {
+                setMode(k);
+                remember(LOOP_MODE, k);
+              }}
+            >
+              {label}
+            </FilterChip>
+          ))}
+        </span>
+      </div>
+      <p className="text-12 text-fg-2">
+        {mode === "target" ? (
+          <>
+            Mỗi lần chọn đá như Gợi ý để ra <b className="text-fg">Đá cấp {target}</b> với tỉ lệ từ <b className="text-fg">{rate}%</b>
+            {first && q && (
+              <>
+                ; lần đầu: {countsText(first)} ({q.rate}%, phí {num(q.fee)})
+              </>
+            )}
+            .
+          </>
+        ) : first && q && !refused ? (
+          <>
+            Công thức: <b className="text-fg">{countsText(counts)}</b> → Đá cấp {q.target}, tỉ lệ {q.rate}%, phí {num(q.fee)} mỗi lần.
+          </>
+        ) : null}
+        {rounds > 0 && (
+          <>
+            {" "}
+            Đá{free} hiện có đủ cho <b className="px text-fg">{rounds}</b> lần.
+          </>
+        )}
+      </p>
+      <div className={SHOP.opts}>
+        <label className={SHOP.opt}>
+          Tối đa
+          <Stepper
+            value={times}
+            min={0}
+            max={LOOP_MOST}
+            label="số lần luyện tối đa (0 là tới khi hết đá)"
+            onChange={(v) => {
+              setTimes(v);
+              remember(LOOP_TIMES, String(v));
+            }}
+          />
+          lần{times === 0 && " (tới khi hết đá)"}
+        </label>
+        <label className={SHOP.opt}>
+          Dừng khi thành công
+          <Stepper
+            value={wins}
+            min={0}
+            max={LOOP_MOST}
+            label="dừng khi thành công số lần này (0 là không)"
+            onChange={(v) => {
+              setWins(v);
+              remember(LOOP_WINS, String(v));
+            }}
+          />
+          lần{wins === 0 && " (không)"}
+        </label>
+        <span className="ml-auto">
+          <Button kind="primary" icon="refresh" disabled={!!blocked} title={blocked ?? undefined} onClick={start}>
+            Luyện liên tục{presses > 0 ? ` · ${presses} lần` : ""}
+          </Button>
+        </span>
+      </div>
+      {blocked && blocked !== why && <p className={SHOP.why}>{blocked}</p>}
+    </section>
   );
 }

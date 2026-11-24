@@ -10,9 +10,9 @@ use crate::update::{self, UpdateView};
 use crate::view::{LogLine, LogTone};
 use cllt_core::accounts::Account;
 use cllt_core::bot::{
-    BachHoPace, BattleSource, DailyAction, FightSettings, ItemAct, LogKind, MailDraft, MailTask,
-    MarketTask, SmithTask, BREAK_EVERY_MAX, BREAK_MINUTES_MAX, MERGE_EVERY_MAX, MOB_DELAY_MAX,
-    POTION_MAX, STEP_DELAY_MAX,
+    BachHoPace, BattleSource, DailyAction, FightSettings, FuseLoop, FuseRecipe, ItemAct, LogKind,
+    MailDraft, MailTask, MarketTask, SmithTask, BREAK_EVERY_MAX, BREAK_MINUTES_MAX,
+    MERGE_EVERY_MAX, MOB_DELAY_MAX, POTION_MAX, STEP_DELAY_MAX,
 };
 use cllt_core::net::Command;
 use cllt_core::npc::{MergeForecast, MergeOptions};
@@ -328,6 +328,34 @@ pub fn smith_merge(shared: State<Shared>, id: u64, options: MergeOptions) {
 #[tauri::command]
 pub fn smith_fuse(shared: State<Shared>, id: u64, stones: Vec<i32>) {
     shared.with(|app| app.send(id, Command::Smith(SmithTask::Fuse { stones })));
+}
+
+/// Luyện liên tục (SmithTask::FuseLoop): Theo mục tiêu with `level` and `rate` when `counts` is None, else Công thức
+/// cố định with `counts` (stones of each level, index 1–12); up to `times` presses and `wins` successes (0 for no such
+/// end), unlocked stones only with `unlocked_only`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn smith_fuse_loop(
+    shared: State<Shared>,
+    id: u64,
+    level: i32,
+    rate: i32,
+    counts: Option<Vec<i64>>,
+    times: u32,
+    wins: u32,
+    unlocked_only: bool,
+) {
+    let recipe = match counts {
+        Some(counts) => FuseRecipe::Fixed { counts },
+        None => FuseRecipe::Target { level, rate },
+    };
+    let task = SmithTask::FuseLoop(FuseLoop {
+        recipe,
+        times,
+        wins,
+        unlocked_only,
+    });
+    shared.with(|app| app.send(id, Command::Smith(task)));
 }
 
 /// What Gộp đá would do with these options on the bag as it is now; None without a bag.

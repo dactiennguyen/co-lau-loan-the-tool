@@ -103,6 +103,64 @@ fn fuse_levels(bag: &[BagItem], stones: &[i32]) -> Vec<i32> {
         .collect()
 }
 
+/// The stones of the bag by level (index 1–12): all of them, or the locked (Some(true)) or unlocked (Some(false)) ones.
+fn stones_held(bag: &[BagItem], locked: Option<bool>) -> Vec<i64> {
+    let mut held = vec![0i64; 13];
+    for i in bag
+        .iter()
+        .filter(|i| locked.is_none_or(|l| i.locked() == l))
+    {
+        let l = npc::stone_level(i.item_id);
+        if l > 0 {
+            held[l as usize] += i.count() as i64;
+        }
+    }
+    held
+}
+
+/// Luyện liên tục: bag slots for `counts[l]` stones of each level l, one slot per stone, from the locked stacks or the
+/// unlocked ones (`locked`) by slot. None when they hold fewer.
+fn fuse_pick(bag: &[BagItem], counts: &[i64], locked: bool) -> Option<Vec<i32>> {
+    let mut stacks: Vec<&BagItem> = bag
+        .iter()
+        .filter(|i| npc::stone_level(i.item_id) > 0 && i.locked() == locked)
+        .collect();
+    stacks.sort_by_key(|i| i.slot);
+    let mut slots = vec![];
+    for (level, &want) in counts.iter().enumerate().skip(1) {
+        let mut left = want.max(0);
+        for i in stacks
+            .iter()
+            .filter(|i| npc::stone_level(i.item_id) == level as i32)
+        {
+            let n = left.min(i.count() as i64);
+            slots.extend(std::iter::repeat_n(i.slot, n as usize));
+            left -= n;
+        }
+        if left > 0 {
+            return None;
+        }
+    }
+    Some(slots)
+}
+
+/// "2 Đá cấp 6 + 6 Đá cấp 5": the stones of a recipe, the highest level first.
+fn counts_text(counts: &[i64]) -> String {
+    let parts: Vec<String> = (1..counts.len())
+        .rev()
+        .filter(|&l| counts[l] > 0)
+        .map(|l| format!("{} Đá cấp {l}", counts[l]))
+        .collect();
+    parts.join(" + ")
+}
+
+/// The levels of a recipe's stones, one entry per stone, for npc::fuse_quote.
+fn counts_levels(counts: &[i64]) -> Vec<i32> {
+    (0..counts.len())
+        .flat_map(|l| std::iter::repeat_n(l as i32, counts[l].max(0) as usize))
+        .collect()
+}
+
 /// Why stones the player picked (one bag slot per stone) cannot go in: a slot that holds no stone, more stones of a slot
 /// than it holds, more than the window's `most` (18 for Nâng cấp, 24 for Luyện đá).
 fn picked_why(bag: &[BagItem], stones: &[i32], most: usize) -> Option<String> {
@@ -237,6 +295,8 @@ pub(super) struct Smith {
     makes: Option<(i32, i32)>,
     /// Luyện tự chọn: the stones of the bag by level (index 1–12) before the press, to say what a failure took.
     held: Vec<i64>,
+    /// Luyện liên tục: the failures already said in the log (what each took, once the bag after it is in).
+    fails_said: u32,
     /// Đổi lượng: exchanges still to do. Chế tạo trang bị: the items asked for.
     times: u32,
     /// Stop was pressed during a press: the task ends once its result is in.
@@ -346,6 +406,24 @@ impl Bot {
                         q.count, q.target, q.rate
                     ),
                 )
+            }
+            SmithTask::FuseLoop(l) => {
+                let what = match &l.recipe {
+                    FuseRecipe::Target { level, rate } => format!("ra Đá cấp {level} từ {rate}%"),
+                    FuseRecipe::Fixed { counts } => format!("{} mỗi lần", counts_text(counts)),
+                };
+                let mut ends = vec![];
+                if l.times > 0 {
+                    ends.push(format!("tối đa {} lần", l.times));
+                }
+                if l.wins > 0 {
+                    ends.push(format!("đủ {} lần thành công", l.wins));
+                }
+                let ends = match ends.is_empty() {
+                    true => String::new(),
+                    false => format!(" ({})", ends.join(", ")),
+                };
+                ("fuse", format!("Luyện liên tục: {what}{ends}"))
             }
             SmithTask::Upgrade {
                 slot,
@@ -495,6 +573,28 @@ impl Bot {
                         npc::fuse_why(&q).map(|why| why.to_lowercase())
                     })
                 }
+                SmithTask::FuseLoop(l) => match &l.recipe {
+                    FuseRecipe::Target { level, .. } if !(2..=12).contains(level) => {
+                        Some(format!("không có Đá cấp {level} để luyện ra"))
+                    }
+                    FuseRecipe::Target { rate, .. } if *rate > 100 => {
+                        Some(format!("tỉ lệ {rate}%: cao nhất là 100%"))
+                    }
+                    FuseRecipe::Target { rate, .. } if *rate < npc::FUSE_RATE => {
+                        Some(format!("tỉ lệ {rate}%: game chỉ cho luyện khi trên 40%"))
+                    }
+                    FuseRecipe::Target { .. } => None,
+                    FuseRecipe::Fixed { counts }
+                        if counts.len() != 13
+                            || counts[0] != 0
+                            || counts.iter().any(|&n| !(0..=npc::FUSE_MAX as i64).contains(&n)) =>
+                    {
+                        Some("công thức không hợp lệ".into())
+                    }
+                    FuseRecipe::Fixed { counts } => {
+                        npc::fuse_why(&npc::fuse_quote(&counts_levels(counts))).map(|why| why.to_lowercase())
+                    }
+                },
                 _ => None,
             })
             .or_else(|| match &task {
@@ -571,7 +671,10 @@ impl Bot {
                         None
                     }
                 }
-                SmithTask::Merge(_) | SmithTask::Fuse { .. } | SmithTask::Points { .. } => None,
+                SmithTask::Merge(_)
+                | SmithTask::Fuse { .. }
+                | SmithTask::FuseLoop(_)
+                | SmithTask::Points { .. } => None,
                 SmithTask::Recipes { kind } | SmithTask::Craft { kind, .. } if *kind > 3 => {
                     Some("chọn Nón, Áo, Vũ khí hay Nhẫn".into())
                 }
@@ -658,6 +761,7 @@ impl Bot {
             quote: Quote::default(),
             makes: None,
             held: vec![],
+            fails_said: 0,
             times,
             stopping: false,
             wear: None,
@@ -799,7 +903,15 @@ impl Bot {
 
     /// Ends the task now, with the reason in the log and on the tab.
     fn smith_end(&mut self, reason: impl Into<String>, out: &mut Vec<Out>) {
-        let reason = reason.into();
+        let mut reason = reason.into();
+        // Luyện liên tục: how the presses went, whatever ended it.
+        let lop = self
+            .smith
+            .as_ref()
+            .is_some_and(|s| matches!(s.task, SmithTask::FuseLoop(_)));
+        if let Some(r) = self.snap.smith.as_ref().filter(|r| lop && r.steps > 0) {
+            reason = format!("{reason}; thành công {}, thất bại {}", r.ok, r.failed);
+        }
         self.smith = None;
         if let Some(r) = self.snap.smith.as_mut().filter(|r| r.done.is_none()) {
             let mut spent = vec![];
@@ -834,6 +946,10 @@ impl Bot {
         else {
             return;
         };
+        // Luyện liên tục: what the press before took when it failed, also when Dừng ends the loop now.
+        if matches!(task, SmithTask::FuseLoop(_)) {
+            self.fuse_said(out);
+        }
         if stopping {
             return self.smith_finish(self.stopped(), now, out);
         }
@@ -1025,43 +1141,9 @@ impl Bot {
                     };
                     return self.smith_finish(why, now, out);
                 }
-                if let Some(why) = picked_why(&bag, &stones, npc::FUSE_MAX) {
-                    return self.smith_finish(why, now, out);
-                }
-                let q = npc::fuse_quote(&fuse_levels(&bag, &stones));
-                if let Some(why) = npc::fuse_why(&q) {
-                    return self.smith_finish(why.to_lowercase(), now, out);
-                }
-                let free = stones.iter().all(|&slot| {
-                    bag.iter()
-                        .find(|i| i.slot == slot)
-                        .is_some_and(|i| !i.locked())
-                });
-                let (window, pay, money) = match free {
-                    true => (WindowKind::MergeXu, xu, "Xu"),
-                    false => (WindowKind::MergeXuKhoa, xu_khoa + xu, "Xu khóa"),
-                };
-                if q.fee > pay {
-                    let why = format!("không đủ {money} để luyện (cần {})", grouped(q.fee));
-                    return self.smith_finish(why, now, out);
-                }
-                let mut held = vec![0i64; 13];
-                for i in &bag {
-                    let l = npc::stone_level(i.item_id);
-                    if l > 0 {
-                        held[l as usize] += i.count() as i64;
-                    }
-                }
-                let sm = self.smith.as_mut().unwrap();
-                (sm.makes, sm.held) = (Some((q.target, q.rate)), held);
-                let doing = format!(
-                    "Luyện {} viên đá thành Đá cấp {}, tỉ lệ {}%",
-                    q.count, q.target, q.rate
-                );
-                let mut sorted = stones.clone();
-                sorted.sort_unstable();
-                open(self, window, put_stones(&sorted), doing, now, out);
+                self.fuse_open(stones, false, now, out);
             }
+            SmithTask::FuseLoop(l) => self.fuse_round(&l, now, out),
             SmithTask::Separate { slot } => {
                 if steps > 0 {
                     return self.smith_finish("đã tách xong", now, out);
@@ -1187,6 +1269,122 @@ impl Bot {
                     now,
                     out,
                 )
+            }
+        }
+    }
+
+    /// Luyện tự chọn of these stones (one bag slot per stone): checked again on the bag as it is (the slots, the odds
+    /// above 40%, the money), then the window opened and the stones put in; the level and odds the window says are
+    /// checked against npc::fuse_quote before Bắt đầu (smith_start).
+    fn fuse_open(
+        &mut self,
+        stones: Vec<i32>,
+        xu_khoa_only: bool,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        let bag = self.bag_items();
+        let (xu, xu_khoa, _) = self.money();
+        if let Some(why) = picked_why(&bag, &stones, npc::FUSE_MAX) {
+            return self.smith_finish(why, now, out);
+        }
+        let q = npc::fuse_quote(&fuse_levels(&bag, &stones));
+        if let Some(why) = npc::fuse_why(&q) {
+            return self.smith_finish(why.to_lowercase(), now, out);
+        }
+        let free = stones.iter().all(|&slot| {
+            bag.iter()
+                .find(|i| i.slot == slot)
+                .is_some_and(|i| !i.locked())
+        });
+        let (window, pay, money) = match free {
+            true => (WindowKind::MergeXu, xu, "Xu"),
+            false if xu_khoa_only => (WindowKind::MergeXuKhoa, xu_khoa, "Xu khóa"),
+            false => (WindowKind::MergeXuKhoa, xu_khoa + xu, "Xu khóa"),
+        };
+        if q.fee > pay {
+            let why = format!("không đủ {money} để luyện (cần {})", grouped(q.fee));
+            return self.smith_finish(why, now, out);
+        }
+        let sm = self.smith.as_mut().unwrap();
+        (sm.makes, sm.held) = (Some((q.target, q.rate)), stones_held(&bag, None));
+        let doing = format!(
+            "Luyện {} viên đá thành Đá cấp {}, tỉ lệ {}%",
+            q.count, q.target, q.rate
+        );
+        let mut sorted = stones;
+        sorted.sort_unstable();
+        if let Some(r) = self.snap.smith.as_mut() {
+            r.doing = doing;
+        }
+        let sm = self.smith.as_mut().unwrap();
+        (sm.window, sm.puts) = (window, put_stones(&sorted).into());
+        self.smith_open(now, out);
+    }
+
+    /// Luyện liên tục: the failure of the press before said once the bag after it is in (what it took, from the bag
+    /// before and after); smith_next calls it first, so a loop ended by Dừng says it too.
+    fn fuse_said(&mut self, out: &mut Vec<Out>) {
+        let (steps, failed) = self
+            .snap
+            .smith
+            .as_ref()
+            .map_or((0, 0), |r| (r.steps, r.failed));
+        if failed > self.smith.as_ref().map_or(0, |s| s.fails_said) {
+            let lost = self.fuse_lost();
+            out.push(Out::Log(LogKind::Item, format!("Lần {steps}: {lost}")));
+            self.smith.as_mut().unwrap().fails_said = failed;
+        }
+    }
+
+    /// One round of Luyện liên tục, at the start and after the bag that follows every press: the ends checked (presses,
+    /// successes), the stones of this press picked from the bag (the recipe's), then fuse_open with Xu khóa alone for
+    /// locked stones. A press takes locked stones only, or unlocked ones only (never a mix, which would lock the stone
+    /// made): locked first, as they can never be traded, unlocked once the locked ones do not reach the recipe; unlocked
+    /// only with `unlocked_only`. It ends when the bag has no stones for the recipe any more.
+    fn fuse_round(&mut self, l: &FuseLoop, now: Instant, out: &mut Vec<Out>) {
+        let (steps, ok) = self.snap.smith.as_ref().map_or((0, 0), |r| (r.steps, r.ok));
+        if l.times > 0 && steps >= l.times {
+            let why = format!("đã luyện đủ {} lần", l.times);
+            return self.smith_finish(why, now, out);
+        }
+        if l.wins > 0 && ok >= l.wins {
+            let why = format!("đã đủ {} lần thành công", l.wins);
+            return self.smith_finish(why, now, out);
+        }
+        let bag = self.bag_items();
+        let pools: &[bool] = if l.unlocked_only {
+            &[false]
+        } else {
+            &[true, false]
+        };
+        let stones = pools.iter().find_map(|&locked| {
+            let held = stones_held(&bag, Some(locked));
+            let counts = match &l.recipe {
+                FuseRecipe::Target { level, rate } => npc::fuse_suggest(&held, *level, *rate),
+                FuseRecipe::Fixed { counts } => (1..13)
+                    .all(|i| held[i] >= counts.get(i).copied().unwrap_or(0))
+                    .then(|| counts.clone()),
+            };
+            counts.and_then(|c| fuse_pick(&bag, &c, locked))
+        });
+        let Some(stones) = stones else {
+            let free = if l.unlocked_only { " chưa khoá" } else { "" };
+            let why = match (&l.recipe, steps) {
+                (FuseRecipe::Target { level, rate }, 0) => {
+                    format!("đá{free} trong túi không đủ để ra Đá cấp {level} với {rate}%")
+                }
+                (FuseRecipe::Fixed { counts }, 0) => {
+                    format!("túi không đủ {}{free}", counts_text(counts))
+                }
+                _ => format!("hết đá{free} để luyện tiếp"),
+            };
+            return self.smith_finish(why, now, out);
+        };
+        self.fuse_open(stones, true, now, out);
+        if self.smith.is_some() {
+            if let Some(r) = self.snap.smith.as_mut() {
+                r.doing = format!("Lần {}: {}", steps + 1, r.doing);
             }
         }
     }
@@ -1501,7 +1699,9 @@ impl Bot {
             matches!(sm.task, SmithTask::Upgrade { quote: true, .. }),
         );
         // Xu khóa alone (Tự gộp đá khi túi đầy): what the server quotes is checked too, not only merge_fee.
-        let xu_khoa_only = matches!(sm.task, SmithTask::Merge(o) if o.xu_khoa_only);
+        // Luyện liên tục pays its locked presses with Xu khóa alone, never with Xu as the server would once it runs out.
+        let xu_khoa_only = matches!(sm.task, SmithTask::Merge(o) if o.xu_khoa_only)
+            || matches!(sm.task, SmithTask::FuseLoop(_));
         let why = if !sm.ready {
             Some(format!(
                 "Pháp sư chưa cho bấm Bắt đầu: {}",
@@ -1587,6 +1787,16 @@ impl Bot {
         };
         let q = sm.quote.clone();
         let stones = sm.tried.len();
+        // Luyện liên tục: "Lần 3: " before the line of each press.
+        let round = match sm.task {
+            SmithTask::FuseLoop(_) => {
+                format!(
+                    "Lần {}: ",
+                    self.snap.smith.as_ref().map_or(0, |r| r.steps) + 1
+                )
+            }
+            _ => String::new(),
+        };
         let charm = sm.charm.and_then(|slot| {
             (self.snap.bag.iter())
                 .flat_map(|b| &b.items)
@@ -1601,14 +1811,14 @@ impl Bot {
                 format!("Luyện thành công: {made}")
             }
             (SmithTask::Merge(_), false) => "Luyện đá thất bại".into(),
-            (SmithTask::Fuse { .. }, true) => {
+            (SmithTask::Fuse { .. } | SmithTask::FuseLoop(_), true) => {
                 let made = received
                     .first()
                     .map_or_else(|| "đá".into(), |i| item_name(i.item_id));
-                format!("Luyện thành công: {made}")
+                format!("{round}Luyện thành công: {made}")
             }
-            (SmithTask::Fuse { .. }, false) => {
-                format!("Luyện đá thất bại ở tỉ lệ {}%", q.rate.unwrap_or(0))
+            (SmithTask::Fuse { .. } | SmithTask::FuseLoop(_), false) => {
+                format!("{round}Luyện đá thất bại ở tỉ lệ {}%", q.rate.unwrap_or(0))
             }
             (SmithTask::Upgrade { .. }, true) => {
                 let i = item.as_ref();
@@ -2103,6 +2313,10 @@ impl Bot {
                     Stage::Start | Stage::Exchange | Stage::Unequip | Stage::IceDone | Stage::Daily
                 ) =>
             {
+                sm.stopping = true
+            }
+            // Luyện liên tục waits for the bag after its press, to say what a failure took (fuse_said).
+            Some(sm) if sm.stage == Stage::Refresh && matches!(sm.task, SmithTask::FuseLoop(_)) => {
                 sm.stopping = true
             }
             // Worn again already, or talking to the NPC again: the task ends on the answer.

@@ -269,7 +269,7 @@ fn requests_97_and_91_are_what_the_phone_sent() {
 // The bot's tasks of Tiện ích, step by step against the answers of J3 (16-upgrade.md#j3).
 
 use cllt_core::atlas::Atlas;
-use cllt_core::bot::{Bot, BotOptions, Out, SmithTask};
+use cllt_core::bot::{Bot, BotOptions, FuseLoop, FuseRecipe, Out, SmithTask};
 use cllt_core::protocol::Writer;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -3002,4 +3002,224 @@ fn bang_xep_hang_opens_with_00_then_asks_a_tab_with_01_and_keeps_each_tab() {
         .unwrap();
     assert_eq!(bot.snap.ranking.lists.len(), 2);
     assert_eq!(bot.snap.ranking.lists[1].rows.len(), 4);
+}
+
+/// One press of Luyện liên tục from the menu: Pháp sư's menus, the window, the stones of `puts` (slot, quantity) put
+/// with an answer per stone at `text`, then Bắt đầu.
+fn fuse_press(bot: &mut Bot, out: &mut Vec<Out>, now: Instant, puts: &[(i32, i32)], text: &str) {
+    assert_eq!(sent(out, 13), [PHAP_SU], "{out:?}");
+    out.clear();
+    bot.on_packet(57, &root(), now, out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        out,
+    )
+    .unwrap();
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1002".into()),
+        now,
+        out,
+    )
+    .unwrap();
+    for &(slot, n) in puts {
+        assert_eq!(
+            sent(out, 97),
+            [tohex(&npc::put_request(slot, n, npc::PUT_ITEM))],
+            "{out:?}"
+        );
+        out.clear();
+        for _ in 0..n {
+            bot.on_packet(92, &slot92(slot, text, true), now, out)
+                .unwrap();
+        }
+    }
+    assert_eq!(sent(out, 91), ["00000000"], "{out:?}");
+    out.clear();
+}
+
+#[test]
+fn luyen_lien_tuc_presses_the_recipe_again_on_each_new_bag_and_says_what_a_failure_took() {
+    // 5 locked Đá cấp 6 (slot 24), a fixed recipe of 2 Đá cấp 6 → Đá cấp 7 at 50%, at most 2 presses.
+    let (mut bot, mut out, now) = symap_q(&[(24, 416, 0, 0, 5), (16, 411, 0, 1, 1)]);
+    let mut counts = vec![0i64; 13];
+    counts[6] = 2;
+    let task = SmithTask::FuseLoop(FuseLoop {
+        recipe: FuseRecipe::Fixed { counts },
+        times: 2,
+        wins: 0,
+        unlocked_only: false,
+    });
+    bot.smith(task, now, &mut out);
+    assert!(
+        logged(&out, "Luyện liên tục: 2 Đá cấp 6 mỗi lần (tối đa 2 lần)"),
+        "{out:?}"
+    );
+    let at_50 = "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%";
+    fuse_press(&mut bot, &mut out, now, &[(24, 2)], at_50);
+    bot.on_packet(
+        93,
+        &captured("stoneResult", "ok", true.into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(logged(&out, "Lần 1: Luyện thành công"), "{out:?}");
+    out.clear();
+    // The bag after it: 3 Đá cấp 6 and the Đá cấp 7 made; the second press, the same recipe.
+    let after = [(24, 416, 0, 0, 3), (25, 417, 0, 0, 1), (16, 411, 0, 1, 1)];
+    bot.on_packet(42, &bag_q(&after), now, &mut out).unwrap();
+    assert_eq!(
+        bot.snapshot().smith.unwrap().doing,
+        "Lần 2: Luyện 2 viên đá thành Đá cấp 7, tỉ lệ 50%"
+    );
+    fuse_press(&mut bot, &mut out, now, &[(24, 2)], at_50);
+    let failed = Writer::new().string("symap").u8(0).i32(0).build();
+    bot.on_packet(93, &failed, now, &mut out).unwrap();
+    assert!(
+        logged(&out, "Lần 2: Luyện đá thất bại ở tỉ lệ 50%"),
+        "{out:?}"
+    );
+    out.clear();
+    let after = [(24, 416, 0, 0, 1), (25, 417, 0, 0, 1), (16, 411, 0, 1, 1)];
+    bot.on_packet(42, &bag_q(&after), now, &mut out).unwrap();
+    assert!(logged(&out, "Lần 2: thất bại, mất 2 Đá cấp 6"), "{out:?}");
+    assert!(sent(&out, 13).is_empty(), "two presses at most: {out:?}");
+    assert!(
+        logged(&out, "Luyện liên tục: 2 Đá cấp 6 mỗi lần (tối đa 2 lần): đã luyện đủ 2 lần; thành công 1, thất bại 1 (2 lần, tốn 3.278 Xu khóa)"),
+        "{out:?}"
+    );
+}
+
+#[test]
+fn luyen_lien_tuc_by_target_picks_as_goi_y_and_ends_when_the_stones_run_out() {
+    // 3 Đá cấp 6: Đá cấp 7 from 50% takes 2 of them; the one left makes nothing more.
+    let (mut bot, mut out, now) = symap_q(&[(24, 416, 0, 0, 3), (16, 411, 0, 1, 1)]);
+    let task = SmithTask::FuseLoop(FuseLoop {
+        recipe: FuseRecipe::Target { level: 7, rate: 50 },
+        times: 0,
+        wins: 0,
+        unlocked_only: false,
+    });
+    bot.smith(task, now, &mut out);
+    assert!(
+        logged(&out, "Luyện liên tục: ra Đá cấp 7 từ 50%"),
+        "{out:?}"
+    );
+    let at_50 = "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%";
+    fuse_press(&mut bot, &mut out, now, &[(24, 2)], at_50);
+    bot.on_packet(
+        93,
+        &captured("stoneResult", "ok", true.into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    out.clear();
+    let after = [(24, 416, 0, 0, 1), (25, 417, 0, 0, 1), (16, 411, 0, 1, 1)];
+    bot.on_packet(42, &bag_q(&after), now, &mut out).unwrap();
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(&out, "Luyện liên tục: ra Đá cấp 7 từ 50%: hết đá để luyện tiếp; thành công 1, thất bại 0 (1 lần, tốn 1.639 Xu khóa)"),
+        "{out:?}"
+    );
+    // Unlocked only, with locked stones alone: refused at once.
+    let (mut bot, mut out, now) = symap_q(&[(24, 416, 0, 0, 3), (16, 411, 0, 1, 1)]);
+    let task = SmithTask::FuseLoop(FuseLoop {
+        recipe: FuseRecipe::Target { level: 7, rate: 50 },
+        times: 0,
+        wins: 0,
+        unlocked_only: true,
+    });
+    bot.smith(task, now, &mut out);
+    assert!(sent(&out, 13).is_empty());
+    assert!(
+        logged(&out, "Luyện liên tục: ra Đá cấp 7 từ 50%: đá chưa khoá trong túi không đủ để ra Đá cấp 7 với 50%"),
+        "{out:?}"
+    );
+}
+
+fn fixed_loop(level: usize, n: i64, times: u32) -> SmithTask {
+    let mut counts = vec![0i64; 13];
+    counts[level] = n;
+    SmithTask::FuseLoop(FuseLoop {
+        recipe: FuseRecipe::Fixed { counts },
+        times,
+        wins: 0,
+        unlocked_only: false,
+    })
+}
+
+#[test]
+fn luyen_lien_tuc_stopped_during_a_press_that_fails_still_says_what_it_took() {
+    let (mut bot, mut out, now) = symap_q(&[(24, 416, 0, 0, 5), (16, 411, 0, 1, 1)]);
+    bot.smith(fixed_loop(6, 2, 0), now, &mut out);
+    let at_50 = "Luyện thành Đá cấp 7 Khóa\nCần: 1.639 Xu khóa (không đủ sẽ sử dụng cả Xu)\nTỉ lệ thành công: 50%";
+    fuse_press(&mut bot, &mut out, now, &[(24, 2)], at_50);
+    bot.stop(false, now, &mut out);
+    let failed = Writer::new().string("symap").u8(0).i32(0).build();
+    bot.on_packet(93, &failed, now, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(
+        42,
+        &bag_q(&[(24, 416, 0, 0, 3), (16, 411, 0, 1, 1)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert!(logged(&out, "Lần 1: thất bại, mất 2 Đá cấp 6"), "{out:?}");
+    assert!(
+        logged(&out, "Luyện liên tục: 2 Đá cấp 6 mỗi lần: Đã dừng; thành công 0, thất bại 1 (1 lần, tốn 1.639 Xu khóa)"),
+        "{out:?}"
+    );
+}
+
+#[test]
+fn luyen_lien_tuc_never_pays_a_locked_press_in_xu_nor_mixes_locked_and_unlocked_stones() {
+    // 1.000 Xu khóa, plenty of Xu: the locked Đá cấp 6 are not pressed (1.639 Xu khóa each), never paid in Xu.
+    let (mut bot, mut out, now) = symap_q(&[(24, 416, 0, 0, 5), (16, 411, 0, 1, 1)]);
+    bot.on_packet(46, &money(13_755_600, 1_000, 0), now, &mut out)
+        .unwrap();
+    out.clear();
+    bot.smith(fixed_loop(6, 2, 0), now, &mut out);
+    assert!(sent(&out, 13).is_empty(), "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Luyện liên tục: 2 Đá cấp 6 mỗi lần: không đủ Xu khóa để luyện (cần 1.639)"
+        ),
+        "{out:?}"
+    );
+    // 1 locked and 5 unlocked Đá cấp 6: the locked one alone cannot make the recipe, so 2 unlocked ones, in [Xu].
+    let (mut bot, mut out, now) =
+        symap_q(&[(24, 416, 0, 0, 1), (25, 416, 0, 1, 5), (16, 411, 0, 1, 1)]);
+    bot.smith(fixed_loop(6, 2, 0), now, &mut out);
+    out.clear();
+    bot.on_packet(57, &root(), now, &mut out).unwrap();
+    bot.on_packet(
+        57,
+        &menu("Pháp sư", &["Luyện đá [Xu khóa]", "Luyện đá [Xu]"]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 57),
+        ["01000000024d31000000a1", "01000000024d31000000a1"],
+        "unlocked stones: Luyện đá [Xu]"
+    );
+    bot.on_packet(
+        99,
+        &captured("craftWindow", "key", "abcd1002".into()),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        sent(&out, 97),
+        [tohex(&npc::put_request(25, 2, npc::PUT_ITEM))],
+        "the unlocked stack only: {out:?}"
+    );
 }
