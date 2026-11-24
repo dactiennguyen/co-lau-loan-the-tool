@@ -76,12 +76,18 @@ pub fn save(path: &Path, accounts: &[Account]) -> Result<(), String> {
     write_private(path, text.as_bytes())
 }
 /// Writes `bytes` to `path` readable by its owner only on unix (accounts.json, and beside it the device key and
-/// sync.json of the desktop app), through a temporary file so a failed write leaves the old one whole.
+/// sync.json of the desktop app), through a temporary file so a failed write leaves the old one whole; its folder is
+/// made when missing.
 pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp = std::path::PathBuf::from(tmp);
     let write = || -> std::io::Result<()> {
+        // The data folder of an app just installed is not there yet: Kích hoạt saves license.json before any account
+        // (macOS, 24/11: "license.json: No such file or directory").
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+            std::fs::create_dir_all(dir)?;
+        }
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create(true).truncate(true);
         #[cfg(unix)]
@@ -130,6 +136,16 @@ fn from_vars(label: &str, get: impl Fn(&str) -> Option<String>) -> Option<Accoun
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn write_private_makes_the_folder_of_an_app_just_installed() {
+        let dir = std::env::temp_dir().join(format!("cllt-fresh-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = dir.join("vn.colauloanthe.desktop").join("license.json");
+        write_private(&file, b"{\"key\":\"K\"}").unwrap();
+        assert_eq!(std::fs::read(&file).unwrap(), b"{\"key\":\"K\"}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn save_writes_an_owner_only_file_that_load_reads_back() {
