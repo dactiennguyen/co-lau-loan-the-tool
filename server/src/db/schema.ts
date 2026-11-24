@@ -70,6 +70,8 @@ export const licenses = sqliteTable('licenses', {
   expiresAt: integer('expires_at'),
   revoked: integer('revoked').notNull().default(0),
   reason: text('reason').notNull().default(''),
+  /** Bạch Hổ: 1 while the app of the key may run it (the default), 0 once the admin turned it off. */
+  bachHo: integer('bach_ho').notNull().default(1),
   /** The device that holds it; null for a key no device holds. */
   deviceId: text('device_id'),
   hostname: text('hostname').notNull().default(''),

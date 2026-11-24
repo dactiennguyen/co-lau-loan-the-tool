@@ -14,7 +14,7 @@ import { Icon } from "@/components/Icon";
 import { Pill } from "@/components/Pill";
 import { Stepper } from "@/components/Stepper";
 import { Tabs } from "@/components/Tabs";
-import { BACH_HO_HOUR, BACH_HO_LEVEL, LEVEL_TABS, type BachHoWaits, type LevelTab, levelTab, minutesText, runWindow, waitGroups } from "@/game/bachHo";
+import { BACH_HO_HOUR, BACH_HO_LEVEL, BACH_HO_LOCKED, LEVEL_TABS, bachHoAllowed, type BachHoWaits, type LevelTab, levelTab, minutesText, runWindow, waitGroups } from "@/game/bachHo";
 import { useStore } from "@/store";
 import { cn } from "@/utils/cn";
 import { num } from "@/utils/format";
@@ -121,6 +121,12 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
   const byId = useStore((s) => s.byId);
   const accounts = order.map((id) => byId[id]).filter(Boolean);
   const now = useNow();
+  const allowed = useStore((s) => bachHoAllowed(s.license));
+  // The key is checked again as the window opens: Bạch Hổ turned off or on by the admin is heard now, not within the hour.
+  useEffect(() => {
+    void api.recheckLicense();
+  }, []);
+  const [refused, setRefused] = useState<string | null>(null);
   const hint = useId();
   const field = useId();
   const [picked, setPicked] = useState(readPicked);
@@ -184,16 +190,17 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
   };
   const toggleAll = () =>
     keep(all ? new Set([...picked].filter((id) => !readyHere.some((a) => a.id === id))) : new Set([...picked, ...readyHere.map((a) => a.id)]));
-  const startWhy = !span ? "Giờ không hợp lệ" : chosen.length === 0 ? "Chọn ít nhất một nick chưa chạy" : null;
+  const startWhy = !allowed ? BACH_HO_LOCKED : !span ? "Giờ không hợp lệ" : chosen.length === 0 ? "Chọn ít nhất một nick chưa chạy" : null;
   const start = () => {
-    if (!span || chosen.length === 0) return;
+    if (!allowed || !span || chosen.length === 0) return;
+    setRefused(null);
     // One Bắt đầu for each pair of waits: the accounts set on their own with theirs, the rest with the shared ones.
     for (const g of waitGroups(
       chosen.map((a) => a.id),
       ownWaits,
       { move: moveSecs, rejoin: rejoinSecs },
     ))
-      void api.bachHoStart(g.ids, span.fromMs, span.untilMs, g.moveMs, g.rejoinMs);
+      api.bachHoStart(g.ids, span.fromMs, span.untilMs, g.moveMs, g.rejoinMs).catch((e: unknown) => setRefused(String(e)));
   };
 
   return (
@@ -262,7 +269,16 @@ export function BachHoModal({ onClose }: { onClose: () => void }) {
         </div>
       </section>
 
-      <BossPanel accounts={accounts} now={now} />
+      {/* One row of the grid: the notice of a key without Bạch Hổ (or the bot's refusal) above the boss. */}
+      <div className="grid gap-2.5">
+        {(!allowed || refused) && (
+          <p className="flex items-center gap-2 m-0 px-3 py-2 border-2 border-danger bg-[color-mix(in_srgb,var(--danger)_12%,var(--bg-2))] text-12 text-fg" role="alert">
+            <Icon name="lock" size={13} className="shrink-0 text-danger" />
+            {refused ?? BACH_HO_LOCKED}
+          </p>
+        )}
+        <BossPanel accounts={accounts} now={now} />
+      </div>
 
       <div className="grid gap-2">
         <div className={HEAD}>

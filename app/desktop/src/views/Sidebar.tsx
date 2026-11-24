@@ -7,7 +7,7 @@ import { api } from "@/api";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { Menu, type MenuItem } from "@/components/Menu";
-import { bachHoClock, minutesClock } from "@/game/bachHo";
+import { BACH_HO_LOCKED, bachHoAllowed, bachHoClock, minutesClock } from "@/game/bachHo";
 import { cn } from "@/utils/cn";
 import appIcon from "../../app-icon.png";
 import { inGame, useStore, type Dialog, type Store } from "@/store";
@@ -80,8 +80,9 @@ function BachHoButton({ onOpen }: { onOpen: () => void }) {
     const t = setInterval(() => setNow(Date.now()), 20_000);
     return () => clearInterval(t);
   }, []);
+  const allowed = useStore((s) => bachHoAllowed(s.license));
   const clock = bachHoClock(now);
-  const open = clock.phase === "open";
+  const open = allowed && clock.phase === "open";
   return (
     <button
       type="button"
@@ -91,14 +92,21 @@ function BachHoButton({ onOpen }: { onOpen: () => void }) {
         open ? "border-danger bg-[color-mix(in_srgb,var(--danger)_22%,var(--bg-2))]" : "border-line-strong bg-card",
       )}
       aria-haspopup="dialog"
-      title={open ? "Hang Bạch Hổ đang mở: chọn nick đi đánh" : "Bạch Hổ Thống Lĩnh: boss thế giới lúc 21:00"}
+      title={!allowed ? BACH_HO_LOCKED : open ? "Hang Bạch Hổ đang mở: chọn nick đi đánh" : "Bạch Hổ Thống Lĩnh: boss thế giới lúc 21:00"}
       onClick={onOpen}
     >
       <span className={cn("grid place-items-center size-5", open ? "text-danger animate-blink motion-reduce:animate-none" : "text-coin")} aria-hidden>
         <Icon name="crown" size={15} />
       </span>
       <span className="flex-1 min-w-0 whitespace-nowrap font-display font-extrabold text-12 uppercase tracking-[0.06em] text-fg">Bạch Hổ</span>
-      <span className={cn("shrink-0 whitespace-nowrap px text-11", open ? "text-danger" : "text-fg-2")}>{open ? "Đang mở" : `còn ${minutesClock(clock.minutes)}`}</span>
+      {allowed ? (
+        <span className={cn("shrink-0 whitespace-nowrap px text-11", open ? "text-danger" : "text-fg-2")}>{open ? "Đang mở" : `còn ${minutesClock(clock.minutes)}`}</span>
+      ) : (
+        <span className="shrink-0 inline-flex items-center gap-1 text-11 text-fg-3">
+          <Icon name="lock" size={11} />
+          Chưa mở
+        </span>
+      )}
     </button>
   );
 }

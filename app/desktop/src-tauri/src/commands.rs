@@ -201,12 +201,17 @@ pub fn welfare(shared: State<Shared>, id: u64) {
 #[tauri::command]
 pub fn bach_ho_start(
     shared: State<Shared>,
+    licenses: State<Licenses>,
     ids: Vec<u64>,
     from_ms: u64,
     until_ms: u64,
     move_ms: u32,
     rejoin_ms: u32,
-) {
+) -> Result<(), String> {
+    // The key decides (license.rs, bachHo of its last check): the window shows it locked, this refuses it anyway.
+    if !licenses.bach_ho() {
+        return Err("Key này chưa có tính năng Bạch Hổ: liên hệ admin để bật".into());
+    }
     let pace = BachHoPace { move_ms, rejoin_ms };
     shared.with(|app| {
         for id in ids {
@@ -220,6 +225,7 @@ pub fn bach_ho_start(
             );
         }
     });
+    Ok(())
 }
 
 /// Dừng of the Bạch Hổ window, for these accounts (Bot::bach_ho_stop).

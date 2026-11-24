@@ -336,6 +336,9 @@ function Menu({ l }: { l: LicenseRow }) {
               'data-open': 'revoke',
               'data-act': JSON.stringify({ action: `${at}/revoke`, title: `Khoá key ${who}?`, text: 'App dùng key này bị khoá ở lần kiểm tra tới (tối đa 1 giờ).' }),
             })}
+        {l.bachHo
+          ? item('crown', 'Tắt Bạch Hổ', actOf({ action: `${at}/bachho-off`, title: `Tắt Bạch Hổ của key ${who}?`, text: 'App dùng key này dừng Bạch Hổ và không bắt đầu được nữa từ lần kiểm tra tới (tối đa 1 giờ, hoặc khi mở app hay mở cửa sổ Bạch Hổ).', ok: 'Tắt Bạch Hổ', danger: true }))
+          : item('crown', 'Bật Bạch Hổ', actOf({ action: `${at}/bachho-on`, title: `Bật Bạch Hổ cho key ${who}?`, text: 'App dùng key này chạy được Bạch Hổ từ lần kiểm tra tới (tối đa 1 giờ, hoặc khi mở app hay mở cửa sổ Bạch Hổ).', ok: 'Bật Bạch Hổ' }))}
         {l.deviceId &&
           item(
             'unlink',
@@ -390,6 +393,7 @@ function Row({ l, now }: { l: LicenseRow; now: number }) {
       <td>
         <Pill kind={kind}>{label}</Pill>
         {l.revoked && l.reason ? <div class="faint small">{l.reason}</div> : null}
+        {!l.bachHo ? <div class="faint small nowrap">Tắt Bạch Hổ</div> : null}
       </td>
       <td>
         <Ends l={l} now={now} />

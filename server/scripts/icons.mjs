@@ -13,6 +13,7 @@ const NAMES = {
   'circle-check': 'check-circle',
   clock: 'clock',
   copy: 'copy',
+  crown: 'crown-simple',
   download: 'download-simple',
   'ellipsis-vertical': 'dots-three-vertical',
   eye: 'eye',

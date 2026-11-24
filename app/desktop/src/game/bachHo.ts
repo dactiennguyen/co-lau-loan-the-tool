@@ -94,3 +94,12 @@ export function waitGroups(ids: number[], own: Record<number, BachHoWaits>, shar
   }
   return [...groups.values()];
 }
+
+/** Whether the key lets Bạch Hổ run (bachHo of its last check, license.rs): always without a check, and before the
+ * first answer; never with a key that does not hold. The bot refuses it anyway (bach_ho_start). */
+export function bachHoAllowed(license: { state: string; bachHo?: boolean } | null): boolean {
+  if (!license || license.state === "off") return true;
+  return license.state === "valid" && license.bachHo !== false;
+}
+/** What the window and the sidebar say when the key does not let Bạch Hổ run. */
+export const BACH_HO_LOCKED = "Key này chưa có tính năng Bạch Hổ: liên hệ admin để bật.";

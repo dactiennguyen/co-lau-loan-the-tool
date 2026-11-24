@@ -93,7 +93,7 @@ export interface Verify {
 
 /** The answer of POST /api/license/verify, always 200: the key works, or why not. */
 export type VerifyAnswer =
-  | { ok: true; maxAccounts: number; expiresAt: number; activatedAt: number }
+  | { ok: true; maxAccounts: number; expiresAt: number; activatedAt: number; bachHo: boolean }
   | { ok: false; code: Refusal; error: string; expiresAt?: number };
 
 /** Why a key does not work: no such key, revoked, held by another device, ended; for a sync also never activated. */
@@ -120,6 +120,8 @@ export type LogKind =
   | 'admin.create'
   | 'admin.revoke'
   | 'admin.restore'
+  | 'admin.bachho-on'
+  | 'admin.bachho-off'
   | 'admin.release'
   | 'admin.edit'
   | 'admin.delete'

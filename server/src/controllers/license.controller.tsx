@@ -97,7 +97,7 @@ export async function create(c: Ctx) {
  * the action, Sửa's after it. */
 export async function act(c: Ctx) {
   const id = Number(c.req.param('id'));
-  const action = c.req.param('action') as 'revoke' | 'restore' | 'release' | 'edit' | 'delete';
+  const action = c.req.param('action') as 'revoke' | 'restore' | 'release' | 'edit' | 'delete' | 'bachho-on' | 'bachho-off';
   const db = c.var.db;
   const form = formObject(c.var.form);
   const l = await licenses.get(db, id);
@@ -127,6 +127,8 @@ export async function act(c: Ctx) {
     restore: [() => licenses.restore(db, id, lineOf(LOG.restored)), 'restored'],
     release: [() => licenses.release(db, id, lineOf((name, l) => LOG.released(name, l.hostname))), 'released'],
     delete: [() => licenses.remove(db, id, lineOf((name, l) => LOG.deleted(name, l.key))), 'removed'],
+    'bachho-on': [() => licenses.setBachHo(db, id, true, lineOf(LOG.bachHoOn)), 'bachHoOn'],
+    'bachho-off': [() => licenses.setBachHo(db, id, false, lineOf(LOG.bachHoOff)), 'bachHoOff'],
   };
   const [run, done] = acts[action];
   await run();

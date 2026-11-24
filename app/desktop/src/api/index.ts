@@ -402,6 +402,8 @@ const validLicense = (key: string): LicenseView => ({
   maxAccounts: 100,
   activatedAt: Date.now(),
   checkedAt: Date.now(),
+  // ?bachHo=off shows the Bạch Hổ window as a key without it does.
+  bachHo: new URLSearchParams(location.search).get("bachHo") !== "off",
 });
 let previewLicense: LicenseView = ((state) => {
   switch (state) {

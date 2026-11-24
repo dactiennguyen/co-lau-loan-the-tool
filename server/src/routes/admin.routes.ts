@@ -27,7 +27,7 @@ admin.post('/accounts/:id{[0-9]+}/delete', account.remove);
 
 admin.get('/licenses', license.page);
 admin.post('/licenses', license.create);
-admin.post('/licenses/:id{[0-9]+}/:action{revoke|restore|release|edit|delete}', license.act);
+admin.post('/licenses/:id{[0-9]+}/:action{revoke|restore|release|edit|delete|bachho-on|bachho-off}', license.act);
 
 admin.get('/logs', log.page);
 

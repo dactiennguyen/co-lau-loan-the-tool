@@ -48,7 +48,7 @@ export type LicenseView = { key: string } & (
   | { state: "off" }
   | { state: "missing" }
   | { state: "checking" }
-  | { state: "valid"; expiresAt: number; maxAccounts: number; activatedAt: number; checkedAt: number }
+  | { state: "valid"; expiresAt: number; maxAccounts: number; activatedAt: number; checkedAt: number; bachHo: boolean }
   | { state: "refused"; code: string; message: string }
   | { state: "unreachable"; message: string }
 );

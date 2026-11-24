@@ -131,6 +131,7 @@ Tạo xong, trang quay về danh sách và hiện key mới để chép (tải l
 
 **Thao tác khác trên trang Key:**
 - **Khoá** kèm lý do (app hiện lý do), **Mở khoá**.
+- **Tắt Bạch Hổ** / **Bật Bạch Hổ** (24/11): app dùng key đó có được chạy Bạch Hổ hay không. Mọi key mặc định **bật**, cả key tạo trước (migration `0010_license_bach_ho.sql`); key đã tắt có dòng "Tắt Bạch Hổ" dưới trạng thái. App biết ở lần kiểm tra tới: khi mở app, khi mở cửa sổ Bạch Hổ, hoặc tối đa 1 giờ; nick đang đánh Bạch Hổ thì dừng. Mỗi lần đổi là một dòng log.
 - **Sửa** ghi chú, số nick tối đa, và ngày hết hạn (key chưa kích hoạt thì sửa thời hạn). Chọn một ngày đã qua là cho key hết hạn ngay. Key được kích hoạt trong lúc đang sửa thời hạn thì không lưu gì, và trang báo lý do.
 - **Xoá** key: app dùng key đó bị khoá; các nick key đó đã đồng bộ vẫn giữ.
 
@@ -146,7 +147,7 @@ Hết hạn, bị khoá hay bị xoá thì app khoá ở lần kiểm tra tới,
 - `id` là SHA-256 của mã máy do hệ điều hành giữ (`MachineGuid` trên Windows, `IOPlatformUUID` trên macOS, `/etc/machine-id` trên Linux). Gỡ app rồi cài lại vẫn là một máy.
 - `accounts` là số nick trong app.
 - Trả lời luôn là 200, để app phân biệt câu trả lời của server với lỗi mạng:
-  - key dùng được: `{"ok": true, "maxAccounts": 100, "expiresAt": <ms>, "activatedAt": <ms>}`;
+  - key dùng được: `{"ok": true, "maxAccounts": 100, "expiresAt": <ms>, "activatedAt": <ms>, "bachHo": true}` (`bachHo`: được chạy Bạch Hổ);
   - key không dùng được: `{"ok": false, "code": "…", "error": "<câu cho người dùng>"}`, `code` là:
 
     | `code` | Câu báo |

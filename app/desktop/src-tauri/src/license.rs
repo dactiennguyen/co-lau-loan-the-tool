@@ -46,6 +46,9 @@ pub enum LicenseState {
         max_accounts: u32,
         activated_at: u64,
         checked_at: u64,
+        /// Bạch Hổ may run (bachHo of the answer; on when a server before 24/11/2026 does not say). The admin turns it
+        /// off for a key; the app hears it at its next check (each hour, at the start, when the Bạch Hổ window opens).
+        bach_ho: bool,
     },
     /// The server refused the key: `code` unknown, revoked, taken or expired, with its words.
     Refused { code: String, message: String },
@@ -103,6 +106,15 @@ impl Licenses {
                 Some(*max_accounts as usize)
             }
             _ => Some(0),
+        }
+    }
+    /// Whether Bạch Hổ may run: the key holds and allows it (always without a check).
+    pub fn bach_ho(&self) -> bool {
+        let inner = self.0.lock().unwrap();
+        match &inner.state {
+            LicenseState::Off => true,
+            s @ LicenseState::Valid { bach_ho, .. } => *bach_ho && holds(s, inner.server_now()),
+            _ => false,
         }
     }
 }
@@ -360,6 +372,12 @@ fn changed<R: Runtime>(app: &AppHandle<R>) {
     } else if login_all {
         login_all_now(app);
     }
+    // Bạch Hổ turned off for the key: the runs under way stop (Bot::bach_ho_stop does nothing without one).
+    if valid && !l.bach_ho() {
+        if let Some(shared) = app.try_state::<Shared>() {
+            shared.with(|a| a.send_all(Command::BachHoStop));
+        }
+    }
     let _ = app.emit("license", view(app));
 }
 
@@ -406,9 +424,16 @@ struct Verdict {
     max_accounts: u32,
     #[serde(default)]
     activated_at: u64,
+    /// Bạch Hổ allowed; a server before 24/11/2026 does not say, and it is on.
+    #[serde(default = "yes")]
+    bach_ho: bool,
     /// The key as the server writes it, when it says so.
     #[serde(default)]
     key: Option<String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Verdict {
@@ -419,6 +444,7 @@ impl Verdict {
                 max_accounts: self.max_accounts,
                 activated_at: self.activated_at,
                 checked_at: now,
+                bach_ho: self.bach_ho,
             },
             false => LicenseState::Refused {
                 code: self.code.clone(),
@@ -499,9 +525,19 @@ mod tests {
                 expires_at: 2000,
                 max_accounts: 100,
                 activated_at: 1000,
-                checked_at: 1500
-            }
+                checked_at: 1500,
+                bach_ho: true
+            },
+            "a server that does not say: Bạch Hổ on"
         );
+        let off: Verdict = serde_json::from_str(
+            r#"{"ok": true, "maxAccounts": 100, "expiresAt": 2000, "activatedAt": 1000, "bachHo": false}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            off.state(1500),
+            LicenseState::Valid { bach_ho: false, .. }
+        ));
         let no: Verdict = serde_json::from_str(
             r#"{"ok": false, "code": "taken", "error": "Key đã được kích hoạt trên máy khác"}"#,
         )
@@ -526,6 +562,7 @@ mod tests {
             max_accounts: 5,
             activated_at: 1,
             checked_at: 1,
+            bach_ho: true,
         };
         assert!(holds(&valid, 9));
         assert!(!holds(&valid, 10));
@@ -601,11 +638,12 @@ mod tests {
                 max_accounts: 100,
                 activated_at: 1,
                 checked_at: 2,
+                bach_ho: false,
             },
         };
         assert_eq!(
             serde_json::to_value(v).unwrap(),
-            serde_json::json!({ "key": "CLLT-AB12-…-GH78", "state": "valid", "expiresAt": 3, "maxAccounts": 100, "activatedAt": 1, "checkedAt": 2 })
+            serde_json::json!({ "key": "CLLT-AB12-…-GH78", "state": "valid", "expiresAt": 3, "maxAccounts": 100, "activatedAt": 1, "checkedAt": 2, "bachHo": false })
         );
     }
 }

@@ -1281,3 +1281,26 @@ test('syncGap: SYNC_GAP_SECONDS when it is a number of 0 or more, else 10 s', ()
   assert.equal(syncGap('0'), 0);
   assert.equal(syncGap('30'), 30);
 });
+
+test('key: Bạch Hổ is on for every key, Tắt Bạch Hổ turns it off for the next check and Bật Bạch Hổ back on, each logged', async () => {
+  const c = await ready();
+  const key = await newKey(c);
+  const on = await verify(c.call, key);
+  assert.deepEqual([on.json.ok, on.json.bachHo], [true, true]);
+  const id = await keyId(c, key);
+  const off = await c.call(`/admin/licenses/${id}/bachho-off`, { form: {} });
+  assert.equal(off.location, '/admin/licenses?done=bachHoOff');
+  assert.deepEqual([(await verify(c.call, key)).json.ok, (await verify(c.call, key)).json.bachHo], [true, false]);
+  const page = (await c.call('/admin/licenses')).text;
+  assert.match(page, /Bật Bạch Hổ/);
+  assert.match(page, /Tắt Bạch Hổ<\/div>/, 'the row says it is off');
+  // Twice off: one line only.
+  await c.call(`/admin/licenses/${id}/bachho-off`, { form: {} });
+  await c.call(`/admin/licenses/${id}/bachho-on`, { form: {} });
+  assert.equal((await verify(c.call, key)).json.bachHo, true);
+  const lines = await c.env.DB.prepare("SELECT message FROM logs WHERE kind LIKE 'admin.bachho%' ORDER BY id").all<{ message: string }>();
+  assert.deepEqual(
+    lines.results.map((r) => r.message.replace(/ key .*/, ' key K')),
+    ['Tắt Bạch Hổ cho key K', 'Bật Bạch Hổ cho key K'],
+  );
+});

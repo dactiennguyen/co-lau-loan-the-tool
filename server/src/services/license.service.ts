@@ -205,7 +205,7 @@ export async function verify(db: Db, v: Verify, ip: string, now = Date.now()): P
   }
   const expiresAt = held.expiresAt!;
   if (now >= expiresAt) return refuse(db, ended(expiresAt), v, ip, held, now);
-  return { ok: true, maxAccounts: held.maxAccounts, expiresAt, activatedAt: held.activatedAt ?? now };
+  return { ok: true, maxAccounts: held.maxAccounts, expiresAt, activatedAt: held.activatedAt ?? now, bachHo: held.bachHo !== 0 };
 }
 
 /** The key of a POST /api/license/sync when it works on the device `id` (it holds it, and it is neither revoked nor
@@ -309,6 +309,12 @@ export async function revoke(db: Db, id: number, reason: string, line?: logs.Ent
 
 export async function restore(db: Db, id: number, line?: logs.Entry) {
   await logs.run(db, [...lineIf(db, id, line, eq(table.revoked, 1)), db.update(table).set({ revoked: 0, reason: '' }).where(eq(table.id, id))]);
+}
+
+/** Bật Bạch Hổ or Tắt Bạch Hổ for the app of the key, heard at its next check; `line` logged when it was the other way. */
+export async function setBachHo(db: Db, id: number, on: boolean, line?: logs.Entry) {
+  const v = on ? 1 : 0;
+  await logs.run(db, [...lineIf(db, id, line, eq(table.bachHo, 1 - v)), db.update(table).set({ bachHo: v }).where(eq(table.id, id))]);
 }
 
 /** Gỡ thiết bị: no device holds it and what the last one said is forgotten. The device it is taken from is refused
