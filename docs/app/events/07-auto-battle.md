@@ -470,13 +470,15 @@ Những viên kỹ năng phá được tính gấp 3 với tim, âm dương và 
 - Kỹ năng phá ô được thử với 16 cách đặt vùng ngẫu nhiên. Cách đặt cố định theo bàn cờ, nên cùng một bàn luôn cho cùng điểm.
 - Với mỗi cách đặt, bot phá các ô, cho rơi phần đã biết, rồi tính sát thương, máu hồi và nội lực nhận lại. Sau đó trừ nước đáp trả trung bình của quái trên bàn còn lại ([mô hình quái](#cách-quái-chọn-nước)).
 - Kỹ năng hoặc bình làm rơi một hàng từ 4 viên trở lên, hoặc kỹ năng ghi "được đi tiếp", thì không bị trừ nước đáp trả.
-- **Nội lực tiêu đi bị trừ đúng bằng giá trị của nó** (`SPEND = 1`). Giá trị một điểm nội lực = sát thương trung bình của kỹ năng đánh tốt nhất ÷ nội lực của nó. Kỹ năng để dành tới lượt sau vẫn gây đúng sát thương đó, nên bot chỉ dùng ngay khi lượt này cho thêm cái gì đó:
+- **Nội lực tiêu đi bị trừ một nửa giá trị của nó** (`SPEND = 0,5` từ 24/11; trước đó `1`, [T1](#nội-lực-hết-trận-là-mất-t1-2411)). Giá trị một điểm nội lực = sát thương trung bình của kỹ năng đánh tốt nhất ÷ nội lực của nó. Kỹ năng để dành tới lượt sau vẫn gây đúng sát thương đó, nên bot chỉ dùng ngay khi lượt này cho thêm cái gì đó:
   - có cơ hội kết liễu;
   - phá được viên có lợi;
   - nước đổi chỗ hiện có kém.
-- Hai trường hợp không trừ giá nội lực:
+- Bốn trường hợp không trừ giá nội lực:
   - thanh nội lực đầy tới mức không còn chỗ cho thêm một lần kỹ năng rẻ nhất (nội lực + giá rẻ nhất > 100), vì phần âm dương ăn thêm sẽ mất. Ngưỡng này chung cho mọi kỹ năng, để kỹ năng đắt (hồi máu 50) không được miễn trừ khi kỹ năng rẻ (25) vẫn bị trừ;
   - trận tính giờ, vì quái không đi nước nào, nên mỗi lượt chỉ cần gây nhiều sát thương nhất.
+  - nước kế của quái có thể kết thúc trận: HP không quá `mobThreat` (4 kiếm của quái, ×2 khi nó đầy nộ, hoặc kỹ năng của nó khi đủ nội lực). Nội lực giữ lại lúc đó có thể không bao giờ được dùng;
+  - còn bình mana được phép uống (Bình mana bật, chưa hết số bình của trận): bình đổ lại thanh nội lực.
 - Bình bị trừ thêm giá `--potions=HP`. Mặc định không dùng bình. Với `300`, bot chỉ dùng bình khi nước sau của quái có thể kết thúc trận. Ở trận tính giờ bot không dùng bình, vì đòn theo đồng hồ của quái chưa được tính vào điểm. Server không trả lời một bình thì trong trận đó bot coi ô ấy đã hết. Bình có `costShare` thì giá của nó là `costShare × HP tối đa`, không quá phần bình mang lại cộng 2000, thay cho `--potions` (app: [Bình máu và mana](#bình-máu-và-mana)).
 - Buff còn hiệu lực thì không dùng lại.
 
@@ -626,6 +628,24 @@ Cài đặt đánh có dòng **Dùng bình trong trận**. Bấm ▾ để mở 
 <a id="tự-cộng-kỹ-năng"></a>
 
 **Tự cộng kỹ năng theo số lần dùng (23/11).** Trước đó Tự cộng nâng kỹ năng cấp thấp nhất, nên 11 nick có Liệt Hỏa Chi Kiếm, Kim Cang Hộ Thể hay Lôi Tiễn Công cấp 10 mà gần như không dùng (khoảng 20–30 điểm mỗi nick). Từ 23/11 thứ tự theo vị trí trong cây (mã % 1000): Hỏa 0, 6, 1, 7, 8, 4, 5, 3, 2; Lôi và Thủy 0, 6, 7, 8, 4, 5, 3, 1, 2 ([features](../../integration/rust/features.md#tự-cộng-kỹ-năng)). Điểm đã cộng không lấy lại được.
+
+### Nội lực hết trận là mất (T1, 24/11)
+
+Đọc trận của app (`captures/t1-2026-11-24/`, không đưa lên git) và mô phỏng 18 cặp nhân vật–quái lấy từ số liệu thật. [Đo, Mô phỏng]
+
+- **Mỗi trận nội lực và nộ bắt đầu từ 0/100**, dù trận trước kết thúc còn bao nhiêu (12/12 trận liền của nobita); HP thì mang sang. Uống bình mana "trước trận" không có tác dụng: Kim Đan Dược chỉ uống được trong trận, mất lượt.
+- **Hệ Thủy dồn Nội Lực nhận 10–12 nội lực mỗi viên âm dương** (Hỏa 4,7–8,6, Lôi 2,7), nên một viên âm dương được chấm 2,8–2,9 kiếm (Hỏa 1,7–1,8, Lôi 0,6). Trận của họ ngắn (thua sau 4,5–6 lượt của mình, Hỏa/Lôi 11–14), và họ chết khi còn ≥25 nội lực ở 49–60% trận thua (Hỏa/Lôi 13–23%), thắng khi còn 32–41 nội lực.
+- **Sửa (24/11):** âm dương chỉ được tính tới khi thanh đầy (phần vượt 100 bỏ, cả trong `moveValue` lẫn kỹ năng); nội lực tiêu đi bị trừ 0,5 thay vì 1, và không trừ khi quái có thể kết thúc trận hay còn bình mana.
+- **Mô phỏng** (6 giờ mỗi tổ hợp, quái như thật và mạnh hơn 30%), so với trước khi sửa:
+
+| | Không bình | Bình mana (tối đa 2) |
+|---|---|---|
+| Thủy (8 cặp) | EXP/giờ +1,7% / +3,6% | +6,4% / +7,8%, bình mỗi trận giảm khoảng 40% |
+| Hỏa, Lôi (10 cặp) | +1,0% / +1,7% (thấp nhất −0,2%) | +8,6% / +10,5%, ít trận thua hơn |
+
+- So với app cũ không bình, Thủy bật Bình mana sau khi sửa được +14–16% EXP/giờ với khoảng 0,35 bình mỗi trận.
+- **Cách "uống bình rồi chưởng liên tục"** (Kim Đan khi dưới 25 nội lực, đủ 25 là Băng Tiễn): +6–7% EXP/giờ vì trận ngắn hơn, nhưng thua thêm 4,6–8,9 trận mỗi giờ (thắng 83% còn 76% ở trường hợp khó) và tốn khoảng 320 bình mỗi giờ. Cho phép hơn 2 bình mỗi trận không đổi gì: trận hệ Thủy chỉ 8–9 lượt.
+- Mô phỏng lạc quan hơn thật (Huntertb – Lão Yêu Dê: 90% so với 72%), nên chỉ đọc chênh lệch giữa các cách.
 
 ### Gợi ý quái (21/11)
 

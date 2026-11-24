@@ -302,7 +302,9 @@ fn best_action_picks_and_scores_what_the_ts_side_does() {
             skills: &skills,
             potions: &potions,
             potion_cost: c["potionCost"].as_f64().unwrap_or(f64::INFINITY),
-            spend: c["spend"].as_f64().unwrap_or(1.0),
+            spend: c["spend"]
+                .as_f64()
+                .unwrap_or(cllt_core::battle_actions::SPEND),
             buffs: Buffs {
                 attack: turns("attack"),
                 defense: turns("defense"),

@@ -361,8 +361,21 @@ const KEEP_K: f64 = 6.0 / 7.0;
 const OWN_SWORDS: f64 = 1.0;
 const MOB_SWORDS: f64 = 0.42;
 /// Share of the worth of the nội lực a skill spends that is charged to it (SPEND of battle-actions.ts): a skill kept
-/// for a later turn deals the same damage then, so it is worth casting now only for what the turn adds.
-pub const SPEND: f64 = 1.0;
+/// for a later turn deals the same damage then, so it is worth casting now only for what the turn adds; but the battle
+/// may end first, and what is left then is lost (each battle starts at 0): 0.5 (T1, 24/11).
+pub const SPEND: f64 = 0.5;
+
+/// mobThreat of battle-actions.ts: the most the mob's next move may take, four swords (doubled at full power) or its
+/// skill when paid for. With no more HP than that, a skill is not charged for its nội lực: what is kept may never be cast.
+pub fn mob_threat(mob: &Fighter) -> f64 {
+    let swords = 4.0 * mob.sword * if mob.s2 >= 100.0 { 2.0 } else { 1.0 };
+    let skill = if !falsy(mob.skill_cost) && mob.s1 >= mob.skill_cost {
+        mob.skill_damage
+    } else {
+        0.0
+    };
+    f64::max(swords, skill)
+}
 
 /// `x || 0` and `!x` of the TS side: 0 and NaN are falsy.
 fn falsy(x: f64) -> bool {
@@ -518,12 +531,20 @@ pub fn best_action(
         })
         .collect();
     // The nội lực spent is charged (SPEND), but not when the bar is too full for the cheapest skill to be cast later
-    // without losing what comes in meanwhile, nor in a timed battle. The same for every skill.
+    // without losing what comes in meanwhile, nor in a timed battle. The same for every skill. Nội lực left when a battle
+    // ends is lost (each battle starts at 0, T1 24/11), so neither is it charged when the mob's next move may end the
+    // battle (mob_threat), nor while a mana potion may fill the bar again.
     let cheapest = castable
         .iter()
         .map(|e| e.cost as f64)
         .fold(f64::INFINITY, f64::min);
-    let charged = !falsy(s.reply) && me.s1 + cheapest <= 100.0;
+    let refill = o.potions.iter().any(|p| {
+        potion_effect(p.item_id).is_some_and(|fx| !falsy(fx.s1))
+            && p.quantity > 0
+            && (p.cost_share.is_some() || o.potion_cost < f64::INFINITY)
+    });
+    let charged =
+        !falsy(s.reply) && me.s1 + cheapest <= 100.0 && me.hp > mob_threat(mob) && !refill;
     let swap_score = pick.as_ref().map_or(0.0, |p| p.score);
     for e in castable {
         let cost_per_s1 = if charged { per_s1 * o.spend } else { 0.0 };
@@ -704,7 +725,10 @@ fn skill_score(
                 + heal.map_or(0.0, |x| (x * me.max_hp).floor())
                 + e.drain.map_or(0.0, |d| d.chance * d.hp as f64),
         );
-        let s1 = n(2) * me.yinyang;
+        let s1 = js_min(
+            f64::max(0.0, 100.0 - (me.s1 - e.cost as f64)),
+            n(2) * me.yinyang,
+        );
         let s2 = if full {
             0.0
         } else {

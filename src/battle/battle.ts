@@ -191,13 +191,14 @@ export function mobMoveOdds(b: Board) {
 
 const swordDamage = (o: Outcome, f: Fighter) => (o.cleared[0] ?? 0) * f.sword * (f.s2 >= 100 ? 2 : 1);
 /** HP swing of an outcome for `actor` against `target`: damage (doubled at full power), healing up to the max, yin-yang
- * as its share of a skill, peach as its share of the next doubled hit (three swords). A killing move is worth 1e4. */
+ * as its share of a skill up to a full bar (what goes past 100 nội lực is lost), peach as its share of the next doubled
+ * hit (three swords). A killing move is worth 1e4. */
 export function moveValue(o: Outcome, actor: Fighter, target: Fighter, s: Strategy, bonus: Strategy['bonus'] = {}) {
   const damage = swordDamage(o, actor);
   if (damage >= target.hp) return 1e4;
   // A mob whose HP is not known yet (Infinity) is at full HP: the battle has just started.
   let v = damage + Math.min((o.cleared[1] ?? 0) * actor.heart, actor.maxHp - actor.hp || 0) + (o.extraTurn ? s.extraTurn : 0);
-  if (actor.skillCost) v += (o.cleared[2] ?? 0) * actor.yinyang * actor.skillDamage / actor.skillCost;
+  if (actor.skillCost) v += Math.min(Math.max(0, 100 - actor.s1), (o.cleared[2] ?? 0) * actor.yinyang) * actor.skillDamage / actor.skillCost;
   if (actor.s2 < 100) v += Math.min(100 - actor.s2, (o.cleared[3] ?? 0) * actor.peach) / 100 * 3 * actor.sword;
   for (const [piece, n] of Object.entries(o.cleared)) v += (bonus[Number(piece)] ?? 0) * n;
   return v;

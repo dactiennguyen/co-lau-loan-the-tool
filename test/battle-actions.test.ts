@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fixtures } from './fixtures.ts';
-import { N, UNKNOWN, fighter, STRATEGIES, answerValue } from '../src/battle/battle.ts';
-import { skillEffect, learntSkills, destroyPatterns, bestAction, planSkill, skillWorth, swordPrior, POTION_MARGIN, type SkillEffect } from '../src/battle/battle-actions.ts';
+import { N, UNKNOWN, fighter, STRATEGIES, answerValue, moveValue } from '../src/battle/battle.ts';
+import { skillEffect, learntSkills, destroyPatterns, bestAction, planSkill, skillWorth, swordPrior, POTION_MARGIN, SPEND, mobThreat, type SkillEffect } from '../src/battle/battle-actions.ts';
 import { BattleRunner } from '../src/battle/battle-runner.ts';
 import { decodeEvent } from '../src/protocol/events.ts';
 
@@ -148,10 +148,32 @@ test('battle runner with the learnt skills: casts the heal (c2s/20 4001) when lo
 
 test('bestAction: every skill is charged its nội lực until the bar is too full for the cheapest one (the heal is not free at 60)', () => {
   const heal = (s1: number) => bestAction(twoMoves(), tiheo2(100, s1), chiHuy(200), STRATEGIES.win, { skills }).all.find(a => a.label === 'skill 4001')!.score;
-  // 50 nội lực at what Băng Tiễn makes of it (32 + 19 × 6/7 per 25) is ~97 HP: charged at 60, free at 80 (80 + 25 > 100).
-  assert.ok(heal(60) < heal(80) - 90, `${heal(60)} vs ${heal(80)}`);
+  // 50 nội lực at what Băng Tiễn makes of it (32 + 19 × 6/7 per 25) is ~97 HP, half of it charged (SPEND) at 60, free at
+  // 80 (80 + 25 > 100).
+  assert.ok(heal(60) < heal(80) - 40, `${heal(60)} vs ${heal(80)}`);
   const timed = { ...STRATEGIES.win, reply: 0, extraTurn: 0, lookahead: 0 };
   assert.equal(Math.round(bestAction(twoMoves(), tiheo2(100, 60), chiHuy(200), timed, { skills }).all.find(a => a.label === 'skill 4001')!.score), 16, 'timed: nothing charged, nothing answered');
+});
+
+test('bestAction: nội lực is not charged when the mob may end the battle, nor while a mana potion may fill the bar (T1)', () => {
+  const score = (hp: number, o: Parameters<typeof bestAction>[4] = {}) =>
+    bestAction(twoMoves(), tiheo2(hp, 60), chiHuy(200), STRATEGIES.win, { skills, ...o }).all.find(a => a.label === 'skill 4000')!.score;
+  // Chỉ Huy's skill (43) is paid for: at 40 HP it may kill, at 100 it may not.
+  assert.equal(mobThreat(chiHuy(200)), 43);
+  const charge = 25 * tiheo2(100, 60).skillDamage / 25 * SPEND;
+  assert.ok(Math.abs(score(100, { potions: [{ slot: 1, itemId: 1, quantity: 1, costShare: 0.17 }] }) - score(100) - charge) < 1e-6, 'a mana potion to drink: free');
+  assert.ok(Math.abs(score(100, { potions: [{ slot: 1, itemId: 1, quantity: 0, costShare: 0.17 }] }) - score(100)) < 1e-6, 'none left: charged');
+  const near = bestAction(twoMoves(), tiheo2(40, 60), chiHuy(200), STRATEGIES.win, { skills, spend: 1 }).all.find(a => a.label === 'skill 4000')!.score;
+  const far = bestAction(twoMoves(), tiheo2(40, 60), chiHuy(200), { ...STRATEGIES.win }, { skills, spend: 0 }).all.find(a => a.label === 'skill 4000')!.score;
+  assert.ok(Math.abs(near - far) < 1e-6, 'near death: nothing charged whatever the spend');
+});
+
+test('moveValue: yin-yang counts up to a full bar', () => {
+  const o = { cleared: { 2: 3 }, waves: 1, extraTurn: false, refillUsed: 0 };
+  const at = (s1: number) => moveValue(o, tiheo2(150, s1), chiHuy(200), STRATEGIES.win);
+  assert.ok(Math.abs(at(0) - 3 * 2.3 * tiheo2(150, 0).skillDamage / 25) < 1e-9, 'all of it below the top');
+  assert.ok(Math.abs(at(98) - 2 * tiheo2(150, 0).skillDamage / 25) < 1e-9, '2 of the 6.9 at 98');
+  assert.equal(at(100), 0);
 });
 
 test('battle runner: a potion the server does not answer is not tried again; own damage per sword is kept per kind of mob', (t) => {

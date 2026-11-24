@@ -762,7 +762,9 @@ pub fn move_value(
         + f64::min(o.n(1) * actor.heart, missing)
         + if o.extra_turn { s.extra_turn } else { 0.0 };
     if actor.skill_cost != 0.0 {
-        v += o.n(2) * actor.yinyang * actor.skill_damage / actor.skill_cost;
+        // Up to a full bar: what goes past 100 nội lực is lost.
+        v += f64::min(f64::max(0.0, 100.0 - actor.s1), o.n(2) * actor.yinyang) * actor.skill_damage
+            / actor.skill_cost;
     }
     if actor.s2 < 100.0 {
         v += f64::min(100.0 - actor.s2, o.n(3) * actor.peach) / 100.0 * 3.0 * actor.sword;

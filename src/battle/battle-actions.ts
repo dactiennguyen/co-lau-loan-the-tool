@@ -124,8 +124,11 @@ export function bestAction(b: Board, me: Fighter, mob: Fighter, s: Strategy, o: 
   const castable = (o.skills ?? []).filter(e => e.kind !== 'unknown' && me.s1 >= e.cost && !(e.buff && (o.buffs?.[e.buff.stat] ?? 0) > 0) && planned(e));
   // The nội lực spent is charged (SPEND), but not when the bar is too full for the cheapest skill to be cast later
   // without losing what comes in meanwhile, nor in a timed battle (the mob does not answer: every action should deal the
-  // most). The same for every skill, so a dearer one is never free while a cheaper one is charged.
-  const charged = !!s.reply && me.s1 + Math.min(...castable.map(e => e.cost)) <= 100;
+  // most). The same for every skill, so a dearer one is never free while a cheaper one is charged. Nội lực left when a
+  // battle ends is lost (each battle starts at 0, T1 24/11), so neither is it charged when the mob's next move may end
+  // the battle (mobThreat), nor while a mana potion may fill the bar again.
+  const refill = (o.potions ?? []).some(p => POTIONS[p.itemId]?.s1 && p.quantity > 0 && (typeof p.costShare === 'number' || (o.potionCost ?? Infinity) < Infinity));
+  const charged = !!s.reply && me.s1 + Math.min(...castable.map(e => e.cost)) <= 100 && me.hp > mobThreat(mob) && !refill;
   for (const e of castable) {
     const v = skillScore(b, e, me, mob, s, charged ? perS1 * (o.spend ?? SPEND) : 0, perS1, o, pick?.score ?? 0), swapScore = pick?.score ?? -Infinity;
     all.push({ action: { kind: 'skill', id: e.id }, score: e === plan && swapScore < 1e4 ? Math.max(v, swapScore + 1) : v, label: `skill ${e.id}` });
@@ -156,9 +159,17 @@ export function planSkill(skills: readonly SkillEffect[]): SkillEffect | undefin
 
 /** Share of the nội lực's worth charged to the skill that spends it. A skill kept for a later turn deals the same damage
  * then, so it is worth casting now only for what the turn adds: the chance to kill, the pieces it clears, a poor swap.
- * In the simulator 1 won most (0 and 0.5 fewer battles, 1.5 and 2 far fewer: the heal then takes the damage skill's
- * place), 07-auto-battle.md#chọn-hành-động. */
-export const SPEND = 1;
+ * But the battle may end first, and what is left then is lost: 0.5 (T1, 24/11). In the simulator of 31/10 1 won most
+ * against Cóc Xanh (0 and 0.5 fewer battles, 1.5 and 2 far fewer: the heal then takes the damage skill's place); on the
+ * characters of 24/11 (Thủy with 10–12 nội lực a yin-yang, short battles) 0.5 matched or beat 1, and nothing charged
+ * near death or with a mana potion to drink beat both, 07-auto-battle.md#chọn-hành-động. */
+export const SPEND = 0.5;
+
+/** The most the mob's next move may take: four swords (doubled at full power) or its skill when paid for. With no more
+ * HP than that, a skill is not charged for its nội lực: what is kept may never be cast. */
+export function mobThreat(mob: Fighter) {
+  return Math.max(4 * mob.sword * (mob.s2 >= 100 ? 2 : 1), mob.skillCost && mob.s1 >= mob.skillCost ? mob.skillDamage : 0);
+}
 
 /** The average over destroy patterns of what the skill is worth now: its damage (1e4 × the chance it kills), the HP and
  * nội lực of the pieces it clears, less its cost at `costPerS1` a point and the mob's answer on the board it leaves. A
@@ -190,7 +201,7 @@ function skillScore(b: Board, e: SkillEffect, me: Fighter, mob: Fighter, s: Stra
       kill = least >= mob.hp ? 1 : least + k >= mob.hp ? KEEP_K : 0;
     }
     const healed = Math.min(me.maxHp - me.hp || 0, n(1) * me.heart + (e.heal ? Math.floor(e.heal * me.maxHp) : 0) + (e.drain ? e.drain.chance * e.drain.hp : 0));
-    const s1 = n(2) * me.yinyang, s2 = full ? 0 : Math.min(100 - me.s2, n(3) * me.peach);
+    const s1 = Math.min(Math.max(0, 100 - (me.s1 - e.cost)), n(2) * me.yinyang), s2 = full ? 0 : Math.min(100 - me.s2, n(3) * me.peach);
     let v = damage + healed + s1 * perS1 + s2 / 100 * 3 * me.sword - charge;
     for (const [piece, c] of Object.entries(out.cleared)) v += (s.bonus[Number(piece)] ?? 0) * c;
     if (e.weaken) v += e.weaken.chance * e.weaken.amount / 3 * OWN_SWORDS * e.weaken.turns / 2;
