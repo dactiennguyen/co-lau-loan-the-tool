@@ -163,6 +163,8 @@ pub struct App {
     settings: Settings,
     /// Notifications of jobs and quest runs that ended, for the flusher to show (notify.rs).
     notices: Vec<crate::notify::Notice>,
+    /// A captcha came since the last flush: the window asks for attention (desktop).
+    attention: bool,
     /// Messages for the battle windows not yet sent, in order, each with its number (battle_window.rs).
     battle_out: Vec<(u64, u64, WindowMsg)>,
     /// Counts the messages to the battle windows, of every account (BattleState::rev).
@@ -568,6 +570,13 @@ pub fn spawn_flusher(handle: AppHandle, wake: Receiver<()>) {
                     eprintln!("{e}");
                 }
             }
+            // A captcha: the taskbar button flashes (Windows), the Dock icon bounces (macOS), until the window is used.
+            if shared.with(|app| std::mem::take(&mut app.attention)) {
+                #[cfg(desktop)]
+                if let Some(w) = handle.get_webview_window("main") {
+                    let _ = w.request_user_attention(Some(tauri::UserAttentionType::Critical));
+                }
+            }
             if !lines.is_empty() {
                 let _ = handle.emit("log", lines);
             }
@@ -606,6 +615,7 @@ impl App {
             store: None,
             settings: Settings::default(),
             notices: vec![],
+            attention: false,
             battle_out: vec![],
             battle_rev: 0,
             db_writer: None,
@@ -1119,6 +1129,7 @@ impl App {
                     .extend(ended.into_iter().filter(|n| match n.kind {
                         crate::notify::Kind::Done => done,
                         crate::notify::Kind::Lost => lost,
+                        crate::notify::Kind::Captcha => false,
                     }));
                 self.touch(id, false);
             }
@@ -1142,6 +1153,19 @@ impl App {
                 }
             }
             Event::Captcha(c) => {
+                // Báo khi có captcha: the notification and the window's call for attention (spawn_flusher).
+                if let (cllt_core::bot::CaptchaUi::Show(p), true) =
+                    (&c, self.settings.notify_captcha)
+                {
+                    if let Some(e) = self.entry(id) {
+                        let who = match e.account.label.trim() {
+                            "" => e.account.username.clone(),
+                            label => label.to_string(),
+                        };
+                        self.notices.push(crate::notify::captcha(&who, p.seconds));
+                        self.attention = true;
+                    }
+                }
                 if let Some(e) = self.entry_mut(id) {
                     match c {
                         cllt_core::bot::CaptchaUi::Show(p) => {

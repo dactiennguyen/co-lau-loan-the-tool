@@ -12,6 +12,9 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) {
+        if let Some(why) = self.unverified_refusal() {
+            return out.push(Out::Log(LogKind::Battle, format!("Chưa đánh: {why}")));
+        }
         // One task at a time: the quest run has to be stopped first (and the other way round in quest()).
         if self.quest_running() {
             return out.push(Out::Log(

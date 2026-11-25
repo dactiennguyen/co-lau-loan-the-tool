@@ -532,6 +532,7 @@ const preview: Api = {
       onClose: "ask",
       notifyDone: true,
       notifyLost: true,
+      notifyCaptcha: true,
     };
     return { settings: defaults, defaults, battleData: { battles: 1284, bytes: 5_712_384 } };
   },

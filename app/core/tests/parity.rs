@@ -4592,4 +4592,57 @@ fn a_captcha_holds_the_job_until_the_user_passes_it() {
         .as_deref()
         .unwrap()
         .starts_with("Chưa xác nhận người chơi"));
+    // Not verified, a new fight job or quest run is refused: the battles would give nothing until a new login.
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    bot.quest(1, None, now, &mut out);
+    assert_eq!(sends(&out, 15), 0, "{out:?}");
+    assert!(
+        out.iter().any(
+            |o| matches!(o, Out::Log(_, t) if t.starts_with("Chưa đánh: Chưa xác nhận người chơi"))
+        ),
+        "{out:?}"
+    );
+    assert!(
+        out.iter().any(|o| matches!(o, Out::Log(_, t) if t.starts_with("Chưa làm nhiệm vụ: Chưa xác nhận người chơi"))),
+        "{out:?}"
+    );
+}
+
+/// s2c/1283 type 2 (u8 2; i32 id, 5 bytes: kakami, minika, susimi 25/11 10:52–10:53): the server closes a captcha left
+/// unanswered during play. The window closes and the job ends, as with its time over; for one already gone, a line only.
+#[test]
+fn the_server_closing_a_captcha_ends_the_job_as_its_time_over() {
+    let mut challenge = Writer::new().u8(0).i32(0x756948a4).build();
+    challenge.extend_from_slice(&60u16.to_be_bytes());
+    challenge.push(3);
+    challenge.extend(Writer::new().bytes(&[0x89, b'P']).build());
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    bot.on_packet(1283, &challenge, now, &mut out).unwrap();
+    out.clear();
+    bot.on_packet(1283, &hex("02756948a4"), now, &mut out)
+        .unwrap();
+    assert!(out.contains(&Out::Captcha(CaptchaUi::Close)), "{out:?}");
+    assert!(logged(&out, "Server đóng captcha chưa giải: trận đánh không có thưởng tới khi xác nhận; đăng nhập lại để vào lại"), "{out:?}");
+    assert!(bot
+        .snap
+        .job
+        .as_ref()
+        .unwrap()
+        .done
+        .as_deref()
+        .unwrap()
+        .starts_with("Chưa xác nhận người chơi"));
+    // Already gone (its time over first): said, nothing else.
+    out.clear();
+    bot.on_packet(1283, &hex("02756948a4"), now, &mut out)
+        .unwrap();
+    assert_eq!(
+        out,
+        vec![Out::Log(
+            LogKind::Server,
+            "Server đóng captcha đã hết giờ".into()
+        )]
+    );
 }

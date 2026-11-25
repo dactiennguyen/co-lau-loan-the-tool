@@ -147,7 +147,7 @@ event('c2s', 1284, 'chat_block', 'world', 'Lệnh 0: ngay sau c2s/1282, trước
 event('c2s', 1285, 'report_player', 'world', 'Báo cáo người chơi: chọn lý do Xúc phạm, Spam, Lừa đảo, Khác (com.mh.d.sqc.a(int, int))', 's2c/1285', 'i32 id người chơi; u8 lý do', 'Đọc từ code 1.1.0; chưa đo, thứ tự lý do suy theo thứ tự trên hộp thoại');
 event('s2c', 1284, 'chat_block_list', 'world', 'Trả c2s/1284; server cũng tự gửi một lần sau c2s/30 (cả cho bot không gửi c2s/1284)', 'Không', 'u8; u8; string thông báo; i16 n; n * {i32 id người chơi; string tên}', 'Đo VG1: 8 byte 0 (danh sách trống). Kiểu đọc từ code (sqc.a(sqi) → sqd(int, int, String, int[], String[])); nghĩa hai u8 chưa rõ');
 event('s2c', 1285, 'report_result', 'world', 'Trả c2s/1285', 'Không', 'u8 kết quả; string thông báo', 'Đọc từ code (sqc.b(sqi) → sqe(int, String)); chưa đo. Game hiện "Đã gửi báo cáo, chúng tôi sẽ xem xét trong 24 giờ." hoặc "Không gửi được báo cáo. Vui lòng thử lại!"');
-event('s2c', 1283, 'captcha', 'login', 'Xác nhận người chơi: ngay khi vào game, sau s2c/1266 (server bật 25/11). Loại 1: trả c2s/1283', 'c2s/1283 khi người chơi bấm Gửi; hết giờ thì không gửi gì', 'u8 loại; i32 mã đề; loại 0: i16 số giây; u8 số lần thử; bytes ảnh PNG 640x400 (yêu cầu vẽ trong ảnh). Loại 1: u8 kết quả (0 đúng); u8; string thông báo', 'Đo LG1 25/11 (manina3, game 1.1.1): hai đề 60 s, 3 lần thử, 101.289 và 78.889 byte; kết quả 01 … 00 00 "Xác nhận thành công". Kiểu từ code (com.mh.o.sqa.a(sqk) → sqb)');
+event('s2c', 1283, 'captcha', 'login', 'Xác nhận người chơi: ngay khi vào game, sau s2c/1266 (server bật 25/11). Loại 1: trả c2s/1283', 'c2s/1283 khi người chơi bấm Gửi; hết giờ thì không gửi gì', 'u8 loại; i32 mã đề; loại 0: i16 số giây; u8 số lần thử; bytes ảnh PNG 640x400 (yêu cầu vẽ trong ảnh). Loại 1: u8 kết quả (0 đúng); u8; string thông báo. Loại 2: không có gì thêm (server đóng đề chưa giải)', 'Đo LG1 25/11 (manina3, game 1.1.1): hai đề 60 s, 3 lần thử, 101.289 và 78.889 byte; kết quả 01 … 00 00 "Xác nhận thành công". Loại 2 (5 byte) đo 25/11 10:52–10:53 ở kakami, minika, susimi, 40 s tới 4 phút sau đề giữa lúc chơi không ai giải. Kiểu từ code (com.mh.o.sqa.a(sqk) → sqb)');
 event('c2s', 1283, 'captcha_answer', 'login', 'Bấm Gửi ở hộp Xác nhận người chơi (com.mh.o.sqa.a(int, int[], int[], int))', 's2c/1283 loại 1', 'u8 0; i32 mã đề; u8 n; n * {i16 x; i16 y} chỗ chạm theo pixel của ảnh 640x400, theo thứ tự chạm (tối đa 6)', 'Đo LG1 25/11: 3 lần chạm (198,168) (524,163) (83,341) trùng hình 5, 1, 4 của đề "Chạm lần lượt 5, 1, 4"');
 event('c2s', 1275, 'bach_ho_result_request', 'world', 'Kết quả Bạch Hổ: nút "Xem tất cả bậc" của bảng công trạng mở hộp sqjx, hộp gửi sqnf.Z() (APK 1.1.0)', 's2c/1275', 'Rỗng', 'Đọc tĩnh 1.1.0 (21/11); chưa đo');
 event('s2c', 1275, 'bach_ho_result', 'world', 'Trả bach_ho_result_request', 'Không', 'u8 trạng thái (0 đang diễn ra, 1 bị tiêu diệt, 2 tẩu thoát); i64 phiên; i32 máu; i32 máu tối đa; i32 id người kết liễu; string tên người kết liễu; u8 bậc của họ; i32 sát thương của họ; u8 n bậc; n × {u8 bậc; i16 cấp từ; i16 cấp tới; i32 ngưỡng; i32 số người; u8 m; m × {u8 hạng; i32 id; string tên; i16 cấp; i32 sát thương}}; u8 bậc của mình; i32 hạng; i32 sát thương; u8 đạt ngưỡng', 'Đọc tĩnh 1.1.0 (sqtm.a → sqto, chữ của sqtq); chưa đo');
@@ -411,7 +411,9 @@ export function decodeEvent(direction: Direction, opcode: number | undefined, pa
         const kind = r.u8(), id = r.i32();
         fields = kind === 0
           ? { kind, id, seconds: r.take(2).readInt16BE(), tries: r.u8(), imageBytes: r.bytes().length }
-          : { kind, id, result: r.u8(), flag: r.u8(), message: r.string() };
+          : kind === 2
+            ? { kind, id }
+            : { kind, id, result: r.u8(), flag: r.u8(), message: r.string() };
         break;
       }
       case 1220: fields = { unread: r.u8() === 1 }; break;

@@ -19,6 +19,12 @@ impl Bot {
         now: Instant,
         out: &mut Vec<Out>,
     ) {
+        if let Some(why) = self.unverified_refusal() {
+            return out.push(Out::Log(
+                LogKind::Quest,
+                format!("Chưa làm nhiệm vụ: {why}"),
+            ));
+        }
         if self.job_running() {
             return out.push(Out::Log(
                 LogKind::Quest,

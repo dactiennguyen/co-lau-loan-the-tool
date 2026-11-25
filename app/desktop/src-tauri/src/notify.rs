@@ -1,7 +1,9 @@
 // Thông báo (Cài đặt → Thông báo): a notification of the system (tauri-plugin-notification) when the fight job or quest
 // run of an account ends on its own. Xong việc: it played its battles, the quest moved on, or the bot stopped where it
 // cannot go on (the reason says why). Thua hết lượt: it lost as many battles as Thua tối đa allows. Stopped by hand
-// (Dừng) it says nothing. Windows and Linux show it at once; macOS asks the user once, the first time one is shown.
+// (Dừng) it says nothing. Báo khi có captcha: the moment the server asks an account a captcha (captcha()). Windows and
+// Linux show it at once; macOS asks the user once, the first time one is shown; Android shows it while the app runs in
+// the background too (its keepalive service), once the notification permission is granted.
 use cllt_core::bot::Snapshot;
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_notification::NotificationExt;
@@ -12,6 +14,8 @@ pub enum Kind {
     Done,
     /// Thua hết lượt: ended because Thua tối đa was reached ("Thua N trận").
     Lost,
+    /// Báo khi có captcha: the server asks the account to confirm the player (s2c/1283), `seconds` to answer.
+    Captcha,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +40,7 @@ fn title(kind: Kind, who: &str, what: &str) -> String {
     match kind {
         Kind::Done => format!("{who}: {what} kết thúc"),
         Kind::Lost => format!("{who}: thua hết lượt, dừng {what}"),
+        Kind::Captcha => format!("{who}: cần xác nhận người chơi"),
     }
 }
 
@@ -76,6 +81,17 @@ pub fn ended(who: &str, before: &Snapshot, after: &Snapshot) -> Vec<Notice> {
     out
 }
 
+/// The server asks `who` a captcha, `seconds` to answer it in the app.
+pub fn captcha(who: &str, seconds: u16) -> Notice {
+    Notice {
+        kind: Kind::Captcha,
+        title: title(Kind::Captcha, who, ""),
+        body: format!(
+            "Server đòi captcha, còn {seconds} giây. Mở app, bấm vào nick này rồi chạm vào ảnh; chưa xác nhận thì đánh không có thưởng."
+        ),
+    }
+}
+
 /// Shows it; the error says why not.
 pub fn show<R: Runtime>(app: &AppHandle<R>, n: &Notice) -> Result<(), String> {
     app.notification()
@@ -90,6 +106,19 @@ pub fn show<R: Runtime>(app: &AppHandle<R>, n: &Notice) -> Result<(), String> {
 mod tests {
     use super::*;
     use cllt_core::bot::{Job, QuestRun};
+
+    /// Báo khi có captcha names the account and the seconds left.
+    #[test]
+    fn a_captcha_says_whose_and_how_long() {
+        let n = captcha("kakami", 60);
+        assert_eq!(n.kind, Kind::Captcha);
+        assert_eq!(n.title, "kakami: cần xác nhận người chơi");
+        assert!(
+            n.body.starts_with("Server đòi captcha, còn 60 giây."),
+            "{}",
+            n.body
+        );
+    }
 
     fn job(done: Option<&str>) -> Snapshot {
         Snapshot {

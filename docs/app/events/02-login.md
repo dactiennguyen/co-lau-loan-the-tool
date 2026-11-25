@@ -372,7 +372,28 @@ Hộp thoại đóng, game chạy tiếp. [Đo 1 lần]
 
 **Quét các nick trên cấp 100 (CS1, 25/11 khoảng 08:30):** bot TS (`connect.ts --world`, qua proxy riêng của từng nick, cách nhau 15 s) vào game một lần rồi thoát, không trả lời captcha. 8/9 nick vào được nhận `s2c/1283` loại 0 (60 s, 3 lần thử, ảnh 78–105 KB), cùng chỗ: ngay sau `s2c/1284` lần hai, trước `s2c/30`: manina2 (117), kakami (115), monoko (113), wangpt (112), mimosa (111), susimi (110), sizuka (108), cộng manina3 (119) trên điện thoại. **minika (115) không nhận**, vào game như trước. tiheo1 và tiheo2 đang online nơi khác ("Tài khoản hiện đang đăng nhập ở một nơi khác"), không đo được. Server chọn nick theo tiêu chí gì thì chưa rõ (không phải chỉ theo cấp). [Đo]
 
-**Chưa đo:** bấm sai (kết quả khác 0 và thông báo khác), hết lần thử, captcha có đến giữa lúc đang chơi hay chỉ khi vào game, server làm gì với nick không giải (lâu hơn 95 s), các loại đề khác. Bot TS đọc gói này (catalog); app Rust hiện ảnh cho người dùng chạm và gửi `c2s/1283` như game ([Xác nhận người chơi](../../integration/rust/features.md#xác-nhận-người-chơi-captcha)). [Chưa rõ]
+**Mỗi lần vào game là một đề mới (CS2, 25/11 09:05):** 10 nick, mỗi nick vào game 2 lần cách vài phút (kakami cách 25 s): mỗi lần mã đề và ảnh đều khác. Có đề: kakami 115, manina2 117, wangpt 112, monoko 113, susimi 110, sizuka 108, mimosa 111, cả 2 lần. Không có: mokali 99, nobita 99, và minika 115. Có hai kiểu yêu cầu: "Chạm lần lượt 2, 5, 1" (3 điểm) và "Chạm vào hình khác loại" (1 điểm). Ảnh ở `captures/cs2-2026-11-25`. [Đo]
+
+**Giải trong app (25/11 10:23–10:25, bản 2.2.24):** người dùng giải 8 đề, đúng cả 8 ngay lần đầu, mỗi đề mất 3–41 giây. Sau đó mọi trận thắng đều có EXP. [Đo]
+
+**Đề giữa lúc chơi:** server hỏi lại khoảng 21–28 phút sau lần xác nhận hay lần vào game, ngay sau khi một trận vừa xong (cùng giây với kết quả trận), kể cả nick đã giải:
+
+| Nick | Mốc | Đề giữa lúc chơi |
+|---|---|---|
+| mimosa | giải 10:25 | 10:46 (đã giải lại) |
+| susimi | giải 10:24 | 10:49 |
+| minika | vào game 10:23 | 10:50 |
+| kakami | giải 10:23 | 10:51 |
+
+[Đo]
+
+### s2c/1283 loại 2: đóng đề
+
+`02` + mã đề, đúng 5 byte, không có gì thêm: `02756948a4` (kakami 10:52:34), `02162613b2` (minika 10:53:16), `02997add83` (susimi 10:53:30). Mỗi gói mang đúng mã của đề giữa lúc chơi vừa bị bỏ, đến 40 giây tới 4 phút sau đề đó. Ở kakami gói đến trước khi hết 60 giây. Ba gói đến trong cùng khoảng một phút. App đọc là "server đóng đề chưa giải". [Đo 3 lần; nghĩa là suy ra]
+
+**Vào lại sau khi bỏ đề giữa lúc chơi (10:56–10:57):** kakami, minika, susimi vào game lại, không bị hỏi, trận có EXP, server không gửi "Chưa xác nhận người chơi". Trước đó, lúc 10:21–10:25, các nick đã để đề hết giờ đều bị hỏi ngay khi vào game. Có vẻ server nhớ lần xác nhận theo nick một thời gian: kakami và susimi đã giải lúc 10:23–10:24. minika thì chưa giải trong app lần nào mà vẫn không bị hỏi lúc vào game; manina3 (giải trên điện thoại 07:33) và tiheo1 cũng vậy. [Đo; luật chưa rõ]
+
+**Chưa đo:** bấm sai (kết quả khác 0 và thông báo khác), hết lần thử, server làm gì với nick không giải lâu, luật chọn nick hỏi lúc vào game. Bot TS đọc gói này (catalog); app Rust hiện ảnh cho người dùng chạm và gửi `c2s/1283` như game ([Xác nhận người chơi](../../integration/rust/features.md#xác-nhận-người-chơi-captcha)). [Chưa rõ]
 
 ## Nhịp như người chơi (game 1.1.1, 22/11)
 

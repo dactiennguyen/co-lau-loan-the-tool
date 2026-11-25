@@ -520,9 +520,13 @@ pub enum Captcha {
     },
     /// Type 1: the verdict (0 = passed in the one seen) and the server's words ("Xác nhận thành công").
     Verdict { id: i32, result: u8, text: String },
+    /// Type 2: nothing but the id, of a captcha asked during play and not answered, 40 s to 4 min after it (kakami,
+    /// minika, susimi, 25/11 10:52–10:53). Taken as the server closing it.
+    Closed { id: i32 },
 }
 
-/// s2c/1283: u8 type; i32 id; type 0: u16 seconds; u8 tries; bytes PNG. Type 1: u8 result; u8; string text.
+/// s2c/1283: u8 type; i32 id; type 0: u16 seconds; u8 tries; bytes PNG. Type 1: u8 result; u8; string text. Type 2:
+/// nothing more.
 pub fn captcha(p: &[u8]) -> Result<Captcha> {
     let mut r = Reader::new(p);
     let kind = r.u8()?;
@@ -534,6 +538,8 @@ pub fn captcha(p: &[u8]) -> Result<Captcha> {
             tries: r.u8()?,
             png: r.bytes()?.to_vec(),
         }
+    } else if kind == 2 {
+        Captcha::Closed { id }
     } else {
         let result = r.u8()?;
         r.u8()?;

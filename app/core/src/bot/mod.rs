@@ -286,6 +286,9 @@ pub struct Bot {
     leave_until: Option<Instant>,
     /// Xác nhận người chơi: the captcha shown to the user and not passed yet (captcha.rs).
     captcha: Option<captcha::CaptchaWait>,
+    /// A captcha was asked in this session and not passed (its time over, closed by the server, or the server saying
+    /// the player is not verified): no battle gives anything, so no fight job, quest run starts (captcha.rs).
+    unverified: bool,
     /// When the battle on, or the last one, opened (s2c/22): its result line says how long it took.
     battle_started: Instant,
     /// When the fight job or quest run started: each result line says how long it has run.
@@ -450,6 +453,7 @@ impl Bot {
             reload_map: false,
             leave_until: None,
             captcha: None,
+            unverified: false,
             battle_started: Instant::now(),
             run_started: Instant::now(),
             battle_at: 0,

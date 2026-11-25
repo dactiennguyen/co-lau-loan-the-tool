@@ -17,6 +17,9 @@ pub struct Settings {
     /// because Thua tối đa was reached (notify_lost).
     pub notify_done: bool,
     pub notify_lost: bool,
+    /// Báo khi có captcha: a notification the moment the server asks an account to confirm the player, and the window
+    /// asks for attention on the desktop (the taskbar button flashes, the Dock icon bounces).
+    pub notify_captcha: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -26,6 +29,7 @@ impl Default for Settings {
             on_close: OnClose::Ask,
             notify_done: true,
             notify_lost: true,
+            notify_captcha: true,
         }
     }
 }
@@ -295,6 +299,7 @@ mod tests {
             on_close: OnClose::Tray,
             notify_done: true,
             notify_lost: false,
+            notify_captcha: false,
         };
         save(&file, &changed).unwrap();
         assert_eq!(load(&file), changed);

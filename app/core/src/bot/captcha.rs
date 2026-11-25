@@ -42,6 +42,7 @@ impl Bot {
                     until: now + Duration::from_secs(u64::from(seconds)),
                     said: false,
                 });
+                self.unverified = true;
                 out.push(Out::Captcha(CaptchaUi::Show(Box::new(CaptchaPrompt {
                     id,
                     png,
@@ -61,12 +62,38 @@ impl Bot {
                 out.push(Out::Captcha(CaptchaUi::Verdict { passed, text }));
                 if passed {
                     self.captcha = None;
+                    self.unverified = false;
                     if self.job_running() || self.quest_running() {
                         self.next(now, out);
                     }
                 }
             }
+            // The server closes a captcha left unanswered: as its time over, the job or quest run ends.
+            crate::world::Captcha::Closed { id } => {
+                self.unverified = true;
+                if self.captcha.as_ref().is_none_or(|w| w.id != id) {
+                    return out.push(Out::Log(
+                        LogKind::Server,
+                        "Server đóng captcha đã hết giờ".into(),
+                    ));
+                }
+                self.captcha = None;
+                out.push(Out::Captcha(CaptchaUi::Close));
+                out.push(Out::Log(
+                    LogKind::Server,
+                    "Server đóng captcha chưa giải: trận đánh không có thưởng tới khi xác nhận; đăng nhập lại để vào lại".into(),
+                ));
+                self.unverified_stop(out);
+            }
         }
+    }
+
+    /// Why a fight job or quest run may not start: a captcha of this session left unpassed (no battle gives anything
+    /// until a new login). A captcha still waiting does not refuse it: the job holds until it is passed.
+    pub(super) fn unverified_refusal(&self) -> Option<&'static str> {
+        (self.unverified && self.captcha.is_none()).then_some(
+            "Chưa xác nhận người chơi: trận đánh không có thưởng; bấm Đăng nhập lại (trong khung Chưa xác nhận người chơi) rồi giải captcha",
+        )
     }
 
     /// Gửi of the captcha window: the points touched, in order, in pixels of the picture (640 × 400), as c2s/1283
@@ -147,6 +174,7 @@ impl Bot {
             return false;
         }
         if self.captcha.is_none() {
+            self.unverified = true;
             self.unverified_stop(out);
         }
         true

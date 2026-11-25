@@ -1090,6 +1090,9 @@ export interface Settings {
   /** Thông báo of the system when a fight job or quest run ends by itself, and when it ends for losses (notify.rs). */
   notifyDone: boolean;
   notifyLost: boolean;
+  /** Báo khi có captcha: a notification when the server asks an account to confirm the player, and the window asks for
+   * attention (taskbar button, Dock icon). */
+  notifyCaptcha: boolean;
 }
 
 /** OnClose of settings.rs. */

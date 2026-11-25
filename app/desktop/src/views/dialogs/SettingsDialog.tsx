@@ -267,6 +267,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   title="Báo khi thua hết lượt"
                   hint="Đánh quái hay làm nhiệm vụ dừng vì đã thua đủ số trận Thua tối đa, máy hiện thông báo để vào xem nhân vật."
                 />
+                <SettingRow
+                  id={`${id}notify-captcha`}
+                  on={form.notifyCaptcha}
+                  disabled={saving}
+                  onChange={(notifyCaptcha) => set({ notifyCaptcha })}
+                  icon="shield"
+                  title="Báo khi có captcha"
+                  hint="Server đòi xác nhận người chơi (lúc vào game hay giữa lúc đánh, chỉ có 60 giây): máy hiện thông báo kèm tên nick, nút app trên thanh taskbar nhấp nháy (macOS: icon nhảy ở Dock) tới khi bạn mở app. Trên Android thông báo hiện cả khi app chạy nền."
+                />
                 {/* Gửi thử, then what it did or how the systems ask, on a dark plate. */}
                 <div className="flex flex-wrap items-center gap-y-1.5 gap-x-2.5 px-3 py-2.5 bg-ink">
                   <Button kind="outline" small icon="bell" disabled={tried.state === "working"} onClick={tryNotification}>

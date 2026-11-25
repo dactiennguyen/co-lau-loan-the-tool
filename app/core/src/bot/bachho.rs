@@ -440,6 +440,14 @@ impl Bot {
         if let Some(st) = self.bach_ho.as_mut() {
             st.rejoin_at = None;
         }
+        // Xác nhận người chơi: no challenge while a captcha waits for the user (captcha.rs); tried again after RETRY.
+        if self.captcha.is_some() {
+            self.bach_ho_doing(
+                "Đợi xác nhận người chơi (captcha trong app) rồi mới vào trận".into(),
+            );
+            self.timer = Some((now + RETRY, Wake::Next));
+            return;
+        }
         let boss = cave_boss(&self.mobs).cloned();
         let Some(r) = self.snap.bach_ho.as_mut() else {
             return;
