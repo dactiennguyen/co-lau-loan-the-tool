@@ -115,6 +115,26 @@ pub fn set_losses_left(shared: State<Shared>, id: u64, left: u32) {
     shared.with(|app| app.send(id, Command::LossesLeft(left.max(1))));
 }
 
+/// Xác nhận người chơi: the picture (PNG, 640 × 400) of captcha `captcha` of the account, None once it is gone.
+#[tauri::command]
+pub fn captcha_image(shared: State<Shared>, id: u64, captcha: i32) -> Option<Vec<u8>> {
+    shared.with(|app| app.captcha_image(id, captcha))
+}
+
+/// Gửi of the captcha window: the points touched, in order, in pixels of the picture (Bot::captcha_answer).
+#[tauri::command]
+pub fn answer_captcha(shared: State<Shared>, id: u64, captcha: i32, points: Vec<(i16, i16)>) {
+    shared.with(|app| {
+        app.send(
+            id,
+            Command::CaptchaAnswer {
+                id: captcha,
+                points,
+            },
+        )
+    });
+}
+
 /// Cài đặt đánh of the account: Tự sửa đồ, Tự nhặt đồ, and the numbers last chosen in the Đánh quái and Nhiệm vụ tabs,
 /// kept within what fight and quest take. Saved to accounts.json; the error is shown in a toast.
 /// `settings` holds only the fields the tab changed (Shared::set_fight).

@@ -46,6 +46,14 @@ const QUALITIES = [
   { key: "pickupEpic", name: "Sử Thi", className: "text-piece-yinyang" },
 ] as const;
 
+/** The boxes of Nhặt loại đồ (items::DropKind of cllt-core): Xu, đá, trang bị and the rest. */
+const KINDS = [
+  { key: "pickupCoins", name: "Xu" },
+  { key: "pickupStones", name: "Đá" },
+  { key: "pickupGear", name: "Trang bị" },
+  { key: "pickupMisc", name: "Đồ khác" },
+] as const;
+
 /** Whether the potions under Dùng bình trong trận are shown, the same for every account; kept in localStorage. */
 const POTIONS_OPEN = "potionOptionsOpen";
 /** Likewise the numbers under Tự gộp đá khi túi đầy. */
@@ -167,6 +175,7 @@ const KEYS = [
   "pickupOtherGender",
   "pickupOwnElement",
   ...QUALITIES.map((q) => q.key),
+  ...KINDS.map((k) => k.key),
   ...POTION_ROWS.flatMap((r) => [r.on, r.max, r.keep]),
   "autoMerge",
   "mergeUpTo",
@@ -243,6 +252,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
   const element = c?.element != null ? ELEMENTS[c.element] : undefined;
   const offElement = c?.bag?.items.filter((i) => i.element != null && i.element !== c.element).length ?? 0;
   const ticked = QUALITIES.filter((q) => settings[q.key]).length;
+  const kinds = KINDS.filter((k) => settings[k.key]).length;
   const held = (item: number) => c?.bag?.items.filter((i) => i.id === item).reduce((n, i) => n + i.quantity, 0);
   const bag = c?.bag;
   const bagFull = !!bag && bag.items.length >= bag.capacity;
@@ -401,7 +411,7 @@ export function FightSettingsCard({ account }: { account: Account }) {
           <span className={SETTING_FACT}>
             <Icon name="list" size={12} />
             <b className="px">{[settings.pickupOthers, settings.pickupOtherGender, settings.pickupOwnElement].filter(Boolean).length}</b>/3 tuỳ chọn bật ·
-            phẩm chất <b className="px">{ticked}</b>/4
+            loại <b className="px">{kinds}</b>/4 · phẩm chất <b className="px">{ticked}</b>/4
           </span>
         )}
       </SettingRow>
@@ -460,6 +470,34 @@ export function FightSettingsCard({ account }: { account: Account }) {
             </span>
           )}
         </SettingRow>
+        {/* Nhặt loại đồ: four boxes on one row like Phẩm chất trang bị nhặt below, green while any is ticked. */}
+        <div className={cn("@container grid bg-ink", kinds > 0 && "shadow-[inset_3px_0_0_var(--good)]")}>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-3 py-1.5">
+            <span className="flex items-center gap-2.5 py-1">
+              <span className={cn("grid place-items-center size-[26px] text-fg-2 bg-card", kinds > 0 && "text-ink bg-good bevel-sm")} aria-hidden="true">
+                <Icon name="gem" size={14} />
+              </span>
+              <span id={`${id}kinds`} className="text-13 font-extrabold text-fg">
+                Nhặt loại đồ
+              </span>
+            </span>
+            <Hint label="Nhặt loại đồ là gì?" id={`${id}kinds-hint`}>
+              Chọn loại đồ rơi bot nhặt: Xu (Xu, Xu khóa, Lượng), Đá (Đá cấp 1–12), Trang bị (rồi theo các tuỳ chọn và phẩm chất ở đây) và Đồ khác (nguyên liệu, trứng, bình, thú cưng…). Mặc định tích cả bốn. Chỉ tích Xu thì chỉ nhặt Xu, túi đầy chậm hơn hẳn. Loại không tích để lại dưới đất; đồ của mình thì Nhật ký ghi Bỏ qua, đồ người khác thì bỏ qua không ghi.
+            </Hint>
+            <span
+              role="group"
+              aria-labelledby={`${id}kinds`}
+              aria-describedby={`${id}kinds-hint`}
+              className="flex-1 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 py-1"
+            >
+              {KINDS.map((k) => (
+                <CheckRow key={k.key} checked={settings[k.key]} disabled={!settings.pickup} onChange={(on) => save({ ...settings, [k.key]: on })}>
+                  <span className="font-bold">{k.name}</span>
+                </CheckRow>
+              ))}
+            </span>
+          </div>
+        </div>
         {/* Four boxes on one row, not Bật/Tắt, its icon at the left edge (no box of its own): green while any is ticked. */}
         <div className={cn("@container grid bg-ink", ticked > 0 && "shadow-[inset_3px_0_0_var(--good)]")}>
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-3 py-1.5">

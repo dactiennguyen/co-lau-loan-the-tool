@@ -24,6 +24,7 @@ import { StopDialog } from "@/views/dialogs/StopDialog";
 import { Toaster } from "@/views/Toaster";
 import { UpdateDialog } from "@/views/dialogs/UpdateDialog";
 import { UpdateGate } from "@/views/UpdateGate";
+import { CaptchaGate } from "@/views/dialogs/CaptchaDialog";
 import { LicenseGate } from "@/views/LicenseGate";
 
 /** Sidebar of accounts, the selected account, the dialog the store says is open, the toasts, and the cover of a
@@ -50,6 +51,8 @@ export default function App() {
       )}
       <Dialogs />
       <Toaster />
+      {/* Xác nhận người chơi: a captcha the server asked of an account, above the other dialogs. */}
+      <CaptchaGate />
       {/* Until a key holds (license.rs) no account logs in; under UpdateGate, as an update needs no key. */}
       <LicenseGate />
       {/* Last, so that it opens above any dialog: a newer version is mandatory. */}

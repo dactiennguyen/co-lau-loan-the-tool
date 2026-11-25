@@ -213,6 +213,10 @@ impl Bot {
         if self.merge_trip.is_some() {
             return;
         }
+        // Xác nhận người chơi: no battle gives anything before the captcha is passed (captcha.rs).
+        if (self.quest_running() || self.job_running()) && self.captcha_holds(out) {
+            return;
+        }
         // Before the next battle, or the next step of the quest run, a broken worn item is repaired first.
         if (self.quest_running() || self.job_running()) && self.auto_repair(now, out) {
             return;
@@ -261,6 +265,11 @@ impl Bot {
         if targets.is_empty() {
             return self.finish(&format!("Không thấy {} ở khu này", job.target), out);
         }
+        // The character has grown more than NO_EXP_GAP levels above its mob: no EXP, Xu nor drops any more. Another mob
+        // of the zone worth it takes over, else the job ends (no_exp_target).
+        if !boss && self.no_exp(targets[0].level) {
+            return self.no_exp_target(&job.target, targets[0].level, now, out);
+        }
         // Vào khu ít người: the quietest of the zones chosen, once per map and job, before its first battle there; not
         // for a boss, which stands in a zone of its own.
         if !boss && self.job_zone(now, out) {
@@ -289,6 +298,70 @@ impl Bot {
             },
         );
         self.challenged(mob, now);
+    }
+
+    /// The mob of the job gives no EXP any more (more than NO_EXP_GAP levels below the character): the mob of the zone
+    /// Gợi ý quái would farm (farm::hints from the stats of both sides: most EXP an hour among those losing under
+    /// HARD_LOSS) becomes the job's target, said once, and the job goes on; without one the job ends.
+    pub(super) fn no_exp_target(
+        &mut self,
+        from: &str,
+        level: i32,
+        now: Instant,
+        out: &mut Vec<Out>,
+    ) {
+        let me = self.snap.combat.map(|c| crate::farm::Me {
+            level: self.snap.level,
+            attack: c[0],
+            defence: c[1],
+            max_hp: self.snap.max_hp,
+            element: self.snap.element,
+        });
+        let targets: Vec<Target> = self.targets().into_iter().filter(|t| t.here).collect();
+        let list: Vec<crate::farm::Candidate> = targets
+            .iter()
+            .map(|t| crate::farm::Candidate {
+                name: &t.name,
+                level: t.level,
+                boss: t.boss,
+                no_exp: t.no_exp,
+            })
+            .collect();
+        let hints = crate::farm::hints(
+            me.as_ref(),
+            self.snap.level,
+            &crate::farm::FarmBook::default(),
+            &list,
+        );
+        let gap = self.snap.level - level;
+        let pick = targets
+            .iter()
+            .zip(&hints)
+            .find_map(|(t, h)| h.filter(|h| h.best).map(|h| (t.clone(), h)));
+        let Some((to, hint)) = pick else {
+            return self.finish(
+                &format!(
+                    "{from} cấp {level} kém nhân vật cấp {} tới {gap} cấp, đánh không còn EXP, và khu này không có quái nào cho EXP mà dễ thắng; chọn quái khác hay sang map khác",
+                    self.snap.level
+                ),
+                out,
+            );
+        };
+        out.push(Out::Log(
+            LogKind::Battle,
+            format!(
+                "{from} cấp {level} kém nhân vật cấp {} tới {gap} cấp, đánh không còn EXP: đổi sang {} cấp {} (ước {} EXP/giờ, thua khoảng {}%)",
+                self.snap.level,
+                to.name,
+                to.level,
+                super::smith::grouped(i64::from(hint.exp_per_hour)),
+                hint.loss
+            ),
+        ));
+        if let Some(j) = self.snap.job.as_mut() {
+            j.target = to.name.clone();
+        }
+        self.next(now, out);
     }
 
     /// Vào khu ít người (FightSettings::quiet_zone): once per map and job, the zone list is asked (c2s/1172, waited 2 s)

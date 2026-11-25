@@ -214,6 +214,30 @@ impl Bot {
                 },
             ));
         }
+        let kinds = |f: &FightSettings| {
+            use crate::items::DropKind;
+            [
+                DropKind::Coin,
+                DropKind::Stone,
+                DropKind::Gear,
+                DropKind::Other,
+            ]
+            .into_iter()
+            .filter(|&k| f.picks_kind(k))
+            .map(DropKind::word)
+            .collect::<Vec<_>>()
+        };
+        let (now_kinds, before) = (kinds(&settings), kinds(&self.fight));
+        if now_kinds != before {
+            out.push(Out::Log(
+                LogKind::Item,
+                match now_kinds.len() {
+                    0 => "Nhặt loại đồ: không chọn loại nào, mọi đồ rơi sẽ để lại dưới đất".into(),
+                    4 => "Nhặt loại đồ: nhặt mọi loại".into(),
+                    _ => format!("Nhặt loại đồ: chỉ nhặt {}", now_kinds.join(", ")),
+                },
+            ));
+        }
         for (id, kind, name, when) in [
             (0, "máu", "Hoàn Linh Dược", "uống khi sắp chết"),
             (1, "mana", "Kim Đan Dược", "uống khi kỹ năng cần nội lực"),
@@ -350,6 +374,9 @@ impl Bot {
             return false;
         }
         let def = book().get(fallen.item.item_id);
+        let kind = crate::items::drop_kind(fallen.item.item_id, fallen.element);
+        let unticked = (!self.fight.picks_kind(kind))
+            .then(|| format!("{}, loại này không được chọn nhặt", kind.word()));
         let gender = (!self.fight.pickup_other_gender)
             .then(|| def.and_then(|d| crate::items::misfit(d.gender, self.snap.gender)))
             .flatten();
@@ -362,9 +389,13 @@ impl Bot {
             let name = crate::items::quality_name(fallen.quality).unwrap_or("?");
             format!("trang bị {name}, phẩm chất này không được chọn nhặt")
         });
-        if let Some(why) = gender.or(element).or(quality) {
+        if let Some(why) = unticked.or(gender).or(element).or(quality) {
             self.asked.insert(fallen.uuid.clone());
             self.ground.retain(|g| g.uuid != fallen.uuid);
+            // What others left, of a kind not ticked, goes unsaid: the ground of a busy zone would fill the log.
+            if fallen.other && !self.fight.picks_kind(kind) {
+                return false;
+            }
             out.push(Out::Log(
                 LogKind::Item,
                 format!("Bỏ qua {}: {why}", fallen.item.label()),

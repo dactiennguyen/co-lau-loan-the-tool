@@ -49,6 +49,11 @@ pub enum Command {
     Record(bool),
     /// "Lượt thua còn lại" of the fight job or quest run going on (Bot::set_losses_left).
     LossesLeft(u32),
+    /// Gửi of the captcha window: its id and the points touched, in pixels of its picture (Bot::captcha_answer).
+    CaptchaAnswer {
+        id: i32,
+        points: Vec<(i16, i16)>,
+    },
     /// "Cộng +1" on the potential of that c2s/10 index (Bot::add_stat).
     AddStat(usize),
     /// Nâng cấp on the skill of that id (Bot::upgrade_skill).
@@ -136,6 +141,8 @@ pub enum Event {
     BattleData(Box<BattleData>),
     /// For the battle window of the account (Out::BattleEvent).
     BattleEvent(Box<crate::battle_view::BattleEvent>),
+    /// Xác nhận người chơi: the captcha window of the account (Out::Captcha).
+    Captcha(crate::bot::CaptchaUi),
     /// A fault of the session or a Báo lỗi, with what went in and out before it (trace.rs), for Log lỗi. Comes after
     /// the log line or the state it is about.
     Fault(Box<Fault>),

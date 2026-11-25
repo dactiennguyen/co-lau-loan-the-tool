@@ -797,7 +797,7 @@ fn main() {
                 ended += 1;
             }
             Event::State(ConnState::Connecting) => {}
-            Event::Battle(_) | Event::BattleEvent(_) => {}
+            Event::Battle(_) | Event::BattleEvent(_) | Event::Captcha(_) => {}
             // Log lỗi is the app's: its line was printed as it came.
             Event::Fault(_) => {}
             Event::ProxyIp(ip) => println!("{}: proxy ra IP {ip}", chosen[i].1.username),

@@ -135,6 +135,23 @@ pub struct AccountView<'a> {
     pub proxy: Option<ProxyView<'a>>,
     /// What the session knows about the character; None until it is in the game.
     pub character: Option<CharacterView<'a>>,
+    /// Xác nhận người chơi: the captcha the server asked and the user has not passed; its picture comes with
+    /// `captcha_image`.
+    pub captcha: Option<CaptchaView<'a>>,
+}
+
+/// A captcha waiting for the user, without its picture.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptchaView<'a> {
+    pub id: i32,
+    /// Until when it may be answered, ms since 1970.
+    pub expires_at: u64,
+    pub tries: u8,
+    /// Why the last answer was refused ("Xác nhận thất bại…"), if one was.
+    pub error: Option<&'a str>,
+    /// How many answers were refused: a new refusal reopens the window to touches.
+    pub refused: u32,
 }
 
 /// The account's proxy without its password (the edit form asks for that with `account_secrets`).
@@ -780,6 +797,13 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             .proxy
             .as_ref()
             .map(|p| ProxyView::of(p, e.proxy_ip.as_deref())),
+        captcha: e.captcha.as_ref().map(|c| CaptchaView {
+            id: c.prompt.id,
+            expires_at: c.expires_at,
+            tries: c.prompt.tries,
+            error: c.error.as_deref(),
+            refused: c.refused,
+        }),
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,
             level: s.level,

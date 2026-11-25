@@ -165,6 +165,8 @@ pub fn run() {
             commands::set_fight,
             commands::set_fight_target,
             commands::set_losses_left,
+            commands::captcha_image,
+            commands::answer_captcha,
             commands::add_stat,
             commands::upgrade_skill,
             commands::item_action,

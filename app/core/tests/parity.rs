@@ -5,8 +5,8 @@ use cllt_core::battle::{
     self, battle_result, best_move, legal_moves, settle, swap, Board, Fighter, Move, Strategy,
 };
 use cllt_core::bot::{
-    duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, FightSettings,
-    ItemAct, LogKind, Out, Picked,
+    duration_text, BattleRecord, BattleResult, BattleSource, Bot, BotOptions, CaptchaPrompt,
+    CaptchaUi, FightSettings, ItemAct, LogKind, Out, Picked,
 };
 use cllt_core::potentials::StatPlan;
 use cllt_core::protocol::*;
@@ -4194,6 +4194,52 @@ fn nhat_ca_do_nguoi_khac_picks_up_what_others_left_once_anyone_may() {
         "{out:?}"
     );
 
+    // Nhặt loại đồ, all four ticked by default: only Xu ticked, the Xu khóa is picked up, a stone, a ring and a
+    // Huyết Châu (399) stay on the ground, each said once.
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.on_packet(42, &hex_of("characterExtra"), now, &mut out)
+        .unwrap();
+    let only_coins = FightSettings {
+        pickup_stones: false,
+        pickup_gear: false,
+        pickup_misc: false,
+        ..FightSettings::default()
+    };
+    assert!(FightSettings::default().pickup_coins && FightSettings::default().pickup_misc);
+    bot.set_fight(only_coins, now, &mut out);
+    assert!(logged(&out, "Nhặt loại đồ: chỉ nhặt Xu"), "{out:?}");
+    bot.fight("Cóc Xanh", 50, 50, now, &mut out);
+    let end = now + Duration::from_secs(1);
+    for (uuid, id, element) in [
+        ("xu", 41, 0xff),
+        ("da", 412, 0xff),
+        ("nhan", 312, 1),
+        ("khac", 399, 0xff),
+    ] {
+        bot.on_packet(1182, &drop_in("M2", uuid, id, 1, element), end, &mut out)
+            .unwrap();
+    }
+    let out = win(&mut bot, &setup, end);
+    assert_eq!(picked(&out), [request("xu")], "{out:?}");
+    assert!(
+        logged(&out, "Bỏ qua Đá cấp 2: đá, loại này không được chọn nhặt"),
+        "{out:?}"
+    );
+    assert!(
+        logged(
+            &out,
+            "Bỏ qua Nhẫn Hào Kiệt: trang bị, loại này không được chọn nhặt"
+        ),
+        "{out:?}"
+    );
+    assert!(
+        logged(
+            &out,
+            "Bỏ qua Huyết Châu: đồ khác, loại này không được chọn nhặt"
+        ),
+        "{out:?}"
+    );
+
     // Phẩm chất trang bị nhặt, all four ticked by default: unticked Thường and Hiếm, a Hiếm ring stays on the ground,
     // a Quý one is picked up, and so is a stone, which is not gear (its field4 0 is not Thường).
     assert_eq!(FightSettings::default().qualities(), [true; 4]);
@@ -4387,4 +4433,163 @@ fn the_same_menu_after_noi_chuyen_or_no_answer_to_it_ends_the_run() {
         bot.snap.quest_run.clone().unwrap().done.as_deref(),
         Some("NPC không trả lời sau Nói chuyện")
     );
+}
+
+/// The zone M2 with the mobs (id, name, level) as s2c/43 lists them (layout of coc_xanh_bot).
+fn zone_of(mobs: &[(&str, &str, i32)]) -> Vec<u8> {
+    let mut w = Writer::new().string("M2").u8(mobs.len() as u8);
+    for (id, name, level) in mobs {
+        w = w
+            .string(id)
+            .string(name)
+            .i32(*level)
+            .u8(0)
+            .i32(6)
+            .i32(1)
+            .u8(0);
+    }
+    w.build()
+}
+
+/// A job on a mob more than NO_EXP_GAP levels below the character (no EXP any more): the mob Gợi ý quái would farm takes
+/// over, said once; without one worth it, the job ends and says why.
+#[test]
+fn a_mob_that_gives_no_exp_any_more_gives_way_to_the_one_to_farm() {
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.on_packet(
+        43,
+        &zone_of(&[("mob61000", "Cóc Xanh", 13), ("mob90000", "Cóc Tía", 35)]),
+        now,
+        &mut out,
+    )
+    .unwrap();
+    bot.snap.level = 40;
+    bot.snap.max_hp = 900;
+    bot.snap.combat = Some([320, 80, 0, 0, 0]);
+    bot.snap.element = Some(1);
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    let switched = out.iter().find_map(|o| match o {
+        Out::Log(LogKind::Battle, t) if t.contains("đánh không còn EXP: đổi sang") => {
+            Some(t.clone())
+        }
+        _ => None,
+    });
+    let switched = switched.unwrap_or_else(|| panic!("{out:?}"));
+    assert!(
+        switched.starts_with("Cóc Xanh cấp 13 kém nhân vật cấp 40 tới 27 cấp, đánh không còn EXP: đổi sang Cóc Tía cấp 35 (ước "),
+        "{switched}"
+    );
+    assert_eq!(bot.snap.job.as_ref().unwrap().target, "Cóc Tía");
+    assert!(
+        logged(&out, "Trận 1/5: thách đấu Cóc Tía cấp 35 (mob90000)"),
+        "{out:?}"
+    );
+
+    // Only mobs far below: the job ends.
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.snap.level = 40;
+    bot.snap.max_hp = 900;
+    bot.snap.combat = Some([320, 80, 0, 0, 0]);
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    assert!(
+        out.iter().any(|o| matches!(o, Out::Log(LogKind::Battle, t) if t.starts_with("Kết thúc: Cóc Xanh cấp 13 kém nhân vật cấp 40 tới 27 cấp, đánh không còn EXP, và khu này không có quái nào"))),
+        "{out:?}"
+    );
+    assert_eq!(sends(&out, 15), 0);
+}
+
+/// Xác nhận người chơi (02-login.md#captcha, LG1): the challenge goes to the app with its picture and holds the job;
+/// the answer goes out byte for byte as the game's of LG1; the verdict passed lets the job fight; the time over, or the
+/// server's "Chưa xác nhận người chơi", ends it.
+#[test]
+fn a_captcha_holds_the_job_until_the_user_passes_it() {
+    let png = vec![0x89, b'P', b'N', b'G'];
+    let id = 0x907a332a_u32 as i32;
+    let challenge = |id: i32| {
+        let mut p = Writer::new().u8(0).i32(id).build();
+        p.extend_from_slice(&60u16.to_be_bytes());
+        p.push(3);
+        p.extend(Writer::new().bytes(&png).build());
+        p
+    };
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.on_packet(1283, &challenge(id), now, &mut out).unwrap();
+    assert!(
+        out.contains(&Out::Captcha(CaptchaUi::Show(Box::new(CaptchaPrompt {
+            id,
+            png: png.clone(),
+            seconds: 60,
+            tries: 3
+        }))))
+    );
+    out.clear();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    assert_eq!(sends(&out, 15), 0, "{out:?}");
+    assert!(
+        logged(
+            &out,
+            "Đợi xác nhận người chơi (captcha trong app) rồi mới đánh tiếp"
+        ),
+        "{out:?}"
+    );
+    // The answer of LG1: (198, 168), (524, 163), (83, 341).
+    out.clear();
+    bot.captcha_answer(id, &[(198, 168), (524, 163), (83, 341)], &mut out);
+    assert_eq!(
+        sent(&out, 1283).as_deref(),
+        Some("00907a332a0300c600a8020c00a300530155")
+    );
+    // Outside the picture, or for another captcha: nothing goes out.
+    out.clear();
+    bot.captcha_answer(id, &[(640, 10)], &mut out);
+    bot.captcha_answer(id + 1, &[(10, 10)], &mut out);
+    assert_eq!(sends(&out, 1283), 0);
+    // Passed: the window closes and the job fights.
+    out.clear();
+    let verdict = hex("01907a332a00000000001858c3a163206e68e1baad6e207468c3a06e682063c3b46e67");
+    bot.on_packet(1283, &verdict, now, &mut out).unwrap();
+    assert!(out.contains(&Out::Captcha(CaptchaUi::Verdict {
+        passed: true,
+        text: "Xác nhận thành công".into()
+    })));
+    assert!(logged(&out, "Captcha: Xác nhận thành công"), "{out:?}");
+    assert_eq!(sends(&out, 15), 1, "{out:?}");
+
+    // The time over: the window closes and the job ends.
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.on_packet(1283, &challenge(7), now, &mut out).unwrap();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    assert_eq!(bot.deadline(), Some(now + Duration::from_secs(60)));
+    out.clear();
+    bot.on_timer(now + Duration::from_secs(60), &mut out);
+    assert!(out.contains(&Out::Captcha(CaptchaUi::Close)), "{out:?}");
+    assert!(bot
+        .snap
+        .job
+        .as_ref()
+        .unwrap()
+        .done
+        .as_deref()
+        .unwrap()
+        .starts_with("Chưa xác nhận người chơi"));
+
+    // No captcha waiting and the server says the player is not verified: the job ends.
+    let (mut bot, mut out, now, _) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 5, 5, now, &mut out);
+    let notice = Writer::new()
+        .u8(0)
+        .string("Chưa xác nhận người chơi, trận này không có thưởng")
+        .build();
+    bot.on_packet(1256, &notice, now, &mut out).unwrap();
+    assert!(bot
+        .snap
+        .job
+        .as_ref()
+        .unwrap()
+        .done
+        .as_deref()
+        .unwrap()
+        .starts_with("Chưa xác nhận người chơi"));
 }

@@ -40,7 +40,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod bachho;
+mod captcha;
 pub use bachho::bach_ho_result;
+pub use captcha::{CAPTCHA_POINTS, CAPTCHA_SIZE};
 mod daily;
 mod eggs;
 mod fight;
@@ -282,6 +284,8 @@ pub struct Bot {
     /// Until when a surrender waits for s2c/1214 or s2c/36 before the battle is played on. Its own deadline, so a job
     /// started or stopped meanwhile cannot clear it.
     leave_until: Option<Instant>,
+    /// Xác nhận người chơi: the captcha shown to the user and not passed yet (captcha.rs).
+    captcha: Option<captcha::CaptchaWait>,
     /// When the battle on, or the last one, opened (s2c/22): its result line says how long it took.
     battle_started: Instant,
     /// When the fight job or quest run started: each result line says how long it has run.
@@ -445,6 +449,7 @@ impl Bot {
             runs: 0,
             reload_map: false,
             leave_until: None,
+            captcha: None,
             battle_started: Instant::now(),
             run_started: Instant::now(),
             battle_at: 0,
@@ -699,6 +704,7 @@ impl Bot {
             self.timer.as_ref().map(|t| t.0),
             self.battle.as_ref().and_then(|b| b.deadline()),
             self.leave_until,
+            self.captcha_deadline(),
             self.move_until,
             self.shopping.as_ref().map(|s| s.1),
             self.smith.as_ref().map(|s| s.until),
@@ -723,6 +729,7 @@ impl Bot {
 
     pub fn on_timer(&mut self, now: Instant, out: &mut Vec<Out>) {
         self.record_overdue(now, out);
+        self.captcha_overdue(now, out);
         if let Some(b) = &mut self.battle {
             if b.deadline().is_some_and(|d| d <= now) {
                 let mut acts = vec![];

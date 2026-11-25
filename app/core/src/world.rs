@@ -511,12 +511,12 @@ pub fn notice(p: &[u8]) -> Result<String> {
 /// verdict once the player answered with c2s/1283 (the points touched on the picture). The app does not answer it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Captcha {
-    /// Type 0: a challenge, `seconds` to answer in `tries` tries, its picture (a PNG of 640 × 400) `image_bytes` long.
+    /// Type 0: a challenge, `seconds` to answer in `tries` tries, its picture (a PNG of 640 × 400).
     Challenge {
         id: i32,
         seconds: u16,
         tries: u8,
-        image_bytes: usize,
+        png: Vec<u8>,
     },
     /// Type 1: the verdict (0 = passed in the one seen) and the server's words ("Xác nhận thành công").
     Verdict { id: i32, result: u8, text: String },
@@ -532,7 +532,7 @@ pub fn captcha(p: &[u8]) -> Result<Captcha> {
             id,
             seconds: r.u16()?,
             tries: r.u8()?,
-            image_bytes: r.bytes()?.len(),
+            png: r.bytes()?.to_vec(),
         }
     } else {
         let result = r.u8()?;
@@ -1240,7 +1240,7 @@ mod tests {
                 id: 0x907a332a_u32 as i32,
                 seconds: 60,
                 tries: 3,
-                image_bytes: 8
+                png: png.to_vec()
             }
         );
         let verdict = hex("01907a332a00000000001858c3a163206e68e1baad6e207468c3a06e682063c3b46e67");

@@ -507,6 +507,43 @@ pub fn off_element(item: u8, character: Option<i32>) -> Option<String> {
 /// The byte `hệ` of an item that is not gear (Xu khóa, stones, materials, eggs, pets).
 pub const NOT_GEAR: u8 = 0xff;
 
+/// What a drop is for Nhặt loại đồ (FightSettings::picks_kind): money (Xu 40, Xu khóa 41 and 44, Lượng 42), a stone
+/// (Đá cấp 1–12, items 411–422, and the three "Đá cấp" of type 22), gear (an element byte), or anything else
+/// (materials, eggs, potions, pets).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DropKind {
+    Coin,
+    Stone,
+    Gear,
+    Other,
+}
+impl DropKind {
+    /// As the log says why a drop stays on the ground.
+    pub fn word(self) -> &'static str {
+        match self {
+            DropKind::Coin => "Xu",
+            DropKind::Stone => "đá",
+            DropKind::Gear => "trang bị",
+            DropKind::Other => "đồ khác",
+        }
+    }
+}
+
+/// The kind of the drop `item_id` with the element byte `element` (NOT_GEAR for what is not gear).
+pub fn drop_kind(item_id: i32, element: u8) -> DropKind {
+    if element != NOT_GEAR {
+        return DropKind::Gear;
+    }
+    if crate::npc::stone_level(item_id) > 0 {
+        return DropKind::Stone;
+    }
+    match book().get(item_id).map(|d| d.name.as_str()) {
+        Some("Xu" | "Xu khóa" | "Lượng") => DropKind::Coin,
+        Some(name) if name.starts_with("Đá cấp ") => DropKind::Stone,
+        _ => DropKind::Other,
+    }
+}
+
 /// The four qualities of gear, by field4 of the item record and the quality of a Chợ trời listing, as the item popup of
 /// the phone names them (13-drops-items.md#phẩm-chất): 1 Hiếm (every dropped gear opened, 31/10), 2 Quý (the ring Chế tạo
 /// made, O1), 3 Sử Thi (purple names in Chợ trời, CT1). Thường, the fourth name of the game, is taken to be 0: no gear
@@ -591,6 +628,20 @@ pub fn book() -> &'static ItemBook {
 
 #[cfg(test)]
 mod tests {
+    /// Nhặt loại đồ: Xu, Xu khóa and Lượng are money, Đá cấp N a stone, an element byte gear, the rest đồ khác.
+    #[test]
+    fn drops_are_coins_stones_gear_or_other() {
+        use super::{drop_kind, DropKind, NOT_GEAR};
+        for id in [40, 41, 42, 44] {
+            assert_eq!(drop_kind(id, NOT_GEAR), DropKind::Coin, "{id}");
+        }
+        for id in [411, 416, 422, 43, 45, 46] {
+            assert_eq!(drop_kind(id, NOT_GEAR), DropKind::Stone, "{id}");
+        }
+        assert_eq!(drop_kind(312, 1), DropKind::Gear);
+        assert_eq!(drop_kind(399, NOT_GEAR), DropKind::Other);
+    }
+
     use super::*;
 
     #[test]

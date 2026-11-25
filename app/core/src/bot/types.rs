@@ -14,6 +14,26 @@ pub enum Out {
     BattleData(Box<BattleData>),
     /// For the battle window: the battle opened, a turn started, a result, the end (battle_view.rs).
     BattleEvent(Box<crate::battle_view::BattleEvent>),
+    /// Xác nhận người chơi: the captcha window of the app (captcha.rs).
+    Captcha(CaptchaUi),
+}
+
+/// A captcha of the server for the user to touch: its id, the PNG (640 × 400) with the request drawn in it, the seconds
+/// and the tries it allows.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaptchaPrompt {
+    pub id: i32,
+    pub png: Vec<u8>,
+    pub seconds: u16,
+    pub tries: u8,
+}
+
+/// What the captcha window of the app does: show a challenge, take a verdict, or close (its time over).
+#[derive(Debug, Clone, PartialEq)]
+pub enum CaptchaUi {
+    Show(Box<CaptchaPrompt>),
+    Verdict { passed: bool, text: String },
+    Close,
 }
 
 /// What a log line is about, for the filters of the Nhật ký card. docs/integration/rust/features.md#nhật-ký-và-thống-kê
@@ -296,6 +316,17 @@ pub struct FightSettings {
     pub pickup_precious: bool,
     #[serde(default = "on")]
     pub pickup_epic: bool,
+    /// Nhặt loại đồ, all four ticked unless unticked: Tự nhặt đồ picks up Xu (Xu, Xu khóa, Lượng), đá (Đá cấp 1–12),
+    /// trang bị (then as the settings above say) and đồ khác (materials, eggs, potions…) as ticked; a kind unticked stays
+    /// on the ground, said once (Bot::pick, items::drop_kind). Its own drops and those of others alike.
+    #[serde(default = "on")]
+    pub pickup_coins: bool,
+    #[serde(default = "on")]
+    pub pickup_stones: bool,
+    #[serde(default = "on")]
+    pub pickup_gear: bool,
+    #[serde(default = "on")]
+    pub pickup_misc: bool,
     /// Dùng bình máu, off unless turned on: a v3 battle may drink Hoàn Linh Dược of the bag, at most hp_potion_max a
     /// battle and never so many that fewer than hp_potion_keep are left; best_action drinks one when the mob's answer
     /// could otherwise end the battle (HP_POTION_SHARE). None is ever bought (Bot::battle_potions).
@@ -494,6 +525,10 @@ impl Default for FightSettings {
             pickup_rare: true,
             pickup_precious: true,
             pickup_epic: true,
+            pickup_coins: true,
+            pickup_stones: true,
+            pickup_gear: true,
+            pickup_misc: true,
             hp_potion: false,
             hp_potion_max: one(),
             hp_potion_keep: thirty(),
@@ -614,6 +649,16 @@ impl FightSettings {
     }
     /// Whether Tự nhặt đồ takes gear of quality `quality` (field4 of the item record): its box; a quality past the four
     /// is taken.
+    /// Whether Nhặt loại đồ has the kind `kind` ticked.
+    pub fn picks_kind(&self, kind: crate::items::DropKind) -> bool {
+        use crate::items::DropKind;
+        match kind {
+            DropKind::Coin => self.pickup_coins,
+            DropKind::Stone => self.pickup_stones,
+            DropKind::Gear => self.pickup_gear,
+            DropKind::Other => self.pickup_misc,
+        }
+    }
     pub fn picks_quality(&self, quality: u8) -> bool {
         self.qualities()
             .get(quality as usize)

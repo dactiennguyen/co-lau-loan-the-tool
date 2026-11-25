@@ -51,9 +51,22 @@ pub struct Entry {
     pub battle: BattleState,
     /// The IP its proxy went out with in this session (Event::ProxyIp); None when offline or not asked yet.
     pub proxy_ip: Option<String>,
+    /// Xác nhận người chơi: the captcha the server asked and the user has not passed yet (Event::Captcha), until when it
+    /// may be answered (ms since 1970), and why the last answer was refused.
+    pub captcha: Option<Captcha>,
     /// Its recent battles against mobs, for Gợi ý quái of the list of mobs (view.rs, cllt_core::farm).
     pub farm: FarmBook,
 }
+/// A captcha waiting for the user (Entry::captcha).
+#[derive(Debug, Clone)]
+pub struct Captcha {
+    pub prompt: cllt_core::bot::CaptchaPrompt,
+    pub expires_at: u64,
+    pub error: Option<String>,
+    /// How many answers the server refused: each lets the window be touched again, even with the same text.
+    pub refused: u32,
+}
+
 impl Entry {
     pub fn new(id: u64, account: Account) -> Self {
         Self {
@@ -69,6 +82,7 @@ impl Entry {
             loot_line: None,
             battle: BattleState::default(),
             proxy_ip: None,
+            captcha: None,
             farm: FarmBook::default(),
         }
     }
@@ -749,6 +763,13 @@ impl App {
     fn entry_mut(&mut self, id: u64) -> Option<&mut Entry> {
         self.entries.iter_mut().find(|e| e.id == id)
     }
+    /// The picture of the captcha account `id` waits on (a PNG of 640 × 400), for the captcha window.
+    pub fn captcha_image(&self, id: u64, captcha: i32) -> Option<Vec<u8>> {
+        self.entry(id)
+            .and_then(|e| e.captcha.as_ref())
+            .filter(|c| c.prompt.id == captcha)
+            .map(|c| c.prompt.png.clone())
+    }
     /// What the battle window of account `id` shows now (battle_window.rs).
     pub fn battle_state(&self, id: u64) -> Option<BattleState> {
         self.entry(id).map(|e| e.battle.clone())
@@ -1072,6 +1093,7 @@ impl App {
                         ConnState::Connecting | ConnState::Offline | ConnState::Error(_)
                     ) {
                         e.proxy_ip = None;
+                        e.captcha = None;
                     }
                     e.state = state;
                     self.touch(id, false);
@@ -1113,6 +1135,29 @@ impl App {
                     }
                     self.touch(id, false);
                 }
+            }
+            Event::Captcha(c) => {
+                if let Some(e) = self.entry_mut(id) {
+                    match c {
+                        cllt_core::bot::CaptchaUi::Show(p) => {
+                            e.captcha = Some(Captcha {
+                                expires_at: epoch_ms() + u64::from(p.seconds) * 1000,
+                                prompt: *p,
+                                error: None,
+                                refused: 0,
+                            })
+                        }
+                        cllt_core::bot::CaptchaUi::Verdict { passed: true, .. }
+                        | cllt_core::bot::CaptchaUi::Close => e.captcha = None,
+                        cllt_core::bot::CaptchaUi::Verdict { text, .. } => {
+                            if let Some(c) = e.captcha.as_mut() {
+                                c.error = Some(text);
+                                c.refused += 1;
+                            }
+                        }
+                    }
+                }
+                self.touch(id, false);
             }
             Event::BattleEvent(event) => {
                 if let Some(e) = self.entry_mut(id) {

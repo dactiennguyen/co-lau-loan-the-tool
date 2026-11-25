@@ -368,9 +368,11 @@ Hộp thoại đóng, game chạy tiếp. [Đo 1 lần]
 
 **Không trả lời** (lượt 1): hết 60 giây, game tự đóng hộp thoại, **không gửi gói nào**, server không gửi kết quả. Trong khoảng 95 giây theo dõi tiếp, nick không bị đá, không có `s2c/0`. [Đo 1 lần]
 
+**Không trả lời thì không có thưởng:** app Rust (kakami, 25/11 07:27, captcha bị lờ đi) đánh Hồng Xà cấp 114 bằng nhân vật cấp 115: 6 trận thắng đều `+0 EXP, +0 xu`, và sau mỗi trận server gửi `s2c/1256` "Chưa xác nhận người chơi, trận này không có thưởng" (cả sau trận thua, cùng "Thua trận, mất 391 kinh nghiệm"). Nick không bị đá. Cùng lúc bothuatien và kyolong99 (dưới cấp 100, không nhận captcha) đánh hơn 300 trận có EXP. Đây là dòng duy nhất có chữ này trong toàn bộ nhật ký của app tới sáng 25/11. [Đo]
+
 **Quét các nick trên cấp 100 (CS1, 25/11 khoảng 08:30):** bot TS (`connect.ts --world`, qua proxy riêng của từng nick, cách nhau 15 s) vào game một lần rồi thoát, không trả lời captcha. 8/9 nick vào được nhận `s2c/1283` loại 0 (60 s, 3 lần thử, ảnh 78–105 KB), cùng chỗ: ngay sau `s2c/1284` lần hai, trước `s2c/30`: manina2 (117), kakami (115), monoko (113), wangpt (112), mimosa (111), susimi (110), sizuka (108), cộng manina3 (119) trên điện thoại. **minika (115) không nhận**, vào game như trước. tiheo1 và tiheo2 đang online nơi khác ("Tài khoản hiện đang đăng nhập ở một nơi khác"), không đo được. Server chọn nick theo tiêu chí gì thì chưa rõ (không phải chỉ theo cấp). [Đo]
 
-**Chưa đo:** bấm sai (kết quả khác 0 và thông báo khác), hết lần thử, captcha có đến giữa lúc đang chơi hay chỉ khi vào game, server làm gì với nick không giải (lâu hơn 95 s), các loại đề khác. Bot TS và app Rust chưa đọc gói này. [Chưa rõ]
+**Chưa đo:** bấm sai (kết quả khác 0 và thông báo khác), hết lần thử, captcha có đến giữa lúc đang chơi hay chỉ khi vào game, server làm gì với nick không giải (lâu hơn 95 s), các loại đề khác. Bot TS đọc gói này (catalog); app Rust hiện ảnh cho người dùng chạm và gửi `c2s/1283` như game ([Xác nhận người chơi](../../integration/rust/features.md#xác-nhận-người-chơi-captcha)). [Chưa rõ]
 
 ## Nhịp như người chơi (game 1.1.1, 22/11)
 

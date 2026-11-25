@@ -69,6 +69,10 @@ export interface Api {
   setFightTarget(id: number, mapId: string, target: string): Promise<void>;
   /** "Thua còn lại" of the fight job or quest run going on: it ends after that many more losses. */
   setLossesLeft(id: number, left: number): Promise<void>;
+  /** The PNG (640 × 400) of captcha `captcha` of account `id`, null once it is gone. */
+  captchaImage(id: number, captcha: number): Promise<number[] | null>;
+  /** Gửi of the captcha window: the points touched, in order, in pixels of its picture. */
+  answerCaptcha(id: number, captcha: number, points: [number, number][]): Promise<void>;
   /** "Cộng +1" on the potential of that c2s/10 index. */
   addStat(id: number, stat: number): Promise<void>;
   /** Nâng cấp: one level of that skill (c2s/1191). */
@@ -289,6 +293,8 @@ const tauri: Api = {
   setFight: (id, settings) => invoke("set_fight", { id, settings }),
   setFightTarget: (id, mapId, target) => invoke("set_fight_target", { id, mapId, target }),
   setLossesLeft: (id, left) => invoke("set_losses_left", { id, left }),
+  captchaImage: (id, captcha) => invoke("captcha_image", { id, captcha }),
+  answerCaptcha: (id, captcha, points) => invoke("answer_captcha", { id, captcha, points }),
   addStat: (id, stat) => invoke("add_stat", { id, stat }),
   upgradeSkill: (id, skill) => invoke("upgrade_skill", { id, skill }),
   itemAction: (id, action, slot, uuid) => invoke("item_action", { id, action, slot, uuid: uuid ?? null }),
@@ -395,7 +401,14 @@ let sample: Promise<Sample> | undefined;
 const loadSample = () =>
   (sample ??= fetch(`${import.meta.env.BASE_URL}sample.json`)
     .then((r) => (r.ok ? (r.json() as Promise<Sample>) : Promise.reject(new Error(r.statusText))))
-    .catch((): Sample => ({ rev: 0, accounts: [], accountsError: null, logs: {} })));
+    .catch((): Sample => ({ rev: 0, accounts: [], accountsError: null, logs: {} }))
+    // ?captcha=1: the first account waits on a captcha (CaptchaGate); its picture is public/captcha-sample.png if there
+    // is one (not in the repository: a picture of a real captcha, captures/lg1-2026-11-25).
+    .then((s) =>
+      new URLSearchParams(location.search).get("captcha") && s.accounts[0]
+        ? { ...s, accounts: [{ ...s.accounts[0], captcha: { id: 1, expiresAt: Date.now() + 60_000, tries: 3, error: null, refused: 0 } }, ...s.accounts.slice(1)] }
+        : s,
+    ));
 const nothing = async () => {};
 
 const validLicense = (key: string): LicenseView => ({
@@ -439,6 +452,12 @@ const preview: Api = {
   setFight: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   setFightTarget: () => Promise.reject(new Error("Bản xem thử trong trình duyệt không lưu lựa chọn")),
   setLossesLeft: nothing,
+  captchaImage: () =>
+    fetch(`${import.meta.env.BASE_URL}captcha-sample.png`)
+      .then((r) => (r.ok && r.headers.get("content-type")?.includes("png") ? r.arrayBuffer() : null))
+      .then((b) => (b ? Array.from(new Uint8Array(b)) : null))
+      .catch(() => null),
+  answerCaptcha: nothing,
   addStat: nothing,
   upgradeSkill: nothing,
   itemAction: nothing,

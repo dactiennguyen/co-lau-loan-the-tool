@@ -958,6 +958,20 @@ export interface Account {
   proxy: ProxyInfo | null;
   /** Null until the session is in the game. */
   character: Character | null;
+  /** Xác nhận người chơi: the captcha the server asked and the user has not passed (its picture: api.captchaImage). */
+  captcha: CaptchaInfo | null;
+}
+
+/** A captcha of the server waiting for the user (docs/app/events/02-login.md#captcha). */
+export interface CaptchaInfo {
+  id: number;
+  /** Until when it may be answered, ms since 1970. */
+  expiresAt: number;
+  tries: number;
+  /** Why the last answer was refused, if one was. */
+  error: string | null;
+  /** How many answers were refused: a new refusal reopens the window to touches. */
+  refused: number;
 }
 
 export type ProxyKind = "socks5" | "http";
@@ -1001,6 +1015,13 @@ export interface FightSettings {
   pickupRare: boolean;
   pickupPrecious: boolean;
   pickupEpic: boolean;
+  /** Nhặt loại đồ, all four ticked unless unticked: Tự nhặt đồ picks up Xu (Xu, Xu khóa, Lượng), đá (Đá cấp 1–12), trang
+   * bị (then as the settings above say) and đồ khác (materials, eggs, potions…) as ticked; a kind unticked stays on the
+   * ground (items::drop_kind of cllt-core). */
+  pickupCoins: boolean;
+  pickupStones: boolean;
+  pickupGear: boolean;
+  pickupMisc: boolean;
   /** Dùng bình máu, off unless turned on: a battle may drink Hoàn Linh Dược when about to die, at most hpPotionMax a
    * battle and never below hpPotionKeep in the bag; none is bought. Dùng bình mana likewise for Kim Đan Dược, when the
    * skills need nội lực. */

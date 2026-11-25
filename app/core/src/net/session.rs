@@ -360,6 +360,7 @@ pub(super) async fn session(
                         bot.spend_points(now, out);
                     }
                     Some(Command::LossesLeft(left)) => bot.set_losses_left(left, out),
+                    Some(Command::CaptchaAnswer { id, points }) => bot.captcha_answer(id, &points, out),
                     Some(Command::AddStat(stat)) => bot.add_stat(stat, out),
                     Some(Command::UpgradeSkill(id)) => bot.upgrade_skill(id, now, out),
                     Some(Command::Item(act)) => bot.item(act, now, out),
@@ -446,6 +447,7 @@ fn deliver(o: Out, emit: &Emit, trace: &mut Trace) {
         Out::Pickup(record) => emit(Event::Pickup(record)),
         Out::BattleData(data) => emit(Event::BattleData(data)),
         Out::BattleEvent(e) => emit(Event::BattleEvent(e)),
+        Out::Captcha(c) => emit(Event::Captcha(c)),
     }
 }
 
