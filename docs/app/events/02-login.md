@@ -294,6 +294,84 @@ Nguồn: A2: packet đọc từ native reader, record 94.
 
 <a id="nhịp-như-người-chơi"></a>
 
+<a id="captcha"></a>
+
+## Xác nhận người chơi: captcha 1283 (LG1, 25/11)
+
+Đo ngày 25/11/2026 với game 1.1.1 trên điện thoại, nick `manina3` (nhân vật mania4, cấp 119, M7 Nguyệt Đàm), máy chủ Thanh Khê. Frida gắn ngay khi game mở, agent của game 1.1.1 ([apk-1.1.1](../apk-1.1.1.md)) ghi hàm gửi `sqfi.a` và hàm đọc `sqpr.e` kèm đủ byte. Hai lượt đăng nhập: lượt 1 không ai bấm captcha, lượt 2 người dùng tự giải. Gói và ảnh ở `captures/lg1-2026-11-25/` (`lg1-1.jsonl`, `lg1-2.jsonl`, `captcha-1.png`, `captcha-2.png`). [Đo]
+
+Server **mới bật** captcha: VG1 (20/11) và lần đo game 1.1.1 (22/11) không có gói 1283, nhưng mã đọc và hộp thoại đã có sẵn trong APK 1.1.1 (`com.mh.o.sqa`: opcode 1283, đọc thành `com.mh.o.sqb`; hộp thoại `com.g.i.sqa`; ô ghi lần chạm `com.mh.o.sqc`, tối đa 6 điểm). Cả hai chiều cùng opcode 1283, byte đầu là loại gói. Hộp thoại "Xác nhận người chơi": "Làm theo yêu cầu trong ảnh rồi bấm Gửi", "Còn N giây, M lần thử", nút Làm lại và Gửi.
+
+**Lúc nào đến:** cả hai lượt, ngay sau khi vào game, chưa vào bản đồ: `s2c/4` → `c2s/1282`, `c2s/1284`, `c2s/9` → `s2c/1284` → `s2c/9` → `c2s/30` → `s2c/46` → `s2c/39` → `s2c/1195` → `s2c/1220` → `s2c/1279` → `s2c/1284` → `s2c/1266` → **`s2c/1283`** (khoảng 0,7–0,9 s sau `s2c/4`) → `s2c/30` → … Trong lúc hộp thoại mở, game vẫn gửi `c2s/42`, `c2s/29`, `c2s/11`, `c2s/43` và vào bản đồ như thường. [Đo 2 lần]
+
+<a id="s2c-1283"></a>
+
+### s2c/1283 loại 0: đề
+
+Lượt 2, 78.889 byte:
+
+| Byte | Kiểu | Giá trị | Nghĩa |
+|---:|---|---|---|
+| 0 | u8 | `00` | loại: 0 = đề |
+| 1–4 | i32 | `907a332a` | mã của đề, mỗi lần một số khác (lượt 1: `138f22fb`) |
+| 5–6 | i16 | `003c` = 60 | số giây được làm |
+| 7 | u8 | `03` | số lần thử |
+| 8–11 | i32 | `0001341d` = 78.877 | độ dài ảnh |
+| 12–78.888 | byte | `89504e47…` | ảnh PNG |
+
+Đọc hết byte, không thừa byte nào (lượt 1: 101.289 = 12 + 101.277). [Đo 2 lần]
+
+**Ảnh PNG** (cùng cấu trúc ở hai lượt): chữ ký PNG 8 byte; `IHDR` 640 × 400, 8 bit, RGB (màu loại 2, không có alpha), không xen dòng; ảnh nén zlib (đầu `78 5e`) chia thành các khối `IDAT` 32.768 byte, khối cuối ngắn hơn (lượt 2: 32.768 + 32.768 + 13.260); rồi `IEND`. CRC mọi khối đều đúng. **Không có khối chữ** (`tEXt`, `zTXt`, `iTXt`) hay khối nào khác: đáp án không nằm trong gói. Giải nén ra đúng 400 × (1 + 640 × 3) = 768.400 byte, cả 400 dòng đều dùng bộ lọc 0 (không lọc). [Đo]
+
+Yêu cầu được vẽ ngay trong ảnh, ở góc trên bên trái, giữa vài hình (giọt nước, trái tim, thỏi vàng, kiếm, âm dương) trên nền có đường cong và chấm nhiễu:
+- lượt 1: "Chạm vào thỏi vàng" (6 hình);
+- lượt 2: "Chạm lần lượt 5, 1, 4" (5 hình có đánh số 1–5).
+
+<a id="c2s-1283"></a>
+
+### c2s/1283: trả lời
+
+Gửi khi bấm Gửi. Lượt 2, 26,7 s sau khi nhận đề, 18 byte:
+
+```text
+00 907a332a 03 00c6 00a8 020c 00a3 0053 0155
+```
+
+| Byte | Kiểu | Giá trị | Nghĩa |
+|---:|---|---|---|
+| 0 | u8 | `00` | chưa rõ, có thể là loại gói như ở chiều về |
+| 1–4 | i32 | `907a332a` | mã đề, chép lại từ `s2c/1283` |
+| 5 | u8 | `03` | số lần chạm |
+| 6– | 3 × (i16 x; i16 y) | (198, 168), (524, 163), (83, 341) | chỗ chạm, theo thứ tự chạm, **tính bằng pixel của ảnh 640 × 400** |
+
+Đổi chỗ chạm trên màn hình ra pixel của ảnh thì ba điểm trùng trái tim số 5, số 1 và số 4. Client chỉ gửi chỗ chạm, server tự chấm. Hàm tạo gói là `com.mh.o.sqa.a(int, int[], int[], int)`. [Đo; kiểu từ code]
+
+<a id="s2c-1283-result"></a>
+
+### s2c/1283 loại 1: kết quả
+
+28 ms sau khi trả lời, 35 byte:
+
+```text
+01 907a332a 00 00 00000018 58c3a1…  ("Xác nhận thành công")
+```
+
+| Byte | Kiểu | Giá trị | Nghĩa |
+|---:|---|---|---|
+| 0 | u8 | `01` | loại: 1 = kết quả |
+| 1–4 | i32 | `907a332a` | mã đề |
+| 5 | u8 | `00` | có lẽ là kết quả, 0 = đúng |
+| 6 | u8 | `00` | chưa rõ (lần thử còn lại, hay cờ) |
+| 7– | string | "Xác nhận thành công" | thông báo cho người chơi (i32 độ dài 24 + UTF-8) |
+
+Hộp thoại đóng, game chạy tiếp. [Đo 1 lần]
+
+**Không trả lời** (lượt 1): hết 60 giây, game tự đóng hộp thoại, **không gửi gói nào**, server không gửi kết quả. Trong khoảng 95 giây theo dõi tiếp, nick không bị đá, không có `s2c/0`. [Đo 1 lần]
+
+**Quét các nick trên cấp 100 (CS1, 25/11 khoảng 08:30):** bot TS (`connect.ts --world`, qua proxy riêng của từng nick, cách nhau 15 s) vào game một lần rồi thoát, không trả lời captcha. 8/9 nick vào được nhận `s2c/1283` loại 0 (60 s, 3 lần thử, ảnh 78–105 KB), cùng chỗ: ngay sau `s2c/1284` lần hai, trước `s2c/30`: manina2 (117), kakami (115), monoko (113), wangpt (112), mimosa (111), susimi (110), sizuka (108), cộng manina3 (119) trên điện thoại. **minika (115) không nhận**, vào game như trước. tiheo1 và tiheo2 đang online nơi khác ("Tài khoản hiện đang đăng nhập ở một nơi khác"), không đo được. Server chọn nick theo tiêu chí gì thì chưa rõ (không phải chỉ theo cấp). [Đo]
+
+**Chưa đo:** bấm sai (kết quả khác 0 và thông báo khác), hết lần thử, captcha có đến giữa lúc đang chơi hay chỉ khi vào game, server làm gì với nick không giải (lâu hơn 95 s), các loại đề khác. Bot TS và app Rust chưa đọc gói này. [Chưa rõ]
+
 ## Nhịp như người chơi (game 1.1.1, 22/11)
 
 Đo bằng Frida trên game 1.1.1 (`captures/v111-2026-11-22/game-1.1.1*.jsonl`, cùng `bh2-2026-11-21`, `mp1-2026-11-22`, `vg1-2026-11-20`; kịch bản đo ở hai lượt kiểm tra `audit-c2s`, `audit-seq`). Bot TS và app gửi đúng các gói này, nhưng trước 22/11 gửi ngay khi nhận gói trước, và heartbeat 2 giây suốt phiên. Từ 22/11 cả hai chờ như game, mọi khoảng chờ lấy từ một chỗ: `src/net/human.ts` (TS) và `app/core/src/human.rs` (Rust). [Đo]

@@ -18,12 +18,13 @@ Mốc phân tích: file `colauloanthe.1.0.3.apk`, SHA-256 `f6173f90481980b4d81ad
 | Kỹ năng và tab Kỹ năng, điểm tiềm năng, túi đồ, mặc, cởi, sửa, dùng đồ, mua ở Lái Buôn, dùng bình trong trận, ngôi sao x2 EXP, luật trong Cẩm nang | [Kỹ năng và vật phẩm](events/12-skills-items.md) |
 | Đồ rơi, nhặt đồ, tên của 727 vật phẩm và 31 mã chỉ số (bảng 29), giải mã icon (dữ liệu game trên máy) | [Đồ rơi và vật phẩm](events/13-drops-items.md) |
 | Bạch Hổ Thống Lĩnh: boss thế giới 21:00–21:59 (9 giờ tối), thưởng, bảng công trạng (`c2s/1252`, `s2c/1252`) | [Bạch Hổ](events/17-bach-ho.md) |
-| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 75 opcode chưa thấy | [Opcode map](opcode-map.md) |
+| Bảng đổi opcode nghiệp vụ ↔ int32 trên dây; 74 opcode chưa thấy | [Opcode map](opcode-map.md) |
 | Mọi gói client gửi được: hàm dựng native, opcode, kiểu từng trường | [Hàm dựng gói](c2s-builders.md) |
 | Gói nào mang dữ liệu nhân vật, map, HP/cấp và field nào chưa rõ | [Dữ liệu nhân vật](user-data.md) |
 | App cập nhật: điều tra lại lớp nào và giữ bằng chứng gì | [Điều tra lại bản mới](reinvestigation.md) |
 | APK 1.1.0 (20/11): server `plays1`, giao thức `0.0.7`, gói mới 1282 (trạng thái máy), 1284/1285 (chặn chat, báo cáo), PairIP | [APK 1.1.0](apk-1.1.0.md) |
 | Game 1.1.1 và server cập nhật (22/11): `s2c/9` thêm mã nhân vật, bot gửi `c2s/1282` máy sạch, `s2c/1266` lịch sử chat, tên lớp làm rối lại | [Game 1.1.1](apk-1.1.1.md) |
+| Captcha "Xác nhận người chơi" (25/11): server gửi `s2c/1283` (ảnh PNG 640 × 400, 60 s, 3 lần thử) ngay khi vào game; client trả `c2s/1283` toạ độ chạm | [Captcha 1283](events/02-login.md#captcha) |
 
 Mỗi lần điều tra Android, kết quả được ghi vào thư mục này trước. Sau đó phần mô phỏng TypeScript ([Tích hợp Node.js](../integration/nodejs/README.md)) mới dùng tới, rồi mới đến app Rust ([App Rust](../integration/rust/README.md)).
 

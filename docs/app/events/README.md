@@ -1,6 +1,6 @@
 # Event và luồng giao tiếp của game
 
-Đã ghi nhận 172 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 75 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
+Đã ghi nhận 174 gói theo cặp hướng/opcode. Danh sách này trùng với catalog trong [src/protocol/events.ts](../../../src/protocol/events.ts); `test/docs.test.ts` kiểm hai bên khớp nhau. Bảng mã của app có 201 opcode, trong đó 74 opcode chưa từng thấy trên dây ([opcode-map](../opcode-map.md#unseen)). Trên dây chỉ có opcode số: các tên như `character_data` là nhãn phân tích. Đây là tập đã quan sát, chưa phải toàn bộ tính năng game.
 
 Các phiên bắt gói (A1, B1, L1, Q2…) được mô tả ở [phương pháp điều tra](../investigation.md#nguồn-dữ-liệu). Byte, khung gói, key và XOR: [giao thức](../protocol.md). Field nhân vật/map: [dữ liệu nhân vật](../user-data.md).
 
@@ -172,6 +172,8 @@ Gói 9 chứa prefix nhân vật; 29 chứa mapId; 11 chứa bản đồ/khu v�
 | s2c/1279 | welfare_dots | push | [Điểm danh](18-players-checkin.md#điểm-danh), [APK 1.1.0](../apk-1.1.0.md#s2c1279-và-s2c1284-lúc-vào-thế-giới) |
 | s2c/1274 | config_1274 | push | [Vào game VG1](02-login.md#vg1) |
 | c2s/1282 | device_signals | world | [APK 1.1.0](../apk-1.1.0.md#c2s1282-trạng-thái-máy-chống-bot), [VG1](02-login.md#vg1) |
+| s2c/1283 | captcha | login | [Xác nhận người chơi](02-login.md#captcha) |
+| c2s/1283 | captcha_answer | login | [Xác nhận người chơi](02-login.md#c2s-1283) |
 | c2s/1284 | chat_block | world | [Chặn chat](09-players-chat.md#chặn-chat-và-báo-cáo) |
 | c2s/1285 | report_player | world | [Báo cáo người chơi](09-players-chat.md#chặn-chat-và-báo-cáo) |
 | s2c/1284 | chat_block_list | world | [Chặn chat](09-players-chat.md#chặn-chat-và-báo-cáo) |

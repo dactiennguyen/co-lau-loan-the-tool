@@ -954,6 +954,20 @@ impl Bot {
                 self.welfare_checkin(r, now, out);
             }
             1279 => self.welfare_dots(crate::welfare::welfare_dots(payload)?),
+            // Xác nhận người chơi (02-login.md#captcha): logged only, the app does not answer it. Unanswered, the game's
+            // dialog closes after its time and nothing is sent (LG1, 25/11).
+            1283 => match crate::world::captcha(payload)? {
+                crate::world::Captcha::Challenge { seconds, tries, .. } => out.push(Out::Log(
+                    LogKind::Server,
+                    format!(
+                        "Server đòi xác nhận người chơi (captcha: {seconds} giây, {tries} lần thử); app không giải, nick chạy tiếp"
+                    ),
+                )),
+                crate::world::Captcha::Verdict { result, text, .. } => out.push(Out::Log(
+                    LogKind::Server,
+                    format!("Captcha: {text} (kết quả {result})"),
+                )),
+            },
             // Nhiệm vụ hàng ngày (daily.rs): the quest held, done, or its progress; the answer to Nhận, Hủy, Hoàn thành.
             1195 => {
                 let d = crate::mail::daily_quest(payload)?;

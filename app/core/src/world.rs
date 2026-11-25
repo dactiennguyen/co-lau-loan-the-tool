@@ -507,6 +507,45 @@ pub fn notice(p: &[u8]) -> Result<String> {
     r.finish(text, "s2c/1256")
 }
 
+/// s2c/1283, Xác nhận người chơi (02-login.md#captcha, LG1 25/11): the server's captcha right after login, then its
+/// verdict once the player answered with c2s/1283 (the points touched on the picture). The app does not answer it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Captcha {
+    /// Type 0: a challenge, `seconds` to answer in `tries` tries, its picture (a PNG of 640 × 400) `image_bytes` long.
+    Challenge {
+        id: i32,
+        seconds: u16,
+        tries: u8,
+        image_bytes: usize,
+    },
+    /// Type 1: the verdict (0 = passed in the one seen) and the server's words ("Xác nhận thành công").
+    Verdict { id: i32, result: u8, text: String },
+}
+
+/// s2c/1283: u8 type; i32 id; type 0: u16 seconds; u8 tries; bytes PNG. Type 1: u8 result; u8; string text.
+pub fn captcha(p: &[u8]) -> Result<Captcha> {
+    let mut r = Reader::new(p);
+    let kind = r.u8()?;
+    let id = r.i32()?;
+    let c = if kind == 0 {
+        Captcha::Challenge {
+            id,
+            seconds: r.u16()?,
+            tries: r.u8()?,
+            image_bytes: r.bytes()?.len(),
+        }
+    } else {
+        let result = r.u8()?;
+        r.u8()?;
+        Captcha::Verdict {
+            id,
+            result,
+            text: r.string()?,
+        }
+    };
+    r.finish(c, "s2c/1283")
+}
+
 /// s2c/57 after c2s/13 to an NPC with a menu (Lái Buôn, P5): its name, its line, and the choices (code, label) that
 /// c2s/57 picks from. ← npcMenu of src/protocol/world.ts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -992,7 +1031,9 @@ pub fn ranking_request(tab: Option<u8>) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::{map_boss, map_entities, players_snapshot, quest_data, Nearby, ZonePlayers};
+    use super::{
+        captcha, map_boss, map_entities, players_snapshot, quest_data, Captcha, Nearby, ZonePlayers,
+    };
     use crate::protocol::Writer;
 
     /// A player record as test/world.test.ts record110: APK 1.1.0 puts two bytes (0, weapon element) before the appearance.
@@ -1183,5 +1224,41 @@ mod tests {
                 [(-1, hex(0)), (102, hex(1))]
             );
         }
+    }
+
+    /// The captcha of LG1 (25/11): a challenge of 60 s and 3 tries with its PNG, then the verdict, byte for byte.
+    #[test]
+    fn captcha_challenge_and_verdict() {
+        let png = [0x89, b'P', b'N', b'G', 13, 10, 26, 10];
+        let challenge: Vec<u8> = [0u8, 0x90, 0x7a, 0x33, 0x2a, 0x00, 0x3c, 0x03]
+            .into_iter()
+            .chain(Writer::new().bytes(&png).build())
+            .collect();
+        assert_eq!(
+            captcha(&challenge).unwrap(),
+            Captcha::Challenge {
+                id: 0x907a332a_u32 as i32,
+                seconds: 60,
+                tries: 3,
+                image_bytes: 8
+            }
+        );
+        let verdict = hex("01907a332a00000000001858c3a163206e68e1baad6e207468c3a06e682063c3b46e67");
+        assert_eq!(
+            captcha(&verdict).unwrap(),
+            Captcha::Verdict {
+                id: 0x907a332a_u32 as i32,
+                result: 0,
+                text: "Xác nhận thành công".into()
+            }
+        );
+        assert!(captcha(&challenge[..challenge.len() - 1]).is_err());
+    }
+
+    fn hex(s: &str) -> Vec<u8> {
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect()
     }
 }
