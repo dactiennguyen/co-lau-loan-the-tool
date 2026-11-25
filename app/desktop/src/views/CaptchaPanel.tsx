@@ -6,6 +6,7 @@ import { Card } from "@/components/Card";
 import { Icon } from "@/components/Icon";
 import { useStore } from "@/store";
 import { cn } from "@/utils/cn";
+import { pngDataUrl } from "@/utils/dataUrl";
 import { isConnected } from "@/utils/format";
 
 /** The size of the server's picture, the frame of the points (CAPTCHA_SIZE of cllt-core). */
@@ -107,15 +108,11 @@ function CaptchaTask({ account }: { account: Waiting }) {
   const [sent, setSent] = useState(false);
   useEffect(() => {
     let gone = false;
-    let made: string | undefined;
     void api.captchaImage(account.id, c.id).then((bytes) => {
-      if (gone || !bytes) return;
-      made = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "image/png" }));
-      setUrl(made);
+      if (!gone && bytes) setUrl(pngDataUrl(bytes));
     });
     return () => {
       gone = true;
-      if (made) URL.revokeObjectURL(made);
     };
   }, [account.id, c.id]);
   // A refusal (even with the same text as the last) lets the user touch again, from no point.
