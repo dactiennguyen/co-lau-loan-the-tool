@@ -434,18 +434,28 @@ pub struct Currencies {
     pub xu: i64,
     pub xu_khoa: i64,
     pub luong: i64,
+    /// From the game 1.1.1 build 6 (26/11): an i32 after Lượng, 0 on every account seen so far; None in the older 37
+    /// bytes. Its meaning is not known (04-push.md#s2c-46).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field4: Option<i32>,
 }
 pub fn currencies(p: &[u8]) -> Result<Currencies> {
     let mut r = Reader::new(p);
     let label = r.string()?;
     let mut i64 = || r.take(8).map(|b| i64::from_be_bytes(b.try_into().unwrap()));
     let (xu, xu_khoa, luong) = (i64()?, i64()?, i64()?);
+    let field4 = if r.remaining() > 0 {
+        Some(r.i32()?)
+    } else {
+        None
+    };
     r.finish(
         Currencies {
             label,
             xu,
             xu_khoa,
             luong,
+            field4,
         },
         "s2c/46",
     )

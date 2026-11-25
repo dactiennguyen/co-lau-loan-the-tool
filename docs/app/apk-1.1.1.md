@@ -65,3 +65,18 @@ Tin hệ thống có id 0, tên rỗng: "… đã gia nhập sứ quân", "Sứ 
 - Mã trong `s2c/9` là gì (ID hiển thị, mã mời?). [Chưa rõ]
 - Server làm gì với cờ của `c2s/1276`. [Chưa rõ]
 - Server làm gì với `c2s/1282`. [Chưa rõ]
+
+## Bản dựng 6 (26/11)
+
+Điện thoại cập nhật game lúc 02:21 ngày 26/11: vẫn `versionName 1.1.1`, `versionCode` 5 → 6. File ở `captures/apk-1.1.1-vc6/` (gitignore). Chỉ `classes.dex` và `libgdx-flashds.so` (60.090.096 byte) đổi, tài nguyên giữ nguyên; tên lớp Java bị làm rối lại toàn bộ. [Đo]
+
+| File | SHA-256 |
+|---|---|
+| `base.apk` | `c3f83b8d533e1f276aa55c75b7a52cf32118c65298e15befb3812b4240555623` |
+| `split_config.arm64_v8a.apk` | `1db4f285349ee221366cb421773a6833902ae6afca7837ba25e8fefebe2de2e9` |
+
+- **`s2c/46`** thêm một `i32` sau Lượng (41 byte, [04-push](events/04-push.md#s2c-46)). App 2.2.25 báo "Không đọc được tiền (s2c/46)" ở mỗi lần tiền đổi (đăng nhập, nhặt Xu khoá, mua). Sửa: `currencies` đọc `field4` khi còn byte. [Đo]
+- **Chữ mới trong thư viện native**: "Máy đang chuyển hướng máy chủ game về chính máy (file hosts, phần mềm proxy / VPN). Hãy tắt hoặc gỡ phần mềm đó.", "Mạng chậm, đang thử lại (lần …", "(Mã lỗi: …", "Đang tải thông tin dữ liệu...". **Chữ bị bỏ**: "Tự nhặt rương rơi trong tầm", "Tự sửa đồ hỏng sau trận", "Mất kết nối, đang kết nối lại...", "Không kết nối lại được với máy chủ. Vui lòng đăng nhập lại." [Đo chữ của game; chưa rõ game dùng chúng thế nào]
+- Bot TS (sizuka, 26/11): đăng nhập, nhảy Bản đồ thế giới M14 → M1 → M14, mua ở Lái Buôn, đánh 5 trận thắng Hổ Nanh Kiếm và nhặt đồ như trước. Một lần server đóng kết nối ~4 s sau một trận thắng, không có gói nào báo trước; hai lượt sau không lặp lại. [Đo]
+- Hoàn Linh Dược ở Lái Buôn giá 1.000 Xu khoá (dòng Xu khoá của Dược phẩm). [Đo]
+

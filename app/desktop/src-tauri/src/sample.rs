@@ -692,6 +692,7 @@ fn main_character() -> Snapshot {
             xu: 15_000,
             xu_khoa: 7370,
             luong: 0,
+            field4: None,
         }),
         skills,
         skill_levels,
@@ -939,6 +940,7 @@ pub fn entries() -> Vec<Entry> {
             xu: 13_400,
             xu_khoa: 52_310,
             luong: 120,
+            field4: None,
         }),
         smith: Some(SmithRun {
             id: 1,

@@ -200,9 +200,9 @@ Nguồn: A2: packet đọc từ native reader, record 93.
 | Nhãn phân tích | currency_notice |
 | Xuất hiện khi | Sau s2c/9; khi tiền đổi (trả nhiệm vụ) |
 | Sau đó | Không có ACK riêng trong capture; tiếp tục đọc stream |
-| Bố cục payload | string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong |
+| Bố cục payload | string label ("update Xu"); i64 xu; i64 xuKhoa; i64 luong; từ game 1.1.1 bản dựng 6 (26/11) thêm i32 (chưa rõ, luôn 0) |
 | Độ chắc chắn | Đọc hết 37 byte; E1 (31/10) 500, 7370, 0 khớp bảng Bản thân: 500 Xu, 7.370 Xu khoá, 0 Lượng |
-| Độ dài payload mẫu | 37 byte |
+| Độ dài payload mẫu | 37 byte; 41 byte từ 26/11 |
 
 **Payload mẫu sau giải XOR**, chưa gồm header và encoded opcode:
 
@@ -221,6 +221,14 @@ Nguồn: A2: packet đọc từ native reader, record 145. Đọc ra: Xu 0, Xu k
 ```
 
 tức Xu 500, Xu khoá 7370, Lượng 0, đúng bảng Bản thân lúc đó (500 Xu, 7.370 Xu khoá, 0 Lượng; [12-skills-items](12-skills-items.md#túi-đồ)). Các phiên khác cho Xu khoá 1920, 2060, 2770, 3540, 4360, 6490 cùng Xu 0 hoặc 500. Xu 500 khác 0 nên thứ tự Xu rồi Lượng không lẫn được. Hàm đọc: `currencies` trong [src/protocol/world.ts](../../../src/protocol/world.ts). Gói cũng đến khi tiền đổi giữa phiên: P3 (Tiheo1 ở M10, 31/10) nhặt một đống Xu khoá bằng `c2s/1188`, và 52–56 ms sau có `s2c/46` (Xu 4.895.400, Xu khoá 5.480.412, Lượng 8.581, đọc hết 37 byte) rồi `s2c/1256` "Bạn vừa nhận được 474 Xu khóa" ([13-drops-items](13-drops-items.md#nhặt-đồ)). App Rust hiện ô Tiền đúng với server thật ngày 31/10 (nick cấp 15: 0, 2.630, 0).
+
+**Từ 26/11 gói dài 41 byte** [Đo G6]: game 1.1.1 bản dựng 6 (versionCode 6, điện thoại cập nhật lúc 02:21) và server thêm một `i32` sau Lượng. Bot TS đăng nhập sizuka (cấp 108):
+
+```text
+00000009 "update Xu" 0000000000000d90 000000000037973f 0000000000000000 00000000
+```
+
+tức Xu 3.472, Xu khoá 3.643.199, Lượng 0, rồi `i32` = 0. Mua 1 Hoàn Linh Dược ở Lái Buôn (1.000 Xu khoá) thì gói sau có Xu khoá 3.642.199, `i32` vẫn 0: nó không đếm Xu khoá đã tiêu. Ý nghĩa [Chưa rõ]. Giả thuyết là tổng Lượng đã nạp (VIP), vì sizuka chưa nạp; cần một nick đã nạp để thử. App 2.2.25 trở về trước đòi gói hết sau Lượng nên báo "Không đọc được tiền (s2c/46): PAYLOAD_SCHEMA: s2c/46: 4 unread bytes" và bỏ cả gói: ô Tiền đứng yên, còn trận đánh và nhặt đồ vẫn chạy. `currencies` (TS, Rust) đọc `field4` khi còn byte; mẫu `s2c/46 G6` ở [test/fixtures.ts](../../../test/fixtures.ts).
 
 - **Xu**: tiền ở Chợ trời, góp quân lương. **Xu khoá**: cửa hàng NPC, cường hoá; nhặt từ quái (mã 41, [13-drops-items](13-drops-items.md#đồ-đã-thấy)). **Lượng**: tiền nạp (Cẩm nang).
 - **Vàng** không nằm ở đây: đó là `coin` của `s2c/9` và `s2c/10` kiểu 4 (thanh "2664/10000" trên bảng Bản thân), đủ 10.000 thì tự đổi thành 10.000 Xu khoá ([user-data](../user-data.md#đuôi-s2c9)).

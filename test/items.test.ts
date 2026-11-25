@@ -47,6 +47,10 @@ test('s2c/46 holds Xu, Xu khoá and Lượng as i64 (E1: 500, 7370, 0 like the B
   if (a2) assert.equal(currencies(Buffer.from(a2, 'hex')).xuKhoa, 1260);
 });
 
+test('s2c/46 of the game 1.1.1 build 6 (G6, sizuka 26/11) has an i32 after Lượng and still reads the three monies', () => {
+  assert.deepEqual(currencies(Buffer.from(fixtures.currencies['s2c/46 G6'], 'hex')), { label: 'update Xu', xu: 3472, xuKhoa: 3_643_199, luong: 0, field4: 0 });
+});
+
 test('bag at login (s2c/42, E1) reads as the bag on the phone', () => {
   const bag = characterExtra(Buffer.from(fixtures['skills-items']['s2c/42 login'], 'hex'));
   assert.deepEqual(bag.items.map(i => items.describe(i)), ['Hoàn Linh Dược ×4', 'Đá cấp 2', 'Áo Hào Kiệt (+7 phòng thủ, +5 thân pháp)',

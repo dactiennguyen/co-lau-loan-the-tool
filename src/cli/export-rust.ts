@@ -106,6 +106,7 @@ function decoders() {
   // The tail of s2c/9: symap's x2 EXP star "ef7" and faction (P4), and manina with no effect.
   for (const h of [fixtures.equip['s2c/9 symap'], fixtures.profile['s2c/9 level 21']] as string[]) add('characterTail', h, characterTail(bytes(h)));
   add('currencies', fixtures.currencies['s2c/46 E1'], currencies(bytes(fixtures.currencies['s2c/46 E1'])));
+  add('currencies', fixtures.currencies['s2c/46 G6'], currencies(bytes(fixtures.currencies['s2c/46 G6'])));
   // The gear after Cởi ra and Trang bị on the phone (P4, 12-skills-items.md#c2s-1186).
   for (const k of ['s2c/37 unequip pet', 's2c/37 equip pet']) add('gearUpdate', fixtures.equip[k], gearUpdate(bytes(fixtures.equip[k])));
   // Drops (13-drops-items.md#g2): an item falling (s2c/1182, Xu khóa and a ring), leaving the ground (s2c/1183), and the bag

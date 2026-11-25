@@ -933,6 +933,8 @@ export interface Currencies {
   xu: number;
   xuKhoa: number;
   luong: number;
+  /** An i32 after Lượng from the game 1.1.1 build 6 (26/11), 0 so far, meaning unknown; absent in older packets. */
+  field4?: number;
 }
 
 export interface Account {

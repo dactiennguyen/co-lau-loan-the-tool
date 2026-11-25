@@ -195,6 +195,8 @@ Chạy thật 31/10 với manina (cấp 21, lên 22 ở trận 4), M1, `--farm="
 - Đồ mình rơi luôn đến trước gói kết thúc trong cùng lần đọc. Vì vậy gói nhặt đi ngay trong mili-giây đó, trước cả `s2c/10` và `s2c/36` của trận. [Đo]
 - Chưa thử: túi đầy; app Rust với server thật (đã port, test bằng gói thật). [Chưa rõ]
 
+**Câu báo hao mòn không phải câu trả lời của gói nhặt** [Đo]: khi trận làm một món đang mặc xuống gần hết độ bền, server gửi `s2c/1256` "Khăn Vòng sắp hỏng, hãy sửa" hoặc "Mặt Nạ Xương đã hỏng" ngay lúc trận kết thúc (bot TS 26/11: cùng mili-giây với `s2c/10`, `s2c/36`, `s2c/1214`). App nhặt đồ mình ngay mili-giây đó, nên câu này tới giữa lúc các gói nhặt chờ trả lời. App 2.2.25 trở về trước lấy nó làm lời từ chối của gói nhặt cũ nhất. Nó ghi "Không nhặt được Xu khóa ×787: Khăn Vòng sắp hỏng, hãy sửa" (điện thoại, MissThao 26/11), rồi "Bạn vừa nhận được 787 Xu khóa" tới mà không còn gói nào chờ, nên số Xu khóa đó không vào Thống kê. Ngày 25/11 có 512 dòng như vậy, 498 dòng có "Bạn vừa nhận được" cùng số lượng trong 3 s sau. Sửa: `wear_notice` trong [app/core/src/bot/packets.rs](../../../app/core/src/bot/packets.rs) để câu hao mòn đi như mọi câu server khác; test `a_wear_notice_among_the_pickups_is_not_their_answer`.
+
 <a id="hiển-thị-đồ-trên-đất"></a>
 
 ### Hiển thị trên máy và danh sách của một map (P3, M10)

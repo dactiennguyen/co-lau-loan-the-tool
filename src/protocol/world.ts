@@ -447,7 +447,9 @@ export function inventory(payload: Uint8Array): ReturnType<typeof bag> & { left?
  * khoá at 10.000, is `coin` of s2c/9 and s2c/10 kind 4 (04-push.md#s2c-46). */
 export function currencies(payload: Uint8Array) {
   const r = new Reader(payload), label = r.string(), i64 = () => Number(r.take(8).readBigInt64BE());
-  return finish(r, { label, xu: i64(), xuKhoa: i64(), luong: i64() }, 's2c/46');
+  const money = { label, xu: i64(), xuKhoa: i64(), luong: i64() };
+  // From the game 1.1.1 build 6 (26/11) an i32 follows, 0 on every account seen (04-push.md#s2c-46); older packets end here.
+  return finish(r, r.offset < r.data.length ? { ...money, field4: r.i32() } : money, 's2c/46');
 }
 
 /** s2c/42 answering c2s/42 at login: a label ("test dong 1"), two unknown ints (42, 3), then the bag. */

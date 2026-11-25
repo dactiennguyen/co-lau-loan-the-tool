@@ -699,10 +699,13 @@ impl Bot {
                 // The answer to c2s/1188 ("Bạn vừa nhận được 137 Xu khóa", "Không thể nhặt vật phẩm của người khác"),
                 // also when it comes during a portal trip: it is not that portal's refusal (13-drops-items.md#g2). While
                 // something else waits for its own s2c/1256 (a portal, a purchase, an item action such as Tự sửa đồ, a
-                // zone), only a line about the pickup is taken for its answer.
+                // zone), only a line about the pickup is taken for its answer. The wear of the battle ("Khăn Vòng sắp
+                // hỏng, hãy sửa", "Mặt Nạ Xương đã hỏng") comes as it ends, among the pickups, and is never their answer:
+                // taken for one it logged "Không nhặt được Xu khóa ×787: Khăn Vòng sắp hỏng" while the Xu khóa came in,
+                // and left that pickup out of Thống kê (498 of 512 such lines on 25/11).
                 let picking = self.picked_at.is_some_and(|t| now < t + PICK_ANSWER);
                 let about = text.contains("nhặt") || text.contains("nhận được");
-                if picking && (about || !self.owns_next_notice(now)) {
+                if picking && !wear_notice(&text) && (about || !self.owns_next_notice(now)) {
                     self.pick_answer(text, now, out);
                     return Ok(());
                 }
@@ -991,4 +994,9 @@ impl Bot {
         self.walk_back(now, out);
         Ok(())
     }
+}
+
+/// The wear notice of a battle's end (s2c/1256): "Khăn Vòng sắp hỏng, hãy sửa" or "Mặt Nạ Xương đã hỏng".
+fn wear_notice(text: &str) -> bool {
+    text.ends_with("sắp hỏng, hãy sửa") || text.ends_with(" đã hỏng")
 }

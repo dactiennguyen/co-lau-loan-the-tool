@@ -457,8 +457,9 @@ fn bag_gear_and_money_read_what_the_ts_decoders_read() {
         seen += 1;
     }
     // 11 of 0.0.2, 6 of 0.0.7 (test/fixtures-v007.ts: bag, gear, s2c/37 on and off), 1 of the server of 22/11
-    // (test/fixtures-v111.ts: s2c/9 with the character's code).
-    assert_eq!(seen, 18);
+    // (test/fixtures-v111.ts: s2c/9 with the character's code), 1 of the game 1.1.1 build 6 (G6: s2c/46 with an i32 after
+    // Lượng).
+    assert_eq!(seen, 19);
 }
 
 /// The x2 EXP of Tăng Kinh Nghiệm comes in the s2c/9 tail with the time it has left: the snapshot keeps when it ends and
@@ -3198,6 +3199,46 @@ fn tu_nhat_do_counts_the_drops_of_the_last_battle_in_the_job_it_ended() {
         bot.snapshot().job.unwrap().picked,
         [Picked::of(41, 120), Picked::of(412, 1),]
     );
+}
+
+/// The wear notice of the battle's end ("Khăn Vòng sắp hỏng, hãy sửa") comes before the pickup's answer: it is a server
+/// line, not a refusal, and the Xu khóa still counts (MissThao on the phone, 26/11: "Không nhặt được Xu khóa ×787: Khăn
+/// Vòng sắp hỏng, hãy sửa", then "Bạn vừa nhận được 787 Xu khóa").
+#[test]
+fn a_wear_notice_among_the_pickups_is_not_their_answer() {
+    let (mut bot, mut out, now, setup) = coc_xanh_bot();
+    bot.fight("Cóc Xanh", 1, 1, now, &mut out);
+    bot.on_packet(22, &setup, now, &mut out).unwrap();
+    let end = now + Duration::from_secs(1);
+    bot.on_packet(1182, &drop_packet("gold", 41, 787), end, &mut out)
+        .unwrap();
+    bot.on_packet(19, &won_battle(), end, &mut out).unwrap();
+    bot.on_packet(1214, &[], end, &mut out).unwrap();
+    for i in 1..3 {
+        bot.on_timer(end + Duration::from_millis(200) * i, &mut out);
+    }
+    assert_eq!(sends(&out, 1188), 1, "{out:?}");
+    let notice = |text: &str| Writer::new().u8(0).string(text).build();
+    out.clear();
+    let at = end + Duration::from_millis(500);
+    for text in [
+        "Khăn Vòng sắp hỏng, hãy sửa",
+        "Mặt Nạ Xương đã hỏng",
+        "Bạn vừa nhận được 787 Xu khóa",
+    ] {
+        bot.on_packet(1256, &notice(text), at, &mut out).unwrap();
+    }
+    assert!(!logged(&out, "Không nhặt được"), "{out:?}");
+    assert!(logged(&out, "Khăn Vòng sắp hỏng, hãy sửa"), "{out:?}");
+    let picked: Vec<(i32, i64)> = out
+        .iter()
+        .filter_map(|o| match o {
+            Out::Pickup(p) => Some((p.item.item_id, p.item.quantity)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(picked, [(41, 787)]);
+    assert_eq!(bot.snapshot().job.unwrap().picked, [Picked::of(41, 787)]);
 }
 
 /// s2c/1182 of an item fallen in M1, as the server writes it (13-drops-items.md#đồ-trên-đất).
