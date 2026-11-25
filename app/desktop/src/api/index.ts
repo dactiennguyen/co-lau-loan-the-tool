@@ -402,11 +402,21 @@ const loadSample = () =>
   (sample ??= fetch(`${import.meta.env.BASE_URL}sample.json`)
     .then((r) => (r.ok ? (r.json() as Promise<Sample>) : Promise.reject(new Error(r.statusText))))
     .catch((): Sample => ({ rev: 0, accounts: [], accountsError: null, logs: {} }))
-    // ?captcha=1: the first account waits on a captcha (CaptchaGate); its picture is public/captcha-sample.png if there
-    // is one (not in the repository: a picture of a real captcha, captures/lg1-2026-11-25).
+    // ?captcha=1: the first account waits on a captcha (CaptchaPanel) and the second let its time go by (unverified);
+    // the picture is public/captcha-sample.png if there is one (not in the repository: a picture of a real captcha,
+    // captures/cs2-2026-11-25).
     .then((s) =>
       new URLSearchParams(location.search).get("captcha") && s.accounts[0]
-        ? { ...s, accounts: [{ ...s.accounts[0], captcha: { id: 1, expiresAt: Date.now() + 60_000, tries: 3, error: null, refused: 0 } }, ...s.accounts.slice(1)] }
+        ? {
+            ...s,
+            accounts: s.accounts.map((a, i) =>
+              i === 0
+                ? { ...a, unverified: true, captcha: { id: 1, expiresAt: Date.now() + 60_000, tries: 3, error: null, refused: 0 } }
+                : i === 1
+                  ? { ...a, unverified: true, captcha: null }
+                  : a,
+            ),
+          }
         : s,
     ));
 const nothing = async () => {};

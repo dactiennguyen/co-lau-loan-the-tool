@@ -54,6 +54,9 @@ pub struct Entry {
     /// Xác nhận người chơi: the captcha the server asked and the user has not passed yet (Event::Captcha), until when it
     /// may be answered (ms since 1970), and why the last answer was refused.
     pub captcha: Option<Captcha>,
+    /// The server asked a captcha in this session and it was not passed: no battle gives anything (stays once the time
+    /// of the captcha is over, until a passed one or a new login).
+    pub unverified: bool,
     /// Its recent battles against mobs, for Gợi ý quái of the list of mobs (view.rs, cllt_core::farm).
     pub farm: FarmBook,
 }
@@ -83,6 +86,7 @@ impl Entry {
             battle: BattleState::default(),
             proxy_ip: None,
             captcha: None,
+            unverified: false,
             farm: FarmBook::default(),
         }
     }
@@ -1094,6 +1098,7 @@ impl App {
                     ) {
                         e.proxy_ip = None;
                         e.captcha = None;
+                        e.unverified = false;
                     }
                     e.state = state;
                     self.touch(id, false);
@@ -1140,6 +1145,7 @@ impl App {
                 if let Some(e) = self.entry_mut(id) {
                     match c {
                         cllt_core::bot::CaptchaUi::Show(p) => {
+                            e.unverified = true;
                             e.captcha = Some(Captcha {
                                 expires_at: epoch_ms() + u64::from(p.seconds) * 1000,
                                 prompt: *p,
@@ -1147,8 +1153,11 @@ impl App {
                                 refused: 0,
                             })
                         }
-                        cllt_core::bot::CaptchaUi::Verdict { passed: true, .. }
-                        | cllt_core::bot::CaptchaUi::Close => e.captcha = None,
+                        cllt_core::bot::CaptchaUi::Verdict { passed: true, .. } => {
+                            e.captcha = None;
+                            e.unverified = false;
+                        }
+                        cllt_core::bot::CaptchaUi::Close => e.captcha = None,
                         cllt_core::bot::CaptchaUi::Verdict { text, .. } => {
                             if let Some(c) = e.captcha.as_mut() {
                                 c.error = Some(text);

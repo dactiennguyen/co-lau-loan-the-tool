@@ -138,6 +138,8 @@ pub struct AccountView<'a> {
     /// Xác nhận người chơi: the captcha the server asked and the user has not passed; its picture comes with
     /// `captcha_image`.
     pub captcha: Option<CaptchaView<'a>>,
+    /// A captcha was asked in this session and not passed: battles give nothing until a new login passes one.
+    pub unverified: bool,
 }
 
 /// A captcha waiting for the user, without its picture.
@@ -804,6 +806,7 @@ pub fn account(e: &Entry) -> AccountView<'_> {
             error: c.error.as_deref(),
             refused: c.refused,
         }),
+        unverified: e.unverified,
         character: (e.state == ConnState::Online && !s.name.is_empty()).then(|| CharacterView {
             name: &s.name,
             level: s.level,

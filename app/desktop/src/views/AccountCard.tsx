@@ -10,6 +10,7 @@ import { Pill } from "@/components/Pill";
 import { cn } from "@/utils/cn";
 import { isConnected, levelProgress, num, pct } from "@/utils/format";
 import { selectedId, useStore } from "@/store";
+import { CaptchaTag } from "./CaptchaPanel";
 import { ProxyButton } from "./ProxyButton";
 
 /** The share of the level from which it is about to go up (the ring cycles its colours). */
@@ -156,6 +157,8 @@ export const AccountCard = memo(function AccountCard({ id: accountId, onMenu }: 
               players around are on the Người chơi card of its page. */}
           {a.proxy?.enabled && <ProxyButton proxy={a.proxy} frameClassName={cn(!c && "ml-auto")} />}
         </div>
+        {/* Xác nhận người chơi: a row of its own under the status, so the HP bar keeps its width. */}
+        <CaptchaTag account={a} />
       </div>
       <Button
         kind={connected ? "ghost" : "tonal"}

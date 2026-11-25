@@ -960,6 +960,8 @@ export interface Account {
   character: Character | null;
   /** Xác nhận người chơi: the captcha the server asked and the user has not passed (its picture: api.captchaImage). */
   captcha: CaptchaInfo | null;
+  /** A captcha was asked in this session and not passed: battles give nothing until a new login passes one. */
+  unverified: boolean;
 }
 
 /** A captcha of the server waiting for the user (docs/app/events/02-login.md#captcha). */

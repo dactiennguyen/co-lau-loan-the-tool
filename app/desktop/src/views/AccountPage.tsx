@@ -6,6 +6,7 @@ import { QR_TAB, tabOwner } from "@/utils/qrPayload";
 import { selectedLog, useStore } from "@/store";
 import type { Account } from "@/api/types";
 import { useFightSetting } from "@/hooks/useFightSetting";
+import { CaptchaPanel, captchaShown } from "./CaptchaPanel";
 import { FightCard, type FightChoice } from "./FightCard";
 import { FightSettingsCard } from "./FightSettingsCard";
 import { HeroCard } from "./HeroCard";
@@ -141,6 +142,8 @@ export function AccountPage({ account }: { account: Account }) {
       />
     );
   const log = <LogCard id={id} lines={logLines} fighting={!!c?.battle} />;
+  // Xác nhận người chơi: on this account's page only, above what it shows (CaptchaPanel), whatever tab is open.
+  const captcha = <CaptchaPanel account={account} />;
   const shopBusy = (c?.smith && c.smith.done == null) || (c?.gift && c.gift.done == null);
 
   if (phone) {
@@ -160,12 +163,16 @@ export function AccountPage({ account }: { account: Account }) {
       <div className="grid grid-rows-[auto_minmax(0,1fr)_auto] h-full">
         <PhoneBar account={account} shopBusy={!!shopBusy} onShop={() => open({ kind: "shop", id })} />
         {/* The screen of the tab. */}
-        {phoneTab === "log" ? (
+        {phoneTab === "log" && !captchaShown(account) ? (
           <div className="grid grid-rows-[minmax(0,1fr)] grid-cols-[minmax(0,1fr)] min-h-0 p-2.5">{log}</div>
         ) : (
           // One column as wide as the screen: an auto column would grow to a card's longest line and push it off the screen.
           <div className="min-h-0 overflow-y-auto scroll grid grid-cols-[minmax(0,1fr)] [align-content:start] gap-2.5 p-2.5">
-            {phoneTab === "char" ? (
+            {captcha}
+            {phoneTab === "log" ? (
+              // Under the captcha the log scrolls with the page: it keeps a height of its own.
+              <div className="grid grid-rows-[minmax(0,1fr)] grid-cols-[minmax(0,1fr)] h-[60vh]">{log}</div>
+            ) : phoneTab === "char" ? (
               <>
                 {hero}
                 {metrics}
@@ -203,7 +210,13 @@ export function AccountPage({ account }: { account: Account }) {
   // As tall as the window, so the bottom cards take what is left (and scroll inside); below 800 px the page scrolls.
   // Narrow windows (up to 1120 px): the page grows with its cards and scrolls.
   return (
-    <div className="grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3 h-full min-h-[700px] narrow:h-auto narrow:min-h-full">
+    <div
+      className={cn(
+        "grid gap-3 h-full min-h-[700px] narrow:h-auto narrow:min-h-full",
+        captchaShown(account) ? "grid-rows-[auto_auto_auto_minmax(0,1fr)]" : "grid-rows-[auto_auto_minmax(0,1fr)]",
+      )}
+    >
+      {captcha}
       {hero}
       {/* Row 2: HP and EXP, the money, and Chỉ số beside them (under them in a narrow window), so the tabs and the log
           below take the whole width. */}
