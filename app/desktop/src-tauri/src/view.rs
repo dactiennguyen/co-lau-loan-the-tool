@@ -765,6 +765,9 @@ fn status(e: &Entry) -> (u8, &'static str) {
     match &e.state {
         ConnState::Offline => (0, "Ngoại tuyến"),
         ConnState::Connecting => (1, "Đang kết nối"),
+        // A job or quest run on holds its next battle while a captcha waits (bot/captcha.rs): it does not fight.
+        ConnState::Online if e.captcha.is_some() && (running || questing) => (3, "Chờ captcha"),
+        ConnState::Online if e.captcha.is_some() => (2, "Chờ captcha"),
         ConnState::Online if questing => (3, "Làm nhiệm vụ"),
         ConnState::Online if e.snap.battle.is_some() || running => (3, "Đang đánh"),
         ConnState::Online => (2, "Trực tuyến"),

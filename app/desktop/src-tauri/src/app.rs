@@ -2102,6 +2102,47 @@ mod tests {
         assert_eq!(fresh, [4]);
     }
 
+    /// A captcha while the fight job runs: the account says Chờ captcha, not Đang đánh (the job holds its next battle),
+    /// Báo khi có captcha queues one notification and the call for attention; passed, it fights again.
+    #[test]
+    fn a_captcha_waiting_shows_cho_captcha_and_is_notified_once() {
+        use cllt_core::bot::{CaptchaPrompt, CaptchaUi, Job};
+        let mut app = App::new(None, PathBuf::from("accounts.json"), channel().0);
+        let id = app.add(account("kakami"));
+        app.on_event(id, Event::State(ConnState::Online));
+        let snap = Snapshot {
+            name: "kakami".into(),
+            job: Some(Job {
+                target: "Hồng Xà".into(),
+                started_at: 1,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        app.on_event(id, Event::Snapshot(Box::new(snap)));
+        let status = |app: &App| crate::view::account(app.entry(id).unwrap()).status_text;
+        assert_eq!(status(&app), "Đang đánh");
+        let prompt = CaptchaPrompt {
+            id: 7,
+            png: vec![0x89],
+            seconds: 60,
+            tries: 3,
+        };
+        app.on_event(id, Event::Captcha(CaptchaUi::Show(Box::new(prompt))));
+        assert_eq!(status(&app), "Chờ captcha");
+        assert_eq!(app.notices, vec![crate::notify::captcha("kakami", 60)]);
+        assert!(app.attention);
+        app.on_event(
+            id,
+            Event::Captcha(CaptchaUi::Verdict {
+                passed: true,
+                text: "Xác nhận thành công".into(),
+            }),
+        );
+        assert_eq!(status(&app), "Đang đánh");
+        assert!(!app.entry(id).unwrap().unverified);
+    }
+
     #[test]
     fn with_the_writer_thread_log_lines_keep_the_row_ids_they_were_given_and_every_write_lands() {
         // A line from an earlier start of the app: the row ids go on after it.
