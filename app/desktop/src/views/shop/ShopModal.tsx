@@ -58,7 +58,7 @@ export const SHOP = {
   opts: "flex flex-wrap items-center gap-y-1.5 gap-x-3",
   opt: "inline-flex items-center gap-1.5 text-12 text-fg-2",
   /** A pixel check box like the setting rows: the input hidden, the box after it green when on. */
-  check: "inline-flex items-center gap-1.5 text-12 text-fg-2 cursor-pointer hover:text-fg",
+  check: "relative inline-flex items-center gap-1.5 text-12 text-fg-2 cursor-pointer hover:text-fg",
   checkInput: "peer absolute opacity-0 w-px h-px",
   checkBox:
     "grid place-items-center flex-none size-4 text-transparent bg-bg-2 shadow-[inset_0_0_0_2px_var(--line-strong)] " +

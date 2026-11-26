@@ -110,7 +110,7 @@ export function SkillsModal({ account, onClose }: { account: Account; onClose: (
           </span>
         )}
         {/* Tự cộng: a pixel check box, green when on, as the setting rows. */}
-        <label className="inline-flex items-center gap-1.5 text-12 font-semibold text-fg-2 cursor-pointer hover:text-fg has-[input:disabled]:opacity-60 has-[input:disabled]:cursor-wait">
+        <label className="relative inline-flex items-center gap-1.5 text-12 font-semibold text-fg-2 cursor-pointer hover:text-fg has-[input:disabled]:opacity-60 has-[input:disabled]:cursor-wait">
           <input
             className="peer absolute opacity-0 w-px h-px"
             type="checkbox"

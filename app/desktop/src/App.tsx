@@ -42,7 +42,7 @@ export default function App() {
     <div className="grid grid-cols-[252px_minmax(0,1fr)] h-screen phone:grid-cols-1 phone:h-full">
       {(!phone || !onAccount) && <Sidebar />}
       {(!phone || onAccount) && (
-        <main className="relative min-w-0 min-h-0 overflow-auto pt-[30px] px-4 pb-4 not-mac:pt-4 phone:p-0 phone:pt-0 phone:overflow-hidden">
+        <main className="relative min-w-0 min-h-0 overflow-auto pt-[30px] px-4 pb-4 not-mac:pt-4 phone:p-0 phone:pt-0 phone:overflow-clip">
           {/* No display class: the base layer of tailwind.css hides the drag strips outside macOS. */}
           <div className="absolute inset-x-0 top-0 h-7 phone:hidden" data-tauri-drag-region />
           {page}

@@ -17,7 +17,7 @@ export function CheckRow({ checked, onChange, disabled, className, children }: {
   children: ReactNode;
 }) {
   return (
-    <label className={cn("inline-flex items-center gap-1.5 text-12 text-fg-2 cursor-pointer hover:text-fg has-disabled:opacity-60 has-disabled:cursor-default", className)}>
+    <label className={cn("relative inline-flex items-center gap-1.5 text-12 text-fg-2 cursor-pointer hover:text-fg has-disabled:opacity-60 has-disabled:cursor-default", className)}>
       <input className="peer absolute opacity-0 w-px h-px" type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className={CHECK_BOX} aria-hidden="true">
         <Icon name="check" size={11} />

@@ -84,7 +84,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
     <fieldset className="grid gap-2.5 min-w-0">
       <label
         className={cn(
-          "grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 px-2.5 py-2 bg-ink cursor-pointer hover:bg-bg-2",
+          "relative grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 px-2.5 py-2 bg-ink cursor-pointer hover:bg-bg-2",
           p.enabled && "shadow-[inset_3px_0_0_var(--good)]",
         )}
       >
@@ -154,7 +154,7 @@ export function ProxyFields({ value: p, onChange, saved, accountId }: Props) {
               <label
                 key={k.kind}
                 className={cn(
-                  "inline-flex items-center h-[26px] px-2.5 py-0 bg-ink font-pixel font-normal text-12 leading-none text-fg-2 cursor-pointer notch-sm",
+                  "relative inline-flex items-center h-[26px] px-2.5 py-0 bg-ink font-pixel font-normal text-12 leading-none text-fg-2 cursor-pointer notch-sm",
                   "hover:text-fg has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-ring has-[input:focus-visible]:-outline-offset-4",
                   p.kind === k.kind && "bg-primary text-on-primary",
                 )}

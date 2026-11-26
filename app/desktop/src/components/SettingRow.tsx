@@ -43,7 +43,7 @@ export function SettingRow({ id, on, disabled, onChange, icon, title, hint, chil
   );
   return (
     <div className={cn("@container grid bg-ink", on && "shadow-[inset_3px_0_0_var(--good)]")}>
-      <div className="group/row flex flex-wrap items-center gap-x-1.5 gap-y-0 px-3 hover:bg-bg-2">
+      <div className="group/row relative flex flex-wrap items-center gap-x-1.5 gap-y-0 px-3 hover:bg-bg-2">
         {onChange ? (
           <>
             <input

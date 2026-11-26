@@ -430,7 +430,7 @@ function AccountRow({
       )}
     >
       <div className="grid grid-cols-[16px_32px_minmax(0,1fr)_auto] items-center gap-2.5">
-        <label className={cn("grid place-items-center", why || live ? "cursor-default" : "cursor-pointer")}>
+        <label className={cn("relative grid place-items-center", why || live ? "cursor-default" : "cursor-pointer")}>
           <input
             className="peer absolute opacity-0 w-px h-px"
             type="checkbox"
