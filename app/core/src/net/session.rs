@@ -70,7 +70,7 @@ enum Pending {
 }
 
 /// Login states of FLOW (src/net/client.ts): each sends one request and waits for its answers.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(super) enum Step {
     Key,
     Version,
@@ -221,10 +221,14 @@ pub(super) async fn session(
                     if let Err(e) = bot.on_packet(op, &p.payload, now, out) {
                         out.push(Out::Log(LogKind::Server, format!("Không đọc được s2c/{op}: {e}")));
                     }
-                    if op == 0 && step != Step::Ready {
+                    // Before s2c/4, s2c/0 is the server saying no to the login ("Tài khoản hiện đang đăng nhập ở một
+                    // nơi khác", "Vui lòng chờ 8 giây"). From s2c/4 on the login is taken and s2c/0 is a message box,
+                    // logged by Bot::on_packet: the notice of a ban from EXP ("Xử lý vi phạm lần 1…", 26/11) comes
+                    // right after s2c/43, before s2c/1263, and the game shows it and goes on.
+                    if op == 0 && step <= Step::Auth {
                         let mut r = Reader::new(&p.payload);
                         let text = r.u8().and_then(|_| r.string()).unwrap_or_default();
-                        return Err(format!("Server từ chối: {text}"));
+                        return Err(format!("{REFUSED}: {text}"));
                     }
                     let before = step;
                     match (step, op) {

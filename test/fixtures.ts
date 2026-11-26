@@ -1543,6 +1543,7 @@ export const fixtures: Record<string, any> = {
 };
 
 // Server response observed directly by Node.js during the live account test.
+fixtures['ban-notice'] = { opcode: 0, bytes: 392, hex: 'ff0000018358e1bbad206cc3bd207669207068e1baa16d206ce1baa76e20312c2074c3a069206b686fe1baa36e2063e1bba7612062e1baa16e20c491616e672062e1bb8b2063e1baa56d206e68e1baad6e206b696e68206e676869e1bb876d2028c491c3a16e68207175c3a169292e0a4cc3bd20646f3a2053e1bbad2064e1bba56e67207068e1baa76e206de1bb816d207468e1bba920332063616e20746869e1bb8770207472c3b2206368c6a1690a5468e1bb9d692068e1baa16e3a2074e1bb9b692031333a31342030332f31322f323032360a5472c6b0e1bb9d6e672068e1bba3702076e1baab6e207469e1babf702074e1bba563207669207068e1baa16d2063c3b3207468e1bb83206bc3a96f2064c3a069207468e1bb9d69206769616e2062e1bb8b2063e1baa56d20686fe1bab763206b68c3b3612074c3a069206b686fe1baa36e2076c4a96e68207669e1bb856e2e0a4de1bb8d69207468e1baaf63206de1baaf6320767569206cc3b26e67206c69c3aa6e2068e1bb872068e1bb97207472e1bba32e', source: 'App trace, 26/11/2026 22:27 login: s2c/0 right after s2c/43, before s2c/1263; the notice of a ban from EXP until 13:14 03/12/2026' };
 fixtures['server-message'] = { opcode: 0, bytes: 65, hex: 'ff0000003c54c3a069206b686fe1baa36e206869e1bb876e20c491616e6720c491c4836e67206e68e1baad7020e1bb9f206de1bb9974206ec6a169206b68c3a163', source: 'Direct live Node.js TCP response; no credential stored' };
 
 // Mob battles: s2c/22 board, then per s2c/19 (move) or s2c/20 (skill cells) the refill list and server extra-turn flag.

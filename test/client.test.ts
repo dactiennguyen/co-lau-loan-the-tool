@@ -87,3 +87,10 @@ test('in the world "logged in elsewhere" still ends the session at once: it was 
     assert.deepEqual([result.diagnostic?.code, result.diagnostic?.reason], ['SERVER_MESSAGE', 'Tài khoản hiện đang đăng nhập ở một nơi khác']);
   } finally { await server.close(); }
 });
+
+test('a message box after s2c/4 does not refuse the login: the ban notice between s2c/43 and s2c/1263 is logged and the client goes in', async () => {
+  const { result, events } = await run('ban-notice');
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostic));
+  assert.match(events.find(e => e.event === 'server_message')?.text, /^Xử lý vi phạm lần 1/);
+  assert.ok(events.some(e => e.event === 's2c/1263'));
+});

@@ -24,7 +24,18 @@ enum Fault {
     Mute,
     /// An account without a character: s2c/8 (the options of the character screen) instead of s2c/9 (20/11).
     NoCharacter,
+    /// The notice of a ban from EXP (s2c/0, flag -1) between s2c/43 and s2c/1263, as the server sent it to nobita and
+    /// 40six2 on 26/11: the login is taken, the game shows the box and goes on.
+    Banned,
+    /// "Tài khoản hiện đang đăng nhập ở một nơi khác" (s2c/0) instead of s2c/4: the login is refused.
+    Elsewhere,
 }
+
+/// s2c/0: i8 flag; string text.
+fn message_box(text: &str) -> Vec<u8> {
+    Writer::new().u8(0xff).string(text).build()
+}
+const BAN: &str = "Xử lý vi phạm lần 1, tài khoản của bạn đang bị cấm nhận kinh nghiệm (đánh quái).\nLý do: Sử dụng phần mềm thứ 3 can thiệp trò chơi\nThời hạn: tới 13:14 03/12/2026";
 
 /// Made-up answers to each login request, enough for the parsers of FLOW.
 fn answers(op: i32, fault: Fault) -> Vec<(i32, Vec<u8>)> {
@@ -55,6 +66,10 @@ fn answers(op: i32, fault: Fault) -> Vec<(i32, Vec<u8>)> {
         5 => vec![(5, w().u8(1).string("").build())],
         2 => vec![(2, w().string("").build())],
         3 => vec![(3, w().bytes(&[0x10, 0x0c, 0, 1]).build())],
+        4 if fault == Fault::Elsewhere => vec![(
+            0,
+            message_box("Tài khoản hiện đang đăng nhập ở một nơi khác"),
+        )],
         4 => vec![(4, vec![])],
         9 if fault == Fault::NoCharacter => vec![(8, w().i32(18).i32(0).build())],
         9 => {
@@ -74,6 +89,11 @@ fn answers(op: i32, fault: Fault) -> Vec<(i32, Vec<u8>)> {
         11 if fault == Fault::StallMap => vec![],
         11 => vec![(11, if fault == Fault::Map { vec![1] } else { map })],
         43 if fault == Fault::Alone => vec![(43, mobs.build())],
+        43 if fault == Fault::Banned => vec![
+            (43, mobs.build()),
+            (0, message_box(BAN)),
+            (1263, vec![0, 0]),
+        ],
         43 => vec![
             (
                 43,
@@ -335,6 +355,41 @@ async fn a_login_whose_answers_read_goes_online() {
     assert_eq!(
         states(&events),
         [ConnState::Connecting, ConnState::Online, ConnState::Offline]
+    );
+}
+
+/// A message box after s2c/4 is not a refusal: the notice of a ban from EXP came between s2c/43 and s2c/1263 and the app
+/// ended the login with "Server từ chối: Xử lý vi phạm lần 1…" (40six2, Android 2.2.27, 26/11) while the game went in.
+#[tokio::test]
+async fn a_message_box_after_s2c_4_is_logged_and_the_login_goes_on() {
+    let (events, tx, task) = login(Fault::Banned).await;
+    online(&events).await;
+    assert!(
+        logs(&events)
+            .iter()
+            .any(|l| l.starts_with("Server: Xử lý vi phạm lần 1")),
+        "{:?}",
+        logs(&events)
+    );
+    tx.send(Command::Logout).unwrap();
+    ends(task).await;
+    assert_eq!(
+        states(&events),
+        [ConnState::Connecting, ConnState::Online, ConnState::Offline]
+    );
+}
+
+/// Before s2c/4 a message box is the server saying no to the login.
+#[tokio::test]
+async fn a_message_box_instead_of_s2c_4_refuses_the_login() {
+    let (events, _tx, task) = login(Fault::Elsewhere).await;
+    ends(task).await;
+    assert_eq!(
+        states(&events),
+        [
+            ConnState::Connecting,
+            ConnState::Error("Server từ chối: Tài khoản hiện đang đăng nhập ở một nơi khác".into())
+        ]
     );
 }
 

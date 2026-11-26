@@ -15,6 +15,8 @@ export const FLOW: { state: string; request: number; expect: number[] }[] = [
   { state: 'map', request: 11, expect: [11] }, { state: 'entities', request: 43, expect: [43, 1263] },
 ];
 export const EXPECTED: Record<string, number[]> = { proxy: [], seed: [], ...Object.fromEntries(FLOW.map(s => [s.state, s.expect])) };
+/** The states in which s2c/0 is the server refusing the login: until s2c/4 accepts it (02-login.md#s2c-0). */
+const REFUSING = new Set(['proxy', 'seed', 'key', 'version', 'notice', 'challenge2', 'challenge3', 'authenticating']);
 /** The s2c/0 of a session taken over by a login elsewhere (02-login.md#s2c-0): ends the session, in the world too. */
 export const LOGGED_IN_ELSEWHERE = /đăng nhập ở (một )?nơi khác/i;
 /** The s2c/8 of a login whose account has no character yet (02-login.md#s2c-8). */
@@ -187,10 +189,11 @@ export function runClient(options: ClientOptions = {}): Promise<ClientResult> {
             fields: decoded?.fields, parsedBytes: decoded?.parsedBytes ?? 0, opaqueBytes: decoded?.opaqueBytes ?? packet.payload.length });
           if (packet.opcode === undefined || !spec) emit('unknown_opcode', { code: 'OPCODE_MAPPING_OR_CATALOG', encodedOpcode: packet.encodedOpcode, opcode: packet.opcode ?? null });
           if (packet.opcode !== undefined) options.session?.onPacket(packet.opcode, packet.payload);
-          // In the world s2c/0 is the server's message box (Hương Lão's Cách tính điểm, Chế tạo short of materials:
-          // 14-npc.md#s2c-0): logged and handed to the session, which goes on. Before that it ends the login, and so does
-          // "logged in elsewhere" in the world: the session was taken over and must send nothing more.
-          if (ready && packet.opcode === 0) {
+          // From s2c/4 on s2c/0 is the server's message box (Hương Lão's Cách tính điểm, Chế tạo short of materials:
+          // 14-npc.md#s2c-0; the notice of a ban from EXP, which comes between s2c/43 and s2c/1263 at login, 26/11): logged
+          // and handed to the session, which goes on. Before s2c/4 it ends the login, and so does "logged in elsewhere"
+          // in the world: the session was taken over and must send nothing more.
+          if ((ready || !REFUSING.has(state)) && packet.opcode === 0) {
             const text = String(decoded?.fields.text ?? '');
             if (LOGGED_IN_ELSEWHERE.test(text)) throw new ProtocolError('SERVER_MESSAGE', text, { serverFlag: decoded?.fields.flag, sourceEvent: 's2c/0', inWorld: true });
             lastServerMessage = { flag: decoded?.fields.flag, text, at: Date.now() };
